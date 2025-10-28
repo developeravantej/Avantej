@@ -1,0 +1,313 @@
+openapi: 3.0.3
+info:
+  title: Avantej Hierarchy API
+  description: Hierarchy management (CRUD for countries, regions, areas, branches)
+  version: 1.0.0
+
+servers:
+  - url: https://api.avantej.com
+    description: Production
+  - url: https://api-staging.avantej.com
+    description: Staging
+
+paths:
+  /orgs/{orgId}/hierarchy:
+    get:
+      summary: Get full hierarchy tree for organization
+      operationId: getHierarchyTree
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: scopeFilter
+          in: query
+          description: Filter to user's accessible nodes only
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Hierarchy tree retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HierarchyNode'
+        '403':
+          description: User not a member of this organization
+        '404':
+          description: Organization not found
+
+  /orgs/{orgId}/hierarchy/nodes:
+    post:
+      summary: Create new hierarchy node (admin or scoped permission)
+      operationId: createHierarchyNode
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type, parentId]
+              properties:
+                name:
+                  type: string
+                  example: North America
+                type:
+                  type: string
+                  enum: [country, region, area, branch]
+                parentId:
+                  type: string
+                  format: uuid
+                  description: Parent node ID (null for organization root)
+                  nullable: true
+      responses:
+        '201':
+          description: Hierarchy node created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchyNode'
+        '400':
+          description: Validation error (invalid type for depth, orphan node)
+        '403':
+          description: User lacks permission to create node at this level
+        '404':
+          description: Parent node not found
+
+  /orgs/{orgId}/hierarchy/nodes/{nodeId}:
+    get:
+      summary: Get hierarchy node details
+      operationId: getHierarchyNode
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Node details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchyNode'
+        '403':
+          description: User cannot access this node
+        '404':
+          description: Node not found
+
+    patch:
+      summary: Update hierarchy node (admin or scoped permission)
+      operationId: updateHierarchyNode
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Node updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchyNode'
+        '403':
+          description: User lacks permission to update this node
+        '404':
+          description: Node not found
+
+    delete:
+      summary: Delete hierarchy node (cascade deletes children)
+      operationId: deleteHierarchyNode
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Node deleted successfully
+        '403':
+          description: User lacks permission to delete this node
+        '404':
+          description: Node not found
+        '409':
+          description: Cannot delete node with active members scoped to it
+
+  /orgs/{orgId}/hierarchy/nodes/{nodeId}/move:
+    post:
+      summary: Move node to new parent (preserves depth constraints)
+      operationId: moveHierarchyNode
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newParentId]
+              properties:
+                newParentId:
+                  type: string
+                  format: uuid
+                  description: New parent node ID
+      responses:
+        '200':
+          description: Node moved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchyNode'
+        '400':
+          description: Validation error (would violate depth constraints, circular reference)
+        '403':
+          description: User lacks permission to move this node
+        '404':
+          description: Node or new parent not found
+
+  /orgs/{orgId}/hierarchy/nodes/{nodeId}/descendants:
+    get:
+      summary: Get all descendant nodes (children, grandchildren, etc.)
+      operationId: getDescendantNodes
+      tags: [Hierarchy]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Descendant nodes retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HierarchyNode'
+        '403':
+          description: User cannot access this node
+        '404':
+          description: Node not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HierarchyNode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [organization, country, region, area, branch]
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        depth:
+          type: integer
+          minimum: 0
+          maximum: 4
+          description: 0=organization, 1=country, 2=region, 3=area, 4=branch
+        createdAt:
+          type: string
+          format: date-time
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/HierarchyNode'

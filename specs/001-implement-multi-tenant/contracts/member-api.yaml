@@ -1,0 +1,383 @@
+openapi: 3.0.3
+info:
+  title: Avantej Member API
+  description: Member management (invite, accept, remove, update roles)
+  version: 1.0.0
+
+servers:
+  - url: https://api.avantej.com
+    description: Production
+  - url: https://api-staging.avantej.com
+    description: Staging
+
+paths:
+  /orgs/{orgId}/members:
+    get:
+      summary: List organization members (filtered by user's hierarchy scope)
+      operationId: listMembers
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: role
+          in: query
+          description: Filter by role
+          schema:
+            type: string
+            enum: [admin, trainer, staff, client]
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, suspended]
+        - name: hierarchyNodeId
+          in: query
+          description: Filter by hierarchy scope node
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Members list retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+        '403':
+          description: User not a member of this organization
+        '404':
+          description: Organization not found
+
+  /orgs/{orgId}/members/invite:
+    post:
+      summary: Send invitation to join organization
+      operationId: inviteMember
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role, hierarchyScopeId]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: trainer@example.com
+                role:
+                  type: string
+                  enum: [admin, trainer, staff, client]
+                hierarchyScopeId:
+                  type: string
+                  format: uuid
+                  description: Hierarchy node ID for member's access scope
+      responses:
+        '201':
+          description: Invitation sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          description: Validation error (invalid email, hierarchy scope not accessible)
+        '403':
+          description: User lacks permission to invite to this hierarchy scope
+        '404':
+          description: Organization or hierarchy node not found
+        '409':
+          description: User already a member or pending invitation exists
+
+  /invitations/{token}/accept:
+    post:
+      summary: Accept invitation to join organization
+      operationId: acceptInvitation
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation accepted, member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400':
+          description: Invalid or expired token
+        '404':
+          description: Invitation not found
+
+  /invitations/{token}/decline:
+    post:
+      summary: Decline invitation
+      operationId: declineInvitation
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Invitation declined
+        '404':
+          description: Invitation not found
+
+  /orgs/{orgId}/members/{memberId}:
+    get:
+      summary: Get member details
+      operationId: getMember
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDetails'
+        '403':
+          description: User cannot access this member
+        '404':
+          description: Member not found
+
+    patch:
+      summary: Update member role or hierarchy scope (admin only)
+      operationId: updateMember
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [admin, trainer, staff, client]
+                hierarchyScopeId:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [active, suspended]
+      responses:
+        '200':
+          description: Member updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '403':
+          description: User lacks permission to update this member
+        '404':
+          description: Member or hierarchy node not found
+
+    delete:
+      summary: Remove member from organization (admin only)
+      operationId: removeMember
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Member removed successfully
+        '403':
+          description: User lacks permission to remove this member
+        '404':
+          description: Member not found
+
+  /orgs/{orgId}/invitations:
+    get:
+      summary: List pending invitations (admin only)
+      operationId: listInvitations
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [pending, accepted, declined, expired]
+      responses:
+        '200':
+          description: Invitations list retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+        '403':
+          description: User does not have admin role
+        '404':
+          description: Organization not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        userEmail:
+          type: string
+          format: email
+        organizationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [admin, trainer, staff, client]
+        hierarchyScopeId:
+          type: string
+          format: uuid
+        hierarchyScopeName:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended]
+        joinedAt:
+          type: string
+          format: date-time
+
+    MemberDetails:
+      allOf:
+        - $ref: '#/components/schemas/Member'
+        - type: object
+          properties:
+            accessibleNodeIds:
+              type: array
+              items:
+                type: string
+                format: uuid
+              description: Hierarchy node IDs accessible to this member (scope + descendants)
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        organizationName:
+          type: string
+        invitedEmail:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, trainer, staff, client]
+        hierarchyScopeId:
+          type: string
+          format: uuid
+        hierarchyScopeName:
+          type: string
+        invitedByUserId:
+          type: string
+          format: uuid
+        invitedByUserName:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, declined, expired]
+        token:
+          type: string
+          description: JWT token for invitation acceptance (7 day expiry)
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time

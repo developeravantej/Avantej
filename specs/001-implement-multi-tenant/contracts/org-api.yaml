@@ -1,0 +1,267 @@
+openapi: 3.0.3
+info:
+  title: Avantej Organization API
+  description: Organization lifecycle management (create, update, suspend, delete)
+  version: 1.0.0
+
+servers:
+  - url: https://api.avantej.com
+    description: Production
+  - url: https://api-staging.avantej.com
+    description: Staging
+
+paths:
+  /orgs:
+    post:
+      summary: Create new organization (requires active subscription)
+      operationId: createOrganization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug, subscriptionId]
+              properties:
+                name:
+                  type: string
+                  example: Downtown Fitness
+                slug:
+                  type: string
+                  pattern: '^[a-z0-9-]+$'
+                  example: downtown-fitness
+                subscriptionId:
+                  type: string
+                  format: uuid
+                  description: ID of active subscription from subscriptions table
+      responses:
+        '201':
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Validation error (invalid slug, missing subscription)
+        '403':
+          description: Subscription limit reached or no active subscription
+        '409':
+          description: Slug already taken
+
+  /orgs/{id}:
+    get:
+      summary: Get organization details
+      operationId: getOrganization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '403':
+          description: User not a member of this organization
+        '404':
+          description: Organization not found
+
+    patch:
+      summary: Update organization details (admin only)
+      operationId: updateOrganization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                  pattern: '^[a-z0-9-]+$'
+      responses:
+        '200':
+          description: Organization updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '403':
+          description: User does not have admin role
+        '404':
+          description: Organization not found
+        '409':
+          description: Slug already taken
+
+    delete:
+      summary: Delete organization (admin only, cascade deletes all data)
+      operationId: deleteOrganization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Organization deleted successfully
+        '403':
+          description: User does not have admin role
+        '404':
+          description: Organization not found
+
+  /orgs/{id}/context:
+    get:
+      summary: Get organization context (hierarchy tree, member role, accessible nodes)
+      operationId: getOrganizationContext
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization context retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organization:
+                    $ref: '#/components/schemas/Organization'
+                  member:
+                    $ref: '#/components/schemas/Member'
+                  hierarchyTree:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HierarchyNode'
+                  accessibleNodeIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                    description: IDs of hierarchy nodes user can access (scope + descendants)
+        '403':
+          description: User not a member of this organization
+        '404':
+          description: Organization not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        neonBranchId:
+          type: string
+          description: Neon database branch ID for tenant isolation
+        subscriptionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, suspended]
+        createdAt:
+          type: string
+          format: date-time
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [admin, trainer, staff, client]
+        hierarchyScopeId:
+          type: string
+          format: uuid
+        hierarchyScopeName:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended]
+        joinedAt:
+          type: string
+          format: date-time
+
+    HierarchyNode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [organization, country, region, area, branch]
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        depth:
+          type: integer
+          minimum: 0
+          maximum: 4
+        createdAt:
+          type: string
+          format: date-time
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/HierarchyNode'

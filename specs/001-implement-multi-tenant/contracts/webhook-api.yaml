@@ -1,0 +1,235 @@
+openapi: 3.0.3
+info:
+  title: Avantej Webhook API
+  description: Stripe webhook handlers (payment events)
+  version: 1.0.0
+
+servers:
+  - url: https://api.avantej.com
+    description: Production
+  - url: https://api-staging.avantej.com
+    description: Staging
+
+paths:
+  /webhooks/stripe:
+    post:
+      summary: Handle Stripe webhook events
+      operationId: handleStripeWebhook
+      tags: [Webhooks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe event object (signature verified via Stripe-Signature header)
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Stripe webhook signature for verification
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook signature or payload
+        '500':
+          description: Webhook processing failed (will retry)
+
+components:
+  schemas:
+    StripeEvent:
+      type: object
+      description: Stripe webhook event structure
+      properties:
+        id:
+          type: string
+          example: evt_1MqLfK2eZvKYlo2C9n6H7Yse
+        object:
+          type: string
+          example: event
+        type:
+          type: string
+          enum:
+            - checkout.session.completed
+            - customer.subscription.created
+            - customer.subscription.updated
+            - customer.subscription.deleted
+            - invoice.payment_succeeded
+            - invoice.payment_failed
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              description: The event object (varies by event type)
+
+    CheckoutSessionCompleted:
+      description: Triggered when subscription checkout completes
+      type: object
+      properties:
+        type:
+          type: string
+          example: checkout.session.completed
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: cs_test_a1b2c3
+                customer:
+                  type: string
+                  example: cus_NffrFeUfNV2Hib
+                subscription:
+                  type: string
+                  example: sub_1MqLfK2eZvKYlo2C9n6H7Yse
+                metadata:
+                  type: object
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                      description: User ID from registration flow
+
+    SubscriptionCreated:
+      description: Triggered when subscription is created
+      type: object
+      properties:
+        type:
+          type: string
+          example: customer.subscription.created
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: sub_1MqLfK2eZvKYlo2C9n6H7Yse
+                customer:
+                  type: string
+                  example: cus_NffrFeUfNV2Hib
+                status:
+                  type: string
+                  enum: [active, trialing]
+                items:
+                  type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          price:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                example: price_1MqLfK2eZvKYlo2C9n6H7Yse
+                              product:
+                                type: string
+                                example: prod_starter
+                              metadata:
+                                type: object
+                                properties:
+                                  tier:
+                                    type: string
+                                    enum: [starter, professional, enterprise]
+                                  organizationLimit:
+                                    type: integer
+
+    SubscriptionUpdated:
+      description: Triggered when subscription is updated
+      type: object
+      properties:
+        type:
+          type: string
+          example: customer.subscription.updated
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, past_due, canceled, unpaid]
+
+    SubscriptionDeleted:
+      description: Triggered when subscription is canceled
+      type: object
+      properties:
+        type:
+          type: string
+          example: customer.subscription.deleted
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                status:
+                  type: string
+                  example: canceled
+
+    InvoicePaymentSucceeded:
+      description: Triggered when invoice payment succeeds
+      type: object
+      properties:
+        type:
+          type: string
+          example: invoice.payment_succeeded
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                subscription:
+                  type: string
+                customer:
+                  type: string
+                amount_paid:
+                  type: integer
+
+    InvoicePaymentFailed:
+      description: Triggered when invoice payment fails
+      type: object
+      properties:
+        type:
+          type: string
+          example: invoice.payment_failed
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              properties:
+                id:
+                  type: string
+                subscription:
+                  type: string
+                customer:
+                  type: string
+                amount_due:
+                  type: integer

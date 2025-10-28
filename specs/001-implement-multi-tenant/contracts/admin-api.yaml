@@ -1,0 +1,410 @@
+openapi: 3.0.3
+info:
+  title: Avantej Admin API
+  description: Platform admin control panel (view tenants, impersonate, audit logs)
+  version: 1.0.0
+
+servers:
+  - url: https://api.avantej.com
+    description: Production
+  - url: https://api-staging.avantej.com
+    description: Staging
+
+paths:
+  /admin/tenants:
+    get:
+      summary: List all organizations (platform admin only)
+      operationId: listTenants
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by organization status
+          schema:
+            type: string
+            enum: [active, suspended]
+        - name: search
+          in: query
+          description: Search by organization name or slug
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: Tenants list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '403':
+          description: User is not a platform admin
+
+  /admin/tenants/{id}:
+    get:
+      summary: Get tenant details (platform admin only)
+      operationId: getTenant
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tenant details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantDetails'
+        '403':
+          description: User is not a platform admin
+        '404':
+          description: Tenant not found
+
+  /admin/tenants/{id}/suspend:
+    post:
+      summary: Suspend organization (platform admin only)
+      operationId: suspendTenant
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  example: Payment failure
+      responses:
+        '200':
+          description: Organization suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSummary'
+        '403':
+          description: User is not a platform admin
+        '404':
+          description: Tenant not found
+
+  /admin/tenants/{id}/unsuspend:
+    post:
+      summary: Restore suspended organization (platform admin only)
+      operationId: unsuspendTenant
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSummary'
+        '403':
+          description: User is not a platform admin
+        '404':
+          description: Tenant not found
+
+  /admin/impersonate:
+    post:
+      summary: Start impersonation session (platform admin only)
+      operationId: startImpersonation
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: User ID to impersonate
+      responses:
+        '200':
+          description: Impersonation session started (1 hour duration)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  impersonationToken:
+                    type: string
+                    description: JWT token for impersonation session
+                  sessionId:
+                    type: string
+                    format: uuid
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '403':
+          description: User is not a platform admin
+        '404':
+          description: User to impersonate not found
+
+  /admin/impersonate/exit:
+    post:
+      summary: End impersonation session
+      operationId: exitImpersonation
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Impersonation session ended
+        '400':
+          description: No active impersonation session
+
+  /admin/audit-logs:
+    get:
+      summary: Get audit logs (platform admin only)
+      operationId: getAuditLogs
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: query
+          description: Filter by organization
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          description: Filter by user
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          description: Filter by action type
+          schema:
+            type: string
+            enum: [organization.created, organization.suspended, member.invited, member.removed, impersonation.started, impersonation.ended]
+        - name: startDate
+          in: query
+          description: Filter logs from this date
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: Filter logs until this date
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: Audit logs retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '403':
+          description: User is not a platform admin
+
+  /admin/stats:
+    get:
+      summary: Get platform statistics (platform admin only)
+      operationId: getPlatformStats
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Platform statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalOrganizations:
+                    type: integer
+                  activeOrganizations:
+                    type: integer
+                  suspendedOrganizations:
+                    type: integer
+                  totalUsers:
+                    type: integer
+                  totalMembers:
+                    type: integer
+                  activeSubscriptions:
+                    type: integer
+        '403':
+          description: User is not a platform admin
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TenantSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended]
+        neonBranchId:
+          type: string
+        subscriptionId:
+          type: string
+          format: uuid
+        subscriptionTier:
+          type: string
+          enum: [starter, professional, enterprise]
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    TenantDetails:
+      allOf:
+        - $ref: '#/components/schemas/TenantSummary'
+        - type: object
+          properties:
+            ownerUserId:
+              type: string
+              format: uuid
+            ownerEmail:
+              type: string
+              format: email
+            hierarchyNodeCount:
+              type: integer
+            subscription:
+              type: object
+              properties:
+                stripeSubscriptionId:
+                  type: string
+                stripeCustomerId:
+                  type: string
+                tier:
+                  type: string
+                organizationCountLimit:
+                  type: integer
+                status:
+                  type: string
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        organizationId:
+          type: string
+          format: uuid
+          nullable: true
+        targetUserId:
+          type: string
+          format: uuid
+          nullable: true
+        targetResourceType:
+          type: string
+          nullable: true
+        targetResourceId:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+          description: Additional context about the action
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+        totalPages:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
