@@ -8,3 +8,6 @@ neonConfig.poolQueryViaFetch = true;
 
 const sql = neon(env.DATABASE_URL || "");
 export const db = drizzle(sql);
+
+// Export encryption utilities
+export { encrypt, decrypt } from "./lib/encryption";

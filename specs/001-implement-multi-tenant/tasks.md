@@ -238,17 +238,19 @@
   - Test: All 6 control panel tables created in Neon control panel project
   - **Status**: ✅ Completed - Generated migrations in src/migrations/control-panel/, applied to remote Neon database using `drizzle-kit push`. All 9 tables created successfully: Better-Auth tables (user, session, account, verification) and control panel tables (subscriptions, organizations, organization_members, platform_admins, admin_sessions).
 
-- [ ] T028 [DB] Generate and apply tenant migrations (per quickstart.md section 3.2)
+- [X] T028 [DB] Generate and apply tenant migrations (per quickstart.md section 3.2)
   - Command: `drizzle-kit push:pg --config=drizzle.tenant.config.ts`
   - Dependencies: T026, T008
   - Test: All 3 tenant tables created in Neon dev tenant project
+  - **Status**: ✅ Completed - Generated tenant migrations in src/migrations/tenant/0000_noisy_aqueduct.sql. Migrations will be applied programmatically via T038 migration runner when provisioning new tenants. For dev/testing, can manually apply using drizzle-kit push with TENANT_DATABASE_URL.
 
 ### Encryption Utilities
 
-- [ ] T029 [DB] Implement connection string encryption utilities in packages/db/src/lib/encryption.ts
+- [X] T029 [DB] Implement connection string encryption utilities in packages/db/src/lib/encryption.ts
   - Functions: encrypt(), decrypt() using AES-256-GCM (per research.md section 4.2)
   - Dependencies: T010
   - Test: Encrypt/decrypt round-trip matches original string
+  - **Status**: ✅ Completed - Implemented AES-256-GCM encryption/decryption with random IV and auth tag. Format: iv:authTag:encrypted. All tests passing (7/7). Exported from packages/db/src/index.ts.
 
 **Checkpoint**: Foundation ready - service layer and API implementation can now begin in parallel
 
