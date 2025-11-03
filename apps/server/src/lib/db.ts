@@ -22,8 +22,16 @@ import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { env } from "cloudflare:workers";
 import ws from "ws";
+import { eq } from "drizzle-orm";
 // Import control panel schemas (auth + control-panel tables)
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+// Import tenant schemas (hierarchy_nodes, members, invitations)
+import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+// Import organizations table for lookups
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+// Import encryption utilities
+import { decrypt } from "@avantej-core/db";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 
 // Configure Neon for Cloudflare Workers
 neonConfig.webSocketConstructor = ws;
@@ -62,4 +70,55 @@ export const controlPanelDb = drizzle(sql, {
  * Export the Neon SQL client for direct queries if needed
  */
 export { sql };
+
+/**
+ * Tenant Database Connection Router
+ * 
+ * Routes requests to the correct tenant database based on organization ID.
+ * 
+ * Process:
+ * 1. Queries control panel database to find organization record
+ * 2. Decrypts the stored connection string
+ * 3. Creates and returns Drizzle client connected to that tenant's database
+ * 
+ * @param organizationId - UUID of the organization
+ * @returns Drizzle client for the tenant database with tenant schemas
+ * @throws Error if organization not found or connection string invalid
+ * 
+ * Usage:
+ * ```typescript
+ * import { getTenantDb } from "@/lib/db";
+ * 
+ * const tenantDb = await getTenantDb("org-123-uuid");
+ * const members = await tenantDb.query.members.findMany();
+ * ```
+ */
+export async function getTenantDb(
+	organizationId: string
+): Promise<NeonHttpDatabase<typeof tenantSchema>> {
+	// Lookup organization in control panel database
+	const organization = await controlPanelDb.query.organizations.findFirst({
+		where: eq(organizations.id, organizationId),
+	});
+
+	if (!organization) {
+		throw new Error(`Organization not found: ${organizationId}`);
+	}
+
+	// Decrypt connection string
+	let connectionString: string;
+	try {
+		connectionString = decrypt(organization.connectionString);
+	} catch (error) {
+		throw new Error(`Failed to decrypt connection string for organization ${organizationId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+	}
+
+	// Create Neon SQL client for tenant database
+	const tenantSql = neon(connectionString);
+
+	// Create and return Drizzle client with tenant schemas
+	return drizzle(tenantSql, {
+		schema: tenantSchema,
+	});
+}
 

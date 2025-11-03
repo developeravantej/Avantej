@@ -268,10 +268,11 @@
   - Test: Can query users table successfully
   - **Status**: ✅ Completed - Created control panel database client using @neondatabase/serverless and drizzle-orm/neon-http. Exports controlPanelDb with all control panel schemas (auth + control-panel tables). Configured for Cloudflare Workers environment with DATABASE_URL from env.
 
-- [ ] T031 [SERVICE] Implement tenant database connection router in apps/server/src/lib/db.ts
+- [X] T031 [SERVICE] Implement tenant database connection router in apps/server/src/lib/db.ts
   - Function: getTenantDb(organizationId) - decrypts connection string and creates Drizzle client
   - Dependencies: T029, T030
   - Test: Returns different Drizzle client per organization
+  - **Status**: ✅ Completed - Implemented getTenantDb() function that queries control panel DB for organization, decrypts connection string using T029 encryption utilities, and returns Drizzle client with tenant schemas. Includes error handling for missing organizations and decryption failures.
 
 ### MembershipService (5 methods from research.md section 4.6)
 
