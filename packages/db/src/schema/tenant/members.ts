@@ -1,0 +1,41 @@
+/**
+ * Tenant Members Schema
+ * 
+ * Represents user membership in an organization with role and hierarchy scope.
+ * Each member record is scoped to a specific hierarchy node (organization, country, region, area, or branch).
+ * 
+ * Note: userId references the users table in the control panel database but cannot have
+ * a foreign key constraint since they're in different Neon projects. The application layer
+ * ensures referential integrity.
+ * 
+ * Business Rules:
+ * - One user can have only one membership in this organization (enforced by unique index on userId)
+ * - User can belong to multiple organizations (via separate member records in different tenant databases)
+ * - Hierarchy scope determines accessible nodes (current + all descendants)
+ * - Admin role grants full organization access
+ * - Trainer/Staff/Client roles limited to hierarchy scope
+ * - Cannot remove last admin/owner from organization (enforced in app layer)
+ * - Role change triggers email notification (handled in app layer)
+ */
+
+import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { hierarchyNodes } from "./hierarchy";
+
+export const members = pgTable("members", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: text("user_id").notNull(), // References control panel users.id (text, no FK constraint due to cross-database)
+	role: text("role").notNull(), // admin, trainer, staff, client
+	hierarchyScopeId: uuid("hierarchy_scope_id")
+		.notNull()
+		.references(() => hierarchyNodes.id, { onDelete: "restrict" }),
+	status: text("status").notNull(), // active, suspended
+	joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (table) => ({
+	// Unique constraint: one membership per user in this tenant
+	userIdUniqueIdx: uniqueIndex("members_user_idx").on(table.userId),
+	// Indexes for performance
+	hierarchyScopeIdIdx: index("members_hierarchy_idx").on(table.hierarchyScopeId),
+	roleIdx: index("members_role_idx").on(table.role),
+	statusIdx: index("members_status_idx").on(table.status),
+}));
+

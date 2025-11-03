@@ -156,74 +156,87 @@
 
 ### Control Panel Database Schema (7 tables)
 
-- [ ] T015 [P] [DB] Define users table schema in packages/db/src/schema/control-panel/users.ts
+- [X] T015 [P] [DB] Define users table schema in packages/db/src/schema/control-panel/users.ts
   - Schema: id, email, passwordHash, name, emailVerified, createdAt, lastLoginAt (per data-model.md section 1)
   - Dependencies: T005
   - Test: Type exports correctly, no compilation errors
+  - **Status**: ✅ Completed - Extended Better-Auth's user table with lastLoginAt field, created control-panel/users.ts export
 
-- [ ] T016 [P] [DB] Define subscriptions table schema in packages/db/src/schema/control-panel/subscriptions.ts
+- [X] T016 [P] [DB] Define subscriptions table schema in packages/db/src/schema/control-panel/subscriptions.ts
   - Schema: id, stripeSubscriptionId, stripeCustomerId, tier, organizationCountLimit, status, timestamps
   - Dependencies: T005
   - Test: Foreign key to Stripe IDs, unique constraint on stripeSubscriptionId
+  - **Status**: ✅ Completed - Created subscriptions table with Stripe subscription tracking, unique constraint on stripeSubscriptionId, index on stripeCustomerId
 
-- [ ] T017 [P] [DB] Define organizations table schema in packages/db/src/schema/control-panel/organizations.ts
+- [X] T017 [P] [DB] Define organizations table schema in packages/db/src/schema/control-panel/organizations.ts
   - Schema: id, name, slug, neonProjectId, connectionString, subscriptionId, paymentStatus, ownerUserId, timestamps
   - Dependencies: T015, T016
   - Test: Foreign key to subscriptions, unique constraints on slug and neonProjectId
+  - **Status**: ✅ Completed - Created organizations table with foreign keys to subscriptions and users, unique constraints on slug and neonProjectId, indexes for performance
 
-- [ ] T018 [P] [DB] Define organization_members table schema in packages/db/src/schema/control-panel/organization-members.ts
+- [X] T018 [P] [DB] Define organization_members table schema in packages/db/src/schema/control-panel/organization-members.ts
   - Schema: id, userId, organizationId, role, status, joinedAt (membership registry per data-model.md section 4)
   - Dependencies: T015, T017
   - Test: Composite unique constraint on (userId, organizationId)
+  - **Status**: ✅ Completed - Created organization_members table with foreign keys to users and organizations, composite unique constraint on (userId, organizationId), indexes for performance
 
-- [ ] T019 [P] [DB] Define platform_admins table schema in packages/db/src/schema/control-panel/platform-admins.ts
+- [X] T019 [P] [DB] Define platform_admins table schema in packages/db/src/schema/control-panel/platform-admins.ts
   - Schema: id, userId, role (super_admin/support/billing), grantedBy, grantedAt
   - Dependencies: T015
   - Test: Unique constraint on userId
+  - **Status**: ✅ Completed - Created platform_admins table with foreign key to users, unique constraint on userId, index on role
 
-- [ ] T020 [P] [DB] Define admin_sessions table schema in packages/db/src/schema/control-panel/admin-sessions.ts
+- [X] T020 [P] [DB] Define admin_sessions table schema in packages/db/src/schema/control-panel/admin-sessions.ts
   - Schema: id, adminUserId, impersonatedUserId, organizationId, sessionToken, startedAt, endedAt
   - Dependencies: T015, T017
   - Test: Unique constraint on sessionToken
+  - **Status**: ✅ Completed - Created admin_sessions table with foreign keys to users and organizations, unique constraint on sessionToken, indexes including partial index for active sessions
 
-- [ ] T021 [DB] Create control panel database indexes (per data-model.md section "Indexes")
+- [X] T021 [DB] Create control panel database indexes (per data-model.md section "Indexes")
   - Files: Add index definitions to all control-panel schema files
   - Dependencies: T015-T020
   - Test: Index definitions compile, performance queries optimized
+  - **Status**: ✅ Completed - All indexes implemented during table creation: users (email unique), subscriptions (stripeSubscriptionId unique, customerId), organizations (slug/neonProjectId unique, subscriptionId, paymentStatus), organization_members (composite unique, userId, organizationId, status), platform_admins (userId unique, role), admin_sessions (sessionToken unique, adminUserId, active sessions partial index)
 
 ### Tenant Database Schema (3 tables)
 
-- [ ] T022 [P] [DB] Define hierarchy_nodes table schema in packages/db/src/schema/tenant/hierarchy.ts
+- [X] T022 [P] [DB] Define hierarchy_nodes table schema in packages/db/src/schema/tenant/hierarchy.ts
   - Schema: id, name, type, parentId, depth, timestamps (per data-model.md section 5)
   - Dependencies: T005
   - Test: Self-referencing foreign key, depth constraint 0-4
+  - **Status**: ✅ Completed - Created hierarchy_nodes table with self-referencing foreign key on parentId, indexes on parentId, type, and depth. No organizationId field needed since each tenant has its own database.
 
-- [ ] T023 [P] [DB] Define members table schema in packages/db/src/schema/tenant/members.ts
+- [X] T023 [P] [DB] Define members table schema in packages/db/src/schema/tenant/members.ts
   - Schema: id, userId, role, hierarchyScopeId, status, joinedAt
   - Dependencies: T022
   - Test: Foreign key to hierarchy_nodes, unique constraint on userId
+  - **Status**: ✅ Completed - Created members table with foreign key to hierarchy_nodes, unique constraint on userId (text type to match control panel users.id), indexes on hierarchyScopeId, role, and status. No FK constraint on userId since it references cross-database control panel users table.
 
-- [ ] T024 [P] [DB] Define invitations table schema in packages/db/src/schema/tenant/invitations.ts
+- [X] T024 [P] [DB] Define invitations table schema in packages/db/src/schema/tenant/invitations.ts
   - Schema: id, email, invitedBy, role, hierarchyScopeId, token, status, expiresAt, createdAt
   - Dependencies: T022
   - Test: Unique constraint on token, index on (email, status)
+  - **Status**: ✅ Completed - Created invitations table with foreign key to hierarchy_nodes, unique constraint on token, composite index on (email, status), indexes on expiresAt and invitedBy. invitedBy uses text type to match control panel users.id (no FK constraint due to cross-database).
 
 ### Drizzle Configuration & Migrations
 
-- [ ] T025 [DB] Create drizzle.control-panel.config.ts in packages/db
+- [X] T025 [DB] Create drizzle.control-panel.config.ts in packages/db
   - Config: Control panel DB connection, migrations folder, schema path
   - Dependencies: T015-T020
   - Test: `drizzle-kit generate:pg` creates migration files
+  - **Status**: ✅ Completed - Created drizzle.control-panel.config.ts with schema pointing to control-panel-schema.ts (includes auth + control-panel schemas), migrations output to ./src/migrations/control-panel, uses DATABASE_URL from environment.
 
-- [ ] T026 [DB] Create drizzle.tenant.config.ts in packages/db
+- [X] T026 [DB] Create drizzle.tenant.config.ts in packages/db
   - Config: Tenant DB connection (uses TENANT_DATABASE_URL), migrations folder, schema path
   - Dependencies: T022-T024
   - Test: `drizzle-kit generate:pg` creates separate tenant migrations
+  - **Status**: ✅ Completed - Created drizzle.tenant.config.ts with schema pointing to tenant-schema.ts, migrations output to ./src/migrations/tenant, uses TENANT_DATABASE_URL from environment. Migrations applied programmatically via migration runner (T038) when provisioning new tenants.
 
-- [ ] T027 [DB] Generate and apply control panel migrations (per quickstart.md section 3.1)
+- [X] T027 [DB] Generate and apply control panel migrations (per quickstart.md section 3.1)
   - Command: `drizzle-kit push:pg --config=drizzle.control-panel.config.ts`
   - Dependencies: T025, T007
   - Test: All 6 control panel tables created in Neon control panel project
+  - **Status**: ✅ Completed - Generated migrations in src/migrations/control-panel/, applied to remote Neon database using `drizzle-kit push`. All 9 tables created successfully: Better-Auth tables (user, session, account, verification) and control panel tables (subscriptions, organizations, organization_members, platform_admins, admin_sessions).
 
 - [ ] T028 [DB] Generate and apply tenant migrations (per quickstart.md section 3.2)
   - Command: `drizzle-kit push:pg --config=drizzle.tenant.config.ts`
