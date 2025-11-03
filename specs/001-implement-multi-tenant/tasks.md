@@ -262,10 +262,11 @@
 
 ### Database Connection Management
 
-- [ ] T030 [SERVICE] Setup control panel database client in apps/server/src/lib/db.ts
+- [X] T030 [SERVICE] Setup control panel database client in apps/server/src/lib/db.ts
   - Create Drizzle client with connection to control panel Neon project
   - Dependencies: T027
   - Test: Can query users table successfully
+  - **Status**: ✅ Completed - Created control panel database client using @neondatabase/serverless and drizzle-orm/neon-http. Exports controlPanelDb with all control panel schemas (auth + control-panel tables). Configured for Cloudflare Workers environment with DATABASE_URL from env.
 
 - [ ] T031 [SERVICE] Implement tenant database connection router in apps/server/src/lib/db.ts
   - Function: getTenantDb(organizationId) - decrypts connection string and creates Drizzle client
