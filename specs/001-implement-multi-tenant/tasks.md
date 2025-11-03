@@ -276,30 +276,35 @@
 
 ### MembershipService (5 methods from research.md section 4.6)
 
-- [ ] T032 [P] [SERVICE] Implement MembershipService.createMember() in packages/db/src/services/membership.service.ts
+- [X] T032 [P] [SERVICE] Implement MembershipService.createMember() in packages/db/src/services/membership.service.ts
   - Syncs member creation to both control panel and tenant database
   - Dependencies: T018, T023
   - Test: Creates member in both databases, marks invitation accepted
+  - **Status**: ✅ Completed - Implemented createMember() method that syncs member creation to both databases using Promise.all(), marks invitation as accepted in tenant DB transaction.
 
-- [ ] T033 [P] [SERVICE] Implement MembershipService.updateMemberRole() in packages/db/src/services/membership.service.ts
+- [X] T033 [P] [SERVICE] Implement MembershipService.updateMemberRole() in packages/db/src/services/membership.service.ts
   - Updates role in both control panel registry and tenant members table
   - Dependencies: T018, T023
   - Test: Role change reflected in both databases
+  - **Status**: ✅ Completed - Implemented updateMemberRole() method that syncs role updates to both databases atomically.
 
-- [ ] T034 [P] [SERVICE] Implement MembershipService.suspendMember() in packages/db/src/services/membership.service.ts
+- [X] T034 [P] [SERVICE] Implement MembershipService.suspendMember() in packages/db/src/services/membership.service.ts
   - Updates status to "suspended" in both databases
   - Dependencies: T018, T023
   - Test: Status change synced to both databases
+  - **Status**: ✅ Completed - Implemented suspendMember() method that syncs status change to "suspended" in both databases.
 
-- [ ] T035 [P] [SERVICE] Implement MembershipService.reactivateMember() in packages/db/src/services/membership.service.ts
+- [X] T035 [P] [SERVICE] Implement MembershipService.reactivateMember() in packages/db/src/services/membership.service.ts
   - Updates status to "active" in both databases
   - Dependencies: T018, T023
   - Test: Status change synced to both databases
+  - **Status**: ✅ Completed - Implemented reactivateMember() method that syncs status change to "active" in both databases.
 
-- [ ] T036 [SERVICE] Implement MembershipService.removeMember() in packages/db/src/services/membership.service.ts
+- [X] T036 [SERVICE] Implement MembershipService.removeMember() in packages/db/src/services/membership.service.ts
   - Validates "cannot remove last admin" rule, deletes from both databases
   - Dependencies: T018, T023
   - Test: Throws error if last admin, deletes from both databases otherwise
+  - **Status**: ✅ Completed - Implemented removeMember() method with validation to prevent removing last admin, syncs deletion to both databases.
 
 ### External Service Integrations
 
