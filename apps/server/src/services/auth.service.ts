@@ -41,31 +41,31 @@ import { user } from "@avantej-core/db/schema/auth";
  * ```
  */
 export async function sendVerificationEmail(
-	userId: string,
-	email: string
+  userId: string,
+  email: string
 ): Promise<void> {
-	if (!userId || !email) {
-		throw new Error("User ID and email are required");
-	}
+  if (!userId || !email) {
+    throw new Error("User ID and email are required");
+  }
 
-	try {
-		// Better-Auth handles token generation and email sending internally
-		// We use the sendVerificationEmail API method
-		await auth.api.sendVerificationEmail({
-			body: {
-				email,
-			},
-			headers: new Headers(),
-		});
+  try {
+    // Better-Auth handles token generation and email sending internally
+    // We use the sendVerificationEmail API method
+    await auth.api.sendVerificationEmail({
+      body: {
+        email,
+      },
+      headers: new Headers(),
+    });
 
-		// Better-Auth API returns void or success status
-		// Check for errors by catching exceptions
-		console.log(`Verification email sent to ${email} for user ${userId}`);
-	} catch (error) {
-		throw new Error(
-			`Failed to send verification email: ${error instanceof Error ? error.message : "Unknown error"}`
-		);
-	}
+    // Better-Auth API returns void or success status
+    // Check for errors by catching exceptions
+    console.log(`Verification email sent to ${email} for user ${userId}`);
+  } catch (error) {
+    throw new Error(
+      `Failed to send verification email: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
 }
 
 /**
@@ -87,49 +87,52 @@ export async function sendVerificationEmail(
  * ```
  */
 export async function verifyEmailToken(token: string): Promise<string> {
-	if (!token) {
-		throw new Error("Verification token is required");
-	}
+  if (!token) {
+    throw new Error("Verification token is required");
+  }
 
-	try {
-		// Find verification record by token (value field)
-		const verificationRecord = await controlPanelDb.query.verification.findFirst({
-			where: eq(verification.value, token),
-		});
+  try {
+    // Find verification record by token (value field)
+    const verificationRecord =
+      await controlPanelDb.query.verification.findFirst({
+        where: eq(verification.value, token),
+      });
 
-		if (!verificationRecord) {
-			throw new Error("Invalid verification token");
-		}
+    if (!verificationRecord) {
+      throw new Error("Invalid verification token");
+    }
 
-		// Check if token is expired
-		if (new Date() > verificationRecord.expiresAt) {
-			throw new Error("Verification token has expired");
-		}
+    // Check if token is expired
+    if (new Date() > verificationRecord.expiresAt) {
+      throw new Error("Verification token has expired");
+    }
 
-		// Find user by email (identifier field contains email)
-		const userRecord = await controlPanelDb.query.user.findFirst({
-			where: eq(user.email, verificationRecord.identifier),
-		});
+    // Find user by email (identifier field contains email)
+    const userRecord = await controlPanelDb.query.user.findFirst({
+      where: eq(user.email, verificationRecord.identifier),
+    });
 
-		if (!userRecord) {
-			throw new Error("User not found for verification token");
-		}
+    if (!userRecord) {
+      throw new Error("User not found for verification token");
+    }
 
-		// Update user's emailVerified flag
-		await controlPanelDb
-			.update(user)
-			.set({ emailVerified: true })
-			.where(eq(user.id, userRecord.id));
+    // Update user's emailVerified flag
+    await controlPanelDb
+      .update(user)
+      .set({ emailVerified: true })
+      .where(eq(user.id, userRecord.id));
 
-		// Delete verification token (one-time use)
-		await controlPanelDb.delete(verification).where(eq(verification.id, verificationRecord.id));
+    // Delete verification token (one-time use)
+    await controlPanelDb
+      .delete(verification)
+      .where(eq(verification.id, verificationRecord.id));
 
-		return userRecord.id;
-	} catch (error) {
-		throw new Error(
-			`Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
-		);
-	}
+    return userRecord.id;
+  } catch (error) {
+    throw new Error(
+      `Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
+    );
+  }
 }
 
 /**
@@ -150,27 +153,27 @@ export async function verifyEmailToken(token: string): Promise<string> {
  * ```
  */
 export async function sendPasswordResetEmail(email: string): Promise<void> {
-	if (!email) {
-		throw new Error("Email is required");
-	}
+  if (!email) {
+    throw new Error("Email is required");
+  }
 
-	try {
-		// Better-Auth handles password reset token generation
-		await auth.api.forgetPassword({
-			body: {
-				email,
-			},
-			headers: new Headers(),
-		});
+  try {
+    // Better-Auth handles password reset token generation
+    await auth.api.forgetPassword({
+      body: {
+        email,
+      },
+      headers: new Headers(),
+    });
 
-		// Don't reveal if email exists (security best practice)
-		// Always return success even if email not found
-		console.log(`Password reset email sent to ${email} (or email not found)`);
-	} catch (error) {
-		// Don't reveal error details (security best practice)
-		console.error(`Failed to send password reset email: ${error}`);
-		// Still return success to prevent email enumeration
-	}
+    // Don't reveal if email exists (security best practice)
+    // Always return success even if email not found
+    console.log(`Password reset email sent to ${email} (or email not found)`);
+  } catch (error) {
+    // Don't reveal error details (security best practice)
+    console.error(`Failed to send password reset email: ${error}`);
+    // Still return success to prevent email enumeration
+  }
 }
 
 /**
@@ -189,37 +192,42 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
  * ```
  */
 export async function resetPassword(
-	token: string,
-	newPassword: string
+  token: string,
+  newPassword: string
 ): Promise<void> {
-	if (!token || !newPassword) {
-		throw new Error("Token and new password are required");
-	}
+  if (!token || !newPassword) {
+    throw new Error("Token and new password are required");
+  }
 
-	if (newPassword.length < 8) {
-		throw new Error("Password must be at least 8 characters long");
-	}
+  if (newPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters long");
+  }
 
-	try {
-		// Reset password via Better-Auth API
-		const result = await auth.api.resetPassword({
-			body: {
-				token,
-				newPassword,
-			},
-			headers: new Headers(),
-		});
+  try {
+    // Reset password via Better-Auth API
+    const result = await auth.api.resetPassword({
+      body: {
+        token,
+        newPassword,
+      },
+      headers: new Headers(),
+    });
 
-		if (!result || typeof result !== "object" || !("status" in result) || !result.status) {
-			throw new Error("Invalid or expired token");
-		}
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !("status" in result) ||
+      !result.status
+    ) {
+      throw new Error("Invalid or expired token");
+    }
 
-		console.log("Password reset successful");
-	} catch (error) {
-		throw new Error(
-			`Password reset failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
-		);
-	}
+    console.log("Password reset successful");
+  } catch (error) {
+    throw new Error(
+      `Password reset failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
+    );
+  }
 }
 
 /**
@@ -231,16 +239,16 @@ export async function resetPassword(
  * @returns Number of tokens deleted
  */
 export async function cleanupExpiredTokens(): Promise<number> {
-	try {
-		const now = new Date();
-		const result = await controlPanelDb
-			.delete(verification)
-			.where(lt(verification.expiresAt, now))
-			.returning();
+  try {
+    const now = new Date();
+    const result = await controlPanelDb
+      .delete(verification)
+      .where(lt(verification.expiresAt, now))
+      .returning();
 
-		return result.length;
-	} catch (error) {
-		console.error("Failed to cleanup expired tokens:", error);
-		return 0;
-	}
+    return result.length;
+  } catch (error) {
+    console.error("Failed to cleanup expired tokens:", error);
+    return 0;
+  }
 }
