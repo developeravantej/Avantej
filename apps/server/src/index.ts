@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { authRoutes } from "@/routes/auth.routes";
+import { organizationRoutes } from "@/routes/organizations.routes";
 
 const app = new Hono();
 
@@ -30,6 +31,9 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // Custom auth routes following OpenAPI contract
 app.route("/auth", authRoutes);
+
+// Organization routes following OpenAPI contract
+app.route("/orgs", organizationRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
 	plugins: [

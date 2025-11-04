@@ -48,8 +48,8 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 		// Resolve organization ID from multiple sources (priority order)
 		let organizationId: string | undefined;
 
-		// 1. Check URL parameter (e.g., /orgs/:organizationId)
-		const paramOrgId = c.req.param("organizationId");
+		// 1. Check URL parameter (e.g., /orgs/:id or /orgs/:organizationId)
+		const paramOrgId = c.req.param("organizationId") || c.req.param("id");
 		if (paramOrgId) {
 			organizationId = paramOrgId;
 		}

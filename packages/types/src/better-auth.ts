@@ -11,19 +11,25 @@
 
 /**
  * Better-Auth User type
+ * Matches Better-Auth's User type from their API
  */
 export interface BetterAuthUser {
   id: string;
   name: string;
   email: string;
   emailVerified: boolean;
-  image: string | null;
+  image?: string | null | undefined;
   createdAt: Date;
   updatedAt: Date;
+  banned?: boolean | null | undefined;
+  role?: string | null | undefined;
+  banReason?: string | null | undefined;
+  banExpires?: Date | null | undefined;
 }
 
 /**
  * Better-Auth Session type
+ * Matches Better-Auth's Session type from their API
  */
 export interface BetterAuthSession {
   id: string;
@@ -31,9 +37,11 @@ export interface BetterAuthSession {
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
-  ipAddress: string | null;
-  userAgent: string | null;
+  ipAddress?: string | null | undefined;
+  userAgent?: string | null | undefined;
   userId: string;
+  activeOrganizationId?: string | null | undefined;
+  impersonatedBy?: string | null | undefined;
 }
 
 /**
