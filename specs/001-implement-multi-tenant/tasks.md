@@ -169,10 +169,10 @@
   - **Status**: ✅ Completed - Created subscriptions table with Stripe subscription tracking, unique constraint on stripeSubscriptionId, index on stripeCustomerId
 
 - [X] T017 [P] [DB] Define organizations table schema in packages/db/src/schema/control-panel/organizations.ts
-  - Schema: id, name, slug, neonProjectId, connectionString, subscriptionId, paymentStatus, ownerUserId, timestamps
+  - Schema: id, name, slug, neonProjectId, connectionString, subscriptionId, paymentStatus, ownerUserId, timestamps, Stripe Connect fields
   - Dependencies: T015, T016
   - Test: Foreign key to subscriptions, unique constraints on slug and neonProjectId
-  - **Status**: ✅ Completed - Created organizations table with foreign keys to subscriptions and users, unique constraints on slug and neonProjectId, indexes for performance
+  - **Status**: ✅ Completed - Created organizations table with foreign keys to subscriptions and users, unique constraints on slug and neonProjectId, indexes for performance. **Updated**: Added Stripe Connect fields (stripe_connect_account_id, stripe_connect_status, stripe_connect_account_type, stripe_connect_onboarding_completed_at) for franchiser payment processing via Stripe Connect.
 
 - [X] T018 [P] [DB] Define organization_members table schema in packages/db/src/schema/control-panel/organization-members.ts
   - Schema: id, userId, organizationId, role, status, joinedAt (membership registry per data-model.md section 4)
@@ -196,9 +196,9 @@
   - Files: Add index definitions to all control-panel schema files
   - Dependencies: T015-T020
   - Test: Index definitions compile, performance queries optimized
-  - **Status**: ✅ Completed - All indexes implemented during table creation: users (email unique), subscriptions (stripeSubscriptionId unique, customerId), organizations (slug/neonProjectId unique, subscriptionId, paymentStatus), organization_members (composite unique, userId, organizationId, status), platform_admins (userId unique, role), admin_sessions (sessionToken unique, adminUserId, active sessions partial index)
+  - **Status**: ✅ Completed - All indexes implemented during table creation: users (email unique), subscriptions (stripeSubscriptionId unique, customerId), organizations (slug/neonProjectId unique, subscriptionId, paymentStatus, stripe_connect_account_id), organization_members (composite unique, userId, organizationId, status), platform_admins (userId unique, role), admin_sessions (sessionToken unique, adminUserId, active sessions partial index)
 
-### Tenant Database Schema (3 tables)
+### Tenant Database Schema (16 tables: 3 foundational + 13 service/appointment/payment)
 
 - [X] T022 [P] [DB] Define hierarchy_nodes table schema in packages/db/src/schema/tenant/hierarchy.ts
   - Schema: id, name, type, parentId, depth, timestamps (per data-model.md section 5)
@@ -236,13 +236,13 @@
   - Command: `drizzle-kit push:pg --config=drizzle.control-panel.config.ts`
   - Dependencies: T025, T007
   - Test: All 6 control panel tables created in Neon control panel project
-  - **Status**: ✅ Completed - Generated migrations in src/migrations/control-panel/, applied to remote Neon database using `drizzle-kit push`. All 9 tables created successfully: Better-Auth tables (user, session, account, verification) and control panel tables (subscriptions, organizations, organization_members, platform_admins, admin_sessions).
+  - **Status**: ✅ Completed - Generated migrations in src/migrations/control-panel/, applied initial migration (0000_far_luminals.sql) and Stripe Connect migration (0001_redundant_stature.sql) to remote Neon database using `drizzle-kit push`. All 9 tables created successfully: Better-Auth tables (user, session, account, verification) and control panel tables (subscriptions, organizations with Stripe Connect fields, organization_members, platform_admins, admin_sessions).
 
 - [X] T028 [DB] Generate and apply tenant migrations (per quickstart.md section 3.2)
   - Command: `drizzle-kit push:pg --config=drizzle.tenant.config.ts`
   - Dependencies: T026, T008
-  - Test: All 3 tenant tables created in Neon dev tenant project
-  - **Status**: ✅ Completed - Generated tenant migrations in src/migrations/tenant/0000_noisy_aqueduct.sql. Migrations will be applied programmatically via T038 migration runner when provisioning new tenants. For dev/testing, can manually apply using drizzle-kit push with TENANT_DATABASE_URL.
+  - Test: All tenant tables created in Neon dev tenant project
+  - **Status**: ✅ Completed - Generated tenant migrations: initial migration (0000_noisy_aqueduct.sql) with 3 foundational tables (hierarchy_nodes, members, invitations) and service/appointment migration (0001_salty_morlocks.sql) with 13 additional tables (service_categories, services, service_commission_config, service_rules, packages, package_assignments, appointments, appointment_clients, appointment_staff, commission_splits, payments, partner_stripe_accounts, payouts). Total: 16 tenant tables. Migrations will be applied programmatically via T038 migration runner when provisioning new tenants. For dev/testing, can manually apply using drizzle-kit push with TENANT_DATABASE_URL.
 
 ### Encryption Utilities
 
@@ -313,10 +313,11 @@
   - Dependencies: None
   - Test: Creates Neon project, returns projectId and connection string
 
-- [ ] T038 [SERVICE] Implement tenant schema migration runner in packages/db/src/migrate-tenant.ts
-  - Function: runMigrations(tenantDb) - applies tenant migrations to newly created project
+- [X] T038 [SERVICE] Implement tenant schema migration runner in packages/db/src/migrate-tenant.ts
+  - Function: runTenantMigrations(connectionString) - applies all tenant migrations to newly created project
   - Dependencies: T028, T037
-  - Test: Applies 3 tenant tables to fresh Neon project
+  - Test: Applies all tenant tables (16 total: 3 foundational + 13 service/appointment/payment tables) to fresh Neon project
+  - **Status**: ✅ Completed - Implemented runTenantMigrations() function that applies migrations programmatically. Updated to include both initial migration (0000_noisy_aqueduct) and service/appointment migration (0001_salty_morlocks) embedded as SQL strings for Cloudflare Workers compatibility. Includes migration tracking table to prevent duplicate application.
 
 - [ ] T039 [SERVICE] Implement Stripe webhook signature verification in apps/server/src/lib/stripe.ts
   - Function: verifyWebhookSignature(body, signature) using Stripe SDK
