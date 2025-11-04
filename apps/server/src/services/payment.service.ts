@@ -117,14 +117,17 @@ export async function handleCheckoutCompleted(
   const userId = session.metadata?.userId; // Set during checkout
 
   if (!subscriptionId || !customerId) {
-    throw new Error("Missing required Stripe session data: subscription or customer");
+    throw new Error(
+      "Missing required Stripe session data: subscription or customer"
+    );
   }
 
   // Step 1: Check idempotency - use subscription ID as key
   // Better approach: Check subscriptions table for existing subscription
-  const existingSubscription = await controlPanelDb.query.subscriptions.findFirst({
-    where: eq(subscriptions.stripeSubscriptionId, subscriptionId),
-  });
+  const existingSubscription =
+    await controlPanelDb.query.subscriptions.findFirst({
+      where: eq(subscriptions.stripeSubscriptionId, subscriptionId),
+    });
 
   if (existingSubscription) {
     // Find organization linked to this subscription
@@ -133,7 +136,9 @@ export async function handleCheckoutCompleted(
     });
 
     if (org) {
-      console.log(`Organization already exists for subscription ${subscriptionId}`);
+      console.log(
+        `Organization already exists for subscription ${subscriptionId}`
+      );
       return org;
     }
   }
@@ -223,8 +228,9 @@ export async function handleCheckoutCompleted(
       });
     }
 
-    console.log(`✓ Provisioned organization: ${organization.name} (${organization.id})`);
+    console.log(
+      `✓ Provisioned organization: ${organization.name} (${organization.id})`
+    );
     return organization;
   });
 }
-
