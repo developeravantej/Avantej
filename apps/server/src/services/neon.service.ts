@@ -86,9 +86,7 @@ export async function createTenantProject(params: {
     const connectionUri = data.project?.connection_uris?.[0]?.connection_uri;
 
     if (!projectId || !connectionUri) {
-      throw new Error(
-        "Neon API response missing project ID or connection URI"
-      );
+      throw new Error("Neon API response missing project ID or connection URI");
     }
 
     return {
@@ -102,4 +100,3 @@ export async function createTenantProject(params: {
     );
   }
 }
-

@@ -12,16 +12,17 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {
-    "hono": "catalog:",
-    "@orpc/server": "catalog:",
+    "@avantej-core/api": "workspace:*",
+    "@avantej-core/auth": "workspace:*",
+    "@avantej-core/db": "workspace:*",
     "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
-    "zod": "catalog:",
-    "@avantej-core/api": "workspace:*",
-    "@avantej-core/auth": "workspace:*",
-    "@avantej-core/db": "workspace:*"
+    "hono": "catalog:",
+    "stripe": "^19.2.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:",
