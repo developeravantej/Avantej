@@ -24,10 +24,16 @@ export const organizations = pgTable("organizations", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	ownerUserId: text("owner_user_id").references(() => users.id),
+	// Stripe Connect fields for franchiser accounts
+	stripeConnectAccountId: text("stripe_connect_account_id").unique(),
+	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected
+	stripeConnectAccountType: text("stripe_connect_account_type").default("franchiser").notNull(),
+	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
 }, (table) => ({
 	// Indexes for performance
 	// Note: slug and neonProjectId already have unique constraints/indexes via .unique()
 	subscriptionIdIdx: index("organizations_subscription_idx").on(table.subscriptionId),
 	paymentStatusIdx: index("organizations_payment_status_idx").on(table.paymentStatus),
+	stripeConnectAccountIdIdx: index("organizations_stripe_connect_idx").on(table.stripeConnectAccountId),
 }));
 

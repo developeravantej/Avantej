@@ -1,0 +1,52 @@
+/**
+ * Tenant Services Schema
+ * 
+ * Represents services offered by the tenant organization (e.g., Personal Training, Group Classes).
+ * Services are synced with Stripe Products/Prices for payment processing.
+ * 
+ * Business Rules:
+ * - Service names must be unique within a branch (enforced in app layer)
+ * - Duration is stored in seconds for flexibility
+ * - Stripe sync status tracks whether service is synced with Stripe Connect
+ * - Services can be archived instead of deleted to preserve historical data
+ * - Attendance threshold allows services to require minimum attendees
+ */
+
+import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { hierarchyNodes } from "./hierarchy";
+import { serviceCategories } from "./service-categories";
+
+export const services = pgTable("services", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	name: text("name").notNull(),
+	categoryId: uuid("category_id").references(() => serviceCategories.id, { onDelete: "restrict" }),
+	
+	// Duration configuration (flexible time units)
+	duration: integer("duration").notNull(), // Duration in seconds
+	durationUnitType: text("duration_unit_type").notNull().default("minutes"), // "seconds" | "minutes" | "hours"
+	
+	// Capacity configuration
+	maxAttendees: integer("max_attendees").notNull(),
+	attendanceThreshold: integer("attendance_threshold"), // Minimum attendees required (null = no threshold)
+	
+	// Stripe integration
+	stripeProductId: text("stripe_product_id"), // Stripe Product ID (prod_xxx) - nullable if not synced yet
+	stripePriceId: text("stripe_price_id"), // Stripe Price ID (price_xxx) - can have multiple prices per product
+	stripeSyncStatus: text("stripe_sync_status").default("pending").notNull(), // "pending" | "synced" | "failed"
+	stripeLastSyncedAt: timestamp("stripe_last_synced_at"),
+	
+	// Branch scope
+	branchId: uuid("branch_id").references(() => hierarchyNodes.id, { onDelete: "restrict" }),
+	
+	isActive: boolean("is_active").default(true).notNull(),
+	
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+	categoryIdIdx: index("services_category_idx").on(table.categoryId),
+	branchIdIdx: index("services_branch_idx").on(table.branchId),
+	stripeProductIdIdx: index("services_stripe_product_idx").on(table.stripeProductId),
+	stripeSyncStatusIdx: index("services_stripe_sync_status_idx").on(table.stripeSyncStatus),
+	isActiveIdx: index("services_active_idx").on(table.isActive),
+}));
+
