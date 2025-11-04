@@ -10,6 +10,7 @@ import { auth } from "@avantej-core/auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { authRoutes } from "@/routes/auth.routes";
 
 const app = new Hono();
 
@@ -24,7 +25,11 @@ app.use(
 	}),
 );
 
+// Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+// Custom auth routes following OpenAPI contract
+app.route("/auth", authRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
 	plugins: [

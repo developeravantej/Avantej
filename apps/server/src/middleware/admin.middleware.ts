@@ -33,30 +33,30 @@ import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-a
  * - `adminRole`: Admin role (super_admin, support, billing)
  */
 export const adminMiddleware = createMiddleware(async (c, next) => {
-	try {
-		const user = c.get("user");
-		if (!user) {
-			return c.json({ error: "Unauthorized" }, 401);
-		}
+  try {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
 
-		// Check if user has platform admin record
-		const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-			where: eq(platformAdmins.userId, user.id),
-		});
+    // Check if user has platform admin record
+    const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
+      where: eq(platformAdmins.userId, user.id),
+    });
 
-		if (!adminRecord) {
-			return c.json({ error: "Forbidden: Admin access required" }, 403);
-		}
+    if (!adminRecord) {
+      return c.json({ error: "Forbidden: Admin access required" }, 403);
+    }
 
-		// Set admin record and role in context
-		c.set("adminRecord", adminRecord);
-		c.set("adminRole", adminRecord.role);
+    // Set admin record and role in context
+    c.set("adminRecord", adminRecord);
+    c.set("adminRole", adminRecord.role);
 
-		await next();
-	} catch (error) {
-		console.error("Admin middleware error:", error);
-		return c.json({ error: "Failed to validate admin access" }, 500);
-	}
+    await next();
+  } catch (error) {
+    console.error("Admin middleware error:", error);
+    return c.json({ error: "Failed to validate admin access" }, 500);
+  }
 });
 
 /**
@@ -73,32 +73,28 @@ export const adminMiddleware = createMiddleware(async (c, next) => {
  * ```
  */
 export const superAdminMiddleware = createMiddleware(async (c, next) => {
-	try {
-		const user = c.get("user");
-		if (!user) {
-			return c.json({ error: "Unauthorized" }, 401);
-		}
+  try {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
 
-		// Check if user has super_admin role
-		const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-			where: eq(platformAdmins.userId, user.id),
-		});
+    // Check if user has super_admin role
+    const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
+      where: eq(platformAdmins.userId, user.id),
+    });
 
-		if (!adminRecord || adminRecord.role !== "super_admin") {
-			return c.json(
-				{ error: "Forbidden: Super admin access required" },
-				403
-			);
-		}
+    if (!adminRecord || adminRecord.role !== "super_admin") {
+      return c.json({ error: "Forbidden: Super admin access required" }, 403);
+    }
 
-		// Set admin record and role in context
-		c.set("adminRecord", adminRecord);
-		c.set("adminRole", adminRecord.role);
+    // Set admin record and role in context
+    c.set("adminRecord", adminRecord);
+    c.set("adminRole", adminRecord.role);
 
-		await next();
-	} catch (error) {
-		console.error("Super admin middleware error:", error);
-		return c.json({ error: "Failed to validate super admin access" }, 500);
-	}
+    await next();
+  } catch (error) {
+    console.error("Super admin middleware error:", error);
+    return c.json({ error: "Failed to validate super admin access" }, 500);
+  }
 });
-

@@ -1,0 +1,386 @@
+/**
+ * Authentication Routes
+ *
+ * Implements authentication endpoints following the OpenAPI contract.
+ * Uses Better-Auth for core authentication functionality.
+ *
+ * Routes:
+ * - POST /auth/register - Register new user
+ * - POST /auth/login - Login with email/password
+ * - POST /auth/verify-email - Verify email token
+ * - POST /auth/reset-password - Request password reset
+ * - POST /auth/reset-password/confirm - Confirm password reset
+ * - POST /auth/logout - Logout and invalidate session
+ * - POST /auth/refresh - Refresh access token
+ */
+
+import { Hono } from "hono";
+import { auth } from "@/lib/better-auth";
+import { controlPanelDb } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import {
+  sendVerificationEmail,
+  verifyEmailToken,
+  sendPasswordResetEmail,
+  resetPassword,
+} from "@/services/auth.service";
+import { authMiddleware } from "@/middleware/auth.middleware";
+import type { BetterAuthGetSessionResponse } from "@avantej-core/types/better-auth";
+import {
+  isBetterAuthSignUpResponse,
+  isBetterAuthSignInResponse,
+  isBetterAuthError,
+} from "@avantej-core/types/better-auth";
+
+export const authRoutes = new Hono();
+
+/**
+ * POST /auth/register
+ * Register a new user account
+ */
+authRoutes.post("/register", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email, password, name } = body;
+
+    // Validate input
+    if (!email || !password || !name) {
+      return c.json({ error: "Email, password, and name are required" }, 400);
+    }
+
+    if (password.length < 8) {
+      return c.json(
+        { error: "Password must be at least 8 characters long" },
+        400
+      );
+    }
+
+    // Register user via Better-Auth
+    // Better-Auth API method name is signUpEmail (camelCase)
+    const result = (await (auth.api as any).signUpEmail({
+      body: {
+        email,
+        password,
+        name,
+      },
+      headers: c.req.raw.headers,
+    })) as unknown;
+
+    // Check for errors
+    if (isBetterAuthError(result)) {
+      if (
+        result.message.includes("already") ||
+        result.message.includes("exists")
+      ) {
+        return c.json({ error: "Email already registered" }, 409);
+      }
+      return c.json(
+        { error: result.message || "Failed to register user" },
+        400
+      );
+    }
+
+    // Validate response structure
+    if (!isBetterAuthSignUpResponse(result)) {
+      return c.json({ error: "Failed to register user" }, 400);
+    }
+
+    const user = result.user;
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.id, email);
+    } catch (error) {
+      console.error("Failed to send verification email:", error);
+      // Continue even if email sending fails
+    }
+
+    return c.json(
+      {
+        userId: user.id,
+        email: user.email,
+        message: "Verification email sent",
+      },
+      201
+    );
+  } catch (error) {
+    console.error("Registration error:", error);
+    if (error instanceof Error && error.message.includes("already")) {
+      return c.json({ error: "Email already registered" }, 409);
+    }
+    return c.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to register user",
+      },
+      400
+    );
+  }
+});
+
+/**
+ * POST /auth/login
+ * Login with email and password
+ */
+authRoutes.post("/login", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return c.json({ error: "Email and password are required" }, 400);
+    }
+
+    // Sign in via Better-Auth
+    // Better-Auth API method name is signInEmail (camelCase)
+    // We need to call Better-Auth's handler directly to get cookies set properly
+    // Create a temporary request to Better-Auth's sign-in endpoint
+    const signInRequest = new Request(
+      `${c.req.url.split("/auth")[0]}/api/auth/sign-in/email`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...Object.fromEntries(c.req.raw.headers.entries()),
+        },
+        body: JSON.stringify({ email, password }),
+      }
+    );
+
+    // Call Better-Auth handler to get the response with cookies
+    const authResponse = await auth.handler(signInRequest);
+
+    if (!authResponse.ok) {
+      return c.json({ error: "Invalid credentials" }, 401);
+    }
+
+    // Parse the response to get user and session
+    const authData = (await authResponse.json()) as unknown;
+
+    if (!isBetterAuthSignInResponse(authData)) {
+      return c.json({ error: "Invalid credentials" }, 401);
+    }
+
+    const { user, session } = authData;
+
+    // Copy cookies from Better-Auth response to our response
+    // Better-Auth sets cookies in the response headers
+    const setCookieHeader = authResponse.headers.get("Set-Cookie");
+    if (setCookieHeader) {
+      c.header("Set-Cookie", setCookieHeader);
+    }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return c.json({ error: "Email not verified" }, 403);
+    }
+
+    // Get user's organizations from control panel database
+    const userOrganizations =
+      await controlPanelDb.query.organizationMembers.findMany({
+        where: eq(organizationMembers.userId, user.id),
+        with: {
+          organization: true,
+        },
+      });
+
+    // Filter out suspended organizations and ensure organization exists
+    // Build organizations summary with explicit null checks
+    const organizationsSummary: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      role: string;
+    }> = [];
+
+    for (const om of userOrganizations) {
+      if (om.status !== "active") continue;
+      // Type assertion needed because Drizzle relation types can be complex
+      const org = om.organization as {
+        id: string;
+        name: string;
+        slug: string;
+        paymentStatus: string;
+      } | null;
+      if (!org || org.paymentStatus !== "active") continue;
+      organizationsSummary.push({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        role: om.role,
+      });
+    }
+
+    // Better-Auth handles tokens in cookies/headers
+    // We need to extract the session token if available
+    const sessionToken = session?.token || "";
+
+    return c.json({
+      accessToken: sessionToken,
+      refreshToken: "", // Better-Auth handles refresh tokens in HTTP-only cookies
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
+      },
+      organizations: organizationsSummary,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return c.json({ error: "Invalid credentials" }, 401);
+  }
+});
+
+/**
+ * POST /auth/verify-email
+ * Verify email address via token
+ */
+authRoutes.post("/verify-email", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { token } = body;
+
+    if (!token) {
+      return c.json({ error: "Token is required" }, 400);
+    }
+
+    // Verify email token
+    await verifyEmailToken(token);
+
+    return c.json({ message: "Email verified successfully" });
+  } catch (error) {
+    console.error("Email verification error:", error);
+    return c.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Invalid or expired token",
+      },
+      400
+    );
+  }
+});
+
+/**
+ * POST /auth/reset-password
+ * Request password reset email
+ */
+authRoutes.post("/reset-password", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email } = body;
+
+    if (!email) {
+      return c.json({ error: "Email is required" }, 400);
+    }
+
+    // Send password reset email (always returns success to prevent email enumeration)
+    await sendPasswordResetEmail(email);
+
+    // Always return 200 to prevent email enumeration
+    return c.json({
+      message: "If the email exists, a password reset link has been sent",
+    });
+  } catch (error) {
+    // Still return 200 to prevent email enumeration
+    console.error("Password reset request error:", error);
+    return c.json({
+      message: "If the email exists, a password reset link has been sent",
+    });
+  }
+});
+
+/**
+ * POST /auth/reset-password/confirm
+ * Confirm password reset with token
+ */
+authRoutes.post("/reset-password/confirm", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { token, newPassword } = body;
+
+    if (!token || !newPassword) {
+      return c.json({ error: "Token and new password are required" }, 400);
+    }
+
+    if (newPassword.length < 8) {
+      return c.json(
+        { error: "Password must be at least 8 characters long" },
+        400
+      );
+    }
+
+    // Reset password
+    await resetPassword(token, newPassword);
+
+    return c.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Password reset confirm error:", error);
+    return c.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Invalid or expired token",
+      },
+      400
+    );
+  }
+});
+
+/**
+ * POST /auth/logout
+ * Logout and invalidate session
+ */
+authRoutes.post("/logout", authMiddleware, async (c) => {
+  try {
+    // Sign out via Better-Auth handler to properly clear cookies
+    const signOutRequest = new Request(
+      `${c.req.url.split("/auth")[0]}/api/auth/sign-out`,
+      {
+        method: "POST",
+        headers: Object.fromEntries(c.req.raw.headers.entries()),
+      }
+    );
+
+    const authResponse = await auth.handler(signOutRequest);
+
+    // Copy cookies from Better-Auth response (for clearing cookies)
+    const setCookieHeader = authResponse.headers.get("Set-Cookie");
+    if (setCookieHeader) {
+      c.header("Set-Cookie", setCookieHeader);
+    }
+
+    return c.json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return c.json({ error: "Failed to logout" }, 500);
+  }
+});
+
+/**
+ * POST /auth/refresh
+ * Refresh access token using refresh token
+ */
+authRoutes.post("/refresh", async (c) => {
+  try {
+    // Better-Auth handles token refresh automatically via cookies
+    // We'll check if there's a valid session and return a new access token
+    const session = (await auth.api.getSession({
+      headers: c.req.raw.headers,
+    })) as BetterAuthGetSessionResponse;
+
+    if (!session || !session.session) {
+      return c.json({ error: "Invalid refresh token" }, 401);
+    }
+
+    // Better-Auth manages token refresh internally
+    // Return the session token as the access token
+    return c.json({
+      accessToken: session.session.token,
+    });
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    return c.json({ error: "Invalid refresh token" }, 401);
+  }
+});

@@ -67,6 +67,7 @@
         "@avantej-core/api": "workspace:*",
         "@avantej-core/auth": "workspace:*",
         "@avantej-core/db": "workspace:*",
+        "@avantej-core/types": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
@@ -180,6 +181,19 @@
         "typescript": "^5",
       },
     },
+    "packages/types": {
+      "name": "@avantej-core/types",
+      "version": "0.0.1",
+      "dependencies": {
+        "better-auth": "catalog:",
+      },
+      "devDependencies": {
+        "tsdown": "catalog:",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
   },
   "catalog": {
     "@orpc/client": "^1.10.0",
@@ -203,6 +217,8 @@
     "@avantej-core/auth": ["@avantej-core/auth@workspace:packages/auth"],
 
     "@avantej-core/db": ["@avantej-core/db@workspace:packages/db"],
+
+    "@avantej-core/types": ["@avantej-core/types@workspace:packages/types"],
 
     "@babel/code-frame": ["@babel/code-frame@7.27.1", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.27.1", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg=="],
 

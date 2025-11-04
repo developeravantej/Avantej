@@ -15,6 +15,7 @@
     "@avantej-core/api": "workspace:*",
     "@avantej-core/auth": "workspace:*",
     "@avantej-core/db": "workspace:*",
+    "@avantej-core/types": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
