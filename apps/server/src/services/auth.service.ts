@@ -3,6 +3,7 @@
  *
  * Provides email verification and password reset functionality.
  * Integrates with Better-Auth for token generation and validation.
+ * Uses Resend for email delivery (configured in better-auth.ts).
  *
  * Note: Better-Auth handles email verification automatically via URL visits.
  * These service functions provide programmatic access for API endpoints.
@@ -21,12 +22,32 @@ import { controlPanelDb } from "@/lib/db";
 import { lt, eq } from "drizzle-orm";
 import { verification } from "@avantej-core/db/schema/auth";
 import { user } from "@avantej-core/db/schema/auth";
+import { jwtVerify } from "jose";
+
+function getEnvVar(key: string): string | undefined {
+	try {
+		// @ts-expect-error - cloudflare:workers only available in Workers runtime
+		const { env } = require("cloudflare:workers");
+		return env[key];
+	} catch {
+		return process.env[key];
+	}
+}
+
+function getBetterAuthSecret(): string {
+	const secret = getEnvVar("BETTER_AUTH_SECRET");
+	if (!secret) {
+		throw new Error("BETTER_AUTH_SECRET environment variable is required");
+	}
+	return secret;
+}
 
 /**
  * Send email verification email to user
  *
- * Generates a verification token via Better-Auth and sends verification email.
+ * Generates a verification token via Better-Auth and sends verification email via Resend.
  * Better-Auth handles token generation and storage in the verification table.
+ * Email is sent using Resend (configured in better-auth.ts email provider).
  *
  * Note: Better-Auth automatically sends verification emails on user registration.
  * This function can be used to resend verification emails.
@@ -49,8 +70,8 @@ export async function sendVerificationEmail(
   }
 
   try {
-    // Better-Auth handles token generation and email sending internally
-    // We use the sendVerificationEmail API method
+    // Better-Auth handles token generation and uses Resend for email sending
+    // (configured in better-auth.ts email provider)
     await auth.api.sendVerificationEmail({
       body: {
         email,
@@ -60,7 +81,7 @@ export async function sendVerificationEmail(
 
     // Better-Auth API returns void or success status
     // Check for errors by catching exceptions
-    console.log(`Verification email sent to ${email} for user ${userId}`);
+    console.log(`Verification email sent to ${email} for user ${userId} via Resend`);
   } catch (error) {
     throw new Error(
       `Failed to send verification email: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -87,59 +108,61 @@ export async function sendVerificationEmail(
  * ```
  */
 export async function verifyEmailToken(token: string): Promise<string> {
-  if (!token) {
-    throw new Error("Verification token is required");
-  }
+	if (!token) {
+		throw new Error("Verification token is required");
+	}
 
-  try {
-    // Find verification record by token (value field)
-    const verificationRecord =
-      await controlPanelDb.query.verification.findFirst({
-        where: eq(verification.value, token),
-      });
+	try {
+		await auth.api.verifyEmail({
+			query: {
+				token,
+			},
+			headers: new Headers(),
+		});
 
-    if (!verificationRecord) {
-      throw new Error("Invalid verification token");
-    }
+		const { payload } = await jwtVerify(
+			token,
+			new TextEncoder().encode(getBetterAuthSecret()),
+			{
+				algorithms: ["HS256"],
+			}
+		);
 
-    // Check if token is expired
-    if (new Date() > verificationRecord.expiresAt) {
-      throw new Error("Verification token has expired");
-    }
+		const payloadEmail =
+			typeof payload.email === "string" ? payload.email.toLowerCase() : undefined;
+		const updatedEmail =
+			typeof payload.updateTo === "string"
+				? payload.updateTo.toLowerCase()
+				: undefined;
 
-    // Find user by email (identifier field contains email)
-    const userRecord = await controlPanelDb.query.user.findFirst({
-      where: eq(user.email, verificationRecord.identifier),
-    });
+		const emailToLookup = updatedEmail || payloadEmail;
 
-    if (!userRecord) {
-      throw new Error("User not found for verification token");
-    }
+		if (!emailToLookup) {
+			throw new Error("Invalid verification token payload");
+		}
 
-    // Update user's emailVerified flag
-    await controlPanelDb
-      .update(user)
-      .set({ emailVerified: true })
-      .where(eq(user.id, userRecord.id));
+		const userRecord = await controlPanelDb.query.user.findFirst({
+			where: eq(user.email, emailToLookup),
+		});
 
-    // Delete verification token (one-time use)
-    await controlPanelDb
-      .delete(verification)
-      .where(eq(verification.id, verificationRecord.id));
+		if (!userRecord) {
+			throw new Error("User not found for verification token");
+		}
 
-    return userRecord.id;
-  } catch (error) {
-    throw new Error(
-      `Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
-    );
-  }
+		return userRecord.id;
+	} catch (error) {
+		throw new Error(
+			`Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
+		);
+	}
 }
 
 /**
  * Send password reset email
  *
- * Generates a password reset token and sends reset email to user.
+ * Generates a password reset token and sends reset email to user via Resend.
  * Better-Auth handles token generation and storage.
+ * Email is sent using Resend (configured in better-auth.ts email provider).
  *
  * Note: For security, this function always returns success even if email doesn't exist
  * to prevent email enumeration attacks.
@@ -158,7 +181,8 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   }
 
   try {
-    // Better-Auth handles password reset token generation
+    // Better-Auth handles password reset token generation and uses Resend for email sending
+    // (configured in better-auth.ts email provider)
     await auth.api.forgetPassword({
       body: {
         email,
@@ -168,7 +192,7 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
 
     // Don't reveal if email exists (security best practice)
     // Always return success even if email not found
-    console.log(`Password reset email sent to ${email} (or email not found)`);
+    console.log(`Password reset email sent to ${email} via Resend (or email not found)`);
   } catch (error) {
     // Don't reveal error details (security best practice)
     console.error(`Failed to send password reset email: ${error}`);

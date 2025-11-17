@@ -20,7 +20,6 @@
 
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { env } from "cloudflare:workers";
 import ws from "ws";
 import { eq } from "drizzle-orm";
 // Import control panel schemas (auth + control-panel tables)
@@ -37,25 +36,53 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 neonConfig.webSocketConstructor = ws;
 
 /**
- * Get control panel database connection string from environment
+ * Get environment variable from Cloudflare Workers env or process.env (for Node.js/test environments)
  */
-function getDatabaseUrl(): string {
-  const databaseUrl = env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error(
-      "DATABASE_URL environment variable is required for control panel database"
-    );
-  }
-
-  return databaseUrl;
+function getEnvVar(key: string): string | undefined {
+	try {
+		// Try to access Cloudflare Workers env (only available in Workers runtime)
+		// Using dynamic require to avoid TypeScript errors in Node.js/test environments
+		const cloudflareWorkers = require("cloudflare:workers") as { env?: Record<string, string> };
+		if (cloudflareWorkers?.env?.[key]) {
+			return cloudflareWorkers.env[key];
+		}
+	} catch {
+		// Not in Cloudflare Workers environment (e.g., in tests)
+	}
+	// Fall back to process.env
+	return process.env[key];
 }
 
 /**
- * Create Pool for control panel database
+ * Get control panel database connection string from environment
+ */
+function getDatabaseUrl(): string {
+	const databaseUrl = getEnvVar("DATABASE_URL");
+
+	if (!databaseUrl) {
+		throw new Error(
+			"DATABASE_URL environment variable is required for control panel database"
+		);
+	}
+
+	return databaseUrl;
+}
+
+/**
+ * Lazy-loaded Pool for control panel database (initialized on first use)
  * Uses Pool with neon-serverless adapter for transaction support
  */
-const controlPanelPool = new Pool({ connectionString: getDatabaseUrl() });
+let controlPanelPool: Pool | null = null;
+
+/**
+ * Get control panel database pool (lazy-loaded)
+ */
+function getControlPanelPool(): Pool {
+	if (!controlPanelPool) {
+		controlPanelPool = new Pool({ connectionString: getDatabaseUrl() });
+	}
+	return controlPanelPool;
+}
 
 /**
  * Drizzle ORM client for control panel database
@@ -65,10 +92,12 @@ const controlPanelPool = new Pool({ connectionString: getDatabaseUrl() });
  * - Control Panel: subscriptions, organizations, organization_members, platform_admins, admin_sessions
  *
  * Supports transactions via WebSocket connection
+ *
+ * Note: In test environments, this will use process.env.DATABASE_URL
  */
 export const controlPanelDb = drizzle({
-  client: controlPanelPool,
-  schema: controlPanelSchema,
+	client: getControlPanelPool(),
+	schema: controlPanelSchema,
 });
 
 /**

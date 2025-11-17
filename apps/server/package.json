@@ -16,6 +16,10 @@
     "test:neon": "bun test src/services/neon.service.test.ts",
     "test:neon:integration": "bun test src/services/neon.service.integration.test.ts",
     "test:org:integration": "bun test src/tests/integration/org.test.ts",
+    "test:email": "bun test src/lib/email.test.ts",
+    "test:email:integration": "bun test src/lib/email.integration.test.ts",
+    "test:auth": "bun test src/services/auth.service.test.ts",
+    "test:auth:email": "bun test src/tests/integration/auth-email.test.ts",
     "cleanup:test-projects": "bun run scripts/cleanup-test-projects.ts",
     "inspect-test-data": "bun run scripts/inspect-and-cleanup-test-data.ts",
     "inspect-test-data:inspect-only": "bun run scripts/inspect-and-cleanup-test-data.ts --inspect-only",
@@ -32,6 +36,7 @@
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",
+    "resend": "^6.4.2",
     "stripe": "^19.2.0",
     "zod": "catalog:"
   },

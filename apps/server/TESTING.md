@@ -246,4 +246,242 @@ bun run test:org:integration
 SKIP_INTEGRATION_TESTS=true bun test src/tests/integration/org.test.ts
 ```
 
+---
+
+## Email Verification Service Tests (T043)
+
+### 1. Email Service Unit Tests
+
+**File**: `src/lib/email.test.ts`
+
+**Run**:
+```bash
+cd apps/server
+bun test src/lib/email.test.ts
+```
+
+**Or use npm script**:
+```bash
+cd apps/server
+bun run test:email
+```
+
+**What it tests**:
+- ✅ Email sending with correct parameters
+- ✅ Error handling (invalid API key, missing fields)
+- ✅ Default from email/name usage
+- ✅ Custom from email/name usage
+- ✅ Text version generation from HTML
+- ✅ Multiple recipients support
+- ✅ Verification email content and links
+- ✅ Password reset email content and links
+- ✅ Invitation email content and links
+- ⚠️ Uses mocked Resend - no real emails sent
+
+**Coverage**: 20+ tests, all passing
+
+---
+
+### 2. Email Service Integration Tests
+
+**File**: `src/lib/email.integration.test.ts`
+
+**Prerequisites**:
+1. `RESEND_API_KEY` - Resend API key
+2. `RESEND_FROM_EMAIL` - Sender email address
+3. `TEST_EMAIL_RECIPIENT` - Recipient email address (emails will be sent here)
+
+**Run**:
+```bash
+cd apps/server
+bun test src/lib/email.integration.test.ts
+```
+
+**Or use npm script**:
+```bash
+cd apps/server
+bun run test:email:integration
+```
+
+**What it tests**:
+- ✅ Sends real verification email via Resend
+- ✅ Sends real password reset email via Resend
+- ✅ Sends real invitation email via Resend
+- ✅ Handles invalid API key errors
+- ✅ Handles invalid from email errors
+
+**⚠️ Warning**: Sends real emails to `TEST_EMAIL_RECIPIENT`
+
+**Skip integration tests**:
+```bash
+SKIP_INTEGRATION_TESTS=true bun test src/lib/email.integration.test.ts
+```
+
+---
+
+### 3. Auth Service Unit Tests
+
+**File**: `src/services/auth.service.test.ts`
+
+**Run**:
+```bash
+cd apps/server
+bun test src/services/auth.service.test.ts
+```
+
+**Or use npm script**:
+```bash
+cd apps/server
+bun run test:auth
+```
+
+**What it tests**:
+- ✅ `sendVerificationEmail` function logic
+- ✅ `verifyEmailToken` function logic
+- ✅ `sendPasswordResetEmail` function logic
+- ✅ `resetPassword` function logic
+- ✅ `cleanupExpiredTokens` function logic
+- ✅ Error handling (missing fields, invalid tokens, expired tokens)
+- ✅ Security best practices (no email enumeration)
+- ⚠️ Uses mocked Better-Auth API - no real database operations
+
+**Coverage**: 15+ tests, all passing
+
+---
+
+### 4. Auth Email Integration Tests (End-to-End)
+
+**File**: `src/tests/integration/auth-email.test.ts`
+
+**Prerequisites**:
+1. `DATABASE_URL` - Control panel database connection
+2. `BETTER_AUTH_SECRET` - Better-Auth secret key
+3. `RESEND_API_KEY` - Resend API key
+4. `RESEND_FROM_EMAIL` - Sender email address
+5. `TEST_EMAIL_RECIPIENT` - Recipient email address (optional, defaults to `RESEND_FROM_EMAIL`)
+
+**Run**:
+```bash
+cd apps/server
+bun test src/tests/integration/auth-email.test.ts
+```
+
+**Or use npm script**:
+```bash
+cd apps/server
+bun run test:auth:email
+```
+
+**What it tests**:
+- ✅ Complete email verification flow:
+  - User registration → verification email sent
+  - Email verification → user `emailVerified` flag updated
+  - Token deletion after verification (one-time use)
+- ✅ Resend verification email
+- ✅ Complete password reset flow:
+  - Password reset request → reset email sent
+  - Password reset → password updated
+  - Token deletion after reset (one-time use)
+- ✅ Invalid token handling
+- ✅ Expired token handling
+- ✅ Database consistency checks
+
+**⚠️ Warning**: 
+- Creates real users in database
+- Sends real emails via Resend
+- Automatically cleans up test data
+
+**Skip integration tests**:
+```bash
+SKIP_INTEGRATION_TESTS=true bun test src/tests/integration/auth-email.test.ts
+```
+
+---
+
+## Test Scripts Summary
+
+All test scripts are available in `apps/server/package.json`:
+
+```bash
+# Run all tests (unit + integration)
+bun run test
+
+# Run only unit tests (excludes integration tests)
+bun run test:unit
+
+# Run only integration tests
+bun run test:integration
+
+# Neon Service Tests
+bun run test:neon                    # Unit tests
+bun run test:neon:integration        # Integration tests
+
+# Organization Tests
+bun run test:org:integration          # Integration tests
+
+# Email Service Tests
+bun run test:email                   # Unit tests
+bun run test:email:integration       # Integration tests
+
+# Auth Service Tests
+bun run test:auth                    # Unit tests
+bun run test:auth:email              # Integration tests (end-to-end)
+```
+
+---
+
+## Manual Testing
+
+### Test Email Verification Flow
+
+1. **Start the server**:
+   ```bash
+   cd apps/server
+   bun run dev
+   ```
+
+2. **Register a new user**:
+   ```bash
+   curl -X POST http://localhost:3000/auth/sign-up \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "your-email@example.com",
+       "password": "SecurePass123!",
+       "name": "Test User"
+     }'
+   ```
+
+3. **Check your email** (sent to the email address you registered):
+   - Look for verification email from `RESEND_FROM_EMAIL`
+   - Click the verification link
+   - Or extract the token and verify via API:
+     ```bash
+     curl -X POST http://localhost:3000/auth/verify-email \
+       -H "Content-Type: application/json" \
+       -d '{
+         "token": "verification-token-from-email"
+       }'
+     ```
+
+4. **Test password reset**:
+   ```bash
+   curl -X POST http://localhost:3000/auth/forget-password \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "your-email@example.com"
+     }'
+   ```
+
+5. **Check your email** for password reset link
+
+---
+
+## Next Steps
+
+- [x] Add integration test for organization creation flow (T102) ✅
+- [x] Add email verification service tests (T043) ✅
+- [ ] Add E2E test for onboarding flow (T104)
+- [ ] Add performance benchmarks for project creation
+- [ ] Add retry logic tests for transient API failures
+
 

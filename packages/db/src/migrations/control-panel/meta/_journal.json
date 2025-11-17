@@ -15,6 +15,20 @@
       "when": 1762238916961,
       "tag": "0001_redundant_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763365921819,
+      "tag": "0002_wealthy_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763365949693,
+      "tag": "0003_careful_mole_man",
+      "breakpoints": true
     }
   ]
 }

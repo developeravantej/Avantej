@@ -6,6 +6,10 @@ export const user = pgTable("user", {
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").notNull(),
 	image: text("image"),
+	role: text("role"), // Optional field for Better-Auth admin plugin
+	banned: boolean("banned"), // Optional field for Better-Auth admin plugin
+	banReason: text("ban_reason"), // Optional field for Better-Auth admin plugin
+	banExpires: timestamp("ban_expires"), // Optional field for Better-Auth admin plugin
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 	lastLoginAt: timestamp("last_login_at"),

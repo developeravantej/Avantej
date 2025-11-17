@@ -16,6 +16,9 @@ declare namespace Cloudflare {
 		STRIPE_SECRET_KEY: string;
 		STRIPE_WEBHOOK_SECRET: string;
 		STRIPE_PUBLISHABLE_KEY: string;
+		RESEND_API_KEY: string;
+		RESEND_FROM_EMAIL: string;
+		RESEND_FROM_NAME: string;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}
@@ -23,7 +26,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NODE_ENV" | "DATABASE_URL" | "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL" | "CORS_ORIGIN" | "ENCRYPTION_KEY" | "NEON_API_KEY" | "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET" | "STRIPE_PUBLISHABLE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NODE_ENV" | "DATABASE_URL" | "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL" | "CORS_ORIGIN" | "ENCRYPTION_KEY" | "NEON_API_KEY" | "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET" | "STRIPE_PUBLISHABLE_KEY" | "RESEND_API_KEY" | "RESEND_FROM_EMAIL" | "RESEND_FROM_NAME">> {}
 }
 
 // Begin runtime types
