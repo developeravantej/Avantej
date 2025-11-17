@@ -9,7 +9,17 @@
     "dev": "wrangler dev --port=3000",
     "start": "wrangler dev",
     "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "test": "bun test src/**/*.test.ts",
+    "test:unit": "bun test src/**/*.test.ts --exclude '**/*.integration.test.ts'",
+    "test:integration": "bun test src/**/*.integration.test.ts",
+    "test:neon": "bun test src/services/neon.service.test.ts",
+    "test:neon:integration": "bun test src/services/neon.service.integration.test.ts",
+    "test:org:integration": "bun test src/tests/integration/org.test.ts",
+    "cleanup:test-projects": "bun run scripts/cleanup-test-projects.ts",
+    "inspect-test-data": "bun run scripts/inspect-and-cleanup-test-data.ts",
+    "inspect-test-data:inspect-only": "bun run scripts/inspect-and-cleanup-test-data.ts --inspect-only",
+    "inspect-test-data:cleanup-only": "bun run scripts/inspect-and-cleanup-test-data.ts --cleanup-only"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",

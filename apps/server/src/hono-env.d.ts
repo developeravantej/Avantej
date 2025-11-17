@@ -18,7 +18,7 @@ import type {
 import type { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import type { members } from "@avantej-core/db/schema/tenant/members";
 import type { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 
 declare module "hono" {
@@ -30,7 +30,7 @@ declare module "hono" {
     // Tenant middleware variables
     organization: typeof organizations.$inferSelect;
     organizationId: string;
-    tenantDb: NeonHttpDatabase<typeof tenantSchema>;
+    tenantDb: NeonDatabase<typeof tenantSchema>;
 
     // Hierarchy middleware variables
     member: typeof members.$inferSelect;

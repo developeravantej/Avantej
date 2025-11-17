@@ -15,7 +15,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 
 /**
@@ -37,7 +37,7 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
  * ```
  */
 export async function getDescendantNodeIds(
-  tenantDb: NeonHttpDatabase<typeof tenantSchema>,
+  tenantDb: NeonDatabase<typeof tenantSchema>,
   nodeId: string
 ): Promise<string[]> {
   if (!nodeId) {
@@ -100,7 +100,7 @@ export async function getDescendantNodeIds(
  * ```
  */
 export async function getAncestorNodeIds(
-  tenantDb: NeonHttpDatabase<typeof tenantSchema>,
+  tenantDb: NeonDatabase<typeof tenantSchema>,
   nodeId: string
 ): Promise<string[]> {
   if (!nodeId) {

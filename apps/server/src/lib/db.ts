@@ -18,8 +18,8 @@
  * ```
  */
 
-import { neon, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { env } from "cloudflare:workers";
 import ws from "ws";
 import { eq } from "drizzle-orm";
@@ -31,11 +31,10 @@ import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 // Import encryption utilities
 import { decrypt } from "@avantej-core/db";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
-// Configure Neon for Cloudflare Workers
+// Configure Neon for Cloudflare Workers (WebSocket support for transactions)
 neonConfig.webSocketConstructor = ws;
-neonConfig.poolQueryViaFetch = true;
 
 /**
  * Get control panel database connection string from environment
@@ -53,9 +52,10 @@ function getDatabaseUrl(): string {
 }
 
 /**
- * Create Neon SQL client for control panel database
+ * Create Pool for control panel database
+ * Uses Pool with neon-serverless adapter for transaction support
  */
-const sql = neon(getDatabaseUrl());
+const controlPanelPool = new Pool({ connectionString: getDatabaseUrl() });
 
 /**
  * Drizzle ORM client for control panel database
@@ -63,15 +63,13 @@ const sql = neon(getDatabaseUrl());
  * Includes all control panel schemas:
  * - Better-Auth: user, session, account, verification
  * - Control Panel: subscriptions, organizations, organization_members, platform_admins, admin_sessions
+ *
+ * Supports transactions via WebSocket connection
  */
-export const controlPanelDb = drizzle(sql, {
+export const controlPanelDb = drizzle({
+  client: controlPanelPool,
   schema: controlPanelSchema,
 });
-
-/**
- * Export the Neon SQL client for direct queries if needed
- */
-export { sql };
 
 /**
  * Tenant Database Connection Router
@@ -97,7 +95,7 @@ export { sql };
  */
 export async function getTenantDb(
   organizationId: string
-): Promise<NeonHttpDatabase<typeof tenantSchema>> {
+): Promise<NeonDatabase<typeof tenantSchema>> {
   // Lookup organization in control panel database
   const organization = await controlPanelDb.query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
@@ -117,11 +115,12 @@ export async function getTenantDb(
     );
   }
 
-  // Create Neon SQL client for tenant database
-  const tenantSql = neon(connectionString);
+  // Create Pool for tenant database (supports transactions)
+  const tenantPool = new Pool({ connectionString });
 
   // Create and return Drizzle client with tenant schemas
-  return drizzle(tenantSql, {
+  return drizzle({
+    client: tenantPool,
     schema: tenantSchema,
   });
 }

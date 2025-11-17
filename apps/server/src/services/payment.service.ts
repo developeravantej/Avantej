@@ -14,8 +14,8 @@
 
 import Stripe from "stripe";
 import { eq } from "drizzle-orm";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { controlPanelDb } from "@/lib/db";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
@@ -78,13 +78,15 @@ function generateSlug(name: string): string {
 
 /**
  * Create tenant database client from connection string
+ * Uses Pool with neon-serverless adapter for transaction support
  *
  * @param connectionString - PostgreSQL connection string
  * @returns Drizzle client for tenant database
  */
 function createTenantDbClient(connectionString: string) {
-  const tenantSql = neon(connectionString);
-  return drizzle(tenantSql, {
+  const tenantPool = new Pool({ connectionString });
+  return drizzle({
+    client: tenantPool,
     schema: tenantSchema,
   });
 }

@@ -1,9 +1,8 @@
-import { neon, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
-neonConfig.poolQueryViaFetch = true;
 
 /**
  * Database client for Better-Auth
@@ -11,9 +10,10 @@ neonConfig.poolQueryViaFetch = true;
  * For Cloudflare Workers, use apps/server/src/lib/db.ts instead
  */
 export function createDb(connectionString: string) {
-  const sql = neon(connectionString);
-  return drizzle(sql);
+  const pool = new Pool({ connectionString });
+  return drizzle({ client: pool });
 }
+
 
 // Export encryption utilities
 export { encrypt, decrypt } from "./lib/encryption";

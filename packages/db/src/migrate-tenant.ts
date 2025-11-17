@@ -20,15 +20,17 @@
  * 3. Tracks applied migrations to avoid re-running
  */
 
-import { neon } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Configure WebSocket support
+neonConfig.webSocketConstructor = ws;
 
 /**
- * Type for Neon SQL query function
- * Use a more flexible type to avoid strict generic type inference issues
+ * Type for Neon Pool client
+ * Used for executing raw SQL in migrations
  */
-type NeonSQL = ReturnType<typeof neon> & {
-  (strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
-};
+type NeonPool = Pool;
 
 /**
  * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
@@ -411,16 +413,16 @@ function parseMigrationSQL(sql: string): string[] {
  * Check if migration has already been applied
  */
 async function isMigrationApplied(
-  sql: NeonSQL,
+  pool: NeonPool,
   hash: string
 ): Promise<boolean> {
   try {
-    const result = await sql`
-      SELECT 1 FROM drizzle_migrations WHERE hash = ${hash} LIMIT 1
-    `;
-    // Handle different return types from Neon
-    const rows = Array.isArray(result) ? result : [];
-    return rows.length > 0;
+    const result = (await pool.query(
+      "SELECT 1 FROM drizzle_migrations WHERE hash = $1 LIMIT 1",
+      [hash]
+    )) as { rows: Array<{ "?column?": number }> };
+    // Handle different return types from Neon Pool
+    return result.rows.length > 0;
   } catch {
     // If table doesn't exist or query fails, assume not applied
     return false;
@@ -428,24 +430,25 @@ async function isMigrationApplied(
 }
 
 /**
- * Execute raw SQL statement using Neon client
- * Uses type assertion to bypass strict template literal typing for raw SQL
+ * Execute raw SQL statement using Neon Pool
+ * Uses Pool.query() method for raw SQL strings
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function executeRawSQL(sql: NeonSQL, sqlString: string): Promise<void> {
-  // Neon expects template literals, but we need to execute raw SQL strings
-  // Use type assertion to work around TypeScript's strict typing
-  await (sql as unknown as (query: string) => Promise<unknown>)(sqlString);
+async function executeRawSQL(pool: NeonPool, sqlString: string): Promise<void> {
+  // Use Pool.query() method for raw SQL execution
+  await pool.query(sqlString);
 }
 
 /**
  * Mark migration as applied
  */
-async function markMigrationApplied(sql: NeonSQL, hash: string): Promise<void> {
-  await sql`
-    INSERT INTO drizzle_migrations (hash) VALUES (${hash})
-    ON CONFLICT (hash) DO NOTHING
-  `;
+async function markMigrationApplied(
+  pool: NeonPool,
+  hash: string
+): Promise<void> {
+  await pool.query(
+    "INSERT INTO drizzle_migrations (hash) VALUES ($1) ON CONFLICT (hash) DO NOTHING",
+    [hash]
+  );
 }
 
 /**
@@ -461,8 +464,8 @@ export async function runTenantMigrations(
     throw new Error("Connection string is required");
   }
 
-  // Create Neon SQL client
-  const sql = neon(connectionString) as NeonSQL;
+  // Create Neon Pool client
+  const pool = new Pool({ connectionString });
 
   try {
     // Step 1: Ensure migrations tracking table exists
@@ -474,7 +477,7 @@ export async function runTenantMigrations(
 
     for (const statement of createTableStatements) {
       if (statement.trim()) {
-        await executeRawSQL(sql, statement);
+        await executeRawSQL(pool, statement);
       }
     }
 
@@ -483,7 +486,7 @@ export async function runTenantMigrations(
       const { hash, sql: migrationSQL } = migration;
 
       // Skip if already applied
-      if (await isMigrationApplied(sql, hash)) {
+      if (await isMigrationApplied(pool, hash)) {
         console.log(`Skipping already applied migration: ${hash}`);
         continue;
       }
@@ -496,12 +499,12 @@ export async function runTenantMigrations(
       // Execute each statement
       for (const statement of statements) {
         if (statement.trim()) {
-          await executeRawSQL(sql, statement);
+          await executeRawSQL(pool, statement);
         }
       }
 
       // Mark migration as applied
-      await markMigrationApplied(sql, hash);
+      await markMigrationApplied(pool, hash);
       console.log(`Applied migration: ${hash}`);
     }
 
