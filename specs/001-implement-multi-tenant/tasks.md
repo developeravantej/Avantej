@@ -308,10 +308,11 @@
 
 ### External Service Integrations
 
-- [ ] T037 [SERVICE] Implement Neon project provisioning in apps/server/src/services/neon.service.ts
+- [X] T037 [SERVICE] Implement Neon project provisioning in apps/server/src/services/neon.service.ts
   - Function: createTenantProject(slug, region) - calls Neon API to create new project (per research.md section 4.1)
   - Dependencies: None
   - Test: Creates Neon project, returns projectId and connection string
+  - **Status**: ✅ Completed - Implemented createTenantProject() function that calls Neon API to create projects, handles project creation and connection string retrieval with error handling and retry logic. Includes unit tests (neon.service.test.ts) and integration tests (neon.service.integration.test.ts).
 
 - [X] T038 [SERVICE] Implement tenant schema migration runner in packages/db/src/migrate-tenant.ts
   - Function: runTenantMigrations(connectionString) - applies all tenant migrations to newly created project
@@ -319,15 +320,17 @@
   - Test: Applies all tenant tables (16 total: 3 foundational + 13 service/appointment/payment tables) to fresh Neon project
   - **Status**: ✅ Completed - Implemented runTenantMigrations() function that applies migrations programmatically. Updated to include both initial migration (0000_noisy_aqueduct) and service/appointment migration (0001_salty_morlocks) embedded as SQL strings for Cloudflare Workers compatibility. Includes migration tracking table to prevent duplicate application.
 
-- [ ] T039 [SERVICE] Implement Stripe webhook signature verification in apps/server/src/lib/stripe.ts
+- [X] T039 [SERVICE] Implement Stripe webhook signature verification in apps/server/src/lib/stripe.ts
   - Function: verifyWebhookSignature(body, signature) using Stripe SDK
   - Dependencies: T009
   - Test: Throws error on invalid signature, returns event on valid signature
+  - **Status**: ✅ Completed - Implemented verifyWebhookSignature() function using Stripe SDK's constructEvent method. Validates webhook signatures, handles missing signatures and invalid signatures with proper error handling. Configured for Cloudflare Workers environment with STRIPE_WEBHOOK_SECRET from env.
 
-- [ ] T040 [SERVICE] Implement payment-gated provisioning handler in apps/server/src/services/payment.service.ts
+- [X] T040 [SERVICE] Implement payment-gated provisioning handler in apps/server/src/services/payment.service.ts
   - Function: handleCheckoutCompleted(session) - creates subscription, org, provisions Neon project (per research.md section 3.3)
   - Dependencies: T016, T017, T037, T038
   - Test: Idempotent (returns existing org if subscription ID exists), creates all resources
+  - **Status**: ✅ Completed - Implemented handleCheckoutCompleted() function with idempotent provisioning (checks for existing subscription). Creates subscription record, provisions Neon project via T037, encrypts connection string, creates organization record, runs tenant migrations, creates default hierarchy node, and adds user as admin member. All operations wrapped in transaction for atomicity.
 
 ### Hierarchy Utilities
 
