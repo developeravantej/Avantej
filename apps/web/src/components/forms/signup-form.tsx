@@ -1,176 +1,164 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { useForm } from "@tanstack/react-form";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { Label } from "@/components/ui/label";
+import z from "zod";
 
-const formSchema = z
-  .object({
-    name: z.string().min(1),
-    email: z.string().email(),
-    password: z.string().min(8),
-    confirmPassword: z.string().min(8),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+export default function SignupForm({
+	className,
+	...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+	const navigate = useNavigate();
+	const { isPending } = authClient.useSession();
 
-export function SignupForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  const navigate = useNavigate();
+	const form = useForm({
+		defaultValues: {
+			name: "",
+			email: "",
+			password: "",
+		},
+		onSubmit: async ({ value }) => {
+			try {
+				await authClient.signUp.email(
+					{
+						email: value.email,
+						password: value.password,
+						name: value.name,
+					},
+					{
+						onSuccess: () => {
+							toast.success("Sign up successful");
+							navigate({ to: "/dashboard" });
+						},
+						onError: (error) => {
+							toast.error(error.error.message || error.error.statusText);
+						},
+					}
+				);
+			} catch (error: any) {
+				console.error("Signup error:", error);
+				toast.error(error.message || "Signup failed");
+			}
+		},
+		validators: {
+			onSubmit: z.object({
+				name: z.string().min(2, "Name must be at least 2 characters"),
+				email: z.string().email("Invalid email address"),
+				password: z.string().min(8, "Password must be at least 8 characters"),
+			}),
+		},
+	});
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
+	return (
+		<div className={cn("mx-auto w-full max-w-md", className)} {...props}>
+			<div className="mb-6 text-center">
+				<h1 className="text-3xl font-bold">Create Account</h1>
+			</div>
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      // TODO: Use Better-Auth signup when backend is ready
-      // const result = await authClient.signUp.email({
-      //   email: values.email,
-      //   password: values.password,
-      //   name: values.name,
-      // });
-      
-      // For now, simulate signup process
-      console.log("Signup attempt with:", values);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast.success("Signup successful (simulated - TODO: Connect to Better-Auth)");
-      navigate({ to: "/dashboard" });
-    } catch (error: any) {
-      console.error("Signup error:", error);
-      toast.error(error.message || "Signup failed");
-    }
-  }
+			<form
+				onSubmit={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					form.handleSubmit();
+				}}
+				className="space-y-4"
+			>
+				<div>
+					<form.Field name="name">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Name</Label>
+								<Input
+									id={field.name}
+									name={field.name}
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									disabled={isPending}
+								/>
+								{field.state.meta.errors.map((error) => (
+									<p key={error} className="text-sm text-destructive">
+										{error}
+									</p>
+								))}
+							</div>
+						)}
+					</form.Field>
+				</div>
 
-  return (
-    <div
-      className={cn("flex flex-col gap-6 min-w-[400px]", className)}
-      {...props}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>Create an account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <div className="flex flex-col gap-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          id="name"
-                          placeholder="John Doe"
-                          required
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="example@gmail.com"
-                          required
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          id="password"
-                          type="password"
-                          required
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          id="confirmPassword"
-                          type="password"
-                          required
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full">
-                    Signup
-                  </Button>
-                </div>
-              </div>
-              <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
-                <Link to="/login" className="underline underline-offset-4">
-                  Login
-                </Link>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
-  );
+				<div>
+					<form.Field name="email">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Email</Label>
+								<Input
+									id={field.name}
+									name={field.name}
+									type="email"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									disabled={isPending}
+								/>
+								{field.state.meta.errors.map((error) => (
+									<p key={error} className="text-sm text-destructive">
+										{error}
+									</p>
+								))}
+							</div>
+						)}
+					</form.Field>
+				</div>
+
+				<div>
+					<form.Field name="password">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Password</Label>
+								<Input
+									id={field.name}
+									name={field.name}
+									type="password"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									disabled={isPending}
+								/>
+								{field.state.meta.errors.map((error) => (
+									<p key={error} className="text-sm text-destructive">
+										{error}
+									</p>
+								))}
+							</div>
+						)}
+					</form.Field>
+				</div>
+
+				<form.Subscribe>
+					{(state) => (
+						<Button
+							type="submit"
+							className="w-full"
+							disabled={!state.canSubmit || state.isSubmitting || isPending}
+						>
+							{state.isSubmitting ? "Submitting..." : "Sign Up"}
+						</Button>
+					)}
+				</form.Subscribe>
+			</form>
+
+			<div className="mt-4 text-center text-sm">
+				Already have an account?{" "}
+				<Link to="/login" className="underline underline-offset-4">
+					Sign In
+				</Link>
+			</div>
+		</div>
+	);
 }
 
 
