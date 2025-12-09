@@ -3,13 +3,8 @@ import Loader from "@/components/loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import { link, orpc } from "@/utils/orpc";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
-import { createTanstackQueryUtils } from "@orpc/tanstack-query";
-import type { AppRouterClient } from "@avantej-core/api/routers/index";
-import { createORPCClient } from "@orpc/client";
 import {
 	HeadContent,
 	Outlet,
@@ -17,6 +12,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { orpc } from "@/utils/orpc";
 import "../index.css";
 
 export interface RouterAppContext {
@@ -50,19 +46,17 @@ function RootComponent() {
 		select: (s) => s.isLoading,
 	});
 
-	const [client] = useState<AppRouterClient>(() => createORPCClient(link));
-	const [orpcUtils] = useState(() => createTanstackQueryUtils(client));
-
 	return (
 		<>
 			<HeadContent />
 			<AuthProvider>
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="dark"
-					disableTransitionOnChange
-					storageKey="vite-ui-theme"
-				>
+			<ThemeProvider
+				attribute="class"
+				forcedTheme="light"
+				enableSystem={false}
+				disableTransitionOnChange
+				storageKey="vite-ui-theme"
+			>
 					<div className="grid grid-rows-[auto_1fr] h-svh">
 						<Header />
 						{isFetching ? <Loader /> : <Outlet />}
