@@ -188,9 +188,9 @@ const individuals: TeamData[] = [
 /**
  * Dashboard Route
  * 
- * Main dashboard page - uses _authenticated layout
+ * Main dashboard page - uses dashboard/_layout
  */
-export const Route = createFileRoute("/_authenticated/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard/_layout/")({
 	component: DashboardComponent,
 });
 
@@ -229,6 +229,4 @@ function DashboardComponent() {
 		</div>
 	);
 }
-
-
 

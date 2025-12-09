@@ -68,31 +68,31 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 export const columns: ColumnDef<BranchRead>[] = [
   {
     accessorKey: "name",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Branch Name" />
     ),
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: true,
     enableHiding: false,
   },
   {
     id: "pic_name",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="PIC Name" />
     ),
-    accessorFn: (row: BranchRead) => row.person_in_charge?.name,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    accessorFn: (row) => row.person_in_charge?.name,
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: true,
     enableHiding: false,
   },
   {
     id: "pic_email",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="PIC Email" />
     ),
-    accessorFn: (row: BranchRead) => row.person_in_charge?.email,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => {
-      const email = getValue() as string | undefined;
+    accessorFn: (row) => row.person_in_charge?.email,
+    cell: ({ getValue }) => {
+      const email = getValue<string | undefined>();
       return <CopyableCell value={email} displayText={email ?? "N/A"} />;
     },
     enableSorting: true,
@@ -100,41 +100,41 @@ export const columns: ColumnDef<BranchRead>[] = [
   },
   {
     id: "area_name",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Area" />
     ),
-    accessorFn: (row: BranchRead) => row.area?.name,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    accessorFn: (row) => row.area?.name,
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: false,
     enableHiding: false,
   },
   {
     id: "region_name",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Region" />
     ),
-    accessorFn: (row: BranchRead) => row.area?.region?.name,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    accessorFn: (row) => row.area?.region?.name,
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: false,
     enableHiding: false,
   },
   {
     id: "country_name",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Country" />
     ),
-    accessorFn: (row: BranchRead) => row.area?.region?.country?.name,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    accessorFn: (row) => row.area?.region?.country?.name,
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: false,
     enableHiding: false,
   },
   {
     id: "location_address",
-    header: ({ column }: { column: any }) => (
+    header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Address" />
     ),
-    accessorFn: (row: BranchRead) => row.location?.address,
-    cell: ({ getValue }: CellContext<BranchRead, unknown>) => (getValue() as string | undefined) || "N/A",
+    accessorFn: (row) => row.location?.address,
+    cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
     enableSorting: false,
     enableHiding: false,
   },

@@ -8,7 +8,9 @@ import { requirePermission } from "@/lib/route-guards";
  * Form for creating hierarchical branches (country, region, area, branch).
  * Requires: hierarchy_management:create permission
  */
-export const Route = createFileRoute("/_authenticated/branch/create")({
+export const Route = createFileRoute(
+  "/_authenticated/dashboard/_layout/branch/create"
+)({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "hierarchy_management", action: "create" },

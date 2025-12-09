@@ -8,21 +8,28 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticated/user/view'
 import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
 import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_authenticated/service-category/view'
-import { Route as AuthenticatedBranchViewRouteImport } from './routes/_authenticated/branch/view'
-import { Route as AuthenticatedBranchCreateRouteImport } from './routes/_authenticated/branch/create'
+import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedAccessControlUserAssignmentRouteImport } from './routes/_authenticated/access-control/user-assignment'
 import { Route as AuthenticatedAccessControlRolesRouteImport } from './routes/_authenticated/access-control/roles'
 import { Route as AuthenticatedAccessControlPermissionsRouteImport } from './routes/_authenticated/access-control/permissions'
+import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
+import { Route as AuthenticatedDashboardLayoutBranchViewRouteImport } from './routes/_authenticated/dashboard/_layout/branch/view'
+import { Route as AuthenticatedDashboardLayoutBranchCreateRouteImport } from './routes/_authenticated/dashboard/_layout/branch/create'
+
+const AuthenticatedDashboardRouteImport = createFileRoute(
+  '/_authenticated/dashboard',
+)()
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -65,16 +72,10 @@ const AuthenticatedServiceCategoryViewRoute =
     path: '/service-category/view',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedBranchViewRoute = AuthenticatedBranchViewRouteImport.update({
-  id: '/branch/view',
-  path: '/branch/view',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedBranchCreateRoute =
-  AuthenticatedBranchCreateRouteImport.update({
-    id: '/branch/create',
-    path: '/branch/create',
-    getParentRoute: () => AuthenticatedRoute,
+const AuthenticatedDashboardLayoutRoute =
+  AuthenticatedDashboardLayoutRouteImport.update({
+    id: '/_layout',
+    getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
 const AuthenticatedAppointmentViewRoute =
   AuthenticatedAppointmentViewRouteImport.update({
@@ -100,36 +101,55 @@ const AuthenticatedAccessControlPermissionsRoute =
     path: '/access-control/permissions',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDashboardLayoutIndexRoute =
+  AuthenticatedDashboardLayoutIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutBranchViewRoute =
+  AuthenticatedDashboardLayoutBranchViewRouteImport.update({
+    id: '/branch/view',
+    path: '/branch/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutBranchCreateRoute =
+  AuthenticatedDashboardLayoutBranchCreateRouteImport.update({
+    id: '/branch/create',
+    path: '/branch/create',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/access-control/permissions': typeof AuthenticatedAccessControlPermissionsRoute
   '/access-control/roles': typeof AuthenticatedAccessControlRolesRoute
   '/access-control/user-assignment': typeof AuthenticatedAccessControlUserAssignmentRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
-  '/branch/create': typeof AuthenticatedBranchCreateRoute
-  '/branch/view': typeof AuthenticatedBranchViewRoute
+  '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
+  '/dashboard/': typeof AuthenticatedDashboardLayoutIndexRoute
+  '/dashboard/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
+  '/dashboard/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/access-control/permissions': typeof AuthenticatedAccessControlPermissionsRoute
   '/access-control/roles': typeof AuthenticatedAccessControlRolesRoute
   '/access-control/user-assignment': typeof AuthenticatedAccessControlUserAssignmentRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
-  '/branch/create': typeof AuthenticatedBranchCreateRoute
-  '/branch/view': typeof AuthenticatedBranchViewRoute
+  '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
+  '/dashboard/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
+  '/dashboard/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,16 +157,18 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/access-control/permissions': typeof AuthenticatedAccessControlPermissionsRoute
   '/_authenticated/access-control/roles': typeof AuthenticatedAccessControlRolesRoute
   '/_authenticated/access-control/user-assignment': typeof AuthenticatedAccessControlUserAssignmentRoute
   '/_authenticated/appointment/view': typeof AuthenticatedAppointmentViewRoute
-  '/_authenticated/branch/create': typeof AuthenticatedBranchCreateRoute
-  '/_authenticated/branch/view': typeof AuthenticatedBranchViewRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
   '/_authenticated/user/view': typeof AuthenticatedUserViewRoute
+  '/_authenticated/dashboard/_layout/': typeof AuthenticatedDashboardLayoutIndexRoute
+  '/_authenticated/dashboard/_layout/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
+  '/_authenticated/dashboard/_layout/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -154,47 +176,50 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/signup'
-    | '/dashboard'
     | '/access-control/permissions'
     | '/access-control/roles'
     | '/access-control/user-assignment'
     | '/appointment/view'
-    | '/branch/create'
-    | '/branch/view'
+    | '/dashboard'
     | '/service-category/view'
     | '/service/view'
     | '/user/view'
+    | '/dashboard/'
+    | '/dashboard/branch/create'
+    | '/dashboard/branch/view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/signup'
-    | '/dashboard'
     | '/access-control/permissions'
     | '/access-control/roles'
     | '/access-control/user-assignment'
     | '/appointment/view'
-    | '/branch/create'
-    | '/branch/view'
+    | '/dashboard'
     | '/service-category/view'
     | '/service/view'
     | '/user/view'
+    | '/dashboard/branch/create'
+    | '/dashboard/branch/view'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/login'
     | '/signup'
-    | '/_authenticated/dashboard'
     | '/_authenticated/access-control/permissions'
     | '/_authenticated/access-control/roles'
     | '/_authenticated/access-control/user-assignment'
     | '/_authenticated/appointment/view'
-    | '/_authenticated/branch/create'
-    | '/_authenticated/branch/view'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
     | '/_authenticated/service/view'
     | '/_authenticated/user/view'
+    | '/_authenticated/dashboard/_layout/'
+    | '/_authenticated/dashboard/_layout/branch/create'
+    | '/_authenticated/dashboard/_layout/branch/view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,19 +287,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServiceCategoryViewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/branch/view': {
-      id: '/_authenticated/branch/view'
-      path: '/branch/view'
-      fullPath: '/branch/view'
-      preLoaderRoute: typeof AuthenticatedBranchViewRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/branch/create': {
-      id: '/_authenticated/branch/create'
-      path: '/branch/create'
-      fullPath: '/branch/create'
-      preLoaderRoute: typeof AuthenticatedBranchCreateRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/_authenticated/dashboard/_layout': {
+      id: '/_authenticated/dashboard/_layout'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
     }
     '/_authenticated/appointment/view': {
       id: '/_authenticated/appointment/view'
@@ -304,32 +322,85 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccessControlPermissionsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/dashboard/_layout/': {
+      id: '/_authenticated/dashboard/_layout/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/branch/view': {
+      id: '/_authenticated/dashboard/_layout/branch/view'
+      path: '/branch/view'
+      fullPath: '/dashboard/branch/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutBranchViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/branch/create': {
+      id: '/_authenticated/dashboard/_layout/branch/create'
+      path: '/branch/create'
+      fullPath: '/dashboard/branch/create'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutBranchCreateRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
   }
 }
 
+interface AuthenticatedDashboardLayoutRouteChildren {
+  AuthenticatedDashboardLayoutIndexRoute: typeof AuthenticatedDashboardLayoutIndexRoute
+  AuthenticatedDashboardLayoutBranchCreateRoute: typeof AuthenticatedDashboardLayoutBranchCreateRoute
+  AuthenticatedDashboardLayoutBranchViewRoute: typeof AuthenticatedDashboardLayoutBranchViewRoute
+}
+
+const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRouteChildren =
+  {
+    AuthenticatedDashboardLayoutIndexRoute:
+      AuthenticatedDashboardLayoutIndexRoute,
+    AuthenticatedDashboardLayoutBranchCreateRoute:
+      AuthenticatedDashboardLayoutBranchCreateRoute,
+    AuthenticatedDashboardLayoutBranchViewRoute:
+      AuthenticatedDashboardLayoutBranchViewRoute,
+  }
+
+const AuthenticatedDashboardLayoutRouteWithChildren =
+  AuthenticatedDashboardLayoutRoute._addFileChildren(
+    AuthenticatedDashboardLayoutRouteChildren,
+  )
+
+interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
+}
+
+const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
+  {
+    AuthenticatedDashboardLayoutRoute:
+      AuthenticatedDashboardLayoutRouteWithChildren,
+  }
+
+const AuthenticatedDashboardRouteWithChildren =
+  AuthenticatedDashboardRoute._addFileChildren(
+    AuthenticatedDashboardRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAccessControlPermissionsRoute: typeof AuthenticatedAccessControlPermissionsRoute
   AuthenticatedAccessControlRolesRoute: typeof AuthenticatedAccessControlRolesRoute
   AuthenticatedAccessControlUserAssignmentRoute: typeof AuthenticatedAccessControlUserAssignmentRoute
   AuthenticatedAppointmentViewRoute: typeof AuthenticatedAppointmentViewRoute
-  AuthenticatedBranchCreateRoute: typeof AuthenticatedBranchCreateRoute
-  AuthenticatedBranchViewRoute: typeof AuthenticatedBranchViewRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
   AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
   AuthenticatedUserViewRoute: typeof AuthenticatedUserViewRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAccessControlPermissionsRoute:
     AuthenticatedAccessControlPermissionsRoute,
   AuthenticatedAccessControlRolesRoute: AuthenticatedAccessControlRolesRoute,
   AuthenticatedAccessControlUserAssignmentRoute:
     AuthenticatedAccessControlUserAssignmentRoute,
   AuthenticatedAppointmentViewRoute: AuthenticatedAppointmentViewRoute,
-  AuthenticatedBranchCreateRoute: AuthenticatedBranchCreateRoute,
-  AuthenticatedBranchViewRoute: AuthenticatedBranchViewRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,
   AuthenticatedServiceViewRoute: AuthenticatedServiceViewRoute,
   AuthenticatedUserViewRoute: AuthenticatedUserViewRoute,

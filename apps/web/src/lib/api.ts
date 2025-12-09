@@ -35,11 +35,17 @@ class ApiClient {
     return { status: 200, data: [] }; // Mock data
   }
   
+  async getListbranches(): Promise<any> {
+    console.warn("TODO: Replace apiClient.getListbranches with oRPC client");
+    return { status: 200, data: [] }; // Mock data
+  }
+  
   // Add other stub methods as needed during migration
 }
 
 const apiClient = new ApiClient();
 export default apiClient;
+
 
 
 
