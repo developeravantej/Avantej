@@ -57,12 +57,11 @@ export function AppointmentsWidget() {
   const navigate = useNavigate();
 
   const handleWidgetClick = () => {
-    // TODO: Navigate to appointment calendar with weekly view when route is created
-    // navigate({ 
-    //   to: "/dashboard/appointment/view",
-    //   search: { view: "weekly" }
-    // });
-    console.log("Navigate to appointment calendar (route not yet created)");
+    // Navigate to appointment calendar with weekly view
+    navigate({ 
+      to: "/appointment/view",
+      search: { view: "weekly" }
+    });
   };
 
   const formatTime = (date: Date) => {
@@ -100,56 +99,84 @@ export function AppointmentsWidget() {
 
   return (
     <Card className="h-full cursor-pointer hover:shadow-md transition-shadow" onClick={handleWidgetClick}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl font-bold">Appointments</CardTitle>
-          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-        </div>
-      </CardHeader>
       <CardContent>
-        <div className="flex flex-col space-y-3 h-[220px] overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {appointments.map((appointment) => (
-            <div
-              key={appointment.id}
-              className="flex flex-col gap-2 border-b border-gray-200 pr-2 py-2 last:border-0 last:pb-0 hover:bg-gray-50 rounded-md p-2 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-base">{appointment.title}</h3>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-xs border",
-                        getStatusColor(appointment.status)
-                      )}
-                    >
-                      {appointment.status}
-                    </Badge>
+        <div className="flex flex-col h-[220px] overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="flex justify-between items-center p-2 mb-2">
+            <h1 className="font-heading font-bold text-2xl">Appointments Today</h1>
+            <ChevronsUpDown className="mr-3 h-4 w-4" />
+          </div>
+          
+          {appointments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No appointments today</p>
+              <p className="text-sm">You're all caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {appointments.map((appointment, index) => (
+                <div
+                  key={appointment.id}
+                  className={cn(
+                    "flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 relative",
+                    getStatusColor(appointment.status)
+                  )}
+                >
+                  {/* Time indicator */}
+                  <div className="flex-shrink-0 w-16 text-center">
+                    <div className="text-sm font-medium text-gray-900">
+                      {formatTime(appointment.start)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatTime(appointment.end)}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>
-                        {formatTime(appointment.start)} - {formatTime(appointment.end)}
-                      </span>
-                      <span className="text-xs">({formatDuration(appointment.start, appointment.end)})</span>
+
+                  {/* Timeline line */}
+                  <div className="flex-shrink-0 w-4 flex flex-col items-center">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    {index < appointments.length - 1 && (
+                      <div className="w-0.5 h-8 bg-gray-300 mt-1"></div>
+                    )}
+                  </div>
+
+                  {/* Appointment details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                          {appointment.title}
+                        </h3>
+                        <div className="flex items-center gap-1 mt-1">
+                          <User className="h-3 w-3 text-gray-400" />
+                          <p className="text-xs text-gray-600 truncate">
+                            {appointment.clientName}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          <p className="text-xs text-gray-500 truncate">
+                            {appointment.service} • {formatDuration(appointment.start, appointment.end)}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "ml-2 text-xs",
+                          appointment.status === "confirmed" && "bg-green-100 text-green-800",
+                          appointment.status === "pending" && "bg-yellow-100 text-yellow-800",
+                          appointment.status === "cancelled" && "bg-red-100 text-red-800"
+                        )}
+                      >
+                        {appointment.status}
+                      </Badge>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" />
-                  <span>{appointment.clientName}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{appointment.service}</span>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </CardContent>
     </Card>
