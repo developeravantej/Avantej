@@ -6,17 +6,21 @@
  *
  * Usage:
  * ```typescript
- * import { getDescendantNodeIds } from "@/services/hierarchy.service";
+ * import { getDescendantNodeIds, createHierarchyNode } from "@/services/hierarchy.service";
  * import { getTenantDb } from "@/lib/db";
  *
  * const tenantDb = await getTenantDb(organizationId);
  * const descendantIds = await getDescendantNodeIds(tenantDb, nodeId);
+ * const newNode = await createHierarchyNode(tenantDb, { type: "branch", name: "Downtown", parentId: areaId });
  * ```
  */
 
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { CreateHierarchyNodeParams } from "./hierarchy-validation.service";
+import { getDepthForType } from "./hierarchy-validation.service";
 
 /**
  * Get all descendant node IDs (including the node itself) using recursive CTE
@@ -72,7 +76,11 @@ export async function getDescendantNodeIds(
 
     return ids;
   } catch (error) {
-    if (error instanceof Error && error.message.includes("relation") && error.message.includes("does not exist")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("relation") &&
+      error.message.includes("does not exist")
+    ) {
       throw new Error(`Node not found: ${nodeId}`);
     }
     throw new Error(
@@ -134,7 +142,11 @@ export async function getAncestorNodeIds(
 
     return ids;
   } catch (error) {
-    if (error instanceof Error && error.message.includes("relation") && error.message.includes("does not exist")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("relation") &&
+      error.message.includes("does not exist")
+    ) {
       throw new Error(`Node not found: ${nodeId}`);
     }
     throw new Error(
@@ -143,3 +155,54 @@ export async function getAncestorNodeIds(
   }
 }
 
+/**
+ * Create a hierarchy node in the tenant database
+ *
+ * Creates a new hierarchy node with proper depth calculation and parent relationship.
+ * Does not perform validation - use validateHierarchyRules() before calling this.
+ *
+ * @param tenantDb - Drizzle client for the tenant database
+ * @param params - Node creation parameters
+ * @returns Created hierarchy node
+ * @throws Error if creation fails
+ *
+ * @example
+ * ```typescript
+ * const node = await createHierarchyNode(tenantDb, {
+ *   type: "branch",
+ *   name: "Downtown Branch",
+ *   parentId: areaNodeId,
+ * });
+ * ```
+ */
+export async function createHierarchyNode(
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  params: CreateHierarchyNodeParams
+) {
+  const { type, name, parentId } = params;
+  const depth = getDepthForType(type);
+
+  try {
+    const [node] = await tenantDb
+      .insert(hierarchyNodes)
+      .values({
+        name,
+        type,
+        parentId: parentId || null,
+        depth,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    if (!node) {
+      throw new Error("Failed to create hierarchy node");
+    }
+
+    return node;
+  } catch (error) {
+    throw new Error(
+      `Failed to create hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}

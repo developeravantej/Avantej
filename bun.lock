@@ -68,10 +68,13 @@
         "@avantej-core/api": "workspace:*",
         "@avantej-core/auth": "workspace:*",
         "@avantej-core/db": "workspace:*",
+        "@avantej-core/services": "workspace:*",
         "@avantej-core/types": "workspace:*",
+        "@better-auth/expo": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
+        "bcryptjs": "^3.0.3",
         "better-auth": "catalog:",
         "dotenv": "catalog:",
         "hono": "catalog:",
@@ -80,6 +83,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@types/bcryptjs": "^3.0.0",
         "@types/node": "^22.13.11",
         "tsdown": "catalog:",
         "typescript": "catalog:",
@@ -149,6 +153,7 @@
       "dependencies": {
         "@avantej-core/auth": "workspace:*",
         "@avantej-core/db": "workspace:*",
+        "@avantej-core/services": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -161,6 +166,8 @@
         "tsdown": "catalog:",
       },
       "peerDependencies": {
+        "@orpc/tanstack-query": "^1.10.0",
+        "@tanstack/react-query": "^5",
         "typescript": "^5",
       },
     },
@@ -198,6 +205,19 @@
         "typescript": "^5",
       },
     },
+    "packages/services": {
+      "name": "@avantej-core/services",
+      "dependencies": {
+        "@avantej-core/db": "workspace:*",
+        "drizzle-orm": "^0.44.2",
+      },
+      "devDependencies": {
+        "tsdown": "catalog:",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/types": {
       "name": "@avantej-core/types",
       "version": "0.0.1",
@@ -213,6 +233,7 @@
     },
   },
   "catalog": {
+    "@better-auth/expo": "^1.3.28",
     "@orpc/client": "^1.10.0",
     "@orpc/openapi": "^1.10.0",
     "@orpc/server": "^1.10.0",
@@ -234,6 +255,8 @@
     "@avantej-core/auth": ["@avantej-core/auth@workspace:packages/auth"],
 
     "@avantej-core/db": ["@avantej-core/db@workspace:packages/db"],
+
+    "@avantej-core/services": ["@avantej-core/services@workspace:packages/services"],
 
     "@avantej-core/types": ["@avantej-core/types@workspace:packages/types"],
 
@@ -1135,6 +1158,8 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
 
+    "@types/bcryptjs": ["@types/bcryptjs@3.0.0", "", { "dependencies": { "bcryptjs": "*" } }, "sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg=="],
+
     "@types/estree": ["@types/estree@1.0.8", "", {}, "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="],
 
     "@types/graceful-fs": ["@types/graceful-fs@4.1.9", "", { "dependencies": { "@types/node": "*" } }, "sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ=="],
@@ -1248,6 +1273,8 @@
     "base64-js": ["base64-js@1.5.1", "", {}, "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA=="],
 
     "baseline-browser-mapping": ["baseline-browser-mapping@2.8.20", "", { "bin": { "baseline-browser-mapping": "dist/cli.js" } }, "sha512-JMWsdF+O8Orq3EMukbUN1QfbLK9mX2CkUmQBcW2T0s8OmdAUL5LLM/6wFwSrqXzlXB13yhyK9gTKS1rIizOduQ=="],
+
+    "bcryptjs": ["bcryptjs@3.0.3", "", { "bin": { "bcrypt": "bin/bcrypt" } }, "sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g=="],
 
     "better-auth": ["better-auth@1.3.32", "", { "dependencies": { "@better-auth/core": "1.3.32", "@better-auth/telemetry": "1.3.32", "@better-auth/utils": "0.3.0", "@better-fetch/fetch": "1.1.18", "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@simplewebauthn/browser": "^13.1.2", "@simplewebauthn/server": "^13.1.2", "better-call": "1.0.19", "defu": "^6.1.4", "jose": "^6.1.0", "kysely": "^0.28.5", "nanostores": "^1.0.1", "zod": "^4.1.5" } }, "sha512-BHz/Ci0oiLe7PA922i+WqqoyW/fj5F1iax7DlUKmixFtyVQ2BJUDXcOROONARCtYScCDDoPLcW3ZrPXPbq/1Bg=="],
 

@@ -23,7 +23,7 @@ import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { createTenantProject } from "./neon.service";
 import { encrypt } from "@avantej-core/db";
-import { runTenantMigrations } from "@avantej-core/db/migrate-tenant";
+import { runTenantMigrations, seedRBACData } from "@avantej-core/db";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 
 /**
@@ -204,6 +204,9 @@ export async function handleCheckoutCompleted(
 
     // 2.7: Create tenant database client
     const tenantDb = createTenantDbClient(connectionString);
+
+    // 2.7.1: Seed RBAC data (roles, permissions, role-permission mappings)
+    await seedRBACData(tenantDb);
 
     // 2.8: Create default hierarchy node (organization level)
     const [orgNode] = await tenantDb

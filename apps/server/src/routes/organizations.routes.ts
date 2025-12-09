@@ -24,7 +24,7 @@ import { tenantMiddleware } from "@/middleware/tenant.middleware";
 import { hierarchyMiddleware } from "@/middleware/hierarchy.middleware";
 import { createTenantProject } from "@/services/neon.service";
 import { encrypt } from "@avantej-core/db";
-import { runTenantMigrations } from "@avantej-core/db/migrate-tenant";
+import { runTenantMigrations, seedRBACData } from "@avantej-core/db";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -216,6 +216,9 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
       // 5. Create tenant database client (using Pool for transaction support)
       const tenantPool = new Pool({ connectionString });
       const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
+
+      // 5.1. Seed RBAC data (roles, permissions, role-permission mappings)
+      await seedRBACData(tenantDb);
 
       // 6. Create default hierarchy node (organization level)
       const [orgNode] = await tenantDb

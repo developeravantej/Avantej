@@ -1,30 +1,31 @@
-import { env } from "cloudflare:workers";
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
-import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { RPCHandler } from "@orpc/server/fetch";
-import { onError } from "@orpc/server";
+import { getBetterAuth } from "@/lib/better-auth";
+import { dbMiddleware } from "@/middleware/db.middleware";
+import { authRoutes } from "@/routes/auth.routes";
+import { hierarchyRoutes } from "@/routes/hierarchy.routes";
+import { organizationRoutes } from "@/routes/organizations.routes";
 import { createContext } from "@avantej-core/api/context";
 import { appRouter } from "@avantej-core/api/routers/index";
-import { getBetterAuth } from "@/lib/better-auth";
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
+import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
+import { onError } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
+import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
+import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { dbMiddleware } from "@/middleware/db.middleware";
-import { authRoutes } from "@/routes/auth.routes";
-import { organizationRoutes } from "@/routes/organizations.routes";
 
 const app = new Hono();
 
 app.use(logger());
 app.use(
-	"/*",
-	cors({
-		origin: env.CORS_ORIGIN || "",
-		allowMethods: ["GET", "POST", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
-		credentials: true,
-	}),
+  "/*",
+  cors({
+    origin: env.CORS_ORIGIN || "",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
 );
 
 // Database middleware: Creates request-scoped connection pools
@@ -35,23 +36,23 @@ app.use("/*", dbMiddleware);
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
-	// Clone the request to get a new body stream (required for Cloudflare Workers)
-	const clonedRequest = c.req.raw.clone();
+  // Clone the request to get a new body stream (required for Cloudflare Workers)
+  const clonedRequest = c.req.raw.clone();
 
-	// Create new mutable headers
-	const headers = new Headers(clonedRequest.headers);
+  // Create new mutable headers
+  const headers = new Headers(clonedRequest.headers);
 
-	// Create a new Request with mutable headers and cloned body
-	const newRequest = new Request(clonedRequest.url, {
-		method: clonedRequest.method,
-		headers: headers,
-		body: clonedRequest.body,
-		duplex: clonedRequest.body ? "half" : undefined,
-	});
+  // Create a new Request with mutable headers and cloned body
+  const newRequest = new Request(clonedRequest.url, {
+    method: clonedRequest.method,
+    headers: headers,
+    body: clonedRequest.body,
+    ...(clonedRequest.body && { duplex: "half" }),
+  });
 
-	// Use request-scoped Better-Auth instance
-	const auth = getBetterAuth(c);
-	return auth.handler(newRequest);
+  // Use request-scoped Better-Auth instance
+  const auth = getBetterAuth(c);
+  return auth.handler(newRequest);
 });
 
 // Custom auth routes following OpenAPI contract
@@ -60,53 +61,56 @@ app.route("/auth", authRoutes);
 // Organization routes following OpenAPI contract
 app.route("/orgs", organizationRoutes);
 
+// Hierarchy routes (nested under organizations)
+app.route("/orgs/:organizationId/hierarchy", hierarchyRoutes);
+
 export const apiHandler = new OpenAPIHandler(appRouter, {
-	plugins: [
-		new OpenAPIReferencePlugin({
-			schemaConverters: [new ZodToJsonSchemaConverter()],
-		}),
-	],
-	interceptors: [
-		onError((error) => {
-			console.error(error);
-		}),
-	],
+  plugins: [
+    new OpenAPIReferencePlugin({
+      schemaConverters: [new ZodToJsonSchemaConverter()],
+    }),
+  ],
+  interceptors: [
+    onError((error) => {
+      console.error(error);
+    }),
+  ],
 });
 
 export const rpcHandler = new RPCHandler(appRouter, {
-	interceptors: [
-		onError((error) => {
-			console.error(error);
-		}),
-	],
+  interceptors: [
+    onError((error) => {
+      console.error(error);
+    }),
+  ],
 });
 
 app.use("/*", async (c, next) => {
-	const context = await createContext({ context: c });
+  const context = await createContext({ context: c });
 
-	const rpcResult = await rpcHandler.handle(c.req.raw, {
-		prefix: "/rpc",
-		context: context,
-	});
+  const rpcResult = await rpcHandler.handle(c.req.raw, {
+    prefix: "/rpc",
+    context: context,
+  });
 
-	if (rpcResult.matched) {
-		return c.newResponse(rpcResult.response.body, rpcResult.response);
-	}
+  if (rpcResult.matched) {
+    return c.newResponse(rpcResult.response.body, rpcResult.response);
+  }
 
-	const apiResult = await apiHandler.handle(c.req.raw, {
-		prefix: "/api-reference",
-		context: context,
-	});
+  const apiResult = await apiHandler.handle(c.req.raw, {
+    prefix: "/api-reference",
+    context: context,
+  });
 
-	if (apiResult.matched) {
-		return c.newResponse(apiResult.response.body, apiResult.response);
-	}
+  if (apiResult.matched) {
+    return c.newResponse(apiResult.response.body, apiResult.response);
+  }
 
-	await next();
+  await next();
 });
 
 app.get("/", (c) => {
-	return c.text("OK");
+  return c.text("OK");
 });
 
 export default app;

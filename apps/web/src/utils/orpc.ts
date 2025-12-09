@@ -22,3 +22,4 @@ const { queryClient, client, orpc } = createORPCClientConfig({
 });
 
 export { queryClient, client, orpc };
+export type { AppRouterClient } from "@avantej-core/api/routers/index";

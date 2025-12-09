@@ -29,11 +29,13 @@
     "@avantej-core/api": "workspace:*",
     "@avantej-core/auth": "workspace:*",
     "@avantej-core/db": "workspace:*",
+    "@avantej-core/services": "workspace:*",
     "@avantej-core/types": "workspace:*",
+    "@better-auth/expo": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
-    "@better-auth/expo": "catalog:",
+    "bcryptjs": "^3.0.3",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",
@@ -45,6 +47,7 @@
     "typescript": "catalog:",
     "tsdown": "catalog:",
     "wrangler": "^4.40.3",
-    "@types/node": "^22.13.11"
+    "@types/node": "^22.13.11",
+    "@types/bcryptjs": "^3.0.0"
   }
 }

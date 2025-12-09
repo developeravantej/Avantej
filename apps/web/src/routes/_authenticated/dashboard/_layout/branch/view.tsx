@@ -1,12 +1,12 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import apiClient from "@/lib/api";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import DataTable from "@/components/tables/branch/view/data-table";
 import { columns } from "@/components/tables/branch/view/columns";
+import DataTable from "@/components/tables/branch/view/data-table";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { client } from "@/utils/orpc";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute(
   "/_authenticated/dashboard/_layout/branch/view"
@@ -20,6 +20,10 @@ function RouteComponent() {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Get organization ID from user context
+  const organizationId =
+    user?.current_organization_id || user?.organizations?.[0]?.id;
+
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       // Wait for auth to complete
@@ -30,33 +34,51 @@ function RouteComponent() {
         return; // useAuth will handle redirect to login
       }
 
+      // Check if organization ID is available
+      if (!organizationId) {
+        toast.error("No organization selected");
+        setData({ items: [] });
+        setIsLoading(false);
+        return;
+      }
+
       // Load the data
       try {
         setIsLoading(true);
-        
-        // Load branches from API (automatically filtered by user's organization)
-        const response = await apiClient.getListbranches();
-        
+
+        // Load hierarchy nodes from oRPC client (filtered to branches)
+        const result = await client.hierarchy.listNodes({ organizationId });
+        const nodes = result.nodes;
+
+        // Filter to only branch nodes (type === "branch", depth === 4)
+        const branchNodes = nodes.filter(
+          (node: { type: string; depth: number }) =>
+            node.type === "branch" && node.depth === 4
+        );
+
         // Transform the data to match the expected format
         const transformedData = {
-          items: response.data.map((branch: any) => ({
+          items: branchNodes.map((branch: any) => ({
             id: branch.id,
             name: branch.name,
-            code: branch.code,
-            area_id: branch.area_id,
-            organization_id: branch.organization_id,
-            branch_type: branch.branch_type || "standard",
-            is_active: branch.is_active,
-            created_at: branch.created_at,
-            updated_at: branch.updated_at,
-          }))
+            code: branch.code || "",
+            area_id: branch.parentId,
+            organization_id: organizationId,
+            branch_type: "standard", // Default, can be enhanced later
+            is_active: true, // Default, can be enhanced later
+            created_at: branch.createdAt,
+            updated_at: branch.updatedAt,
+          })),
         };
 
         setData(transformedData);
       } catch (error: any) {
         console.error("Failed to load branch data:", error);
         // Show user-friendly error message
-        if (error.message.includes("Not authenticated")) {
+        if (
+          error.message?.includes("UNAUTHORIZED") ||
+          error.message?.includes("Not authenticated")
+        ) {
           toast.error("Please log in to access this page");
           navigate({ to: "/login" });
         } else {
@@ -70,7 +92,7 @@ function RouteComponent() {
     };
 
     checkAuthAndLoadData();
-  }, [user, authLoading, isAuthenticated, navigate]);
+  }, [user, authLoading, isAuthenticated, organizationId, navigate]);
 
   // Show loading while auth is checking or data is loading
   if (authLoading || isLoading) {
@@ -102,7 +124,7 @@ function RouteComponent() {
           </Button>
         </Link>
       </div>
-      
+
       <DataTable columns={columns} data={data?.items || []} />
     </div>
   );

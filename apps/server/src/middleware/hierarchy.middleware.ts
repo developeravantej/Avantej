@@ -15,7 +15,7 @@
 import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { getDescendantNodeIds } from "@/services/hierarchy.service";
+import { getDescendantNodeIds } from "@avantej-core/services";
 
 /**
  * Hierarchy middleware

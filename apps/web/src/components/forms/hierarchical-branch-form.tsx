@@ -1,58 +1,57 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Building, Globe, Map, MapPin, Plus, Target } from 'lucide-react';
-import type React from 'react';
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import * as z from 'zod';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import apiClient from '@/lib/api';
-import { logAuthStatus, isAuthenticated } from '@/lib/auth-debug';
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { client } from "@/utils/orpc";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "@tanstack/react-router";
+import { Globe, Map as MapIcon, MapPin, Plus, Target } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
 
 const hierarchicalBranchSchema = z.object({
   // Country selection
   country_id: z.string().optional(),
-  country_name: z.string().min(1, 'Country name is required').optional(),
-  country_code: z.string().min(2, 'Country code is required').optional(),
+  country_name: z.string().min(1, "Country name is required").optional(),
+  country_code: z.string().min(2, "Country code is required").optional(),
 
   // Organization selection
   organization_id: z.string().optional(),
   organization_name: z
     .string()
-    .min(1, 'Organization name is required')
+    .min(1, "Organization name is required")
     .optional(),
 
   // Region selection
   region_id: z.string().optional(),
-  region_name: z.string().min(1, 'Region name is required').optional(),
-  region_code: z.string().min(1, 'Region code is required').optional(),
+  region_name: z.string().min(1, "Region name is required").optional(),
+  region_code: z.string().min(1, "Region code is required").optional(),
 
   // Area selection
   area_id: z.string().optional(),
-  area_name: z.string().min(1, 'Area name is required').optional(),
-  area_code: z.string().min(1, 'Area code is required').optional(),
+  area_name: z.string().min(1, "Area name is required").optional(),
+  area_code: z.string().min(1, "Area code is required").optional(),
 
   // Branch details
-  branch_name: z.string().min(1, 'Branch name is required'),
-  branch_code: z.string().min(1, 'Branch code is required'),
+  branch_name: z.string().min(1, "Branch name is required"),
+  branch_code: z.string().min(1, "Branch code is required"),
   branch_type: z.string().optional(),
 });
 
@@ -71,12 +70,20 @@ interface HierarchyItem {
 const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   onSuccess,
 }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get organization ID from user context
+  // TODO: Get from user's current organization or route params
+  const organizationId =
+    user?.current_organization_id || user?.organizations?.[0]?.id;
+
   // Data states
   const [countries, setCountries] = useState<HierarchyItem[]>([]);
-  const [userOrganization, setUserOrganization] = useState<HierarchyItem | null>(null);
+  const [userOrganization, setUserOrganization] =
+    useState<HierarchyItem | null>(null);
   const [regions, setRegions] = useState<HierarchyItem[]>([]);
   const [areas, setAreas] = useState<HierarchyItem[]>([]);
 
@@ -99,7 +106,6 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
     reset,
   } = useForm<HierarchicalBranchFormData>({
     resolver: zodResolver(hierarchicalBranchSchema),
@@ -107,8 +113,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
   // Load countries and user organization on mount
   useEffect(() => {
-    console.log('📋 Hierarchical Branch Form mounted');
-    logAuthStatus();
+    console.log("📋 Hierarchical Branch Form mounted");
     loadCountries();
     loadUserOrganization();
   }, []);
@@ -135,11 +140,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       console.warn("API call to loadCountries is mocked.");
       setCountries([]); // Mock data
     } catch (error: any) {
-      console.error('Error loading countries:', error);
-      if (error.message.includes('Not authenticated')) {
-        toast.error('Please log in to access this feature');
+      console.error("Error loading countries:", error);
+      if (error.message.includes("Not authenticated")) {
+        toast.error("Please log in to access this feature");
       } else {
-        toast.error('Failed to load countries. Please try again.');
+        toast.error("Failed to load countries. Please try again.");
       }
     }
   };
@@ -158,11 +163,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       console.warn("API call to loadUserOrganization is mocked.");
       setUserOrganization(null); // Mock data
     } catch (error: any) {
-      console.error('Error loading user organization:', error);
-      if (error.message.includes('Not authenticated')) {
-        toast.error('Please log in to access this feature');
+      console.error("Error loading user organization:", error);
+      if (error.message.includes("Not authenticated")) {
+        toast.error("Please log in to access this feature");
       } else {
-        toast.error('Failed to load your organization. Please try again.');
+        toast.error("Failed to load your organization. Please try again.");
       }
     }
   };
@@ -177,11 +182,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       console.warn("API call to loadRegions is mocked.", countryId);
       setRegions([]); // Mock data
     } catch (error: any) {
-      console.error('Error loading regions:', error);
-      if (error.message.includes('Not authenticated')) {
-        toast.error('Please log in to access this feature');
+      console.error("Error loading regions:", error);
+      if (error.message.includes("Not authenticated")) {
+        toast.error("Please log in to access this feature");
       } else {
-        toast.error('Failed to load regions. Please try again.');
+        toast.error("Failed to load regions. Please try again.");
       }
     }
   };
@@ -194,11 +199,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       console.warn("API call to loadAreas is mocked.", regionId);
       setAreas([]); // Mock data
     } catch (error: any) {
-      console.error('Error loading areas:', error);
-      if (error.message.includes('Not authenticated')) {
-        toast.error('Please log in to access this feature');
+      console.error("Error loading areas:", error);
+      if (error.message.includes("Not authenticated")) {
+        toast.error("Please log in to access this feature");
       } else {
-        toast.error('Failed to load areas. Please try again.');
+        toast.error("Failed to load areas. Please try again.");
       }
     }
   };
@@ -207,7 +212,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     const country = countries.find((c) => c.id === countryId);
     if (country) {
       setSelectedCountry(country);
-      setValue('country_id', country.id);
+      setValue("country_id", country.id);
       setSelectedRegion(null);
       setSelectedArea(null);
       setCurrentStep(2);
@@ -218,7 +223,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     const region = regions.find((r) => r.id === regionId);
     if (region) {
       setSelectedRegion(region);
-      setValue('region_id', region.id);
+      setValue("region_id", region.id);
       setSelectedArea(null);
       setCurrentStep(3);
     }
@@ -228,101 +233,158 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     const area = areas.find((a) => a.id === areaId);
     if (area) {
       setSelectedArea(area);
-      setValue('area_id', area.id);
+      setValue("area_id", area.id);
       setCurrentStep(4);
     }
   };
 
   const onSubmit = async (data: HierarchicalBranchFormData) => {
     setIsLoading(true);
-    
-    // Debug authentication status before making the request
-    console.log('🚀 Starting branch creation...');
-    logAuthStatus();
-    
+
     try {
-      // Prepare hierarchical data
-      const hierarchicalData = {
-        country: selectedCountry
-          ? { id: selectedCountry.id }
-          : {
-              name: data.country_name,
-              code: data.country_code,
-            },
-        organization: userOrganization
-          ? { id: userOrganization.id }
-          : {
-              name: data.organization_name || 'Unknown Organization',
-            },
-        region: selectedRegion
-          ? { id: selectedRegion.id }
-          : {
-              name: data.region_name,
-              code: data.region_code,
-            },
-        area: selectedArea
-          ? { id: selectedArea.id }
-          : {
-              name: data.area_name,
-              code: data.area_code,
-            },
-        branch: {
-          name: data.branch_name,
-          code: data.branch_code,
-          branch_type: data.branch_type || 'standard',
-        },
-      };
+      if (!organizationId) {
+        toast.error("Organization ID is required");
+        setIsLoading(false);
+        return;
+      }
 
-      // TODO: Replace with actual oRPC client call
-      // const response = await apiClient.postCreatehierarchicalbranch({
-      //   body: hierarchicalData,
-      // });
-      console.warn("API call to postCreatehierarchicalbranch is mocked.", hierarchicalData);
-      const response = { data: { id: 'mock-branch-id', ...hierarchicalData.branch } };
+      // Get all nodes to find organization node using client directly
+      const listResult = await client.hierarchy.listNodes({ organizationId });
+      const allNodes = listResult.nodes;
 
-      toast.success('Branch created successfully!');
-      onSuccess?.(response.data);
+      // Find organization node (depth 0, type "organization")
+      const orgNode = allNodes.find(
+        (n: { type: string; depth: number }) =>
+          n.type === "organization" && n.depth === 0
+      );
+      if (!orgNode) {
+        toast.error("Organization node not found");
+        setIsLoading(false);
+        return;
+      }
+
+      // Create hierarchy nodes sequentially using oRPC client
+      let countryNodeId = selectedCountry?.id;
+      let regionNodeId = selectedRegion?.id;
+      let areaNodeId = selectedArea?.id;
+
+      // Step 1: Create Country if needed
+      if (!countryNodeId && data.country_name) {
+        const countryNode = await client.hierarchy.createNode({
+          organizationId,
+          type: "country",
+          name: data.country_name,
+          code: data.country_code,
+          parentId: orgNode.id, // Country is under organization node
+        });
+        countryNodeId = countryNode.id;
+        setSelectedCountry({ id: countryNode.id, name: countryNode.name });
+      }
+
+      // Step 2: Create Region if needed
+      if (!regionNodeId && data.region_name && countryNodeId) {
+        const regionNode = await client.hierarchy.createNode({
+          organizationId,
+          type: "region",
+          name: data.region_name,
+          code: data.region_code,
+          parentId: countryNodeId,
+        });
+        regionNodeId = regionNode.id;
+        setSelectedRegion({ id: regionNode.id, name: regionNode.name });
+      }
+
+      // Step 3: Create Area if needed
+      if (!areaNodeId && data.area_name && regionNodeId) {
+        const areaNode = await client.hierarchy.createNode({
+          organizationId,
+          type: "area",
+          name: data.area_name,
+          code: data.area_code,
+          parentId: regionNodeId,
+        });
+        areaNodeId = areaNode.id;
+        setSelectedArea({ id: areaNode.id, name: areaNode.name });
+      }
+
+      // Step 4: Create Branch
+      if (!areaNodeId) {
+        toast.error("Area is required to create a branch");
+        setIsLoading(false);
+        return;
+      }
+
+      const branchNode = await client.hierarchy.createNode({
+        organizationId,
+        type: "branch",
+        name: data.branch_name,
+        code: data.branch_code,
+        parentId: areaNodeId,
+      });
+
+      toast.success("Branch created successfully!");
+      onSuccess?.(branchNode);
       reset();
       setCurrentStep(1);
       setSelectedCountry(null);
       setSelectedRegion(null);
       setSelectedArea(null);
+
+      // Navigate to branch view
+      navigate({ to: "/dashboard/branch/view" });
     } catch (error: any) {
-      console.error('Error creating branch:', error);
-      console.log('Error message:', error.message);
-      console.log('Error stack:', error.stack);
+      console.error("Error creating branch:", error);
+      console.log("Error message:", error.message);
+      console.log("Error stack:", error.stack);
 
       // Check authentication status
       const token = localStorage.getItem("authToken");
-      console.log('Current auth token exists:', !!token);
+      console.log("Current auth token exists:", !!token);
       if (token) {
-        console.log('Token preview:', token.substring(0, 50) + '...');
+        console.log("Token preview:", token.substring(0, 50) + "...");
       }
 
       // Handle specific error types with more detailed debugging
-      if (error.message.includes('Not authenticated') || error.message.includes('401')) {
-        console.error('Authentication error - token may be expired or invalid');
-        toast.error('Please log in to create branches. Your session may have expired.');
-      } else if (error.message.includes('not found') || error.message.includes('404')) {
-        console.error('Resource not found error');
+      if (
+        error.message.includes("Not authenticated") ||
+        error.message.includes("401")
+      ) {
+        console.error("Authentication error - token may be expired or invalid");
         toast.error(
-          'One or more selected items could not be found. Please refresh and try again.'
+          "Please log in to create branches. Your session may have expired."
         );
-      } else if (error.message.includes('already exists') || error.message.includes('duplicate')) {
-        console.error('Duplicate resource error');
+      } else if (
+        error.message.includes("not found") ||
+        error.message.includes("404")
+      ) {
+        console.error("Resource not found error");
         toast.error(
-          'A branch with this code already exists in the selected area'
+          "One or more selected items could not be found. Please refresh and try again."
         );
-      } else if (error.message.includes('400')) {
-        console.error('Bad request error');
+      } else if (
+        error.message.includes("already exists") ||
+        error.message.includes("duplicate")
+      ) {
+        console.error("Duplicate resource error");
         toast.error(
-          'Invalid data provided. Please check your input and try again.'
+          "A branch with this code already exists in the selected area"
         );
-      } else if (error.message.includes('403') || error.message.includes('Forbidden') || error.message.includes('permission')) {
-        console.error('Permission error - user lacks required permissions');
-        toast.error("You don't have permission to create branches. Please contact your administrator.");
+      } else if (error.message.includes("400")) {
+        console.error("Bad request error");
+        toast.error(
+          "Invalid data provided. Please check your input and try again."
+        );
+      } else if (
+        error.message.includes("403") ||
+        error.message.includes("Forbidden") ||
+        error.message.includes("permission")
+      ) {
+        console.error("Permission error - user lacks required permissions");
+        toast.error(
+          "You don't have permission to create branches. Please contact your administrator."
+        );
       } else {
-        console.error('Unknown error occurred');
+        console.error("Unknown error occurred");
         toast.error(`Failed to create branch: ${error.message}`);
       }
     } finally {
@@ -334,49 +396,68 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     const steps = [
       {
         number: 1,
-        title: 'Country',
+        title: "Country",
         icon: Globe,
         completed: !!selectedCountry,
       },
-      { number: 2, title: 'Region', icon: Map, completed: !!selectedRegion },
-      { number: 3, title: 'Area', icon: MapPin, completed: !!selectedArea },
-      { number: 4, title: 'Branch', icon: Target, completed: false },
+      {
+        number: 2,
+        title: "Region",
+        icon: MapIcon,
+        completed: !!selectedRegion,
+      },
+      { number: 3, title: "Area", icon: MapPin, completed: !!selectedArea },
+      { number: 4, title: "Branch", icon: Target, completed: false },
     ];
 
     return (
       <div className="mb-8 flex items-center justify-between">
         {steps.map((step, index) => (
-          <div className="flex items-center" key={step.number}>
-            <div
-              className={`flex items-center space-x-2 ${
-                currentStep === step.number
-                  ? 'text-blue-600'
-                  : step.completed
-                    ? 'text-green-600'
-                    : 'text-gray-400'
-              }`}
-            >
+          <React.Fragment key={step.number}>
+            <div className="flex flex-col items-center">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                className={`flex items-center space-x-2 ${
                   currentStep === step.number
-                    ? 'border-blue-600 bg-blue-50'
+                    ? "text-blue-600"
                     : step.completed
-                      ? 'border-green-600 bg-green-50'
-                      : 'border-gray-300'
+                      ? "text-green-600"
+                      : "text-gray-400"
                 }`}
               >
-                <step.icon className="h-4 w-4" />
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+                    currentStep === step.number
+                      ? "border-blue-600 bg-blue-50"
+                      : step.completed
+                        ? "border-green-600 bg-green-50"
+                        : "border-gray-300 bg-gray-50"
+                  }`}
+                >
+                  <step.icon className="h-5 w-5" />
+                </div>
               </div>
-              <span className="font-medium text-sm">{step.title}</span>
+              <span
+                className={`mt-2 font-medium text-sm ${
+                  currentStep === step.number
+                    ? "text-blue-600"
+                    : step.completed
+                      ? "text-green-600"
+                      : "text-gray-400"
+                }`}
+              >
+                {step.title}
+              </span>
             </div>
             {index < steps.length - 1 && (
-              <div
-                className={`mx-4 h-px w-8 ${
-                  step.completed ? 'bg-green-600' : 'bg-gray-300'
-                }`}
-              />
+              <div className="flex-1 mx-4 flex items-center">
+                <div
+                  className={`flex-1 h-0.5 ${
+                    step.completed ? "bg-green-600" : "bg-gray-300"
+                  }`}
+                />
+              </div>
             )}
-          </div>
+          </React.Fragment>
         ))}
       </div>
     );
@@ -400,7 +481,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="country_name">Country Name</Label>
               <Input
                 id="country_name"
-                {...register('country_name')}
+                {...register("country_name")}
                 placeholder="Enter country name"
               />
               {errors.country_name && (
@@ -413,7 +494,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="country_code">Country Code</Label>
               <Input
                 id="country_code"
-                {...register('country_code')}
+                {...register("country_code")}
                 maxLength={10}
                 placeholder="Enter country code (e.g., MY)"
               />
@@ -445,18 +526,38 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
           <div className="space-y-4">
             <div>
               <Label htmlFor="country-select">Select Country</Label>
-              <Select onValueChange={handleCountrySelect}>
+              <Select
+                onValueChange={handleCountrySelect}
+                disabled={countries.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a country" />
+                  <SelectValue
+                    placeholder={
+                      countries.length === 0
+                        ? "No countries available"
+                        : "Choose a country"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.id} value={country.id}>
-                      {country.name} ({country.code})
-                    </SelectItem>
-                  ))}
+                  {countries.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No countries available
+                    </div>
+                  ) : (
+                    countries.map((country) => (
+                      <SelectItem key={country.id} value={country.id}>
+                        {country.name} ({country.code})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {countries.length === 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Please create a new country to continue
+                </p>
+              )}
             </div>
             <Button
               className="w-full"
@@ -477,7 +578,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Map className="h-5 w-5" />
+          <MapIcon className="h-5 w-5" />
           <span>Step 2: Select or Create Region</span>
         </CardTitle>
         <CardDescription>
@@ -496,7 +597,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="region_name">Region Name</Label>
               <Input
                 id="region_name"
-                {...register('region_name')}
+                {...register("region_name")}
                 placeholder="Enter region name"
               />
               {errors.region_name && (
@@ -509,7 +610,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="region_code">Region Code</Label>
               <Input
                 id="region_code"
-                {...register('region_code')}
+                {...register("region_code")}
                 maxLength={50}
                 placeholder="Enter region code"
               />
@@ -541,18 +642,38 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
           <div className="space-y-4">
             <div>
               <Label htmlFor="region-select">Select Region</Label>
-              <Select onValueChange={handleRegionSelect}>
+              <Select
+                onValueChange={handleRegionSelect}
+                disabled={regions.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a region" />
+                  <SelectValue
+                    placeholder={
+                      regions.length === 0
+                        ? "No regions available"
+                        : "Choose a region"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {regions.map((region) => (
-                    <SelectItem key={region.id} value={region.id}>
-                      {region.name} ({region.code})
-                    </SelectItem>
-                  ))}
+                  {regions.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No regions available
+                    </div>
+                  ) : (
+                    regions.map((region) => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.name} ({region.code})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {regions.length === 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Please create a new region to continue
+                </p>
+              )}
             </div>
             <Button
               className="w-full"
@@ -592,7 +713,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="area_name">Area Name</Label>
               <Input
                 id="area_name"
-                {...register('area_name')}
+                {...register("area_name")}
                 placeholder="Enter area name"
               />
               {errors.area_name && (
@@ -605,7 +726,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <Label htmlFor="area_code">Area Code</Label>
               <Input
                 id="area_code"
-                {...register('area_code')}
+                {...register("area_code")}
                 maxLength={50}
                 placeholder="Enter area code"
               />
@@ -637,18 +758,38 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
           <div className="space-y-4">
             <div>
               <Label htmlFor="area-select">Select Area</Label>
-              <Select onValueChange={handleAreaSelect}>
+              <Select
+                onValueChange={handleAreaSelect}
+                disabled={areas.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose an area" />
+                  <SelectValue
+                    placeholder={
+                      areas.length === 0
+                        ? "No areas available"
+                        : "Choose an area"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {areas.map((area) => (
-                    <SelectItem key={area.id} value={area.id}>
-                      {area.name} ({area.code})
-                    </SelectItem>
-                  ))}
+                  {areas.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No areas available
+                    </div>
+                  ) : (
+                    areas.map((area) => (
+                      <SelectItem key={area.id} value={area.id}>
+                        {area.name} ({area.code})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {areas.length === 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Please create a new area to continue
+                </p>
+              )}
             </div>
             <Button
               className="w-full"
@@ -687,7 +828,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             <Label htmlFor="branch_name">Branch Name</Label>
             <Input
               id="branch_name"
-              {...register('branch_name')}
+              {...register("branch_name")}
               placeholder="Enter branch name"
             />
             {errors.branch_name && (
@@ -700,7 +841,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             <Label htmlFor="branch_code">Branch Code</Label>
             <Input
               id="branch_code"
-              {...register('branch_code')}
+              {...register("branch_code")}
               maxLength={50}
               placeholder="Enter branch code"
             />
@@ -712,7 +853,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
           </div>
           <div>
             <Label htmlFor="branch_type">Branch Type</Label>
-            <Select onValueChange={(value) => setValue('branch_type', value)}>
+            <Select onValueChange={(value) => setValue("branch_type", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select branch type" />
               </SelectTrigger>
@@ -748,7 +889,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               Back
             </Button>
             <Button disabled={isLoading} type="submit">
-              {isLoading ? 'Creating...' : 'Create Branch'}
+              {isLoading ? "Creating..." : "Create Branch"}
             </Button>
           </div>
         )}
@@ -758,4 +899,3 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 };
 
 export default HierarchicalBranchForm;
-

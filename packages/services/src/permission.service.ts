@@ -1,0 +1,136 @@
+/**
+ * Permission Service
+ *
+ * Provides permission checking utilities for RBAC using database tables.
+ * Checks permissions via roles -> role_permissions -> permissions tables.
+ *
+ * Usage:
+ * ```typescript
+ * import { hasPermission, requirePermission } from "@avantej-core/services";
+ *
+ * if (!await hasPermission(tenantDb, member, "hierarchy_management", "create")) {
+ *   throw new Error("Permission denied");
+ * }
+ * ```
+ */
+
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { roles } from "@avantej-core/db/schema/tenant/roles";
+import { permissions } from "@avantej-core/db/schema/tenant/permissions";
+import { rolePermissions } from "@avantej-core/db/schema/tenant/role-permissions";
+import { eq, and } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+
+type Member = typeof members.$inferSelect;
+
+export type Resource =
+  | "hierarchy_management"
+  | "user_management"
+  | "service_management"
+  | "appointment_management";
+export type Action = "create" | "read" | "update" | "delete";
+
+/**
+ * Check if member has a specific permission
+ *
+ * Implementation:
+ * - Checks member's role in roles table
+ * - Admin role (priority >= 100): All permissions granted
+ * - Other roles: Checks role_permissions table for specific permission
+ *
+ * @param tenantDb - Tenant database client
+ * @param member - Member record from tenant database
+ * @param resource - Resource name (e.g., "hierarchy_management")
+ * @param action - Action name (e.g., "create")
+ * @returns true if member has permission, false otherwise
+ */
+export async function hasPermission(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	member: Member,
+	resource: Resource,
+	action: Action
+): Promise<boolean> {
+	// Get member's role
+	const role = await tenantDb.query.roles.findFirst({
+		where: (roles, { eq }) => eq(roles.name, member.role),
+	});
+
+	if (!role) {
+		// Role not found in RBAC tables - fallback to simple check
+		return member.role === "admin";
+	}
+
+	// Admin role has all permissions (check priority)
+	if (role.priority >= 100) {
+		return true;
+	}
+
+	// Check if role has the specific permission
+	const permission = await tenantDb.query.permissions.findFirst({
+		where: (permissions, { eq, and }) =>
+			and(
+				eq(permissions.resource, resource),
+				eq(permissions.action, action)
+			),
+	});
+
+	if (!permission) {
+		// Permission not found in RBAC tables
+		return false;
+	}
+
+	const rolePerm = await tenantDb.query.rolePermissions.findFirst({
+		where: (rolePermissions, { eq, and }) =>
+			and(
+				eq(rolePermissions.roleId, role.id),
+				eq(rolePermissions.permissionId, permission.id)
+			),
+	});
+
+	return !!rolePerm;
+}
+
+/**
+ * Check if member has hierarchy management permission
+ *
+ * Convenience function for checking hierarchy_management permissions.
+ *
+ * @param tenantDb - Tenant database client
+ * @param member - Member record from tenant database
+ * @param action - Action to check (default: "create")
+ * @returns true if member has permission, false otherwise
+ */
+export async function checkHierarchyPermission(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	member: Member,
+	action: Action = "create"
+): Promise<boolean> {
+	return hasPermission(tenantDb, member, "hierarchy_management", action);
+}
+
+/**
+ * Require permission or throw error
+ *
+ * Throws an error if member doesn't have the required permission.
+ *
+ * @param tenantDb - Tenant database client
+ * @param member - Member record from tenant database
+ * @param resource - Resource name
+ * @param action - Action name
+ * @throws Error if permission is denied
+ */
+export async function requirePermission(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	member: Member,
+	resource: Resource,
+	action: Action
+): Promise<void> {
+	const hasPerm = await hasPermission(tenantDb, member, resource, action);
+	if (!hasPerm) {
+		throw new Error(
+			`Permission denied: ${member.role} role does not have ${resource}:${action} permission`
+		);
+	}
+}
+

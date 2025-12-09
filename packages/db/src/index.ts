@@ -20,3 +20,6 @@ export { encrypt, decrypt } from "./lib/encryption";
 
 // Export migration runner
 export { runTenantMigrations } from "./migrate-tenant";
+
+// Export RBAC seed function
+export { seedRBACData } from "./seed-rbac";
