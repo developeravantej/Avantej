@@ -13,7 +13,7 @@
 
 import { Hono } from "hono";
 import { eq, and, count, ne } from "drizzle-orm";
-import { controlPanelDb } from "@/lib/db";
+import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
@@ -134,6 +134,9 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
         400
       );
     }
+
+    // Get request-scoped database client
+    const controlPanelDb = getControlPanelDb(c);
 
     // Check if slug already exists
     const existingOrg = await controlPanelDb.query.organizations.findFirst({
@@ -291,6 +294,7 @@ organizationRoutes.get("/:id", authMiddleware, tenantMiddleware, async (c) => {
     if (!user) {
       return c.json({ error: "Unauthorized" }, 401);
     }
+    const controlPanelDb = getControlPanelDb(c);
     const memberRecord =
       await controlPanelDb.query.organizationMembers.findFirst({
         where: and(
@@ -375,6 +379,7 @@ organizationRoutes.patch(
         }
 
         // Check if slug is already taken by another organization
+        const controlPanelDb = getControlPanelDb(c);
         const existingOrg = await controlPanelDb.query.organizations.findFirst({
           where: and(
             eq(organizations.slug, slug),
@@ -390,6 +395,7 @@ organizationRoutes.patch(
       }
 
       // Update organization
+      const controlPanelDb = getControlPanelDb(c);
       const [updated] = await controlPanelDb
         .update(organizations)
         .set(updates)
@@ -452,6 +458,7 @@ organizationRoutes.delete(
       // which will cascade delete organization_members due to FK constraint
       // The tenant database will remain but won't be accessible
 
+      const controlPanelDb = getControlPanelDb(c);
       await controlPanelDb
         .delete(organizations)
         .where(eq(organizations.id, organization.id));

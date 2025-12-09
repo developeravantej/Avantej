@@ -15,8 +15,8 @@
  */
 
 import { Hono } from "hono";
-import { auth } from "@/lib/better-auth";
-import { controlPanelDb } from "@/lib/db";
+import { getBetterAuth } from "@/lib/better-auth";
+import { getControlPanelDb } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import {
@@ -58,6 +58,7 @@ authRoutes.post("/register", async (c) => {
 
     // Register user via Better-Auth
     // Better-Auth API method name is signUpEmail (camelCase)
+    const auth = getBetterAuth(c);
     const result = (await (auth.api as any).signUpEmail({
       body: {
         email,
@@ -149,6 +150,7 @@ authRoutes.post("/login", async (c) => {
     );
 
     // Call Better-Auth handler to get the response with cookies
+    const auth = getBetterAuth(c);
     const authResponse = await auth.handler(signInRequest);
 
     if (!authResponse.ok) {
@@ -177,6 +179,7 @@ authRoutes.post("/login", async (c) => {
     }
 
     // Get user's organizations from control panel database
+    const controlPanelDb = getControlPanelDb(c);
     const userOrganizations =
       await controlPanelDb.query.organizationMembers.findMany({
         where: eq(organizationMembers.userId, user.id),
@@ -343,6 +346,7 @@ authRoutes.post("/logout", authMiddleware, async (c) => {
       }
     );
 
+    const auth = getBetterAuth(c);
     const authResponse = await auth.handler(signOutRequest);
 
     // Copy cookies from Better-Auth response (for clearing cookies)
@@ -366,6 +370,7 @@ authRoutes.post("/refresh", async (c) => {
   try {
     // Better-Auth handles token refresh automatically via cookies
     // We'll check if there's a valid session and return a new access token
+    const auth = getBetterAuth(c);
     const session = (await auth.api.getSession({
       headers: c.req.raw.headers,
     })) as BetterAuthGetSessionResponse;

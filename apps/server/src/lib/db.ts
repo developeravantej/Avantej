@@ -9,12 +9,20 @@
  * Environment Variable:
  * - DATABASE_URL: Connection string for the control panel Neon database
  *
- * Usage:
+ * Usage in request handlers (preferred):
+ * ```typescript
+ * import { getControlPanelDb } from "@/lib/db";
+ * import type { Context } from "hono";
+ *
+ * const db = getControlPanelDb(c); // c is Hono context
+ * const users = await db.query.user.findMany();
+ * ```
+ *
+ * Usage outside request handlers (tests, scripts):
  * ```typescript
  * import { controlPanelDb } from "@/lib/db";
  *
  * const users = await controlPanelDb.query.user.findMany();
- * const org = await controlPanelDb.query.organizations.findFirst({...});
  * ```
  */
 
@@ -22,6 +30,7 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import { eq } from "drizzle-orm";
+import type { Context } from "hono";
 // Import control panel schemas (auth + control-panel tables)
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 // Import tenant schemas (hierarchy_nodes, members, invitations)
@@ -85,15 +94,38 @@ function getControlPanelPool(): Pool {
 }
 
 /**
- * Drizzle ORM client for control panel database
+ * Get request-scoped control panel database client from Hono context
  *
- * Includes all control panel schemas:
- * - Better-Auth: user, session, account, verification
- * - Control Panel: subscriptions, organizations, organization_members, platform_admins, admin_sessions
+ * Prefers request-scoped pool from context (created by dbMiddleware).
+ * Falls back to singleton pool for non-request contexts (tests, scripts).
  *
- * Supports transactions via WebSocket connection
+ * @param c - Optional Hono context. If provided, uses request-scoped pool.
+ * @returns Drizzle client for control panel database
+ */
+export function getControlPanelDb(
+	c?: Context
+): NeonDatabase<typeof controlPanelSchema> {
+	// If context is provided and has request-scoped pool, use it
+	if (c) {
+		const contextDb = c.get("controlPanelDb");
+		if (contextDb) {
+			return contextDb;
+		}
+	}
+
+	// Fall back to singleton pool (for tests, scripts, etc.)
+	return drizzle({
+		client: getControlPanelPool(),
+		schema: controlPanelSchema,
+	});
+}
+
+/**
+ * Legacy export: Singleton control panel database client
  *
- * Note: In test environments, this will use process.env.DATABASE_URL
+ * @deprecated Use getControlPanelDb(c) in request handlers for Cloudflare Workers compatibility.
+ * This singleton pool cannot be shared across requests in Cloudflare Workers.
+ * Only use this in test environments or scripts outside request handlers.
  */
 export const controlPanelDb = drizzle({
 	client: getControlPanelPool(),
@@ -104,17 +136,29 @@ export const controlPanelDb = drizzle({
  * Tenant Database Connection Router
  *
  * Routes requests to the correct tenant database based on organization ID.
+ * Uses request-scoped pools when available (from Hono context) for Cloudflare Workers compatibility.
  *
  * Process:
  * 1. Queries control panel database to find organization record
  * 2. Decrypts the stored connection string
- * 3. Creates and returns Drizzle client connected to that tenant's database
+ * 3. Creates or reuses request-scoped pool for the tenant database
+ * 4. Returns Drizzle client connected to that tenant's database
  *
  * @param organizationId - UUID of the organization
+ * @param c - Optional Hono context. If provided, uses request-scoped pools and caches within request.
  * @returns Drizzle client for the tenant database with tenant schemas
  * @throws Error if organization not found or connection string invalid
  *
- * Usage:
+ * Usage in request handlers (preferred):
+ * ```typescript
+ * import { getTenantDb } from "@/lib/db";
+ * import type { Context } from "hono";
+ *
+ * const tenantDb = await getTenantDb("org-123-uuid", c); // c is Hono context
+ * const members = await tenantDb.query.members.findMany();
+ * ```
+ *
+ * Usage outside request handlers (tests, scripts):
  * ```typescript
  * import { getTenantDb } from "@/lib/db";
  *
@@ -123,33 +167,58 @@ export const controlPanelDb = drizzle({
  * ```
  */
 export async function getTenantDb(
-  organizationId: string
+	organizationId: string,
+	c?: Context
 ): Promise<NeonDatabase<typeof tenantSchema>> {
-  // Lookup organization in control panel database
-  const organization = await controlPanelDb.query.organizations.findFirst({
-    where: eq(organizations.id, organizationId),
-  });
+	// Get control panel database (prefer request-scoped)
+	const controlPanelDb = getControlPanelDb(c);
 
-  if (!organization) {
-    throw new Error(`Organization not found: ${organizationId}`);
-  }
+	// Lookup organization in control panel database
+	const organization = await controlPanelDb.query.organizations.findFirst({
+		where: eq(organizations.id, organizationId),
+	});
 
-  // Decrypt connection string
-  let connectionString: string;
-  try {
-    connectionString = decrypt(organization.connectionString);
-  } catch (error) {
-    throw new Error(
-      `Failed to decrypt connection string for organization ${organizationId}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+	if (!organization) {
+		throw new Error(`Organization not found: ${organizationId}`);
+	}
 
-  // Create Pool for tenant database (supports transactions)
-  const tenantPool = new Pool({ connectionString });
+	// Decrypt connection string
+	let connectionString: string;
+	try {
+		connectionString = decrypt(organization.connectionString);
+	} catch (error) {
+		throw new Error(
+			`Failed to decrypt connection string for organization ${organizationId}: ${error instanceof Error ? error.message : "Unknown error"}`
+		);
+	}
 
-  // Create and return Drizzle client with tenant schemas
-  return drizzle({
-    client: tenantPool,
-    schema: tenantSchema,
-  });
+	// If context is provided, use request-scoped pool caching
+	if (c) {
+		const tenantPools = c.get("tenantPools");
+		if (tenantPools) {
+			// Check if pool already exists for this organization in this request
+			let tenantPool = tenantPools.get(organizationId);
+			if (!tenantPool) {
+				// Create new request-scoped pool and cache it
+				tenantPool = new Pool({ connectionString });
+				tenantPools.set(organizationId, tenantPool);
+			}
+
+			// Create and return Drizzle client with tenant schemas
+			return drizzle({
+				client: tenantPool,
+				schema: tenantSchema,
+			});
+		}
+	}
+
+	// Fall back to creating a new pool (for tests, scripts, etc.)
+	// Note: In Cloudflare Workers, this should not be used in request handlers
+	const tenantPool = new Pool({ connectionString });
+
+	// Create and return Drizzle client with tenant schemas
+	return drizzle({
+		client: tenantPool,
+		schema: tenantSchema,
+	});
 }

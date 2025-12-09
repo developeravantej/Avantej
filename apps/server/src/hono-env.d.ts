@@ -20,9 +20,16 @@ import type { members } from "@avantej-core/db/schema/tenant/members";
 import type { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { Pool } from "@neondatabase/serverless";
 
 declare module "hono" {
   interface ContextVariableMap {
+    // Database middleware variables (request-scoped pools)
+    controlPanelPool: Pool;
+    controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+    tenantPools: Map<string, Pool>;
+
     // Auth middleware variables
     user: BetterAuthUser;
     session: BetterAuthSession;

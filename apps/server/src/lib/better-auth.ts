@@ -23,6 +23,7 @@
  */
 
 import { betterAuth } from "better-auth";
+import { expo } from "@better-auth/expo";
 import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -30,7 +31,8 @@ import { eq } from "drizzle-orm";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
-import { controlPanelDb } from "@/lib/db";
+import type { Context } from "hono";
+import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import * as schema from "@avantej-core/db/schema/auth";
 
@@ -65,8 +67,20 @@ function getEnvVar(key: string): string | undefined {
 /**
  * Create database client for Better-Auth (without schema - Better-Auth adds its own)
  * Better-Auth's drizzle adapter expects a client without a schema
+ *
+ * @param c - Optional Hono context. If provided, uses request-scoped pool.
  */
-function createBetterAuthDb() {
+function createBetterAuthDb(c?: Context) {
+  // If context is provided, use request-scoped pool from context
+  if (c) {
+    const controlPanelPool = c.get("controlPanelPool");
+    if (controlPanelPool) {
+      // Create drizzle instance without schema (Better-Auth adds its own)
+      return drizzle({ client: controlPanelPool });
+    }
+  }
+
+  // Fall back to creating a new pool (for non-request contexts)
   const databaseUrl = getEnvVar("DATABASE_URL");
   if (!databaseUrl) {
     throw new Error("DATABASE_URL environment variable is required");
@@ -76,20 +90,17 @@ function createBetterAuthDb() {
 }
 
 /**
- * Better-Auth instance with Organization and Admin plugins
+ * Create Better-Auth instance with request-scoped database connection
  *
- * Configuration:
- * - Database: Uses control panel database via Drizzle adapter
- * - Email/Password: Enabled with email verification required
- * - Session: 15-minute expiry, updates every 5 minutes
- * - Organization Plugin: Enables multi-tenant organization management
- * - Admin Plugin: Enables platform administration features
+ * @param c - Optional Hono context. If provided, uses request-scoped pool.
+ * @returns Better-Auth instance configured with request-scoped database
  */
-export const auth = betterAuth({
-  database: drizzleAdapter(createBetterAuthDb(), {
-    provider: "pg",
-    schema: schema,
-  }),
+function createBetterAuth(c?: Context) {
+  return betterAuth({
+    database: drizzleAdapter(createBetterAuthDb(c), {
+      provider: "pg",
+      schema: schema,
+    }),
   trustedOrigins: [
     getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
     "mybettertapp://",
@@ -196,6 +207,7 @@ export const auth = betterAuth({
     // },
   },
   plugins: [
+    expo(), // Expo plugin - safe for both web and native, only activates for Expo requests
     organization({
       // Only allow org creation if user has valid subscription
       // This will be enforced via payment-gated provisioning (T040)
@@ -226,8 +238,12 @@ export const auth = betterAuth({
         const invitationLink = `${baseURL}/accept-invitation?id=${invitation.id}`;
 
         // Fetch organization name from database
+        // Note: This callback doesn't have access to Hono context,
+        // so we use the singleton controlPanelDb (which is fine for read operations)
         let organizationName = "an organization";
         try {
+          // Import here to avoid circular dependency
+          const { controlPanelDb } = await import("@/lib/db");
           const org = await controlPanelDb.query.organizations.findFirst({
             where: eq(organizations.id, invitation.organizationId),
           });
@@ -259,4 +275,40 @@ export const auth = betterAuth({
       impersonationSessionDuration: 60 * 60,
     }),
   ],
-});
+  });
+}
+
+/**
+ * Better-Auth instance with Organization and Admin plugins
+ *
+ * @deprecated Use getBetterAuth(c) in request handlers for Cloudflare Workers compatibility.
+ * This singleton instance uses a singleton pool that cannot be shared across requests.
+ * Only use this in test environments or scripts outside request handlers.
+ *
+ * Configuration:
+ * - Database: Uses control panel database via Drizzle adapter
+ * - Email/Password: Enabled with email verification required
+ * - Session: 15-minute expiry, updates every 5 minutes
+ * - Organization Plugin: Enables multi-tenant organization management
+ * - Admin Plugin: Enables platform administration features
+ */
+export const auth = createBetterAuth();
+
+/**
+ * Get request-scoped Better-Auth instance
+ *
+ * Prefers request-scoped pool from Hono context (created by dbMiddleware).
+ * Falls back to singleton instance for non-request contexts.
+ *
+ * @param c - Optional Hono context. If provided, uses request-scoped pool.
+ * @returns Better-Auth instance configured with request-scoped database
+ */
+export function getBetterAuth(c?: Context) {
+  // If context is provided, create request-scoped instance
+  if (c) {
+    return createBetterAuth(c);
+  }
+
+  // Fall back to singleton instance (for non-request contexts)
+  return auth;
+}

@@ -13,12 +13,13 @@
  */
 
 import { createMiddleware } from "hono/factory";
-import { auth } from "@/lib/better-auth";
+import { getBetterAuth } from "@/lib/better-auth";
 
 /**
  * Authentication middleware
  *
  * Validates the user's session using Better-Auth and injects user data into context.
+ * Uses request-scoped Better-Auth instance for Cloudflare Workers compatibility.
  * Returns 401 Unauthorized if no valid session is found.
  *
  * Injects into context:
@@ -27,6 +28,8 @@ import { auth } from "@/lib/better-auth";
  */
 export const authMiddleware = createMiddleware(async (c, next) => {
 	try {
+		// Use request-scoped Better-Auth instance
+		const auth = getBetterAuth(c);
 		const session = await auth.api.getSession({
 			headers: c.req.raw.headers,
 		});

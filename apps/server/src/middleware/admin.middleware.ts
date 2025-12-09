@@ -14,7 +14,7 @@
 
 import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
-import { controlPanelDb } from "@/lib/db";
+import { getControlPanelDb } from "@/lib/db";
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 
 /**
@@ -40,6 +40,7 @@ export const adminMiddleware = createMiddleware(async (c, next) => {
     }
 
     // Check if user has platform admin record
+    const controlPanelDb = getControlPanelDb(c);
     const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
       where: eq(platformAdmins.userId, user.id),
     });
@@ -80,6 +81,7 @@ export const superAdminMiddleware = createMiddleware(async (c, next) => {
     }
 
     // Check if user has super_admin role
+    const controlPanelDb = getControlPanelDb(c);
     const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
       where: eq(platformAdmins.userId, user.id),
     });

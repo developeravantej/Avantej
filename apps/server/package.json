@@ -33,6 +33,7 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@better-auth/expo": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",

@@ -19,7 +19,7 @@
 
 import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
-import { controlPanelDb, getTenantDb } from "@/lib/db";
+import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 
 /**
@@ -68,7 +68,8 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 			return c.json({ error: "No active organization" }, 400);
 		}
 
-		// Get organization details from control panel database
+		// Get organization details from control panel database (use request-scoped DB)
+		const controlPanelDb = getControlPanelDb(c);
 		const organization = await controlPanelDb.query.organizations.findFirst({
 			where: eq(organizations.id, organizationId),
 		});
@@ -77,8 +78,8 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 			return c.json({ error: "Organization not found" }, 404);
 		}
 
-		// Get tenant database connection
-		const tenantDb = await getTenantDb(organizationId);
+		// Get tenant database connection (use request-scoped pool with caching)
+		const tenantDb = await getTenantDb(organizationId, c);
 
 		// Set organization and tenant database in context
 		c.set("organization", organization);

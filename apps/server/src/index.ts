@@ -6,10 +6,11 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { onError } from "@orpc/server";
 import { createContext } from "@avantej-core/api/context";
 import { appRouter } from "@avantej-core/api/routers/index";
-import { auth } from "@avantej-core/auth";
+import { getBetterAuth } from "@/lib/better-auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { dbMiddleware } from "@/middleware/db.middleware";
 import { authRoutes } from "@/routes/auth.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 
@@ -26,8 +27,32 @@ app.use(
 	}),
 );
 
+// Database middleware: Creates request-scoped connection pools
+// Must be applied early, before any database access
+app.use("/*", dbMiddleware);
+
 // Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
-app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+// Create a new Request with mutable headers for Cloudflare Workers compatibility
+// Uses request-scoped Better-Auth instance for transaction support
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+	// Clone the request to get a new body stream (required for Cloudflare Workers)
+	const clonedRequest = c.req.raw.clone();
+
+	// Create new mutable headers
+	const headers = new Headers(clonedRequest.headers);
+
+	// Create a new Request with mutable headers and cloned body
+	const newRequest = new Request(clonedRequest.url, {
+		method: clonedRequest.method,
+		headers: headers,
+		body: clonedRequest.body,
+		duplex: clonedRequest.body ? "half" : undefined,
+	});
+
+	// Use request-scoped Better-Auth instance
+	const auth = getBetterAuth(c);
+	return auth.handler(newRequest);
+});
 
 // Custom auth routes following OpenAPI contract
 app.route("/auth", authRoutes);
