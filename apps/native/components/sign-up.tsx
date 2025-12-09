@@ -3,6 +3,7 @@ import { queryClient } from "@/utils/orpc";
 import { useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -20,28 +21,42 @@ export function SignUp() {
 		setIsLoading(true);
 		setError(null);
 
-		await authClient.signUp.email(
-			{
-				name,
-				email,
-				password,
-			},
-			{
-				onError: (error) => {
-					setError(error.error?.message || "Failed to sign up");
-					setIsLoading(false);
+		try {
+			await authClient.signUp.email(
+				{
+					name,
+					email,
+					password,
 				},
-				onSuccess: () => {
-					setName("");
-					setEmail("");
-					setPassword("");
-					queryClient.refetchQueries();
+				{
+					onError: (error) => {
+						setError(error.error?.message || "Failed to sign up");
+					},
+					onSuccess: () => {
+						setName("");
+						setEmail("");
+						setPassword("");
+						queryClient.refetchQueries();
+						// Show success alert with email verification instructions
+						Alert.alert(
+							"Account Created",
+							"Please check your email to verify your account before signing in.",
+							[{ text: "OK" }]
+						);
+					},
+					onFinished: () => {
+						// This will be called after onSuccess or onError
+					},
 				},
-				onFinished: () => {
-					setIsLoading(false);
-				},
-			},
-		);
+			);
+		} catch (error) {
+			// Handle any unexpected errors that might occur
+			setError("An unexpected error occurred");
+			console.error("Sign up error:", error);
+		} finally {
+			// Always reset loading state, even if callbacks throw errors
+			setIsLoading(false);
+		}
 	};
 
 	return (
