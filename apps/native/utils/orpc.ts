@@ -1,30 +1,20 @@
-import { createORPCClient } from "@orpc/client";
-import { RPCLink } from "@orpc/client/fetch";
-import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import type { AppRouterClient } from "@avantej-core/api/routers/index";
+import { createORPCClientConfig } from "@avantej-core/api/client";
 import { authClient } from "@/lib/auth-client";
 
-export const queryClient = new QueryClient({
-	queryCache: new QueryCache({
-		onError: (error) => {
-			console.log(error);
-		},
-	}),
+export const { queryClient, client, orpc } = createORPCClientConfig({
+  serverUrl: process.env.EXPO_PUBLIC_SERVER_URL || "",
+  QueryClient,
+  QueryCache,
+  onError: (error) => {
+    console.log(error);
+  },
+  getAuthHeaders: () => {
+    const headers: Record<string, string> = {};
+    const cookies = authClient.getCookie();
+    if (cookies) {
+      headers.Cookie = cookies;
+    }
+    return headers;
+  },
 });
-
-export const link = new RPCLink({
-	url: `${process.env.EXPO_PUBLIC_SERVER_URL}/rpc`,
-	headers() {
-		const headers = new Map<string, string>();
-		const cookies = authClient.getCookie();
-		if (cookies) {
-			headers.set("Cookie", cookies);
-		}
-		return Object.fromEntries(headers);
-	},
-});
-
-export const client: AppRouterClient = createORPCClient(link);
-
-export const orpc = createTanstackQueryUtils(client);
