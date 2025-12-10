@@ -23,3 +23,4 @@ export const roles = pgTable("roles", {
 	priorityIdx: index("roles_priority_idx").on(table.priority),
 }));
 
+

@@ -24,3 +24,4 @@ export const rolePermissions = pgTable("role_permissions", {
 	permissionIdIdx: index("role_permissions_permission_idx").on(table.permissionId),
 }));
 
+

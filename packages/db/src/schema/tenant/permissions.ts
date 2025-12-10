@@ -18,3 +18,4 @@ export const permissions = pgTable("permissions", {
 	resourceIdx: index("permissions_resource_idx").on(table.resource),
 }));
 
+
