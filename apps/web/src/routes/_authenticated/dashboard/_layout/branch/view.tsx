@@ -2,10 +2,12 @@ import { columns } from "@/components/tables/branch/view/columns";
 import DataTable from "@/components/tables/branch/view/data-table";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute(
@@ -15,160 +17,101 @@ export const Route = createFileRoute(
 });
 
 function RouteComponent() {
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { data: userContext, isLoading: isLoadingContext } = useUserContext();
   const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [orgCheckPending, setOrgCheckPending] = useState(false);
-  const orgWarningShown = useRef(false);
+  const orgErrorShown = useRef(false);
 
-  // Get organization ID from user context or localStorage
-  // Priority: user.current_organization_id > user.organizations[0].id > localStorage
-  useEffect(() => {
-    // First try from user object
-    if (user?.current_organization_id) {
-      setOrganizationId(user.current_organization_id);
-      return;
-    }
-    if (user?.organizations?.[0]?.id) {
-      setOrganizationId(user.organizations[0].id);
-      return;
-    }
-    
-    // Fallback to localStorage if user object doesn't have it yet
-    try {
-      const storedOrgId = localStorage.getItem('current_organization_id');
-      if (storedOrgId) {
-        setOrganizationId(storedOrgId);
-      }
-    } catch (error) {
-      console.error('Failed to read organization ID from localStorage:', error);
-    }
-  }, [user]);
+  // Get organizationId from React Query data (single source of truth)
+  const organizationId = userContext?.currentOrganizationId || 
+                         user?.current_organization_id || 
+                         user?.organizations?.[0]?.id || 
+                         null;
 
-  useEffect(() => {
-    const checkAuthAndLoadData = async () => {
-      // Wait for auth to complete
-      if (authLoading) return;
-
-      // Check if user is authenticated
-      if (!isAuthenticated) {
-        return; // useAuth will handle redirect to login
-      }
-
-      // Check if organization ID is available
-      if (!organizationId) {
-        // Avoid immediate toast; try localStorage once more and show loading briefly
-        if (!orgCheckPending) {
-          setOrgCheckPending(true);
-          // Grace period to allow useAuth to populate organizationId
-          setTimeout(() => {
-            const storedOrgId = localStorage.getItem('current_organization_id');
-            if (storedOrgId) {
-              setOrganizationId(storedOrgId);
-            } else if (!orgWarningShown.current) {
-              orgWarningShown.current = true;
-              toast.error("No organization selected. Please ensure you have access to an organization.");
-              setData({ items: [] });
-              setIsLoading(false);
-            }
-            setOrgCheckPending(false);
-          }, 1200);
+  // Use React Query for branch data
+  const { data: branchData, isLoading: isLoadingBranches, error } = useQuery({
+    queryKey: ["branches", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return { items: [] };
+      
+      // Try cached hierarchy first
+      const cachedHierarchy = localStorage.getItem(`org_${organizationId}_hierarchy`);
+      if (cachedHierarchy) {
+        try {
+          const hierarchy = JSON.parse(cachedHierarchy);
+          const branchNodes = hierarchy.nodes.filter(
+            (node: { type: string; depth: number }) =>
+              node.type === "branch" && node.depth === 4
+          );
+          return {
+            items: branchNodes.map((branch: any) => ({
+              id: branch.id,
+              name: branch.name,
+              code: branch.code || "",
+              area_id: branch.parentId,
+              organization_id: organizationId,
+              branch_type: "standard",
+              is_active: true,
+              created_at: branch.createdAt,
+              updated_at: branch.updatedAt,
+            })),
+          };
+        } catch (e) {
+          console.warn('Failed to parse cached hierarchy, fetching from API:', e);
         }
-        return;
       }
 
-      // Load the data
-      await loadBranchData(organizationId);
-    };
-
-    const loadBranchData = async (orgId: string) => {
-      try {
-        setIsLoading(true);
-
-        // Try to use cached hierarchy data first (from user-context endpoint)
-        const cachedHierarchy = localStorage.getItem(`org_${orgId}_hierarchy`);
-        if (cachedHierarchy) {
-          try {
-            const hierarchy = JSON.parse(cachedHierarchy);
-            const branchNodes = hierarchy.nodes.filter(
-              (node: { type: string; depth: number }) =>
-                node.type === "branch" && node.depth === 4
-            );
-            
-            const transformedData = {
-              items: branchNodes.map((branch: any) => ({
-                id: branch.id,
-                name: branch.name,
-                code: branch.code || "",
-                area_id: branch.parentId,
-                organization_id: orgId,
-                branch_type: "standard",
-                is_active: true,
-                created_at: branch.createdAt,
-                updated_at: branch.updatedAt,
-              })),
-            };
-            
-            setData(transformedData);
-            setIsLoading(false);
-            return; // Use cached data, skip API call
-          } catch (e) {
-            console.warn('Failed to parse cached hierarchy, fetching from API:', e);
-          }
-        }
-
-        // Fallback to API call if no cached data
-        const result = await client.hierarchy.listNodes({ organizationId: orgId });
-        const nodes = result.nodes;
-
-        // Filter to only branch nodes (type === "branch", depth === 4)
-        const branchNodes = nodes.filter(
-          (node: { type: string; depth: number }) =>
-            node.type === "branch" && node.depth === 4
-        );
-
-        // Transform the data to match the expected format
-        const transformedData = {
-          items: branchNodes.map((branch: any) => ({
+      // Fallback to API
+      const result = await client.hierarchy.listNodes({ organizationId });
+      return {
+        items: result.nodes
+          .filter((node: any) => node.type === "branch" && node.depth === 4)
+          .map((branch: any) => ({
             id: branch.id,
             name: branch.name,
             code: branch.code || "",
             area_id: branch.parentId,
-            organization_id: orgId,
-            branch_type: "standard", // Default, can be enhanced later
-            is_active: true, // Default, can be enhanced later
+            organization_id: organizationId,
+            branch_type: "standard",
+            is_active: true,
             created_at: branch.createdAt,
             updated_at: branch.updatedAt,
           })),
-        };
+      };
+    },
+    enabled: !!organizationId && isAuthenticated,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1,
+  });
 
-        setData(transformedData);
-      } catch (error: any) {
-        console.error("Failed to load branch data:", error);
-        // Show user-friendly error message
-        if (
-          error.message?.includes("UNAUTHORIZED") ||
-          error.message?.includes("Not authenticated")
-        ) {
-          toast.error("Please log in to access this page");
-          navigate({ to: "/login" });
-        } else {
-          toast.error(`Failed to load branches: ${error.message || 'Unknown error'}`);
-          // Still show the page with empty data rather than redirecting
-          setData({ items: [] });
-        }
-      } finally {
-        setIsLoading(false);
+  // Show error only once when we're sure there's no organization (after loading completes)
+  useEffect(() => {
+    if (!organizationId && !isLoadingContext && !authLoading && !orgErrorShown.current) {
+      orgErrorShown.current = true;
+      toast.error("No organization selected. Please ensure you have access to an organization.");
+    } else if (organizationId) {
+      // Reset flag if organization becomes available
+      orgErrorShown.current = false;
+    }
+  }, [organizationId, isLoadingContext, authLoading]);
+
+  // Handle API errors
+  useEffect(() => {
+    if (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes("UNAUTHORIZED") || errorMessage.includes("Not authenticated")) {
+        toast.error("Please log in to access this page");
+        navigate({ to: "/login" });
+      } else {
+        toast.error(`Failed to load branches: ${errorMessage}`);
       }
-    };
+    }
+  }, [error, navigate]);
 
-    checkAuthAndLoadData();
-  }, [user, authLoading, isAuthenticated, organizationId, navigate]);
-
-  // Show loading while auth is checking or data is loading
-  if (authLoading || isLoading) {
+  // NOW we can do conditional returns - all hooks have been called
+  // Show loading state properly
+  if (authLoading || isLoadingContext || isLoadingBranches) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
@@ -198,7 +141,7 @@ function RouteComponent() {
         </Link>
       </div>
 
-      <DataTable columns={columns} data={data?.items || []} />
+      <DataTable columns={columns} data={branchData?.items || []} />
     </div>
   );
 }

@@ -16,7 +16,7 @@
  * Features:
  * - Email/password authentication
  * - Email verification required
- * - 15-minute session expiry (constitution requirement)
+ * - 8-hour session expiry for development (refresh every 30 minutes)
  * - Organization plugin for multi-tenant management
  * - Admin plugin for platform administration
  * - Resend email integration for verification and password reset
@@ -181,8 +181,8 @@ function createBetterAuth(c?: Context) {
     },
   },
   session: {
-    expiresIn: 60 * 15, // 15 minutes (constitution requirement)
-    updateAge: 60 * 5, // Update session every 5 minutes
+    expiresIn: 60 * 60 * 8, // 8 hours for development
+    updateAge: 60 * 30, // Refresh every 30 minutes
   },
   secret:
     getEnvVar("BETTER_AUTH_SECRET") ||
