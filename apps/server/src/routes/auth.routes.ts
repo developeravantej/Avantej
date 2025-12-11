@@ -17,8 +17,16 @@
 import { Hono } from "hono";
 import { getBetterAuth } from "@/lib/better-auth";
 import { getControlPanelDb } from "@/lib/db";
+import { decrypt } from "@avantej-core/db";
 import { eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { getDescendantNodeIds } from "@avantej-core/services";
+import { Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
   sendVerificationEmail,
   verifyEmailToken,
@@ -387,5 +395,237 @@ authRoutes.post("/refresh", async (c) => {
   } catch (error) {
     console.error("Token refresh error:", error);
     return c.json({ error: "Invalid refresh token" }, 401);
+  }
+});
+
+/**
+ * GET /auth/organizations
+ * Get current user's organizations (requires authentication)
+ */
+authRoutes.get("/organizations", authMiddleware, async (c) => {
+  try {
+    // Get current user from Better-Auth session
+    const auth = getBetterAuth(c);
+    const session = (await auth.api.getSession({
+      headers: c.req.raw.headers,
+    })) as BetterAuthGetSessionResponse;
+
+    if (!session || !session.user) {
+      console.error("Get organizations error: Unauthorized - No session or user");
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const userId = session.user.id;
+
+    // Get user's organizations from control panel database using a manual join
+    const controlPanelDb = getControlPanelDb(c);
+    const userOrganizations = await controlPanelDb
+      .select({
+        id: organizationMembers.organizationId,
+        role: organizationMembers.role,
+        memberStatus: organizationMembers.status,
+      })
+      .from(organizationMembers)
+      .where(eq(organizationMembers.userId, userId));
+
+    // Get organization details for each membership
+    const organizationsSummary: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      role: string;
+    }> = [];
+
+    for (const om of userOrganizations) {
+      if (om.memberStatus !== "active") continue;
+
+      // Get organization details
+      const org = await controlPanelDb.query.organizations.findFirst({
+        where: (orgs, { eq }) => eq(orgs.id, om.id),
+      });
+
+      if (!org || org.paymentStatus !== "active") continue;
+
+      organizationsSummary.push({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        role: om.role,
+      });
+    }
+
+    return c.json({ organizations: organizationsSummary });
+  } catch (error) {
+    console.error("Get organizations error:", error);
+    return c.json({ error: "Failed to retrieve organizations" }, 500);
+  }
+});
+
+/**
+ * GET /auth/user-context
+ * Get current user's complete context: user data, organizations, hierarchy, and permissions
+ * This endpoint combines data from control panel and tenant databases
+ */
+authRoutes.get("/user-context", authMiddleware, async (c) => {
+  try {
+    // Get current user from Better-Auth session
+    const auth = getBetterAuth(c);
+    const session = (await auth.api.getSession({
+      headers: c.req.raw.headers,
+    })) as BetterAuthGetSessionResponse;
+
+    if (!session || !session.user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const userId = session.user.id;
+    const controlPanelDb = getControlPanelDb(c);
+
+    // Get user's organizations from control panel database
+    const userOrganizations = await controlPanelDb
+      .select({
+        id: organizationMembers.organizationId,
+        role: organizationMembers.role,
+        memberStatus: organizationMembers.status,
+      })
+      .from(organizationMembers)
+      .where(eq(organizationMembers.userId, userId));
+
+    // Build organizations with hierarchy data
+    const organizationsWithHierarchy: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      role: string;
+      hierarchy: {
+        nodes: Array<{
+          id: string;
+          name: string;
+          type: string;
+          depth: number;
+          parentId: string | null;
+          createdAt: Date | null;
+          updatedAt: Date | null;
+        }>;
+        member: {
+          role: string;
+          hierarchyScopeId: string;
+          hierarchyScopeName: string;
+          accessibleNodeIds: string[];
+        } | null;
+      };
+    }> = [];
+
+    for (const om of userOrganizations) {
+      if (om.memberStatus !== "active") continue;
+
+      // Get organization details
+      const org = await controlPanelDb.query.organizations.findFirst({
+        where: (orgs, { eq }) => eq(orgs.id, om.id),
+      });
+
+      if (!org || org.paymentStatus !== "active") continue;
+
+      // Get tenant database connection for this organization
+      let hierarchyData = {
+        nodes: [] as Array<{
+          id: string;
+          name: string;
+          type: string;
+          depth: number;
+          parentId: string | null;
+          createdAt: Date | null;
+          updatedAt: Date | null;
+        }>,
+        member: null as {
+          role: string;
+          hierarchyScopeId: string;
+          hierarchyScopeName: string;
+          accessibleNodeIds: string[];
+        } | null,
+      };
+
+      try {
+        // Decrypt connection string and connect to tenant DB
+        const connectionString = decrypt(org.connectionString);
+        const tenantPool = new Pool({ connectionString });
+        const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
+
+        try {
+          // Get all hierarchy nodes
+          const allNodes = await tenantDb.query.hierarchyNodes.findMany({
+            orderBy: (nodes, { asc }) => [asc(nodes.depth), asc(nodes.name)],
+          });
+
+          hierarchyData.nodes = allNodes.map((node) => ({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            depth: node.depth,
+            parentId: node.parentId,
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt,
+          }));
+
+          // Get member record and accessible nodes
+          const member = await tenantDb.query.members.findFirst({
+            where: eq(members.userId, userId),
+          });
+
+          if (member) {
+            const accessibleNodeIds = await getDescendantNodeIds(
+              tenantDb,
+              member.hierarchyScopeId
+            );
+
+            const scopeNode = await tenantDb.query.hierarchyNodes.findFirst({
+              where: eq(hierarchyNodes.id, member.hierarchyScopeId),
+            });
+
+            hierarchyData.member = {
+              role: member.role,
+              hierarchyScopeId: member.hierarchyScopeId,
+              hierarchyScopeName: scopeNode?.name || "Unknown",
+              accessibleNodeIds,
+            };
+          }
+        } finally {
+          await tenantPool.end();
+        }
+      } catch (error) {
+        console.error(`Failed to load hierarchy for org ${org.id}:`, error);
+        // Continue with empty hierarchy data
+      }
+
+      organizationsWithHierarchy.push({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        role: om.role,
+        hierarchy: hierarchyData,
+      });
+    }
+
+    return c.json({
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        emailVerified: session.user.emailVerified,
+      },
+      organizations: organizationsWithHierarchy,
+      currentOrganizationId: organizationsWithHierarchy[0]?.id || null,
+    });
+  } catch (error) {
+    console.error("Get user context error:", error);
+    return c.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to retrieve user context",
+      },
+      500
+    );
   }
 });

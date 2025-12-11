@@ -1,25 +1,56 @@
 import { auth } from "@avantej-core/auth";
 import type { Context as HonoContext } from "hono";
-// Dynamic imports to avoid TypeScript path resolution issues
-// These will be resolved at runtime when called from apps/server
+import { eq } from "drizzle-orm";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { getDescendantNodeIds } from "@avantej-core/services";
 
 export type CreateContextOptions = {
   context: HonoContext;
 };
 
 export async function createContext({ context }: CreateContextOptions) {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.ts:12',message:'createContext entry',data:{path:context.req.path,hasOrgId:!!context.get('organizationId'),hasTenantDb:!!context.get('tenantDb'),hasMember:!!context.get('member')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   const session = await auth.api.getSession({
     headers: context.req.raw.headers,
   });
 
   // Get organization context from Hono context (set by middleware)
-  // These values are set by tenantMiddleware and hierarchyMiddleware
-  // If not set, they will be undefined and oRPC procedures will handle errors appropriately
-  const organizationId = context.get("organizationId");
-  const tenantDb = context.get("tenantDb");
-  const member = context.get("member");
+  // tenantMiddleware sets these for regular routes
+  // orpcTenantMiddleware sets these for oRPC routes
+  let organizationId = context.get("organizationId");
+  let tenantDb = context.get("tenantDb");
+  let member = context.get("member");
   const organization = context.get("organization");
-  const accessibleNodeIds = context.get("accessibleNodeIds");
+  let accessibleNodeIds = context.get("accessibleNodeIds");
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.ts:25',message:'createContext after get',data:{organizationId,hasTenantDb:!!tenantDb,hasMember:!!member,hasAccessibleNodeIds:!!accessibleNodeIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+
+  // For oRPC routes, if tenantDb is set but member is not, set it up now
+  // This happens when orpcTenantMiddleware set up tenantDb but user wasn't available yet
+  if (tenantDb && !member && session?.user && organizationId) {
+    try {
+      // Get member record
+      member = await tenantDb.query.members.findFirst({
+        where: eq(members.userId, session.user.id),
+      });
+      
+      if (member) {
+        // Calculate accessible node IDs
+        accessibleNodeIds = await getDescendantNodeIds(tenantDb, member.hierarchyScopeId);
+        
+        // Store in context
+        context.set('member', member);
+        context.set('accessibleNodeIds', accessibleNodeIds);
+      }
+    } catch (error) {
+      console.error("Failed to set up member in createContext for oRPC:", error);
+    }
+  }
 
   return {
     session,
@@ -28,6 +59,7 @@ export async function createContext({ context }: CreateContextOptions) {
     member,
     organization,
     accessibleNodeIds,
+    honoContext: context,
   };
 }
 

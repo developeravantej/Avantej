@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { client } from "@/utils/orpc";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute(
@@ -19,10 +19,33 @@ function RouteComponent() {
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [orgCheckPending, setOrgCheckPending] = useState(false);
+  const orgWarningShown = useRef(false);
 
-  // Get organization ID from user context
-  const organizationId =
-    user?.current_organization_id || user?.organizations?.[0]?.id;
+  // Get organization ID from user context or localStorage
+  // Priority: user.current_organization_id > user.organizations[0].id > localStorage
+  useEffect(() => {
+    // First try from user object
+    if (user?.current_organization_id) {
+      setOrganizationId(user.current_organization_id);
+      return;
+    }
+    if (user?.organizations?.[0]?.id) {
+      setOrganizationId(user.organizations[0].id);
+      return;
+    }
+    
+    // Fallback to localStorage if user object doesn't have it yet
+    try {
+      const storedOrgId = localStorage.getItem('current_organization_id');
+      if (storedOrgId) {
+        setOrganizationId(storedOrgId);
+      }
+    } catch (error) {
+      console.error('Failed to read organization ID from localStorage:', error);
+    }
+  }, [user]);
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
@@ -36,18 +59,68 @@ function RouteComponent() {
 
       // Check if organization ID is available
       if (!organizationId) {
-        toast.error("No organization selected");
-        setData({ items: [] });
-        setIsLoading(false);
+        // Avoid immediate toast; try localStorage once more and show loading briefly
+        if (!orgCheckPending) {
+          setOrgCheckPending(true);
+          // Grace period to allow useAuth to populate organizationId
+          setTimeout(() => {
+            const storedOrgId = localStorage.getItem('current_organization_id');
+            if (storedOrgId) {
+              setOrganizationId(storedOrgId);
+            } else if (!orgWarningShown.current) {
+              orgWarningShown.current = true;
+              toast.error("No organization selected. Please ensure you have access to an organization.");
+              setData({ items: [] });
+              setIsLoading(false);
+            }
+            setOrgCheckPending(false);
+          }, 1200);
+        }
         return;
       }
 
       // Load the data
+      await loadBranchData(organizationId);
+    };
+
+    const loadBranchData = async (orgId: string) => {
       try {
         setIsLoading(true);
 
-        // Load hierarchy nodes from oRPC client (filtered to branches)
-        const result = await client.hierarchy.listNodes({ organizationId });
+        // Try to use cached hierarchy data first (from user-context endpoint)
+        const cachedHierarchy = localStorage.getItem(`org_${orgId}_hierarchy`);
+        if (cachedHierarchy) {
+          try {
+            const hierarchy = JSON.parse(cachedHierarchy);
+            const branchNodes = hierarchy.nodes.filter(
+              (node: { type: string; depth: number }) =>
+                node.type === "branch" && node.depth === 4
+            );
+            
+            const transformedData = {
+              items: branchNodes.map((branch: any) => ({
+                id: branch.id,
+                name: branch.name,
+                code: branch.code || "",
+                area_id: branch.parentId,
+                organization_id: orgId,
+                branch_type: "standard",
+                is_active: true,
+                created_at: branch.createdAt,
+                updated_at: branch.updatedAt,
+              })),
+            };
+            
+            setData(transformedData);
+            setIsLoading(false);
+            return; // Use cached data, skip API call
+          } catch (e) {
+            console.warn('Failed to parse cached hierarchy, fetching from API:', e);
+          }
+        }
+
+        // Fallback to API call if no cached data
+        const result = await client.hierarchy.listNodes({ organizationId: orgId });
         const nodes = result.nodes;
 
         // Filter to only branch nodes (type === "branch", depth === 4)
@@ -63,7 +136,7 @@ function RouteComponent() {
             name: branch.name,
             code: branch.code || "",
             area_id: branch.parentId,
-            organization_id: organizationId,
+            organization_id: orgId,
             branch_type: "standard", // Default, can be enhanced later
             is_active: true, // Default, can be enhanced later
             created_at: branch.createdAt,
@@ -82,7 +155,7 @@ function RouteComponent() {
           toast.error("Please log in to access this page");
           navigate({ to: "/login" });
         } else {
-          toast.error("Failed to load branches");
+          toast.error(`Failed to load branches: ${error.message || 'Unknown error'}`);
           // Still show the page with empty data rather than redirecting
           setData({ items: [] });
         }

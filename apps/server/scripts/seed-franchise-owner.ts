@@ -100,9 +100,9 @@ async function seedFranchiseOwner() {
     // ============================================
     console.log("📝 Step 1: Checking franchise owner user...");
 
-    // Check if user already exists
+    // Check if user already exists (Better-Auth stores emails in lowercase)
     const existingUser = await controlPanelDb.query.users.findFirst({
-      where: (users, { eq }) => eq(users.email, testEmail),
+      where: (users, { eq }) => eq(users.email, testEmail.toLowerCase()),
     });
 
     let testUser: typeof users.$inferSelect;
@@ -149,7 +149,7 @@ async function seedFranchiseOwner() {
           const accountId = crypto.randomUUID();
           await controlPanelDb.insert(account).values({
             id: accountId,
-            accountId: testEmail, // Better-Auth uses email as accountId for credential provider
+            accountId: testEmail.toLowerCase(), // Better-Auth uses lowercase email as accountId for credential provider
             providerId: "credential",
             userId: existingUser.id,
             password: hashedPassword,
@@ -188,7 +188,7 @@ async function seedFranchiseOwner() {
         .insert(users)
         .values({
           id: userId,
-          email: testEmail,
+          email: testEmail.toLowerCase(), // Better-Auth stores emails in lowercase
           name: testName,
           emailVerified: true,
           createdAt: new Date(),
@@ -202,21 +202,21 @@ async function seedFranchiseOwner() {
       testUser = createdUser;
       console.log("   ✅ Created user: " + testUser.id);
 
-      // Create password account immediately for new users
-      try {
-        // Dynamic import to avoid build-time errors
-        const bcrypt = await import("bcryptjs");
-        const hashedPassword = await bcrypt.default.hash(testPassword, 10);
-        const accountId = crypto.randomUUID();
-        await controlPanelDb.insert(account).values({
-          id: accountId,
-          accountId: testEmail,
-          providerId: "credential",
-          userId: testUser.id,
-          password: hashedPassword,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+       // Create password account immediately for new users
+       try {
+         // Dynamic import to avoid build-time errors
+         const bcrypt = await import("bcryptjs");
+         const hashedPassword = await bcrypt.default.hash(testPassword, 10);
+         const accountId = crypto.randomUUID();
+         await controlPanelDb.insert(account).values({
+           id: accountId,
+           accountId: testEmail.toLowerCase(), // Better-Auth uses lowercase email as accountId for credential provider
+           providerId: "credential",
+           userId: testUser.id,
+           password: hashedPassword,
+           createdAt: new Date(),
+           updatedAt: new Date(),
+         });
         hasPasswordAccount = true;
         console.log("   ✅ Password account created successfully!");
       } catch (error) {
@@ -368,280 +368,298 @@ async function seedFranchiseOwner() {
       await seedRBACData(tenantDbForRBAC);
       console.log("   ✅ RBAC data seeded\n");
       await tenantPoolForRBAC.end();
+    }
 
-      // ============================================
-      // STEP 5: Create Organization Member Registry (Control Panel)
-      // ============================================
-      console.log("👤 Step 5: Creating organization member registry...");
+    // ============================================
+    // STEP 5: Create Organization Member Registry (Control Panel)
+    // MOVED OUTSIDE if/else - ALWAYS RUNS to ensure user can access org
+    // ============================================
+    console.log("👤 Step 5: Creating organization member registry...");
 
-      // Check if member registry already exists
-      const existingMemberRegistry =
-        await controlPanelDb.query.organizationMembers.findFirst({
-          where: (om, { eq, and: andFn }) =>
-            andFn(
-              eq(om.userId, testUser.id),
-              eq(om.organizationId, organization.id)
-            ),
-        });
-
-      if (existingMemberRegistry) {
-        console.log(
-          "   ⚠️  Member registry already exists: " + existingMemberRegistry.id
-        );
-      } else {
-        await controlPanelDb.insert(organizationMembers).values({
-          userId: testUser.id,
-          organizationId: organization.id,
-          role: "admin",
-          status: "active",
-        });
-        console.log("   ✅ Created organization member registry");
-      }
-      console.log("\n");
-
-      // ============================================
-      // STEP 6: Seed Tenant Database
-      // ============================================
-      console.log("🏗️  Step 6: Seeding tenant database...");
-
-      // Get connection string (use the one we already have)
-      if (!tenantConnectionString) {
-        tenantConnectionString = decrypt(organization.connectionString);
-      }
-
-      const tenantPool = new Pool({ connectionString: tenantConnectionString });
-      const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
-
-      // 6.1: Create Organization Hierarchy Node (depth 0) - check if exists first
-      console.log("   📊 Creating organization hierarchy node...");
-
-      let orgNode: typeof hierarchyNodes.$inferSelect;
-      const existingOrgNode = await tenantDb.query.hierarchyNodes.findFirst({
-        where: (nodes, { eq, and: andFn }) =>
-          andFn(eq(nodes.type, "organization"), eq(nodes.depth, 0)),
+    // Check if member registry already exists
+    const existingMemberRegistry =
+      await controlPanelDb.query.organizationMembers.findFirst({
+        where: (om, { eq, and: andFn }) =>
+          andFn(
+            eq(om.userId, testUser.id),
+            eq(om.organizationId, organization.id)
+          ),
       });
 
-      if (existingOrgNode) {
-        console.log(
-          "   ⚠️  Organization node already exists: " + existingOrgNode.id
-        );
-        orgNode = existingOrgNode;
-      } else {
-        const [createdOrgNode] = await tenantDb
-          .insert(hierarchyNodes)
-          .values({
-            name: organization.name,
-            type: "organization",
-            depth: 0,
-            parentId: null,
-          })
-          .returning();
-
-        if (!createdOrgNode) {
-          throw new Error("Failed to create organization hierarchy node");
-        }
-        orgNode = createdOrgNode;
-        console.log(`   ✅ Created organization node: ${orgNode.id}`);
-      }
-
-      // 6.2: Create Member with Admin Role (TENANT DB - hierarchyScopeId set here!)
-      console.log("   👥 Creating member with admin role...");
-
-      const existingMember = await tenantDb.query.members.findFirst({
-        where: (members, { eq }) => eq(members.userId, testUser.id),
-      });
-
-      let member: typeof members.$inferSelect;
-      if (existingMember) {
-        console.log("   ⚠️  Member already exists: " + existingMember.id);
-        member = existingMember;
-      } else {
-        const [createdMember] = await tenantDb
-          .insert(members)
-          .values({
-            userId: testUser.id,
-            role: "admin",
-            hierarchyScopeId: orgNode.id, // ← hierarchyScopeId is HERE in TENANT DB members table
-            status: "active",
-          })
-          .returning();
-
-        if (!createdMember) {
-          throw new Error("Failed to create member");
-        }
-        member = createdMember;
-        console.log("   ✅ Created member with admin role");
-        console.log(
-          "   🔑 hierarchyScopeId: " +
-            member.hierarchyScopeId +
-            " (references hierarchy_nodes.id)"
-        );
-        console.log(
-          "   📍 Location: TENANT database → members table → hierarchy_scope_id column\n"
-        );
-      }
-
-      // ============================================
-      // STEP 7: Optional - Create Sample Hierarchy
-      // ============================================
+    if (existingMemberRegistry) {
       console.log(
-        "🌍 Step 7: Creating sample hierarchy (optional, for testing)..."
+        "   ⚠️  Member registry already exists: " + existingMemberRegistry.id
+      );
+      // Ensure it's active
+      if (existingMemberRegistry.status !== "active") {
+        await controlPanelDb
+          .update(organizationMembers)
+          .set({ status: "active" })
+          .where(eq(organizationMembers.id, existingMemberRegistry.id));
+        console.log("   ✅ Updated member registry status to active");
+      }
+    } else {
+      await controlPanelDb.insert(organizationMembers).values({
+        userId: testUser.id,
+        organizationId: organization.id,
+        role: "admin",
+        status: "active",
+      });
+      console.log("   ✅ Created organization member registry");
+    }
+    console.log("\n");
+
+    // ============================================
+    // STEP 6: Seed Tenant Database
+    // MOVED OUTSIDE if/else - ALWAYS RUNS to ensure tenant DB has member record
+    // ============================================
+    console.log("🏗️  Step 6: Seeding tenant database...");
+
+    // Get connection string (use the one we already have)
+    if (!tenantConnectionString) {
+      tenantConnectionString = decrypt(organization.connectionString);
+    }
+
+    const tenantPool = new Pool({ connectionString: tenantConnectionString });
+    const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
+
+    // 6.1: Create Organization Hierarchy Node (depth 0) - check if exists first
+    console.log("   📊 Creating organization hierarchy node...");
+
+    let orgNode: typeof hierarchyNodes.$inferSelect;
+    const existingOrgNode = await tenantDb.query.hierarchyNodes.findFirst({
+      where: (nodes, { eq, and: andFn }) =>
+        andFn(eq(nodes.type, "organization"), eq(nodes.depth, 0)),
+    });
+
+    if (existingOrgNode) {
+      console.log(
+        "   ⚠️  Organization node already exists: " + existingOrgNode.id
+      );
+      orgNode = existingOrgNode;
+    } else {
+      const [createdOrgNode] = await tenantDb
+        .insert(hierarchyNodes)
+        .values({
+          name: organization.name,
+          type: "organization",
+          depth: 0,
+          parentId: null,
+        })
+        .returning();
+
+      if (!createdOrgNode) {
+        throw new Error("Failed to create organization hierarchy node");
+      }
+      orgNode = createdOrgNode;
+      console.log(`   ✅ Created organization node: ${orgNode.id}`);
+    }
+
+    // 6.2: Create Member with Admin Role (TENANT DB - hierarchyScopeId set here!)
+    console.log("   👥 Creating member with admin role...");
+
+    const existingMember = await tenantDb.query.members.findFirst({
+      where: (members, { eq }) => eq(members.userId, testUser.id),
+    });
+
+    let member: typeof members.$inferSelect;
+    if (existingMember) {
+      console.log("   ⚠️  Member already exists: " + existingMember.id);
+      member = existingMember;
+      // Ensure member is active and has correct hierarchyScopeId
+      if (
+        existingMember.status !== "active" ||
+        existingMember.hierarchyScopeId !== orgNode.id
+      ) {
+        await tenantDb
+          .update(members)
+          .set({
+            status: "active",
+            hierarchyScopeId: orgNode.id,
+          })
+          .where(eq(members.id, existingMember.id));
+        console.log(
+          "   ✅ Updated member status and hierarchyScopeId to match org node"
+        );
+        // Re-fetch to get updated member
+        const updatedMember = await tenantDb.query.members.findFirst({
+          where: (members, { eq }) => eq(members.id, existingMember.id),
+        });
+        if (updatedMember) {
+          member = updatedMember;
+        }
+      }
+    } else {
+      const [createdMember] = await tenantDb
+        .insert(members)
+        .values({
+          userId: testUser.id,
+          role: "admin",
+          hierarchyScopeId: orgNode.id, // ← hierarchyScopeId is HERE in TENANT DB members table
+          status: "active",
+        })
+        .returning();
+
+      if (!createdMember) {
+        throw new Error("Failed to create member");
+      }
+      member = createdMember;
+      console.log("   ✅ Created member with admin role");
+      console.log(
+        "   🔑 hierarchyScopeId: " +
+          member.hierarchyScopeId +
+          " (references hierarchy_nodes.id)"
+      );
+      console.log(
+        "   📍 Location: TENANT database → members table → hierarchy_scope_id column\n"
+      );
+    }
+
+    // ============================================
+    // STEP 7: Optional - Create Sample Hierarchy
+    // MOVED OUTSIDE if/else - ALWAYS RUNS to ensure hierarchy exists for testing
+    // ============================================
+    console.log(
+      "🌍 Step 7: Creating sample hierarchy (optional, for testing)..."
+    );
+
+    // Check if hierarchy already exists
+    const existingCountry = await tenantDb.query.hierarchyNodes.findFirst({
+      where: (nodes, { eq, and }) =>
+        and(eq(nodes.type, "country"), eq(nodes.name, "USA")),
+    });
+
+    let countryNode: typeof hierarchyNodes.$inferSelect | undefined;
+    let regionNode: typeof hierarchyNodes.$inferSelect | undefined;
+    let areaNode: typeof hierarchyNodes.$inferSelect | undefined;
+
+    if (existingCountry) {
+      console.log("   ⚠️  Sample hierarchy already exists, skipping...\n");
+    } else {
+      const [createdCountryNode] = await tenantDb
+        .insert(hierarchyNodes)
+        .values({
+          name: "USA",
+          type: "country",
+          depth: 1,
+          parentId: orgNode.id,
+        })
+        .returning();
+
+      if (!createdCountryNode) {
+        throw new Error("Failed to create country node");
+      }
+      countryNode = createdCountryNode;
+      console.log("   ✅ Created country node: " + countryNode.id + " (USA)");
+
+      const [createdRegionNode] = await tenantDb
+        .insert(hierarchyNodes)
+        .values({
+          name: "West Coast",
+          type: "region",
+          depth: 2,
+          parentId: countryNode.id,
+        })
+        .returning();
+
+      if (!createdRegionNode) {
+        throw new Error("Failed to create region node");
+      }
+      regionNode = createdRegionNode;
+      console.log(
+        "   ✅ Created region node: " + regionNode.id + " (West Coast)"
       );
 
-      // Check if hierarchy already exists
-      const existingCountry = await tenantDb.query.hierarchyNodes.findFirst({
-        where: (nodes, { eq, and }) =>
-          and(eq(nodes.type, "country"), eq(nodes.name, "USA")),
-      });
+      const [createdAreaNode] = await tenantDb
+        .insert(hierarchyNodes)
+        .values({
+          name: "California",
+          type: "area",
+          depth: 3,
+          parentId: regionNode.id,
+        })
+        .returning();
 
-      let countryNode: typeof hierarchyNodes.$inferSelect | undefined;
-      let regionNode: typeof hierarchyNodes.$inferSelect | undefined;
-      let areaNode: typeof hierarchyNodes.$inferSelect | undefined;
-
-      if (existingCountry) {
-        console.log("   ⚠️  Sample hierarchy already exists, skipping...\n");
-      } else {
-        const [createdCountryNode] = await tenantDb
-          .insert(hierarchyNodes)
-          .values({
-            name: "USA",
-            type: "country",
-            depth: 1,
-            parentId: orgNode.id,
-          })
-          .returning();
-
-        if (!createdCountryNode) {
-          throw new Error("Failed to create country node");
-        }
-        countryNode = createdCountryNode;
-        console.log("   ✅ Created country node: " + countryNode.id + " (USA)");
-
-        const [createdRegionNode] = await tenantDb
-          .insert(hierarchyNodes)
-          .values({
-            name: "West Coast",
-            type: "region",
-            depth: 2,
-            parentId: countryNode.id,
-          })
-          .returning();
-
-        if (!createdRegionNode) {
-          throw new Error("Failed to create region node");
-        }
-        regionNode = createdRegionNode;
-        console.log(
-          "   ✅ Created region node: " + regionNode.id + " (West Coast)"
-        );
-
-        const [createdAreaNode] = await tenantDb
-          .insert(hierarchyNodes)
-          .values({
-            name: "California",
-            type: "area",
-            depth: 3,
-            parentId: regionNode.id,
-          })
-          .returning();
-
-        if (!createdAreaNode) {
-          throw new Error("Failed to create area node");
-        }
-        areaNode = createdAreaNode;
-        console.log(
-          "   ✅ Created area node: " + areaNode.id + " (California)\n"
-        );
-
-        // ============================================
-        // SUMMARY
-        // ============================================
-        console.log("=".repeat(60));
-        console.log("🎉 Seed completed successfully!");
-        console.log("=".repeat(60));
-        console.log("\n📋 Test Credentials:");
-        console.log("   User ID: " + testUser.id);
-        console.log("   Email: " + testEmail);
-        console.log(
-          "   Password: " + testPassword + " (set via Better-Auth sign-up)"
-        );
-        console.log("\n🏢 Organization Details:");
-        console.log("   Organization ID: " + organization.id);
-        console.log("   Name: " + organization.name);
-        console.log("   Slug: " + organization.slug);
-        console.log("\n🗄️  Database Details:");
-        const dbHost = databaseUrl.split("@")[1];
-        const tenantConnString =
-          tenantConnectionString || decrypt(organization.connectionString);
-        const connHost = tenantConnString.split("@")[1];
-        console.log("   Control Panel DB: " + (dbHost || "unknown"));
-        console.log("   Tenant DB Project: " + organization.neonProjectId);
-        console.log("   Tenant Connection: " + (connHost || "unknown"));
-
-        // Only show hierarchy details if sample hierarchy was created
-        if (
-          typeof countryNode !== "undefined" &&
-          typeof regionNode !== "undefined" &&
-          typeof areaNode !== "undefined"
-        ) {
-          console.log("\n🌳 Hierarchy Details:");
-          console.log("   Organization Node ID: " + orgNode.id);
-          console.log("   Country Node ID: " + countryNode.id + " (USA)");
-          console.log("   Region Node ID: " + regionNode.id + " (West Coast)");
-          console.log("   Area Node ID: " + areaNode.id + " (California)");
-        }
-        console.log("\n👤 Member Details (TENANT DB):");
-        console.log("   Member ID: " + member.id);
-        console.log("   User ID: " + member.userId);
-        console.log("   Role: " + member.role);
-        console.log(
-          "   hierarchyScopeId: " +
-            member.hierarchyScopeId +
-            " ← IN TENANT DB members table"
-        );
-        console.log("   Status: " + member.status);
-        console.log("\n💡 Next Steps:");
-        console.log(
-          "   1. ✅ Password account ready - user can login directly!"
-        );
-        console.log("   2. Login with: " + testEmail + " / " + testPassword);
-        console.log("   3. Navigate to: /dashboard/branch/create");
-        console.log("   4. Test creating a branch under California area");
-        console.log("\n");
-
-        return {
-          user: { id: testUser.id, email: testEmail },
-          organization: { id: organization.id, name: organization.name },
-          hierarchy: {
-            orgNodeId: orgNode.id,
-            countryNodeId: countryNode.id,
-            regionNodeId: regionNode.id,
-            areaNodeId: areaNode.id,
-          },
-          member: {
-            id: member.id,
-            hierarchyScopeId: member.hierarchyScopeId,
-          },
-        };
+      if (!createdAreaNode) {
+        throw new Error("Failed to create area node");
       }
+      areaNode = createdAreaNode;
+      console.log(
+        "   ✅ Created area node: " + areaNode.id + " (California)\n"
+      );
     }
 
+    // ============================================
+    // SUMMARY
+    // ============================================
     console.log("=".repeat(60));
-    console.log("✅ Seed script completed (using existing data)");
+    console.log("🎉 Seed completed successfully!");
     console.log("=".repeat(60));
-    console.log("\n📋 Existing Credentials:");
+    console.log("\n📋 Test Credentials:");
+    console.log("   User ID: " + testUser.id);
     console.log("   Email: " + testEmail);
-    console.log("   Password: " + testPassword);
-    if (hasPasswordAccount) {
-      console.log("   ✅ Password account ready - ready to login!");
-    } else {
-      console.log("   ⚠️  Password account creation failed - check logs above");
+    console.log(
+      "   Password: " + testPassword + " (set via Better-Auth sign-up)"
+    );
+    console.log("\n🏢 Organization Details:");
+    console.log("   Organization ID: " + organization.id);
+    console.log("   Name: " + organization.name);
+    console.log("   Slug: " + organization.slug);
+    console.log("\n🗄️  Database Details:");
+    const dbHost = databaseUrl.split("@")[1];
+    const tenantConnString =
+      tenantConnectionString || decrypt(organization.connectionString);
+    const connHost = tenantConnString.split("@")[1];
+    console.log("   Control Panel DB: " + (dbHost || "unknown"));
+    console.log("   Tenant DB Project: " + organization.neonProjectId);
+    console.log("   Tenant Connection: " + (connHost || "unknown"));
+
+    // Only show hierarchy details if sample hierarchy was created
+    if (
+      typeof countryNode !== "undefined" &&
+      typeof regionNode !== "undefined" &&
+      typeof areaNode !== "undefined"
+    ) {
+      console.log("\n🌳 Hierarchy Details:");
+      console.log("   Organization Node ID: " + orgNode.id);
+      console.log("   Country Node ID: " + countryNode.id + " (USA)");
+      console.log("   Region Node ID: " + regionNode.id + " (West Coast)");
+      console.log("   Area Node ID: " + areaNode.id + " (California)");
     }
+    console.log("\n👤 Member Details (TENANT DB):");
+    console.log("   Member ID: " + member.id);
+    console.log("   User ID: " + member.userId);
+    console.log("   Role: " + member.role);
+    console.log(
+      "   hierarchyScopeId: " +
+        member.hierarchyScopeId +
+        " ← IN TENANT DB members table"
+    );
+    console.log("   Status: " + member.status);
+    console.log("\n💡 Next Steps:");
+    console.log(
+      "   1. ✅ Password account ready - user can login directly!"
+    );
+    console.log("   2. Login with: " + testEmail + " / " + testPassword);
+    console.log("   3. Navigate to: /dashboard/branch/view");
+    console.log("   4. Verify organization is selected and branches load");
+    console.log("   5. Navigate to: /dashboard/branch/create");
+    console.log("   6. Test creating a branch under California area");
     console.log("\n");
 
     return {
       user: { id: testUser.id, email: testEmail },
       organization: { id: organization.id, name: organization.name },
+      hierarchy: {
+        orgNodeId: orgNode.id,
+        countryNodeId: countryNode?.id,
+        regionNodeId: regionNode?.id,
+        areaNodeId: areaNode?.id,
+      },
+      member: {
+        id: member.id,
+        hierarchyScopeId: member.hierarchyScopeId,
+      },
     };
   } catch (error) {
     console.error("\n❌ Seed failed:", error);

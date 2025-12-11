@@ -121,32 +121,45 @@ export const hierarchyRouter = {
         organizationId: z.string().uuid(),
       })
     )
-    .handler(async ({ context }) => {
-      if (!context.tenantDb) {
+    .handler(async ({ input, context }) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:125',message:'listNodes handler entry',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasAccessibleNodeIds:!!context.accessibleNodeIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
+      // Tenant DB should be set up by createContext for oRPC routes
+      const tenantDb = context.tenantDb;
+      const member = context.member;
+      const accessibleNodeIds = context.accessibleNodeIds;
+
+      if (!tenantDb) {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:135',message:'Tenant DB missing in handler',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasOrgId:!!context.organizationId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        console.error("listNodes: Tenant DB not available", {
+          organizationId: input.organizationId,
+          hasTenantDb: !!context.tenantDb,
+          hasMember: !!context.member,
+        });
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
+          message: `Tenant database not available for organization ${input.organizationId}. Ensure organization context is set.`,
         });
       }
 
-      if (!context.member) {
+      if (!member) {
+        console.error("listNodes: Member not found", {
+          organizationId: input.organizationId,
+          userId: context.session?.user?.id,
+          hasTenantDb: !!context.tenantDb,
+        });
         throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
+          message: `User is not a member of organization ${input.organizationId}`,
         });
       }
 
-      const {
-        tenantDb,
-        member,
-        accessibleNodeIds: contextAccessibleNodeIds,
-      } = context;
-      const accessibleNodeIds =
-        contextAccessibleNodeIds ||
-        (member
-          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
-          : []);
+      // Use the accessibleNodeIds from context (already calculated in createContext)
+      const finalAccessibleNodeIds = accessibleNodeIds || [];
 
-      // Get all nodes
+      // Get all nodes - ensure this completes before returning
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allNodes = await tenantDb.query.hierarchyNodes.findMany({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,12 +169,13 @@ export const hierarchyRouter = {
         ],
       });
 
-      // Filter to accessible nodes
+      // Filter to accessible nodes (synchronous operation)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const accessibleNodes = allNodes.filter((node: any) =>
-        accessibleNodeIds.includes(node.id)
+        finalAccessibleNodeIds.includes(node.id)
       );
 
+      // Map nodes to response format (synchronous operation)
       return {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         nodes: accessibleNodes.map((node: any) => ({

@@ -7,7 +7,7 @@
  * TODO: Integrate permission checking with Better-Auth permission system
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 import type {
@@ -18,13 +18,134 @@ import type {
   RequiredPermission,
   FlattenedPermission,
   UseAuthReturn,
+  OrganizationData,
 } from "@/types/auth";
 import { isUserWithPermissions } from "@/types/auth";
 import { flattenUserPermissions, checkUserPermission, checkUserRole } from "@/lib/permissions";
+import { getServerUrl } from "@/lib/config";
 
 export function useAuth(): UseAuthReturn {
   const navigate = useNavigate();
   const { data: session, isPending, refetch } = authClient.useSession();
+
+  // State for organizations and current organization ID
+  // API returns: { id, name, slug, role }
+  // We convert to OrganizationData format: { id, name, roles: [{ name: role }] }
+  const [organizations, setOrganizations] = useState<Array<{ id: string; name: string; slug: string; role: string }>>([]);
+  const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
+  const hasFetchedUserContext = useRef(false);
+
+  // Load organizations from localStorage on initial render
+  useEffect(() => {
+    try {
+      const storedOrgs = localStorage.getItem('user_organizations');
+      const storedCurrentOrgId = localStorage.getItem('current_organization_id');
+      if (storedOrgs) {
+        setOrganizations(JSON.parse(storedOrgs));
+      }
+      if (storedCurrentOrgId) {
+        setCurrentOrganizationId(storedCurrentOrgId);
+      }
+    } catch (error) {
+      console.error('Failed to load organizations from localStorage:', error);
+    }
+  }, []);
+
+  // Effect to fetch user context (organizations + hierarchy) when session exists
+  // Only fetch once per session to avoid infinite loops
+  useEffect(() => {
+    const fetchUserContext = async () => {
+      // Only fetch if we have a session and haven't fetched yet for this session
+      if (session?.user && !hasFetchedUserContext.current) {
+        hasFetchedUserContext.current = true;
+        const serverUrl = getServerUrl();
+        try {
+          // Try user-context endpoint first (includes hierarchy data)
+          const contextResponse = await fetch(`${serverUrl}/auth/user-context`, {
+            method: 'GET',
+            credentials: 'include',
+          });
+
+          if (contextResponse.ok) {
+            const contextData = await contextResponse.json();
+            
+            // Store organizations
+            if (contextData.organizations && contextData.organizations.length > 0) {
+              const orgsSummary = contextData.organizations.map((org: any) => ({
+                id: org.id,
+                name: org.name,
+                slug: org.slug,
+                role: org.role,
+              }));
+              
+              setOrganizations(orgsSummary);
+              const currentOrgId = contextData.currentOrganizationId || orgsSummary[0].id;
+              setCurrentOrganizationId(currentOrgId);
+              
+              localStorage.setItem('user_organizations', JSON.stringify(orgsSummary));
+              localStorage.setItem('current_organization_id', currentOrgId);
+              
+              // Store hierarchy data in localStorage for quick access
+              contextData.organizations.forEach((org: any) => {
+                if (org.hierarchy?.nodes) {
+                  localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
+                }
+              });
+              
+              await refetch(); // Trigger a refetch to update the user object
+              return;
+            }
+          }
+          
+          // Fallback to old organizations endpoint if user-context fails
+          const orgResponse = await fetch(`${serverUrl}/auth/organizations`, {
+            method: 'GET',
+            credentials: 'include',
+          });
+
+          if (orgResponse.ok) {
+            const orgData = await orgResponse.json();
+            if (orgData.organizations && orgData.organizations.length > 0) {
+              setOrganizations(orgData.organizations);
+              const firstOrgId = orgData.organizations[0].id;
+              setCurrentOrganizationId(firstOrgId);
+              localStorage.setItem('user_organizations', JSON.stringify(orgData.organizations));
+              localStorage.setItem('current_organization_id', firstOrgId);
+              await refetch(); // Trigger a refetch to update the user object
+            }
+          } else {
+            const errorData = await orgResponse.json().catch(() => ({}));
+            console.error('Failed to fetch organizations:', errorData);
+          }
+        } catch (error) {
+          console.error('Error fetching user context:', error);
+          hasFetchedUserContext.current = false; // Reset on error so we can retry
+          // If fetch fails, ensure we at least have localStorage data
+          if (organizations.length === 0) {
+            const storedOrgs = localStorage.getItem('user_organizations');
+            const storedOrgId = localStorage.getItem('current_organization_id');
+            if (storedOrgs) {
+              try {
+                const parsedOrgs = JSON.parse(storedOrgs);
+                setOrganizations(parsedOrgs);
+                if (storedOrgId) {
+                  setCurrentOrganizationId(storedOrgId);
+                } else if (parsedOrgs.length > 0) {
+                  setCurrentOrganizationId(parsedOrgs[0].id);
+                }
+              } catch (e) {
+                console.error('Failed to parse stored organizations:', e);
+              }
+            }
+          }
+        }
+      } else if (!session?.user) {
+        // Reset flag when user logs out
+        hasFetchedUserContext.current = false;
+      }
+    };
+    fetchUserContext();
+  }, [session?.user?.id, refetch]); // Only depend on user ID, not the whole session object
 
   // Convert Better-Auth session to AuthState format
   const authState: AuthState = useMemo(() => {
@@ -48,20 +169,28 @@ export function useAuth(): UseAuthReturn {
       };
     }
 
-    // TODO: Map Better-Auth user to UserWithPermissions format
-    // This requires backend to return user with organizations/permissions
     const user: UserWithPermissions = {
       id: session.user.id,
       email: session.user.email,
       full_name: session.user.name || "",
       phone: null,
-      is_system_admin: false, // TODO: Get from Better-Auth session
+      is_system_admin: false,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       last_login: null,
-      organizations: [], // TODO: Fetch from API
-      current_organization_id: null,
+      organizations: organizations.map(org => ({
+        id: org.id,
+        name: org.name,
+        roles: [{ 
+          id: `role-${org.id}-${org.role}`, 
+          name: org.role, 
+          priority: 0, 
+          description: '',
+          permissions: [] as any[]
+        }],
+      })),
+      current_organization_id: currentOrganizationId || (organizations.length > 0 ? organizations[0].id : null),
     };
 
     const authSession: AuthSession = {
@@ -76,7 +205,7 @@ export function useAuth(): UseAuthReturn {
       isAuthenticated: true,
       error: null,
     };
-  }, [session, isPending]);
+  }, [session, isPending, organizations, currentOrganizationId]);
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
@@ -102,6 +231,30 @@ export function useAuth(): UseAuthReturn {
       // Refresh session after login
       await refetch();
 
+      // Fetch organizations after successful login
+      const serverUrl = getServerUrl();
+      try {
+        const orgResponse = await fetch(`${serverUrl}/auth/organizations`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (orgResponse.ok) {
+          const orgData = await orgResponse.json();
+          if (orgData.organizations && orgData.organizations.length > 0) {
+            localStorage.setItem('user_organizations', JSON.stringify(orgData.organizations));
+            localStorage.setItem('current_organization_id', orgData.organizations[0].id);
+            setOrganizations(orgData.organizations);
+            setCurrentOrganizationId(orgData.organizations[0].id);
+          }
+        } else {
+          const errorData = await orgResponse.json().catch(() => ({}));
+          console.error('Failed to fetch organizations:', errorData);
+        }
+      } catch (orgError) {
+        console.error('Error fetching organizations:', orgError);
+      }
+
       return { success: true, data: result.data };
     } catch (error: any) {
       console.error("Login error:", error);
@@ -113,10 +266,17 @@ export function useAuth(): UseAuthReturn {
     try {
       await authClient.signOut();
       await refetch();
+      localStorage.removeItem('user_organizations');
+      localStorage.removeItem('current_organization_id');
+      setOrganizations([]);
+      setCurrentOrganizationId(null);
       navigate({ to: "/login" });
     } catch (error) {
       console.error("Logout error:", error);
-      // Still redirect even if logout fails
+      localStorage.removeItem('user_organizations');
+      localStorage.removeItem('current_organization_id');
+      setOrganizations([]);
+      setCurrentOrganizationId(null);
       navigate({ to: "/login" });
     }
   }, [navigate, refetch]);

@@ -1,5 +1,6 @@
 import { getBetterAuth } from "@/lib/better-auth";
 import { dbMiddleware } from "@/middleware/db.middleware";
+import { orpcTenantMiddleware } from "@/middleware/orpc-tenant.middleware";
 import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
@@ -21,7 +22,7 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN || "",
+    origin: env.CORS_ORIGIN || "http://localhost:3001", // Add fallback for local development
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -31,6 +32,10 @@ app.use(
 // Database middleware: Creates request-scoped connection pools
 // Must be applied early, before any database access
 app.use("/*", dbMiddleware);
+
+// oRPC tenant middleware: Sets up tenant DB for oRPC routes
+// Must run after dbMiddleware but before createContext
+app.use("/*", orpcTenantMiddleware);
 
 // Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
 // Create a new Request with mutable headers for Cloudflare Workers compatibility

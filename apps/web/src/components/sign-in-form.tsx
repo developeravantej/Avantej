@@ -48,8 +48,54 @@ export default function SignInForm({
           return;
         }
 
+        // Store organizations in localStorage if available
+        if (
+          data.organizations &&
+          Array.isArray(data.organizations) &&
+          data.organizations.length > 0
+        ) {
+          localStorage.setItem(
+            "user_organizations",
+            JSON.stringify(data.organizations)
+          );
+          const firstOrgId = data.organizations[0].id;
+          localStorage.setItem("current_organization_id", firstOrgId);
+        }
+
         // Refresh session to sync Better-Auth client state
         await refetch();
+
+        // Also fetch user-context to get hierarchy data (useAuth hook will also fetch, but this ensures it's immediate)
+        try {
+          const contextResponse = await fetch(
+            `${import.meta.env.VITE_SERVER_URL}/auth/user-context`,
+            {
+              method: "GET",
+              credentials: "include",
+            }
+          );
+
+          if (contextResponse.ok) {
+            const contextData = await contextResponse.json();
+
+            // Store hierarchy data
+            if (contextData.organizations) {
+              contextData.organizations.forEach(
+                (org: { id: string; hierarchy?: { nodes: unknown[] } }) => {
+                  if (org.hierarchy?.nodes) {
+                    localStorage.setItem(
+                      `org_${org.id}_hierarchy`,
+                      JSON.stringify(org.hierarchy)
+                    );
+                  }
+                }
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch user context after login:", error);
+          // Non-critical, useAuth hook will retry
+        }
 
         toast.success("Sign in successful");
         navigate({

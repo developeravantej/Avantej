@@ -7,6 +7,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
+import { useEffect } from "react";
 import z from "zod";
 
 // A simple div-based spinner using Tailwind classes
@@ -26,12 +27,8 @@ export default function LoginForm({
 	const navigate = useNavigate();
 	const { user, isLoading, login } = useAuth();
 
-	// Redirect if already logged in
-	if (!isLoading && user) {
-		navigate({ to: "/dashboard" });
-		return null;
-	}
-
+	// IMPORTANT: All hooks MUST be called before any early returns
+	// This is a React rule - hooks must be called in the same order every render
 	const form = useForm({
 		defaultValues: {
 			email: "",
@@ -57,6 +54,18 @@ export default function LoginForm({
 			}),
 		},
 	});
+
+	// Redirect if already logged in - use useEffect to avoid setState during render
+	useEffect(() => {
+		if (!isLoading && user) {
+			navigate({ to: "/dashboard" });
+		}
+	}, [user, isLoading, navigate]);
+
+	// Early return AFTER all hooks have been called
+	if (!isLoading && user) {
+		return null;
+	}
 
 	return (
 		<div className={cn("flex flex-col gap-6", className)} {...props}>

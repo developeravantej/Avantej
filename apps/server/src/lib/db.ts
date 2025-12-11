@@ -209,6 +209,15 @@ export async function getTenantDb(
 				client: tenantPool,
 				schema: tenantSchema,
 			});
+		} else {
+			// tenantPools not initialized - create a temporary pool
+			// This shouldn't happen if dbMiddleware runs first, but handle it gracefully
+			console.warn("tenantPools not found in context, creating temporary pool for organization:", organizationId);
+			const tenantPool = new Pool({ connectionString });
+			return drizzle({
+				client: tenantPool,
+				schema: tenantSchema,
+			});
 		}
 	}
 
