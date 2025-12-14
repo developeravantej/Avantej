@@ -1,4 +1,3 @@
-import { auth } from "@avantej-core/auth";
 import type { Context as HonoContext } from "hono";
 import { eq } from "drizzle-orm";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -12,6 +11,15 @@ export async function createContext({ context }: CreateContextOptions) {
   // #region agent log
   fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.ts:12',message:'createContext entry',data:{path:context.req.path,hasOrgId:!!context.get('organizationId'),hasTenantDb:!!context.get('tenantDb'),hasMember:!!context.get('member')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
   // #endregion
+  
+  // Use request-scoped Better-Auth instance from context (set by dbMiddleware)
+  // This ensures we use request-scoped database connections for Cloudflare Workers compatibility
+  const getBetterAuthFn = context.get("getBetterAuth");
+  const auth = getBetterAuthFn ? getBetterAuthFn() : null;
+  
+  if (!auth) {
+    throw new Error("getBetterAuth not available in context. Ensure dbMiddleware is applied.");
+  }
   
   const session = await auth.api.getSession({
     headers: context.req.raw.headers,
@@ -40,16 +48,32 @@ export async function createContext({ context }: CreateContextOptions) {
       });
       
       if (member) {
+        console.log(`[createContext] Found member: ${member.id}, hierarchyScopeId: ${member.hierarchyScopeId}, role: ${member.role}`);
+        
         // Calculate accessible node IDs
-        accessibleNodeIds = await getDescendantNodeIds(tenantDb, member.hierarchyScopeId);
+        try {
+          accessibleNodeIds = await getDescendantNodeIds(tenantDb, member.hierarchyScopeId);
+          console.log(`[createContext] Calculated ${accessibleNodeIds.length} accessible node IDs from hierarchyScopeId ${member.hierarchyScopeId}`);
+        } catch (descError) {
+          console.error(`[createContext] Failed to get descendant nodes for hierarchyScopeId ${member.hierarchyScopeId}:`, descError);
+          // If getDescendantNodeIds fails, set to empty array (will be handled in listNodes)
+          accessibleNodeIds = [];
+        }
         
         // Store in context
         context.set('member', member);
         context.set('accessibleNodeIds', accessibleNodeIds);
+      } else {
+        console.error(`[createContext] Member not found for userId: ${session.user.id}, organizationId: ${organizationId}`);
       }
     } catch (error) {
       console.error("Failed to set up member in createContext for oRPC:", error);
     }
+  }
+  
+  // Log final state
+  if (tenantDb && member) {
+    console.log(`[createContext] Final state - member: ${member.id}, accessibleNodeIds count: ${accessibleNodeIds?.length || 0}`);
   }
 
   return {

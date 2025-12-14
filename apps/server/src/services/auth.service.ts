@@ -8,17 +8,19 @@
  * Note: Better-Auth handles email verification automatically via URL visits.
  * These service functions provide programmatic access for API endpoints.
  *
- * Usage:
+ * Usage in request handlers:
  * ```typescript
  * import { sendVerificationEmail, verifyEmailToken } from "@/services/auth.service";
+ * import type { Context } from "hono";
  *
- * await sendVerificationEmail(userId, email);
- * const verified = await verifyEmailToken(token);
+ * await sendVerificationEmail(userId, email, c); // c is Hono context
+ * const verified = await verifyEmailToken(token, c);
  * ```
  */
 
-import { auth } from "@/lib/better-auth";
-import { controlPanelDb } from "@/lib/db";
+import { getBetterAuth } from "@/lib/better-auth";
+import { getControlPanelDb } from "@/lib/db";
+import type { Context } from "hono";
 import { lt, eq } from "drizzle-orm";
 import { verification } from "@avantej-core/db/schema/auth";
 import { user } from "@avantej-core/db/schema/auth";
@@ -54,16 +56,18 @@ function getBetterAuthSecret(): string {
  *
  * @param userId - User ID
  * @param email - User email address
+ * @param c - Optional Hono context. Required in Cloudflare Workers request handlers.
  * @throws Error if user not found or email sending fails
  *
  * @example
  * ```typescript
- * await sendVerificationEmail(userId, "user@example.com");
+ * await sendVerificationEmail(userId, "user@example.com", c); // c is Hono context
  * ```
  */
 export async function sendVerificationEmail(
   userId: string,
-  email: string
+  email: string,
+  c?: Context
 ): Promise<void> {
   if (!userId || !email) {
     throw new Error("User ID and email are required");
@@ -72,6 +76,7 @@ export async function sendVerificationEmail(
   try {
     // Better-Auth handles token generation and uses Resend for email sending
     // (configured in better-auth.ts email provider)
+    const auth = getBetterAuth(c);
     await auth.api.sendVerificationEmail({
       body: {
         email,
@@ -99,20 +104,22 @@ export async function sendVerificationEmail(
  * and updating the user's emailVerified flag directly.
  *
  * @param token - Verification token from email link
+ * @param c - Optional Hono context. Required in Cloudflare Workers request handlers.
  * @returns User ID if verification successful
  * @throws Error if token is invalid or expired
  *
  * @example
  * ```typescript
- * const userId = await verifyEmailToken("verification-token-from-email");
+ * const userId = await verifyEmailToken("verification-token-from-email", c); // c is Hono context
  * ```
  */
-export async function verifyEmailToken(token: string): Promise<string> {
+export async function verifyEmailToken(token: string, c?: Context): Promise<string> {
 	if (!token) {
 		throw new Error("Verification token is required");
 	}
 
 	try {
+		const auth = getBetterAuth(c);
 		await auth.api.verifyEmail({
 			query: {
 				token,
@@ -141,7 +148,8 @@ export async function verifyEmailToken(token: string): Promise<string> {
 			throw new Error("Invalid verification token payload");
 		}
 
-		const userRecord = await controlPanelDb.query.user.findFirst({
+		const db = getControlPanelDb(c);
+		const userRecord = await db.query.user.findFirst({
 			where: eq(user.email, emailToLookup),
 		});
 
@@ -168,14 +176,15 @@ export async function verifyEmailToken(token: string): Promise<string> {
  * to prevent email enumeration attacks.
  *
  * @param email - User email address
+ * @param c - Optional Hono context. Required in Cloudflare Workers request handlers.
  * @throws Error if email sending fails (but doesn't reveal if email exists)
  *
  * @example
  * ```typescript
- * await sendPasswordResetEmail("user@example.com");
+ * await sendPasswordResetEmail("user@example.com", c); // c is Hono context
  * ```
  */
-export async function sendPasswordResetEmail(email: string): Promise<void> {
+export async function sendPasswordResetEmail(email: string, c?: Context): Promise<void> {
   if (!email) {
     throw new Error("Email is required");
   }
@@ -183,6 +192,7 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   try {
     // Better-Auth handles password reset token generation and uses Resend for email sending
     // (configured in better-auth.ts email provider)
+    const auth = getBetterAuth(c);
     await auth.api.forgetPassword({
       body: {
         email,
@@ -208,16 +218,18 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
  *
  * @param token - Password reset token from email link
  * @param newPassword - New password
+ * @param c - Optional Hono context. Required in Cloudflare Workers request handlers.
  * @throws Error if token is invalid or expired
  *
  * @example
  * ```typescript
- * await resetPassword("reset-token-from-email", "newSecurePassword123");
+ * await resetPassword("reset-token-from-email", "newSecurePassword123", c); // c is Hono context
  * ```
  */
 export async function resetPassword(
   token: string,
-  newPassword: string
+  newPassword: string,
+  c?: Context
 ): Promise<void> {
   if (!token || !newPassword) {
     throw new Error("Token and new password are required");
@@ -229,6 +241,7 @@ export async function resetPassword(
 
   try {
     // Reset password via Better-Auth API
+    const auth = getBetterAuth(c);
     const result = await auth.api.resetPassword({
       body: {
         token,
@@ -260,12 +273,14 @@ export async function resetPassword(
  * Removes expired verification tokens from the database.
  * Should be called periodically (e.g., via cron job).
  *
+ * @param c - Optional Hono context. Required in Cloudflare Workers request handlers.
  * @returns Number of tokens deleted
  */
-export async function cleanupExpiredTokens(): Promise<number> {
+export async function cleanupExpiredTokens(c?: Context): Promise<number> {
   try {
+    const db = getControlPanelDb(c);
     const now = new Date();
-    const result = await controlPanelDb
+    const result = await db
       .delete(verification)
       .where(lt(verification.expiresAt, now))
       .returning();

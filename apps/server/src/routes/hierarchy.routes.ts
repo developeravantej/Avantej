@@ -175,8 +175,9 @@ hierarchyRoutes.get(
         return c.json({ error: "Missing required context" }, 500);
       }
 
-      // Get all nodes (filtered by accessible nodes if needed)
+      // Get all active nodes (exclude soft-deleted, filtered by accessible nodes if needed)
       const allNodes = await tenantDb.query.hierarchyNodes.findMany({
+        where: (nodes, { isNull }) => isNull(nodes.deletedAt), // Only active nodes
         orderBy: (nodes, { asc }) => [asc(nodes.depth), asc(nodes.name)],
       });
 

@@ -239,16 +239,25 @@ function createBetterAuth(c?: Context) {
 
         // Fetch organization name from database
         // Note: This callback doesn't have access to Hono context,
-        // so we use the singleton controlPanelDb (which is fine for read operations)
+        // so we create a temporary pool for this operation (Cloudflare Workers requirement)
         let organizationName = "an organization";
         try {
-          // Import here to avoid circular dependency
-          const { controlPanelDb } = await import("@/lib/db");
-          const org = await controlPanelDb.query.organizations.findFirst({
-            where: eq(organizations.id, invitation.organizationId),
-          });
-          if (org) {
-            organizationName = org.name;
+          // Create a temporary pool for this read operation
+          // Cannot use singleton pool in Cloudflare Workers due to I/O isolation
+          const databaseUrl = getEnvVar("DATABASE_URL");
+          if (databaseUrl) {
+            const tempPool = new Pool({ connectionString: databaseUrl });
+            const tempDb = drizzle({ client: tempPool });
+            try {
+              const org = await tempDb.query.organizations.findFirst({
+                where: eq(organizations.id, invitation.organizationId),
+              });
+              if (org) {
+                organizationName = org.name;
+              }
+            } finally {
+              await tempPool.end();
+            }
           }
         } catch (error) {
           console.error(

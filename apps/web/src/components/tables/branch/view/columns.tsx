@@ -1,14 +1,23 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 // TODO: Replace with actual API types when backend is ready
 // import type apiClient from "@/lib/api";
 import type { ColumnDef, CellContext } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
+import { Copy, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 
 // TODO: Replace with actual BranchRead type from API
 interface BranchRead {
+  id?: string;
   name?: string;
   person_in_charge?: {
     name?: string;
@@ -26,6 +35,12 @@ interface BranchRead {
   location?: {
     address?: string;
   };
+}
+
+interface ActionColumnProps {
+  branch: BranchRead;
+  onEdit?: (branch: BranchRead) => void;
+  onDelete?: (branchId: string) => void;
 }
 
 // Helper component for copyable cells
@@ -135,6 +150,63 @@ export const columns: ColumnDef<BranchRead>[] = [
     ),
     accessorFn: (row) => row.location?.address,
     cell: ({ getValue }) => getValue<string | undefined>() || "N/A",
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    id: "actions",
+    header: () => <div className="text-right">Actions</div>,
+    cell: ({ row, table }) => {
+      const branch = row.original;
+      const meta = table.options.meta as {
+        onEdit?: (branch: BranchRead) => void;
+        onDelete?: (branchId: string) => void;
+      } | undefined;
+
+      return (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {meta?.onEdit && (
+                <DropdownMenuItem
+                  onClick={() => meta.onEdit?.(branch)}
+                  className="cursor-pointer"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Branch
+                </DropdownMenuItem>
+              )}
+              {meta?.onDelete && branch.id && (
+                <>
+                  {meta?.onEdit && <DropdownMenuSeparator />}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Are you sure you want to delete "${branch.name}"? This action cannot be undone.`
+                        )
+                      ) {
+                        meta.onDelete?.(branch.id!);
+                      }
+                    }}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Branch
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
     enableSorting: false,
     enableHiding: false,
   },

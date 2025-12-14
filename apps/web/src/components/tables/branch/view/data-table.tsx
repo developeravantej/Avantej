@@ -30,11 +30,15 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  onEdit?: (branch: TData) => void;
+  onDelete?: (branchId: string) => void;
 }
 
 export default function DataTable<TData, TValue>({
   columns,
   data,
+  onEdit,
+  onDelete,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
@@ -58,6 +62,10 @@ export default function DataTable<TData, TValue>({
       pagination: {
         pageSize: 10,
       },
+    },
+    meta: {
+      onEdit,
+      onDelete,
     },
   });
 

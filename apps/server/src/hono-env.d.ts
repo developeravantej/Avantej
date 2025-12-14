@@ -29,6 +29,7 @@ declare module "hono" {
     controlPanelPool: Pool;
     controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
     tenantPools: Map<string, Pool>;
+    getBetterAuth: () => ReturnType<typeof import("@/lib/better-auth").getBetterAuth>;
 
     // Auth middleware variables
     user: BetterAuthUser;

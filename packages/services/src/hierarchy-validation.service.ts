@@ -33,6 +33,14 @@ export interface CreateHierarchyNodeParams {
   name: string;
   code?: string;
   parentId?: string | null;
+  address?: string | null; // Branch-specific: physical address
+  picUserId?: string | null; // Branch-specific: Person In Charge user ID
+}
+
+export interface UpdateHierarchyNodeParams {
+  name?: string;
+  address?: string | null;
+  picUserId?: string | null;
 }
 
 /**

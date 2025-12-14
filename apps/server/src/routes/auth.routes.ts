@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import { getBetterAuth } from "@/lib/better-auth";
 import { getControlPanelDb } from "@/lib/db";
 import { decrypt } from "@avantej-core/db";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -99,7 +99,7 @@ authRoutes.post("/register", async (c) => {
 
     // Send verification email
     try {
-      await sendVerificationEmail(user.id, email);
+      await sendVerificationEmail(user.id, email, c);
     } catch (error) {
       console.error("Failed to send verification email:", error);
       // Continue even if email sending fails
@@ -259,7 +259,7 @@ authRoutes.post("/verify-email", async (c) => {
     }
 
     // Verify email token
-    await verifyEmailToken(token);
+    await verifyEmailToken(token, c);
 
     return c.json({ message: "Email verified successfully" });
   } catch (error) {
@@ -288,7 +288,7 @@ authRoutes.post("/reset-password", async (c) => {
     }
 
     // Send password reset email (always returns success to prevent email enumeration)
-    await sendPasswordResetEmail(email);
+    await sendPasswordResetEmail(email, c);
 
     // Always return 200 to prevent email enumeration
     return c.json({
@@ -324,7 +324,7 @@ authRoutes.post("/reset-password/confirm", async (c) => {
     }
 
     // Reset password
-    await resetPassword(token, newPassword);
+    await resetPassword(token, newPassword, c);
 
     return c.json({ message: "Password updated successfully" });
   } catch (error) {
@@ -552,8 +552,9 @@ authRoutes.get("/user-context", authMiddleware, async (c) => {
         const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
 
         try {
-          // Get all hierarchy nodes
+          // Get all active hierarchy nodes (exclude soft-deleted)
           const allNodes = await tenantDb.query.hierarchyNodes.findMany({
+            where: (nodes, { isNull }) => isNull(nodes.deletedAt), // Only active nodes
             orderBy: (nodes, { asc }) => [asc(nodes.depth), asc(nodes.name)],
           });
 

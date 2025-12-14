@@ -97,7 +97,10 @@ function getControlPanelPool(): Pool {
  * Get request-scoped control panel database client from Hono context
  *
  * Prefers request-scoped pool from context (created by dbMiddleware).
- * Falls back to singleton pool for non-request contexts (tests, scripts).
+ * Falls back to singleton pool ONLY for non-request contexts (tests, scripts).
+ *
+ * IMPORTANT: In Cloudflare Workers request handlers, context MUST be provided.
+ * The singleton pool cannot be shared across requests in Workers.
  *
  * @param c - Optional Hono context. If provided, uses request-scoped pool.
  * @returns Drizzle client for control panel database
@@ -105,15 +108,29 @@ function getControlPanelPool(): Pool {
 export function getControlPanelDb(
 	c?: Context
 ): NeonDatabase<typeof controlPanelSchema> {
-	// If context is provided and has request-scoped pool, use it
+	// If context is provided, use request-scoped pool from context
 	if (c) {
 		const contextDb = c.get("controlPanelDb");
 		if (contextDb) {
 			return contextDb;
 		}
+		
+		// Fallback: try to get pool from context and create client
+		const controlPanelPool = c.get("controlPanelPool");
+		if (controlPanelPool) {
+			return drizzle({
+				client: controlPanelPool,
+				schema: controlPanelSchema,
+			});
+		}
+		
+		// If we have context but no pool, something is wrong with middleware setup
+		// In Cloudflare Workers, we should never reach here
+		console.warn("getControlPanelDb called with context but no pool found. dbMiddleware may not be running.");
 	}
 
 	// Fall back to singleton pool (for tests, scripts, etc.)
+	// NOTE: This should NOT be used in Cloudflare Workers request handlers
 	return drizzle({
 		client: getControlPanelPool(),
 		schema: controlPanelSchema,
