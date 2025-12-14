@@ -367,10 +367,13 @@ CREATE INDEX "payouts_recipient_status_idx" ON "payouts" USING btree ("recipient
 
 /**
  * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
- * Migration: 0002_rbac_tables
- * Creates RBAC tables: roles, permissions, role_permissions
+ * Migration: 0002_calm_martin_li
+ * Creates RBAC tables (roles, permissions, role_permissions) and adds branch fields (address, pic_user_id)
+ * 
+ * This migration combines RBAC setup and branch-specific fields in a single migration,
+ * matching the drizzle-kit generated migration file.
  */
-const MIGRATION_0002_RBAC_TABLES = `
+const MIGRATION_0002_CALM_MARTIN_LI = `
 CREATE TABLE "roles" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -388,7 +391,7 @@ CREATE TABLE "permissions" (
 	"action" text NOT NULL,
 	"description" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "permissions_resource_action_unique" UNIQUE("resource", "action")
+	CONSTRAINT "permissions_resource_action_unique" UNIQUE("resource","action")
 );
 --> statement-breakpoint
 CREATE TABLE "role_permissions" (
@@ -396,27 +399,51 @@ CREATE TABLE "role_permissions" (
 	"role_id" uuid NOT NULL,
 	"permission_id" uuid NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "role_permissions_role_permission_unique" UNIQUE("role_id", "permission_id")
+	CONSTRAINT "role_permissions_role_permission_unique" UNIQUE("role_id","permission_id")
 );
 --> statement-breakpoint
-ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;
---> statement-breakpoint
-ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "public"."permissions"("id") ON DELETE cascade ON UPDATE no action;
---> statement-breakpoint
-CREATE INDEX "roles_name_idx" ON "roles" USING btree ("name");
---> statement-breakpoint
-CREATE INDEX "roles_priority_idx" ON "roles" USING btree ("priority");
---> statement-breakpoint
-CREATE INDEX "permissions_resource_idx" ON "permissions" USING btree ("resource");
---> statement-breakpoint
-CREATE INDEX "role_permissions_role_idx" ON "role_permissions" USING btree ("role_id");
---> statement-breakpoint
-CREATE INDEX "role_permissions_permission_idx" ON "role_permissions" USING btree ("permission_id");
+ALTER TABLE "hierarchy_nodes" ADD COLUMN "address" text;--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" ADD COLUMN "pic_user_id" text;--> statement-breakpoint
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "public"."permissions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "roles_name_idx" ON "roles" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "roles_priority_idx" ON "roles" USING btree ("priority");--> statement-breakpoint
+CREATE INDEX "permissions_resource_idx" ON "permissions" USING btree ("resource");--> statement-breakpoint
+CREATE INDEX "role_permissions_role_idx" ON "role_permissions" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX "role_permissions_permission_idx" ON "role_permissions" USING btree ("permission_id");--> statement-breakpoint
+CREATE INDEX "hierarchy_pic_user_idx" ON "hierarchy_nodes" USING btree ("pic_user_id");
+`;
+
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0003_green_runaways
+ * Adds soft delete support (deleted_at column) to hierarchy_nodes table
+ */
+const MIGRATION_0003_GREEN_RUNAWAYS = `
+ALTER TABLE "hierarchy_nodes" ADD COLUMN "deleted_at" timestamp;--> statement-breakpoint
+CREATE INDEX "hierarchy_deleted_at_idx" ON "hierarchy_nodes" USING btree ("deleted_at");
+`;
+
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0004_remove_soft_delete
+ * Removes soft delete support (deleted_at column) from hierarchy_nodes table - switching to hard delete
+ */
+const MIGRATION_0004_REMOVE_SOFT_DELETE = `
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "deleted_at";--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_deleted_at_idx";
 `;
 
 /**
  * List of tenant migrations in order
  * Add new migrations here as they are created
+ * 
+ * IMPORTANT: Migrations should match drizzle-kit generated files in packages/db/src/migrations/tenant/
+ * When adding new migrations:
+ * 1. Update schema files in packages/db/src/schema/tenant/
+ * 2. Run: bun run drizzle-kit generate --config=drizzle.tenant.config.ts
+ * 3. Copy SQL from generated file into a new MIGRATION_XXXX constant above
+ * 4. Add entry to TENANT_MIGRATIONS array with matching hash
  */
 const TENANT_MIGRATIONS = [
   {
@@ -428,8 +455,16 @@ const TENANT_MIGRATIONS = [
     sql: MIGRATION_0001_SALTY_MORLOCKS,
   },
   {
-    hash: "0002_rbac_tables",
-    sql: MIGRATION_0002_RBAC_TABLES,
+    hash: "0002_calm_martin_li",
+    sql: MIGRATION_0002_CALM_MARTIN_LI,
+  },
+  {
+    hash: "0003_green_runaways",
+    sql: MIGRATION_0003_GREEN_RUNAWAYS,
+  },
+  {
+    hash: "0004_remove_soft_delete",
+    sql: MIGRATION_0004_REMOVE_SOFT_DELETE,
   },
 ] as const;
 
@@ -542,6 +577,19 @@ export async function runTenantMigrations(
       if (await isMigrationApplied(pool, hash)) {
         console.log(`Skipping already applied migration: ${hash}`);
         continue;
+      }
+
+      // Backward compatibility: Check if old split migrations were applied
+      // If "0002_rbac_tables" and "0003_add_branch_fields" are both applied,
+      // mark "0002_calm_martin_li" as applied (they're equivalent)
+      if (hash === "0002_calm_martin_li") {
+        const rbacApplied = await isMigrationApplied(pool, "0002_rbac_tables");
+        const branchFieldsApplied = await isMigrationApplied(pool, "0003_add_branch_fields");
+        if (rbacApplied && branchFieldsApplied) {
+          console.log(`Migration ${hash} already applied via split migrations (0002_rbac_tables + 0003_add_branch_fields), marking as applied`);
+          await markMigrationApplied(pool, hash);
+          continue;
+        }
       }
 
       console.log(`Applying migration: ${hash}`);

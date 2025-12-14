@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { client } from "@/utils/orpc";
+import { client, queryClient } from "@/utils/orpc";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { Globe, Map as MapIcon, MapPin, Plus, Target } from "lucide-react";
@@ -111,12 +111,14 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     resolver: zodResolver(hierarchicalBranchSchema),
   });
 
-  // Load countries and user organization on mount
+  // Load countries and user organization on mount or when organizationId changes
   useEffect(() => {
-    console.log("📋 Hierarchical Branch Form mounted");
-    loadCountries();
-    loadUserOrganization();
-  }, []);
+    console.log("📋 Hierarchical Branch Form mounted, organizationId:", organizationId);
+    if (organizationId) {
+      loadCountries();
+      loadUserOrganization();
+    }
+  }, [organizationId]);
 
   // Load regions when country is selected
   useEffect(() => {
@@ -134,11 +136,29 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
   const loadCountries = async () => {
     try {
-      // TODO: Replace with actual oRPC client call
-      // const response = await apiClient.getListcountries();
-      // setCountries(response.data || []);
-      console.warn("API call to loadCountries is mocked.");
-      setCountries([]); // Mock data
+      if (!organizationId) {
+        console.warn("No organization ID available");
+        setCountries([]);
+        return;
+      }
+
+      // Fetch all hierarchy nodes from API
+      const result = await client.hierarchy.listNodes({ organizationId });
+      
+      // Filter for countries (type === "country", depth === 1)
+      const countryNodes = (result.nodes || []).filter(
+        (node: any) => node.type === "country" && node.depth === 1
+      );
+
+      // Map to HierarchyItem format
+      const countriesList: HierarchyItem[] = countryNodes.map((node: any) => ({
+        id: node.id,
+        name: node.name,
+        code: node.code || "",
+      }));
+
+      console.log(`Loaded ${countriesList.length} countries`);
+      setCountries(countriesList);
     } catch (error: any) {
       console.error("Error loading countries:", error);
       if (error.message.includes("Not authenticated")) {
@@ -146,6 +166,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       } else {
         toast.error("Failed to load countries. Please try again.");
       }
+      setCountries([]);
     }
   };
 
@@ -174,13 +195,28 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
   const loadRegions = async (countryId: string) => {
     try {
-      // TODO: Replace with actual oRPC client call
-      // const response = await apiClient.getListregions({
-      //   country_id: countryId,
-      // });
-      // setRegions(response.data || []);
-      console.warn("API call to loadRegions is mocked.", countryId);
-      setRegions([]); // Mock data
+      if (!organizationId) {
+        console.warn("No organization ID available");
+        setRegions([]);
+        return;
+      }
+
+      // Fetch all hierarchy nodes from API
+      const result = await client.hierarchy.listNodes({ organizationId });
+      
+      // Filter for regions under the selected country
+      const regionNodes = (result.nodes || []).filter(
+        (node: any) => node.type === "region" && node.depth === 2 && node.parentId === countryId
+      );
+
+      const regionsList: HierarchyItem[] = regionNodes.map((node: any) => ({
+        id: node.id,
+        name: node.name,
+        code: node.code || "",
+      }));
+
+      console.log(`Loaded ${regionsList.length} regions for country ${countryId}`);
+      setRegions(regionsList);
     } catch (error: any) {
       console.error("Error loading regions:", error);
       if (error.message.includes("Not authenticated")) {
@@ -188,16 +224,34 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       } else {
         toast.error("Failed to load regions. Please try again.");
       }
+      setRegions([]);
     }
   };
 
   const loadAreas = async (regionId: string) => {
     try {
-      // TODO: Replace with actual oRPC client call
-      // const response = await apiClient.getListareas({ region_id: regionId });
-      // setAreas(response.data || []);
-      console.warn("API call to loadAreas is mocked.", regionId);
-      setAreas([]); // Mock data
+      if (!organizationId) {
+        console.warn("No organization ID available");
+        setAreas([]);
+        return;
+      }
+
+      // Fetch all hierarchy nodes from API
+      const result = await client.hierarchy.listNodes({ organizationId });
+      
+      // Filter for areas under the selected region
+      const areaNodes = (result.nodes || []).filter(
+        (node: any) => node.type === "area" && node.depth === 3 && node.parentId === regionId
+      );
+
+      const areasList: HierarchyItem[] = areaNodes.map((node: any) => ({
+        id: node.id,
+        name: node.name,
+        code: node.code || "",
+      }));
+
+      console.log(`Loaded ${areasList.length} areas for region ${regionId}`);
+      setAreas(areasList);
     } catch (error: any) {
       console.error("Error loading areas:", error);
       if (error.message.includes("Not authenticated")) {
@@ -205,6 +259,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       } else {
         toast.error("Failed to load areas. Please try again.");
       }
+      setAreas([]);
     }
   };
 
@@ -321,6 +376,19 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         code: data.branch_code,
         parentId: areaNodeId,
       });
+
+      // Invalidate React Query caches to refresh data
+      await Promise.all([
+        // Invalidate branches query for this organization
+        queryClient.invalidateQueries({
+          queryKey: ["branches", organizationId],
+        }),
+        // Invalidate user-context query (contains hierarchy data)
+        queryClient.invalidateQueries({ queryKey: ["user-context"] }),
+      ]);
+
+      // Clear localStorage hierarchy cache to force refresh
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
 
       toast.success("Branch created successfully!");
       onSuccess?.(branchNode);
@@ -547,7 +615,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                   ) : (
                     countries.map((country) => (
                       <SelectItem key={country.id} value={country.id}>
-                        {country.name} ({country.code})
+                        {country.name}{country.code ? ` (${country.code})` : ''}
                       </SelectItem>
                     ))
                   )}
@@ -663,7 +731,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                   ) : (
                     regions.map((region) => (
                       <SelectItem key={region.id} value={region.id}>
-                        {region.name} ({region.code})
+                        {region.name}{region.code ? ` (${region.code})` : ''}
                       </SelectItem>
                     ))
                   )}
@@ -779,7 +847,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                   ) : (
                     areas.map((area) => (
                       <SelectItem key={area.id} value={area.id}>
-                        {area.name} ({area.code})
+                        {area.name}{area.code ? ` (${area.code})` : ''}
                       </SelectItem>
                     ))
                   )}
