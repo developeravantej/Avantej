@@ -9,8 +9,9 @@ build
 *.tsbuildinfo
 
 # Environment variables
-.env
-.env*.local
+# Allow .env files to be committed
+# .env
+# .env*.local
 
 # IDEs and editors
 .vscode/*

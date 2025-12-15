@@ -29,11 +29,12 @@
 .alchemy
 
 # Environment & local files
-.env*
+# Allow .env files to be committed
+# .env*
 !.env.example
 .DS_Store
 *.pem
-*.local
+# *.local
 
 # Logs
 npm-debug.log*
@@ -55,6 +56,7 @@ next-env.d.ts
 dev-dist
 
 .wrangler
-.dev.vars*
+# Allow .dev.vars to be committed
+# .dev.vars*
 
 .open-next

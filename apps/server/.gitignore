@@ -29,10 +29,11 @@ node_modules/
 .pnp.*
 
 # env
-.env*
-.env.production
+# Allow .env files and .dev.vars to be committed
+# .env*
+# .env.production
 !.env.example
-.dev.vars
+# .dev.vars
 
 # logs
 logs/

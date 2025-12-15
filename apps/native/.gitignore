@@ -12,7 +12,8 @@ web-build/
 # expo router
 expo-env.d.ts
 
-.env
+# Allow .env files to be committed
+# .env
 .cache
 
 ios
