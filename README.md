@@ -1,5 +1,15 @@
 # avantej-core
 
+## Login Credentials:
+
+- **Avantej Core Platform Credentials (SaaS)**
+  - Email: developer.avantej@gmail.com
+  - Password: password123
+
+- **Tenant Database Credentials**
+  - Email: franchisee@gmail.com
+  - Password: password123
+
 ## Features
 
 - **TypeScript** - For type safety and improved developer experience
