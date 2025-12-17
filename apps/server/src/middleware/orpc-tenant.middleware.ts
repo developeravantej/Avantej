@@ -26,6 +26,12 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
     return;
   }
 
+  // Check if this is a public invitation endpoint by path (more reliable than method name)
+  // oRPC routes are at /rpc/invitations/getByToken or /rpc/invitations/accept
+  const isInvitationPublicEndpointByPath = c.req.path.includes('/invitations/getByToken') || 
+                                           c.req.path.includes('/invitations/accept') ||
+                                           c.req.path.includes('/invitations/verifyEmailByToken');
+
   try {
     // Parse request body to extract organizationId
     // Clone request to avoid consuming the body stream
@@ -87,23 +93,51 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         }
       }
       
-      // Extract organizationId from oRPC payload
+      // Extract method name and organizationId from oRPC payload
       // oRPC can send in different formats:
-      // 1. { params: { input: { organizationId: "..." } } } - standard oRPC format
+      // 1. { jsonrpc: "2.0", method: "invitations.getByToken", params: { input: { organizationId: "..." } } }
       // 2. { organizationId: "..." } - direct format (what we're actually receiving)
+      const method = rpcPayload?.method || rpcPayload?.params?.method;
       const organizationId = rpcPayload?.params?.input?.organizationId || rpcPayload?.organizationId;
       
+      // Check if this is a public invitation endpoint that doesn't require a user session
+      // Check both path (more reliable) and method name (handles different formats)
+      const isInvitationPublicEndpointByMethod = method && (
+        method.includes('invitations.getByToken') || 
+        method.includes('invitations.accept') ||
+        method.includes('invitations.verifyEmailByToken') ||
+        method.includes('invitations/getByToken') ||
+        method.includes('invitations/accept') ||
+        method.includes('invitations/verifyEmailByToken') ||
+        method === 'invitations.getByToken' ||
+        method === 'invitations.accept' ||
+        method === 'invitations.verifyEmailByToken'
+      );
+      
+      const isInvitationPublicEndpoint = isInvitationPublicEndpointByPath || isInvitationPublicEndpointByMethod;
+      
       // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:72',message:'Extracted organizationId',data:{organizationId,hasParams:!!rpcPayload?.params,hasInput:!!rpcPayload?.params?.input,hasDirectOrgId:!!rpcPayload?.organizationId,rpcPayloadKeys:rpcPayload?Object.keys(rpcPayload):[],paramsKeys:rpcPayload?.params?Object.keys(rpcPayload.params):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:72',message:'Extracted organizationId and method',data:{organizationId,method,isInvitationPublicEndpointByPath,isInvitationPublicEndpointByMethod,isInvitationPublicEndpoint,path:c.req.path,hasParams:!!rpcPayload?.params,hasInput:!!rpcPayload?.params?.input,hasDirectOrgId:!!rpcPayload?.organizationId,rpcPayloadKeys:rpcPayload?Object.keys(rpcPayload):[],paramsKeys:rpcPayload?.params?Object.keys(rpcPayload.params):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
+      
+      // Debug logging for invitation endpoints
+      if (isInvitationPublicEndpoint) {
+        console.log("🔓 Public invitation endpoint detected:", {
+          path: c.req.path,
+          method,
+          organizationId,
+          isInvitationPublicEndpointByPath,
+          isInvitationPublicEndpointByMethod,
+        });
+      }
       
       if (!organizationId) {
         // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:76',message:'No organizationId found',data:{path:c.req.path,method:rpcPayload?.method,hasParams:!!rpcPayload?.params,hasInput:!!rpcPayload?.params?.input,bodyKeys:body?Object.keys(body):[],rpcPayloadKeys:rpcPayload?Object.keys(rpcPayload):[],rpcPayloadPreview:JSON.stringify(rpcPayload).substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:76',message:'No organizationId found',data:{path:c.req.path,method,hasParams:!!rpcPayload?.params,hasInput:!!rpcPayload?.params?.input,bodyKeys:body?Object.keys(body):[],rpcPayloadKeys:rpcPayload?Object.keys(rpcPayload):[],rpcPayloadPreview:JSON.stringify(rpcPayload).substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         console.warn("No organizationId found in oRPC request:", {
           path: c.req.path,
-          method: rpcPayload?.method,
+          method,
           hasParams: !!rpcPayload?.params,
           hasInput: !!rpcPayload?.params?.input,
           bodyKeys: body ? Object.keys(body) : [],
@@ -123,7 +157,9 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         
         const user = session?.user;
         
-        if (!user) {
+        // For public invitation endpoints, we still need tenantDb even without a user session
+        // For other endpoints, require a user session
+        if (!user && !isInvitationPublicEndpoint) {
           console.warn("No user session found in oRPC middleware for organization:", organizationId);
           await next();
           return;
@@ -133,7 +169,7 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         let tenantDb;
         try {
           // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:85',message:'Before getTenantDb',data:{organizationId,hasContext:!!c},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:85',message:'Before getTenantDb',data:{organizationId,hasContext:!!c,isInvitationPublicEndpoint},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
           tenantDb = await getTenantDb(organizationId, c);
           // #region agent log
@@ -161,23 +197,28 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orpc-tenant.middleware.ts:104',message:'Context set with tenantDb',data:{organizationId,hasTenantDb:!!c.get('tenantDb'),hasOrgId:!!c.get('organizationId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
         // #endregion
         
-        // Get member record
-        const member = await tenantDb.query.members.findFirst({
-          where: eq(members.userId, user.id),
-        });
-        
-        if (!member) {
-          console.error(`Member not found for user ${user.id} in organization ${organizationId}`);
-          // Still set tenantDb so handler can return proper error
-          await next();
-          return;
+        // Only get member record if user exists (skip for public invitation endpoints without user)
+        if (user) {
+          // Get member record
+          const member = await tenantDb.query.members.findFirst({
+            where: eq(members.userId, user.id),
+          });
+          
+          if (member) {
+            // Calculate accessible node IDs
+            const accessibleNodeIds = await getDescendantNodeIds(tenantDb, member.hierarchyScopeId);
+            
+            c.set('member', member);
+            c.set('accessibleNodeIds', accessibleNodeIds);
+          } else {
+            // Member not found - this is OK for invitation endpoints (user might be new)
+            // For other endpoints, handler will return proper error
+            console.log(`Member not found for user ${user.id} in organization ${organizationId} - this is OK for invitation endpoints`);
+          }
+        } else {
+          // No user session - this is OK for public invitation endpoints
+          console.log(`No user session for invitation endpoint - tenantDb set up for organization ${organizationId}`);
         }
-
-        // Calculate accessible node IDs
-        const accessibleNodeIds = await getDescendantNodeIds(tenantDb, member.hierarchyScopeId);
-        
-        c.set('member', member);
-        c.set('accessibleNodeIds', accessibleNodeIds);
       } catch (dbError) {
         console.error("Failed to set up tenant DB in oRPC middleware:", {
           error: dbError instanceof Error ? dbError.message : String(dbError),

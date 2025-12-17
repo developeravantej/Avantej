@@ -15,6 +15,7 @@ import {
 } from "@avantej-core/services";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { user } from "@avantej-core/db/schema/auth";
 import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -69,13 +70,32 @@ export const invitationRouter = {
       }
 
       // Validate hierarchy scope access
-      const { validateParentAccess } = await import("@avantej-core/services");
-      await validateParentAccess(
-        context.tenantDb,
-        input.hierarchyScopeId,
-        context.member.hierarchyScopeId,
-        context.member.role
-      );
+      const { validateParentAccess, getDescendantNodeIds } = await import("@avantej-core/services");
+      
+      // Get accessible node IDs (use from context if available, otherwise calculate)
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+      
+      // Skip validation for admins (they have access to all nodes)
+      if (member.role !== "admin") {
+        try {
+          validateParentAccess(input.hierarchyScopeId, accessibleNodeIds);
+        } catch (error) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              error instanceof Error ? error.message : "Hierarchy scope not accessible",
+          });
+        }
+      }
 
       // Check if a pending invitation already exists
       const existingInvitation = await context.tenantDb.query.invitations.findFirst({
@@ -190,12 +210,13 @@ export const invitationRouter = {
         });
       }
 
-      // Verify email matches invitation email
-      if (
-        context.session.user.email.toLowerCase() !== invitation!.email.toLowerCase()
-      ) {
+      // Verify email matches invitation email (case-insensitive)
+      const userEmail = context.session.user.email?.toLowerCase();
+      const invitationEmail = invitation!.email.toLowerCase();
+      
+      if (userEmail !== invitationEmail) {
         throw new ORPCError("FORBIDDEN", {
-          message: "This invitation was sent to a different email address",
+          message: `This invitation was sent to ${invitation!.email}. Please sign up or log in with that email address.`,
         });
       }
 
@@ -221,6 +242,12 @@ export const invitationRouter = {
         });
       }
 
+      // Mark user's email as verified (invitation acceptance proves email ownership)
+      await controlPanelDb
+        .update(user)
+        .set({ emailVerified: true })
+        .where(eq(user.id, context.session.user.id));
+
       // Create member (dual-write to control panel + tenant)
       const membershipService = new MembershipService(controlPanelDb);
       await membershipService.createMember({
@@ -237,6 +264,74 @@ export const invitationRouter = {
         message: "Successfully joined organization",
         organizationId: input.organizationId,
       };
+    }),
+
+  /**
+   * Verify invited email (pre-verify)
+   *
+   * Public endpoint to mark the invited email as verified in the control-panel DB.
+   * This enables existing-but-unverified users to log in and accept the invitation.
+   *
+   * If the user account does not exist yet, this is a no-op.
+   */
+  verifyEmailByToken: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        organizationId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      // Get control panel database from context
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      // Get invitation by token
+      const invitation = await getInvitationByToken(input.token, context.tenantDb);
+
+      // Validate invitation (status/expiry)
+      const validation = validateInvitation(invitation);
+      if (!validation.isValid) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: validation.error || "Invalid invitation",
+        });
+      }
+
+      const invitationEmail = invitation!.email.toLowerCase();
+
+      // If user exists, mark email as verified
+      const existingUser = await controlPanelDb.query.user.findFirst({
+        where: eq(user.email, invitationEmail),
+      });
+
+      if (!existingUser) {
+        return { success: true, updated: false };
+      }
+
+      if (existingUser.emailVerified) {
+        return { success: true, updated: false };
+      }
+
+      await controlPanelDb
+        .update(user)
+        .set({ emailVerified: true })
+        .where(eq(user.id, existingUser.id));
+
+      return { success: true, updated: true };
     }),
 
   /**
