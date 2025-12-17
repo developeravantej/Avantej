@@ -1,6 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import {
 	BarChart3,
 	Users,
@@ -37,6 +37,12 @@ import {
 
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			invitationToken: (search.invitationToken as string) || undefined,
+			orgId: (search.orgId as string) || undefined,
+		};
+	},
 });
 
 function FeatureCard({
@@ -91,6 +97,10 @@ function TestimonialCard({
 }
 
 function HomeComponent() {
+	const { invitationToken, orgId } = useSearch({ from: "/" });
+	const loginSearch = invitationToken && orgId ? { invitationToken, orgId } : undefined;
+	const signupSearch = invitationToken && orgId ? { invitationToken, orgId } : undefined;
+
 	return (
 		<div className="min-h-screen">
 			{/* Header */}
@@ -110,6 +120,7 @@ function HomeComponent() {
 					<div className="flex gap-4 items-center">
 						<Link
 							to="/login"
+							search={loginSearch}
 							className={cn(
 								buttonVariants({
 									variant: "ghost",
@@ -121,6 +132,7 @@ function HomeComponent() {
 						</Link>
 						<Link
 							to="/login"
+							search={loginSearch}
 							className={cn(
 								buttonVariants({
 									size: "sm",
@@ -144,30 +156,32 @@ function HomeComponent() {
 							Get complete visibility into your branches, staff performance, and
 							financial metrics all in one place.
 						</p>
-						<div className="flex gap-4 justify-center">
-							<Link
-								to="/login"
-								className={cn(
-									buttonVariants({
-										size: "lg",
-									}),
-									"bg-black text-white hover:bg-black/90"
-								)}
-							>
-								Get Started
-							</Link>
-							<Link
-								to="/login"
-								className={cn(
-									buttonVariants({
-										size: "lg",
-										variant: "outline",
-									})
-								)}
-							>
-								Request Demo
-							</Link>
-						</div>
+					<div className="flex gap-4 justify-center">
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
+								buttonVariants({
+									size: "lg",
+								}),
+								"bg-black text-white hover:bg-black/90"
+							)}
+						>
+							Get Started
+						</Link>
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
+								buttonVariants({
+									size: "lg",
+									variant: "outline",
+								})
+							)}
+						>
+							Request Demo
+						</Link>
+					</div>
 					</div>
 				</div>
 			</section>

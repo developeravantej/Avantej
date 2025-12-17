@@ -3,6 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/login")({
 	component: RouteComponent,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			invitationToken: (search.invitationToken as string) || undefined,
+			orgId: (search.orgId as string) || undefined,
+		};
+	},
 });
 
 function RouteComponent() {
