@@ -19,6 +19,7 @@
 **Status**: ✅ **Fully Implemented**
 
 ### Service Functions (`packages/services/src/hierarchy.service.ts`)
+
 - [x] `getDescendantNodeIds` - Get all descendant nodes using recursive CTE
 - [x] `getAncestorNodeIds` - Get all ancestor nodes using recursive CTE
 - [x] `createHierarchyNode` - Create country/region/area/branch
@@ -27,12 +28,14 @@
 - [x] `moveHierarchyNode` - Move node to different parent
 
 ### Validation Functions (`packages/services/src/hierarchy-validation.service.ts`)
+
 - [x] `validateHierarchyRules` - Validate hierarchy constraints (depth, uniqueness, etc.)
 - [x] `validateParentAccess` - Check parent access permissions
 - [x] `getDepthForType` - Get depth for node type
 - [x] `getParentTypeForType` - Get parent type for node type
 
 ### API Endpoints (`packages/api/src/routers/hierarchy.ts`)
+
 - [x] `hierarchy.createNode` - Create hierarchy node endpoint
 - [x] `hierarchy.listNodes` - List all nodes (filtered by accessible nodes)
 - [x] `hierarchy.updateNode` - Update node endpoint
@@ -48,6 +51,7 @@
 **Status**: ⚠️ **Partially Implemented** (60%)
 
 ### Service Functions (`packages/services/src/member.service.ts`)
+
 - [x] `getMembersByHierarchyScope` - Get members assigned to a hierarchy node
 - [x] `updateMemberHierarchyScope` - Update single member's hierarchy scope
 - [x] `bulkUpdateMemberHierarchyScope` - Bulk update member hierarchy scopes
@@ -60,6 +64,7 @@
 - [ ] `getMemberByUserId` - Get member by user ID
 
 ### API Endpoints (`packages/api/src/routers/hierarchy.ts`)
+
 - [x] `hierarchy.listMembers` - List members by hierarchy scope
 - [x] `hierarchy.reassignMember` - Reassign single member to new scope
 - [x] `hierarchy.bulkReassignMembers` - Bulk reassign members
@@ -70,7 +75,8 @@
 - [ ] `members.delete` - Delete member endpoint
 - [ ] `members.getById` - Get member by ID endpoint
 
-**Notes**: 
+**Notes**:
+
 - Member scope management is complete
 - Full CRUD operations need to be exposed as services and API endpoints
 - Some functions exist in `packages/db/src/services/membership.service.ts` but need to be moved to `packages/services`
@@ -82,6 +88,7 @@
 **Status**: ✅ **Fully Implemented** (90%)
 
 ### Service Functions (`packages/services/src/invitation.service.ts`)
+
 - [x] `createInvitation` - Create invitation with unique token
 - [x] `getInvitationByToken` - Get invitation details by token
 - [x] `validateInvitation` - Validate invitation status and expiration
@@ -92,6 +99,7 @@
 - [ ] `declineInvitation` - Decline invitation (separate from revoke)
 
 ### API Endpoints (`packages/api/src/routers/invitations.ts`)
+
 - [x] `invitations.create` - Create invitation endpoint (returns token for email construction)
 - [x] `invitations.accept` - Accept invitation endpoint (public, requires auth)
 - [x] `invitations.getByToken` - Get invitation by token endpoint (public)
@@ -101,7 +109,8 @@
 
 **Schema**: `packages/db/src/schema/tenant/invitations.ts` ✅ (exists)
 
-**Notes**: 
+**Notes**:
+
 - ✅ Service functions implemented with token generation and expiration logic
 - ✅ API endpoints implemented with permission checks
 - ⚠️ Email sending handled at server level (not in packages/api to avoid dependency on apps/server)
@@ -117,11 +126,13 @@
 **Status**: ⚠️ **Partially Implemented** (30%)
 
 ### Service Functions (`packages/services/src/permission.service.ts`)
+
 - [x] `hasPermission` - Check if member has permission
 - [x] `requirePermission` - Require permission or throw error
 - [x] `checkHierarchyPermission` - Convenience function for hierarchy permissions
 
 ### Service Functions (To Be Created)
+
 - [ ] `createRole` - Create custom role
 - [ ] `updateRole` - Update role details/priority
 - [ ] `deleteRole` - Delete custom role (system roles protected)
@@ -136,6 +147,7 @@
 - [ ] `listPermissions` - List all permissions
 
 ### API Endpoints (To Be Created)
+
 - [ ] `roles.create` - Create role endpoint
 - [ ] `roles.update` - Update role endpoint
 - [ ] `roles.delete` - Delete role endpoint
@@ -148,12 +160,14 @@
 - [ ] `permissions.delete` - Delete permission endpoint
 - [ ] `permissions.list` - List permissions endpoint
 
-**Schemas**: 
+**Schemas**:
+
 - `packages/db/src/schema/tenant/roles.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/permissions.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/role-permissions.ts` ✅ (exists)
 
-**Notes**: 
+**Notes**:
+
 - Permission checking is implemented
 - RBAC CRUD operations need to be implemented
 - Seed data exists in `packages/db/src/seed-rbac.ts`
@@ -165,6 +179,7 @@
 **Status**: ❌ **Not Implemented**
 
 ### Service Functions (To Be Created)
+
 - [ ] `createService` - Create service
 - [ ] `updateService` - Update service details
 - [ ] `deleteService` - Delete service
@@ -181,6 +196,7 @@
 - [ ] `getServiceCommission` - Get commission configuration
 
 ### API Endpoints (To Be Created)
+
 - [ ] `services.create` - Create service endpoint
 - [ ] `services.update` - Update service endpoint
 - [ ] `services.delete` - Delete service endpoint
@@ -196,7 +212,8 @@
 - [ ] `services.commission.configure` - Configure commission endpoint
 - [ ] `services.commission.get` - Get commission config endpoint
 
-**Schemas**: 
+**Schemas**:
+
 - `packages/db/src/schema/tenant/services.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/service-categories.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/service-rules.ts` ✅ (exists)
@@ -211,6 +228,7 @@
 **Status**: ❌ **Not Implemented**
 
 ### Service Functions (To Be Created)
+
 - [ ] `createPackage` - Create service package
 - [ ] `updatePackage` - Update package details
 - [ ] `deletePackage` - Delete package
@@ -222,6 +240,7 @@
 - [ ] `getPackageMembers` - Get members assigned to package
 
 ### API Endpoints (To Be Created)
+
 - [ ] `packages.create` - Create package endpoint
 - [ ] `packages.update` - Update package endpoint
 - [ ] `packages.delete` - Delete package endpoint
@@ -232,7 +251,8 @@
 - [ ] `packages.getMemberPackages` - Get member's packages endpoint
 - [ ] `packages.getPackageMembers` - Get package's members endpoint
 
-**Schemas**: 
+**Schemas**:
+
 - `packages/db/src/schema/tenant/packages.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/package-assignments.ts` ✅ (exists)
 
@@ -245,6 +265,7 @@
 **Status**: ❌ **Not Implemented**
 
 ### Service Functions (To Be Created)
+
 - [ ] `createAppointment` - Create appointment
 - [ ] `updateAppointment` - Update appointment details
 - [ ] `cancelAppointment` - Cancel appointment
@@ -258,6 +279,7 @@
 - [ ] `getAppointmentsByClient` - Get appointments for client
 
 ### API Endpoints (To Be Created)
+
 - [ ] `appointments.create` - Create appointment endpoint
 - [ ] `appointments.update` - Update appointment endpoint
 - [ ] `appointments.cancel` - Cancel appointment endpoint
@@ -270,7 +292,8 @@
 - [ ] `appointments.getByStaff` - Get by staff endpoint
 - [ ] `appointments.getByClient` - Get by client endpoint
 
-**Schemas**: 
+**Schemas**:
+
 - `packages/db/src/schema/tenant/appointments.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/appointment-staff.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/appointment-clients.ts` ✅ (exists)
@@ -284,6 +307,7 @@
 **Status**: ❌ **Not Implemented**
 
 ### Service Functions (To Be Created)
+
 - [ ] `createPayment` - Create payment record
 - [ ] `processPayment` - Process payment (Stripe integration)
 - [ ] `refundPayment` - Refund payment
@@ -298,6 +322,7 @@
 - [ ] `getPartnerStripeAccount` - Get partner Stripe account
 
 ### API Endpoints (To Be Created)
+
 - [ ] `payments.create` - Create payment endpoint
 - [ ] `payments.process` - Process payment endpoint (Stripe webhook)
 - [ ] `payments.refund` - Refund payment endpoint
@@ -311,13 +336,15 @@
 - [ ] `partners.stripe.configure` - Configure Stripe account endpoint
 - [ ] `partners.stripe.get` - Get Stripe account endpoint
 
-**Schemas**: 
+**Schemas**:
+
 - `packages/db/src/schema/tenant/payments.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/payouts.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/commission-splits.ts` ✅ (exists)
 - `packages/db/src/schema/tenant/partner-stripe-accounts.ts` ✅ (exists)
 
-**Notes**: 
+**Notes**:
+
 - All schemas exist but no service functions or API endpoints implemented
 - Requires Stripe integration
 - Commission calculation logic needed
@@ -327,16 +354,19 @@
 ## 📝 Implementation Priority Recommendations
 
 ### 🔴 High Priority (Core Functionality)
+
 1. **Invitations Management** - Required for onboarding new members
 2. **Full Member Management** - Complete CRUD operations
 3. **Roles & Permissions Management** - RBAC administration
 
 ### 🟡 Medium Priority (Business Operations)
+
 4. **Services Management** - Core business offering
 5. **Packages Management** - Service bundling
 6. **Appointments Management** - Booking system
 
 ### 🟢 Lower Priority (Financial)
+
 7. **Payments & Payouts** - Payment processing and commissions
 
 ---
@@ -344,16 +374,19 @@
 ## 🔗 Related Files
 
 ### Service Files
+
 - `packages/services/src/hierarchy.service.ts` ✅
 - `packages/services/src/hierarchy-validation.service.ts` ✅
 - `packages/services/src/member.service.ts` ⚠️ (partial)
 - `packages/services/src/permission.service.ts` ⚠️ (partial)
 
 ### API Router Files
+
 - `packages/api/src/routers/hierarchy.ts` ✅
 - `packages/api/src/routers/index.ts` (needs new routers)
 
 ### Database Service Files (Legacy)
+
 - `packages/db/src/services/membership.service.ts` (needs migration to `packages/services`)
 
 ---
@@ -385,4 +418,3 @@
    - Create `packages/services/src/role.service.ts`
    - Create `packages/services/src/permission-management.service.ts`
    - Create `packages/api/src/routers/roles.ts` and `permissions.ts` routers
-

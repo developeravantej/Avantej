@@ -4,6 +4,7 @@ import { orpcTenantMiddleware } from "@/middleware/orpc-tenant.middleware";
 import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
+import { invitationRoutes } from "@/routes/invitations.routes";
 import { createContext } from "@avantej-core/api/context";
 import { appRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -69,6 +70,9 @@ app.route("/orgs", organizationRoutes);
 // Hierarchy routes (nested under organizations)
 app.route("/orgs/:organizationId/hierarchy", hierarchyRoutes);
 
+// Invitation routes (for email sending)
+app.route("/api/invitations", invitationRoutes);
+
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
@@ -90,7 +94,8 @@ export const rpcHandler = new RPCHandler(appRouter, {
   ],
 });
 
-app.use("/*", async (c, next) => {
+// oRPC and OpenAPI handlers - only for specific prefixes
+app.use("/rpc/*", async (c, next) => {
   const context = await createContext({ context: c });
 
   const rpcResult = await rpcHandler.handle(c.req.raw, {
@@ -101,6 +106,12 @@ app.use("/*", async (c, next) => {
   if (rpcResult.matched) {
     return c.newResponse(rpcResult.response.body, rpcResult.response);
   }
+
+  await next();
+});
+
+app.use("/api-reference/*", async (c, next) => {
+  const context = await createContext({ context: c });
 
   const apiResult = await apiHandler.handle(c.req.raw, {
     prefix: "/api-reference",
