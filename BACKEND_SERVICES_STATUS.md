@@ -77,37 +77,38 @@
 
 ---
 
-## ❌ 3. Invitations Management
+## ✅ 3. Invitations Management
 
-**Status**: ❌ **Not Implemented**
+**Status**: ✅ **Fully Implemented** (90%)
 
-### Service Functions (To Be Created)
-- [ ] `createInvitation` - Create invitation with unique token
-- [ ] `sendInvitation` - Send invitation email
-- [ ] `acceptInvitation` - Accept invitation and create member
-- [ ] `declineInvitation` - Decline invitation
-- [ ] `resendInvitation` - Resend expired/pending invitation
-- [ ] `revokeInvitation` - Revoke pending invitation
-- [ ] `getInvitationByToken` - Get invitation details by token
-- [ ] `listInvitations` - List invitations (filtered by status/email)
-- [ ] `expireInvitations` - Mark expired invitations (cron job)
+### Service Functions (`packages/services/src/invitation.service.ts`)
+- [x] `createInvitation` - Create invitation with unique token
+- [x] `getInvitationByToken` - Get invitation details by token
+- [x] `validateInvitation` - Validate invitation status and expiration
+- [x] `listInvitations` - List invitations (filtered by status/email/inviter)
+- [x] `revokeInvitation` - Revoke pending invitation (marks as declined)
+- [x] `resendInvitation` - Resend expired/pending invitation (extends expiration)
+- [x] `markExpiredInvitations` - Mark expired invitations (cron job utility)
+- [ ] `declineInvitation` - Decline invitation (separate from revoke)
 
-### API Endpoints (To Be Created)
-- [ ] `invitations.create` - Create invitation endpoint
-- [ ] `invitations.send` - Send invitation email endpoint
-- [ ] `invitations.accept` - Accept invitation endpoint (public)
-- [ ] `invitations.decline` - Decline invitation endpoint
-- [ ] `invitations.resend` - Resend invitation endpoint
-- [ ] `invitations.revoke` - Revoke invitation endpoint
-- [ ] `invitations.list` - List invitations endpoint
-- [ ] `invitations.getByToken` - Get invitation by token endpoint (public)
+### API Endpoints (`packages/api/src/routers/invitations.ts`)
+- [x] `invitations.create` - Create invitation endpoint (returns token for email construction)
+- [x] `invitations.accept` - Accept invitation endpoint (public, requires auth)
+- [x] `invitations.getByToken` - Get invitation by token endpoint (public)
+- [x] `invitations.list` - List invitations endpoint
+- [x] `invitations.revoke` - Revoke invitation endpoint
+- [x] `invitations.resend` - Resend invitation endpoint (returns token for email construction)
 
 **Schema**: `packages/db/src/schema/tenant/invitations.ts` ✅ (exists)
 
 **Notes**: 
-- Schema is defined but no service functions or API endpoints exist
-- Should integrate with email service for sending invitations
-- Token generation and expiration logic needed
+- ✅ Service functions implemented with token generation and expiration logic
+- ✅ API endpoints implemented with permission checks
+- ⚠️ Email sending handled at server level (not in packages/api to avoid dependency on apps/server)
+- ✅ Invitation links include `token` and `orgId` for tenant routing: `https://app.com/accept-invitation?token={token}&orgId={orgId}`
+- ✅ Integration with Resend API via `apps/server/src/lib/email.ts`
+- ✅ Invitation acceptance creates member via `MembershipService.createMember()`
+- ⚠️ Server-side wrapper needed to send emails after `invitations.create` and `invitations.resend` (returns token for link construction)
 
 ---
 

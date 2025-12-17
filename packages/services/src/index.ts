@@ -10,5 +10,6 @@ export * from "./hierarchy-validation.service";
 export * from "./permission.service";
 export * from "./member.service";
 export { getAllOrganizationMembersWithUserDetails } from "./member.service";
+export * from "./invitation.service";
 
 
