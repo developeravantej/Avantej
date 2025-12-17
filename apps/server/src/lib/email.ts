@@ -227,6 +227,24 @@ export async function sendVerificationEmail(
 	verificationLink: string,
 	userName?: string
 ): Promise<void> {
+	// Send users to the frontend UI instead of the backend `/api/auth/verify-email` URL.
+	// The frontend page will call our API (`POST /auth/verify-email`) and then redirect.
+	const frontendURL =
+		getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
+	const tokenFromLink = extractTokenFromLink(verificationLink);
+	const callbackURLFromLink = (() => {
+		try {
+			const url = new URL(verificationLink, "http://localhost");
+			return url.searchParams.get("callbackURL") || "/login";
+		} catch {
+			return "/login";
+		}
+	})();
+	const verificationLinkForUser =
+		tokenFromLink
+			? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
+			: verificationLink;
+
 	const subject = "Verify Your Email Address - Avantej Core";
 	const html = `
 		<!DOCTYPE html>
@@ -242,10 +260,10 @@ export async function sendVerificationEmail(
 				<p>${userName ? `Hi ${userName},` : "Hi there,"}</p>
 				<p>Thank you for signing up for Avantej Core! Please verify your email address by clicking the button below:</p>
 				<div style="text-align: center; margin: 30px 0;">
-					<a href="${verificationLink}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email Address</a>
+					<a href="${verificationLinkForUser}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email Address</a>
 				</div>
 				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #7f8c8d;">${verificationLink}</p>
+				<p style="word-break: break-all; color: #7f8c8d;">${verificationLinkForUser}</p>
 				<p>This link will expire in 24 hours.</p>
 				<p>If you didn't create an account, you can safely ignore this email.</p>
 				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
@@ -262,7 +280,7 @@ ${userName ? `Hi ${userName},` : "Hi there,"}
 
 Thank you for signing up for Avantej Core! Please verify your email address by visiting this link:
 
-${verificationLink}
+${verificationLinkForUser}
 
 This link will expire in 24 hours.
 
@@ -278,7 +296,7 @@ If you didn't create an account, you can safely ignore this email.
 		text,
 	});
 
-	const token = extractTokenFromLink(verificationLink);
+	const token = extractTokenFromLink(verificationLinkForUser);
 	recordEmailCapture({
 		type: "verification",
 		to,
@@ -286,7 +304,7 @@ If you didn't create an account, you can safely ignore this email.
 		html,
 		text,
 		metadata: {
-			verificationLink,
+			verificationLink: verificationLinkForUser,
 			token,
 		},
 	});
