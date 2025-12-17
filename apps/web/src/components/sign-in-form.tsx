@@ -1,6 +1,6 @@
 import { authClient } from "@/lib/auth-client";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 import Loader from "./loader";
@@ -17,6 +17,7 @@ export default function SignInForm({
     from: "/",
   });
   const { isPending, refetch } = authClient.useSession();
+  const { invitationToken, orgId } = useSearch({ from: "/" });
 
   const form = useForm({
     defaultValues: {
@@ -98,9 +99,17 @@ export default function SignInForm({
         }
 
         toast.success("Sign in successful");
-        navigate({
-          to: "/dashboard",
-        });
+        // Redirect to accept invitation if invitation token is present
+        if (invitationToken && orgId) {
+          navigate({
+            to: "/accept-invitation",
+            search: { token: invitationToken, orgId },
+          });
+        } else {
+          navigate({
+            to: "/dashboard",
+          });
+        }
       } catch (error) {
         console.error("Sign in error:", error);
         toast.error("Failed to sign in");
