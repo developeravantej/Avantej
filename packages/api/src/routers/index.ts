@@ -2,6 +2,7 @@ import { protectedProcedure, publicProcedure } from "../index";
 import type { RouterClient } from "@orpc/server";
 import { hierarchyRouter } from "./hierarchy";
 import { invitationRouter } from "./invitations";
+import { memberRouter } from "./members";
 
 export const appRouter = {
 	healthCheck: publicProcedure.handler(() => {
@@ -15,6 +16,7 @@ export const appRouter = {
 	}),
 	hierarchy: hierarchyRouter,
 	invitations: invitationRouter,
+	members: memberRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

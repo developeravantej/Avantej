@@ -19,12 +19,22 @@
  *
  * const membershipService = new MembershipService(controlPanelDb);
  *
+ * // From invitation acceptance:
  * await membershipService.createMember({
  *   userId,
  *   organizationId,
  *   role,
  *   hierarchyScopeId,
- *   invitationId,
+ *   invitationId, // optional
+ *   tenantDb: await getTenantDb(organizationId),
+ * });
+ * 
+ * // Direct creation (no invitation):
+ * await membershipService.createMember({
+ *   userId,
+ *   organizationId,
+ *   role,
+ *   hierarchyScopeId,
  *   tenantDb: await getTenantDb(organizationId),
  * });
  * ```
@@ -46,7 +56,7 @@ export class MembershipService {
   constructor(private controlPanelDb: ControlPanelDb) {}
 
   /**
-   * Create new member from invitation acceptance
+   * Create new member (from invitation acceptance or direct creation)
    * Syncs to both control panel and tenant database
    *
    * @param params - Member creation parameters
@@ -54,7 +64,7 @@ export class MembershipService {
    * @param params.organizationId - Organization ID
    * @param params.role - Member role (admin, trainer, staff, client)
    * @param params.hierarchyScopeId - Hierarchy node ID for scope
-   * @param params.invitationId - Invitation ID to mark as accepted
+   * @param params.invitationId - Optional invitation ID to mark as accepted (if creating from invitation)
    * @param params.tenantDb - Tenant database client
    * @returns Success indicator
    * @throws Error if creation fails
@@ -64,7 +74,7 @@ export class MembershipService {
     organizationId: string;
     role: string;
     hierarchyScopeId: string;
-    invitationId: string;
+    invitationId?: string;
     tenantDb: TenantDb;
   }) {
     const {
@@ -87,7 +97,7 @@ export class MembershipService {
           status: "active",
         }),
 
-        // Tenant DB: Full member record + mark invitation accepted
+        // Tenant DB: Full member record + optionally mark invitation accepted
         tenantDb.transaction(async (tx) => {
           await tx.insert(members).values({
             userId,
@@ -96,10 +106,13 @@ export class MembershipService {
             status: "active",
           });
 
-          await tx
-            .update(invitations)
-            .set({ status: "accepted" })
-            .where(eq(invitations.id, invitationId));
+          // Only update invitation if invitationId is provided
+          if (invitationId) {
+            await tx
+              .update(invitations)
+              .set({ status: "accepted" })
+              .where(eq(invitations.id, invitationId));
+          }
         }),
       ]);
 

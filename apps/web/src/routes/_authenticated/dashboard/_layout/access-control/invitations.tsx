@@ -18,3 +18,6 @@ export const Route = createFileRoute("/_authenticated/dashboard/_layout/access-c
 	component: InvitationsPage,
 });
 
+
+
+

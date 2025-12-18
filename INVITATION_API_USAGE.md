@@ -275,3 +275,6 @@ BETTER_AUTH_URL=https://yourapp.com
 - Invitation acceptance automatically creates member records via `MembershipService`
 - Invitations are tenant-specific (stored in each franchisee's database)
 
+
+
+

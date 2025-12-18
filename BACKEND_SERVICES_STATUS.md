@@ -56,20 +56,20 @@
 - [x] `updateMemberHierarchyScope` - Update single member's hierarchy scope
 - [x] `bulkUpdateMemberHierarchyScope` - Bulk update member hierarchy scopes
 - [x] `getAllOrganizationMembersWithUserDetails` - Get all members with user details from control panel
-- [ ] `createMember` - Create new member (exists in `packages/db/src/services/membership.service.ts` but not exposed)
+- [x] `createMember` - Create new member (wrapper in `packages/services/src/member.service.ts`, uses `MembershipService.createMember`)
 - [ ] `updateMemberRole` - Update member role (exists in `packages/db/src/services/membership.service.ts` but not exposed)
 - [ ] `suspendMember` - Suspend/activate member
 - [ ] `deleteMember` - Remove member from organization
 - [ ] `getMemberById` - Get member details by ID
 - [ ] `getMemberByUserId` - Get member by user ID
 
-### API Endpoints (`packages/api/src/routers/hierarchy.ts`)
+### API Endpoints (`packages/api/src/routers/hierarchy.ts` and `packages/api/src/routers/members.ts`)
 
 - [x] `hierarchy.listMembers` - List members by hierarchy scope
 - [x] `hierarchy.reassignMember` - Reassign single member to new scope
 - [x] `hierarchy.bulkReassignMembers` - Bulk reassign members
 - [x] `hierarchy.listAllMembers` - List all org members with user details
-- [ ] `members.create` - Create member endpoint
+- [x] `members.create` - Create member endpoint (requires user_management.create permission)
 - [ ] `members.updateRole` - Update member role endpoint
 - [ ] `members.suspend` - Suspend/activate member endpoint
 - [ ] `members.delete` - Delete member endpoint

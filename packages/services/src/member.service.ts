@@ -10,6 +10,7 @@ import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
 
 /**
  * Get all members assigned to a specific hierarchy node
@@ -260,6 +261,69 @@ export async function getAllOrganizationMembersWithUserDetails(
   } catch (error) {
     throw new Error(
       `Failed to get organization members with user details: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}
+
+/**
+ * Create a new member in an organization
+ * 
+ * Creates a member record in both the control panel and tenant databases.
+ * This can be used for direct member creation (not through invitation flow).
+ * 
+ * @param controlPanelDb - Drizzle client for the control panel database
+ * @param tenantDb - Drizzle client for the tenant database
+ * @param params - Member creation parameters
+ * @param params.userId - User ID from control panel users table
+ * @param params.organizationId - Organization ID
+ * @param params.role - Member role (admin, trainer, staff, client)
+ * @param params.hierarchyScopeId - Hierarchy node ID for scope
+ * @param params.invitationId - Optional invitation ID (if creating from invitation)
+ * @returns Success indicator
+ * @throws Error if creation fails
+ */
+export async function createMember(
+  controlPanelDb: NeonDatabase<typeof controlPanelSchema>,
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  params: {
+    userId: string;
+    organizationId: string;
+    role: string;
+    hierarchyScopeId: string;
+    invitationId?: string;
+  }
+) {
+  const { userId, organizationId, role, hierarchyScopeId, invitationId } = params;
+
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  if (!organizationId) {
+    throw new Error("Organization ID is required");
+  }
+
+  if (!role) {
+    throw new Error("Role is required");
+  }
+
+  if (!hierarchyScopeId) {
+    throw new Error("Hierarchy scope ID is required");
+  }
+
+  try {
+    const membershipService = new MembershipService(controlPanelDb);
+    return await membershipService.createMember({
+      userId,
+      organizationId,
+      role,
+      hierarchyScopeId,
+      invitationId,
+      tenantDb,
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to create member: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 }
