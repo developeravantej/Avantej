@@ -380,6 +380,160 @@ export const hierarchyRouter = {
    * Options can be provided to customize behavior, but defaults are recommended
    * for a smooth user experience.
    */
+  /**
+   * Get a single hierarchy node by ID
+   */
+  getNode: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        nodeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access this node
+      if (!accessibleNodeIds.includes(input.nodeId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this node",
+        });
+      }
+
+      // Get the node
+      const node = await tenantDb.query.hierarchyNodes.findFirst({
+        where: eq(hierarchyNodes.id, input.nodeId),
+      });
+
+      if (!node) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Node not found: ${input.nodeId}`,
+        });
+      }
+
+      return {
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        depth: node.depth,
+        parentId: node.parentId,
+        address: (node as any).address,
+        picUserId: (node as any).picUserId,
+        createdAt: node.createdAt,
+        updatedAt: node.updatedAt,
+      };
+    }),
+
+  /**
+   * Get all descendant nodes of a given node
+   */
+  getDescendants: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        nodeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access the parent node
+      if (!accessibleNodeIds.includes(input.nodeId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this node",
+        });
+      }
+
+      // Get all descendant node IDs using the service function
+      const descendantIds = await getDescendantNodeIds(
+        tenantDb,
+        input.nodeId
+      );
+
+      // Remove the parent node ID from the list (descendants only)
+      const descendantIdsOnly = descendantIds.filter(
+        (id) => id !== input.nodeId
+      );
+
+      if (descendantIdsOnly.length === 0) {
+        return {
+          descendants: [],
+        };
+      }
+
+      // Get full node details for all descendants
+      const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
+        where: (nodes, { inArray }) => inArray(nodes.id, descendantIdsOnly),
+        orderBy: (nodes: any, { asc }: any) => [
+          asc(nodes.depth),
+          asc(nodes.name),
+        ],
+      });
+
+      // Filter to only accessible nodes
+      const accessibleDescendants = descendantNodes.filter((node) =>
+        accessibleNodeIds.includes(node.id)
+      );
+
+      return {
+        descendants: accessibleDescendants.map((node: any) => ({
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          depth: node.depth,
+          parentId: node.parentId,
+          address: node.address,
+          picUserId: node.picUserId,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
+        })),
+      };
+    }),
+
   deleteNode: protectedProcedure
     .input(
       z.object({

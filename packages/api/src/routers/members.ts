@@ -8,13 +8,14 @@
 import { createMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@avantej-core/services";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
 
 export const memberRouter = {
   /**
@@ -151,6 +152,558 @@ export const memberRouter = {
           status: createdMember.status,
           joinedAt: createdMember.joinedAt,
         },
+      };
+    }),
+
+  /**
+   * Get member by ID
+   *
+   * Returns member details including accessible node IDs.
+   * Requires user_management.read permission.
+   */
+  getById: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get the member
+      const member = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!member) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Check if current user can access this member's hierarchy scope
+      const {
+        tenantDb,
+        member: currentMember,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (currentMember
+          ? await getDescendantNodeIds(tenantDb, currentMember.hierarchyScopeId)
+          : []);
+
+      // Admins can access all members, others can only access members in their scope
+      if (currentMember.role !== "admin") {
+        if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to this member",
+          });
+        }
+      }
+
+      // Get accessible node IDs for this member
+      const memberAccessibleNodeIds = await getDescendantNodeIds(
+        context.tenantDb,
+        member.hierarchyScopeId
+      );
+
+      // Get user details from control panel
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      let userDetails = null;
+      if (controlPanelDb) {
+        const userRecord = await controlPanelDb.query.user.findFirst({
+          where: eq(user.id, member.userId),
+        });
+        if (userRecord) {
+          userDetails = {
+            id: userRecord.id,
+            name: userRecord.name,
+            email: userRecord.email,
+            emailVerified: userRecord.emailVerified,
+          };
+        }
+      }
+
+      return {
+        member: {
+          id: member.id,
+          userId: member.userId,
+          role: member.role,
+          hierarchyScopeId: member.hierarchyScopeId,
+          status: member.status,
+          joinedAt: member.joinedAt,
+        },
+        accessibleNodeIds: memberAccessibleNodeIds,
+        user: userDetails,
+      };
+    }),
+
+  /**
+   * Update member role
+   *
+   * Updates a member's role in both control panel and tenant databases.
+   * Requires user_management.update permission.
+   */
+  updateRole: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+        newRole: z.enum(["admin", "trainer", "staff", "client"]),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get the member to update
+      const member = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!member) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Check if current user can access this member
+      const {
+        tenantDb,
+        member: currentMember,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (currentMember
+          ? await getDescendantNodeIds(tenantDb, currentMember.hierarchyScopeId)
+          : []);
+
+      if (currentMember.role !== "admin") {
+        if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to update this member",
+          });
+        }
+      }
+
+      // Get control panel database
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      // Update role using MembershipService
+      const membershipService = new MembershipService(controlPanelDb);
+      await membershipService.updateMemberRole({
+        userId: member.userId,
+        organizationId: input.organizationId,
+        newRole: input.newRole,
+        tenantDb: context.tenantDb,
+      });
+
+      // Get updated member
+      const updatedMember = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      return {
+        success: true,
+        member: {
+          id: updatedMember!.id,
+          userId: updatedMember!.userId,
+          role: updatedMember!.role,
+          hierarchyScopeId: updatedMember!.hierarchyScopeId,
+          status: updatedMember!.status,
+          joinedAt: updatedMember!.joinedAt,
+        },
+      };
+    }),
+
+  /**
+   * Suspend member
+   *
+   * Suspends a member in both control panel and tenant databases.
+   * Requires user_management.update permission.
+   */
+  suspend: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get the member to suspend
+      const member = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!member) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Check if current user can access this member
+      const {
+        tenantDb,
+        member: currentMember,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (currentMember
+          ? await getDescendantNodeIds(tenantDb, currentMember.hierarchyScopeId)
+          : []);
+
+      if (currentMember.role !== "admin") {
+        if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to suspend this member",
+          });
+        }
+      }
+
+      // Get control panel database
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      // Suspend member using MembershipService
+      const membershipService = new MembershipService(controlPanelDb);
+      await membershipService.suspendMember({
+        userId: member.userId,
+        organizationId: input.organizationId,
+        tenantDb: context.tenantDb,
+      });
+
+      // Get updated member
+      const updatedMember = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      return {
+        success: true,
+        member: {
+          id: updatedMember!.id,
+          userId: updatedMember!.userId,
+          role: updatedMember!.role,
+          hierarchyScopeId: updatedMember!.hierarchyScopeId,
+          status: updatedMember!.status,
+          joinedAt: updatedMember!.joinedAt,
+        },
+      };
+    }),
+
+  /**
+   * Reactivate member
+   *
+   * Reactivates a suspended member in both control panel and tenant databases.
+   * Requires user_management.update permission.
+   */
+  reactivate: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get the member to reactivate
+      const member = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!member) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Check if current user can access this member
+      const {
+        tenantDb,
+        member: currentMember,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (currentMember
+          ? await getDescendantNodeIds(tenantDb, currentMember.hierarchyScopeId)
+          : []);
+
+      if (currentMember.role !== "admin") {
+        if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to reactivate this member",
+          });
+        }
+      }
+
+      // Get control panel database
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      // Reactivate member using MembershipService
+      const membershipService = new MembershipService(controlPanelDb);
+      await membershipService.reactivateMember({
+        userId: member.userId,
+        organizationId: input.organizationId,
+        tenantDb: context.tenantDb,
+      });
+
+      // Get updated member
+      const updatedMember = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      return {
+        success: true,
+        member: {
+          id: updatedMember!.id,
+          userId: updatedMember!.userId,
+          role: updatedMember!.role,
+          hierarchyScopeId: updatedMember!.hierarchyScopeId,
+          status: updatedMember!.status,
+          joinedAt: updatedMember!.joinedAt,
+        },
+      };
+    }),
+
+  /**
+   * Remove member
+   *
+   * Removes a member from both control panel and tenant databases.
+   * Validates that the last admin cannot be removed.
+   * Requires user_management.delete permission.
+   */
+  remove: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "delete"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get the member to remove
+      const member = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!member) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Check if current user can access this member
+      const {
+        tenantDb,
+        member: currentMember,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (currentMember
+          ? await getDescendantNodeIds(tenantDb, currentMember.hierarchyScopeId)
+          : []);
+
+      if (currentMember.role !== "admin") {
+        if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to remove this member",
+          });
+        }
+      }
+
+      // Get control panel database
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      // Remove member using MembershipService (validates last admin check)
+      const membershipService = new MembershipService(controlPanelDb);
+      try {
+        await membershipService.removeMember({
+          userId: member.userId,
+          organizationId: input.organizationId,
+          tenantDb: context.tenantDb,
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Cannot remove last admin")
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+
+      return {
+        success: true,
+        message: "Member removed successfully",
       };
     }),
 };

@@ -355,6 +355,83 @@ export const invitationRouter = {
    *
    * Public endpoint to check invitation status before accepting.
    */
+  /**
+   * Decline invitation
+   *
+   * Public procedure that allows a user to decline an invitation using the token.
+   * Updates invitation status to "declined".
+   */
+  decline: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        organizationId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      // Get invitation by token
+      const invitation = await context.tenantDb.query.invitations.findFirst({
+        where: eq(invitations.token, input.token),
+      });
+
+      if (!invitation) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Invitation not found",
+        });
+      }
+
+      // Validate invitation (check expiration and status)
+      const validation = validateInvitation(invitation);
+
+      if (!validation.isValid) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: validation.error || "Invalid invitation",
+        });
+      }
+
+      // Check if already declined or accepted
+      if (invitation.status === "declined") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Invitation has already been declined",
+        });
+      }
+
+      if (invitation.status === "accepted") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Invitation has already been accepted",
+        });
+      }
+
+      // Update invitation status to declined
+      const [updated] = await context.tenantDb
+        .update(invitations)
+        .set({ status: "declined" })
+        .where(eq(invitations.id, invitation.id))
+        .returning();
+
+      if (!updated) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to decline invitation",
+        });
+      }
+
+      return {
+        success: true,
+        invitation: {
+          id: updated.id,
+          email: updated.email,
+          status: updated.status,
+        },
+      };
+    }),
+
   getByToken: publicProcedure
     .input(
       z.object({
