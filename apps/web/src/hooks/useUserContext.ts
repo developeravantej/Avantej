@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getServerUrl } from "@/lib/config";
+import { client } from "@/utils/orpc";
 
 export interface UserContextResponse {
   user: {
@@ -38,22 +38,13 @@ export function useUserContext(enabled = true) {
   return useQuery<UserContextResponse>({
     queryKey: ["user-context"],
     queryFn: async () => {
-      const serverUrl = getServerUrl();
-      const response = await fetch(`${serverUrl}/auth/user-context`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch user context");
-      }
-
-      const data = await response.json();
+      // Use oRPC client for type-safe API calls
+      const data = await client.auth.userContext({});
       
       // Persist to localStorage for offline/quick access
       if (data.organizations?.length > 0) {
         localStorage.setItem("user_organizations", JSON.stringify(
-          data.organizations.map((org: UserContextResponse["organizations"][0]) => ({
+          data.organizations.map((org) => ({
             id: org.id,
             name: org.name,
             slug: org.slug,
@@ -63,14 +54,14 @@ export function useUserContext(enabled = true) {
         localStorage.setItem("current_organization_id", data.currentOrganizationId || data.organizations[0].id);
         
         // Cache hierarchy data
-        data.organizations.forEach((org: UserContextResponse["organizations"][0]) => {
+        data.organizations.forEach((org) => {
           if (org.hierarchy?.nodes) {
             localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
           }
         });
       }
 
-      return data;
+      return data as UserContextResponse;
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - data doesn't change often

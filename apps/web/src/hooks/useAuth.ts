@@ -23,7 +23,6 @@ import type {
 } from "@/types/auth";
 import { isUserWithPermissions } from "@/types/auth";
 import { flattenUserPermissions, checkUserPermission, checkUserRole } from "@/lib/permissions";
-import { getServerUrl } from "@/lib/config";
 
 export function useAuth(): UseAuthReturn {
   const navigate = useNavigate();

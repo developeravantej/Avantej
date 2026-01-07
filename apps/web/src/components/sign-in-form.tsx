@@ -1,4 +1,5 @@
 import { authClient } from "@/lib/auth-client";
+import { client } from "@/utils/orpc";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -26,28 +27,11 @@ export default function SignInForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        // Use custom login endpoint to get organizations
-        const response = await fetch(
-          `${import.meta.env.VITE_SERVER_URL}/auth/login`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include", // Important for cookies
-            body: JSON.stringify({
-              email: value.email,
-              password: value.password,
-            }),
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          toast.error(data.error || "Sign in failed");
-          return;
-        }
+        // Use oRPC login endpoint to get organizations
+        const data = await client.auth.login({
+          email: value.email,
+          password: value.password,
+        });
 
         // Store organizations in localStorage if available
         if (
@@ -66,32 +50,22 @@ export default function SignInForm({
         // Refresh session to sync Better-Auth client state
         await refetch();
 
-        // Also fetch user-context to get hierarchy data (useAuth hook will also fetch, but this ensures it's immediate)
+        // Also fetch user-context to get hierarchy data via oRPC
         try {
-          const contextResponse = await fetch(
-            `${import.meta.env.VITE_SERVER_URL}/auth/user-context`,
-            {
-              method: "GET",
-              credentials: "include",
-            }
-          );
+          const contextData = await client.auth.userContext({});
 
-          if (contextResponse.ok) {
-            const contextData = await contextResponse.json();
-
-            // Store hierarchy data
-            if (contextData.organizations) {
-              contextData.organizations.forEach(
-                (org: { id: string; hierarchy?: { nodes: unknown[] } }) => {
-                  if (org.hierarchy?.nodes) {
-                    localStorage.setItem(
-                      `org_${org.id}_hierarchy`,
-                      JSON.stringify(org.hierarchy)
-                    );
-                  }
+          // Store hierarchy data
+          if (contextData.organizations) {
+            contextData.organizations.forEach(
+              (org: { id: string; hierarchy?: { nodes: unknown[] } }) => {
+                if (org.hierarchy?.nodes) {
+                  localStorage.setItem(
+                    `org_${org.id}_hierarchy`,
+                    JSON.stringify(org.hierarchy)
+                  );
                 }
-              );
-            }
+              }
+            );
           }
         } catch (error) {
           console.error("Failed to fetch user context after login:", error);
@@ -110,9 +84,10 @@ export default function SignInForm({
             to: "/dashboard",
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Sign in error:", error);
-        toast.error("Failed to sign in");
+        const errorMessage = error instanceof Error ? error.message : "Sign in failed";
+        toast.error(errorMessage);
       }
     },
     validators: {
