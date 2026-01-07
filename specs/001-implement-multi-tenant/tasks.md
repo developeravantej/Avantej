@@ -406,9 +406,11 @@
 
 ---
 
-## Phase 5: API Endpoints (25 tasks, organized by contract file)
+## Phase 5: API Endpoints (36 tasks, organized by contract file)
 
-**Purpose**: RESTful API implementation following OpenAPI contracts
+**Purpose**: API implementation following OpenAPI contracts (REST for external contracts, oRPC for internal frontend usage)
+
+**Note**: Internal frontend (web/native) uses oRPC for type-safe RPC calls. REST endpoints remain for Better-Auth integration and OpenAPI contract compliance.
 
 ### Authentication Endpoints (auth-api.yaml)
 
@@ -417,15 +419,17 @@
   - Dependencies: T043
   - Test: Returns 201 with userId, email already registered returns 409
 
-- [ ] T051 [P] [API] POST /auth/login in apps/server/src/routes/auth.routes.ts
+- [x] T051 [P] [API] POST /auth/login in apps/server/src/routes/auth.routes.ts
   - Handler: Validate credentials, return JWT + organizations (per contract line 59-100)
   - Dependencies: T042, T018
   - Test: Returns accessToken + user's organizations, unverified email returns 403
+  - **Status**: ✅ Completed - REST endpoint exists. **Also implemented as oRPC**: `apps/server/src/routers/auth.ts` (login procedure) for internal frontend usage
 
-- [ ] T052 [P] [API] POST /auth/verify-email in apps/server/src/routes/auth.routes.ts
+- [x] T052 [P] [API] POST /auth/verify-email in apps/server/src/routes/auth.routes.ts
   - Handler: Verify email token, update emailVerified flag (per contract line 102-122)
   - Dependencies: T043
   - Test: Updates user.emailVerified to true, invalid token returns 400
+  - **Status**: ✅ Completed - REST endpoint exists. **Also implemented as oRPC**: `apps/server/src/routers/auth.ts` (verifyEmail procedure) for internal frontend usage
 
 - [ ] T053 [P] [API] POST /auth/reset-password in apps/server/src/routes/auth.routes.ts
   - Handler: Send password reset email (per contract line 124-142)
@@ -469,10 +473,11 @@
   - Dependencies: T046, T047
   - Test: Deletes org + removes tenant project, non-admin returns 403
 
-- [ ] T061 [API] GET /orgs/:id/context in apps/server/src/routes/organizations.routes.ts
+- [x] T061 [API] GET /orgs/:id/context in apps/server/src/routes/organizations.routes.ts
   - Handler: Get org context (hierarchy tree, member role, accessible nodes) (per contract line 140-179)
   - Dependencies: T047, T041
   - Test: Returns organization + member + hierarchyTree + accessibleNodeIds
+  - **Status**: ✅ Completed - REST endpoint exists. **Also implemented as oRPC**: `apps/server/src/routers/auth.ts` (userContext procedure) returns user's organizations with hierarchy data for all orgs
 
 ### Hierarchy Endpoints (hierarchy-api.yaml)
 
@@ -518,10 +523,11 @@
   - Dependencies: T047
   - Test: Returns members in accessible nodes only, filters by role/status
 
-- [ ] T070 [API] POST /orgs/:orgId/members/invite in apps/server/src/routes/members.routes.ts
+- [x] T070 [API] POST /orgs/:orgId/members/invite in apps/server/src/routes/members.routes.ts
   - Handler: Send invitation email (per contract line 60-107)
   - Dependencies: T047, T024
   - Test: Creates invitation, sends email (mock), duplicate email returns 409
+  - **Status**: ✅ Completed - REST endpoint exists. **Also implemented as oRPC**: `packages/api/src/routers/invitations.ts` (create procedure) and `apps/server/src/routers/invitations.ts` (sendEmail procedure) for internal frontend usage
 
 - [ ] T071 [API] POST /invitations/:token/accept in apps/server/src/routes/members.routes.ts
   - Handler: Accept invitation (uses MembershipService) (per contract line 109-132)
@@ -907,11 +913,18 @@ With 3 developers:
 - **Phase 2 (Database)**: 15/15 tasks ✅
 - **Phase 3 (Services)**: 12/12 tasks ✅
 - **Phase 4 (Auth)**: 8/8 tasks ✅
-- **Phase 5 (API)**: 0/36 tasks
+- **Phase 5 (API)**: 3/36 tasks (T051, T052, T061, T070 - oRPC implementations for internal frontend)
 - **Phase 6 (UI)**: 0/12 tasks
 - **Phase 7 (Testing)**: 0/8 tasks
 - **Phase 8 (Deployment)**: 0/5 tasks
 
-**Total: 49/110 tasks completed (44.5%)**
+**Total: 52/110 tasks completed (47.3%)**
+
+**Recent Updates**:
+
+- ✅ Migrated internal frontend from REST to oRPC for type safety (T051, T052, T061, T070)
+- ✅ Created oRPC auth router with login, userContext, verifyEmail procedures
+- ✅ Created oRPC invitation router extension with sendEmail procedure
+- ✅ Updated all frontend components to use oRPC client instead of REST fetch calls
 
 **Parallel Opportunities**: ~60% of tasks can run in parallel within their phase
