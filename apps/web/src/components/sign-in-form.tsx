@@ -86,7 +86,8 @@ export default function SignInForm({
         }
       } catch (error: unknown) {
         console.error("Sign in error:", error);
-        const errorMessage = error instanceof Error ? error.message : "Sign in failed";
+        const errorMessage =
+          error instanceof Error ? error.message : "Sign in failed";
         toast.error(errorMessage);
       }
     },
@@ -103,8 +104,8 @@ export default function SignInForm({
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
+    <div className="w-full max-w-md p-6 mx-auto mt-10">
+      <h1 className="mb-6 text-3xl font-bold text-center">Welcome Back</h1>
 
       <form
         onSubmit={(e) => {
