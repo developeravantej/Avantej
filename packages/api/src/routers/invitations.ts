@@ -5,24 +5,24 @@
  * Invitations are stored in tenant databases and link users to organizations.
  */
 
+import { user } from "@avantej-core/db/schema/auth";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { invitations } from "@avantej-core/db/schema/tenant/invitations";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
 import {
   createInvitation,
   getInvitationByToken,
-  validateInvitation,
   listInvitations,
-  revokeInvitation,
   resendInvitation,
+  revokeInvitation,
+  validateInvitation,
 } from "@avantej-core/services";
-import { invitations } from "@avantej-core/db/schema/tenant/invitations";
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { user } from "@avantej-core/db/schema/auth";
-import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
+import { and, eq } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
-import { MembershipService } from "@avantej-core/db/services/membership.service";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export const invitationRouter = {
   /**
@@ -70,21 +70,23 @@ export const invitationRouter = {
       }
 
       // Validate hierarchy scope access
-      const { validateParentAccess, getDescendantNodeIds } = await import("@avantej-core/services");
-      
+      const { validateParentAccess, getDescendantNodeIds } = await import(
+        "@avantej-core/services"
+      );
+
       // Get accessible node IDs (use from context if available, otherwise calculate)
       const {
         tenantDb,
         member,
         accessibleNodeIds: contextAccessibleNodeIds,
       } = context;
-      
+
       const accessibleNodeIds =
         contextAccessibleNodeIds ||
         (member
           ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
           : []);
-      
+
       // Skip validation for admins (they have access to all nodes)
       if (member.role !== "admin") {
         try {
@@ -92,18 +94,21 @@ export const invitationRouter = {
         } catch (error) {
           throw new ORPCError("BAD_REQUEST", {
             message:
-              error instanceof Error ? error.message : "Hierarchy scope not accessible",
+              error instanceof Error
+                ? error.message
+                : "Hierarchy scope not accessible",
           });
         }
       }
 
       // Check if a pending invitation already exists
-      const existingInvitation = await context.tenantDb.query.invitations.findFirst({
-        where: and(
-          eq(invitations.email, input.email.toLowerCase()),
-          eq(invitations.status, "pending")
-        ),
-      });
+      const existingInvitation =
+        await context.tenantDb.query.invitations.findFirst({
+          where: and(
+            eq(invitations.email, input.email.toLowerCase()),
+            eq(invitations.status, "pending")
+          ),
+        });
 
       if (existingInvitation) {
         throw new ORPCError("CONFLICT", {
@@ -113,25 +118,30 @@ export const invitationRouter = {
 
       // Check if user is already a member (by checking control panel users)
       // Note: We can't directly check by email in tenant DB, so we check control panel
-      const controlPanelDb = context.honoContext?.get(
-        "controlPanelDb"
-      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+        | NeonDatabase<typeof controlPanelSchema>
+        | undefined;
 
       if (controlPanelDb) {
-        const { users } = await import("@avantej-core/db/schema/control-panel/users");
-        const { organizationMembers } = await import("@avantej-core/db/schema/control-panel/organization-members");
-        
+        const { users } = await import(
+          "@avantej-core/db/schema/control-panel/users"
+        );
+        const { organizationMembers } = await import(
+          "@avantej-core/db/schema/control-panel/organization-members"
+        );
+
         const existingUser = await controlPanelDb.query.users.findFirst({
           where: eq(users.email, input.email.toLowerCase()),
         });
 
         if (existingUser) {
-          const existingOrgMember = await controlPanelDb.query.organizationMembers.findFirst({
-            where: and(
-              eq(organizationMembers.userId, existingUser.id),
-              eq(organizationMembers.organizationId, input.organizationId)
-            ),
-          });
+          const existingOrgMember =
+            await controlPanelDb.query.organizationMembers.findFirst({
+              where: and(
+                eq(organizationMembers.userId, existingUser.id),
+                eq(organizationMembers.organizationId, input.organizationId)
+              ),
+            });
 
           if (existingOrgMember) {
             throw new ORPCError("CONFLICT", {
@@ -192,7 +202,10 @@ export const invitationRouter = {
       }
 
       // Get invitation by token
-      const invitation = await getInvitationByToken(input.token, context.tenantDb);
+      const invitation = await getInvitationByToken(
+        input.token,
+        context.tenantDb
+      );
 
       // Validate invitation
       const validation = validateInvitation(invitation);
@@ -213,7 +226,7 @@ export const invitationRouter = {
       // Verify email matches invitation email (case-insensitive)
       const userEmail = context.session.user.email?.toLowerCase();
       const invitationEmail = invitation!.email.toLowerCase();
-      
+
       if (userEmail !== invitationEmail) {
         throw new ORPCError("FORBIDDEN", {
           message: `This invitation was sent to ${invitation!.email}. Please sign up or log in with that email address.`,
@@ -232,9 +245,9 @@ export const invitationRouter = {
       }
 
       // Get control panel database from context
-      const controlPanelDb = context.honoContext?.get(
-        "controlPanelDb"
-      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+        | NeonDatabase<typeof controlPanelSchema>
+        | undefined;
 
       if (!controlPanelDb) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -290,9 +303,9 @@ export const invitationRouter = {
       }
 
       // Get control panel database from context
-      const controlPanelDb = context.honoContext?.get(
-        "controlPanelDb"
-      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+        | NeonDatabase<typeof controlPanelSchema>
+        | undefined;
 
       if (!controlPanelDb) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -301,7 +314,10 @@ export const invitationRouter = {
       }
 
       // Get invitation by token
-      const invitation = await getInvitationByToken(input.token, context.tenantDb);
+      const invitation = await getInvitationByToken(
+        input.token,
+        context.tenantDb
+      );
 
       // Validate invitation (status/expiry)
       const validation = validateInvitation(invitation);
@@ -354,7 +370,10 @@ export const invitationRouter = {
         });
       }
 
-      const invitation = await getInvitationByToken(input.token, context.tenantDb);
+      const invitation = await getInvitationByToken(
+        input.token,
+        context.tenantDb
+      );
 
       if (!invitation) {
         throw new ORPCError("NOT_FOUND", {
@@ -387,7 +406,9 @@ export const invitationRouter = {
     .input(
       z.object({
         organizationId: z.string().uuid(),
-        status: z.enum(["pending", "accepted", "declined", "expired"]).optional(),
+        status: z
+          .enum(["pending", "accepted", "declined", "expired"])
+          .optional(),
         email: z.string().email().optional(),
       })
     )
@@ -428,16 +449,18 @@ export const invitationRouter = {
       });
 
       return {
-        invitations: invitationList.map((inv) => ({
-          id: inv.id,
-          email: inv.email,
-          role: inv.role,
-          hierarchyScopeId: inv.hierarchyScopeId,
-          status: inv.status,
-          expiresAt: inv.expiresAt,
-          createdAt: inv.createdAt,
-          // Don't return token for security
-        })),
+        invitations: invitationList.map(
+          (inv: typeof invitations.$inferSelect) => ({
+            id: inv.id,
+            email: inv.email,
+            role: inv.role,
+            hierarchyScopeId: inv.hierarchyScopeId,
+            status: inv.status,
+            expiresAt: inv.expiresAt,
+            createdAt: inv.createdAt,
+            // Don't return token for security
+          })
+        ),
       };
     }),
 
@@ -482,7 +505,10 @@ export const invitationRouter = {
         });
       }
 
-      const revoked = await revokeInvitation(input.invitationId, context.tenantDb);
+      const revoked = await revokeInvitation(
+        input.invitationId,
+        context.tenantDb
+      );
 
       return {
         success: true,
@@ -535,7 +561,10 @@ export const invitationRouter = {
         });
       }
 
-      const updated = await resendInvitation(input.invitationId, context.tenantDb);
+      const updated = await resendInvitation(
+        input.invitationId,
+        context.tenantDb
+      );
 
       const organizationName = context.organization?.name || "the organization";
 
@@ -555,4 +584,3 @@ export const invitationRouter = {
       };
     }),
 };
-

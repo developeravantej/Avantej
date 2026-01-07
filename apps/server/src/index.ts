@@ -5,8 +5,10 @@ import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
+import { authRouter } from "@/routers/auth";
+import { serverInvitationRouter } from "@/routers/invitations";
 import { createContext } from "@avantej-core/api/context";
-import { appRouter } from "@avantej-core/api/routers/index";
+import { baseRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -16,6 +18,17 @@ import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+// Combine base router with server-specific routers
+const appRouter = {
+	...baseRouter,
+	auth: authRouter,
+	// Extend invitations router with server-specific sendEmail procedure
+	invitations: {
+		...baseRouter.invitations,
+		...serverInvitationRouter,
+	},
+};
 
 const app = new Hono();
 
