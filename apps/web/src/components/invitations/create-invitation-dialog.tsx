@@ -24,7 +24,6 @@ import { Loader2, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { getServerUrl } from "@/lib/config";
 
 const invitationSchema = z.object({
 	email: z.string().email("Invalid email address"),
@@ -108,27 +107,17 @@ export function CreateInvitationDialog({
 				hierarchyScopeId: data.hierarchyScopeId,
 			});
 
-			// Call server-side endpoint to send email
-			const response = await fetch(`${getServerUrl()}/api/invitations/send-email`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
+			// Send email via oRPC
+			await client.invitations.sendEmail({
+				invitation: {
+					token: result.invitation.token,
+					email: result.invitation.email,
+					role: result.invitation.role,
 				},
-				credentials: "include",
-				body: JSON.stringify({
-					invitation: result.invitation,
-					organizationId: result.organizationId,
-					organizationName: result.organizationName,
-					inviterName: result.inviterName,
-				}),
+				organizationId: result.organizationId,
+				organizationName: result.organizationName,
+				inviterName: result.inviterName,
 			});
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(
-					errorData.error || "Failed to send invitation email"
-				);
-			}
 
 			return result;
 		},

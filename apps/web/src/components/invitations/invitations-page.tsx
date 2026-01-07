@@ -15,7 +15,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { getServerUrl } from "@/lib/config";
 
 export function InvitationsPage() {
 	const { data: userContext } = useUserContext();
@@ -76,24 +75,17 @@ export function InvitationsPage() {
 				invitationId,
 			});
 
-			// Call server-side endpoint to send email
-			const response = await fetch(`${getServerUrl()}/api/invitations/send-email`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
+			// Send email via oRPC
+			await client.invitations.sendEmail({
+				invitation: {
+					token: result.invitation.token,
+					email: result.invitation.email,
+					role: result.invitation.role,
 				},
-				credentials: "include",
-				body: JSON.stringify({
-					invitation: result.invitation,
-					organizationId,
-					organizationName: result.organizationName,
-					inviterName: result.inviterName,
-				}),
+				organizationId,
+				organizationName: result.organizationName,
+				inviterName: result.inviterName,
 			});
-
-			if (!response.ok) {
-				throw new Error("Failed to send invitation email");
-			}
 
 			return result;
 		},
