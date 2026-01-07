@@ -42,6 +42,7 @@
 
 import { eq, and, ne } from "drizzle-orm";
 import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
@@ -49,8 +50,9 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 
 // Type definitions for database clients
-type ControlPanelDb = NeonHttpDatabase<typeof controlPanelSchema>;
-type TenantDb = NeonHttpDatabase<typeof tenantSchema>;
+// Support both NeonHttpDatabase and NeonDatabase (serverless) for flexibility
+type ControlPanelDb = NeonHttpDatabase<typeof controlPanelSchema> | NeonDatabase<typeof controlPanelSchema>;
+type TenantDb = NeonHttpDatabase<typeof tenantSchema> | NeonDatabase<typeof tenantSchema>;
 
 export class MembershipService {
   constructor(private controlPanelDb: ControlPanelDb) {}

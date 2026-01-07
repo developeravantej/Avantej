@@ -5,11 +5,49 @@
  * These services are reusable across apps/server, apps/web, and apps/native.
  */
 
-export * from "./hierarchy.service";
-export * from "./hierarchy-validation.service";
+// Hierarchy services - for tree traversal and node management
+export {
+  getDescendantNodeIds,
+  getAncestorNodeIds,
+  createHierarchyNode,
+  updateHierarchyNode,
+  deleteHierarchyNode,
+  moveHierarchyNode,
+  type DeleteHierarchyNodeOptions,
+} from "./hierarchy.service";
+
+// Hierarchy validation - for validating hierarchy rules
+export {
+  validateHierarchyRules,
+  validateParentAccess,
+  getDepthForType,
+  getParentTypeForType,
+  type HierarchyNodeType,
+  type CreateHierarchyNodeParams,
+  type UpdateHierarchyNodeParams,
+} from "./hierarchy-validation.service";
+
+// Permission service - for RBAC permission checking
 export * from "./permission.service";
-export * from "./member.service";
-export { getAllOrganizationMembersWithUserDetails } from "./member.service";
-export * from "./invitation.service";
+
+// Member services - for member management
+export {
+  getMembersByHierarchyScope,
+  updateMemberHierarchyScope,
+  bulkUpdateMemberHierarchyScope,
+  getAllOrganizationMembersWithUserDetails,
+  createMember,
+} from "./member.service";
+
+// Invitation services - for invitation management
+export {
+  createInvitation,
+  getInvitationByToken,
+  validateInvitation,
+  listInvitations,
+  revokeInvitation,
+  resendInvitation,
+  markExpiredInvitations,
+} from "./invitation.service";
 
 
