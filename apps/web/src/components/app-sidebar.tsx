@@ -255,11 +255,11 @@ export const SIDEBAR_DATA = {
       items: [
         {
           name: 'View Services Categories',
-          url: '/dashboard/service-category/view',
+          url: '/service-category/view',
         },
         {
           name: 'View Service',
-          url: '/dashboard/service/view',
+          url: '/service/view',
         },
       ],
     },
