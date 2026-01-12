@@ -5,8 +5,10 @@ import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
+import { webhookRoutes } from "@/routes/webhooks.routes";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
+import { adminRouter } from "@/routers/admin";
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -28,6 +30,7 @@ const appRouter = {
 		...baseRouter.invitations,
 		...serverInvitationRouter,
 	},
+	admin: adminRouter,
 };
 
 const app = new Hono();
@@ -85,6 +88,9 @@ app.route("/orgs/:organizationId/hierarchy", hierarchyRoutes);
 
 // Invitation routes (for email sending)
 app.route("/api/invitations", invitationRoutes);
+
+// Webhook routes (external integrations)
+app.route("/webhooks", webhookRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

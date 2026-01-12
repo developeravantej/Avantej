@@ -590,52 +590,61 @@
 
 ### Admin Endpoints (admin-api.yaml)
 
-- [ ] T077 [API] GET /admin/tenants in apps/server/src/routes/admin.routes.ts
+- [x] T077 [API] GET /admin/tenants in apps/server/src/routes/admin.routes.ts
   - Handler: List all organizations with pagination (per contract line 14-59)
   - Dependencies: T048
   - Test: Returns paginated tenants, non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (listTenants procedure) with pagination, filters (status, search), and member counts
 
-- [ ] T078 [API] GET /admin/tenants/:id in apps/server/src/routes/admin.routes.ts
+- [x] T078 [API] GET /admin/tenants/:id in apps/server/src/routes/admin.routes.ts
   - Handler: Get tenant details with subscription info (per contract line 61-85)
   - Dependencies: T048
   - Test: Returns tenant + subscription + member count, non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (getTenant procedure) returns tenant details with subscription info, member count, and hierarchy node count
 
-- [ ] T079 [API] POST /admin/tenants/:id/suspend in apps/server/src/routes/admin.routes.ts
+- [x] T079 [API] POST /admin/tenants/:id/suspend in apps/server/src/routes/admin.routes.ts
   - Handler: Suspend organization (per contract line 87-122)
   - Dependencies: T048
   - Test: Updates paymentStatus to "suspended", non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (suspendTenant procedure) updates paymentStatus to "suspended"
 
-- [ ] T080 [API] POST /admin/tenants/:id/unsuspend in apps/server/src/routes/admin.routes.ts
+- [x] T080 [API] POST /admin/tenants/:id/unsuspend in apps/server/src/routes/admin.routes.ts
   - Handler: Restore organization (per contract line 124-149)
   - Dependencies: T048
   - Test: Updates paymentStatus to "active", non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (unsuspendTenant procedure) updates paymentStatus to "active"
 
-- [ ] T081 [API] POST /admin/impersonate in apps/server/src/routes/admin.routes.ts
+- [x] T081 [API] POST /admin/impersonate in apps/server/src/routes/admin.routes.ts
   - Handler: Start impersonation session (per contract line 150-189)
   - Dependencies: T049
   - Test: Creates admin_sessions record, returns impersonation JWT
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (startImpersonation procedure) uses admin.service.ts to create session and return token
 
-- [ ] T082 [API] POST /admin/impersonate/exit in apps/server/src/routes/admin.routes.ts
+- [x] T082 [API] POST /admin/impersonate/exit in apps/server/src/routes/admin.routes.ts
   - Handler: End impersonation session (per contract line 191-202)
   - Dependencies: T049
   - Test: Updates admin_sessions.endedAt, returns 200
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (exitImpersonation procedure) uses admin.service.ts to end session
 
-- [ ] T083 [API] GET /admin/audit-logs in apps/server/src/routes/admin.routes.ts
+- [x] T083 [API] GET /admin/audit-logs in apps/server/src/routes/admin.routes.ts
   - Handler: Get audit logs with filters (future - stub for now) (per contract line 204-268)
   - Dependencies: T048
   - Test: Returns empty array (placeholder), non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (getAuditLogs procedure) returns empty array stub as placeholder
 
-- [ ] T084 [API] GET /admin/stats in apps/server/src/routes/admin.routes.ts
+- [x] T084 [API] GET /admin/stats in apps/server/src/routes/admin.routes.ts
   - Handler: Get platform statistics (per contract line 270-298)
   - Dependencies: T048
   - Test: Returns counts (orgs, users, members), non-admin returns 403
+  - **Status**: ✅ Completed - **oRPC**: `apps/server/src/routers/admin.ts` (getStats procedure) returns platform statistics (totalOrganizations, activeOrganizations, suspendedOrganizations, totalUsers, totalMembers, activeSubscriptions)
 
 ### Webhook Endpoints (webhook-api.yaml)
 
-- [ ] T085 [API] POST /webhooks/stripe in apps/server/src/routes/webhooks.routes.ts
+- [x] T085 [API] POST /webhooks/stripe in apps/server/src/routes/webhooks.routes.ts
   - Handler: Handle Stripe webhook events (checkout.session.completed, subscription._, invoice._) (per contract line 14-47)
   - Dependencies: T039, T040
   - Test: Processes events idempotently, invalid signature returns 400
+  - **Status**: ✅ Completed - **REST**: `apps/server/src/routes/webhooks.routes.ts` handles Stripe webhook events. Uses verifyWebhookSignature() for signature verification and handleCheckoutCompleted() for payment processing. Handles checkout.session.completed, customer.subscription._, and invoice._ events.
 
 **Checkpoint**: All API endpoints implemented - frontend can now consume API
 
@@ -942,18 +951,18 @@ With 3 developers:
 - **Phase 2 (Database)**: 15/15 tasks ✅
 - **Phase 3 (Services)**: 12/12 tasks ✅
 - **Phase 4 (Auth)**: 8/8 tasks ✅
-- **Phase 5 (API)**: 26/36 tasks completed (72.2%)
+- **Phase 5 (API)**: 36/36 tasks completed (100%)
   - ✅ Auth endpoints: T050-T056 (all REST, T051/T052/T061 also have oRPC)
   - ✅ Organization endpoints: T057-T061 (all REST, T061 also has oRPC)
   - ✅ Hierarchy endpoints: T062-T068 (all oRPC implemented)
   - ✅ Member endpoints: T069-T076 (all oRPC implemented)
-  - ⚠️ Admin endpoints: T077-T084 (not started)
-  - ⚠️ Webhook endpoints: T085 (not started)
+  - ✅ Admin endpoints: T077-T084 (all oRPC implemented)
+  - ✅ Webhook endpoints: T085 (REST implemented)
 - **Phase 6 (UI)**: 0/12 tasks
 - **Phase 7 (Testing)**: 0/8 tasks
 - **Phase 8 (Deployment)**: 0/5 tasks
 
-**Total: 75/110 tasks completed (68.2%)**
+**Total: 85/110 tasks completed (77.3%)**
 
 **Recent Updates**:
 
@@ -970,9 +979,25 @@ With 3 developers:
 - ✅ All hierarchy and member endpoints now have oRPC implementations
 - ✅ Build verified - all new procedures compile successfully
 
+**Recent Updates**:
+
+- ✅ Implemented admin oRPC router (`apps/server/src/routers/admin.ts`) with 8 procedures:
+  - listTenants: List all organizations with pagination and filters
+  - getTenant: Get tenant details with subscription and member count
+  - suspendTenant: Suspend organization
+  - unsuspendTenant: Restore organization
+  - startImpersonation: Start impersonation session
+  - exitImpersonation: End impersonation session
+  - getAuditLogs: Get audit logs (stub placeholder)
+  - getStats: Get platform statistics
+- ✅ Implemented Stripe webhook REST route (`apps/server/src/routes/webhooks.routes.ts`) handling checkout.session.completed, customer.subscription._, and invoice._ events
+- ✅ Registered admin router in appRouter and added type definitions for client type inference
+- ✅ Registered webhook route in server index.ts
+
 **Next Priority Tasks**:
 
-1. T077-T084 - Admin endpoints (oRPC procedures for platform administration)
-2. T085 - Stripe webhook endpoint (payment processing)
+1. Phase 6: Frontend (Admin Panel) - T086-T097 (12 tasks)
+2. Phase 7: Integration & Testing - T098-T105 (8 tasks)
+3. Phase 8: Deployment - T106-T110 (5 tasks)
 
 **Parallel Opportunities**: ~60% of tasks can run in parallel within their phase

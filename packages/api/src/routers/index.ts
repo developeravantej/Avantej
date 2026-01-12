@@ -92,6 +92,157 @@ const serverInvitationRouterType = {
 		}),
 };
 
+// Admin router type definition for client type inference
+// The actual implementation is in apps/server/src/routers/admin.ts
+const adminRouterType = {
+	listTenants: protectedProcedure
+		.input(
+			z.object({
+				status: z.enum(["active", "suspended"]).optional(),
+				search: z.string().optional(),
+				page: z.number().int().min(1).default(1),
+				limit: z.number().int().min(1).max(100).default(50),
+			})
+		)
+		.handler((): {
+			data: Array<{
+				id: string;
+				name: string;
+				slug: string;
+				status: "active" | "suspended";
+				neonBranchId: string;
+				subscriptionId: string;
+				subscriptionTier: "starter" | "professional" | "enterprise";
+				memberCount: number;
+				createdAt: Date;
+			}>;
+			pagination: {
+				currentPage: number;
+				totalPages: number;
+				pageSize: number;
+				totalItems: number;
+			};
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getTenant: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler((): {
+			id: string;
+			name: string;
+			slug: string;
+			status: "active" | "suspended";
+			neonBranchId: string;
+			subscriptionId: string;
+			subscriptionTier: "starter" | "professional" | "enterprise";
+			memberCount: number;
+			createdAt: Date;
+			ownerUserId?: string;
+			ownerEmail?: string;
+			hierarchyNodeCount: number;
+			subscription?: {
+				stripeSubscriptionId: string;
+				stripeCustomerId: string;
+				tier: string;
+				organizationCountLimit: number;
+				status: string;
+			};
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	suspendTenant: protectedProcedure
+		.input(z.object({ id: z.string().uuid(), reason: z.string() }))
+		.handler((): {
+			id: string;
+			name: string;
+			slug: string;
+			status: "active" | "suspended";
+			neonBranchId: string;
+			subscriptionId: string;
+			subscriptionTier: "starter" | "professional" | "enterprise";
+			memberCount: number;
+			createdAt: Date;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	unsuspendTenant: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler((): {
+			id: string;
+			name: string;
+			slug: string;
+			status: "active" | "suspended";
+			neonBranchId: string;
+			subscriptionId: string;
+			subscriptionTier: "starter" | "professional" | "enterprise";
+			memberCount: number;
+			createdAt: Date;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	startImpersonation: protectedProcedure
+		.input(
+			z.object({
+				userId: z.string().uuid(),
+				organizationId: z.string().uuid().optional(),
+			})
+		)
+		.handler((): {
+			impersonationToken: string;
+			sessionId: string;
+			expiresAt: Date;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	exitImpersonation: protectedProcedure
+		.input(z.object({ sessionId: z.string().uuid() }))
+		.handler((): { success: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getAuditLogs: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid().optional(),
+				userId: z.string().uuid().optional(),
+				action: z
+					.enum([
+						"organization.created",
+						"organization.suspended",
+						"member.invited",
+						"member.removed",
+						"impersonation.started",
+						"impersonation.ended",
+					])
+					.optional(),
+				startDate: z.string().datetime().optional(),
+				endDate: z.string().datetime().optional(),
+				page: z.number().int().min(1).default(1),
+				limit: z.number().int().min(1).max(200).default(50),
+			})
+		)
+		.handler((): {
+			data: Array<never>;
+			pagination: {
+				currentPage: number;
+				totalPages: number;
+				pageSize: number;
+				totalItems: number;
+			};
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getStats: protectedProcedure.handler((): {
+		totalOrganizations: number;
+		activeOrganizations: number;
+		suspendedOrganizations: number;
+		totalUsers: number;
+		totalMembers: number;
+		activeSubscriptions: number;
+	} => {
+		throw new Error("Not implemented - this is only for type inference");
+	}),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -101,6 +252,7 @@ export const appRouter = {
 		...invitationRouter,
 		...serverInvitationRouterType,
 	},
+	admin: adminRouterType,
 };
 
 export type AppRouter = typeof appRouter;
