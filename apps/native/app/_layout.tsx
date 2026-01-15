@@ -1,20 +1,21 @@
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
 import {
 	DarkTheme,
 	DefaultTheme,
 	type Theme,
 	ThemeProvider,
 } from "@react-navigation/native";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
-import { queryClient } from "@/utils/orpc";
-import { NAV_THEME } from "@/lib/constants";
 import React, { useRef } from "react";
-import { useColorScheme } from "@/lib/use-color-scheme";
 import { Platform } from "react-native";
 import { setAndroidNavigationBar } from "@/lib/android-navigation-bar";
+import { NAV_THEME } from "@/lib/constants";
+import { useColorScheme } from "@/lib/use-color-scheme";
+import { queryClient } from "@/utils/orpc";
 
 const LIGHT_THEME: Theme = {
 	...DefaultTheme,
@@ -26,13 +27,19 @@ const DARK_THEME: Theme = {
 };
 
 export const unstable_settings = {
-	initialRouteName: "(drawer)",
+	initialRouteName: "index",
 };
 
 export default function RootLayout() {
 	const hasMounted = useRef(false);
 	const { colorScheme, isDarkColorScheme } = useColorScheme();
 	const [isColorSchemeLoaded, setIsColorSchemeLoaded] = React.useState(false);
+
+	const [fontsLoaded] = useFonts({
+		Nordeco: require("../assets/fonts/Nordeco-Bold.otf"),
+		"Metropolis-Medium": require("../assets/fonts/Metropolis-Medium.otf"),
+		"Plus Jakarta Sans": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
+	});
 
 	useIsomorphicLayoutEffect(() => {
 		if (hasMounted.current) {
@@ -47,7 +54,7 @@ export default function RootLayout() {
 		hasMounted.current = true;
 	}, []);
 
-	if (!isColorSchemeLoaded) {
+	if (!isColorSchemeLoaded || !fontsLoaded) {
 		return null;
 	}
 	return (
@@ -56,7 +63,12 @@ export default function RootLayout() {
 				<StatusBar style={isDarkColorScheme ? "light" : "dark"} />
 				<GestureHandlerRootView style={{ flex: 1 }}>
 					<Stack>
-						<Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+						<Stack.Screen name="index" options={{ headerShown: false }} />
+						<Stack.Screen
+							name="sign-up"
+							options={{ title: "Sign Up", headerShown: false }}
+						/>
+						<Stack.Screen name="dashboard" options={{ headerShown: false }} />
 						<Stack.Screen
 							name="modal"
 							options={{ title: "Modal", presentation: "modal" }}

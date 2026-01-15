@@ -1,0 +1,369 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback } from "react";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Container } from "@/components/container";
+import { colors } from "@/lib/colors";
+
+const SERVICE_CATEGORY = {
+	PRIVATE: 1,
+	SEMI_PRIVATE: 2,
+} as const;
+
+const steps = [
+	{ number: 1, label: "Setup", active: false },
+	{ number: 2, label: "Schedule", active: false },
+	{ number: 3, label: "Review", active: false },
+	{ number: 4, label: "Info", active: false },
+	{ number: 5, label: "Sign", active: false },
+	{ number: 6, label: "Pay", active: false },
+	{ number: 7, label: "Done", active: true },
+];
+
+// Dummy service data
+const services = [
+	{ id: 1, title: "2×12-Week Personal Training", credits: 24, price: 1200 },
+	{ id: 2, title: "2×24-Week Personal Training", credits: 48, price: 2200 },
+	{ id: 3, title: "Class A", schedule: "Mon/Wed/Fri 7:00 PM", price: 800 },
+	{ id: 4, title: "Class B", schedule: "Tue 8:00 AM", price: 600 },
+];
+
+export default function DoneScreen() {
+	const navigation = useNavigation();
+	const params = useLocalSearchParams<{
+		serviceId?: string;
+		categoryId?: string;
+		coachId?: string;
+		date?: string;
+		time?: string;
+		preferredTimes?: string;
+		remark?: string;
+		signature?: string;
+	}>();
+
+	const serviceId = params.serviceId
+		? Number.parseInt(params.serviceId, 10)
+		: null;
+	const categoryId = params.categoryId
+		? Number.parseInt(params.categoryId, 10)
+		: null;
+
+	const currentStep = 7;
+	const totalSteps = 7;
+	const _progressPercentage = 100;
+
+	const selectedService = services.find((s) => s.id === serviceId);
+
+	useFocusEffect(
+		useCallback(() => {
+			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
+				if (depth > 5) return null;
+				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
+				if (!parent) return null;
+				try {
+					const state = (
+						parent as {
+							getState?: () => {
+								type?: string;
+								routes?: Array<{ name?: string }>;
+							};
+						}
+					)?.getState?.();
+					if (
+						state?.type === "tab" ||
+						state?.routes?.some(
+							(r) =>
+								r.name === "index" ||
+								r.name === "calendar" ||
+								r.name === "notifications" ||
+								r.name === "profile",
+						)
+					) {
+						return parent;
+					}
+				} catch {
+					// Continue searching
+				}
+				return findTabsNavigator(parent, depth + 1);
+			};
+
+			const tabsNavigator = findTabsNavigator(navigation);
+			if (tabsNavigator) {
+				(
+					tabsNavigator as {
+						setOptions?: (options: {
+							tabBarStyle: { display: string };
+						}) => void;
+					}
+				)?.setOptions?.({ tabBarStyle: { display: "none" } });
+			}
+		}, [navigation]),
+	);
+
+	const subtotal = selectedService?.price || 0;
+	const tax = subtotal * 0.1; // 10% tax
+	const total = subtotal + tax;
+
+	// Parse preferredTimes from params
+	const preferredTimes = params.preferredTimes
+		? (JSON.parse(params.preferredTimes) as Array<{
+				day: string;
+				time: string;
+			}>)
+		: [];
+
+	// Get remark from params
+	const remark = params.remark || "";
+
+	return (
+		<Container>
+			<ScrollView className="flex-1 bg-white">
+				{/* Header */}
+				<View className="px-4 pt-4 pb-2">
+					<View className="mb-4 flex-row items-center">
+						<TouchableOpacity
+							onPress={() => router.replace("/dashboard" as never)}
+							className="mr-3 h-10 w-10 items-center justify-center"
+						>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</TouchableOpacity>
+						<Text className="flex-1 font-bold text-2xl text-black">
+							Purchase Complete
+						</Text>
+					</View>
+				</View>
+
+				{/* Header Image */}
+				<View className="relative mx-4 mb-4 h-64 w-full overflow-hidden rounded-2xl">
+					<Image
+						source={{
+							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
+						}}
+						className="h-full w-full"
+						resizeMode="cover"
+					/>
+				</View>
+
+				<View className="px-4 pb-6">
+					{/* Progress Indicator */}
+					<View className="mb-6">
+						<View className="mb-2 flex-row items-center justify-between">
+							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+								Step {currentStep} of {totalSteps}
+							</Text>
+							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+								100%
+							</Text>
+						</View>
+
+						{/* Progress Bar */}
+						<View
+							className="mb-4 h-1 rounded-full"
+							style={{ backgroundColor: colors.secondary[3] }}
+						>
+							<View
+								className="h-full rounded-full"
+								style={{
+									width: "100%",
+									backgroundColor: "#2563EB",
+								}}
+							/>
+						</View>
+
+						{/* Step Navigation */}
+						<View className="relative" style={{ height: 50 }}>
+							<View
+								className="absolute h-px"
+								style={{
+									left: "10%",
+									right: "10%",
+									top: "27%",
+									backgroundColor: colors.secondary[3],
+									zIndex: 0,
+								}}
+							/>
+							<View className="absolute inset-0 flex-row items-center justify-between">
+								{steps.map((step) => {
+									return (
+										<View
+											key={step.number}
+											className="items-center justify-center"
+											style={{ flex: 1, zIndex: 1 }}
+										>
+											<View className="mb-1 items-center justify-center">
+												<View
+													className="h-5 w-5 items-center justify-center rounded-full"
+													style={{
+														backgroundColor: "#2563EB",
+														zIndex: 2,
+													}}
+												>
+													<Ionicons
+														name="checkmark"
+														size={12}
+														color={colors.primary[2]}
+													/>
+												</View>
+											</View>
+											<Text
+												className="mt-1 text-center font-bold text-xs"
+												style={{
+													color: "#2563EB",
+												}}
+											>
+												{step.label}
+											</Text>
+										</View>
+									);
+								})}
+							</View>
+						</View>
+					</View>
+
+					{/* Success Section */}
+					<View className="mb-4 items-center">
+						<View
+							className="mb-4 h-20 w-20 items-center justify-center rounded-full"
+							style={{ backgroundColor: "#10B981" }}
+						>
+							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
+						</View>
+
+						<Text
+							className="mb-2 text-center font-bold text-2xl"
+							style={{ color: colors.primary[1] }}
+						>
+							Package Purchased!
+						</Text>
+
+						<Text
+							className="mb-6 text-center text-base"
+							style={{ color: colors.secondary[1] }}
+						>
+							Your package has been successfully purchased. You'll receive a
+							confirmation email shortly.
+						</Text>
+
+						{/* Package Summary Card */}
+						<View className="w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+							<Text
+								className="mb-4 font-bold text-sm uppercase tracking-wide"
+								style={{ color: colors.primary[1] }}
+							>
+								Package Details
+							</Text>
+
+							<View className="mb-3">
+								<Text
+									className="mb-1 text-xs"
+									style={{ color: colors.secondary[1] }}
+								>
+									Package
+								</Text>
+								<Text
+									className="font-semibold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{selectedService?.title || "Not selected"}
+								</Text>
+								{selectedService && "credits" in selectedService && (
+									<Text
+										className="mt-1 text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										{selectedService.credits} credits included
+									</Text>
+								)}
+							</View>
+
+							{categoryId === SERVICE_CATEGORY.PRIVATE &&
+								preferredTimes.length > 0 && (
+									<View className="mb-3">
+										<Text
+											className="mb-1 text-xs"
+											style={{ color: colors.secondary[1] }}
+										>
+											Preferred Times
+										</Text>
+										{preferredTimes.map((pt) => (
+											<Text
+												key={`${pt.day}-${pt.time}`}
+												className="mb-1 font-semibold text-base"
+												style={{ color: colors.primary[1] }}
+											>
+												{pt.day} at {pt.time}
+											</Text>
+										))}
+									</View>
+								)}
+
+							{remark && (
+								<View className="mb-3">
+									<Text
+										className="mb-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Remark
+									</Text>
+									<Text
+										className="text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{remark}
+									</Text>
+								</View>
+							)}
+
+							<View className="border-gray-200 border-t pt-3">
+								<Text
+									className="mb-1 text-xs"
+									style={{ color: colors.secondary[1] }}
+								>
+									Total Paid
+								</Text>
+								<Text
+									className="font-bold text-lg"
+									style={{ color: colors.primary[1] }}
+								>
+									${total.toFixed(2)}
+								</Text>
+							</View>
+						</View>
+					</View>
+				</View>
+			</ScrollView>
+
+			{/* Action Buttons */}
+			<SafeAreaView
+				edges={["bottom"]}
+				className="border-gray-200 border-t bg-white"
+			>
+				<View className="px-4 py-4">
+					<TouchableOpacity
+						onPress={() => router.replace("/dashboard" as never)}
+						className="mb-3 items-center justify-center rounded-xl bg-blue-600 py-4"
+						style={{ backgroundColor: "#2563EB" }}
+					>
+						<Text className="font-semibold text-base text-white">
+							Back to Home
+						</Text>
+					</TouchableOpacity>
+
+					<TouchableOpacity
+						onPress={() => router.push("/dashboard/bookings" as never)}
+						className="items-center justify-center rounded-xl border border-gray-200 bg-white py-4"
+					>
+						<Text
+							className="font-semibold text-base"
+							style={{ color: colors.primary[1] }}
+						>
+							View My Packages
+						</Text>
+					</TouchableOpacity>
+				</View>
+			</SafeAreaView>
+		</Container>
+	);
+}

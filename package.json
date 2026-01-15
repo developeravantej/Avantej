@@ -49,7 +49,9 @@
     "@types/node": "^22.13.11"
   },
   "lint-staged": {
-    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": "oxlint"
+    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
   },
   "packageManager": "bun@1.2.22"
 }

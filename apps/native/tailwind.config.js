@@ -1,4 +1,5 @@
 import { hairlineWidth } from "nativewind/theme";
+import { colors } from "./lib/colors";
 
 /** @type {import('tailwindcss').Config} */
 export const darkMode = "class";
@@ -23,10 +24,18 @@ export const theme = {
 			primary: {
 				DEFAULT: "hsl(var(--primary))",
 				foreground: "hsl(var(--primary-foreground))",
+				// Custom primary colors
+				1: colors.primary[1],
+				2: colors.primary[2],
+				3: colors.primary[3],
 			},
 			secondary: {
 				DEFAULT: "hsl(var(--secondary))",
 				foreground: "hsl(var(--secondary-foreground))",
+				// Custom secondary colors
+				1: colors.secondary[1],
+				2: colors.secondary[2],
+				3: colors.secondary[3],
 			},
 			muted: {
 				DEFAULT: "hsl(var(--muted))",
