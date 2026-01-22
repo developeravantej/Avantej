@@ -469,6 +469,12 @@ const TENANT_MIGRATIONS = [
 ] as const;
 
 /**
+ * The latest migration version hash
+ * Used to track which schema version each tenant is on
+ */
+export const LATEST_MIGRATION_VERSION = TENANT_MIGRATIONS[TENANT_MIGRATIONS.length - 1].hash;
+
+/**
  * SQL to create migrations tracking table
  */
 const CREATE_MIGRATIONS_TABLE_SQL = `
@@ -543,11 +549,12 @@ async function markMigrationApplied(
  * Run all tenant migrations on a newly created database
  *
  * @param connectionString - PostgreSQL connection string for the tenant database
+ * @returns The final migration version hash that was applied (or already present)
  * @throws Error if migrations fail
  */
 export async function runTenantMigrations(
   connectionString: string
-): Promise<void> {
+): Promise<string> {
   if (!connectionString) {
     throw new Error("Connection string is required");
   }
@@ -610,6 +617,7 @@ export async function runTenantMigrations(
     }
 
     console.log("All tenant migrations applied successfully");
+    return LATEST_MIGRATION_VERSION;
   } catch (error) {
     console.error("Failed to run tenant migrations:", error);
     throw new Error(

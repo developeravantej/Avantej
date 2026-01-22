@@ -24,7 +24,7 @@ import { tenantMiddleware } from "@/middleware/tenant.middleware";
 import { hierarchyMiddleware } from "@/middleware/hierarchy.middleware";
 import { createTenantProject } from "@/services/neon.service";
 import { encrypt } from "@avantej-core/db";
-import { runTenantMigrations, seedRBACData } from "@avantej-core/db";
+import { runTenantMigrations, seedRBACData, LATEST_MIGRATION_VERSION } from "@avantej-core/db";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -203,6 +203,7 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
           subscriptionId: subscription.id,
           paymentStatus: "active",
           ownerUserId: user.id,
+          schemaVersion: LATEST_MIGRATION_VERSION,
         })
         .returning();
 

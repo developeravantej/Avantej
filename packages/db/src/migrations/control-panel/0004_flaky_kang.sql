@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "schema_version" text DEFAULT '0000';
