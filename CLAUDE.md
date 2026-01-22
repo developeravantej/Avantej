@@ -1,0 +1,120 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Quick Reference
+
+```bash
+# Development
+bun install                    # Install dependencies
+bun dev                        # Start all apps (web:3001, server:3000)
+bun dev:web                    # Web only
+bun dev:server                 # Server only
+
+# Database
+bun db:push                    # Push schema changes
+bun db:studio                  # Open Drizzle Studio
+bun db:generate                # Generate migrations
+bun db:migrate                 # Run migrations
+
+# Quality
+bun check                      # Biome linting
+bun check-types                # TypeScript type checking
+
+# Testing (from apps/server)
+cd apps/server
+bun test                       # All tests
+bun test:unit                  # Unit tests only
+bun test:integration           # Integration tests only
+bun test src/path/to/file.test.ts  # Single test file
+```
+
+## Architecture Overview
+
+This is a **multi-tenant SaaS platform** built as a Turborepo monorepo with three apps and five shared packages.
+
+### Multi-Tenant Database Architecture
+
+The platform uses **database-per-tenant isolation** via Neon PostgreSQL branches:
+
+1. **Control Panel Database** (`controlPanelDb`): Shared database storing users, authentication, organizations metadata, and subscriptions
+2. **Tenant Databases** (`tenantDb`): Isolated Neon branches per organization containing business data (members, hierarchy, services, appointments, etc.)
+
+The `dbMiddleware` creates request-scoped connection pools for Cloudflare Workers compatibility. Tenant database connections are established by `tenant.middleware.ts` or `orpc-tenant.middleware.ts` based on the `organizationId`.
+
+### Request Context Flow
+
+```
+Request → dbMiddleware → tenantMiddleware/orpcTenantMiddleware → createContext
+                ↓                      ↓                              ↓
+         controlPanelDb          tenantDb + member           session + accessibleNodeIds
+```
+
+Key context properties:
+- `session`: Better-Auth session with user info
+- `organizationId`: Current tenant ID
+- `tenantDb`: Drizzle client for tenant database
+- `member`: User's member record in the organization
+- `accessibleNodeIds`: Hierarchy nodes the member can access (RBAC)
+
+### Package Responsibilities
+
+| Package | Purpose |
+|---------|---------|
+| `@avantej-core/api` | oRPC router definitions, procedures, context creation |
+| `@avantej-core/auth` | Better-Auth configuration |
+| `@avantej-core/db` | Drizzle schemas (control-panel + tenant), migrations |
+| `@avantej-core/services` | Business logic (hierarchy traversal, permissions) |
+| `@avantej-core/types` | Shared TypeScript types |
+
+### API Pattern
+
+The API uses **oRPC** for end-to-end type safety:
+
+```typescript
+// Define procedure in packages/api/src/routers/
+export const myRouter = {
+  myProcedure: protectedProcedure
+    .input(z.object({ ... }))
+    .handler(({ context, input }) => { ... })
+}
+
+// Client calls are fully typed
+const result = await client.myRouter.myProcedure({ ... })
+```
+
+- `publicProcedure`: No auth required
+- `protectedProcedure`: Requires authenticated session
+
+Server-specific procedures (requiring server-only dependencies like Resend) are defined in `apps/server/src/routers/` and merged with shared routers.
+
+### Hierarchy & RBAC
+
+Organizations have a tree-based hierarchy (regions → districts → locations). Members are scoped to hierarchy nodes and can only access data within their scope:
+
+```typescript
+// packages/services/src/hierarchy.ts
+getDescendantNodeIds(tenantDb, hierarchyScopeId) // Returns all accessible node IDs
+```
+
+### Database Schema Organization
+
+- `packages/db/src/schema/control-panel/`: Users, organizations, subscriptions, platform admins
+- `packages/db/src/schema/tenant/`: Members, roles, permissions, hierarchy, services, appointments
+- `packages/db/src/schema/auth.ts`: Better-Auth tables (sessions, accounts, verification)
+
+### Web App Routing
+
+Uses TanStack Router with file-based routing in `apps/web/src/routes/`. Route files generate types in `routeTree.gen.ts`.
+
+## Development Notes
+
+- **Biome** handles formatting (tabs, double quotes) and linting
+- **Pre-commit hooks** run oxlint via Husky
+- Web frontend proxies `/rpc` requests to server on port 3000
+- OpenAPI docs available at `http://localhost:3000/api-reference`
+
+## Test Credentials
+
+- Control Panel: `developer.avantej@gmail.com` / `password123`
+- Tenant DB: `franchisee@gmail.com` / `password123`
