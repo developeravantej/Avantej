@@ -36,3 +36,6 @@ export * from "./preferred-times";
 export * from "./class-slots";
 export * from "./waitlist-entries";
 export * from "./recurrence-rules";
+export * from "./announcements";
+export * from "./expenses";
+export * from "./payment-items";
