@@ -15,6 +15,9 @@
 import { pgTable, uuid, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { services } from "./services";
+import { members } from "./members";
+import { packageInstances } from "./package-instances";
+import { classSlots } from "./class-slots";
 
 export const appointments = pgTable("appointments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -51,6 +54,38 @@ export const appointments = pgTable("appointments", {
 	
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+
+	// ========== NEW FIELDS ==========
+
+	// Booking identifier
+	bookingNumber: text("booking_number").unique(),
+
+	// Client booking (for mobile app - direct client bookings)
+	userId: text("user_id"),
+
+	// Trainer assignment
+	trainerId: uuid("trainer_id")
+		.references(() => members.id, { onDelete: "set null" }),
+
+	// Package usage
+	packageInstanceId: uuid("package_instance_id")
+		.references(() => packageInstances.id, { onDelete: "set null" }),
+	creditsUsed: integer("credits_used").default(1),
+
+	// Location
+	location: text("location"),
+
+	// Cancellation tracking
+	cancelledAt: timestamp("cancelled_at"),
+	cancellationReason: text("cancellation_reason"),
+
+	// Class slot reference
+	classSlotId: uuid("class_slot_id")
+		.references(() => classSlots.id, { onDelete: "set null" }),
+
+	// Description/image
+	description: text("description"),
+	imageUrl: text("image_url"),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
@@ -60,5 +95,11 @@ export const appointments = pgTable("appointments", {
 	recurringParentIdIdx: index("appointments_recurring_idx").on(table.recurringParentId),
 	stripePaymentIntentIdIdx: index("appointments_stripe_payment_idx").on(table.stripePaymentIntentId),
 	startTimeStatusIdx: index("appointments_start_time_status_idx").on(table.startTime, table.status),
+	bookingNumberIdx: index("appointments_booking_number_idx").on(table.bookingNumber),
+	userIdIdx: index("appointments_user_idx").on(table.userId),
+	trainerIdIdx: index("appointments_trainer_idx").on(table.trainerId),
+	packageInstanceIdIdx: index("appointments_package_instance_idx").on(table.packageInstanceId),
+	classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
+	userStatusIdx: index("appointments_user_status_idx").on(table.userId, table.status),
 }));
 
