@@ -25,3 +25,4 @@ export * from "./payments";
 export * from "./partner-stripe-accounts";
 export * from "./payouts";
 export * from "./member-profiles";
+export * from "./service-members";
