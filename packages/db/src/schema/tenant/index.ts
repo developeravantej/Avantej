@@ -27,3 +27,7 @@ export * from "./payouts";
 export * from "./member-profiles";
 export * from "./service-members";
 export * from "./service-category-config";
+export * from "./customer-profiles";
+export * from "./notification-preferences";
+export * from "./notifications";
+export * from "./user-activity-log";
