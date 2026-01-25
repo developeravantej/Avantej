@@ -26,3 +26,4 @@ export * from "./partner-stripe-accounts";
 export * from "./payouts";
 export * from "./member-profiles";
 export * from "./service-members";
+export * from "./service-category-config";
