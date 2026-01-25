@@ -24,4 +24,4 @@ export * from "./commission-splits";
 export * from "./payments";
 export * from "./partner-stripe-accounts";
 export * from "./payouts";
-
+export * from "./member-profiles";
