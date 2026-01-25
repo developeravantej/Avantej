@@ -46,7 +46,23 @@ export const payments = pgTable("payments", {
 	
 	description: text("description"), // Payment description
 	metadata: text("metadata"), // JSON metadata (optional)
-	
+
+	// ========== NEW FIELDS ==========
+
+	// Client reference (for mobile app payments)
+	userId: text("user_id"), // References Control Panel user.id
+
+	// Payment identifier
+	paymentNumber: text("payment_number").unique(),
+
+	// Payment method details
+	paymentMethod: text("payment_method"), // "card" | "apple_pay" | "google_pay" | "cash"
+
+	// Refund tracking
+	refundedAt: timestamp("refunded_at"),
+	refundAmount: integer("refund_amount"),
+	failureReason: text("failure_reason"),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -56,5 +72,8 @@ export const payments = pgTable("payments", {
 	appointmentIdIdx: index("payments_appointment_idx").on(table.appointmentId),
 	statusIdx: index("payments_status_idx").on(table.status),
 	customerStatusIdx: index("payments_customer_status_idx").on(table.customerId, table.status),
+	userIdIdx: index("payments_user_idx").on(table.userId),
+	paymentNumberIdx: index("payments_payment_number_idx").on(table.paymentNumber),
+	paymentMethodIdx: index("payments_payment_method_idx").on(table.paymentMethod),
 }));
 
