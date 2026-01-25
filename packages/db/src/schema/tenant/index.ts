@@ -31,3 +31,5 @@ export * from "./customer-profiles";
 export * from "./notification-preferences";
 export * from "./notifications";
 export * from "./user-activity-log";
+export * from "./package-instances";
+export * from "./preferred-times";
