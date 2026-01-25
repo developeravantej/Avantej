@@ -33,3 +33,6 @@ export * from "./notifications";
 export * from "./user-activity-log";
 export * from "./package-instances";
 export * from "./preferred-times";
+export * from "./class-slots";
+export * from "./waitlist-entries";
+export * from "./recurrence-rules";
