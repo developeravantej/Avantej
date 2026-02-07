@@ -28,6 +28,8 @@ export * from "./member-profiles";
 export * from "./service-members";
 export * from "./service-category-config";
 export * from "./customer-profiles";
+export * from "./ghl-contact-links";
+export * from "./ghl-sync-events";
 export * from "./notification-preferences";
 export * from "./notifications";
 export * from "./user-activity-log";

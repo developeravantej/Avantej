@@ -7,7 +7,15 @@
  * userId references Control Panel user.id (no FK due to cross-database).
  */
 
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	boolean,
+	index,
+	integer,
+	pgTable,
+	text,
+	timestamp,
+	uuid,
+} from "drizzle-orm/pg-core";
 
 export const customerProfiles = pgTable("customer_profiles", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -33,9 +41,15 @@ export const customerProfiles = pgTable("customer_profiles", {
 	// Staff notes
 	notes: text("notes"),
 
+	// Soft-delete support for external sync integrations
+	isDeleted: boolean("is_deleted").default(false).notNull(),
+	deletedAt: timestamp("deleted_at"),
+	deletedSource: text("deleted_source"),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
 	userIdIdx: index("customer_profiles_user_idx").on(table.userId),
 	creditPointsIdx: index("customer_profiles_credits_idx").on(table.creditPoints),
+	isDeletedIdx: index("customer_profiles_is_deleted_idx").on(table.isDeleted),
 }));

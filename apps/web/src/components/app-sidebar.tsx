@@ -229,6 +229,11 @@ export const SIDEBAR_DATA = {
       icon: BookUser,
     },
     {
+      name: 'GHL Integration',
+      url: '/go-highlevel-integration',
+      icon: Map,
+    },
+    {
       name: 'Branches',
       url: '#',
       icon: Store,
@@ -449,7 +454,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   );
 }
-
 
 
 

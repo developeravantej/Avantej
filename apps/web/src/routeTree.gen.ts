@@ -18,6 +18,7 @@ import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedGoHighlevelIntegrationRouteImport } from './routes/_authenticated/go-highlevel-integration'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticated/user/view'
 import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
@@ -77,6 +78,12 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedGoHighlevelIntegrationRoute =
+  AuthenticatedGoHighlevelIntegrationRouteImport.update({
+    id: '/go-highlevel-integration',
+    path: '/go-highlevel-integration',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
@@ -195,6 +203,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -219,6 +228,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
+  '/_authenticated/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/appointment/view': typeof AuthenticatedAppointmentViewRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/customers'
+    | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
     | '/dashboard'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/customers'
+    | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
     | '/dashboard'
@@ -291,6 +303,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/_authenticated/customers'
+    | '/_authenticated/go-highlevel-integration'
     | '/_authenticated/onboarding'
     | '/_authenticated/appointment/view'
     | '/_authenticated/dashboard'
@@ -374,6 +387,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/go-highlevel-integration': {
+      id: '/_authenticated/go-highlevel-integration'
+      path: '/go-highlevel-integration'
+      fullPath: '/go-highlevel-integration'
+      preLoaderRoute: typeof AuthenticatedGoHighlevelIntegrationRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/customers': {
@@ -540,6 +560,7 @@ const AuthenticatedDashboardRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
+  AuthenticatedGoHighlevelIntegrationRoute: typeof AuthenticatedGoHighlevelIntegrationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedAppointmentViewRoute: typeof AuthenticatedAppointmentViewRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
@@ -550,6 +571,8 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
+  AuthenticatedGoHighlevelIntegrationRoute:
+    AuthenticatedGoHighlevelIntegrationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedAppointmentViewRoute: AuthenticatedAppointmentViewRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
