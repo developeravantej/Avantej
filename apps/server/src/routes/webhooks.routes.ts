@@ -190,9 +190,7 @@ webhookRoutes.post("/stripe", async (c) => {
 
 			case "invoice.payment_succeeded": {
 				const invoice = event.data.object as Stripe.Invoice;
-				console.log(
-					`Invoice payment succeeded: ${invoice.id} (subscription: ${invoice.subscription})`
-				);
+				console.log(`Invoice payment succeeded: ${invoice.id}`);
 				// Payment succeeded - ensure organization payment status is active
 				// This is handled by checkout.session.completed, but can be used
 				// to update payment status for recurring invoices
@@ -201,9 +199,7 @@ webhookRoutes.post("/stripe", async (c) => {
 
 			case "invoice.payment_failed": {
 				const invoice = event.data.object as Stripe.Invoice;
-				console.log(
-					`Invoice payment failed: ${invoice.id} (subscription: ${invoice.subscription})`
-				);
+				console.log(`Invoice payment failed: ${invoice.id}`);
 				// TODO: Handle payment failure
 				// Could suspend organization or send notification
 				break;
@@ -351,7 +347,12 @@ webhookRoutes.post("/gohighlevel/locations", authMiddleware, async (c) => {
 			return c.json({ error: "No active organization access" }, 403);
 		}
 
-		const organizationId = body.organizationId || organizationIds[0];
+		const defaultOrganizationId = organizationIds[0];
+		if (!defaultOrganizationId) {
+			return c.json({ error: "No active organization access" }, 403);
+		}
+
+		const organizationId = body.organizationId || defaultOrganizationId;
 		if (!organizationIds.includes(organizationId)) {
 			return c.json({ error: "Forbidden organization" }, 403);
 		}
