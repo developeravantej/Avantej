@@ -211,41 +211,69 @@ function stableStringify(value: unknown): string {
 	return JSON.stringify(stableSortValue(value));
 }
 
-async function verifyOptionalSignature(args: {
+function isSecretMatch(expectedSecret: string, provided: string | undefined): boolean {
+	if (!provided) {
+		return false;
+	}
+	return provided.trim() === expectedSecret;
+}
+
+export async function verifyGhlWebhookAuth(args: {
 	rawBody: string;
 	signature: string | undefined;
+	authorization: string | undefined;
+	headerSecret: string | undefined;
+	querySecret: string | undefined;
 	webhookSecret: string | null;
 }): Promise<void> {
-	const { rawBody, signature, webhookSecret } = args;
+	const {
+		rawBody,
+		signature,
+		authorization,
+		headerSecret,
+		querySecret,
+		webhookSecret,
+	} = args;
 	if (!webhookSecret) {
 		return;
 	}
-	if (!signature) {
-		throw new GhlWebhookError(
-			"Missing x-wh-signature header for configured location",
-			401,
-			"missing_signature"
-		);
+
+	if (signature) {
+		const normalizedHeader = signature.replace(/^sha256=/i, "");
+		const expectedHex = createHash("sha256")
+			.update(`${webhookSecret}.${rawBody}`)
+			.digest("hex");
+		const expectedHexDirect = createHash("sha256")
+			.update(rawBody + webhookSecret)
+			.digest("hex");
+		const expectedBase64 = createHash("sha256")
+			.update(rawBody + webhookSecret)
+			.digest("base64");
+
+		const signatureMatches =
+			normalizedHeader === expectedHex ||
+			normalizedHeader === expectedHexDirect ||
+			normalizedHeader === expectedBase64;
+		if (!signatureMatches) {
+			throw new GhlWebhookError("Invalid webhook signature", 401, "invalid_signature");
+		}
+		return;
 	}
 
-	const normalizedHeader = signature.replace(/^sha256=/i, "");
-	const expectedHex = createHash("sha256")
-		.update(`${webhookSecret}.${rawBody}`)
-		.digest("hex");
-	const expectedHexDirect = createHash("sha256")
-		.update(rawBody + webhookSecret)
-		.digest("hex");
-	const expectedBase64 = createHash("sha256")
-		.update(rawBody + webhookSecret)
-		.digest("base64");
+	const bearerToken = authorization?.startsWith("Bearer ")
+		? authorization.slice("Bearer ".length).trim()
+		: undefined;
+	const hasValidSharedSecret =
+		isSecretMatch(webhookSecret, bearerToken) ||
+		isSecretMatch(webhookSecret, headerSecret) ||
+		isSecretMatch(webhookSecret, querySecret);
 
-	const matches =
-		normalizedHeader === expectedHex ||
-		normalizedHeader === expectedHexDirect ||
-		normalizedHeader === expectedBase64;
-
-	if (!matches) {
-		throw new GhlWebhookError("Invalid webhook signature", 401, "invalid_signature");
+	if (!hasValidSharedSecret) {
+		throw new GhlWebhookError(
+			"Missing or invalid webhook authorization",
+			401,
+			"missing_webhook_auth"
+		);
 	}
 }
 
@@ -254,6 +282,9 @@ type ProcessGhlWebhookArgs = {
 	locationId: string;
 	rawBody: string;
 	signature?: string;
+	authorization?: string;
+	headerSecret?: string;
+	querySecret?: string;
 	payload: AnyRecord;
 };
 
@@ -264,7 +295,8 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 	eventKey: string;
 	message: string;
 }> {
-	const { c, locationId, rawBody, signature, payload } = args;
+	const { c, locationId, rawBody, signature, authorization, headerSecret, querySecret, payload } =
+		args;
 	const controlPanelDb = getControlPanelDb(c);
 
 	const locationLink = await controlPanelDb.query.ghlLocationLinks.findFirst({
@@ -282,9 +314,12 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		);
 	}
 
-	await verifyOptionalSignature({
+	await verifyGhlWebhookAuth({
 		rawBody,
 		signature,
+		authorization,
+		headerSecret,
+		querySecret,
 		webhookSecret: locationLink.webhookSecret ?? null,
 	});
 

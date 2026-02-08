@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import {
 	buildGhlEventKey,
 	detectGhlEventType,
 	extractGhlContactPayload,
+	verifyGhlWebhookAuth,
 } from "./gohighlevel.service";
 
 describe("GoHighLevel Service", () => {
@@ -106,5 +108,46 @@ describe("GoHighLevel Service", () => {
 		expect(keyA).toBe(keyB);
 		expect(keyA.startsWith("loc_1:ghl_abc:update:")).toBe(true);
 	});
-});
 
+	test("accepts bearer token authorization when webhook secret is configured", async () => {
+		await expect(
+			verifyGhlWebhookAuth({
+				rawBody: JSON.stringify({ id: "abc" }),
+				signature: undefined,
+				authorization: "Bearer super-secret",
+				headerSecret: undefined,
+				querySecret: undefined,
+				webhookSecret: "super-secret",
+			})
+		).resolves.toBeUndefined();
+	});
+
+	test("accepts x-wh-signature when webhook secret is configured", async () => {
+		const rawBody = JSON.stringify({ id: "abc" });
+		const signature = createHash("sha256").update(`${"super-secret"}.${rawBody}`).digest("hex");
+
+		await expect(
+			verifyGhlWebhookAuth({
+				rawBody,
+				signature,
+				authorization: undefined,
+				headerSecret: undefined,
+				querySecret: undefined,
+				webhookSecret: "super-secret",
+			})
+		).resolves.toBeUndefined();
+	});
+
+	test("rejects requests missing auth when webhook secret is configured", async () => {
+		await expect(
+			verifyGhlWebhookAuth({
+				rawBody: JSON.stringify({ id: "abc" }),
+				signature: undefined,
+				authorization: undefined,
+				headerSecret: undefined,
+				querySecret: undefined,
+				webhookSecret: "super-secret",
+			})
+		).rejects.toThrow("Missing or invalid webhook authorization");
+	});
+});

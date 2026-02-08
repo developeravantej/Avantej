@@ -51,6 +51,52 @@ function GoHighLevelIntegrationPage() {
 	const [newLocationId, setNewLocationId] = useState("");
 	const [newSecret, setNewSecret] = useState("");
 
+	const formatPayload = (payload: Record<string, unknown> | null) => {
+		if (!payload) {
+			return "-";
+		}
+		try {
+			return JSON.stringify(payload, null, 2);
+		} catch {
+			return String(payload);
+		}
+	};
+
+	const extractCoreFieldsPreview = (
+		event: GhlSyncEvent
+	): { id: string | null; name: string | null; email: string | null; phone: string | null } => {
+		const payload = event.rawPayload ?? {};
+		const asRecord = (v: unknown) =>
+			v && typeof v === "object" && !Array.isArray(v)
+				? (v as Record<string, unknown>)
+				: null;
+		const asText = (v: unknown) =>
+			typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+
+		const contact = asRecord(payload.contact);
+
+		return {
+			id:
+				asText(contact?.id) ||
+				asText((payload as Record<string, unknown>).contactId) ||
+				asText((payload as Record<string, unknown>).contact_id) ||
+				event.ghlContactId ||
+				asText((payload as Record<string, unknown>).id),
+			name:
+				asText(contact?.name) ||
+				asText((payload as Record<string, unknown>).name) ||
+				null,
+			email:
+				asText(contact?.email) ||
+				event.email ||
+				asText((payload as Record<string, unknown>).email),
+			phone:
+				asText(contact?.phone) ||
+				asText((payload as Record<string, unknown>).phone) ||
+				null,
+		};
+	};
+
 	const webhookUrlPreview = useMemo(() => {
 		if (!selectedLocationId) {
 			return `${SERVER_URL}/webhooks/gohighlevel/<locationId>`;
@@ -195,6 +241,10 @@ function GoHighLevelIntegrationPage() {
 					</p>
 					<p>Required fields in payload: <code>contact.id</code> and <code>email</code>.</p>
 					<p>URL locationId is the primary tenant router.</p>
+					<p>
+						Security (recommended): set <code>Authorization: Bearer &lt;webhookSecret&gt;</code> in
+						GHL Custom Webhook and save the same secret here.
+					</p>
 				</CardContent>
 			</Card>
 
@@ -253,6 +303,7 @@ function GoHighLevelIntegrationPage() {
 									<th className="py-2 pr-4">Email</th>
 									<th className="py-2 pr-4">Status</th>
 									<th className="py-2 pr-4">Error</th>
+									<th className="py-2 pr-4">Payload Viewer</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -264,11 +315,38 @@ function GoHighLevelIntegrationPage() {
 										<td className="py-2 pr-4">{event.email || "-"}</td>
 										<td className="py-2 pr-4">{event.status}</td>
 										<td className="py-2 pr-4 text-red-600">{event.errorMessage || "-"}</td>
+										<td className="py-2 pr-4">
+											{event.rawPayload ? (
+												<details>
+													<summary className="cursor-pointer text-blue-600">View Full + Parsed</summary>
+													<div className="mt-2 space-y-3">
+														<div>
+															<div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+																Full Payload (exactly received)
+															</div>
+															<pre className="max-h-64 overflow-auto rounded border bg-muted p-2 text-xs">
+																{formatPayload(event.rawPayload)}
+															</pre>
+														</div>
+														<div>
+															<div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+																Parsed Core Fields (id/name/email/phone)
+															</div>
+															<pre className="max-h-64 overflow-auto rounded border bg-muted p-2 text-xs">
+																{JSON.stringify(extractCoreFieldsPreview(event), null, 2)}
+															</pre>
+														</div>
+													</div>
+												</details>
+											) : (
+												"-"
+											)}
+										</td>
 									</tr>
 								))}
 								{events.length === 0 ? (
 									<tr>
-										<td className="py-3 text-muted-foreground" colSpan={6}>
+										<td className="py-3 text-muted-foreground" colSpan={7}>
 											No events yet.
 										</td>
 									</tr>

@@ -225,65 +225,6 @@ webhookRoutes.post("/stripe", async (c) => {
 });
 
 /**
- * Handle GoHighLevel custom workflow webhooks
- *
- * URL locationId is the primary tenant routing key.
- */
-webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
-	const locationId = c.req.param("locationId");
-	const rawBody = await c.req.text();
-	const signature = c.req.header("x-wh-signature") || undefined;
-
-	let payload: Record<string, unknown>;
-	try {
-		payload = JSON.parse(rawBody) as Record<string, unknown>;
-	} catch {
-		return c.json({ error: "Invalid JSON payload" }, 400);
-	}
-
-	try {
-		const result = await processGhlWebhook({
-			c,
-			locationId,
-			rawBody,
-			signature,
-			payload,
-		});
-
-		return c.json({
-			received: true,
-			locationId,
-			...result,
-		});
-	} catch (error) {
-		const status = (
-			error instanceof GhlWebhookError ? error.status : 500
-		) as 400 | 401 | 403 | 404 | 500;
-		const code =
-			error instanceof GhlWebhookError ? error.code : "internal_error";
-		const message =
-			error instanceof Error ? error.message : "Failed to process GHL webhook";
-
-		await markGhlWebhookFailed({
-			c,
-			locationId,
-			payload,
-			rawBody,
-			errorMessage: message,
-		});
-
-		return c.json(
-			{
-				error: message,
-				code,
-				locationId,
-			},
-			status
-		);
-	}
-});
-
-/**
  * Demo endpoint: list accessible GHL locations for the authenticated user
  */
 webhookRoutes.get("/gohighlevel/locations", authMiddleware, async (c) => {
@@ -397,6 +338,72 @@ webhookRoutes.post("/gohighlevel/locations", authMiddleware, async (c) => {
 						: "Failed to upsert GHL location mapping",
 			},
 			500
+		);
+	}
+});
+
+/**
+ * Handle GoHighLevel custom workflow webhooks
+ *
+ * URL locationId is the primary tenant routing key.
+ */
+webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
+	const locationId = c.req.param("locationId");
+	const rawBody = await c.req.text();
+	const signature = c.req.header("x-wh-signature") || undefined;
+	const authorization = c.req.header("authorization") || undefined;
+	const headerSecret =
+		c.req.header("x-webhook-secret") || c.req.header("x-ghl-webhook-secret") || undefined;
+	const querySecret = c.req.query("token") || c.req.query("secret") || undefined;
+
+	let payload: Record<string, unknown>;
+	try {
+		payload = JSON.parse(rawBody) as Record<string, unknown>;
+	} catch {
+		return c.json({ error: "Invalid JSON payload" }, 400);
+	}
+
+	try {
+		const result = await processGhlWebhook({
+			c,
+			locationId,
+			rawBody,
+			signature,
+			authorization,
+			headerSecret,
+			querySecret,
+			payload,
+		});
+
+		return c.json({
+			received: true,
+			locationId,
+			...result,
+		});
+	} catch (error) {
+		const status = (
+			error instanceof GhlWebhookError ? error.status : 500
+		) as 400 | 401 | 403 | 404 | 500;
+		const code =
+			error instanceof GhlWebhookError ? error.code : "internal_error";
+		const message =
+			error instanceof Error ? error.message : "Failed to process GHL webhook";
+
+		await markGhlWebhookFailed({
+			c,
+			locationId,
+			payload,
+			rawBody,
+			errorMessage: message,
+		});
+
+		return c.json(
+			{
+				error: message,
+				code,
+				locationId,
+			},
+			status
 		);
 	}
 });
