@@ -50,4 +50,91 @@ export {
   markExpiredInvitations,
 } from "./invitation.service";
 
+// Service category services
+export {
+  listServiceCategories,
+  getServiceCategoryById,
+  createServiceCategory,
+  updateServiceCategory,
+  type ListServiceCategoriesParams,
+  type CreateServiceCategoryParams,
+  type UpdateServiceCategoryParams,
+} from "./service-category.service";
+
+// Service services
+export {
+  listServices,
+  getServiceById,
+  createService,
+  updateService,
+  type ListServicesParams,
+  type CreateServiceParams,
+  type UpdateServiceParams,
+} from "./service.service";
+
+// Appointment services
+export {
+  listAppointments,
+  listAppointmentsForUser,
+  getAppointmentById,
+  createAppointment,
+  updateAppointment,
+  type ListAppointmentsParams,
+  type ListAppointmentsForUserParams,
+  type CreateAppointmentParams,
+  type UpdateAppointmentParams,
+} from "./appointment.service";
+
+// Package services
+export {
+  listPackages,
+  getPackageById,
+  type ListPackagesParams,
+} from "./package.service";
+
+// Package instance services
+export {
+  listPackageInstancesForClient,
+  getPackageInstanceById,
+  createPackageInstance,
+  type ListPackageInstancesForClientParams,
+  type CreatePackageInstanceParams,
+} from "./package-instance.service";
+
+// Preferred time services
+export {
+  listPreferredTimes,
+  upsertPreferredTimes,
+  type PreferredTimeInput,
+} from "./preferred-time.service";
+
+// Notification services
+export {
+  listNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+  type ListNotificationsParams,
+} from "./notification.service";
+
+// Notification preference services
+export {
+  getNotificationPreferences,
+  upsertNotificationPreferences,
+  type UpsertNotificationPreferencesParams,
+} from "./notification-preference.service";
+
+// Customer profile services
+export {
+  getCustomerProfile,
+  upsertCustomerProfile,
+  type UpsertCustomerProfileParams,
+} from "./customer-profile.service";
+
+// User activity log services
+export {
+  listUserActivityLog,
+  type ListUserActivityLogParams,
+} from "./user-activity-log.service";
+
 

@@ -23,6 +23,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { decrypt } from "@avantej-core/db";
 import { getBetterAuth } from "@/lib/better-auth";
 import type { Context } from "hono";
 
@@ -77,6 +78,7 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 	c.set("controlPanelPool", controlPanelPool);
 	c.set("controlPanelDb", controlPanelDb);
 	c.set("tenantPools", tenantPools);
+	c.set("decrypt", decrypt);
 	// Store getBetterAuth function reference for use in createContext
 	c.set("getBetterAuth", () => getBetterAuth(c));
 

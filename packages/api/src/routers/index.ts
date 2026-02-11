@@ -4,6 +4,16 @@ import { z } from "zod";
 import { hierarchyRouter } from "./hierarchy";
 import { invitationRouter } from "./invitations";
 import { memberRouter } from "./members";
+import { appointmentsRouter } from "./appointments";
+import { customerProfilesRouter } from "./customer-profiles";
+import { notificationPreferencesRouter } from "./notification-preferences";
+import { notificationsRouter } from "./notifications";
+import { packageInstancesRouter } from "./package-instances";
+import { packagesRouter } from "./packages";
+import { preferredTimesRouter } from "./preferred-times";
+import { serviceCategoriesRouter } from "./service-categories";
+import { servicesRouter } from "./services";
+import { userActivityLogRouter } from "./user-activity-log";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -19,6 +29,16 @@ export const baseRouter = {
 	hierarchy: hierarchyRouter,
 	invitations: invitationRouter,
 	members: memberRouter,
+	serviceCategories: serviceCategoriesRouter,
+	services: servicesRouter,
+	appointments: appointmentsRouter,
+	packages: packagesRouter,
+	packageInstances: packageInstancesRouter,
+	preferredTimes: preferredTimesRouter,
+	notifications: notificationsRouter,
+	notificationPreferences: notificationPreferencesRouter,
+	customerProfiles: customerProfilesRouter,
+	userActivityLog: userActivityLogRouter,
 };
 
 // Auth router type definition for client type inference

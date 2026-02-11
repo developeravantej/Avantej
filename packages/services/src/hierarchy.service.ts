@@ -16,7 +16,7 @@
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { sql, eq, and } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type {
   CreateHierarchyNodeParams,

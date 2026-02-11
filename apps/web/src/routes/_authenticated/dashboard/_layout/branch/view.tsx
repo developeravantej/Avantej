@@ -65,12 +65,17 @@ function RouteComponent() {
     }>
   >([]);
 
-  // Get organizationId from React Query data (single source of truth)
-  const organizationId =
+  // Get organizationId from React Query data (single source of truth).
+  // Only use for API calls when it's a valid UUID (server rejects e.g. mock "org-1").
+  const rawOrgId =
     userContext?.currentOrganizationId ||
     user?.current_organization_id ||
     user?.organizations?.[0]?.id ||
     null;
+  const organizationId =
+    rawOrgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawOrgId)
+      ? rawOrgId
+      : null;
 
   // Computed values for cascading dropdowns
   const countries = useMemo(
@@ -874,6 +879,7 @@ function RouteComponent() {
             </Button>
           </div>
           <p>Organization ID: {organizationId || "None"}</p>
+          <p>Context user email: {userContext?.user?.email ?? "—"}</p>
           <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
           <p>Branch Data Items: {branchData?.items?.length || 0}</p>
           <p>Is Loading Branches: {isLoadingBranches ? "Yes" : "No"}</p>

@@ -34,7 +34,8 @@ export interface UserContextResponse {
   currentOrganizationId: string | null;
 }
 
-// Mock data for development (when API is not available)
+// Mock data for development (when API is not available).
+// currentOrganizationId is null so we never send mock "org-1" to the API (server expects UUID).
 const MOCK_USER_CONTEXT: UserContextResponse = {
   user: {
     id: "mock-user-1",
@@ -87,7 +88,7 @@ const MOCK_USER_CONTEXT: UserContextResponse = {
       },
     },
   ],
-  currentOrganizationId: "org-1",
+  currentOrganizationId: null,
 };
 
 export function useUserContext(enabled = true) {
@@ -129,13 +130,15 @@ export function useUserContext(enabled = true) {
     staleTime: 5 * 60 * 1000, // 5 minutes - data doesn't change often
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 1,
-    // Use localStorage as initial data if available, otherwise use mock data
+    // Use localStorage as initial data if available, otherwise use mock data.
+    // Don't use stored "org-1" as currentOrganizationId (server expects UUID).
     initialData: () => {
       try {
         const storedOrgs = localStorage.getItem("user_organizations");
         const storedOrgId = localStorage.getItem("current_organization_id");
         if (storedOrgs && storedOrgId) {
           const orgs = JSON.parse(storedOrgs);
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storedOrgId);
           return {
             user: {
               id: "",
@@ -147,7 +150,7 @@ export function useUserContext(enabled = true) {
               ...org,
               hierarchy: { nodes: [], member: null },
             })),
-            currentOrganizationId: storedOrgId,
+            currentOrganizationId: isUuid ? storedOrgId : null,
           } as UserContextResponse;
         }
       } catch {

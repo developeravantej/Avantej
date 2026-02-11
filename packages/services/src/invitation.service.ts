@@ -18,7 +18,7 @@
  * ```
  */
 
-import { eq, and, or, lt } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";

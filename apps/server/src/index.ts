@@ -21,6 +21,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+const ALLOWED_ORIGIN = (typeof env !== "undefined" && env?.CORS_ORIGIN) || "http://localhost:3001";
+
 // Combine base router with server-specific routers
 const appRouter = {
 	...baseRouter,
@@ -39,7 +41,7 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN || "http://localhost:3001", // Add fallback for local development
+    origin: ALLOWED_ORIGIN,
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -54,7 +56,21 @@ app.use("/*", dbMiddleware);
 // Must run after dbMiddleware but before createContext
 app.use("/*", orpcTenantMiddleware);
 
-// Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
+// Better-Auth handler for internal auth routes (e.g., /api/auth/get-session, sign-in, sign-up)
+// OPTIONS: respond to CORS preflight so browser allows GET/POST from web origin
+app.on(["OPTIONS"], "/api/auth/*", (_c) => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+      "Access-Control-Allow-Credentials": "true",
+    },
+  });
+});
+
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
@@ -74,7 +90,18 @@ app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 
   // Use request-scoped Better-Auth instance
   const auth = getBetterAuth(c);
-  return auth.handler(newRequest);
+  const response = await auth.handler(newRequest);
+
+  // Ensure CORS headers on auth response (browser requires them for cross-origin requests)
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  newHeaders.set("Access-Control-Allow-Credentials", "true");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
 });
 
 // Custom auth routes following OpenAPI contract

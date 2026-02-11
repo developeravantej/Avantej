@@ -15,6 +15,7 @@
     "build": "tsdown"
   },
   "devDependencies": {
+    "@types/node": "^22.13.11",
     "tsdown": "catalog:"
   },
   "peerDependencies": {
