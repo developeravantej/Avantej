@@ -25,7 +25,10 @@ import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_
 import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
+import { Route as AuthenticatedDashboardLayoutSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/sales/view'
 import { Route as AuthenticatedDashboardLayoutRoleViewRouteImport } from './routes/_authenticated/dashboard/_layout/role/view'
+import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
+import { Route as AuthenticatedDashboardLayoutCancelledSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/cancelled-sales/view'
 import { Route as AuthenticatedDashboardLayoutBranchViewRouteImport } from './routes/_authenticated/dashboard/_layout/branch/view'
 import { Route as AuthenticatedDashboardLayoutBranchCreateRouteImport } from './routes/_authenticated/dashboard/_layout/branch/create'
 import { Route as AuthenticatedDashboardLayoutAppointmentViewRouteImport } from './routes/_authenticated/dashboard/_layout/appointment/view'
@@ -116,10 +119,28 @@ const AuthenticatedDashboardLayoutIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutSalesViewRoute =
+  AuthenticatedDashboardLayoutSalesViewRouteImport.update({
+    id: '/sales/view',
+    path: '/sales/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutRoleViewRoute =
   AuthenticatedDashboardLayoutRoleViewRouteImport.update({
     id: '/role/view',
     path: '/role/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPaymentViewRoute =
+  AuthenticatedDashboardLayoutPaymentViewRouteImport.update({
+    id: '/payment/view',
+    path: '/payment/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutCancelledSalesViewRoute =
+  AuthenticatedDashboardLayoutCancelledSalesViewRouteImport.update({
+    id: '/cancelled-sales/view',
+    path: '/cancelled-sales/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutBranchViewRoute =
@@ -186,7 +207,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/appointment/view': typeof AuthenticatedDashboardLayoutAppointmentViewRoute
   '/dashboard/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
   '/dashboard/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
+  '/dashboard/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
+  '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -208,7 +232,10 @@ export interface FileRoutesByTo {
   '/dashboard/appointment/view': typeof AuthenticatedDashboardLayoutAppointmentViewRoute
   '/dashboard/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
   '/dashboard/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
+  '/dashboard/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
+  '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -234,7 +261,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/appointment/view': typeof AuthenticatedDashboardLayoutAppointmentViewRoute
   '/_authenticated/dashboard/_layout/branch/create': typeof AuthenticatedDashboardLayoutBranchCreateRoute
   '/_authenticated/dashboard/_layout/branch/view': typeof AuthenticatedDashboardLayoutBranchViewRoute
+  '/_authenticated/dashboard/_layout/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
+  '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/_authenticated/dashboard/_layout/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/_authenticated/dashboard/_layout/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -259,7 +289,10 @@ export interface FileRouteTypes {
     | '/dashboard/appointment/view'
     | '/dashboard/branch/create'
     | '/dashboard/branch/view'
+    | '/dashboard/cancelled-sales/view'
+    | '/dashboard/payment/view'
     | '/dashboard/role/view'
+    | '/dashboard/sales/view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -281,7 +314,10 @@ export interface FileRouteTypes {
     | '/dashboard/appointment/view'
     | '/dashboard/branch/create'
     | '/dashboard/branch/view'
+    | '/dashboard/cancelled-sales/view'
+    | '/dashboard/payment/view'
     | '/dashboard/role/view'
+    | '/dashboard/sales/view'
   id:
     | '__root__'
     | '/'
@@ -306,7 +342,10 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/appointment/view'
     | '/_authenticated/dashboard/_layout/branch/create'
     | '/_authenticated/dashboard/_layout/branch/view'
+    | '/_authenticated/dashboard/_layout/cancelled-sales/view'
+    | '/_authenticated/dashboard/_layout/payment/view'
     | '/_authenticated/dashboard/_layout/role/view'
+    | '/_authenticated/dashboard/_layout/sales/view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -425,11 +464,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/sales/view': {
+      id: '/_authenticated/dashboard/_layout/sales/view'
+      path: '/sales/view'
+      fullPath: '/dashboard/sales/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSalesViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/role/view': {
       id: '/_authenticated/dashboard/_layout/role/view'
       path: '/role/view'
       fullPath: '/dashboard/role/view'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutRoleViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/payment/view': {
+      id: '/_authenticated/dashboard/_layout/payment/view'
+      path: '/payment/view'
+      fullPath: '/dashboard/payment/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPaymentViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/cancelled-sales/view': {
+      id: '/_authenticated/dashboard/_layout/cancelled-sales/view'
+      path: '/cancelled-sales/view'
+      fullPath: '/dashboard/cancelled-sales/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutCancelledSalesViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/branch/view': {
@@ -493,7 +553,10 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutAppointmentViewRoute: typeof AuthenticatedDashboardLayoutAppointmentViewRoute
   AuthenticatedDashboardLayoutBranchCreateRoute: typeof AuthenticatedDashboardLayoutBranchCreateRoute
   AuthenticatedDashboardLayoutBranchViewRoute: typeof AuthenticatedDashboardLayoutBranchViewRoute
+  AuthenticatedDashboardLayoutCancelledSalesViewRoute: typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
+  AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
   AuthenticatedDashboardLayoutRoleViewRoute: typeof AuthenticatedDashboardLayoutRoleViewRoute
+  AuthenticatedDashboardLayoutSalesViewRoute: typeof AuthenticatedDashboardLayoutSalesViewRoute
 }
 
 const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRouteChildren =
@@ -514,8 +577,14 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutBranchCreateRoute,
     AuthenticatedDashboardLayoutBranchViewRoute:
       AuthenticatedDashboardLayoutBranchViewRoute,
+    AuthenticatedDashboardLayoutCancelledSalesViewRoute:
+      AuthenticatedDashboardLayoutCancelledSalesViewRoute,
+    AuthenticatedDashboardLayoutPaymentViewRoute:
+      AuthenticatedDashboardLayoutPaymentViewRoute,
     AuthenticatedDashboardLayoutRoleViewRoute:
       AuthenticatedDashboardLayoutRoleViewRoute,
+    AuthenticatedDashboardLayoutSalesViewRoute:
+      AuthenticatedDashboardLayoutSalesViewRoute,
   }
 
 const AuthenticatedDashboardLayoutRouteWithChildren =
