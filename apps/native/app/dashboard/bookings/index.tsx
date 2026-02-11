@@ -71,6 +71,46 @@ export default function BookingsScreen() {
 				</View> */}
 
 				<View className="px-4 pt-4">
+					{/* Header Section */}
+					<View className="mb-6">
+						<Text
+							className="mb-2 font-bold text-2xl"
+							style={{ color: colors.primary[1] }}
+						>
+							My Bookings
+						</Text>
+						<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							View and manage your upcoming and past sessions
+						</Text>
+					</View>
+
+					{/* Quick Link to Packages */}
+					<TouchableOpacity
+						onPress={() => router.push("/dashboard/packages" as never)}
+						className="mb-6 flex-row items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 p-4"
+					>
+						<View className="flex-1 flex-row items-center">
+							<View className="mr-3 h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
+								<Ionicons name="cube-outline" size={24} color="#2563EB" />
+							</View>
+							<View className="flex-1">
+								<Text
+									className="font-semibold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									View My Packages & Credits
+								</Text>
+								<Text
+									className="mt-1 text-xs"
+									style={{ color: colors.secondary[1] }}
+								>
+									Manage your purchased packages
+								</Text>
+							</View>
+						</View>
+						<Ionicons name="chevron-forward" size={20} color="#2563EB" />
+					</TouchableOpacity>
+
 					{/* UPCOMING Section */}
 					<Text
 						className="mb-4 font-bold text-sm uppercase tracking-wide"

@@ -83,14 +83,86 @@ const allBookings = [
 	},
 ];
 
+// Dummy data for packages/credits
+const packages = [
+	{
+		id: 101,
+		packageName: "2×12-Week Personal Training",
+		totalCredits: 24,
+		remainingCredits: 18,
+		purchaseDate: "March 1, 2024",
+		status: "active" as const,
+		price: 1200,
+		category: "Private",
+		packageId: "PKG-2024-001",
+		imageUrl:
+			"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop",
+		description:
+			"24 credits - 12 weeks of personalized training, 2 sessions per week. Includes personalized workout plans and progress tracking.",
+		expiryDate: "June 1, 2024",
+	},
+	{
+		id: 102,
+		packageName: "4-Week Nutrition Plan",
+		totalCredits: 8,
+		remainingCredits: 8,
+		purchaseDate: "March 10, 2024",
+		status: "pending process" as const,
+		price: 299,
+		category: "Nutrition",
+		packageId: "PKG-2024-002",
+		imageUrl:
+			"https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=300&fit=crop",
+		description:
+			"Personalized meal plan with weekly consultations. Includes nutrition guidance and meal planning support.",
+		expiryDate: "April 10, 2024",
+	},
+	{
+		id: 103,
+		packageName: "Monthly Recovery Package",
+		totalCredits: 8,
+		remainingCredits: 3,
+		purchaseDate: "February 15, 2024",
+		status: "active" as const,
+		price: 199,
+		category: "Recovery",
+		packageId: "PKG-2024-003",
+		imageUrl:
+			"https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=300&fit=crop",
+		description:
+			"4 sessions of massage or stretching per month. Enhance your performance and well-being with professional recovery services.",
+		expiryDate: "March 15, 2024",
+	},
+	{
+		id: 104,
+		packageName: "3-Month Online Program",
+		totalCredits: 36,
+		remainingCredits: 36,
+		purchaseDate: "March 12, 2024",
+		status: "pending process" as const,
+		price: 499,
+		category: "Online",
+		packageId: "PKG-2024-004",
+		imageUrl:
+			"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop",
+		description:
+			"3 months of virtual training with weekly check-ins. Includes live sessions and on-demand workouts.",
+		expiryDate: "June 12, 2024",
+	},
+];
+
 export default function BookingDetailScreen() {
 	const navigation = useNavigation();
 	const hideTabBarRef = useRef(false);
 	const params = useLocalSearchParams<{ id: string }>();
-	const bookingId = params.id ? Number.parseInt(params.id, 10) : null;
-	const booking = bookingId
-		? allBookings.find((b) => b.id === bookingId)
-		: null;
+	const itemId = params.id ? Number.parseInt(params.id, 10) : null;
+
+	// Check if it's a package (id >= 100) or a booking
+	const isPackage = itemId !== null && itemId >= 100;
+	const booking =
+		!isPackage && itemId ? allBookings.find((b) => b.id === itemId) : null;
+	const pkg =
+		isPackage && itemId ? packages.find((p) => p.id === itemId) : null;
 
 	// Helper function to find Tabs navigator
 	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
@@ -194,7 +266,7 @@ export default function BookingDetailScreen() {
 		};
 	}, [hideTabBar, showTabBar]);
 
-	if (!booking) {
+	if (!booking && !pkg) {
 		return (
 			<Container>
 				<View className="flex-1 items-center justify-center p-6">
@@ -202,7 +274,7 @@ export default function BookingDetailScreen() {
 						className="mb-2 font-bold text-xl"
 						style={{ color: colors.primary[1] }}
 					>
-						Booking not found
+						{isPackage ? "Package" : "Booking"} not found
 					</Text>
 					<TouchableOpacity
 						onPress={() => router.back()}
@@ -216,6 +288,277 @@ export default function BookingDetailScreen() {
 		);
 	}
 
+	// Handle package display
+	if (pkg) {
+		const isActive = pkg.status === "active";
+		const isPending = pkg.status === "pending process";
+
+		return (
+			<Container>
+				<ScrollView
+					className="flex-1 bg-secondary-3"
+					contentContainerStyle={{ paddingBottom: 8 }}
+					showsVerticalScrollIndicator={false}
+				>
+					{/* Header with Back Button */}
+					<View className="px-4 pt-4 pb-2">
+						<TouchableOpacity
+							onPress={() => router.back()}
+							className="mb-4 flex-row items-center"
+						>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</TouchableOpacity>
+					</View>
+
+					{/* Package Image */}
+					<View className="mb-4 px-4">
+						<Image
+							source={{ uri: pkg.imageUrl }}
+							className="h-64 w-full rounded-2xl"
+							resizeMode="cover"
+						/>
+					</View>
+
+					<View className="px-4 pb-6">
+						{/* Package Title and Status */}
+						<View className="mb-4 flex-row items-start justify-between">
+							<View className="mr-4 flex-1">
+								<Text
+									className="mb-2 font-bold text-2xl"
+									style={{ color: colors.primary[1] }}
+								>
+									{pkg.packageName}
+								</Text>
+								<Text
+									className="mb-1 text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Package ID: {pkg.packageId}
+								</Text>
+							</View>
+							<View
+								className="rounded-full px-3 py-1"
+								style={{
+									backgroundColor: isActive ? "#DCFCE7" : "#FEF3C7",
+								}}
+							>
+								<Text
+									className="font-semibold text-xs"
+									style={{
+										color: isActive ? "#16A34A" : "#D97706",
+									}}
+								>
+									{isActive ? "Active" : "Pending"}
+								</Text>
+							</View>
+						</View>
+
+						{/* Package Info Cards */}
+						<View className="mb-4 flex-row">
+							<View className="mr-2 flex-1 rounded-xl bg-white p-3">
+								<View className="mb-1 flex-row items-center">
+									<Ionicons
+										name="cube-outline"
+										size={16}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Category
+									</Text>
+								</View>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{pkg.category}
+								</Text>
+							</View>
+							<View className="ml-2 flex-1 rounded-xl bg-white p-3">
+								<View className="mb-1 flex-row items-center">
+									<Ionicons
+										name="star-outline"
+										size={16}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Total Credits
+									</Text>
+								</View>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{pkg.totalCredits}
+								</Text>
+							</View>
+						</View>
+
+						<View className="mb-4 flex-row">
+							<View className="mr-2 flex-1 rounded-xl bg-white p-3">
+								<View className="mb-1 flex-row items-center">
+									<Ionicons
+										name="calendar-outline"
+										size={16}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Purchase Date
+									</Text>
+								</View>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{pkg.purchaseDate}
+								</Text>
+							</View>
+							<View className="ml-2 flex-1 rounded-xl bg-white p-3">
+								<View className="mb-1 flex-row items-center">
+									<Ionicons
+										name="cash-outline"
+										size={16}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Price
+									</Text>
+								</View>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									${pkg.price.toFixed(2)}
+								</Text>
+							</View>
+						</View>
+
+						{/* Credits Status Card */}
+						{isActive && (
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<View className="mb-3 flex-row items-center justify-between">
+									<Text
+										className="font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										Credits Status
+									</Text>
+									<Text
+										className="font-bold text-base"
+										style={{ color: "#2563EB" }}
+									>
+										{pkg.remainingCredits} / {pkg.totalCredits} remaining
+									</Text>
+								</View>
+								<View className="mb-2">
+									<View className="mb-1 flex-row items-center justify-between">
+										<Text
+											className="text-xs"
+											style={{ color: colors.secondary[1] }}
+										>
+											Credits Used
+										</Text>
+										<Text
+											className="font-semibold text-xs"
+											style={{ color: colors.primary[1] }}
+										>
+											{pkg.totalCredits - pkg.remainingCredits} /{" "}
+											{pkg.totalCredits}
+										</Text>
+									</View>
+									<View
+										className="h-3 rounded-full"
+										style={{ backgroundColor: colors.secondary[3] }}
+									>
+										<View
+											className="h-full rounded-full"
+											style={{
+												width: `${
+													((pkg.totalCredits - pkg.remainingCredits) /
+														pkg.totalCredits) *
+													100
+												}%`,
+												backgroundColor: "#2563EB",
+											}}
+										/>
+									</View>
+								</View>
+								<Text
+									className="mt-2 text-xs"
+									style={{ color: colors.secondary[1] }}
+								>
+									Expires: {pkg.expiryDate}
+								</Text>
+							</View>
+						)}
+
+						{/* Pending Status Message */}
+						{isPending && (
+							<View
+								className="mb-4 rounded-xl p-4"
+								style={{ backgroundColor: "#FEF3C7" }}
+							>
+								<View className="flex-row items-start">
+									<Ionicons
+										name="time-outline"
+										size={20}
+										color="#D97706"
+										style={{ marginTop: 2 }}
+									/>
+									<View className="ml-3 flex-1">
+										<Text
+											className="mb-1 font-semibold text-sm"
+											style={{ color: "#D97706" }}
+										>
+											Processing Your Package
+										</Text>
+										<Text
+											className="text-xs leading-5"
+											style={{ color: "#D97706" }}
+										>
+											Your package is being processed. Credits will be available
+											soon. You'll receive a notification once it's activated.
+										</Text>
+									</View>
+								</View>
+							</View>
+						)}
+
+						{/* Description */}
+						{pkg.description && (
+							<View className="mb-4">
+								<Text
+									className="mb-2 font-bold text-sm uppercase tracking-wide"
+									style={{ color: colors.secondary[1] }}
+								>
+									ABOUT THIS PACKAGE
+								</Text>
+								<Text
+									className="text-base leading-6"
+									style={{ color: colors.primary[1] }}
+								>
+									{pkg.description}
+								</Text>
+							</View>
+						)}
+					</View>
+				</ScrollView>
+			</Container>
+		);
+	}
+
+	// Handle booking display (existing code)
 	const isUpcoming = booking.type === "upcoming";
 	const serviceTitle = booking.serviceName || booking.title;
 

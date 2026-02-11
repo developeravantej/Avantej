@@ -11,6 +11,10 @@ import { colors } from "@/lib/colors";
 const SERVICE_CATEGORY = {
 	PRIVATE: 1, // Personal Training
 	SEMI_PRIVATE: 2, // Classes
+	GROUP: 3, // Group Training
+	ONLINE: 4, // Online Training
+	NUTRITION: 5, // Nutrition Coaching
+	RECOVERY: 6, // Recovery & Wellness
 } as const;
 
 // Dummy data for service categories
@@ -26,6 +30,30 @@ const serviceCategories = [
 		name: "Semi-Private",
 		description:
 			"Classes - Group sessions with fixed schedules and assigned instructors",
+	},
+	{
+		id: SERVICE_CATEGORY.GROUP,
+		name: "Group Training",
+		description:
+			"Small group sessions - Train with 2-4 others for motivation and camaraderie",
+	},
+	{
+		id: SERVICE_CATEGORY.ONLINE,
+		name: "Online Training",
+		description:
+			"Virtual sessions - Train from anywhere with live or on-demand coaching",
+	},
+	{
+		id: SERVICE_CATEGORY.NUTRITION,
+		name: "Nutrition Coaching",
+		description:
+			"Meal planning and nutrition guidance - Personalized diet plans and coaching",
+	},
+	{
+		id: SERVICE_CATEGORY.RECOVERY,
+		name: "Recovery & Wellness",
+		description:
+			"Massage, stretching, and recovery - Enhance your performance and well-being",
 	},
 ];
 
@@ -48,20 +76,159 @@ const services = [
 		credits: 48,
 		categoryId: SERVICE_CATEGORY.PRIVATE,
 	},
-	// Class services
 	{
 		id: 3,
+		title: "3×8-Week Personal Training",
+		description:
+			"24 credits - 8 weeks of intensive training, 3 sessions per week",
+		credits: 24,
+		categoryId: SERVICE_CATEGORY.PRIVATE,
+	},
+	{
+		id: 4,
+		title: "1×16-Week Personal Training",
+		description:
+			"16 credits - 16 weeks of flexible training, 1 session per week",
+		credits: 16,
+		categoryId: SERVICE_CATEGORY.PRIVATE,
+	},
+	// Semi-Private Class services
+	{
+		id: 5,
 		title: "Class A",
 		description: "Every Mon/Wed/Fri at 7:00 PM",
 		schedule: "Mon/Wed/Fri 7:00 PM",
 		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
 	},
 	{
-		id: 4,
+		id: 6,
 		title: "Class B",
 		description: "Every Tue at 8:00 AM",
 		schedule: "Tue 8:00 AM",
 		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
+	},
+	{
+		id: 7,
+		title: "Class C - Morning Bootcamp",
+		description: "Every Mon/Wed/Fri at 6:30 AM",
+		schedule: "Mon/Wed/Fri 6:30 AM",
+		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
+	},
+	{
+		id: 8,
+		title: "Class D - Evening Yoga",
+		description: "Every Tue/Thu at 6:00 PM",
+		schedule: "Tue/Thu 6:00 PM",
+		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
+	},
+	{
+		id: 9,
+		title: "Class E - Weekend Warrior",
+		description: "Every Sat at 9:00 AM",
+		schedule: "Sat 9:00 AM",
+		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
+	},
+	// Group Training services
+	{
+		id: 10,
+		title: "4×8-Week Group Training",
+		description:
+			"32 credits - 8 weeks of small group training, 4 sessions per week",
+		credits: 32,
+		categoryId: SERVICE_CATEGORY.GROUP,
+	},
+	{
+		id: 11,
+		title: "3×12-Week Group Training",
+		description: "36 credits - 12 weeks of group sessions, 3 sessions per week",
+		credits: 36,
+		categoryId: SERVICE_CATEGORY.GROUP,
+	},
+	{
+		id: 12,
+		title: "2×16-Week Group Training",
+		description: "32 credits - 16 weeks of group training, 2 sessions per week",
+		credits: 32,
+		categoryId: SERVICE_CATEGORY.GROUP,
+	},
+	// Online Training services
+	{
+		id: 13,
+		title: "Monthly Online Coaching",
+		description:
+			"12 credits - Live sessions and on-demand workouts for one month",
+		credits: 12,
+		categoryId: SERVICE_CATEGORY.ONLINE,
+	},
+	{
+		id: 14,
+		title: "3-Month Online Program",
+		description:
+			"36 credits - 3 months of virtual training with weekly check-ins",
+		credits: 36,
+		categoryId: SERVICE_CATEGORY.ONLINE,
+	},
+	{
+		id: 15,
+		title: "On-Demand Library Access",
+		description:
+			"Unlimited access to workout library and pre-recorded sessions",
+		credits: 0,
+		categoryId: SERVICE_CATEGORY.ONLINE,
+	},
+	// Nutrition Coaching services
+	{
+		id: 16,
+		title: "4-Week Nutrition Plan",
+		description: "8 credits - Personalized meal plan with weekly consultations",
+		credits: 8,
+		categoryId: SERVICE_CATEGORY.NUTRITION,
+	},
+	{
+		id: 17,
+		title: "12-Week Nutrition Coaching",
+		description:
+			"24 credits - 3 months of nutrition guidance and meal planning",
+		credits: 24,
+		categoryId: SERVICE_CATEGORY.NUTRITION,
+	},
+	{
+		id: 18,
+		title: "One-Time Nutrition Consultation",
+		description:
+			"2 credits - Initial assessment and personalized recommendations",
+		credits: 2,
+		categoryId: SERVICE_CATEGORY.NUTRITION,
+	},
+	// Recovery & Wellness services
+	{
+		id: 19,
+		title: "Monthly Recovery Package",
+		description: "8 credits - 4 sessions of massage or stretching per month",
+		credits: 8,
+		categoryId: SERVICE_CATEGORY.RECOVERY,
+	},
+	{
+		id: 20,
+		title: "Deep Tissue Massage",
+		description: "2 credits per session - 60-minute deep tissue massage",
+		credits: 2,
+		categoryId: SERVICE_CATEGORY.RECOVERY,
+	},
+	{
+		id: 21,
+		title: "Stretching & Mobility Session",
+		description: "1 credit per session - 30-minute guided stretching session",
+		credits: 1,
+		categoryId: SERVICE_CATEGORY.RECOVERY,
+	},
+	{
+		id: 22,
+		title: "Wellness Assessment",
+		description:
+			"1 credit - Comprehensive wellness evaluation and recommendations",
+		credits: 1,
+		categoryId: SERVICE_CATEGORY.RECOVERY,
 	},
 ];
 

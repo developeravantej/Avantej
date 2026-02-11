@@ -8,5 +8,9 @@ const config = withNativeWind(getDefaultConfig(__dirname), {
 });
 
 config.resolver.unstable_enablePackageExports = true;
+// Bundle PDF so local terms.pdf can be loaded offline
+if (!config.resolver.assetExts.includes("pdf")) {
+	config.resolver.assetExts.push("pdf");
+}
 
 module.exports = config;

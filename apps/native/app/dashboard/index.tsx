@@ -197,10 +197,13 @@ export default function Home() {
 							</Text>
 						</TouchableOpacity>
 
-						<TouchableOpacity className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-							<Ionicons name="qr-code-outline" size={24} color="#6B7280" />
+						<TouchableOpacity
+							onPress={() => router.push("/dashboard/calendar" as never)}
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm"
+						>
+							<Ionicons name="calendar" size={24} color="#6B7280" />
 							<Text className="mt-2 font-medium text-gray-700 text-xs">
-								Check-In
+								Calendar
 							</Text>
 						</TouchableOpacity>
 
@@ -216,10 +219,13 @@ export default function Home() {
 							</Text>
 						</TouchableOpacity>
 
-						<TouchableOpacity className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-							<Ionicons name="calendar" size={24} color="#6B7280" />
-							<Text className="mt-2 font-medium text-gray-700 text-xs">
-								Schedule
+						<TouchableOpacity
+							onPress={() => router.push("/dashboard/packages" as never)}
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm"
+						>
+							<Ionicons name="star-outline" size={24} color="#6B7280" />
+							<Text className="mt-2 text-center font-medium text-gray-700 text-xs">
+								My{"\n"}Credits
 							</Text>
 						</TouchableOpacity>
 					</View>

@@ -102,6 +102,18 @@ export default function DashboardLayout() {
 						href: null, // Hide from tab bar
 					}}
 				/>
+				<Tabs.Screen
+					name="packages"
+					options={{
+						href: null, // Hide from tab bar
+					}}
+				/>
+				<Tabs.Screen
+					name="calendar"
+					options={{
+						href: null, // Hide from tab bar
+					}}
+				/>
 			</Tabs>
 		</View>
 	);

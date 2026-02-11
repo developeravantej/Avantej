@@ -1,16 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+	Alert,
 	Image,
+	Modal,
 	ScrollView,
 	Text,
-	TextInput,
 	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import SignatureCanvas from "react-native-signature-canvas";
 import { Container } from "@/components/container";
 import { colors } from "@/lib/colors";
 
@@ -23,6 +26,13 @@ const steps = [
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: false },
 ];
+
+/** PDFs from assets/documents – id is passed to terms screen to open the correct file. */
+const TERMS_DOCUMENTS = [
+	{ id: "agreement" as const, name: "Company–Client Agreement" },
+	{ id: "satisfaction" as const, name: "100% Satisfaction Guarantee" },
+	{ id: "parq" as const, name: "Par-Q & You" },
+] as const;
 
 export default function SignScreen() {
 	const navigation = useNavigation();
@@ -45,6 +55,55 @@ export default function SignScreen() {
 	// E-Signature state
 	const [signature, setSignature] = useState("");
 	const [agreedToTerms, setAgreedToTerms] = useState(false);
+	const [showSignatureModal, setShowSignatureModal] = useState(false);
+	const [viewedDocs, setViewedDocs] = useState<Record<string, boolean>>({
+		agreement: false,
+		satisfaction: false,
+		parq: false,
+	});
+
+	const allTermsViewed =
+		viewedDocs.agreement && viewedDocs.satisfaction && viewedDocs.parq;
+
+	const signatureRef = useRef<any>(null);
+	const modalSignatureRef = useRef<any>(null);
+
+	const handleSignature = async (signatureData: string) => {
+		setSignature(signatureData);
+		setShowSignatureModal(false);
+		// Unlock orientation when signature is confirmed
+		await ScreenOrientation.unlockAsync();
+	};
+
+	const handleClear = () => {
+		modalSignatureRef.current?.clearSignature();
+	};
+
+	const handleConfirm = () => {
+		// Read and save the signature from modal
+		modalSignatureRef.current?.readSignature();
+	};
+
+	const handleOpenSignatureModal = async () => {
+		// Lock to landscape orientation
+		await ScreenOrientation.lockAsync(
+			ScreenOrientation.OrientationLock.LANDSCAPE,
+		);
+		setShowSignatureModal(true);
+	};
+
+	const handleCloseSignatureModal = async () => {
+		setShowSignatureModal(false);
+		// Unlock orientation back to default
+		await ScreenOrientation.unlockAsync();
+	};
+
+	// Cleanup orientation when component unmounts
+	useEffect(() => {
+		return () => {
+			ScreenOrientation.unlockAsync();
+		};
+	}, []);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -102,6 +161,25 @@ export default function SignScreen() {
 				},
 			});
 		}
+	};
+
+	const handleOpenTermsSection = (documentId: string) => {
+		setViewedDocs((prev) => ({ ...prev, [documentId]: true }));
+		router.push({
+			pathname: "./terms" as never,
+			params: { document: documentId },
+		});
+	};
+
+	const handleAgreementPress = () => {
+		if (!allTermsViewed) {
+			Alert.alert(
+				"Please review all terms",
+				"Open each of the three document links above before agreeing.",
+			);
+			return;
+		}
+		setAgreedToTerms((prev) => !prev);
 	};
 
 	return (
@@ -264,7 +342,7 @@ export default function SignScreen() {
 							E-SIGNATURE
 						</Text>
 
-						{/* Terms and Conditions */}
+						{/* Terms and Conditions – links to the three PDFs */}
 						<View className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
 							<Text
 								className="mb-3 text-sm"
@@ -273,64 +351,51 @@ export default function SignScreen() {
 								By signing below, you agree to:
 							</Text>
 							<View className="mb-2">
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									• Terms and Conditions of service
-								</Text>
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									• Cancellation and refund policy
-								</Text>
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									• Health and safety waiver
-								</Text>
-								<Text
-									className="text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									• Privacy policy
-								</Text>
+								{TERMS_DOCUMENTS.map((doc) => {
+									const viewed = viewedDocs[doc.id];
+									return (
+										<TouchableOpacity
+											key={doc.id}
+											onPress={() => handleOpenTermsSection(doc.id)}
+											className="mb-1 flex-row items-center"
+										>
+											<Text
+												className="text-xs"
+												style={{
+													color: viewed ? colors.secondary[1] : "#2563EB",
+													textDecorationLine: viewed ? "none" : "underline",
+												}}
+											>
+												• {doc.name}
+											</Text>
+											{viewed ? (
+												<Ionicons
+													name="checkmark-circle"
+													size={12}
+													color="#10B981"
+													style={{ marginLeft: 4 }}
+												/>
+											) : (
+												<Ionicons
+													name="chevron-forward"
+													size={12}
+													color="#2563EB"
+													style={{ marginLeft: 4 }}
+												/>
+											)}
+										</TouchableOpacity>
+									);
+								})}
 							</View>
-						</View>
-
-						{/* Signature Input */}
-						<View className="mb-4">
-							<Text
-								className="mb-2 text-sm"
-								style={{ color: colors.primary[1] }}
-							>
-								Full Name (Signature)
-							</Text>
-							<TextInput
-								value={signature}
-								onChangeText={setSignature}
-								placeholder="Enter your full name"
-								className="rounded-xl border border-gray-200 bg-white p-3 text-base"
-								style={{ color: colors.primary[1] }}
-								placeholderTextColor={colors.secondary[1]}
-							/>
-							<Text
-								className="mt-1 text-xs"
-								style={{ color: colors.secondary[1] }}
-							>
-								By typing your name, you are providing your electronic signature
-							</Text>
 						</View>
 
 						{/* Agreement Checkbox */}
 						<TouchableOpacity
-							onPress={() => setAgreedToTerms(!agreedToTerms)}
-							className="mb-4 flex-row items-center"
+							onPress={handleAgreementPress}
+							className="mb-4 flex-row items-start"
 						>
 							<View
-								className={`mr-3 h-5 w-5 items-center justify-center rounded border-2 ${
+								className={`mt-0.5 mr-3 h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
 									agreedToTerms
 										? "border-blue-600 bg-blue-600"
 										: "border-gray-300"
@@ -344,14 +409,212 @@ export default function SignScreen() {
 									/>
 								)}
 							</View>
+							<View className="flex-1 flex-row flex-wrap">
+								<Text className="text-sm" style={{ color: colors.primary[1] }}>
+									I agree to the terms and conditions and confirm that the
+									information provided is accurate
+								</Text>
+							</View>
+						</TouchableOpacity>
+
+						{/* Signature Canvas */}
+						<View className="mb-4">
 							<Text
-								className="flex-1 text-sm"
+								className="mb-2 text-sm"
 								style={{ color: colors.primary[1] }}
 							>
-								I agree to the terms and conditions and confirm that the
-								information provided is accurate
+								Sign Below
 							</Text>
-						</TouchableOpacity>
+							<TouchableOpacity
+								onPress={handleOpenSignatureModal}
+								activeOpacity={0.7}
+								className="mb-2 overflow-hidden rounded-xl border-2 border-gray-300 border-dashed bg-gray-50"
+								style={{
+									height: 200,
+									borderColor: signature
+										? colors.primary[1]
+										: colors.secondary[3],
+								}}
+							>
+								{signature ? (
+									<View className="h-full w-full items-center justify-center">
+										<Image
+											source={{ uri: signature }}
+											style={{
+												width: "100%",
+												height: "100%",
+												resizeMode: "contain",
+											}}
+										/>
+									</View>
+								) : (
+									<View className="h-full w-full items-center justify-center">
+										<Ionicons
+											name="create-outline"
+											size={48}
+											color={colors.secondary[1]}
+										/>
+										<Text
+											className="mt-2 text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											Tap to sign
+										</Text>
+									</View>
+								)}
+							</TouchableOpacity>
+							{signature && (
+								<TouchableOpacity
+									onPress={() => {
+										setSignature("");
+										setShowSignatureModal(true);
+									}}
+									className="mb-2 self-end"
+								>
+									<Text
+										className="font-medium text-sm"
+										style={{ color: "#2563EB" }}
+									>
+										Re-sign
+									</Text>
+								</TouchableOpacity>
+							)}
+							<Text
+								className="mt-2 text-xs"
+								style={{ color: colors.secondary[1] }}
+							>
+								By signing above, you are providing your electronic signature
+							</Text>
+						</View>
+
+						{/* Full Screen Signature Modal */}
+						<Modal
+							visible={showSignatureModal}
+							animationType="slide"
+							presentationStyle="fullScreen"
+							onRequestClose={handleCloseSignatureModal}
+						>
+							<View
+								style={{
+									flex: 1,
+									backgroundColor: "#ffffff",
+								}}
+							>
+								<SafeAreaView style={{ flex: 1 }}>
+									{/* Modal Header */}
+									<View className="border-gray-200 border-b bg-white px-6 py-4">
+										<View className="flex-row items-center justify-between">
+											<View className="flex-1 flex-row items-center justify-center">
+												<Ionicons
+													name="phone-portrait-outline"
+													size={20}
+													color={colors.primary[1]}
+													style={{
+														marginRight: 8,
+														transform: [{ rotate: "90deg" }],
+													}}
+												/>
+												<Text
+													className="font-bold text-xl"
+													style={{ color: colors.primary[1] }}
+												>
+													Sign Here (Landscape Mode)
+												</Text>
+											</View>
+											<TouchableOpacity
+												onPress={handleCloseSignatureModal}
+												className="absolute right-6"
+											>
+												<Ionicons
+													name="close"
+													size={28}
+													color={colors.primary[1]}
+												/>
+											</TouchableOpacity>
+										</View>
+										<View className="mt-2 flex-row items-center justify-center">
+											<View
+												className="mr-2 h-2 w-2 rounded-full"
+												style={{ backgroundColor: "#10B981" }}
+											/>
+											<Text
+												className="font-medium text-xs"
+												style={{ color: "#10B981" }}
+											>
+												Landscape Mode Active
+											</Text>
+										</View>
+									</View>
+
+									{/* Signature Canvas - Full Screen */}
+									<View
+										style={{
+											flex: 1,
+											backgroundColor: "#ffffff",
+										}}
+									>
+										<SignatureCanvas
+											ref={modalSignatureRef}
+											onOK={handleSignature}
+											descriptionText=""
+											clearText=""
+											confirmText=""
+											webStyle={`
+												.m-signature-pad {
+													box-shadow: none;
+													border: none;
+													width: 100%;
+													height: 100%;
+												}
+												.m-signature-pad--body {
+													border: none;
+													height: 100%;
+													width: 100%;
+												}
+												.m-signature-pad--body canvas {
+													border-radius: 0;
+													width: 100%;
+													height: 100%;
+													touch-action: none;
+												}
+												.m-signature-pad--footer {
+													display: none;
+												}
+											`}
+											style={{
+												flex: 1,
+											}}
+										/>
+									</View>
+
+									{/* Modal Footer Buttons */}
+									<View className="border-gray-200 border-t bg-white px-6 py-4">
+										<View className="flex-row justify-end gap-4">
+											<TouchableOpacity
+												onPress={handleClear}
+												className="rounded-lg border-2 border-gray-300 bg-white px-8 py-3"
+											>
+												<Text
+													className="font-semibold text-base"
+													style={{ color: colors.primary[1] }}
+												>
+													Clear
+												</Text>
+											</TouchableOpacity>
+											<TouchableOpacity
+												onPress={handleConfirm}
+												className="rounded-lg bg-blue-600 px-8 py-3"
+												style={{ backgroundColor: "#2563EB" }}
+											>
+												<Text className="font-semibold text-base text-white">
+													Confirm Signature
+												</Text>
+											</TouchableOpacity>
+										</View>
+									</View>
+								</SafeAreaView>
+							</View>
+						</Modal>
 					</View>
 				</View>
 			</ScrollView>

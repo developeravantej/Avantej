@@ -117,6 +117,7 @@ export default function BookWorkoutLayout() {
 			<Stack.Screen name="review" />
 			<Stack.Screen name="info" />
 			<Stack.Screen name="sign" />
+			<Stack.Screen name="terms" />
 			<Stack.Screen name="pay" />
 			<Stack.Screen name="done" />
 		</Stack>
