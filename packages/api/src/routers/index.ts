@@ -14,6 +14,12 @@ import { preferredTimesRouter } from "./preferred-times";
 import { serviceCategoriesRouter } from "./service-categories";
 import { servicesRouter } from "./services";
 import { userActivityLogRouter } from "./user-activity-log";
+import { rolesRouter } from "./roles";
+import { permissionsRouter } from "./permissions";
+import { rolePermissionsRouter } from "./role-permissions";
+import { serviceCommissionConfigRouter } from "./service-commission-config";
+import { serviceRulesRouter } from "./service-rules";
+import { payoutsRouter } from "./payouts";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -39,6 +45,12 @@ export const baseRouter = {
 	notificationPreferences: notificationPreferencesRouter,
 	customerProfiles: customerProfilesRouter,
 	userActivityLog: userActivityLogRouter,
+	roles: rolesRouter,
+	permissions: permissionsRouter,
+	rolePermissions: rolePermissionsRouter,
+	serviceCommissionConfig: serviceCommissionConfigRouter,
+	serviceRules: serviceRulesRouter,
+	payouts: payoutsRouter,
 };
 
 // Auth router type definition for client type inference

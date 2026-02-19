@@ -38,7 +38,7 @@ export const Route = createFileRoute(
 function RouteComponent() {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const { data: userContext, isLoading: isLoadingContext } = useUserContext();
+  const { data: userContext, isLoading: isLoadingContext, error: userContextError } = useUserContext();
   const navigate = useNavigate();
   const orgErrorShown = useRef(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -335,10 +335,12 @@ function RouteComponent() {
             );
             console.log("Mapped branches from cache:", mappedBranches.length);
             
-            // If cache has no branches but we have nodes, fetch fresh data
-            if (mappedBranches.length === 0 && allNodes.length > 0) {
+            // If cache has no nodes, or has nodes but no branches, fetch fresh data
+            if (mappedBranches.length === 0) {
               console.warn(
-                "Cache has nodes but no branches found. Fetching fresh data..."
+                allNodes.length > 0
+                  ? "Cache has nodes but no branches found. Fetching fresh data..."
+                  : "Cache has no nodes. Fetching fresh data..."
               );
               localStorage.removeItem(`org_${organizationId}_hierarchy`);
               localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
@@ -881,6 +883,7 @@ function RouteComponent() {
           <p>Organization ID: {organizationId || "None"}</p>
           <p>Context user email: {userContext?.user?.email ?? "—"}</p>
           <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
+          <p>User Context Error: {userContextError ? String(userContextError) : "None"}</p>
           <p>Branch Data Items: {branchData?.items?.length || 0}</p>
           <p>Is Loading Branches: {isLoadingBranches ? "Yes" : "No"}</p>
           <p>Error: {error ? String(error) : "None"}</p>

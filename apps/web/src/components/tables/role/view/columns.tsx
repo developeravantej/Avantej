@@ -44,40 +44,33 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
   );
 };
 
-// Define the Role type to match your data structure
-type Role = {
+type RoleRow = {
   id: string;
   name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
+  description: string | null;
+  isSystem: boolean;
+  priority: number;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
-export const columns: ColumnDef<Role>[] = [
-  {
-    id: "id",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="ID" />
-    ),
-    accessorFn: (row) => row.id,
-    cell: ({ getValue }) => {
-      const id = getValue<string>();
-      return <CopyableCell value={id} displayText={id} />;
-    },
-    enableSorting: true,
-    enableHiding: false,
-  },
+export const columns: ColumnDef<RoleRow>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Role Name" />
     ),
-    cell: ({ getValue }) => {
-      const name = getValue<string>();
+    cell: ({ row }) => {
+      const role = row.original;
       return (
-        <Badge variant="secondary" className="font-medium">
-          {name}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="font-medium">
+            {role.name}
+          </Badge>
+          {role.isSystem && (
+            <Badge variant="outline" className="text-xs">System</Badge>
+          )}
+        </div>
       );
     },
     enableSorting: true,
@@ -89,7 +82,7 @@ export const columns: ColumnDef<Role>[] = [
       <DataTableColumnHeader column={column} title="Description" />
     ),
     cell: ({ getValue }) => {
-      const description = getValue<string>();
+      const description = getValue<string | null>();
       return (
         <span className="text-muted-foreground">
           {description || "No description"}
@@ -100,12 +93,28 @@ export const columns: ColumnDef<Role>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "created_at",
+    accessorKey: "priority",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Priority" />
+    ),
+    cell: ({ getValue }) => {
+      const priority = getValue<number>();
+      return (
+        <span className="text-sm font-mono text-muted-foreground">
+          {priority}
+        </span>
+      );
+    },
+    enableSorting: true,
+    enableHiding: true,
+  },
+  {
+    accessorKey: "createdAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Created At" />
     ),
     cell: ({ getValue }) => {
-      const createdAt = getValue<string>();
+      const createdAt = getValue<Date>();
       return (
         <span className="text-sm text-muted-foreground">
           {new Date(createdAt).toLocaleDateString()}
@@ -116,19 +125,16 @@ export const columns: ColumnDef<Role>[] = [
     enableHiding: true,
   },
   {
-    accessorKey: "updated_at",
+    accessorKey: "id",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Updated At" />
+      <DataTableColumnHeader column={column} title="ID" />
     ),
     cell: ({ getValue }) => {
-      const updatedAt = getValue<string>();
-      return (
-        <span className="text-sm text-muted-foreground">
-          {new Date(updatedAt).toLocaleDateString()}
-        </span>
-      );
+      const id = getValue<string>();
+      const shortId = id.slice(0, 8) + "...";
+      return <CopyableCell value={id} displayText={shortId} />;
     },
-    enableSorting: true,
+    enableSorting: false,
     enableHiding: true,
   },
 ];

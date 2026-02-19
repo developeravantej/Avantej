@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/utils/orpc";
+import { useUserContext } from "@/hooks/useUserContext";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -142,23 +145,33 @@ export function AddAppointmentModal({
     return "last";
   };
 
-  // Mock client data
-  const mockClients: Client[] = [
-    { id: "1", name: "John Smith", email: "john.smith@email.com", phone: "+1-555-0101", creditPoints: 150 },
-    { id: "2", name: "Sarah Johnson", email: "sarah.johnson@email.com", phone: "+1-555-0102", creditPoints: 75 },
-    { id: "3", name: "Michael Brown", email: "michael.brown@email.com", phone: "+1-555-0103", creditPoints: 200 },
-    { id: "4", name: "Emily Davis", email: "emily.davis@email.com", phone: "+1-555-0104", creditPoints: 50 },
-    { id: "5", name: "David Wilson", email: "david.wilson@email.com", phone: "+1-555-0105", creditPoints: 300 },
-    { id: "6", name: "Lisa Anderson", email: "lisa.anderson@email.com", phone: "+1-555-0106", creditPoints: 125 },
-    { id: "7", name: "Robert Taylor", email: "robert.taylor@email.com", phone: "+1-555-0107", creditPoints: 80 },
-    { id: "8", name: "Jennifer Martinez", email: "jennifer.martinez@email.com", phone: "+1-555-0108", creditPoints: 175 },
-  ];
+  const { data: userCtx } = useUserContext();
+  const organizationId = userCtx?.currentOrganizationId ?? "";
 
-  const mockServices: Service[] = [
-    { id: "svc-1", name: "Consultation", durationMinutes: 30, creditCost: 25 },
-    { id: "svc-2", name: "Standard Appointment", durationMinutes: 60, creditCost: 50 },
-    { id: "svc-3", name: "Extended Session", durationMinutes: 90, creditCost: 75 },
-  ];
+  const { data: clientMembers = [] } = useQuery({
+    ...orpc.members.list.queryOptions({ organizationId, role: "client", status: "active" }),
+    enabled: !!organizationId,
+  });
+
+  const clients: Client[] = clientMembers.map((m: any) => ({
+    id: m.id,
+    name: m.name ?? m.email ?? m.userId,
+    email: m.email ?? "",
+    phone: "",
+    creditPoints: 0, // TODO: populate from package_instances in future phase
+  }));
+
+  const { data: servicesData = [] } = useQuery({
+    ...orpc.services.list.queryOptions({ organizationId, isActive: true }),
+    enabled: !!organizationId,
+  });
+
+  const services: Service[] = servicesData.map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    durationMinutes: Math.round(s.duration / 60), // seconds → minutes
+    creditCost: s.price ?? 0, // cents; TODO: confirm display unit with team
+  }));
 
   const mockRooms = [
     { id: "room-1", name: "Room A", capacity: 4, type: "Consultation" },
@@ -380,7 +393,7 @@ export function AddAppointmentModal({
       
       const newSelectedServices = [...prev.selectedServices, serviceId];
       const totalDuration = newSelectedServices.reduce((total, id) => {
-        const service = mockServices.find(s => s.id === id);
+        const service = services.find(s => s.id === id);
         return total + (service?.durationMinutes || 0);
       }, 0);
       
@@ -396,7 +409,7 @@ export function AddAppointmentModal({
     setNewAppointment(prev => {
       const newSelectedServices = prev.selectedServices.filter(id => id !== serviceId);
       const totalDuration = newSelectedServices.reduce((total, id) => {
-        const service = mockServices.find(s => s.id === id);
+        const service = services.find(s => s.id === id);
         return total + (service?.durationMinutes || 0);
       }, 0);
       
@@ -528,7 +541,7 @@ export function AddAppointmentModal({
         
         const newSelectedServices = [...slot.selectedServices, serviceId];
         const totalDuration = newSelectedServices.reduce((total, id) => {
-          const service = mockServices.find(s => s.id === id);
+          const service = services.find(s => s.id === id);
           return total + (service?.durationMinutes || 0);
         }, 0);
         
@@ -556,7 +569,7 @@ export function AddAppointmentModal({
       if (slot.id === slotId) {
         const newSelectedServices = slot.selectedServices.filter(id => id !== serviceId);
         const totalDuration = newSelectedServices.reduce((total, id) => {
-          const service = mockServices.find(s => s.id === id);
+          const service = services.find(s => s.id === id);
           return total + (service?.durationMinutes || 0);
         }, 0);
         
@@ -740,11 +753,11 @@ export function AddAppointmentModal({
 
       // Prepare all appointments for test dialog
       const allAppointments = appointmentSlots.map((slot ) => {
-        const selectedClient = mockClients.find(client => client.id === newAppointment.clientId);
+        const selectedClient = clients.find(client => client.id === newAppointment.clientId);
         if (!selectedClient) return null;
 
         const selectedServices = slot.selectedServices.map(serviceId => 
-          mockServices.find(svc => svc.id === serviceId)
+          services.find(svc => svc.id === serviceId)
         ).filter(Boolean);
 
         const startDateTime = new Date(`${slot.startDate}T${slot.startTime}`);
@@ -824,7 +837,7 @@ export function AddAppointmentModal({
     }
 
     // Find the selected client (only for regular appointments)
-    const selectedClient = isBlockedTiming ? null : mockClients.find(client => client.id === newAppointment.clientId);
+    const selectedClient = isBlockedTiming ? null : clients.find(client => client.id === newAppointment.clientId);
     if (!isBlockedTiming && !selectedClient) {
       alert("Please select a valid client");
       return;
@@ -832,7 +845,7 @@ export function AddAppointmentModal({
 
     // Get selected services (only for regular appointments)
     const selectedServices = isBlockedTiming ? [] : newAppointment.selectedServices.map(serviceId => 
-      mockServices.find(svc => svc.id === serviceId)
+      services.find(svc => svc.id === serviceId)
     ).filter(Boolean);
     
     if (!isBlockedTiming && !isMultiAppointment && selectedServices.length === 0) {
@@ -1037,7 +1050,7 @@ export function AddAppointmentModal({
                     <div className="space-y-2">
                       <h3 className="text-lg font-bold text-gray-900">
                         {newAppointment.clientId ? 
-                          mockClients.find(c => c.id === newAppointment.clientId)?.name || 'Select Customer' 
+                          clients.find(c => c.id === newAppointment.clientId)?.name || 'Select Customer' 
                           : 'Select Customer'
                         }
                       </h3>
@@ -1149,7 +1162,7 @@ export function AddAppointmentModal({
                               <SelectValue placeholder="Search Customer by Name" />
                             </SelectTrigger>
                             <SelectContent className="z-[10001]">
-                              {mockClients.map((client) => (
+                              {clients.map((client) => (
                                 <SelectItem key={client.id} value={client.id}>
                                   <div className="flex items-center justify-between w-full">
                                     <span className="font-medium pr-2">{client.name}</span>
@@ -1434,7 +1447,7 @@ export function AddAppointmentModal({
                                                       <SelectValue placeholder="Search Customer by Name" />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {mockClients.map((client) => (
+                                        {clients.map((client) => (
                                           <SelectItem key={client.id} value={client.id}>
                                             <div className="flex items-center justify-between w-full">
                                               <span className="font-medium pr-2">{client.name}</span>
@@ -1543,7 +1556,7 @@ export function AddAppointmentModal({
                                               {slot.selectedServices.length > 0 && (
                                                 <div className="space-y-1">
                                                   {slot.selectedServices.map((serviceId) => {
-                                                    const service = mockServices.find(s => s.id === serviceId);
+                                                    const service = services.find(s => s.id === serviceId);
                                                     return service ? (
                                                       <div key={serviceId} className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded text-xs">
                                                         <div className="flex items-center gap-2">
@@ -1619,7 +1632,7 @@ export function AddAppointmentModal({
                                     <Label className="text-sm font-medium text-gray-700">Selected Services:</Label>
                                     <div className="space-y-2">
                                       {newAppointment.selectedServices.map((serviceId) => {
-                                        const service = mockServices.find(s => s.id === serviceId);
+                                        const service = services.find(s => s.id === serviceId);
                                         return service ? (
                                           <div key={serviceId} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
                                             <div className="flex items-center gap-3">
@@ -1673,7 +1686,7 @@ export function AddAppointmentModal({
                                   </Button>
                                 </div>
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                                  {mockServices
+                                  {services
                                     .filter(svc => {
                                       if (isMultiAppointment && selectedAppointmentId) {
                                         const selectedSlot = appointmentSlots.find(slot => slot.id === selectedAppointmentId);
@@ -1700,7 +1713,7 @@ export function AddAppointmentModal({
                                         </div>
                                       </div>
                                     ))}
-                                  {mockServices.filter(svc => {
+                                  {services.filter(svc => {
                                     if (isMultiAppointment && selectedAppointmentId) {
                                       const selectedSlot = appointmentSlots.find(slot => slot.id === selectedAppointmentId);
                                       return selectedSlot && !selectedSlot.selectedServices.includes(svc.id);

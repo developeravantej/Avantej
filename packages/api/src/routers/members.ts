@@ -8,7 +8,7 @@
 import { createMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, asc, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -18,6 +18,125 @@ import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 
 export const memberRouter = {
+  /**
+   * List members in the organization
+   *
+   * Returns members with user details (name, email) from the control panel database.
+   * RBAC: admins see all members; non-admins see only members within their hierarchy scope.
+   * Requires user_management.read permission.
+   */
+  list: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        role: z.enum(["admin", "trainer", "staff", "client"]).optional(),
+        status: z.enum(["active", "suspended"]).optional(),
+        hierarchyScopeId: z.string().uuid().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Build filter conditions
+      const conditions: SQL[] = [];
+
+      if (input.role) {
+        conditions.push(eq(members.role, input.role));
+      }
+      if (input.status) {
+        conditions.push(eq(members.status, input.status));
+      }
+      if (input.hierarchyScopeId) {
+        conditions.push(eq(members.hierarchyScopeId, input.hierarchyScopeId));
+      }
+
+      // RBAC: non-admins only see members within their accessible hierarchy
+      if (context.member.role !== "admin") {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ||
+          (await getDescendantNodeIds(
+            context.tenantDb,
+            context.member.hierarchyScopeId
+          ));
+
+        if (accessibleNodeIds.length > 0) {
+          conditions.push(inArray(members.hierarchyScopeId, accessibleNodeIds));
+        } else {
+          // No accessible nodes means no members visible
+          return [];
+        }
+      }
+
+      // Query members from tenant DB
+      const memberRows = await context.tenantDb
+        .select()
+        .from(members)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(asc(members.joinedAt));
+
+      if (memberRows.length === 0) {
+        return [];
+      }
+
+      // Cross-DB enrichment: batch-fetch user details from control panel
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+
+      let userMap = new Map<string, { name: string; email: string }>();
+
+      if (controlPanelDb) {
+        const userIds = memberRows.map((m) => m.userId);
+        const userRows = await controlPanelDb
+          .select({ id: user.id, name: user.name, email: user.email })
+          .from(user)
+          .where(inArray(user.id, userIds));
+
+        for (const u of userRows) {
+          userMap.set(u.id, { name: u.name, email: u.email });
+        }
+      }
+
+      return memberRows.map((m) => {
+        const userDetails = userMap.get(m.userId);
+        return {
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          hierarchyScopeId: m.hierarchyScopeId,
+          status: m.status,
+          joinedAt: m.joinedAt,
+          name: userDetails?.name ?? "Unknown",
+          email: userDetails?.email ?? "Unknown",
+        };
+      });
+    }),
+
   /**
    * Create a new member in the organization
    *

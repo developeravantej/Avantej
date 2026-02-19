@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run:*)",
+      "Bash(~/.bun/bin/bun:*)",
+      "Bash(/c/Users/user/.bun/bin/bun run:*)"
+    ]
+  }
+}

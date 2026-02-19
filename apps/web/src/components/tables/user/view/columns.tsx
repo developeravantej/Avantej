@@ -1,17 +1,15 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// TODO: Replace with actual API types when backend is ready
-// import type apiClient from "@/lib/api";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Copy, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 
 // Helper component for copyable cells
 interface CopyableCellProps {
   value: string | null | undefined;
-  displayText?: React.ReactNode; // For cases like Badge
+  displayText?: React.ReactNode;
 }
 
 const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
@@ -45,66 +43,40 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
   );
 };
 
-// Define the User type to match your data structure
-type User = {
+type MemberRow = {
   id: string;
-  name: string;
-  email: string;
-  email_verified: boolean;
-  onboarding_completed: boolean | null;
-  image: string | null;
-  organization_id: string | null;
-  created_at: string;
-  updated_at: string;
+  userId: string;
+  role: "admin" | "trainer" | "staff" | "client";
+  hierarchyScopeId: string;
+  status: "active" | "suspended";
+  joinedAt: Date | null;
+  name: string | null;
+  email: string | null;
 };
 
-export const columns: ColumnDef<User>[] = [
+export const columns: ColumnDef<MemberRow>[] = [
   {
-    accessorKey: "image",
+    accessorKey: "name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="" />
     ),
     cell: ({ row }) => {
-      const user = row.original;
-      const initials = user.name
+      const member = row.original;
+      const displayName = member.name || member.email || "Unknown";
+      const initials = displayName
         .split(" ")
         .map((n) => n[0])
         .join("")
-        .toUpperCase();
-      
+        .toUpperCase()
+        .slice(0, 2);
+
       return (
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user.image || undefined} alt={user.name} />
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-        </Avatar>
-      );
-    },
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="ID" />
-    ),
-    cell: ({ getValue }) => {
-      const id = getValue<string>();
-      return <CopyableCell value={id} displayText={id} />;
-    },
-    enableSorting: true,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ getValue }) => {
-      const name = getValue<string>();
-      return (
-        <span className="font-medium">
-          {name}
-        </span>
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium">{displayName}</span>
+        </div>
       );
     },
     enableSorting: true,
@@ -116,30 +88,29 @@ export const columns: ColumnDef<User>[] = [
       <DataTableColumnHeader column={column} title="Email" />
     ),
     cell: ({ getValue }) => {
-      const email = getValue<string>();
+      const email = getValue<string | null>();
+      if (!email) return <span className="text-muted-foreground">N/A</span>;
       return <CopyableCell value={email} displayText={email} />;
     },
     enableSorting: true,
     enableHiding: false,
   },
   {
-    accessorKey: "email_verified",
+    accessorKey: "role",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Email Status" />
+      <DataTableColumnHeader column={column} title="Role" />
     ),
     cell: ({ getValue }) => {
-      const isVerified = getValue<boolean>();
+      const role = getValue<string>();
+      const variantMap: Record<string, "default" | "secondary" | "outline"> = {
+        admin: "default",
+        trainer: "secondary",
+        staff: "secondary",
+        client: "outline",
+      };
       return (
-        <Badge 
-          variant={isVerified ? "default" : "secondary"}
-          className="flex items-center gap-x-1"
-        >
-          {isVerified ? (
-            <CheckCircle className="h-3 w-3" />
-          ) : (
-            <XCircle className="h-3 w-3" />
-          )}
-          {isVerified ? "Verified" : "Unverified"}
+        <Badge variant={variantMap[role] ?? "outline"} className="capitalize">
+          {role}
         </Badge>
       );
     },
@@ -147,33 +118,24 @@ export const columns: ColumnDef<User>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "onboarding_completed",
+    accessorKey: "status",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Onboarding" />
+      <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ getValue }) => {
-      const status = getValue<boolean | null>();
-      
-      if (status === null) {
-        return (
-          <Badge variant="outline" className="flex items-center gap-x-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        );
-      }
-      
+      const status = getValue<string>();
+      const isActive = status === "active";
       return (
-        <Badge 
-          variant={status ? "default" : "destructive"}
-          className="flex items-center gap-x-1"
+        <Badge
+          variant={isActive ? "default" : "destructive"}
+          className="flex items-center gap-x-1 w-fit"
         >
-          {status ? (
+          {isActive ? (
             <CheckCircle className="h-3 w-3" />
           ) : (
             <XCircle className="h-3 w-3" />
           )}
-          {status ? "Completed" : "Incomplete"}
+          {isActive ? "Active" : "Suspended"}
         </Badge>
       );
     },
@@ -181,38 +143,33 @@ export const columns: ColumnDef<User>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "organization_id",
+    accessorKey: "joinedAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Organization" />
+      <DataTableColumnHeader column={column} title="Joined" />
     ),
     cell: ({ getValue }) => {
-      const orgId = getValue<string | null>();
-      if (!orgId) {
-        return (
-          <Badge variant="outline" className="text-muted-foreground">
-            No Organization
-          </Badge>
-        );
-      }
-      return <CopyableCell value={orgId} displayText="Has Organization" />;
+      const joinedAt = getValue<Date | null>();
+      if (!joinedAt) return <span className="text-muted-foreground">N/A</span>;
+      return (
+        <span className="text-sm text-muted-foreground">
+          {new Date(joinedAt).toLocaleDateString()}
+        </span>
+      );
     },
     enableSorting: true,
     enableHiding: true,
   },
   {
-    accessorKey: "created_at",
+    accessorKey: "id",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created At" />
+      <DataTableColumnHeader column={column} title="Member ID" />
     ),
     cell: ({ getValue }) => {
-      const createdAt = getValue<string>();
-      return (
-        <span className="text-sm text-muted-foreground">
-          {new Date(createdAt).toLocaleDateString()}
-        </span>
-      );
+      const id = getValue<string>();
+      const shortId = id.slice(0, 8) + "...";
+      return <CopyableCell value={id} displayText={shortId} />;
     },
-    enableSorting: true,
+    enableSorting: false,
     enableHiding: true,
   },
 ];

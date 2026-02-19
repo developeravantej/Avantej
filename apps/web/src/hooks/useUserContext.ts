@@ -95,42 +95,36 @@ export function useUserContext(enabled = true) {
   return useQuery<UserContextResponse>({
     queryKey: ["user-context"],
     queryFn: async () => {
-      try {
-        // Use oRPC client for type-safe API calls
-        const data = await client.auth.userContext({});
-        
-        // Persist to localStorage for offline/quick access
-        if (data.organizations?.length > 0) {
-          localStorage.setItem("user_organizations", JSON.stringify(
-            data.organizations.map((org) => ({
-              id: org.id,
-              name: org.name,
-              slug: org.slug,
-              role: org.role,
-            }))
-          ));
-          localStorage.setItem("current_organization_id", data.currentOrganizationId || data.organizations[0].id);
-          
-          // Cache hierarchy data
-          data.organizations.forEach((org) => {
-            if (org.hierarchy?.nodes) {
-              localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
-            }
-          });
-        }
+      // Use oRPC client for type-safe API calls
+      const data = await client.auth.userContext({});
 
-        return data as UserContextResponse;
-      } catch (error) {
-        console.warn("Failed to fetch user context from API, using mock data:", error);
-        // Return mock data when API is not available
-        return MOCK_USER_CONTEXT;
+      // Persist to localStorage for offline/quick access
+      if (data.organizations?.length > 0) {
+        localStorage.setItem("user_organizations", JSON.stringify(
+          data.organizations.map((org) => ({
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+            role: org.role,
+          }))
+        ));
+        localStorage.setItem("current_organization_id", data.currentOrganizationId || data.organizations[0].id);
+
+        // Cache hierarchy data
+        data.organizations.forEach((org) => {
+          if (org.hierarchy?.nodes) {
+            localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
+          }
+        });
       }
+
+      return data as UserContextResponse;
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - data doesn't change often
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 1,
-    // Use localStorage as initial data if available, otherwise use mock data.
+    // Use localStorage as initial data if available (faster first render).
     // Don't use stored "org-1" as currentOrganizationId (server expects UUID).
     initialData: () => {
       try {
@@ -156,8 +150,8 @@ export function useUserContext(enabled = true) {
       } catch {
         // Ignore parse errors
       }
-      // Return mock data as fallback
-      return MOCK_USER_CONTEXT;
+      // Return undefined so TanStack Query fetches fresh data immediately
+      return undefined;
     },
   });
 }

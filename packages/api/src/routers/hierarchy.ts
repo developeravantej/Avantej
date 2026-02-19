@@ -150,46 +150,27 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:125',message:'listNodes handler entry',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasAccessibleNodeIds:!!context.accessibleNodeIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      
       // Tenant DB should be set up by createContext for oRPC routes
       const tenantDb = context.tenantDb;
       const member = context.member;
       const accessibleNodeIds = context.accessibleNodeIds;
 
       if (!tenantDb) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:135',message:'Tenant DB missing in handler',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasOrgId:!!context.organizationId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-        console.error("listNodes: Tenant DB not available", {
-          organizationId: input.organizationId,
-          hasTenantDb: !!context.tenantDb,
-          hasMember: !!context.member,
-        });
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: `Tenant database not available for organization ${input.organizationId}. Ensure organization context is set.`,
         });
       }
 
       if (!member) {
-        console.error("listNodes: Member not found", {
-          organizationId: input.organizationId,
-          userId: context.session?.user?.id,
-          hasTenantDb: !!context.tenantDb,
-        });
         throw new ORPCError("FORBIDDEN", {
           message: `User is not a member of organization ${input.organizationId}`,
         });
       }
-      
-      console.log(`[listNodes] Member found: ${member.id}, hierarchyScopeId: ${member.hierarchyScopeId}, role: ${member.role}`);
 
       // Use the accessibleNodeIds from context (already calculated in createContext)
       const finalAccessibleNodeIds = accessibleNodeIds || [];
 
-      // Get all nodes - ensure this completes before returning
+      // Get all nodes
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allNodes = await tenantDb.query.hierarchyNodes.findMany({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,55 +180,20 @@ export const hierarchyRouter = {
         ],
       });
 
-      console.log(`[listNodes] Total nodes in DB: ${allNodes.length}`);
-      console.log(`[listNodes] Accessible node IDs count: ${finalAccessibleNodeIds.length}`);
-      console.log(`[listNodes] Member hierarchyScopeId: ${member?.hierarchyScopeId}`);
-      console.log(`[listNodes] Member role: ${member?.role}`);
-
-      // Log branch nodes specifically
-      const branchNodes = allNodes.filter((n: any) => n.type === "branch");
-      console.log(`[listNodes] Branch nodes in DB: ${branchNodes.length}`);
-      branchNodes.forEach((branch: any) => {
-        const isAccessible = finalAccessibleNodeIds.includes(branch.id);
-        console.log(`[listNodes] Branch ${branch.id} (${branch.name}): accessible=${isAccessible}, depth=${branch.depth}, type=${branch.type}`);
-        if (branch.id === "7cce143b-627c-472c-a6b6-57696e2b2a75") {
-          console.log(`[listNodes] *** TARGET BRANCH FOUND IN DB ***`, branch);
-        }
-      });
-
-      // If accessibleNodeIds is empty OR member is admin, return all nodes
-      // Organization admins should see all nodes regardless of scope
+      // If admin: return all nodes; if no accessible IDs: return all nodes; otherwise filter
       let accessibleNodes: typeof allNodes;
       const isAdmin = member.role === "admin";
-      
-      if (isAdmin) {
-        console.log(`[listNodes] Member is admin, returning ALL nodes (${allNodes.length} total)`);
-        accessibleNodes = allNodes;
-      } else if (finalAccessibleNodeIds.length === 0) {
-        console.warn(`[listNodes] WARNING: accessibleNodeIds is empty! Returning all nodes. This might indicate a member scope issue.`);
+
+      if (isAdmin || finalAccessibleNodeIds.length === 0) {
         accessibleNodes = allNodes;
       } else {
-        // Filter to accessible nodes (synchronous operation)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         accessibleNodes = allNodes.filter((node: any) =>
           finalAccessibleNodeIds.includes(node.id)
         );
-        console.log(`[listNodes] Filtered to ${accessibleNodes.length} accessible nodes (out of ${allNodes.length} total)`);
       }
 
-      console.log(`[listNodes] Accessible nodes after filtering: ${accessibleNodes.length}`);
-      const accessibleBranches = accessibleNodes.filter((n: any) => n.type === "branch");
-      console.log(`[listNodes] Accessible branches: ${accessibleBranches.length}`);
-      
-      // Check if target branch is in accessible nodes
-      const targetBranchInAccessible = accessibleNodes.find((n: any) => n.id === "7cce143b-627c-472c-a6b6-57696e2b2a75");
-      if (targetBranchInAccessible) {
-        console.log(`[listNodes] *** TARGET BRANCH IS ACCESSIBLE ***`, targetBranchInAccessible);
-      } else {
-        console.warn(`[listNodes] *** TARGET BRANCH IS NOT ACCESSIBLE ***`);
-      }
-
-      // Map nodes to response format (synchronous operation)
+      // Map nodes to response format
       return {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         nodes: accessibleNodes.map((node: any) => ({

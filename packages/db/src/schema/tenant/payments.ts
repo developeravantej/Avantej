@@ -13,7 +13,10 @@
  */
 
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
-import { appointments } from "./appointments";
+// NOTE: appointments is intentionally not imported here to break the circular
+// dependency chain: appointments → package-instances → payments → appointments.
+// The FK constraint on appointment_id exists at the DB level (via migration).
+// Do not add .references(() => appointments.id) here or the TS7022 error returns.
 
 export const payments = pgTable("payments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -41,8 +44,8 @@ export const payments = pgTable("payments", {
 	
 	status: text("status").notNull(), // "pending" | "succeeded" | "failed" | "canceled" | "refunded"
 	
-	// Optional appointment link
-	appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+	// Optional appointment link (FK to appointments.id exists at DB level via migration)
+	appointmentId: uuid("appointment_id"),
 	
 	description: text("description"), // Payment description
 	metadata: text("metadata"), // JSON metadata (optional)

@@ -24,6 +24,7 @@ export async function requirePermission(
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: { invitationToken: undefined, orgId: undefined },
 			throw: true,
 		});
 	}
@@ -51,6 +52,7 @@ export async function requireAnyPermission(
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: { invitationToken: undefined, orgId: undefined },
 			throw: true,
 		});
 	}
@@ -70,6 +72,7 @@ export async function requireRole(
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: { invitationToken: undefined, orgId: undefined },
 			throw: true,
 		});
 	}
@@ -88,6 +91,7 @@ export async function requireSystemAdmin(
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: { invitationToken: undefined, orgId: undefined },
 			throw: true,
 		});
 	}

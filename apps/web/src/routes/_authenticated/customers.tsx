@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Users, Mail, Calendar, User } from "lucide-react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,6 +17,13 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/customers")({
 	component: CustomersComponent,
@@ -34,6 +42,16 @@ function CustomersComponent() {
 	const [medicalNotes, setMedicalNotes] = useState("");
 	const [notes, setNotes] = useState("");
 
+	const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+	const [newEmail, setNewEmail] = useState("");
+	const [selectedBranchId, setSelectedBranchId] = useState("");
+
+	const currentOrg = userContext?.organizations.find(
+		(o) => o.id === organizationId,
+	);
+	const memberHierarchyScopeId =
+		currentOrg?.hierarchy.member?.hierarchyScopeId ?? "";
+
 	const { data: profile, isLoading: profileLoading } = useQuery({
 		queryKey: ["customer-profile", organizationId],
 		queryFn: async () => {
@@ -43,6 +61,24 @@ function CustomersComponent() {
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
 	});
+
+	const { data: customers = [], isLoading: customersLoading } = useQuery({
+		...orpc.members.list.queryOptions({
+			organizationId: organizationId ?? "",
+			role: "client",
+		}),
+		enabled: !!organizationId,
+	});
+
+	const { data: hierarchyData } = useQuery({
+		...orpc.hierarchy.listNodes.queryOptions({
+			organizationId: organizationId ?? "",
+		}),
+		enabled: !!organizationId,
+	});
+	const branchNodes = (hierarchyData?.nodes ?? []).filter(
+		(n) => n.type === "branch",
+	);
 
 	const upsertMutation = useMutation({
 		mutationFn: async () => {
@@ -64,6 +100,32 @@ function CustomersComponent() {
 		},
 		onError: (err: unknown) => {
 			toast.error(err instanceof Error ? err.message : "Failed to update profile");
+		},
+	});
+
+	const addCustomerMutation = useMutation({
+		mutationFn: async () => {
+			if (!organizationId) throw new Error("No organization");
+			const scopeId = selectedBranchId || memberHierarchyScopeId;
+			if (!scopeId) throw new Error("No hierarchy scope");
+			return client.members.create({
+				organizationId,
+				email: newEmail.trim(),
+				role: "client",
+				hierarchyScopeId: scopeId,
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({ organizationId: organizationId ?? "", role: "client" }),
+			);
+			toast.success("Customer added");
+			setIsAddCustomerOpen(false);
+			setNewEmail("");
+			setSelectedBranchId("");
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Failed to add customer");
 		},
 	});
 
@@ -95,7 +157,7 @@ function CustomersComponent() {
 						Manage your customer database and relationships
 					</p>
 				</div>
-				<Button disabled>
+				<Button onClick={() => setIsAddCustomerOpen(true)}>
 					<Plus className="mr-2 h-4 w-4" />
 					Add Customer
 				</Button>
@@ -153,77 +215,42 @@ function CustomersComponent() {
 					</div>
 
 					<div className="grid gap-4">
-						<div className="border rounded-lg p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center space-x-4">
-									<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-										<Users className="h-5 w-5 text-blue-600" />
-									</div>
-									<div>
-										<h3 className="font-semibold">John Smith</h3>
-										<p className="text-sm text-muted-foreground">john.smith@email.com</p>
-									</div>
-								</div>
-								<div className="flex items-center space-x-2">
-									<Button variant="outline" size="sm">
-										<Mail className="h-4 w-4 mr-1" />
-										Contact
-									</Button>
-									<Button variant="outline" size="sm">
-										<Calendar className="h-4 w-4 mr-1" />
-										Schedule
-									</Button>
-								</div>
-							</div>
-						</div>
-
-						<div className="border rounded-lg p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center space-x-4">
-									<div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-										<Users className="h-5 w-5 text-green-600" />
-									</div>
-									<div>
-										<h3 className="font-semibold">Sarah Johnson</h3>
-										<p className="text-sm text-muted-foreground">sarah.j@email.com</p>
-									</div>
-								</div>
-								<div className="flex items-center space-x-2">
-									<Button variant="outline" size="sm">
-										<Mail className="h-4 w-4 mr-1" />
-										Contact
-									</Button>
-									<Button variant="outline" size="sm">
-										<Calendar className="h-4 w-4 mr-1" />
-										Schedule
-									</Button>
-								</div>
-							</div>
-						</div>
-
-						<div className="border rounded-lg p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center space-x-4">
-									<div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-										<Users className="h-5 w-5 text-purple-600" />
-									</div>
-									<div>
-										<h3 className="font-semibold">Mike Wilson</h3>
-										<p className="text-sm text-muted-foreground">mike.wilson@email.com</p>
+						{customersLoading ? (
+							<p className="text-sm text-muted-foreground py-4">Loading customers…</p>
+						) : customers.length === 0 ? (
+							<p className="text-sm text-muted-foreground py-4">
+								No customers yet. Click "Add Customer" to add one.
+							</p>
+						) : (
+							customers.map((customer) => (
+								<div key={customer.id} className="border rounded-lg p-4">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center space-x-4">
+											<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+												<Users className="h-5 w-5 text-blue-600" />
+											</div>
+											<div>
+												<h3 className="font-semibold">{customer.name ?? customer.email ?? "Unknown"}</h3>
+												<p className="text-sm text-muted-foreground">{customer.email}</p>
+											</div>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Badge variant={customer.status === "active" ? "default" : "destructive"}>
+												{customer.status}
+											</Badge>
+											<Button variant="outline" size="sm">
+												<Mail className="h-4 w-4 mr-1" />
+												Contact
+											</Button>
+											<Button variant="outline" size="sm">
+												<Calendar className="h-4 w-4 mr-1" />
+												Schedule
+											</Button>
+										</div>
 									</div>
 								</div>
-								<div className="flex items-center space-x-2">
-									<Button variant="outline" size="sm">
-										<Mail className="h-4 w-4 mr-1" />
-										Contact
-									</Button>
-									<Button variant="outline" size="sm">
-										<Calendar className="h-4 w-4 mr-1" />
-										Schedule
-									</Button>
-								</div>
-							</div>
-						</div>
+							))
+						)}
 					</div>
 				</CardContent>
 			</Card>
@@ -304,6 +331,61 @@ function CustomersComponent() {
 							disabled={upsertMutation.isPending}
 						>
 							{upsertMutation.isPending ? "Saving…" : "Save"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Add Customer</DialogTitle>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div>
+							<Label htmlFor="newEmail">Email address</Label>
+							<Input
+								id="newEmail"
+								type="email"
+								value={newEmail}
+								onChange={(e) => setNewEmail(e.target.value)}
+								placeholder="customer@example.com"
+								className="mt-1"
+							/>
+							<p className="text-xs text-muted-foreground mt-1">
+								The user must already have an account in the system.
+							</p>
+						</div>
+						{branchNodes.length > 0 && (
+							<div>
+								<Label htmlFor="branch">Branch</Label>
+								<Select
+									value={selectedBranchId}
+									onValueChange={setSelectedBranchId}
+								>
+									<SelectTrigger className="mt-1">
+										<SelectValue placeholder="Select a branch…" />
+									</SelectTrigger>
+									<SelectContent>
+										{branchNodes.map((node) => (
+											<SelectItem key={node.id} value={node.id}>
+												{node.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setIsAddCustomerOpen(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => addCustomerMutation.mutate()}
+							disabled={addCustomerMutation.isPending || !newEmail.trim()}
+						>
+							{addCustomerMutation.isPending ? "Adding…" : "Add Customer"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

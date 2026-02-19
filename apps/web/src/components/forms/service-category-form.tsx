@@ -1,7 +1,8 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState, useEffect } from 'react';
-// TODO: Replace with actual oRPC client when backend is ready
-// import apiClient from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { orpc, client } from '@/utils/orpc';
+import { useUserContext } from '@/hooks/useUserContext';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -58,9 +59,16 @@ interface ServiceFormDialogProps {
 }
 
 export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: ServiceFormDialogProps) {
-  // State for roles fetched from API
-  const [allRoles, setAllRoles] = useState<Role[]>([]);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const { data: userCtx } = useUserContext();
+  const organizationId = userCtx?.currentOrganizationId ?? "";
+
+  // Fetch roles from API
+  const { data: rolesData = [], isLoading: isLoadingRoles } = useQuery({
+    ...orpc.roles.list.queryOptions({ organizationId }),
+    enabled: !!organizationId && isOpen,
+  });
+
+  const allRoles: Role[] = rolesData.map((r: any) => ({ id: r.id, name: r.name }));
 
   // State to track which roles are currently selected (using string IDs for UUIDs)
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
@@ -166,61 +174,27 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
   const [isAddingStaff, setIsAddingStaff] = useState(false);
   const { user } = useAuth();
 
-  // Fetch roles from API
+  // Auto-select first role in create mode when roles load
   useEffect(() => {
-    const fetchRoles = async () => {
-      if (!isOpen) return; // Don't fetch if dialog is closed
-      
-      setIsLoadingRoles(true);
-      try {
-        // TODO: Replace with actual oRPC client call
-        // Get organization_id from user
-        // const organizationId = (user as any)?.current_organization_id || (user as any)?.organization_id;
-        // const response = await apiClient.getListRoles({
-        //   organization_id: organizationId,
-        //   limit: 100
-        // });
-        // if (response.data) {
-        //   const rolesData = Array.isArray(response.data) 
-        //     ? response.data 
-        //     : ((response.data as any).items || []);
-        //   const roles: Role[] = rolesData.map((role: any) => ({
-        //     id: role.id,
-        //     name: role.name
-        //   }));
-        //   setAllRoles(roles);
-        //   if (mode === 'create' && selectedRoleIds.size === 0 && roles.length > 0) {
-        //     const firstRoleId = String(roles[0].id);
-        //     setSelectedRoleIds(new Set([firstRoleId]));
-        //     setFormData(prev => {
-        //       if (prev.name === '' && prev.duration === 0) {
-        //         return {
-        //           ...prev,
-        //           incentive: {
-        //             ...prev.incentive,
-        //             paymentStructure: {
-        //               nonConditional: createEmptyRateStructure([firstRoleId])
-        //             }
-        //           }
-        //         };
-        //       }
-        //       return prev;
-        //     });
-        //   }
-        // }
-        console.warn("API call to fetchRoles is mocked.");
-        setAllRoles([]); // Mock data
-      } catch (err: any) {
-        console.error('Error fetching roles:', err);
-        toast.error('Failed to load roles. Please try again.');
-      } finally {
-        setIsLoadingRoles(false);
-      }
-    };
-
-    fetchRoles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, user]);
+    if (mode === 'create' && selectedRoleIds.size === 0 && allRoles.length > 0) {
+      const firstRoleId = String(allRoles[0].id);
+      setSelectedRoleIds(new Set([firstRoleId]));
+      setFormData(prev => {
+        if (prev.name === '' && prev.duration === 0) {
+          return {
+            ...prev,
+            incentive: {
+              ...prev.incentive,
+              paymentStructure: {
+                nonConditional: createEmptyRateStructure([firstRoleId])
+              }
+            }
+          };
+        }
+        return prev;
+      });
+    }
+  }, [allRoles, mode, selectedRoleIds.size]);
 
   // Set selected roles from initialData when in edit mode and roles are loaded
   useEffect(() => {
@@ -415,9 +389,11 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     }
   };
 
+  const qc = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate percentages before submission
     const total = getTotalPercentage();
     if (Math.abs(total - 100) >= 0.01) {
@@ -425,27 +401,84 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
       return;
     }
 
+    if (!organizationId) {
+      setError('User must be part of an organization');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Transform and submit to API
-      const apiData = transformFormDataToAPI(formData);
-      
-      // TODO: Replace with actual oRPC client call
-      // if (mode === 'edit' && initialData && (initialData.id || (initialData as any)?.categoryId)) {
-      //   const categoryId = (initialData as any)?.categoryId || initialData.id.toString();
-      //   await apiClient.putUpdateServiceCategory({
-      //     category_id: categoryId,
-      //     body: apiData
-      //   });
-      //   toast.success('Service category updated successfully');
-      // } else {
-      //   await apiClient.postCreateServiceCategory({ body: apiData });
-      //   toast.success('Service category created successfully');
-      // }
-      console.warn("API call to create/update service category is mocked.", apiData);
-      toast.success(`Service category ${mode === 'create' ? 'created' : 'updated'} successfully (simulated)`);
+      // Step 1: Create the service
+      const serviceResult = await client.services.create({
+        organizationId,
+        name: formData.name,
+        categoryId: null,
+        duration: formData.duration * 60, // minutes → seconds
+        durationUnitType: "minutes",
+        maxAttendees: formData.maxAttendees ?? 1,
+        attendanceThreshold: null,
+        branchId: null,
+        isActive: true,
+        price: null,
+        taxable: false,
+        taxPercentage: 0,
+        schedulingType: "appointment",
+      });
+
+      const serviceId = (serviceResult as any).id;
+
+      // Step 2: Upsert commission configuration
+      // TODO: fixedAmounts in DB stores cents (absolute amounts), but form collects percentages. Clarify with business before production.
+      const selectedRoles = getSelectedRoles();
+      const fixedAmounts: Record<string, number> = {};
+      const structure = formData.incentive.isConditional
+        ? formData.incentive.paymentStructure.conditional?.belowThreshold
+        : formData.incentive.paymentStructure.nonConditional;
+      if (structure) {
+        selectedRoles.forEach(role => {
+          const roleKey = `role_${String(role.id)}`;
+          if (structure[roleKey] !== undefined) {
+            fixedAmounts[String(role.id)] = structure[roleKey];
+          }
+        });
+      }
+
+      await client.serviceCommissionConfig.upsert({
+        organizationId,
+        serviceId,
+        commissionType: formData.incentive.type === 'fixed' ? 'fixed' : 'percentage',
+        fixedAmounts: Object.keys(fixedAmounts).length > 0 ? fixedAmounts : null,
+        staffPoolPercentage: formData.incentive.staffPoolPercentage ?? 100,
+        positionWeightage: formData.incentive.staffWeightage.map(sw => ({
+          position: sw.position,
+          percentage: sw.percentage,
+          title: sw.title,
+        })),
+        maxStaff: formData.incentive.staffWeightage.length,
+      });
+
+      // Step 3: Upsert service rules
+      await client.serviceRules.upsert({
+        organizationId,
+        serviceId,
+        requireAdvanceBooking: formData.rules?.requireAdvanceBooking ?? false,
+        minAdvanceBookingDuration: formData.rules?.requireAdvanceBooking
+          ? (formData.rules.minAdvanceHours ?? 0) * 3600 // hours → seconds
+          : null,
+        minAdvanceBookingUnitType: "hours",
+        enableCancellationWindow: formData.rules?.enableCancellationWindow ?? false,
+        cancellationCutoffDuration: formData.rules?.enableCancellationWindow
+          ? (formData.rules.cancellationCutoffHours ?? 0) * 3600 // hours → seconds
+          : null,
+        cancellationCutoffUnitType: "hours",
+      });
+
+      // Invalidate relevant queries
+      qc.invalidateQueries({ queryKey: orpc.services.list.queryKey() });
+
+      toast.success(`Service category ${mode === 'create' ? 'created' : 'updated'} successfully`);
 
       // Call the onSubmit callback for parent component to refresh data
       await onSubmit(formData, initialData?.id);
