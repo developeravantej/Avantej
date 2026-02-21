@@ -32,6 +32,8 @@ export default function LoginForm({
 	const searchParams = useSearch({ strict: false });
 	const invitationToken = searchParams.invitationToken as string | undefined;
 	const orgId = searchParams.orgId as string | undefined;
+	const signupSearch =
+		invitationToken && orgId ? { invitationToken, orgId } : {};
 
 	// IMPORTANT: All hooks MUST be called before any early returns
 	// This is a React rule - hooks must be called in the same order every render
@@ -115,8 +117,13 @@ export default function LoginForm({
 												disabled={isLoading}
 											/>
 											{field.state.meta.errors.map((error) => (
-												<p key={error} className="text-sm text-destructive">
-													{error}
+												<p
+													key={String(error)}
+													className="text-sm text-destructive"
+												>
+													{typeof error === "string"
+														? error
+														: error?.message || "Invalid email"}
 												</p>
 											))}
 										</div>
@@ -137,8 +144,13 @@ export default function LoginForm({
 												disabled={isLoading}
 											/>
 											{field.state.meta.errors.map((error) => (
-												<p key={error} className="text-sm text-destructive">
-													{error}
+												<p
+													key={String(error)}
+													className="text-sm text-destructive"
+												>
+													{typeof error === "string"
+														? error
+														: error?.message || "Invalid password"}
 												</p>
 											))}
 										</div>
@@ -199,7 +211,11 @@ export default function LoginForm({
 							</div>
 							<div className="text-center text-sm">
 								Don&apos;t have an account?{" "}
-								<Link to="/signup" className="underline underline-offset-4">
+								<Link
+									to="/signup"
+									search={signupSearch}
+									className="underline underline-offset-4"
+								>
 									Sign up
 								</Link>
 							</div>

@@ -379,14 +379,6 @@ function RoleManagementPage() {
     });
   };
 
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedRoles(new Set(filteredRoles.map((role) => role.id)));
-    } else {
-      setSelectedRoles(new Set());
-    }
-  };
-
   // Role editing handlers
   const handleEditRole = (role: Role) => {
     setEditingRole(role);
@@ -455,6 +447,7 @@ function RoleManagementPage() {
 
     const updateKey = `${roleId}-${resourceId}-${actionId}`;
     const previousMatrix = { ...matrix };
+    const normalizedScope = scope ?? "own";
 
     try {
       setPendingUpdates(prev => new Set([...prev, updateKey]));
@@ -513,7 +506,7 @@ function RoleManagementPage() {
                   ...role,
                   permissions: role.permissions.map(rp => {
                     if (rp.id === existingPermission.id) {
-                      return { ...rp, scope };
+                      return { ...rp, scope: normalizedScope };
                     }
                     return rp;
                   })
@@ -533,11 +526,20 @@ function RoleManagementPage() {
           toast.success(`Removed ${actionName} permission from ${roleName}`);
         }
       } else if (existingPermission) {
-        await updatePermissionActionScope(roleId, permissionId, actionId, scope);
-        toast.success(`Updated ${actionName} permission scope to ${scope} for ${roleName}`);
+        await updatePermissionActionScope(
+          roleId,
+          permissionId,
+          actionId,
+          normalizedScope,
+        );
+        toast.success(
+          `Updated ${actionName} permission scope to ${normalizedScope} for ${roleName}`,
+        );
       } else {
-        await addPermissionToRole(roleId, permissionId, scope);
-        toast.success(`Added ${actionName} permission with ${scope} scope to ${roleName}`);
+        await addPermissionToRole(roleId, permissionId, normalizedScope);
+        toast.success(
+          `Added ${actionName} permission with ${normalizedScope} scope to ${roleName}`,
+        );
       }
 
       await fetchMatrix(organizationId);
@@ -578,12 +580,6 @@ function RoleManagementPage() {
   const prevWizardStep = () => {
     setWizardStep((prev) => Math.max(prev - 1, 1));
   };
-
-  const selectedCount = selectedRoles.size;
-  const allSelected =
-    selectedCount === filteredRoles.length && filteredRoles.length > 0;
-  const someSelected =
-    selectedCount > 0 && selectedCount < filteredRoles.length;
 
   return (
     <div className="space-y-6">

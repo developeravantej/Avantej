@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { client, queryClient } from "@/utils/orpc";
+import { client } from "@/utils/orpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Users, Plus, Loader2, UserCheck, Shield } from "lucide-react";
 import { toast } from "sonner";
@@ -55,7 +55,7 @@ interface MemberReassignmentProps {
 export function MemberReassignment({
   branchId,
   organizationId,
-  allBranches,
+  allBranches: _allBranches,
   picUserId,
   onReassigned,
 }: MemberReassignmentProps) {
@@ -91,8 +91,9 @@ export function MemberReassignment({
   // Fetch hierarchy nodes to determine scope levels
   const { data: hierarchyNodesData } = useQuery({
     queryKey: ["hierarchy-nodes", organizationId],
-    queryFn: async () => {
-      return await client.hierarchy.listNodes({ organizationId });
+    queryFn: async (): Promise<{ nodes: HierarchyNode[] }> => {
+      const result = await client.hierarchy.listNodes({ organizationId });
+      return { nodes: (result.nodes as HierarchyNode[]) || [] };
     },
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -100,7 +101,7 @@ export function MemberReassignment({
 
   const assignedMembers = membersData?.members || [];
   const allMembers = allMembersData?.members || [];
-  const hierarchyNodes = hierarchyNodesData?.nodes || [];
+  const hierarchyNodes: HierarchyNode[] = hierarchyNodesData?.nodes || [];
 
   // Create a map of hierarchyScopeId -> node info for quick lookup
   const hierarchyScopeMap = useMemo(() => {
@@ -580,4 +581,3 @@ export function MemberReassignment({
     </div>
   );
 }
-
