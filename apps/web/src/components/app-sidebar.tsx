@@ -138,15 +138,15 @@ export const SIDEBAR_DATA = {
         },
         {
           title: 'Sales',
-          url: '#',
+          url: '/dashboard/sales/view',
         },
         {
           title: 'Payment',
-          url: '#',
+          url: '/dashboard/payment/view',
         },
         {
           title: 'Cancelled Sales',
-          url: '#',
+          url: '/dashboard/cancelled-sales/view',
         },
       ],
     },
@@ -327,25 +327,25 @@ export const SIDEBAR_DATA = {
       isActive: false,
 
       items: [
-        {
-          name: 'Daily Transaction Summary',
-          url: '#',
-        },
-        {
-          name: 'Cash Summary',
-          url: '#',
-        },
+        // {
+        //   name: 'Daily Transaction Summary',
+        //   url: '#',
+        // },
+        // {
+        //   name: 'Cash Summary',
+        //   url: '#',
+        // },
         {
           name: 'Sales',
-          url: '#',
+          url: '/dashboard/sales/view',
         },
         {
           name: 'Payment',
-          url: '#',
+          url: '/dashboard/payment/view',
         },
         {
           name: 'Cancelled Sales',
-          url: '#',
+          url: '/dashboard/cancelled-sales/view',
         },
       ],
     },
