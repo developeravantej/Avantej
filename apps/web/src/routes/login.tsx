@@ -1,12 +1,20 @@
 import LoginForm from "@/components/forms/login-form";
 import { createFileRoute } from "@tanstack/react-router";
 
+type LoginSearch = {
+	invitationToken?: string;
+	orgId?: string;
+};
+
 export const Route = createFileRoute("/login")({
 	component: RouteComponent,
-	validateSearch: (search: Record<string, unknown>) => {
+	validateSearch: (search: Record<string, unknown>): LoginSearch => {
 		return {
-			invitationToken: (search.invitationToken as string) || undefined,
-			orgId: (search.orgId as string) || undefined,
+			invitationToken:
+				typeof search.invitationToken === "string"
+					? search.invitationToken
+					: undefined,
+			orgId: typeof search.orgId === "string" ? search.orgId : undefined,
 		};
 	},
 });

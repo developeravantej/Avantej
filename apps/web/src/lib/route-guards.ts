@@ -16,14 +16,15 @@ import type { RequiredPermission } from "@/types/auth";
  * For now, this is a placeholder that checks authentication only
  */
 export async function requirePermission(
-	permission: RequiredPermission,
-	redirectTo: string = "/dashboard"
+	_permission: RequiredPermission,
+	_redirectTo: string = "/dashboard"
 ): Promise<void> {
 	const session = await authClient.getSession();
 	
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: {},
 			throw: true,
 		});
 	}
@@ -43,14 +44,15 @@ export async function requirePermission(
  * Check if user has any of the required permissions
  */
 export async function requireAnyPermission(
-	permissions: RequiredPermission[],
-	redirectTo: string = "/dashboard"
+	_permissions: RequiredPermission[],
+	_redirectTo: string = "/dashboard"
 ): Promise<void> {
 	const session = await authClient.getSession();
 	
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: {},
 			throw: true,
 		});
 	}
@@ -62,14 +64,15 @@ export async function requireAnyPermission(
  * Check if user has a specific role
  */
 export async function requireRole(
-	roleName: string,
-	redirectTo: string = "/dashboard"
+	_roleName: string,
+	_redirectTo: string = "/dashboard"
 ): Promise<void> {
 	const session = await authClient.getSession();
 	
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: {},
 			throw: true,
 		});
 	}
@@ -81,20 +84,20 @@ export async function requireRole(
  * Check if user is system admin
  */
 export async function requireSystemAdmin(
-	redirectTo: string = "/dashboard"
+	_redirectTo: string = "/dashboard"
 ): Promise<void> {
 	const session = await authClient.getSession();
 	
 	if (!session.data) {
 		throw redirect({
 			to: "/login",
+			search: {},
 			throw: true,
 		});
 	}
 
 	// TODO: Check if user is system admin when API is ready
 }
-
 
 
 

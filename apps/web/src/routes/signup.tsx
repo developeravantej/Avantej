@@ -1,12 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SignupForm } from "@/components/forms/signup-form";
 
+type SignupSearch = {
+	invitationToken?: string;
+	orgId?: string;
+};
+
 export const Route = createFileRoute("/signup")({
 	component: RouteComponent,
-	validateSearch: (search: Record<string, unknown>) => {
+	validateSearch: (search: Record<string, unknown>): SignupSearch => {
 		return {
-			invitationToken: (search.invitationToken as string) || undefined,
-			orgId: (search.orgId as string) || undefined,
+			invitationToken:
+				typeof search.invitationToken === "string"
+					? search.invitationToken
+					: undefined,
+			orgId: typeof search.orgId === "string" ? search.orgId : undefined,
 		};
 	},
 });
@@ -18,4 +26,3 @@ function RouteComponent() {
 		</div>
 	);
 }
-

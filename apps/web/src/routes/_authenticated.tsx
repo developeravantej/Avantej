@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
 		if (!session.data) {
 			throw redirect({
 				to: "/login",
+				search: {},
 				throw: true,
 			});
 		}
@@ -34,4 +35,3 @@ function AuthenticatedLayout() {
 		</AppLayout>
 	);
 }
-

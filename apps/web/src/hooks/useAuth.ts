@@ -7,7 +7,7 @@
  * TODO: Integrate permission checking with Better-Auth permission system
  */
 
-import { useMemo, useCallback, useEffect, useState, useRef } from "react";
+import { useMemo, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 import { useUserContext } from "./useUserContext";
@@ -19,9 +19,7 @@ import type {
   RequiredPermission,
   FlattenedPermission,
   UseAuthReturn,
-  OrganizationData,
 } from "@/types/auth";
-import { isUserWithPermissions } from "@/types/auth";
 import { flattenUserPermissions, checkUserPermission, checkUserRole } from "@/lib/permissions";
 
 export function useAuth(): UseAuthReturn {
@@ -154,7 +152,7 @@ export function useAuth(): UseAuthReturn {
           localStorage.removeItem(key);
         }
       });
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: {} });
     } catch (error) {
       console.error("Logout error:", error);
       // Clear localStorage even on error
@@ -165,7 +163,7 @@ export function useAuth(): UseAuthReturn {
           localStorage.removeItem(key);
         }
       });
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: {} });
     }
   }, [navigate, refetch]);
 
@@ -285,8 +283,6 @@ export function useAuth(): UseAuthReturn {
     commonPermissions,
   };
 }
-
-
 
 
 

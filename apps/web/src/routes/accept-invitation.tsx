@@ -148,10 +148,12 @@ function AcceptInvitationPage() {
 	const handleSignupSuccess = async () => {
 		try {
 			// Refresh session after signup
-			const sessionResult = await refetchSession();
+			await refetchSession();
 			
 			// Wait a moment for session to propagate
 			await new Promise(resolve => setTimeout(resolve, 500));
+
+			const sessionResult = await authClient.getSession();
 			
 			// Verify session is available and email matches
 			if (!sessionResult.data?.user) {
@@ -279,7 +281,7 @@ function AcceptInvitationPage() {
 						<Button
 							className="w-full"
 							variant="outline"
-							onClick={() => navigate({ to: "/" })}
+							onClick={() => navigate({ to: "/", search: {} })}
 						>
 							Go to Home
 						</Button>
@@ -326,4 +328,3 @@ function AcceptInvitationPage() {
 		</div>
 	);
 }
-

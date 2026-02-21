@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -125,7 +124,7 @@ export function SignupForm({
 									search: { invitationToken: finalInvitationToken, orgId: finalOrgId },
 								});
 							} else {
-								navigate({ to: "/login" });
+								navigate({ to: "/login", search: {} });
 							}
 						} else {
 							toast.error(errorMessage || "Signup failed");
@@ -152,7 +151,7 @@ export function SignupForm({
 				});
 			} else if (isUserExists) {
 				toast.info("Account already exists. Please log in.");
-				navigate({ to: "/login" });
+				navigate({ to: "/login", search: {} });
 			} else {
 				toast.error(errorMessage);
 			}
@@ -265,20 +264,17 @@ export function SignupForm({
 							</Button>
 						</div>
 					</div>
-					{!invitationEmail && (
-						<div className="mt-4 text-center text-sm">
-							Already have an account?{" "}
-							<Link to="/login" className="underline underline-offset-4">
-								Login
-							</Link>
-						</div>
-					)}
+						{!invitationEmail && (
+							<div className="mt-4 text-center text-sm">
+								Already have an account?{" "}
+								<Link to="/login" search={{}} className="underline underline-offset-4">
+									Login
+								</Link>
+							</div>
+						)}
 				</form>
 			</Form>
 		</div>
 	);
 }
-
-
-
 
