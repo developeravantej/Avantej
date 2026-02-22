@@ -357,31 +357,23 @@ export const SIDEBAR_DATA = {
       items: [
         {
           name: 'Products',
-          url: '#',
+          url: '/dashboard/products/view',
         },
         {
-          name: 'Brands',
-          url: '#',
+          name: 'Inventory Options',
+          url: '/dashboard/inventory-options',
         },
         {
-          name: 'Categories',
-          url: '#',
+          name: 'Unit of Measure',
+          url: '/dashboard/uom/view',
         },
         {
-          name: 'Suppliers',
-          url: '#',
-        },
-        {
-          name: 'UoM Conversion',
-          url: '#',
-        },
-        {
-          name: 'Stock Request',
-          url: '#',
+          name: 'Stock Requests',
+          url: '/dashboard/stock-requests/view',
         },
         {
           name: 'Transfer Orders',
-          url: '#',
+          url: '/dashboard/transfer-orders/view',
         },
       ],
     },
