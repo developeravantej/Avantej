@@ -11,7 +11,10 @@ import {
 import { Mail, RefreshCw, X, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
 // Simple date formatting utility
-function formatDistanceToNow(date: Date | string): string {
+function formatDistanceToNow(
+	date: Date | string,
+	_options?: { addSuffix?: boolean },
+): string {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	const now = new Date();
 	const diffMs = now.getTime() - dateObj.getTime();
@@ -33,7 +36,7 @@ function formatDistanceToNow(date: Date | string): string {
 	}
 }
 
-interface Invitation {
+export interface Invitation {
 	id: string;
 	email: string;
 	role: string;
@@ -210,4 +213,3 @@ export function InvitationList({
 		</div>
 	);
 }
-

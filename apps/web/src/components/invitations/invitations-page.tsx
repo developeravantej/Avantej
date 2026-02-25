@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 import { Button } from "@/components/ui/button";
-import { Plus, Mail, RefreshCw, X, Loader2 } from "lucide-react";
+import { Plus, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { InvitationList } from "./invitation-list";
+import { InvitationList, type Invitation } from "./invitation-list";
 import { CreateInvitationDialog } from "./create-invitation-dialog";
 import {
 	Select,
@@ -44,7 +44,26 @@ export function InvitationsPage() {
 		staleTime: 30 * 1000, // 30 seconds
 	});
 
-	const invitations = invitationsData || [];
+	const normalizeInvitationStatus = (
+		status: string,
+		expiresAt: Date | string,
+	): Invitation["status"] => {
+		if (status === "pending" || status === "accepted" || status === "declined") {
+			return status;
+		}
+		const expiresDate = new Date(expiresAt);
+		return expiresDate < new Date() ? "expired" : "pending";
+	};
+
+	const invitations: Invitation[] = (invitationsData || []).map((invitation) => ({
+		id: invitation.id,
+		email: invitation.email,
+		role: invitation.role,
+		hierarchyScopeId: invitation.hierarchyScopeId,
+		status: normalizeInvitationStatus(invitation.status, invitation.expiresAt),
+		expiresAt: invitation.expiresAt,
+		createdAt: invitation.createdAt,
+	}));
 
 	// Revoke invitation mutation
 	const revokeMutation = useMutation({
@@ -219,4 +238,3 @@ export function InvitationsPage() {
 		</div>
 	);
 }
-

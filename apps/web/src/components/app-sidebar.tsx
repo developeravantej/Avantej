@@ -138,15 +138,15 @@ export const SIDEBAR_DATA = {
         },
         {
           title: 'Sales',
-          url: '#',
+          url: '/dashboard/sales/view',
         },
         {
           title: 'Payment',
-          url: '#',
+          url: '/dashboard/payment/view',
         },
         {
           title: 'Cancelled Sales',
-          url: '#',
+          url: '/dashboard/cancelled-sales/view',
         },
       ],
     },
@@ -227,6 +227,11 @@ export const SIDEBAR_DATA = {
       name: 'Customers',
       url: '/customers',
       icon: BookUser,
+    },
+    {
+      name: 'GHL Integration',
+      url: '/go-highlevel-integration',
+      icon: Map,
     },
     {
       name: 'Branches',
@@ -322,25 +327,25 @@ export const SIDEBAR_DATA = {
       isActive: false,
 
       items: [
-        {
-          name: 'Daily Transaction Summary',
-          url: '#',
-        },
-        {
-          name: 'Cash Summary',
-          url: '#',
-        },
+        // {
+        //   name: 'Daily Transaction Summary',
+        //   url: '#',
+        // },
+        // {
+        //   name: 'Cash Summary',
+        //   url: '#',
+        // },
         {
           name: 'Sales',
-          url: '#',
+          url: '/dashboard/sales/view',
         },
         {
           name: 'Payment',
-          url: '#',
+          url: '/dashboard/payment/view',
         },
         {
           name: 'Cancelled Sales',
-          url: '#',
+          url: '/dashboard/cancelled-sales/view',
         },
       ],
     },
@@ -352,31 +357,23 @@ export const SIDEBAR_DATA = {
       items: [
         {
           name: 'Products',
-          url: '#',
+          url: '/dashboard/products/view',
         },
         {
-          name: 'Brands',
-          url: '#',
+          name: 'Inventory Options',
+          url: '/dashboard/inventory-options',
         },
         {
-          name: 'Categories',
-          url: '#',
+          name: 'Unit of Measure',
+          url: '/dashboard/uom/view',
         },
         {
-          name: 'Suppliers',
-          url: '#',
-        },
-        {
-          name: 'UoM Conversion',
-          url: '#',
-        },
-        {
-          name: 'Stock Request',
-          url: '#',
+          name: 'Stock Requests',
+          url: '/dashboard/stock-requests/view',
         },
         {
           name: 'Transfer Orders',
-          url: '#',
+          url: '/dashboard/transfer-orders/view',
         },
       ],
     },
@@ -449,7 +446,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   );
 }
-
 
 
 

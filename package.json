@@ -23,6 +23,7 @@
   },
   "scripts": {
     "check": "oxlint",
+    "check:oxlint": "node node_modules/oxlint/dist/cli.js",
     "prepare": "husky",
     "dev": "turbo dev",
     "build": "turbo build",
@@ -49,7 +50,7 @@
     "@types/node": "^22.13.11"
   },
   "lint-staged": {
-    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": "oxlint"
+    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": "bun run check:oxlint --"
   },
   "packageManager": "bun@1.2.22"
 }

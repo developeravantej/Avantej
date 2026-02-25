@@ -12,3 +12,4 @@ export * from "./organization-members";
 export * from "./platform-admins";
 export * from "./admin-sessions";
 export * from "./organization-analytics";
+export * from "./ghl-location-links";

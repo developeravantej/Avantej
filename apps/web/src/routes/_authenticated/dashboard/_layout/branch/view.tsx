@@ -35,6 +35,15 @@ export const Route = createFileRoute(
   component: RouteComponent,
 });
 
+type HierarchyNode = {
+  id: string;
+  name: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  code?: string | null;
+};
+
 function RouteComponent() {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -55,15 +64,7 @@ function RouteComponent() {
   const [editBranchCountryId, setEditBranchCountryId] = useState<string>("");
   const [editBranchRegionId, setEditBranchRegionId] = useState<string>("");
   const [editBranchAreaId, setEditBranchAreaId] = useState<string>("");
-  const [allHierarchyNodes, setAllHierarchyNodes] = useState<
-    Array<{
-      id: string;
-      name: string;
-      type: string;
-      depth: number;
-      parentId: string | null;
-    }>
-  >([]);
+  const [allHierarchyNodes, setAllHierarchyNodes] = useState<HierarchyNode[]>([]);
 
   // Get organizationId from React Query data (single source of truth).
   // Only use for API calls when it's a valid UUID (server rejects e.g. mock "org-1").
@@ -109,7 +110,7 @@ function RouteComponent() {
   // Use React Query to load all hierarchy nodes (for cascading dropdowns)
   const { data: hierarchyNodesData, error: hierarchyNodesError } = useQuery({
     queryKey: ["hierarchy-nodes", organizationId],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ nodes: HierarchyNode[] }> => {
       if (!organizationId) return { nodes: [] };
 
       // Try cached first
@@ -498,7 +499,7 @@ function RouteComponent() {
         errorMessage.includes("Not authenticated")
       ) {
         toast.error("Please log in to access this page");
-        navigate({ to: "/login" });
+        navigate({ to: "/login", search: {} });
       } else {
         toast.error(`Failed to load branches: ${errorMessage}`);
       }
@@ -658,7 +659,9 @@ function RouteComponent() {
       }
 
       // Use hierarchyNodesData directly if available, otherwise fallback to allHierarchyNodes state
-      const hierarchyNodes = hierarchyNodesData?.nodes || allHierarchyNodes;
+      const hierarchyNodes: HierarchyNode[] =
+        (hierarchyNodesData?.nodes as HierarchyNode[] | undefined) ||
+        allHierarchyNodes;
       
       if (!hierarchyNodes || hierarchyNodes.length === 0) {
         toast.error("Branch hierarchy not found. Please wait for data to load.");

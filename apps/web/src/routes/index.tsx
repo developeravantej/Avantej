@@ -35,12 +35,20 @@ import {
 	CardFooter,
 } from "@/components/ui/card";
 
+type LandingSearch = {
+	invitationToken?: string;
+	orgId?: string;
+};
+
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
-	validateSearch: (search: Record<string, unknown>) => {
+	validateSearch: (search: Record<string, unknown>): LandingSearch => {
 		return {
-			invitationToken: (search.invitationToken as string) || undefined,
-			orgId: (search.orgId as string) || undefined,
+			invitationToken:
+				typeof search.invitationToken === "string"
+					? search.invitationToken
+					: undefined,
+			orgId: typeof search.orgId === "string" ? search.orgId : undefined,
 		};
 	},
 });
@@ -98,8 +106,8 @@ function TestimonialCard({
 
 function HomeComponent() {
 	const { invitationToken, orgId } = useSearch({ from: "/" });
-	const loginSearch = invitationToken && orgId ? { invitationToken, orgId } : undefined;
-	const signupSearch = invitationToken && orgId ? { invitationToken, orgId } : undefined;
+	const loginSearch: LandingSearch =
+		invitationToken && orgId ? { invitationToken, orgId } : {};
 
 	return (
 		<div className="min-h-screen">
@@ -269,10 +277,11 @@ function HomeComponent() {
 						</div>
 					</div>
 
-					<div className="text-center">
-						<Link
-							to="/login"
-							className={cn(
+						<div className="text-center">
+							<Link
+								to="/login"
+								search={loginSearch}
+								className={cn(
 								buttonVariants({
 									size: "lg",
 								}),
@@ -667,10 +676,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -726,10 +736,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -789,10 +800,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -818,9 +830,10 @@ function HomeComponent() {
 						Join thousands of businesses using Avantej to scale their
 						operations.
 					</h3>
-					<Link
-						to="/login"
-						className={cn(
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
 							buttonVariants({
 								size: "lg",
 							}),
@@ -842,9 +855,10 @@ function HomeComponent() {
 						Discover all the tools and features that make Avantej the perfect
 						solution for managing your business operations.
 					</h3>
-					<Link
-						to="/login"
-						className={cn(
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
 							buttonVariants({
 								size: "lg",
 							}),

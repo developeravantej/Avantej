@@ -23,7 +23,7 @@ export default function UserMenu() {
 	if (!session) {
 		return (
 			<Button variant="outline" asChild>
-				<Link to="/login">Sign In</Link>
+				<Link to="/login" search={{}}>Sign In</Link>
 			</Button>
 		);
 	}
@@ -47,6 +47,7 @@ export default function UserMenu() {
 									onSuccess: () => {
 										navigate({
 											to: "/",
+											search: {},
 										});
 									},
 								},
