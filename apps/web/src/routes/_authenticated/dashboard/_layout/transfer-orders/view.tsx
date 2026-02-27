@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/transfer-orders/view/data-table";
 import { columns, type TransferOrderRow } from "@/components/tables/transfer-orders/view/columns";
 
@@ -9,33 +11,27 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
-const mockTransferOrders: TransferOrderRow[] = [
-	{
-		"Transfer Number": "TO-001",
-		"Date Issued": "2025-02-01",
-		Form: "Branch A",
-		"Issued By": "User A",
-		"Issued To": "Branch B",
-		Status: "Pending",
-	},
-	{
-		"Transfer Number": "TO-002",
-		"Date Issued": "2025-02-06",
-		Form: "Warehouse",
-		"Issued By": "User B",
-		"Issued To": "Store",
-		Status: "Completed",
-	},
-];
-
 function RouteComponent() {
-	const [data, setData] = useState<TransferOrderRow[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	useEffect(() => {
-		setData(mockTransferOrders);
-		setIsLoading(false);
-	}, []);
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["transferOrders", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.transferOrders.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const data: TransferOrderRow[] = apiData.map((item) => ({
+		"Transfer Number": item.transferNumber,
+		"Date Issued": item.dateIssued ? item.dateIssued.toISOString() : "",
+		Form: item.fromBranchId,
+		"Issued By": item.issuedByMemberId,
+		"Issued To": item.toBranchId,
+		Status: item.status,
+	}));
 
 	if (isLoading) {
 		return (

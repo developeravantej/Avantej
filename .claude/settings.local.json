@@ -3,7 +3,23 @@
     "allow": [
       "Bash(bun run:*)",
       "Bash(~/.bun/bin/bun:*)",
-      "Bash(/c/Users/user/.bun/bin/bun run:*)"
+      "Bash(/c/Users/user/.bun/bin/bun run:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(cd /c/Project/Avantej && bun db:generate 2>&1)",
+      "Bash(cd C:/Project/Avantej && /c/Users/user/.bun/bin/bun.exe db:generate 2>&1)",
+      "Bash(cd C:/Project/Avantej/packages/db && /c/Users/user/.bun/bin/bun.exe run db:generate 2>&1)",
+      "Bash(cd C:/Project/Avantej && /c/Users/user/.bun/bin/bun.exe check-types 2>&1)",
+      "Bash(export PATH=\"/c/Users/user/.bun/bin:$PATH\" && cd C:/Project/Avantej && bun check-types 2>&1)",
+      "Bash(tail:*)",
+      "Bash(cd C:/Project/Avantej && export PATH=\"/c/Users/user/.bun/bin:$PATH\" && bun check-types 2>&1)",
+      "Bash(cd C:/Project/Avantej/apps/web && export PATH=\"/c/Users/user/.bun/bin:$PATH\" && bun.exe run check-types 2>&1)",
+      "Bash(bun test:unit:*)",
+      "Bash(~/.bun/bin/bunx drizzle-kit:*)",
+      "Bash(wc:*)",
+      "Bash(bun db:generate:*)",
+      "Bash(/c/Users/user/.bun/bin/bun db:generate:*)"
     ]
   }
 }

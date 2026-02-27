@@ -14,14 +14,14 @@
  */
 
 import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
-import { members } from "./members";
 
 export const partnerStripeAccounts = pgTable("partner_stripe_accounts", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	
-	partnerId: text("partner_id")
-		.notNull()
-		.references(() => members.userId, { onDelete: "cascade" }), // References members.userId
+
+	// Stores the member's userId (cross-DB text identifier). No FK constraint because
+	// userId is a text field without a unique CONSTRAINT (only a unique INDEX), and
+	// PostgreSQL FK references require a unique constraint or primary key.
+	partnerId: text("partner_id").notNull(),
 	
 	stripeConnectAccountId: text("stripe_connect_account_id").notNull().unique(),
 	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // "pending" | "active" | "restricted" | "rejected"

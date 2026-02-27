@@ -18,6 +18,7 @@ import { services } from "./services";
 import { members } from "./members";
 import { packageInstances } from "./package-instances";
 import { classSlots } from "./class-slots";
+import { rooms } from "./rooms";
 
 export const appointments = pgTable("appointments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -86,6 +87,9 @@ export const appointments = pgTable("appointments", {
 	// Description/image
 	description: text("description"),
 	imageUrl: text("image_url"),
+
+	// Room assignment
+	roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
@@ -101,5 +105,6 @@ export const appointments = pgTable("appointments", {
 	packageInstanceIdIdx: index("appointments_package_instance_idx").on(table.packageInstanceId),
 	classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
 	userStatusIdx: index("appointments_user_status_idx").on(table.userId, table.status),
+	roomIdIdx: index("appointments_room_idx").on(table.roomId),
 }));
 

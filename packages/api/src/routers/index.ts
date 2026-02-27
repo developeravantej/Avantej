@@ -20,6 +20,17 @@ import { rolePermissionsRouter } from "./role-permissions";
 import { serviceCommissionConfigRouter } from "./service-commission-config";
 import { serviceRulesRouter } from "./service-rules";
 import { payoutsRouter } from "./payouts";
+import { roomsRouter } from "./rooms";
+import { salesOrdersRouter } from "./sales-orders";
+import { invoicesRouter } from "./invoices";
+import { cancelledSalesRouter } from "./cancelled-sales";
+import { brandsRouter } from "./brands";
+import { productCategoriesRouter } from "./product-categories";
+import { suppliersRouter } from "./suppliers";
+import { unitsOfMeasureRouter } from "./units-of-measure";
+import { productsRouter } from "./products";
+import { stockRequestsRouter } from "./stock-requests";
+import { transferOrdersRouter } from "./transfer-orders";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -51,6 +62,17 @@ export const baseRouter = {
 	serviceCommissionConfig: serviceCommissionConfigRouter,
 	serviceRules: serviceRulesRouter,
 	payouts: payoutsRouter,
+	rooms: roomsRouter,
+	salesOrders: salesOrdersRouter,
+	invoices: invoicesRouter,
+	cancelledSales: cancelledSalesRouter,
+	brands: brandsRouter,
+	productCategories: productCategoriesRouter,
+	suppliers: suppliersRouter,
+	unitsOfMeasure: unitsOfMeasureRouter,
+	products: productsRouter,
+	stockRequests: stockRequestsRouter,
+	transferOrders: transferOrdersRouter,
 };
 
 // Auth router type definition for client type inference

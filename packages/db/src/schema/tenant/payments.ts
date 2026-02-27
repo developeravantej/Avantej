@@ -61,6 +61,14 @@ export const payments = pgTable("payments", {
 	// Payment method details
 	paymentMethod: text("payment_method"), // "card" | "apple_pay" | "google_pay" | "cash"
 
+	// Invoice linkage (circular import avoidance: no .references() in schema, enforced via manual SQL migration)
+	invoiceId: uuid("invoice_id"),
+
+	// LHDN e-invoice tracking
+	eInvoiceStatus: text("e_invoice_status"),
+	// "pending" | "generated" | "failed" — nullable
+	eInvoiceId: text("e_invoice_id"), // LHDN MyInvois API UUID — nullable
+
 	// Refund tracking
 	refundedAt: timestamp("refunded_at"),
 	refundAmount: integer("refund_amount"),
@@ -78,5 +86,7 @@ export const payments = pgTable("payments", {
 	userIdIdx: index("payments_user_idx").on(table.userId),
 	paymentNumberIdx: index("payments_payment_number_idx").on(table.paymentNumber),
 	paymentMethodIdx: index("payments_payment_method_idx").on(table.paymentMethod),
+	invoiceIdIdx: index("payments_invoice_idx").on(table.invoiceId),
+	eInvoiceStatusIdx: index("payments_e_invoice_status_idx").on(table.eInvoiceStatus),
 }));
 

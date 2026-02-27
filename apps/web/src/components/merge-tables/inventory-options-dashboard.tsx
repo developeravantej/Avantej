@@ -1,6 +1,6 @@
-import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useState, useCallback } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/brands/view/data-table";
 import { columns as brandColumns } from "@/components/tables/brands/view/columns";
 import CategoryDataTable from "@/components/tables/categories/view/data-table";
@@ -12,79 +12,81 @@ import type { BrandRow } from "@/components/tables/brands/view/columns";
 import type { CategoryRow } from "@/components/tables/categories/view/columns";
 import type { SupplierRow } from "@/components/tables/suppliers/view/columns";
 
-const mockBrands: BrandRow[] = [
-	{ ID: "1", Name: "Brand A", "Products Assigned": 12 },
-	{ ID: "2", Name: "Brand B", "Products Assigned": 8 },
-];
-
-const mockCategories: CategoryRow[] = [
-	{ ID: "1", Name: "Electronics", "External Code": "EXT-001", "Products Assigned": 24 },
-	{ ID: "2", Name: "Accessories", "External Code": "EXT-002", "Products Assigned": 15 },
-];
-
-const mockSuppliers: SupplierRow[] = [
-	{
-		ID: "1",
-		Name: "Supplier One",
-		Description: "Main supplier",
-		Account: "ACC-001",
-		Terms: "Net 30",
-		"Contact Person": "John Doe",
-		Contact: "+60123456789",
-		Office: "+60312345678",
-		Email: "john@supplier.com",
-		Website: "https://supplier.com",
-		Barcode: "N/A",
-	},
-];
-
 export function InventoryOptionsDashboard() {
-	const { isLoading: authLoading, isAuthenticated } = useAuth();
-	const [brandsData, setBrandsData] = useState<BrandRow[]>([]);
-	const [categoriesData, setCategoriesData] = useState<CategoryRow[]>([]);
-	const [suppliersData, setSuppliersData] = useState<SupplierRow[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const loadBrands = useCallback(async () => {
-		try {
-			setBrandsData(mockBrands);
-		} catch (error) {
-			console.error("Failed to load brands data:", error);
-			toast.error("Failed to load brands data");
-		}
-	}, []);
+	const { data: brandsApiData = [], isLoading: brandsLoading, refetch: refetchBrands } = useQuery({
+		queryKey: ["brands", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.brands.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
 
-	const loadCategories = useCallback(async () => {
-		try {
-			setCategoriesData(mockCategories);
-		} catch (error) {
-			console.error("Failed to load categories data:", error);
-			toast.error("Failed to load categories data");
-		}
-	}, []);
+	const { data: categoriesApiData = [], isLoading: categoriesLoading, refetch: refetchCategories } = useQuery({
+		queryKey: ["productCategories", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.productCategories.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
 
-	const loadSuppliers = useCallback(async () => {
-		try {
-			setSuppliersData(mockSuppliers);
-		} catch (error) {
-			console.error("Failed to load suppliers data:", error);
-			toast.error("Failed to load suppliers data");
-		}
-	}, []);
+	const { data: suppliersApiData = [], isLoading: suppliersLoading, refetch: refetchSuppliers } = useQuery({
+		queryKey: ["suppliers", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.suppliers.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
 
-	const loadAllData = useCallback(async () => {
-		setIsLoading(true);
-		await Promise.all([loadBrands(), loadCategories(), loadSuppliers()]);
-		setIsLoading(false);
-	}, [loadBrands, loadCategories, loadSuppliers]);
+	const isLoading = brandsLoading || categoriesLoading || suppliersLoading;
 
-	useEffect(() => {
-		if (!authLoading && isAuthenticated) {
-			loadAllData();
-		}
-	}, [authLoading, isAuthenticated, loadAllData]);
+	const brandsData: BrandRow[] = brandsApiData.map((item) => ({
+		ID: item.id,
+		Name: item.name,
+		"Products Assigned": 0,
+	}));
 
-	if (authLoading || isLoading) {
+	const categoriesData: CategoryRow[] = categoriesApiData.map((item) => ({
+		ID: item.id,
+		Name: item.name,
+		"External Code": item.externalCode ?? "",
+		"Products Assigned": 0,
+	}));
+
+	const suppliersData: SupplierRow[] = suppliersApiData.map((item) => ({
+		ID: item.id,
+		Name: item.name,
+		Description: item.description ?? "N/A",
+		Account: item.accountNumber ?? "N/A",
+		Terms: item.paymentTerms ?? "N/A",
+		"Contact Person": item.contactPerson ?? "N/A",
+		Contact: item.contactPhone ?? "N/A",
+		Office: item.officePhone ?? "N/A",
+		Email: item.email ?? "N/A",
+		Website: item.website ?? "N/A",
+		Barcode: item.barcode ?? "N/A",
+		"Created At": item.createdAt ? item.createdAt.toISOString() : undefined,
+		"Updated At": item.updatedAt ? item.updatedAt.toISOString() : undefined,
+	}));
+
+	const handleBrandCreated = async () => {
+		await refetchBrands();
+	};
+
+	const handleCategoryCreated = async () => {
+		await refetchCategories();
+	};
+
+	const handleSupplierCreated = async () => {
+		await refetchSuppliers();
+	};
+
+	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
@@ -92,10 +94,6 @@ export function InventoryOptionsDashboard() {
 				</div>
 			</div>
 		);
-	}
-
-	if (!isAuthenticated) {
-		return null;
 	}
 
 	return (
@@ -116,7 +114,7 @@ export function InventoryOptionsDashboard() {
 						<DataTable
 							columns={brandColumns}
 							data={brandsData}
-							onBrandCreated={loadBrands}
+							onBrandCreated={handleBrandCreated}
 						/>
 					</CardContent>
 				</Card>
@@ -131,7 +129,7 @@ export function InventoryOptionsDashboard() {
 						<CategoryDataTable
 							columns={categoryColumns}
 							data={categoriesData}
-							onCategoryCreated={loadCategories}
+							onCategoryCreated={handleCategoryCreated}
 						/>
 					</CardContent>
 				</Card>
@@ -148,7 +146,7 @@ export function InventoryOptionsDashboard() {
 					<SupplierDataTable
 						columns={supplierColumns}
 						data={suppliersData}
-						onSupplierCreated={loadSuppliers}
+						onSupplierCreated={handleSupplierCreated}
 					/>
 				</CardContent>
 			</Card>

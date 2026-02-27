@@ -60,6 +60,7 @@ export const rolePermissionsRouter = {
 					id: rolePermissions.id,
 					roleId: rolePermissions.roleId,
 					permissionId: rolePermissions.permissionId,
+					scope: rolePermissions.scope,
 					resource: permissions.resource,
 					action: permissions.action,
 					createdAt: rolePermissions.createdAt,
@@ -88,6 +89,7 @@ export const rolePermissionsRouter = {
 				organizationId: z.string().uuid(),
 				roleId: z.string().uuid(),
 				permissionId: z.string().uuid(),
+				scope: z.enum(["organization", "team", "own", "branch"]).optional().default("organization"),
 			})
 		)
 		.handler(async ({ input, context }) => {
@@ -145,6 +147,7 @@ export const rolePermissionsRouter = {
 					.values({
 						roleId: input.roleId,
 						permissionId: input.permissionId,
+						scope: input.scope,
 					})
 					.returning();
 

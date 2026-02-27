@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
+
+type MemberApiItem = Awaited<ReturnType<typeof client.members.list>>[number];
+type RoleApiItem = Awaited<ReturnType<typeof client.roles.list>>[number];
 import {
   Search,
   Users,
@@ -456,125 +462,53 @@ function InviteUserDialog({
   );
 }
 
-// Mock data for UI development
-const MOCK_USERS: UserForAssignment[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    roles: ["2", "3"],
-    isActive: true,
-    department: "Sales",
-    lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    roles: ["1"],
-    isActive: true,
-    department: "Engineering",
-    lastLogin: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "3",
-    name: "Bob Johnson",
-    email: "bob.johnson@example.com",
-    roles: ["3", "4"],
-    isActive: true,
-    department: "Marketing",
-    lastLogin: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    name: "Alice Williams",
-    email: "alice.williams@example.com",
-    roles: ["2"],
-    isActive: false,
-    department: "HR",
-    lastLogin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "5",
-    name: "Charlie Brown",
-    email: "charlie.brown@example.com",
-    roles: ["4", "5"],
-    isActive: true,
-    department: "Operations",
-    lastLogin: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "6",
-    name: "Diana Prince",
-    email: "diana.prince@example.com",
-    roles: [],
-    isActive: true,
-    department: "Finance",
-    lastLogin: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "7",
-    name: "Eve Davis",
-    email: "eve.davis@example.com",
-    roles: ["3"],
-    isActive: true,
-    department: "Sales",
-    lastLogin: new Date().toISOString(),
-  },
-  {
-    id: "8",
-    name: "Frank Miller",
-    email: "frank.miller@example.com",
-    roles: ["5"],
-    isActive: false,
-    department: "Engineering",
-  },
-];
-
-const MOCK_ROLES: RoleResponse[] = [
-  {
-    id: "1",
-    name: "System Admin",
-    description: "Full system access with all permissions",
-    priority: 1,
-  },
-  {
-    id: "2",
-    name: "Organization Owner",
-    description: "Organization-wide administrative access",
-    priority: 1,
-  },
-  {
-    id: "3",
-    name: "Department Manager",
-    description: "Department-level management access",
-    priority: 2,
-  },
-  {
-    id: "4",
-    name: "Team Lead",
-    description: "Team leadership with limited admin access",
-    priority: 2,
-  },
-  {
-    id: "5",
-    name: "Employee",
-    description: "Standard employee access for daily operations",
-    priority: 3,
-  },
-];
-
 function UserAssignmentPage() {
   const isMobile = useIsMobile();
-  
-  // TODO: Replace with actual hook when backend is ready
-  // const { users, roles, isLoading, isSaving, error, successMessage, assignRolesToUser, toggleUserStatus, clearMessages } = useUserAssignment();
-  
-  // Using mock data for now
-  const [users, setUsers] = useState<UserForAssignment[]>(MOCK_USERS);
-  const roles = MOCK_ROLES;
-  const isLoading = false;
+  const { data: userContext } = useUserContext();
+  const organizationId = userContext?.currentOrganizationId ?? null;
+
+  const { data: membersApiData = [], isLoading: membersLoading } = useQuery({
+    queryKey: ["members", organizationId],
+    queryFn: (): Promise<Awaited<ReturnType<typeof client.members.list>>> => {
+      if (!organizationId) return Promise.resolve([]);
+      return client.members.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  const { data: rolesApiData = [], isLoading: rolesLoading } = useQuery({
+    queryKey: ["roles", organizationId],
+    queryFn: (): Promise<Awaited<ReturnType<typeof client.roles.list>>> => {
+      if (!organizationId) return Promise.resolve([]);
+      return client.roles.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  const isLoading = membersLoading || rolesLoading;
+
+  const roles: RoleResponse[] = (rolesApiData as RoleApiItem[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description ?? undefined,
+    priority: r.priority,
+  }));
+
+  const initialUsers: UserForAssignment[] = (membersApiData as MemberApiItem[]).map((m) => ({
+    id: m.id,
+    name: m.name,
+    email: m.email,
+    roles: [],
+    isActive: m.status === "active",
+  }));
+
+  const [users, setUsers] = useState<UserForAssignment[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setUsers(initialUsers);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membersApiData]);
   
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");

@@ -137,4 +137,32 @@ export {
   type ListUserActivityLogParams,
 } from "./user-activity-log.service";
 
+// Room services
+export * from "./rooms.service";
 
+// Sales order services
+export * from "./sales-order.service";
+
+// Invoice services
+export * from "./invoice.service";
+
+// Brand services
+export * from "./brands.service";
+
+// Product category services
+export * from "./product-categories.service";
+
+// Supplier services
+export * from "./suppliers.service";
+
+// Unit of measure services
+export * from "./units-of-measure.service";
+
+// Product services
+export * from "./products.service";
+
+// Stock request services
+export * from "./stock-requests.service";
+
+// Transfer order services
+export * from "./transfer-orders.service";

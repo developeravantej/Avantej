@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { columns, type SalesRow } from "@/components/tables/sales/view/columns";
 
@@ -10,51 +12,25 @@ export const Route = createFileRoute(
 });
 
 function RouteComponent() {
-	const [data, setData] = useState<{ items: SalesRow[] } | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const mockServiceData: SalesRow[] = [
-		{
-			date: "2025-07-14",
-			sales_order: "#1",
-			total_sales: 200,
-			customer_name: "Customer A",
-			created_by: "User A",
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["salesOrders", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.salesOrders.list({ organizationId });
 		},
-		{
-			date: "2025-07-15",
-			sales_order: "#2",
-			total_sales: 350,
-			customer_name: "Customer B",
-			created_by: "User B",
-		},
-		{
-			date: "2025-07-16",
-			sales_order: "#3",
-			total_sales: 150,
-			customer_name: "Customer C",
-			created_by: "User C",
-		},
-		{
-			date: "2025-07-17",
-			sales_order: "#4",
-			total_sales: 480,
-			customer_name: "Customer D",
-			created_by: "User A",
-		},
-		{
-			date: "2025-07-18",
-			sales_order: "#5",
-			total_sales: 220,
-			customer_name: "Customer E",
-			created_by: "User B",
-		},
-	];
+		enabled: !!organizationId,
+	});
 
-	useEffect(() => {
-		setData({ items: mockServiceData });
-		setIsLoading(false);
-	}, []);
+	const data: SalesRow[] = apiData.map((item) => ({
+		date: item.date ? item.date.toISOString() : null,
+		sales_order: item.salesOrderNumber,
+		total_sales: item.totalAmount,
+		customer_name: item.customerName,
+		created_by: item.createdBy,
+	}));
 
 	if (isLoading) {
 		return (
@@ -67,6 +43,6 @@ function RouteComponent() {
 	}
 
 	return (
-		<DataTable<SalesRow, unknown> columns={columns} data={data?.items ?? []} />
+		<DataTable<SalesRow, unknown> columns={columns} data={data} />
 	);
 }

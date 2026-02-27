@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/products/view/data-table";
 import { columns, type ProductRow } from "@/components/tables/products/view/columns";
 
@@ -9,43 +11,32 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
-const mockProducts: ProductRow[] = [
-	{
-		Description: "Widget A",
-		SKU: "SKU-001",
-		Type: "product",
-		Barcode: "123456789",
-		"Conversion Factor": 1,
-		Price: 29.99,
-		Brand: "Brand X",
-		Category: "Electronics",
-		Supplier: "Supplier 1",
-		Stock: 150,
-		Status: "Active",
-	},
-	{
-		Description: "Widget B",
-		SKU: "SKU-002",
-		Type: "product",
-		Barcode: "987654321",
-		"Conversion Factor": 1,
-		Price: 49.99,
-		Brand: "Brand Y",
-		Category: "Accessories",
-		Supplier: "Supplier 2",
-		Stock: 45,
-		Status: "Active",
-	},
-];
-
 function RouteComponent() {
-	const [data, setData] = useState<ProductRow[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	useEffect(() => {
-		setData(mockProducts);
-		setIsLoading(false);
-	}, []);
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["products", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.products.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const data: ProductRow[] = apiData.map((item) => ({
+		Description: item.name,
+		SKU: item.sku,
+		Type: item.type,
+		Barcode: item.barcode ?? "",
+		"Conversion Factor": Number(item.conversionFactor),
+		Price: item.price,
+		Brand: item.brandId ?? "",
+		Category: item.categoryId ?? "",
+		Supplier: item.supplierId ?? "",
+		Stock: 0,
+		Status: item.status,
+	}));
 
 	if (isLoading) {
 		return (

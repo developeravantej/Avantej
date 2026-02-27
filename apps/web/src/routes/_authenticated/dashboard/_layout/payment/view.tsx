@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/payment/view/data-table";
 import { columns, type PaymentRow } from "@/components/tables/payment/view/columns";
 
@@ -10,66 +12,28 @@ export const Route = createFileRoute(
 });
 
 function RouteComponent() {
-	const [data, setData] = useState<{ items: PaymentRow[] } | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const mockServiceData: PaymentRow[] = [
-		{
-			date: "2025-07-14",
-			invoice: "#INV-1001",
-			sales_order: "#SO-001",
-			mode: "Credit Card",
-			total_paid: 200.0,
-			customer_name: "Customer A",
-			created_by: "User A",
-			e_invoice_status: "Generated",
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["invoices", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.invoices.list({ organizationId });
 		},
-		{
-			date: "2025-07-15",
-			invoice: "#INV-1002",
-			sales_order: "#SO-002",
-			mode: "Bank Transfer",
-			total_paid: 350.0,
-			customer_name: "Customer B",
-			created_by: "User B",
-			e_invoice_status: "Pending",
-		},
-		{
-			date: "2025-07-16",
-			invoice: "#INV-1003",
-			sales_order: "#SO-003",
-			mode: "Cash",
-			total_paid: 150.0,
-			customer_name: "Customer C",
-			created_by: "User C",
-			e_invoice_status: "Generated",
-		},
-		{
-			date: "2025-07-17",
-			invoice: "#INV-1004",
-			sales_order: "#SO-004",
-			mode: "UPI",
-			total_paid: 480.0,
-			customer_name: "Customer D",
-			created_by: "User A",
-			e_invoice_status: "Generated",
-		},
-		{
-			date: "2025-07-18",
-			invoice: "#INV-1005",
-			sales_order: "#SO-005",
-			mode: "Credit Card",
-			total_paid: 220.0,
-			customer_name: "Customer E",
-			created_by: "User B",
-			e_invoice_status: "Failed",
-		},
-	];
+		enabled: !!organizationId,
+	});
 
-	useEffect(() => {
-		setData({ items: mockServiceData });
-		setIsLoading(false);
-	}, []);
+	const data: PaymentRow[] = apiData.map((item) => ({
+		date: item.date ? item.date.toISOString() : null,
+		invoice: item.invoiceNumber,
+		sales_order: item.salesOrderId ?? null,
+		mode: item.paymentMode ?? null,
+		total_paid: item.totalAmount,
+		customer_name: item.customerName,
+		created_by: item.createdBy,
+		e_invoice_status: item.eInvoiceStatus ?? null,
+	}));
 
 	if (isLoading) {
 		return (
@@ -82,6 +46,6 @@ function RouteComponent() {
 	}
 
 	return (
-		<DataTable<PaymentRow, unknown> columns={columns} data={data?.items ?? []} />
+		<DataTable<PaymentRow, unknown> columns={columns} data={data} />
 	);
 }

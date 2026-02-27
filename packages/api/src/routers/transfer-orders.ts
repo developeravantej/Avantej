@@ -1,0 +1,236 @@
+import { ORPCError } from "@orpc/server";
+import { z } from "zod";
+import { protectedProcedure } from "../index";
+import {
+	requirePermission,
+	listTransferOrders,
+	getTransferOrderById,
+	createTransferOrder,
+	markInTransit as markTransferInTransit,
+	completeTransfer,
+	cancelTransfer,
+} from "@avantej-core/services";
+
+export const transferOrdersRouter = {
+	list: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				status: z.string().optional(),
+				fromBranchId: z.string().uuid().optional(),
+				toBranchId: z.string().uuid().optional(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			return listTransferOrders(context.tenantDb, {
+				status: input.status,
+				fromBranchId: input.fromBranchId,
+				toBranchId: input.toBranchId,
+			});
+		}),
+
+	getById: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			const order = await getTransferOrderById(context.tenantDb, input.id);
+			if (!order) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Transfer order not found: ${input.id}`,
+				});
+			}
+			return order;
+		}),
+
+	create: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				dateIssued: z.string().datetime(),
+				fromBranchId: z.string().uuid(),
+				toBranchId: z.string().uuid(),
+				issuedByMemberId: z.string().uuid(),
+				notes: z.string().optional(),
+				items: z.array(
+					z.object({
+						productId: z.string().uuid(),
+						quantityTransferred: z.number().int().min(1),
+						notes: z.string().optional(),
+					})
+				),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "create");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			return createTransferOrder(context.tenantDb, {
+				dateIssued: new Date(input.dateIssued),
+				fromBranchId: input.fromBranchId,
+				toBranchId: input.toBranchId,
+				issuedByMemberId: input.issuedByMemberId,
+				notes: input.notes,
+				items: input.items,
+			});
+		}),
+
+	markInTransit: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			return markTransferInTransit(context.tenantDb, input.id);
+		}),
+
+	complete: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				items: z.array(
+					z.object({
+						itemId: z.string().uuid(),
+						quantityReceived: z.number().int().min(0),
+					})
+				),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "approve");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			return completeTransfer(context.tenantDb, input.id, input.items);
+		}),
+
+	cancel: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "transfer_orders", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			return cancelTransfer(context.tenantDb, input.id);
+		}),
+};

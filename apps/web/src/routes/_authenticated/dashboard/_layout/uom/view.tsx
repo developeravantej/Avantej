@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import { DataTable } from "@/components/tables/uom/view/data-table";
 import { columns, type UoMRow } from "@/components/tables/uom/view/columns";
 
@@ -9,20 +11,25 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
-const mockUoMs: UoMRow[] = [
-	{ id: "1", Name: "Piece", Description: "Single unit", "Base UoM": "—" },
-	{ id: "2", Name: "Box", Description: "Box of 12", "Base UoM": "Piece" },
-	{ id: "3", Name: "Carton", Description: "Carton of 24 boxes", "Base UoM": "Box" },
-];
-
 function RouteComponent() {
-	const [data, setData] = useState<UoMRow[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	useEffect(() => {
-		setData(mockUoMs);
-		setIsLoading(false);
-	}, []);
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["unitsOfMeasure", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.unitsOfMeasure.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const data: UoMRow[] = apiData.map((item) => ({
+		id: item.id,
+		Name: item.name,
+		Description: item.description ?? "",
+		"Base UoM": item.baseUomId ?? undefined,
+	}));
 
 	if (isLoading) {
 		return (

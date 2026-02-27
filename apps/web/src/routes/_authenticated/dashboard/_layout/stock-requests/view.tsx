@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import { DataTable } from "@/components/tables/stock-requests/view/data-table";
 import { columns, type StockRequestRow } from "@/components/tables/stock-requests/view/columns";
 
@@ -9,31 +11,26 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
-const mockStockRequests: StockRequestRow[] = [
-	{
-		"Request Number": "SR-001",
-		"Date Issued": "2025-02-01",
-		"Issued By": "User A",
-		"Issued To": "Warehouse",
-		Status: "Pending",
-	},
-	{
-		"Request Number": "SR-002",
-		"Date Issued": "2025-02-05",
-		"Issued By": "User B",
-		"Issued To": "Store",
-		Status: "Approved",
-	},
-];
-
 function RouteComponent() {
-	const [data, setData] = useState<StockRequestRow[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	useEffect(() => {
-		setData(mockStockRequests);
-		setIsLoading(false);
-	}, []);
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["stockRequests", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.stockRequests.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const data: StockRequestRow[] = apiData.map((item) => ({
+		"Request Number": item.requestNumber,
+		"Date Issued": item.dateIssued ? item.dateIssued.toISOString() : "",
+		"Issued By": item.issuedByMemberId,
+		"Issued To": item.destinationLabel ?? item.toBranchId,
+		Status: item.status,
+	}));
 
 	if (isLoading) {
 		return (

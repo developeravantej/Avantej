@@ -25,11 +25,47 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 type Member = typeof members.$inferSelect;
 
 export type Resource =
+  // Organizational & access control
   | "hierarchy_management"
   | "user_management"
+  | "role_management"
+  | "users"
+  | "roles"
+  | "branches"
+  // Services & appointments
   | "service_management"
-  | "appointment_management";
-export type Action = "create" | "read" | "update" | "delete";
+  | "appointment_management"
+  | "appointments"
+  | "services"
+  | "class_slot_management"
+  // Sales & payments
+  | "sales"
+  | "payments"
+  | "promotion_management"
+  | "tax_configuration"
+  // Inventory & purchasing
+  | "inventory"
+  | "purchase_order_management"
+  | "stock_requests"
+  | "transfer_orders"
+  // Finance & HR
+  | "expense_management"
+  | "commission_management"
+  // Communication
+  | "announcement_management"
+  // Customers
+  | "walk_in_customer_management"
+  // Reporting
+  | "reports";
+export type Action =
+  | "create"
+  | "read"
+  | "update"
+  | "delete"
+  | "approve"
+  | "reject"
+  | "export"
+  | "import";
 
 /**
  * Check if member has a specific permission
