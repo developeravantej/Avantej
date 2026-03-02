@@ -8,7 +8,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
-import { Container } from "@/components/container";
+import { TabContainer, useTabBarHeight } from "@/components/container";
 import { colors } from "@/lib/colors";
 
 export default function ProfileScreen() {
@@ -39,16 +39,18 @@ export default function ProfileScreen() {
 		}));
 	};
 
+	const tabBarHeight = useTabBarHeight();
+
 	return (
-		<Container>
+		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: 8 }}
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
 				<View className="px-4 pt-4">
 					{/* User Summary Section */}
-					<View className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 						<View className="flex-row items-center">
 							{/* Avatar */}
 							<View
@@ -59,16 +61,10 @@ export default function ProfileScreen() {
 							</View>
 							{/* User Info */}
 							<View className="flex-1">
-								<Text
-									className="mb-1 font-bold text-xl"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="mb-1 font-bold text-primary-1 text-xl">
 									{userData.fullName}
 								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
+								<Text className="text-secondary-1 text-sm">
 									Member since {userData.memberSince}
 								</Text>
 							</View>
@@ -77,19 +73,13 @@ export default function ProfileScreen() {
 
 					{/* Personal Information Section */}
 					<View className="mb-4">
-						<Text
-							className="mb-3 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 							PERSONAL INFORMATION
 						</Text>
-						<View className="rounded-2xl bg-white p-4 shadow-sm">
+						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							{/* Full Name */}
 							<View className="mb-4">
-								<Text
-									className="mb-2 font-medium text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="mb-2 font-medium text-base text-primary-1">
 									Full Name
 								</Text>
 								<TextInput
@@ -97,7 +87,7 @@ export default function ProfileScreen() {
 									onChangeText={(text) =>
 										setUserData({ ...userData, fullName: text })
 									}
-									className="rounded-xl bg-gray-100 p-3"
+									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
@@ -107,10 +97,7 @@ export default function ProfileScreen() {
 
 							{/* Email */}
 							<View className="mb-4">
-								<Text
-									className="mb-2 font-medium text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="mb-2 font-medium text-base text-primary-1">
 									Email
 								</Text>
 								<TextInput
@@ -120,7 +107,7 @@ export default function ProfileScreen() {
 									}
 									keyboardType="email-address"
 									autoCapitalize="none"
-									className="rounded-xl bg-gray-100 p-3"
+									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
@@ -130,10 +117,7 @@ export default function ProfileScreen() {
 
 							{/* Phone Number */}
 							<View className="mb-4">
-								<Text
-									className="mb-2 font-medium text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="mb-2 font-medium text-base text-primary-1">
 									Phone Number
 								</Text>
 								<TextInput
@@ -142,7 +126,7 @@ export default function ProfileScreen() {
 										setUserData({ ...userData, phoneNumber: text })
 									}
 									keyboardType="phone-pad"
-									className="rounded-xl bg-gray-100 p-3"
+									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
@@ -150,13 +134,12 @@ export default function ProfileScreen() {
 								/>
 							</View>
 
-							{/* Save Changes Button */}
+							{/* Save Changes Button - STYLE: Primary button */}
 							<TouchableOpacity
 								onPress={handleSaveChanges}
-								className="mt-2 items-center justify-center rounded-xl bg-blue-600 py-4"
-								style={{ backgroundColor: "#2563EB" }}
+								className="mt-2 items-center justify-center rounded-xl bg-primary-1 py-4"
 							>
-								<Text className="font-semibold text-base text-white">
+								<Text className="font-semibold text-base text-primary-2">
 									Save Changes
 								</Text>
 							</TouchableOpacity>
@@ -165,27 +148,18 @@ export default function ProfileScreen() {
 
 					{/* Notification Preferences Section */}
 					<View className="mb-4">
-						<Text
-							className="mb-3 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 							NOTIFICATION PREFERENCES
 						</Text>
-						<View className="rounded-2xl bg-white shadow-sm">
+						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 							{/* Email Notifications */}
-							<View className="border-gray-200 border-b p-4">
+							<View className="border-secondary-3 border-b p-4">
 								<View className="flex-row items-center justify-between">
 									<View className="mr-4 flex-1">
-										<Text
-											className="mb-1 font-semibold text-base"
-											style={{ color: colors.primary[1] }}
-										>
+										<Text className="mb-1 font-semibold text-base text-primary-1">
 											Email Notifications
 										</Text>
-										<Text
-											className="text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
+										<Text className="text-secondary-1 text-sm">
 											Receive updates about your workouts and bookings
 										</Text>
 									</View>
@@ -194,7 +168,7 @@ export default function ProfileScreen() {
 										onValueChange={() => toggleNotification("email")}
 										trackColor={{
 											false: colors.secondary[3],
-											true: "#2563EB",
+											true: colors.primary[1],
 										}}
 										thumbColor={colors.primary[2]}
 									/>
@@ -234,16 +208,10 @@ export default function ProfileScreen() {
 							<View className="p-4">
 								<View className="flex-row items-center justify-between">
 									<View className="mr-4 flex-1">
-										<Text
-											className="mb-1 font-semibold text-base"
-											style={{ color: colors.primary[1] }}
-										>
+										<Text className="mb-1 font-semibold text-base text-primary-1">
 											Push Notifications
 										</Text>
-										<Text
-											className="text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
+										<Text className="text-secondary-1 text-sm">
 											Get instant alerts on your device
 										</Text>
 									</View>
@@ -252,7 +220,7 @@ export default function ProfileScreen() {
 										onValueChange={() => toggleNotification("push")}
 										trackColor={{
 											false: colors.secondary[3],
-											true: "#2563EB",
+											true: colors.primary[1],
 										}}
 										thumbColor={colors.primary[2]}
 									/>
@@ -263,24 +231,18 @@ export default function ProfileScreen() {
 
 					{/* Account Section */}
 					<View>
-						<Text
-							className="mb-3 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 							ACCOUNT
 						</Text>
-						<View className="rounded-2xl bg-white shadow-sm">
+						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 							{/* Change Password */}
-							<TouchableOpacity className="flex-row items-center border-gray-200 border-b p-4">
+							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
 								<Ionicons
 									name="lock-closed-outline"
 									size={20}
 									color={colors.primary[1]}
 								/>
-								<Text
-									className="ml-3 flex-1 text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="ml-3 flex-1 text-base text-primary-1">
 									Change Password
 								</Text>
 								<Ionicons
@@ -291,16 +253,13 @@ export default function ProfileScreen() {
 							</TouchableOpacity>
 
 							{/* Help & Support */}
-							<TouchableOpacity className="flex-row items-center border-gray-200 border-b p-4">
+							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
 								<Ionicons
 									name="help-circle-outline"
 									size={20}
 									color={colors.primary[1]}
 								/>
-								<Text
-									className="ml-3 flex-1 text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="ml-3 flex-1 text-base text-primary-1">
 									Help & Support
 								</Text>
 								<Ionicons
@@ -317,10 +276,7 @@ export default function ProfileScreen() {
 									size={20}
 									color={colors.primary[1]}
 								/>
-								<Text
-									className="ml-3 flex-1 text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="ml-3 flex-1 text-base text-primary-1">
 									Terms & Privacy
 								</Text>
 								<Ionicons
@@ -333,6 +289,6 @@ export default function ProfileScreen() {
 					</View>
 				</View>
 			</ScrollView>
-		</Container>
+		</TabContainer>
 	);
 }

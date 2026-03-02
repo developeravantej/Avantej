@@ -27,7 +27,7 @@ const notifications = [
 		time: "5 hours ago",
 		read: false,
 		icon: "time",
-		color: "#2563EB",
+		color: colors.primary[1],
 	},
 	{
 		id: 3,
@@ -57,7 +57,7 @@ const notifications = [
 		time: "3 days ago",
 		read: true,
 		icon: "calendar",
-		color: "#7C3AED",
+		color: colors.primary[1],
 	},
 	{
 		id: 6,
@@ -67,7 +67,7 @@ const notifications = [
 		time: "1 week ago",
 		read: true,
 		icon: "star",
-		color: "#F59E0B",
+		color: colors.secondary[1],
 	},
 ];
 
@@ -210,18 +210,12 @@ export default function NotificationsScreen() {
 									color={colors.primary[1]}
 								/>
 							</TouchableOpacity>
-							<Text
-								className="font-bold text-2xl"
-								style={{ color: colors.primary[1] }}
-							>
+							<Text className="font-bold text-2xl text-primary-1">
 								Notifications
 							</Text>
 							{unreadCount > 0 && (
-								<View
-									className="ml-2 rounded-full px-2 py-1"
-									style={{ backgroundColor: "#2563EB" }}
-								>
-									<Text className="font-semibold text-white text-xs">
+								<View className="ml-2 rounded-full bg-primary-1 px-2 py-1">
+									<Text className="font-semibold text-primary-2 text-xs">
 										{unreadCount}
 									</Text>
 								</View>
@@ -229,10 +223,7 @@ export default function NotificationsScreen() {
 						</View>
 						{unreadCount > 0 && (
 							<TouchableOpacity onPress={markAllAsRead}>
-								<Text
-									className="font-medium text-sm"
-									style={{ color: "#2563EB" }}
-								>
+								<Text className="font-medium text-primary-1 text-sm">
 									Mark all read
 								</Text>
 							</TouchableOpacity>
@@ -247,10 +238,7 @@ export default function NotificationsScreen() {
 								size={64}
 								color={colors.secondary[1]}
 							/>
-							<Text
-								className="mt-4 font-semibold text-lg"
-								style={{ color: colors.secondary[1] }}
-							>
+							<Text className="mt-4 font-semibold text-lg text-secondary-1">
 								No notifications
 							</Text>
 						</View>
@@ -259,12 +247,12 @@ export default function NotificationsScreen() {
 							<TouchableOpacity
 								key={notification.id}
 								onPress={() => markAsRead(notification.id)}
-								className={`mb-3 rounded-2xl bg-white p-4 shadow-sm ${
+								className={`mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm ${
 									!notification.read ? "border-l-4" : ""
 								}`}
 								style={{
 									borderLeftColor: !notification.read
-										? "#2563EB"
+										? colors.primary[1]
 										: "transparent",
 									borderLeftWidth: !notification.read ? 4 : 0,
 									opacity: notification.read ? 0.7 : 1,
@@ -272,12 +260,7 @@ export default function NotificationsScreen() {
 							>
 								<View className="flex-row">
 									{/* Icon */}
-									<View
-										className="mr-3 h-12 w-12 items-center justify-center rounded-full"
-										style={{
-											backgroundColor: `${notification.color}20`,
-										}}
-									>
+									<View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-secondary-3">
 										<Ionicons
 											name={notification.icon as never}
 											size={24}
@@ -288,29 +271,17 @@ export default function NotificationsScreen() {
 									{/* Content */}
 									<View className="flex-1">
 										<View className="mb-1 flex-row items-start justify-between">
-											<Text
-												className="flex-1 font-bold text-base"
-												style={{ color: colors.primary[1] }}
-											>
+											<Text className="flex-1 font-bold text-base text-primary-1">
 												{notification.title}
 											</Text>
 											{!notification.read && (
-												<View
-													className="ml-2 h-2 w-2 rounded-full"
-													style={{ backgroundColor: "#2563EB" }}
-												/>
+												<View className="ml-2 h-2 w-2 rounded-full bg-primary-1" />
 											)}
 										</View>
-										<Text
-											className="mb-2 text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
+										<Text className="mb-2 text-secondary-1 text-sm">
 											{notification.message}
 										</Text>
-										<Text
-											className="text-xs"
-											style={{ color: colors.secondary[1] }}
-										>
+										<Text className="text-secondary-1 text-xs">
 											{notification.time}
 										</Text>
 									</View>

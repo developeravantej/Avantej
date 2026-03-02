@@ -238,7 +238,7 @@ export default function BookWorkoutScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -248,7 +248,7 @@ export default function BookWorkoutScreen() {
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
-						<Text className="flex-1 font-bold text-2xl text-black">
+						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
 					</View>
@@ -266,41 +266,42 @@ export default function BookWorkoutScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator */}
+					{/* Progress Indicator - high contrast for visibility */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							<Text className="font-semibold text-primary-1 text-sm">
 								Step {currentStep} of {totalSteps}
 							</Text>
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							<Text className="font-semibold text-primary-1 text-sm">
 								{progressPercentage}%
 							</Text>
 						</View>
 
-						{/* Progress Bar */}
+						{/* Progress Bar - visible track and fill */}
 						<View
-							className="mb-4 h-1 rounded-full"
-							style={{ backgroundColor: colors.secondary[3] }}
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
 						>
 							<View
 								className="h-full rounded-full"
 								style={{
 									width: `${progressPercentage}%`,
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
 
 						{/* Step Navigation */}
 						<View className="relative" style={{ height: 50 }}>
-							{/* Background connector line - positioned behind indicators */}
+							{/* Connector line - visible against background */}
 							<View
-								className="absolute h-px"
+								className="absolute rounded-full"
 								style={{
 									left: "15%",
 									right: "14%",
-									top: "27%",
-									backgroundColor: colors.secondary[3],
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
 									zIndex: 0,
 								}}
 							/>
@@ -314,11 +315,11 @@ export default function BookWorkoutScreen() {
 									>
 										{step.active ? (
 											<View className="mb-1 items-center justify-center">
-												{/* Active step: Blue circle with white dot inside - covers the line */}
+												{/* Active step: filled circle with white dot */}
 												<View
-													className="h-6 w-6 items-center justify-center rounded-full"
+													className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
 													style={{
-														backgroundColor: "#2563EB",
+														backgroundColor: colors.primary[1],
 														zIndex: 2,
 													}}
 												>
@@ -330,22 +331,12 @@ export default function BookWorkoutScreen() {
 											</View>
 										) : (
 											<View className="mb-1 items-center justify-center">
-												{/* Inactive step: Number with white background to cover line */}
+												{/* Inactive step: bordered circle, dark number */}
 												<View
-													style={{
-														backgroundColor: colors.primary[2],
-														borderRadius: 10,
-														width: 20,
-														height: 20,
-														alignItems: "center",
-														justifyContent: "center",
-														zIndex: 2,
-													}}
+													className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+													style={{ zIndex: 2 }}
 												>
-													<Text
-														className="text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
+													<Text className="font-semibold text-primary-1 text-xs">
 														{step.number}
 													</Text>
 												</View>
@@ -353,10 +344,12 @@ export default function BookWorkoutScreen() {
 										)}
 										<Text
 											className={`mt-1 text-center text-xs ${
-												step.active ? "font-bold" : ""
+												step.active ? "font-bold" : "font-medium"
 											}`}
 											style={{
-												color: step.active ? "#2563EB" : colors.secondary[1],
+												color: step.active
+													? colors.primary[1]
+													: colors.secondary[1],
 											}}
 										>
 											{step.label}
@@ -391,10 +384,10 @@ export default function BookWorkoutScreen() {
 									setSelectedService(null); // Reset service selection when category changes
 									setSelectedTrainer(null); // Reset trainer selection when category changes
 								}}
-								className={`mb-3 rounded-2xl border bg-white p-4 ${
+								className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 									selectedCategory === category.id
-										? "border-blue-500"
-										: "border-gray-200"
+										? "border-primary-1"
+										: "border-secondary-3"
 								} shadow-sm`}
 							>
 								<View className="mb-2 flex-row items-start justify-between">
@@ -439,10 +432,10 @@ export default function BookWorkoutScreen() {
 										setSelectedService(service.id);
 										setSelectedTrainer(null); // Reset trainer selection when service changes
 									}}
-									className={`mb-3 rounded-2xl border bg-white p-4 ${
+									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 										selectedService === service.id
-											? "border-blue-500"
-											: "border-gray-200"
+											? "border-primary-1"
+											: "border-secondary-3"
 									} shadow-sm`}
 								>
 									<View className="mb-2 flex-row items-start justify-between">
@@ -475,11 +468,8 @@ export default function BookWorkoutScreen() {
 								</TouchableOpacity>
 							))
 						) : (
-							<View className="mb-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-								<Text
-									className="text-center text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+								<Text className="text-center text-secondary-1 text-sm">
 									Please select a category first
 								</Text>
 							</View>
@@ -500,10 +490,10 @@ export default function BookWorkoutScreen() {
 								{/* Auto-assign Option */}
 								<TouchableOpacity
 									onPress={() => setSelectedTrainer("auto")}
-									className={`mb-3 rounded-2xl border bg-white p-4 ${
+									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 										selectedTrainer === "auto"
-											? "border-blue-500"
-											: "border-gray-200"
+											? "border-primary-1"
+											: "border-secondary-3"
 									} relative shadow-sm`}
 								>
 									<View className="flex-row items-start justify-between">
@@ -522,10 +512,7 @@ export default function BookWorkoutScreen() {
 											</Text>
 										</View>
 										{selectedTrainer === "auto" && (
-											<View
-												className="h-6 w-6 items-center justify-center rounded-full"
-												style={{ backgroundColor: "#2563EB" }}
-											>
+											<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
 												<Ionicons
 													name="checkmark"
 													size={16}
@@ -541,10 +528,10 @@ export default function BookWorkoutScreen() {
 									<TouchableOpacity
 										key={trainer.id}
 										onPress={() => setSelectedTrainer(trainer.id)}
-										className={`mb-3 rounded-2xl border bg-white p-4 ${
+										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 											selectedTrainer === trainer.id
-												? "border-blue-500"
-												: "border-gray-200"
+												? "border-primary-1"
+												: "border-secondary-3"
 										} relative shadow-sm`}
 									>
 										<View className="flex-row items-start justify-between">
@@ -563,10 +550,7 @@ export default function BookWorkoutScreen() {
 												</Text>
 											</View>
 											{selectedTrainer === trainer.id && (
-												<View
-													className="h-6 w-6 items-center justify-center rounded-full"
-													style={{ backgroundColor: "#2563EB" }}
-												>
+												<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
 													<Ionicons
 														name="checkmark"
 														size={16}
@@ -579,11 +563,8 @@ export default function BookWorkoutScreen() {
 								))}
 							</>
 						) : (
-							<View className="mb-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-								<Text
-									className="text-center text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+								<Text className="text-center text-secondary-1 text-sm">
 									Please select a service first
 								</Text>
 							</View>
@@ -596,7 +577,7 @@ export default function BookWorkoutScreen() {
 			{selectedCategory && selectedService && selectedTrainer && (
 				<SafeAreaView
 					edges={["bottom"]}
-					className="border-gray-200 border-t bg-white"
+					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
@@ -606,10 +587,9 @@ export default function BookWorkoutScreen() {
 									params: { serviceId: selectedService },
 								})
 							}
-							className="items-center justify-center rounded-xl bg-blue-600 py-4"
-							style={{ backgroundColor: "#2563EB" }}
+							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
-							<Text className="font-semibold text-base text-white">
+							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
 						</TouchableOpacity>

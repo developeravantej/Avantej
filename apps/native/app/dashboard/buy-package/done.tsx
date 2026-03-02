@@ -119,7 +119,7 @@ export default function DoneScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -147,77 +147,69 @@ export default function DoneScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator */}
+					{/* Progress Indicator - high contrast for visibility (all steps completed) */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							<Text className="font-semibold text-primary-1 text-sm">
 								Step {currentStep} of {totalSteps}
 							</Text>
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
-								100%
-							</Text>
+							<Text className="font-semibold text-primary-1 text-sm">100%</Text>
 						</View>
 
-						{/* Progress Bar */}
+						{/* Progress Bar - visible track and fill */}
 						<View
-							className="mb-4 h-1 rounded-full"
-							style={{ backgroundColor: colors.secondary[3] }}
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
 						>
 							<View
 								className="h-full rounded-full"
 								style={{
 									width: "100%",
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
 
-						{/* Step Navigation */}
+						{/* Step Navigation - all completed */}
 						<View className="relative" style={{ height: 50 }}>
 							<View
-								className="absolute h-px"
+								className="absolute rounded-full"
 								style={{
 									left: "10%",
 									right: "10%",
-									top: "27%",
-									backgroundColor: colors.secondary[3],
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
 									zIndex: 0,
 								}}
 							/>
 							<View className="absolute inset-0 flex-row items-center justify-between">
-								{steps.map((step) => {
-									return (
-										<View
-											key={step.number}
-											className="items-center justify-center"
-											style={{ flex: 1, zIndex: 1 }}
-										>
-											<View className="mb-1 items-center justify-center">
-												<View
-													className="h-5 w-5 items-center justify-center rounded-full"
-													style={{
-														backgroundColor: "#2563EB",
-														zIndex: 2,
-													}}
-												>
-													<Ionicons
-														name="checkmark"
-														size={12}
-														color={colors.primary[2]}
-													/>
-												</View>
-											</View>
-											<Text
-												className="mt-1 text-center font-bold text-xs"
+								{steps.map((step) => (
+									<View
+										key={step.number}
+										className="items-center justify-center"
+										style={{ flex: 1, zIndex: 1 }}
+									>
+										<View className="mb-1 items-center justify-center">
+											<View
+												className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
 												style={{
-													color: "#2563EB",
+													backgroundColor: colors.primary[1],
+													zIndex: 2,
 												}}
 											>
-												{step.label}
-											</Text>
+												<Ionicons
+													name="checkmark"
+													size={12}
+													color={colors.primary[2]}
+												/>
+											</View>
 										</View>
-									);
-								})}
+										<Text className="mt-1 text-center font-bold text-primary-1 text-xs">
+											{step.label}
+										</Text>
+									</View>
+								))}
 							</View>
 						</View>
 					</View>
@@ -247,7 +239,7 @@ export default function DoneScreen() {
 						</Text>
 
 						{/* Package Summary Card */}
-						<View className="w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+						<View className="w-full rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
 							<Text
 								className="mb-4 font-bold text-sm uppercase tracking-wide"
 								style={{ color: colors.primary[1] }}
@@ -316,7 +308,7 @@ export default function DoneScreen() {
 								</View>
 							)}
 
-							<View className="border-gray-200 border-t pt-3">
+							<View className="border-secondary-3 border-t pt-3">
 								<Text
 									className="mb-1 text-xs"
 									style={{ color: colors.secondary[1] }}
@@ -338,27 +330,23 @@ export default function DoneScreen() {
 			{/* Action Buttons */}
 			<SafeAreaView
 				edges={["bottom"]}
-				className="border-gray-200 border-t bg-white"
+				className="border-secondary-3 border-t bg-white"
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
 						onPress={() => router.replace("/dashboard" as never)}
-						className="mb-3 items-center justify-center rounded-xl bg-blue-600 py-4"
-						style={{ backgroundColor: "#2563EB" }}
+						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
-						<Text className="font-semibold text-base text-white">
+						<Text className="font-semibold text-base text-primary-2">
 							Back to Home
 						</Text>
 					</TouchableOpacity>
 
 					<TouchableOpacity
 						onPress={() => router.push("/dashboard/bookings" as never)}
-						className="items-center justify-center rounded-xl border border-gray-200 bg-white py-4"
+						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
-						<Text
-							className="font-semibold text-base"
-							style={{ color: colors.primary[1] }}
-						>
+						<Text className="font-semibold text-base text-primary-1">
 							View My Packages
 						</Text>
 					</TouchableOpacity>

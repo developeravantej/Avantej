@@ -183,7 +183,7 @@ const getBookingsData = () => {
 		const dateKey = formatDate(date);
 		dates[dateKey] = {
 			marked: true,
-			dotColor: "#2563EB",
+			dotColor: colors.primary[1],
 			bookings: bookings,
 		};
 	});
@@ -243,7 +243,7 @@ const getBookingsData = () => {
 		const dateKey = formatDate(date);
 		dates[dateKey] = {
 			marked: true,
-			dotColor: "#2563EB",
+			dotColor: colors.primary[1],
 			bookings: bookings,
 		};
 	});
@@ -277,7 +277,7 @@ export default function CalendarScreen() {
 		[selectedDate]: {
 			...markedDates[selectedDate],
 			selected: true,
-			selectedColor: "#2563EB",
+			selectedColor: colors.primary[1],
 		},
 	};
 
@@ -353,20 +353,17 @@ export default function CalendarScreen() {
 									color={colors.primary[1]}
 								/>
 							</TouchableOpacity>
-							<Text
-								className="flex-1 font-bold text-2xl"
-								style={{ color: colors.primary[1] }}
-							>
+							<Text className="flex-1 font-bold text-2xl text-primary-1">
 								Calendar
 							</Text>
 						</View>
-						<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+						<Text className="text-secondary-1 text-sm">
 							View and manage your scheduled sessions
 						</Text>
 					</View>
 
 					{/* Calendar */}
-					<View className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+					<View className="mb-4 overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 						<Calendar
 							current={selectedDate}
 							onDayPress={(day) => {
@@ -375,19 +372,19 @@ export default function CalendarScreen() {
 							markedDates={calendarMarkedDates}
 							markingType="dot"
 							theme={{
-								backgroundColor: "#ffffff",
-								calendarBackground: "#ffffff",
+								backgroundColor: colors.primary[2],
+								calendarBackground: colors.primary[2],
 								textSectionTitleColor: colors.primary[1],
-								selectedDayBackgroundColor: "#2563EB",
-								selectedDayTextColor: "#ffffff",
-								todayTextColor: "#2563EB",
+								selectedDayBackgroundColor: colors.primary[1],
+								selectedDayTextColor: colors.primary[2],
+								todayTextColor: colors.primary[1],
 								dayTextColor: colors.primary[1],
 								textDisabledColor: colors.secondary[1],
-								dotColor: "#2563EB",
-								selectedDotColor: "#ffffff",
+								dotColor: colors.primary[1],
+								selectedDotColor: colors.primary[2],
 								arrowColor: colors.primary[1],
 								monthTextColor: colors.primary[1],
-								indicatorColor: "#2563EB",
+								indicatorColor: colors.primary[1],
 								textDayFontWeight: "500",
 								textMonthFontWeight: "bold",
 								textDayHeaderFontWeight: "600",
@@ -405,10 +402,7 @@ export default function CalendarScreen() {
 					{selectedDate &&
 						bookingsData[selectedDate as keyof typeof bookingsData] && (
 							<View className="mb-4">
-								<Text
-									className="mb-3 font-bold text-sm uppercase tracking-wide"
-									style={{ color: colors.secondary[1] }}
-								>
+								<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 									BOOKINGS ON{" "}
 									{new Date(selectedDate)
 										.toLocaleDateString("en-US", {
@@ -423,7 +417,7 @@ export default function CalendarScreen() {
 								].bookings.map((booking) => (
 									<View
 										key={booking.id}
-										className="mb-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+										className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 									>
 										<View className="mb-2 flex-row items-center justify-between">
 											<View className="flex-1 flex-row items-center">
@@ -433,10 +427,7 @@ export default function CalendarScreen() {
 													color={colors.primary[1]}
 													style={{ marginRight: 8 }}
 												/>
-												<Text
-													className="flex-1 font-bold text-lg"
-													style={{ color: colors.primary[1] }}
-												>
+												<Text className="flex-1 font-bold text-lg text-primary-1">
 													{booking.name}
 												</Text>
 											</View>
@@ -446,10 +437,7 @@ export default function CalendarScreen() {
 													size={14}
 													color={colors.secondary[1]}
 												/>
-												<Text
-													className="ml-1 font-semibold text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
+												<Text className="ml-1 font-semibold text-secondary-1 text-sm">
 													{Math.abs(booking.credits)} credit
 													{booking.credits !== -1 ? "s" : ""}
 												</Text>
@@ -461,10 +449,7 @@ export default function CalendarScreen() {
 												size={14}
 												color={colors.secondary[1]}
 											/>
-											<Text
-												className="ml-1 text-sm"
-												style={{ color: colors.secondary[1] }}
-											>
+											<Text className="ml-1 text-secondary-1 text-sm">
 												{booking.time}
 											</Text>
 										</View>
@@ -477,10 +462,7 @@ export default function CalendarScreen() {
 													size={14}
 													color={colors.secondary[1]}
 												/>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
+												<Text className="ml-1 text-secondary-1 text-sm">
 													{"trainer" in booking
 														? booking.trainer
 														: "instructor" in booking
@@ -497,23 +479,17 @@ export default function CalendarScreen() {
 					{/* No Bookings Message */}
 					{selectedDate &&
 						!bookingsData[selectedDate as keyof typeof bookingsData] && (
-							<View className="mb-4 rounded-2xl bg-white p-6 shadow-sm">
+							<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6 shadow-sm">
 								<View className="items-center">
 									<Ionicons
 										name="calendar-outline"
 										size={48}
 										color={colors.secondary[1]}
 									/>
-									<Text
-										className="mt-4 mb-2 text-center font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
+									<Text className="mt-4 mb-2 text-center font-semibold text-base text-primary-1">
 										No Bookings
 									</Text>
-									<Text
-										className="text-center text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
+									<Text className="text-center text-secondary-1 text-sm">
 										You don't have any bookings on this date
 									</Text>
 								</View>

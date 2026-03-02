@@ -254,12 +254,12 @@ export default function TermsScreen() {
 	return (
 		<Container>
 			<ScrollView
-				className="flex-1 bg-white"
+				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 32 }}
 				showsVerticalScrollIndicator={false}
 			>
 				{/* Header */}
-				<View className="border-gray-200 border-b bg-white px-4 pt-4 pb-4">
+				<View className="border-secondary-3 border-b bg-primary-2 px-4 pt-4 pb-4">
 					<View className="flex-row items-center">
 						<TouchableOpacity
 							onPress={() => router.back()}

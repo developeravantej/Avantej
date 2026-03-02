@@ -184,7 +184,7 @@ export default function SignScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -194,7 +194,7 @@ export default function SignScreen() {
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
-						<Text className="flex-1 font-bold text-2xl text-black">
+						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							E-Signature
 						</Text>
 					</View>
@@ -212,40 +212,42 @@ export default function SignScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator */}
+					{/* Progress Indicator - high contrast for visibility */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							<Text className="font-semibold text-primary-1 text-sm">
 								Step {currentStep} of {totalSteps}
 							</Text>
-							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							<Text className="font-semibold text-primary-1 text-sm">
 								{progressPercentage}%
 							</Text>
 						</View>
 
-						{/* Progress Bar */}
+						{/* Progress Bar - visible track and fill */}
 						<View
-							className="mb-4 h-1 rounded-full"
-							style={{ backgroundColor: colors.secondary[3] }}
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
 						>
 							<View
 								className="h-full rounded-full"
 								style={{
 									width: `${progressPercentage}%`,
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
 
 						{/* Step Navigation */}
 						<View className="relative" style={{ height: 50 }}>
+							{/* Connector line - visible against background */}
 							<View
-								className="absolute h-px"
+								className="absolute rounded-full"
 								style={{
 									left: "10%",
 									right: "10%",
-									top: "27%",
-									backgroundColor: colors.secondary[3],
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
 									zIndex: 0,
 								}}
 							/>
@@ -263,9 +265,9 @@ export default function SignScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-5 w-5 items-center justify-center rounded-full"
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -279,9 +281,9 @@ export default function SignScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-5 w-5 items-center justify-center rounded-full"
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -294,20 +296,10 @@ export default function SignScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														style={{
-															backgroundColor: colors.primary[2],
-															borderRadius: 10,
-															width: 18,
-															height: 18,
-															alignItems: "center",
-															justifyContent: "center",
-															zIndex: 2,
-														}}
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														style={{ zIndex: 2 }}
 													>
-														<Text
-															className="text-xs"
-															style={{ color: colors.secondary[1] }}
-														>
+														<Text className="font-semibold text-primary-1 text-xs">
 															{step.number}
 														</Text>
 													</View>
@@ -315,12 +307,12 @@ export default function SignScreen() {
 											)}
 											<Text
 												className={`mt-1 text-center text-xs ${
-													isActive ? "font-bold" : ""
+													isActive ? "font-bold" : "font-medium"
 												}`}
 												style={{
 													color:
 														isActive || isCompleted
-															? "#2563EB"
+															? colors.primary[1]
 															: colors.secondary[1],
 												}}
 											>
@@ -343,7 +335,7 @@ export default function SignScreen() {
 						</Text>
 
 						{/* Terms and Conditions – links to the three PDFs */}
-						<View className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							<Text
 								className="mb-3 text-sm"
 								style={{ color: colors.primary[1] }}
@@ -362,7 +354,9 @@ export default function SignScreen() {
 											<Text
 												className="text-xs"
 												style={{
-													color: viewed ? colors.secondary[1] : "#2563EB",
+													color: viewed
+														? colors.secondary[1]
+														: colors.primary[1],
 													textDecorationLine: viewed ? "none" : "underline",
 												}}
 											>
@@ -379,7 +373,7 @@ export default function SignScreen() {
 												<Ionicons
 													name="chevron-forward"
 													size={12}
-													color="#2563EB"
+													color={colors.primary[1]}
 													style={{ marginLeft: 4 }}
 												/>
 											)}
@@ -389,55 +383,54 @@ export default function SignScreen() {
 							</View>
 						</View>
 
-						{/* Agreement Checkbox */}
+						{/* Agreement Checkbox - visible and tappable */}
 						<TouchableOpacity
 							onPress={handleAgreementPress}
-							className="mb-4 flex-row items-start"
+							activeOpacity={0.7}
+							className="mb-4 flex-row items-start rounded-xl border border-secondary-3 bg-primary-2 p-4"
 						>
 							<View
-								className={`mt-0.5 mr-3 h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
+								className={`mr-3 h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
 									agreedToTerms
-										? "border-blue-600 bg-blue-600"
-										: "border-gray-300"
+										? "border-primary-1 bg-primary-1"
+										: "border-secondary-2 bg-primary-2"
 								}`}
 							>
 								{agreedToTerms && (
 									<Ionicons
 										name="checkmark"
-										size={14}
+										size={16}
 										color={colors.primary[2]}
 									/>
 								)}
 							</View>
 							<View className="flex-1 flex-row flex-wrap">
-								<Text className="text-sm" style={{ color: colors.primary[1] }}>
+								<Text className="font-medium text-primary-1 text-sm">
 									I agree to the terms and conditions and confirm that the
 									information provided is accurate
 								</Text>
 							</View>
 						</TouchableOpacity>
 
-						{/* Signature Canvas */}
+						{/* Signature area - clearly visible signing board */}
 						<View className="mb-4">
-							<Text
-								className="mb-2 text-sm"
-								style={{ color: colors.primary[1] }}
-							>
+							<Text className="mb-2 font-semibold text-primary-1 text-sm">
 								Sign Below
 							</Text>
 							<TouchableOpacity
 								onPress={handleOpenSignatureModal}
-								activeOpacity={0.7}
-								className="mb-2 overflow-hidden rounded-xl border-2 border-gray-300 border-dashed bg-gray-50"
+								activeOpacity={0.8}
+								className="mb-2 overflow-hidden rounded-xl border-2 border-secondary-2 bg-primary-2"
 								style={{
 									height: 200,
 									borderColor: signature
 										? colors.primary[1]
-										: colors.secondary[3],
+										: colors.secondary[2],
+									borderStyle: signature ? "solid" : "dashed",
 								}}
 							>
 								{signature ? (
-									<View className="h-full w-full items-center justify-center">
+									<View className="h-full w-full items-center justify-center bg-primary-3">
 										<Image
 											source={{ uri: signature }}
 											style={{
@@ -448,17 +441,17 @@ export default function SignScreen() {
 										/>
 									</View>
 								) : (
-									<View className="h-full w-full items-center justify-center">
+									<View className="h-full w-full items-center justify-center bg-primary-3">
 										<Ionicons
 											name="create-outline"
-											size={48}
-											color={colors.secondary[1]}
+											size={40}
+											color={colors.primary[1]}
 										/>
-										<Text
-											className="mt-2 text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
+										<Text className="mt-3 font-medium text-primary-1 text-sm">
 											Tap to sign
+										</Text>
+										<Text className="mt-1 text-secondary-1 text-xs">
+											Opens in landscape for easier signing
 										</Text>
 									</View>
 								)}
@@ -471,10 +464,7 @@ export default function SignScreen() {
 									}}
 									className="mb-2 self-end"
 								>
-									<Text
-										className="font-medium text-sm"
-										style={{ color: "#2563EB" }}
-									>
+									<Text className="font-medium text-primary-1 text-sm">
 										Re-sign
 									</Text>
 								</TouchableOpacity>
@@ -502,7 +492,7 @@ export default function SignScreen() {
 							>
 								<SafeAreaView style={{ flex: 1 }}>
 									{/* Modal Header */}
-									<View className="border-gray-200 border-b bg-white px-6 py-4">
+									<View className="border-secondary-3 border-b bg-primary-2 px-6 py-4">
 										<View className="flex-row items-center justify-between">
 											<View className="flex-1 flex-row items-center justify-center">
 												<Ionicons
@@ -588,11 +578,11 @@ export default function SignScreen() {
 									</View>
 
 									{/* Modal Footer Buttons */}
-									<View className="border-gray-200 border-t bg-white px-6 py-4">
+									<View className="border-secondary-3 border-t bg-primary-2 px-6 py-4">
 										<View className="flex-row justify-end gap-4">
 											<TouchableOpacity
 												onPress={handleClear}
-												className="rounded-lg border-2 border-gray-300 bg-white px-8 py-3"
+												className="rounded-lg border-2 border-secondary-3 bg-primary-2 px-8 py-3"
 											>
 												<Text
 													className="font-semibold text-base"
@@ -603,10 +593,9 @@ export default function SignScreen() {
 											</TouchableOpacity>
 											<TouchableOpacity
 												onPress={handleConfirm}
-												className="rounded-lg bg-blue-600 px-8 py-3"
-												style={{ backgroundColor: "#2563EB" }}
+												className="rounded-lg bg-primary-1 px-8 py-3"
 											>
-												<Text className="font-semibold text-base text-white">
+												<Text className="font-semibold text-base text-primary-2">
 													Confirm Signature
 												</Text>
 											</TouchableOpacity>
@@ -623,15 +612,14 @@ export default function SignScreen() {
 			{signature && agreedToTerms && (
 				<SafeAreaView
 					edges={["bottom"]}
-					className="border-gray-200 border-t bg-white"
+					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
 							onPress={handleContinue}
-							className="items-center justify-center rounded-xl bg-blue-600 py-4"
-							style={{ backgroundColor: "#2563EB" }}
+							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
-							<Text className="font-semibold text-base text-white">
+							<Text className="font-semibold text-base text-primary-2">
 								Proceed to Payment
 							</Text>
 						</TouchableOpacity>

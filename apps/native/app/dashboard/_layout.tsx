@@ -12,6 +12,7 @@ export default function DashboardLayout() {
 			<Tabs
 				screenOptions={{
 					headerShown: false,
+					sceneStyle: { backgroundColor: colors.primary[2] },
 					tabBarActiveTintColor: colors.primary[1], // #000000 - Black for active tab
 					tabBarInactiveTintColor: colors.secondary[1], // #8A8F91 - Gray for inactive tabs
 					tabBarStyle: {

@@ -69,7 +69,7 @@ export default function DoneScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -79,7 +79,7 @@ export default function DoneScreen() {
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
-						<Text className="flex-1 font-bold text-2xl text-black">
+						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
 					</View>
@@ -117,7 +117,7 @@ export default function DoneScreen() {
 								className="h-full rounded-full"
 								style={{
 									width: `${progressPercentage}%`,
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
@@ -150,7 +150,7 @@ export default function DoneScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -166,7 +166,7 @@ export default function DoneScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -206,7 +206,7 @@ export default function DoneScreen() {
 												style={{
 													color:
 														isActive || isCompleted
-															? "#2563EB"
+															? colors.primary[1]
 															: colors.secondary[1],
 												}}
 											>
@@ -221,10 +221,7 @@ export default function DoneScreen() {
 
 					{/* Success Section */}
 					<View className="mb-4 items-center">
-						<View
-							className="mb-4 h-20 w-20 items-center justify-center rounded-full"
-							style={{ backgroundColor: "#10B981" }}
-						>
+						<View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-primary-1">
 							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
 						</View>
 
@@ -244,7 +241,7 @@ export default function DoneScreen() {
 						</Text>
 
 						{/* Booking Summary Card */}
-						<View className="w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+						<View className="w-full rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
 							<Text
 								className="mb-4 font-bold text-sm uppercase tracking-wide"
 								style={{ color: colors.primary[1] }}
@@ -304,27 +301,23 @@ export default function DoneScreen() {
 			{/* Action Buttons */}
 			<SafeAreaView
 				edges={["bottom"]}
-				className="border-gray-200 border-t bg-white"
+				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
 						onPress={() => router.replace("/dashboard")}
-						className="mb-3 items-center justify-center rounded-xl bg-blue-600 py-4"
-						style={{ backgroundColor: "#2563EB" }}
+						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
-						<Text className="font-semibold text-base text-white">
+						<Text className="font-semibold text-base text-primary-2">
 							Back to Home
 						</Text>
 					</TouchableOpacity>
 
 					<TouchableOpacity
 						onPress={() => router.push("/dashboard/notifications" as never)}
-						className="items-center justify-center rounded-xl border border-gray-200 bg-white py-4"
+						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
-						<Text
-							className="font-semibold text-base"
-							style={{ color: colors.primary[1] }}
-						>
+						<Text className="font-semibold text-base text-primary-1">
 							View My Bookings
 						</Text>
 					</TouchableOpacity>

@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { Container } from "@/components/container";
+import { TabContainer, useTabBarHeight } from "@/components/container";
+import { colors } from "@/lib/colors";
 import { fonts } from "@/lib/font";
 
 export default function Home() {
 	// Dummy data
 	const userName = "Alex";
+	const tabBarHeight = useTabBarHeight();
 	const currentDate = "Thu, Dec 18";
 	const workoutsRemaining = 8;
 	const planProgress = 65;
@@ -49,30 +51,35 @@ export default function Home() {
 	};
 
 	return (
-		<Container>
-			<ScrollView className="flex-1 bg-white">
+		<TabContainer>
+			<ScrollView
+				className="flex-1 bg-secondary-3"
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
+			>
 				<View className="px-4 pt-4 pb-6">
-					{/* Header Section */}
-					<View className="mb-6 flex-row items-center">
-						{/* Profile Picture - Left */}
-						<View className="mr-3 h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-amber-200 bg-amber-100">
+					{/* Header Section - Card: Primary 2 bg, Secondary 3 border */}
+					<View className="mb-6 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+						<View
+							className="mr-3 h-12 w-12 items-center justify-center overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
+						>
 							<Image
-								source={{ uri: "https://via.placeholder.com/48" }} // Placeholder - replace with actual profile image URL
+								source={{ uri: "https://via.placeholder.com/48" }}
 								className="h-full w-full"
 								resizeMode="cover"
 							/>
 						</View>
-						{/* Greeting Message - Center Left */}
 						<View className="flex-1">
 							<Text
-								className="text-2xl text-black"
+								className="text-2xl text-primary-1"
 								style={{ fontFamily: fonts.heading }}
 							>
 								{getGreeting()}, {userName}
 							</Text>
-							<Text className="mt-1 text-gray-500 text-sm">{currentDate}</Text>
+							<Text className="mt-1 text-secondary-1 text-sm">
+								{currentDate}
+							</Text>
 						</View>
-						{/* Notification Icon - Right */}
 						<TouchableOpacity
 							onPress={() => router.push("/dashboard/notifications/" as never)}
 							className="relative h-10 w-10 items-center justify-center"
@@ -80,15 +87,12 @@ export default function Home() {
 							<Ionicons
 								name="notifications-outline"
 								size={24}
-								color="#000000"
+								color={colors.primary[1]}
 							/>
 							{unreadNotificationsCount > 0 && (
-								<View
-									className="-top-1 -right-1 absolute h-5 w-5 items-center justify-center rounded-full"
-									style={{ backgroundColor: "#EF4444" }}
-								>
+								<View className="-right-1 -top-1 absolute h-5 w-5 items-center justify-center rounded-full bg-primary-1">
 									<Text
-										className="text-white text-xs"
+										className="text-primary-2 text-xs"
 										style={{ fontFamily: fonts.heading }}
 									>
 										{unreadNotificationsCount > 9
@@ -100,18 +104,18 @@ export default function Home() {
 						</TouchableOpacity>
 					</View>
 
-					{/* Fitness Plan Card */}
-					<View className="mb-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+					{/* Fitness Plan Card - STYLE: Card bg Primary 2, border Secondary 3 */}
+					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
 						<View className="mb-3 flex-row items-center">
-							<View className="rounded-full bg-green-100 px-3 py-1">
-								<Text className="font-semibold text-green-700 text-xs">
+							<View className="rounded-full bg-secondary-3 px-3 py-1">
+								<Text className="font-semibold text-primary-1 text-xs">
 									ACTIVE
 								</Text>
 							</View>
 						</View>
 
 						<Text
-							className="mb-2 text-black text-xl"
+							className="mb-2 text-primary-1 text-xl"
 							style={{ fontFamily: fonts.heading }}
 						>
 							Fitness Plan
@@ -119,90 +123,103 @@ export default function Home() {
 
 						<View className="mb-4">
 							<Text
-								className="text-5xl text-black"
+								className="text-5xl text-primary-1"
 								style={{ fontFamily: fonts.heading }}
 							>
 								{workoutsRemaining} workouts
 							</Text>
 							<Text
-								className="text-5xl text-gray-700"
+								className="text-5xl text-secondary-1"
 								style={{ fontFamily: fonts.heading }}
 							>
 								remaining
 							</Text>
 						</View>
 
-						<Text className="mb-3 text-gray-600 text-lg">
+						<Text className="mb-3 text-lg text-secondary-1">
 							You're {planProgress}% through your plan
 						</Text>
 
-						{/* Progress Bar */}
 						<View className="mb-3">
-							<View className="h-2 overflow-hidden rounded-full bg-gray-200">
+							<View className="h-2 overflow-hidden rounded-full bg-secondary-3">
 								<View
-									className="h-full rounded-full bg-gray-500"
+									className="h-full rounded-full bg-primary-1"
 									style={{ width: `${planProgress}%` }}
 								/>
 							</View>
 							<View className="mt-1 flex-row justify-between">
-								<Text className="text-gray-400 text-xs">Start</Text>
-								<Text className="text-gray-400 text-xs">End</Text>
+								<Text className="text-secondary-1 text-xs">Start</Text>
+								<Text className="text-secondary-1 text-xs">End</Text>
 							</View>
 						</View>
 
-						{/* Pacing Info */}
 						<View className="mb-4 flex-row items-center">
-							<Ionicons name="time-outline" size={16} color="#6B7280" />
-							<Text className="ml-2 text-gray-600 text-sm">
+							<Ionicons
+								name="time-outline"
+								size={16}
+								color={colors.secondary[1]}
+							/>
+							<Text className="ml-2 text-secondary-1 text-sm">
 								At this pace, you'll finish in {weeksToFinish} weeks
 							</Text>
 						</View>
 
-						{/* Footer */}
-						<View className="flex-row items-center justify-between border-gray-100 border-t pt-3">
-							<Text className="text-gray-600 text-sm">
+						<View className="flex-row items-center justify-between border-secondary-3 border-t pt-3">
+							<Text className="text-secondary-1 text-sm">
 								Renews on {renewalDate}
 							</Text>
 							<TouchableOpacity>
-								<Text className="font-medium text-blue-600 text-sm">
+								<Text className="font-medium text-primary-1 text-sm">
 									Manage membership{" "}
-									<Ionicons name="chevron-forward" size={14} color="#2563EB" />
+									<Ionicons
+										name="chevron-forward"
+										size={14}
+										color={colors.primary[1]}
+									/>
 								</Text>
 							</TouchableOpacity>
 						</View>
 					</View>
 
 					{/* Quick Insight Card */}
-					<View className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+					<View className="mb-6 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 						<View className="flex-row items-start">
-							<Ionicons name="bulb-outline" size={20} color="#6B7280" />
-							<Text className="ml-3 flex-1 text-gray-700 text-sm">
+							<Ionicons
+								name="bulb-outline"
+								size={20}
+								color={colors.secondary[1]}
+							/>
+							<Text className="ml-3 flex-1 text-secondary-1 text-sm">
 								Quick insight: Most members book 2 workouts per week to finish
 								on time
 							</Text>
 						</View>
 					</View>
 
-					{/* Action Buttons Grid */}
+					{/* Action Buttons Grid - STYLE: Primary CTA = Primary 1; secondary = Primary 2 + Secondary 3 border */}
 					<View className="mb-8 flex-row justify-between">
 						<TouchableOpacity
 							onPress={() =>
 								router.push("/dashboard/book-workout/book-workout")
 							}
-							className="aspect-square w-[22%] items-center justify-center rounded-xl bg-blue-600 shadow-sm"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl bg-primary-1 shadow-sm"
 						>
-							<Ionicons name="calendar-outline" size={24} color="#FFFFFF" />
-							<Text className="mt-2 text-center font-medium text-white text-xs">
+							<Ionicons
+								name="calendar-outline"
+								size={24}
+								color={colors.primary[2]}
+							/>
+							<Text className="mt-2 text-center font-medium text-primary-2 text-xs">
 								Book{"\n"}Session
 							</Text>
 						</TouchableOpacity>
 
 						<TouchableOpacity
 							onPress={() => router.push("/dashboard/calendar" as never)}
-							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
-							<Ionicons name="calendar" size={24} color="#6B7280" />
-							<Text className="mt-2 font-medium text-gray-700 text-xs">
+							<Ionicons name="calendar" size={24} color={colors.secondary[1]} />
+							<Text className="mt-2 font-medium text-primary-1 text-xs">
 								Calendar
 							</Text>
 						</TouchableOpacity>
@@ -211,20 +228,28 @@ export default function Home() {
 							onPress={() =>
 								router.push("/dashboard/buy-package/setup" as never)
 							}
-							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
-							<Ionicons name="cube-outline" size={24} color="#6B7280" />
-							<Text className="mt-2 text-center font-medium text-gray-700 text-xs">
+							<Ionicons
+								name="cube-outline"
+								size={24}
+								color={colors.secondary[1]}
+							/>
+							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								Buy{"\n"}Package
 							</Text>
 						</TouchableOpacity>
 
 						<TouchableOpacity
 							onPress={() => router.push("/dashboard/packages" as never)}
-							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
-							<Ionicons name="star-outline" size={24} color="#6B7280" />
-							<Text className="mt-2 text-center font-medium text-gray-700 text-xs">
+							<Ionicons
+								name="star-outline"
+								size={24}
+								color={colors.secondary[1]}
+							/>
+							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								My{"\n"}Credits
 							</Text>
 						</TouchableOpacity>
@@ -232,12 +257,15 @@ export default function Home() {
 
 					{/* UP NEXT Section */}
 					<View className="mb-6">
-						<Text className="mb-3 text-gray-400 text-xs uppercase tracking-wide">
+						<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 							UP NEXT
 						</Text>
-						<TouchableOpacity className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+						<TouchableOpacity className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 							<View className="flex-row">
-								<View className="relative w-24 self-stretch bg-gray-200">
+								<View
+									className="relative w-24 self-stretch"
+									style={{ backgroundColor: colors.secondary[3] }}
+								>
 									<Image
 										source={{ uri: upcomingActivity.image }}
 										className="h-full w-full"
@@ -250,8 +278,8 @@ export default function Home() {
 											bottom: 0,
 										}}
 									/>
-									<View className="absolute top-2 right-2 z-10 rounded-full bg-blue-600 px-2 py-1">
-										<Text className="font-semibold text-white text-xs">
+									<View className="absolute top-2 right-2 z-10 rounded-full bg-primary-1 px-2 py-1">
+										<Text className="font-semibold text-primary-2 text-xs">
 											{upcomingActivity.date}
 										</Text>
 									</View>
@@ -259,22 +287,30 @@ export default function Home() {
 								<View className="flex-1 justify-between p-4">
 									<View>
 										<Text
-											className="mb-2 text-black text-lg"
+											className="mb-2 text-lg text-primary-1"
 											style={{ fontFamily: fonts.heading }}
 										>
 											{upcomingActivity.title}
 										</Text>
 										<View className="mb-1 flex-row items-center">
-											<Ionicons name="time-outline" size={14} color="#6B7280" />
-											<Text className="ml-1 text-gray-600 text-sm">
+											<Ionicons
+												name="time-outline"
+												size={14}
+												color={colors.secondary[1]}
+											/>
+											<Text className="ml-1 text-secondary-1 text-sm">
 												{upcomingActivity.time} • {upcomingActivity.duration}
 											</Text>
 										</View>
-										<Text className="text-gray-400 text-xs">
+										<Text className="text-secondary-1 text-xs">
 											Tap to reschedule
 										</Text>
 									</View>
-									<Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+									<Ionicons
+										name="chevron-forward"
+										size={20}
+										color={colors.secondary[1]}
+									/>
 								</View>
 							</View>
 						</TouchableOpacity>
@@ -282,30 +318,30 @@ export default function Home() {
 
 					{/* RECENT ACTIVITY Section */}
 					<View>
-						<Text className="mb-3 text-gray-400 text-xs uppercase tracking-wide">
+						<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 							RECENT ACTIVITY
 						</Text>
 						{recentActivities.map((activity) => (
 							<TouchableOpacity
 								key={activity.id}
-								className="mb-3 flex-row items-center rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+								className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 							>
-								<View className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+								<View className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-secondary-3">
 									<Ionicons
 										name={activity.icon as never}
 										size={20}
-										color="#6B7280"
+										color={colors.secondary[1]}
 									/>
 								</View>
 								<View className="flex-1">
-									<Text className="font-medium text-base text-black">
+									<Text className="font-medium text-base text-primary-1">
 										{activity.name}
 									</Text>
-									<Text className="mt-1 text-gray-500 text-sm">
+									<Text className="mt-1 text-secondary-1 text-sm">
 										{activity.date}
 									</Text>
 								</View>
-								<Text className="text-gray-600 text-sm">
+								<Text className="text-secondary-1 text-sm">
 									{activity.credits > 0 ? "+" : ""}
 									{activity.credits} credit
 								</Text>
@@ -314,6 +350,6 @@ export default function Home() {
 					</View>
 				</View>
 			</ScrollView>
-		</Container>
+		</TabContainer>
 	);
 }

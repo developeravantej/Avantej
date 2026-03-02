@@ -133,7 +133,7 @@ export default function ScheduleScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -143,7 +143,7 @@ export default function ScheduleScreen() {
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
-						<Text className="flex-1 font-bold text-2xl text-black">
+						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
 					</View>
@@ -181,7 +181,7 @@ export default function ScheduleScreen() {
 								className="h-full rounded-full"
 								style={{
 									width: `${progressPercentage}%`,
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
@@ -217,7 +217,7 @@ export default function ScheduleScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -234,7 +234,7 @@ export default function ScheduleScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -274,7 +274,7 @@ export default function ScheduleScreen() {
 												style={{
 													color:
 														isActive || isCompleted
-															? "#2563EB"
+															? colors.primary[1]
 															: colors.secondary[1],
 												}}
 											>
@@ -324,11 +324,11 @@ export default function ScheduleScreen() {
 												key={date.toISOString()}
 												onPress={() => setSelectedDate(date)}
 												className={`mr-3 rounded-2xl p-3 ${
-													isSelected ? "" : "border border-gray-200"
+													isSelected ? "" : "border border-secondary-3"
 												}`}
 												style={{
 													backgroundColor: isSelected
-														? "#2563EB"
+														? colors.primary[1]
 														: colors.primary[2],
 													minWidth: 80,
 													alignItems: "center",
@@ -386,11 +386,13 @@ export default function ScheduleScreen() {
 												key={time}
 												onPress={() => setSelectedTime(time)}
 												className={`mr-3 mb-3 rounded-xl p-3 ${
-													isSelected ? "border-2" : "border border-gray-200"
+													isSelected ? "border-2" : "border border-secondary-3"
 												}`}
 												style={{
 													backgroundColor: colors.primary[2],
-													borderColor: isSelected ? "#2563EB" : "transparent",
+													borderColor: isSelected
+														? colors.primary[1]
+														: "transparent",
 													width: "30%",
 													minWidth: 100,
 												}}
@@ -426,7 +428,7 @@ export default function ScheduleScreen() {
 											onPress={() => setViewMode("week")}
 											className={`mr-2 rounded-lg px-3 py-1 ${
 												viewMode === "week"
-													? "border border-gray-200 bg-white"
+													? "border border-secondary-3 bg-primary-2"
 													: ""
 											}`}
 										>
@@ -448,7 +450,7 @@ export default function ScheduleScreen() {
 											onPress={() => setViewMode("month")}
 											className={`rounded-lg px-3 py-1 ${
 												viewMode === "month"
-													? "border border-gray-200 bg-white"
+													? "border border-secondary-3 bg-primary-2"
 													: ""
 											}`}
 										>
@@ -492,11 +494,11 @@ export default function ScheduleScreen() {
 												key={date.toISOString()}
 												onPress={() => setSelectedDate(date)}
 												className={`mr-3 rounded-2xl p-3 ${
-													isSelected ? "" : "border border-gray-200"
+													isSelected ? "" : "border border-secondary-3"
 												}`}
 												style={{
 													backgroundColor: isSelected
-														? "#2563EB"
+														? colors.primary[1]
 														: colors.primary[2],
 													minWidth: 80,
 													alignItems: "center",
@@ -567,14 +569,16 @@ export default function ScheduleScreen() {
 														? "border-2"
 														: isUnavailable || slot.full
 															? ""
-															: "border border-gray-200"
+															: "border border-secondary-3"
 												}`}
 												style={{
 													backgroundColor:
 														isUnavailable || slot.full
 															? colors.secondary[3]
 															: colors.primary[2],
-													borderColor: isSelected ? "#2563EB" : "transparent",
+													borderColor: isSelected
+														? colors.primary[1]
+														: "transparent",
 													width: "30%",
 													minWidth: 100,
 												}}
@@ -615,9 +619,7 @@ export default function ScheduleScreen() {
 
 								{/* Waitlist Option */}
 								<TouchableOpacity className="mt-2 items-center">
-									<Text className="text-sm" style={{ color: "#2563EB" }}>
-										Join waitlist
-									</Text>
+									<Text className="text-primary-1 text-sm">Join waitlist</Text>
 								</TouchableOpacity>
 							</View>
 						</View>
@@ -631,15 +633,14 @@ export default function ScheduleScreen() {
 				: selectedDate && selectedTime) && (
 				<SafeAreaView
 					edges={["bottom"]}
-					className="border-gray-200 border-t bg-white"
+					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
 							onPress={() => router.push("./review" as never)}
-							className="items-center justify-center rounded-xl bg-blue-600 py-4"
-							style={{ backgroundColor: "#2563EB" }}
+							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
-							<Text className="font-semibold text-base text-white">
+							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
 						</TouchableOpacity>

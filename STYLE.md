@@ -4,28 +4,29 @@ This document outlines the design system and style guidelines for the EasyEats f
 
 ## Color Palette
 
-### Primary Colors
+### Primary Colours
 
-- **Primary Accent (Brown)**: `#957F65`
-  - Used for: Active states, primary buttons, delivery status, positive actions
-  - Examples: "Get Now", "Add to Cart", "Checkout", active navigation items
+- **Colour 1**: `#000000` (Black)
+  - Used for: Primary text, active states, primary buttons, active navigation items
 
-- **Secondary Accent (Green)**: `#4CAF50`
-  - Used for: Special offers, success states, highlights, promotional banners
-  - Example: "New Year Offer" banners, success messages
+- **Colour 2**: `#FFFFFF` (White)
+  - Used for: Backgrounds, card surfaces, primary button text on dark
 
-### Neutral Colors
+- **Colour 3**: `#F3F3F3` (Light Gray)
+  - Used for: Secondary backgrounds, subtle surfaces
 
-- **Background**:
-  - Primary: `#FFFFFF` (White)
-  - Secondary: `#F8F8F8` (Very light gray)
+### Secondary Colours
 
-- **Text Colors**:
-  - Primary Text: `#333333` or `#424242` (Dark Gray/Black)
-  - Secondary Text: `#757575` or `#9E9E9E` (Medium Gray)
-  - Tertiary Text: `#BDBDBD` (Light Gray) - For placeholders and subtle details
+- **Colour 1**: `#8A8F91` (Gray)
+  - Used for: Secondary text, inactive navigation, placeholders
 
-- **Borders & Dividers**: `#E0E0E0` (Light Gray)
+- **Colour 2**: `#D9D9CA` (Warm Gray)
+  - Used for: Borders, dividers, subtle accents
+
+- **Colour 3**: `#EDEDE4` (Light Warm Gray)
+  - Used for: Light backgrounds, borders, card outlines
+
+### Shadows
 
 - **Shadows**: `rgba(0, 0, 0, 0.1)` - Subtle, soft gray shadows for elevation
 
@@ -88,37 +89,35 @@ This document outlines the design system and style guidelines for the EasyEats f
 
 #### Primary Button
 
-- **Background**: Primary Brown (`#957F65`)
-- **Text Color**: White (`#FFFFFF`)
+- **Background**: Primary Colour 1 (`#000000`)
+- **Text Color**: Primary Colour 2 (`#FFFFFF`)
 - **Padding**: 14px 24px
 - **Border Radius**: 12px (rounded rectangle)
 - **Font Weight**: 600 (Semi-Bold)
 - **Font Size**: 16px
-- **Hover**: Slightly darker brown (`#786450`)
+- **Hover**: Darker black / reduced opacity
 - **Active**: Pressed state with reduced opacity
 
 #### Secondary Button (Outline)
 
-z
-
 - **Background**: Transparent
-- **Border**: 2px solid Primary Brown
-- **Text Color**: Primary Brown
+- **Border**: 2px solid Primary Colour 1
+- **Text Color**: Primary Colour 1
 - **Padding**: 14px 24px
 - **Border Radius**: 12px
-- **Hover**: Red background with white text
+- **Hover**: Primary Colour 1 background with Primary Colour 2 text
 
 #### Icon Button (Circular)
 
 - **Size**: 40px - 48px diameter
-- **Background**: White or Primary Brown
+- **Background**: Primary Colour 2 (White) or Primary Colour 1 (Black)
 - **Border Radius**: 50% (perfect circle)
 - **Icon**: Centered, 24px size
 - **Shadow**: Subtle shadow for elevation
 
 ### Cards
 
-- **Background**: White (`#FFFFFF`)
+- **Background**: Primary Colour 2 (`#FFFFFF`)
 - **Border Radius**: 16px - 20px (rounded corners)
 - **Shadow**: `0 2px 8px rgba(0, 0, 0, 0.1)` - Subtle elevation
 - **Padding**: 16px - 20px
@@ -126,32 +125,32 @@ z
 
 ### Input Fields
 
-- **Background**: White
-- **Border**: 1px solid `#E0E0E0`
+- **Background**: Primary Colour 2 (White)
+- **Border**: 1px solid Secondary Colour 3 (`#EDEDE4`)
 - **Border Radius**: 12px
 - **Padding**: 12px 16px
 - **Font Size**: 16px
 - **Focus State**:
-  - Border color: Primary Brown
+  - Border color: Primary Colour 1
   - Border width: 2px
-  - Shadow: Subtle red glow
+  - Shadow: Subtle focus glow
 
 ### Navigation
 
 #### Bottom Navigation Bar
 
-- **Background**: White
+- **Background**: Primary Colour 2 (White)
 - **Height**: 64px - 72px
-- **Top Border**: 1px solid `#E0E0E0` or subtle shadow
+- **Top Border**: 1px solid Secondary Colour 3 (`#EDEDE4`) or subtle shadow
 - **Icon Size**: 24px
-- **Active State**: Red icon and text
-- **Inactive State**: Gray icon and text
+- **Active State**: Primary Colour 1 (Black) icon and text
+- **Inactive State**: Secondary Colour 1 (Gray) icon and text
 - **Text Size**: 12px labels below icons
 
 #### Category Icons (Home Screen)
 
 - **Size**: 56px - 64px diameter
-- **Background**: White
+- **Background**: Primary Colour 2 (White)
 - **Border Radius**: 50%
 - **Icon**: Colored, 28px - 32px
 - **Spacing**: 16px - 20px horizontal gap
@@ -168,18 +167,18 @@ z
 
 #### Delivery Status Card
 
-- **Background**: Primary Brown
+- **Background**: Primary Colour 1 (Black)
 - **Padding**: 20px - 24px
 - **Border Radius**: 16px
-- **Text Color**: White
-- **Icon**: White, 24px - 32px
+- **Text Color**: Primary Colour 2 (White)
+- **Icon**: Primary Colour 2, 24px - 32px
 
 #### Timeline Steps
 
-- **Completed**: Red circle with checkmark
-- **Active**: Red circle with border
-- **Pending**: Gray circle
-- **Connecting Line**: Light gray, 2px width
+- **Completed**: Primary Colour 1 circle with checkmark
+- **Active**: Primary Colour 1 circle with border
+- **Pending**: Secondary Colour 1 circle
+- **Connecting Line**: Secondary Colour 3, 2px width
 
 ## Design Principles
 
@@ -233,16 +232,16 @@ z
 ### Header
 
 - **Height**: 56px - 64px
-- **Background**: White or transparent
+- **Background**: Primary Colour 2 (White) or transparent
 - **Padding**: 16px horizontal
 - **Elements**: Logo/App name, Search icon, Notification bell
 
 ### Promotional Banner
 
-- **Background**: Primary Brown or gradient
+- **Background**: Primary Colour 1 or gradient
 - **Padding**: 24px
 - **Border Radius**: 16px
-- **Text**: White, bold
+- **Text**: Primary Colour 2 (White), bold
 - **Call-to-Action**: Prominent button
 
 ### Product Card
@@ -261,9 +260,9 @@ z
 
 ### Summary Section
 
-- **Background**: Light gray or white
+- **Background**: Secondary Colour 3 or Primary Colour 2
 - **Padding**: 20px
-- **Divider**: 1px solid `#E0E0E0`
+- **Divider**: 1px solid Secondary Colour 3 (`#EDEDE4`)
 - **Total**: Bold, larger text
 
 ## Animation & Transitions
@@ -306,12 +305,19 @@ Consider using CSS custom properties for theming:
 
 ```css
 :root {
-  --color-primary: #957f65;
-  --color-secondary: #4caf50;
+  /* Primary Colours */
+  --color-primary-1: #000000;
+  --color-primary-2: #ffffff;
+  --color-primary-3: #f3f3f3;
+  /* Secondary Colours */
+  --color-secondary-1: #8a8f91;
+  --color-secondary-2: #d9d9ca;
+  --color-secondary-3: #edede4;
+  /* Convenience */
   --color-background: #ffffff;
-  --color-surface: #f8f8f8;
-  --color-text-primary: #333333;
-  --color-text-secondary: #757575;
+  --color-surface: #f3f3f3;
+  --color-text-primary: #000000;
+  --color-text-secondary: #8a8f91;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
@@ -332,8 +338,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#957F65",
-        secondary: "#4CAF50",
+        primary: {
+          1: "#000000",
+          2: "#FFFFFF",
+          3: "#F3F3F3",
+        },
+        secondary: {
+          1: "#8A8F91",
+          2: "#D9D9CA",
+          3: "#EDEDE4",
+        },
       },
       borderRadius: {
         card: "16px",
@@ -349,7 +363,7 @@ module.exports = {
 
 ```html
 <button
-  class="bg-[#957F65] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#786450] transition-colors"
+  class="bg-primary-1 text-primary-2 px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-colors"
 >
   Add to Cart
 </button>
@@ -358,13 +372,13 @@ module.exports = {
 ### Product Card
 
 ```html
-<div class="bg-white rounded-2xl shadow-md p-4">
+<div class="bg-primary-2 rounded-2xl shadow-md p-4">
   <img src="..." class="w-full rounded-xl mb-4" />
-  <h3 class="font-semibold text-lg mb-2">Product Name</h3>
-  <p class="text-gray-600 text-sm mb-4">Description</p>
+  <h3 class="font-semibold text-lg mb-2 text-primary-1">Product Name</h3>
+  <p class="text-secondary-1 text-sm mb-4">Description</p>
   <div class="flex justify-between items-center">
-    <span class="text-red-600 font-bold">$12.99</span>
-    <button class="w-10 h-10 bg-[#957F65] text-white rounded-full">+</button>
+    <span class="text-primary-1 font-bold">$12.99</span>
+    <button class="w-10 h-10 bg-primary-1 text-primary-2 rounded-full">+</button>
   </div>
 </div>
 ```

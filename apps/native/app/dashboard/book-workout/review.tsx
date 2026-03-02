@@ -77,7 +77,7 @@ export default function ReviewScreen() {
 
 	return (
 		<Container>
-			<ScrollView className="flex-1 bg-white">
+			<ScrollView className="flex-1 bg-secondary-3">
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
@@ -87,7 +87,7 @@ export default function ReviewScreen() {
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
-						<Text className="flex-1 font-bold text-2xl text-black">
+						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
 					</View>
@@ -125,7 +125,7 @@ export default function ReviewScreen() {
 								className="h-full rounded-full"
 								style={{
 									width: `${progressPercentage}%`,
-									backgroundColor: "#2563EB",
+									backgroundColor: colors.primary[1],
 								}}
 							/>
 						</View>
@@ -158,7 +158,7 @@ export default function ReviewScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -174,7 +174,7 @@ export default function ReviewScreen() {
 													<View
 														className="h-6 w-6 items-center justify-center rounded-full"
 														style={{
-															backgroundColor: "#2563EB",
+															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
@@ -213,7 +213,7 @@ export default function ReviewScreen() {
 												style={{
 													color:
 														isActive || isCompleted
-															? "#2563EB"
+															? colors.primary[1]
 															: colors.secondary[1],
 												}}
 											>
@@ -236,7 +236,7 @@ export default function ReviewScreen() {
 						</Text>
 
 						{/* Booking Summary Cards */}
-						<View className="mb-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+						<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							<View className="mb-3 flex-row items-center">
 								<Ionicons
 									name="fitness-outline"
@@ -258,7 +258,7 @@ export default function ReviewScreen() {
 							</Text>
 						</View>
 
-						<View className="mb-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+						<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							<View className="mb-3 flex-row items-center">
 								<Ionicons
 									name="person-outline"
@@ -280,7 +280,7 @@ export default function ReviewScreen() {
 							</Text>
 						</View>
 
-						<View className="mb-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+						<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							<View className="mb-3 flex-row items-center">
 								<Ionicons
 									name="calendar-outline"
@@ -308,15 +308,14 @@ export default function ReviewScreen() {
 			{/* Confirm Button */}
 			<SafeAreaView
 				edges={["bottom"]}
-				className="border-gray-200 border-t bg-white"
+				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
 						onPress={() => router.push("./done" as never)}
-						className="items-center justify-center rounded-xl bg-blue-600 py-4"
-						style={{ backgroundColor: "#2563EB" }}
+						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
-						<Text className="font-semibold text-base text-white">
+						<Text className="font-semibold text-base text-primary-2">
 							Confirm Booking
 						</Text>
 					</TouchableOpacity>

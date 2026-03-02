@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { Container } from "@/components/container";
+import { TabContainer, useTabBarHeight } from "@/components/container";
 import { colors } from "@/lib/colors";
 
 // Dummy data for upcoming bookings
@@ -53,11 +53,12 @@ const pastBookings = [
 ];
 
 export default function BookingsScreen() {
+	const tabBarHeight = useTabBarHeight();
 	return (
-		<Container>
+		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: 8 }}
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
 				{/* Screen Title */}
@@ -73,13 +74,10 @@ export default function BookingsScreen() {
 				<View className="px-4 pt-4">
 					{/* Header Section */}
 					<View className="mb-6">
-						<Text
-							className="mb-2 font-bold text-2xl"
-							style={{ color: colors.primary[1] }}
-						>
+						<Text className="mb-2 font-bold text-2xl text-primary-1">
 							My Bookings
 						</Text>
-						<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+						<Text className="text-secondary-1 text-sm">
 							View and manage your upcoming and past sessions
 						</Text>
 					</View>
@@ -87,42 +85,41 @@ export default function BookingsScreen() {
 					{/* Quick Link to Packages */}
 					<TouchableOpacity
 						onPress={() => router.push("/dashboard/packages" as never)}
-						className="mb-6 flex-row items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 p-4"
+						className="mb-6 flex-row items-center justify-between rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 					>
 						<View className="flex-1 flex-row items-center">
-							<View className="mr-3 h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
-								<Ionicons name="cube-outline" size={24} color="#2563EB" />
+							<View className="mr-3 h-12 w-12 items-center justify-center rounded-xl bg-secondary-3">
+								<Ionicons
+									name="cube-outline"
+									size={24}
+									color={colors.primary[1]}
+								/>
 							</View>
 							<View className="flex-1">
-								<Text
-									className="font-semibold text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="font-semibold text-base text-primary-1">
 									View My Packages & Credits
 								</Text>
-								<Text
-									className="mt-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
+								<Text className="mt-1 text-secondary-1 text-xs">
 									Manage your purchased packages
 								</Text>
 							</View>
 						</View>
-						<Ionicons name="chevron-forward" size={20} color="#2563EB" />
+						<Ionicons
+							name="chevron-forward"
+							size={20}
+							color={colors.primary[1]}
+						/>
 					</TouchableOpacity>
 
 					{/* UPCOMING Section */}
-					<Text
-						className="mb-4 font-bold text-sm uppercase tracking-wide"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 						UPCOMING
 					</Text>
 
 					{upcomingBookings.map((booking) => (
 						<View
 							key={booking.id}
-							className="mb-4 rounded-2xl bg-white p-4 shadow-sm"
+							className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 						>
 							{/* Image and Details Row */}
 							<View className="mb-4 flex-row">
@@ -209,31 +206,15 @@ export default function BookingsScreen() {
 											params: { id: booking.id.toString() },
 										});
 									}}
-									className="mr-2 flex-1 items-center justify-center rounded-xl bg-white py-3"
-									style={{
-										borderWidth: 1,
-										borderColor: colors.secondary[2],
-									}}
+									className="mr-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3"
 								>
-									<Text
-										className="font-medium text-base"
-										style={{ color: colors.primary[1] }}
-									>
+									<Text className="font-medium text-base text-primary-1">
 										View details
 									</Text>
 								</TouchableOpacity>
 
-								<TouchableOpacity
-									className="ml-2 flex-1 items-center justify-center rounded-xl bg-white py-3"
-									style={{
-										borderWidth: 1,
-										borderColor: colors.secondary[2],
-									}}
-								>
-									<Text
-										className="font-medium text-base"
-										style={{ color: colors.primary[1] }}
-									>
+								<TouchableOpacity className="ml-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3">
+									<Text className="font-medium text-base text-primary-1">
 										Reschedule
 									</Text>
 								</TouchableOpacity>
@@ -242,17 +223,14 @@ export default function BookingsScreen() {
 					))}
 
 					{/* PAST Section */}
-					<Text
-						className="mt-2 mb-4 font-bold text-sm uppercase tracking-wide"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mt-2 mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 						PAST
 					</Text>
 
 					{pastBookings.map((booking) => (
 						<View
 							key={booking.id}
-							className="mb-4 rounded-2xl bg-white p-4 shadow-sm"
+							className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 						>
 							{/* Image and Details Row */}
 							<View className="mb-4 flex-row">
@@ -328,16 +306,9 @@ export default function BookingsScreen() {
 										params: { id: booking.id.toString() },
 									});
 								}}
-								className="items-center justify-center rounded-xl bg-white py-3"
-								style={{
-									borderWidth: 1,
-									borderColor: colors.secondary[2],
-								}}
+								className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3"
 							>
-								<Text
-									className="font-medium text-base"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="font-medium text-base text-primary-1">
 									View details
 								</Text>
 							</TouchableOpacity>
@@ -345,6 +316,6 @@ export default function BookingsScreen() {
 					))}
 				</View>
 			</ScrollView>
-		</Container>
+		</TabContainer>
 	);
 }

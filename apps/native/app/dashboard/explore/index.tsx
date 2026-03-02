@@ -9,7 +9,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
-import { Container } from "@/components/container";
+import { TabContainer, useTabBarHeight } from "@/components/container";
 import { colors } from "@/lib/colors";
 
 // Service categories
@@ -133,6 +133,7 @@ const allServices = [
 export default function ExploreScreen() {
 	const [selectedCategory, setSelectedCategory] = useState("Training");
 	const [searchQuery, setSearchQuery] = useState("");
+	const tabBarHeight = useTabBarHeight();
 
 	// Filter services based on selected category
 	const filteredServices = allServices.filter(
@@ -148,16 +149,16 @@ export default function ExploreScreen() {
 	);
 
 	return (
-		<Container>
+		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: 8 }}
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
 				<View className="px-4 pt-4">
 					{/* Search Bar and Filter */}
 					<View className="mb-4 flex-row items-center">
-						<View className="mr-3 flex-1 flex-row items-center rounded-xl bg-white px-4 py-3">
+						<View className="mr-3 flex-1 flex-row items-center rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3">
 							<Ionicons
 								name="search-outline"
 								size={20}
@@ -223,10 +224,7 @@ export default function ExploreScreen() {
 					{/* Recommended For You Section */}
 					{recommendedServices.length > 0 && (
 						<View className="mb-6">
-							<Text
-								className="mb-4 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.secondary[1] }}
-							>
+							<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 								RECOMMENDED FOR YOU
 							</Text>
 
@@ -239,7 +237,7 @@ export default function ExploreScreen() {
 											params: { id: service.id.toString() },
 										});
 									}}
-									className="mb-4 rounded-2xl bg-white p-4 shadow-sm"
+									className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 								>
 									<View className="flex-row">
 										{/* Image */}
@@ -271,10 +269,7 @@ export default function ExploreScreen() {
 												{service.popularityPercentage}% of members chose this
 											</Text>
 											<View className="flex-row items-baseline">
-												<Text
-													className="font-bold text-lg"
-													style={{ color: "#2563EB" }}
-												>
+												<Text className="font-bold text-lg text-primary-1">
 													${service.price}
 												</Text>
 												<Text
@@ -293,10 +288,7 @@ export default function ExploreScreen() {
 
 					{/* Browse Workouts Section */}
 					<View>
-						<Text
-							className="mb-4 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 							BROWSE WORKOUTS
 						</Text>
 
@@ -309,7 +301,7 @@ export default function ExploreScreen() {
 										params: { id: service.id.toString() },
 									});
 								}}
-								className="mb-4 rounded-2xl bg-white p-4 shadow-sm"
+								className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 							>
 								<View className="flex-row">
 									{/* Image */}
@@ -341,10 +333,7 @@ export default function ExploreScreen() {
 											{service.popularityPercentage}% of members chose this
 										</Text>
 										<View className="flex-row items-baseline">
-											<Text
-												className="font-bold text-lg"
-												style={{ color: "#2563EB" }}
-											>
+											<Text className="font-bold text-lg text-primary-1">
 												${service.price}
 											</Text>
 											<Text
@@ -361,6 +350,6 @@ export default function ExploreScreen() {
 					</View>
 				</View>
 			</ScrollView>
-		</Container>
+		</TabContainer>
 	);
 }
