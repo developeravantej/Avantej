@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
+import { toast } from "sonner";
+import { useState } from "react";
 import { DataTable } from "@/components/tables/uom/view/data-table";
-import { columns, type UoMRow } from "@/components/tables/uom/view/columns";
+import { columns } from "@/components/tables/uom/view/columns";
 
 export const Route = createFileRoute(
-	"/_authenticated/dashboard/_layout/uom/view"
+	"/_authenticated/dashboard/_layout/uom/view",
 )({
 	component: RouteComponent,
 });
@@ -14,22 +16,88 @@ export const Route = createFileRoute(
 function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const queryClient = useQueryClient();
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+	const [editTarget, setEditTarget] = useState<{
+		id: string;
+		name: string;
+		description: string;
+	} | null>(null);
+
+	const { data: allUoms = [], isLoading } = useQuery({
 		queryKey: ["unitsOfMeasure", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.unitsOfMeasure.list({ organizationId });
-		},
+		queryFn: () =>
+			client.unitsOfMeasure.list({ organizationId: organizationId! }),
 		enabled: !!organizationId,
 	});
 
-	const data: UoMRow[] = apiData.map((item) => ({
-		id: item.id,
-		Name: item.name,
-		Description: item.description ?? "",
-		"Base UoM": item.baseUomId ?? undefined,
-	}));
+	// Show only base UOMs (no parent)
+	const baseUoms = allUoms.filter((u) => !u.baseUomId);
+
+	const createMutation = useMutation({
+		mutationFn: (vars: { name: string; description?: string }) =>
+			client.unitsOfMeasure.create({
+				organizationId: organizationId!,
+				name: vars.name,
+				description: vars.description,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("UoM created");
+			setIsAddDialogOpen(false);
+		},
+		onError: (err: Error) => {
+			toast.error(err.message ?? "Failed to create UoM");
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: (vars: { id: string; name: string; description?: string }) =>
+			client.unitsOfMeasure.update({
+				organizationId: organizationId!,
+				id: vars.id,
+				name: vars.name,
+				description: vars.description,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("UoM updated");
+			setEditTarget(null);
+		},
+		onError: (err: Error) => {
+			toast.error(err.message ?? "Failed to update UoM");
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) =>
+			client.unitsOfMeasure.delete({
+				organizationId: organizationId!,
+				id,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("UoM deleted");
+		},
+		onError: (err: Error) => {
+			toast.error(err.message ?? "Failed to delete UoM");
+		},
+	});
+
+	if (!organizationId) {
+		return (
+			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+				Select an organization to view units of measure.
+			</div>
+		);
+	}
 
 	if (isLoading) {
 		return (
@@ -41,5 +109,20 @@ function RouteComponent() {
 		);
 	}
 
-	return <DataTable columns={columns} data={data} />;
+	return (
+		<DataTable
+			columns={columns}
+			data={baseUoms}
+			isAddDialogOpen={isAddDialogOpen}
+			onAddDialogOpenChange={setIsAddDialogOpen}
+			editTarget={editTarget}
+			onEditTargetChange={setEditTarget}
+			onCreate={(vars) => createMutation.mutate(vars)}
+			onUpdate={(vars) => updateMutation.mutate(vars)}
+			onDelete={(id) => deleteMutation.mutate(id)}
+			isCreating={createMutation.isPending}
+			isUpdating={updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+		/>
+	);
 }

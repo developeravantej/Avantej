@@ -150,6 +150,8 @@ describe("Email Service - sendEmail", () => {
 describe("Email Service - sendVerificationEmail", () => {
 	test("sends email with correct subject and content", async () => {
 		const verificationLink = "https://example.com/verify?token=abc123";
+		// The implementation rewrites the link to point to the frontend UI
+		const expectedLink = "http://localhost:3001/verify-email?token=abc123&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
@@ -157,19 +159,21 @@ describe("Email Service - sendVerificationEmail", () => {
 		const callArgs = mockResendSend.mock.calls[0][0];
 		expect(callArgs.to).toEqual(["test@example.com"]);
 		expect(callArgs.subject).toBe("Verify Your Email Address - Avantej Core");
-		expect(callArgs.html).toContain(verificationLink);
+		expect(callArgs.html).toContain(expectedLink);
 		expect(callArgs.html).toContain("Verify Your Email Address");
-		expect(callArgs.text).toContain(verificationLink);
+		expect(callArgs.text).toContain(expectedLink);
 	});
 
 	test("includes verification link in email", async () => {
 		const verificationLink = "https://example.com/verify?token=xyz789";
+		// The implementation rewrites the link to point to the frontend UI
+		const expectedLink = "http://localhost:3001/verify-email?token=xyz789&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
 		const callArgs = mockResendSend.mock.calls[0][0];
-		expect(callArgs.html).toContain(verificationLink);
-		expect(callArgs.html).toContain('href="' + verificationLink + '"');
+		expect(callArgs.html).toContain(expectedLink);
+		expect(callArgs.html).toContain('href="' + expectedLink + '"');
 	});
 
 	test("includes user name when provided", async () => {

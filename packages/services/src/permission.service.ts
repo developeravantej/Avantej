@@ -15,10 +15,6 @@
  */
 
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { roles } from "@avantej-core/db/schema/tenant/roles";
-import { permissions } from "@avantej-core/db/schema/tenant/permissions";
-import { rolePermissions } from "@avantej-core/db/schema/tenant/role-permissions";
-import { eq, and } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 

@@ -12,7 +12,45 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { orpc } from "@/utils/orpc";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import "../index.css";
+
+class RootErrorBoundary extends Component<
+	{ children: ReactNode },
+	{ error: Error | null }
+> {
+	state = { error: null };
+	static getDerivedStateFromError(error: Error) {
+		return { error };
+	}
+	componentDidCatch(error: Error, info: ErrorInfo) {
+		console.error("[RootErrorBoundary]", error, info);
+	}
+	render() {
+		if (this.state.error) {
+			return (
+				<div className="flex min-h-screen items-center justify-center p-8">
+					<div className="max-w-xl space-y-4">
+						<h1 className="text-xl font-semibold text-destructive">
+							Something went wrong
+						</h1>
+						<pre className="overflow-auto rounded bg-muted p-4 text-sm">
+							{String(this.state.error)}
+						</pre>
+						<button
+							type="button"
+							className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground"
+							onClick={() => window.location.reload()}
+						>
+							Reload
+						</button>
+					</div>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}
 
 export interface RouterAppContext {
 	orpc: typeof orpc;
@@ -46,7 +84,7 @@ function RootComponent() {
 	});
 
 	return (
-		<>
+		<RootErrorBoundary>
 			<HeadContent />
 			<AuthProvider>
 				<ThemeProvider
@@ -56,14 +94,18 @@ function RootComponent() {
 					disableTransitionOnChange
 					storageKey="vite-ui-theme"
 				>
-					<div className="grid grid-rows-[auto_1fr] h-svh">
-						{isFetching ? <Loader /> : <Outlet />}
-					</div>
+					{isFetching ? (
+						<div className="flex h-screen items-center justify-center">
+							<Loader />
+						</div>
+					) : (
+						<Outlet />
+					)}
 					<Toaster richColors />
 				</ThemeProvider>
 			</AuthProvider>
 			<TanStackRouterDevtools position="bottom-left" />
 			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
-		</>
+		</RootErrorBoundary>
 	);
 }

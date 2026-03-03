@@ -37,6 +37,7 @@ export {
   bulkUpdateMemberHierarchyScope,
   getAllOrganizationMembersWithUserDetails,
   createMember,
+  deactivateMember,
 } from "./member.service";
 
 // Invitation services - for invitation management
@@ -89,7 +90,12 @@ export {
 export {
   listPackages,
   getPackageById,
+  createPackage,
+  updatePackage,
+  archivePackage,
   type ListPackagesParams,
+  type CreatePackageParams,
+  type UpdatePackageParams,
 } from "./package.service";
 
 // Package instance services
@@ -166,3 +172,36 @@ export * from "./stock-requests.service";
 
 // Transfer order services
 export * from "./transfer-orders.service";
+
+// Expense services
+export * from "./expenses.service";
+
+// Announcement services
+export * from "./announcements.service";
+
+// Class slot services
+export * from "./class-slots.service";
+
+// Member profile services
+export * from "./member-profile.service";
+
+// Waitlist services
+export * from "./waitlist.service";
+
+// Commission split services
+export * from "./commission-splits.service";
+
+// Purchase order services
+export * from "./purchase-orders.service";
+
+// Promotion services
+export * from "./promotions.service";
+
+// Walk-in customer services
+export * from "./walk-in-customers.service";
+
+// Tax rate services
+export * from "./tax-rates.service";
+
+// Analytics services
+export * from "./analytics.service";

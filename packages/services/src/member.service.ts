@@ -327,3 +327,32 @@ export async function createMember(
     );
   }
 }
+
+/**
+ * Deactivate a member in the tenant database
+ *
+ * Sets the member's status to "inactive" directly in the tenant database.
+ * Unlike suspend (which dual-writes to control panel), this is a tenant-only operation.
+ *
+ * @param tenantDb - Drizzle client for the tenant database
+ * @param memberId - UUID of the member to deactivate
+ * @returns Updated member record
+ * @throws Error if member not found
+ */
+export async function deactivateMember(
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  memberId: string
+): Promise<typeof members.$inferSelect> {
+  const existing = await tenantDb.query.members.findFirst({
+    where: eq(members.id, memberId),
+  })
+  if (!existing) {
+    throw new Error(`Member not found: ${memberId}`)
+  }
+  const [updated] = await tenantDb
+    .update(members)
+    .set({ status: "inactive" })
+    .where(eq(members.id, memberId))
+    .returning()
+  return updated
+}

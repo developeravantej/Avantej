@@ -9,7 +9,7 @@ export function PayrollWidget() {
   const organizationId = userCtx?.currentOrganizationId ?? "";
 
   const { data = [] } = useQuery({
-    ...orpc.payouts.list.queryOptions({ organizationId, limit: 20 }),
+    ...orpc.payouts.list.queryOptions({ input: { organizationId, limit: 20 } }),
     enabled: !!organizationId,
   });
 

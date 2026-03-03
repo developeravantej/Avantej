@@ -5,6 +5,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatPrice } from "@/lib/currency";
 
 export interface CancelledSaleRow {
 	date?: string | null;
@@ -62,13 +63,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-// Helper function to format price in MYR
-const formatPriceMYR = (price: number): string => {
-	return new Intl.NumberFormat("en-MY", {
-		style: "currency",
-		currency: "MYR",
-	}).format(price);
-};
 
 export const columns: ColumnDef<CancelledSaleRow>[] = [
 	{
@@ -116,7 +110,7 @@ export const columns: ColumnDef<CancelledSaleRow>[] = [
 		cell: ({ getValue }) => {
 			const cancelledAmount = getValue<number>();
 			return cancelledAmount !== undefined
-				? formatPriceMYR(cancelledAmount)
+				? formatPrice(cancelledAmount, "MYR")
 				: "N/A";
 		},
 		enableSorting: true,

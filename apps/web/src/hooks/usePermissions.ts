@@ -11,12 +11,12 @@ import { useAuth } from './useAuth';
 
 export function usePermissions(organizationId: string, resource?: string) {
   const permissionsQuery = useQuery({
-    ...orpc.permissions.list.queryOptions({ organizationId, resource }),
+    ...orpc.permissions.list.queryOptions({ input: { organizationId, resource } }),
     enabled: !!organizationId,
   });
 
   const rolePermissionsQuery = useQuery({
-    ...orpc.rolePermissions.list.queryOptions({ organizationId }),
+    ...orpc.rolePermissions.list.queryOptions({ input: { organizationId } }),
     enabled: !!organizationId,
   });
 

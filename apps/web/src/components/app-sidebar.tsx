@@ -1,6 +1,7 @@
 import {
   AudioWaveform,
   BadgeDollarSign,
+  Bell,
   BookUser,
   Calendar,
   Cog,
@@ -12,16 +13,23 @@ import {
   Home,
   Mail,
   Map,
+  Megaphone,
+  Package,
   PackageSearch,
+  Percent,
   PieChart,
   Plus,
+  Receipt,
   Search,
   Settings2,
   Shield,
+  ShoppingCart,
   Store,
+  Tag,
   Users,
   UserPlus,
   Warehouse,
+  Wallet,
 } from 'lucide-react';
 import type * as React from 'react';
 import {
@@ -327,14 +335,6 @@ export const SIDEBAR_DATA = {
       isActive: false,
 
       items: [
-        // {
-        //   name: 'Daily Transaction Summary',
-        //   url: '#',
-        // },
-        // {
-        //   name: 'Cash Summary',
-        //   url: '#',
-        // },
         {
           name: 'Sales',
           url: '/dashboard/sales/view',
@@ -346,6 +346,16 @@ export const SIDEBAR_DATA = {
         {
           name: 'Cancelled Sales',
           url: '/dashboard/cancelled-sales/view',
+        },
+        {
+          name: 'Promotions',
+          url: '/dashboard/promotions/view',
+          icon: Percent,
+        },
+        {
+          name: 'Purchase Orders',
+          url: '/dashboard/purchase-orders/view',
+          icon: ShoppingCart,
         },
       ],
     },
@@ -378,6 +388,87 @@ export const SIDEBAR_DATA = {
       ],
     },
     {
+      name: 'Appointments',
+      url: '#',
+      icon: Calendar,
+      isActive: false,
+      items: [
+        {
+          name: 'Appointments',
+          url: '/dashboard/appointment/view',
+          icon: Calendar,
+        },
+        {
+          name: 'Class Slots',
+          url: '/dashboard/appointment/class-slots/view',
+          icon: Calendar,
+        },
+        {
+          name: 'Packages',
+          url: '/dashboard/packages/view',
+          icon: Package,
+        },
+        {
+          name: 'Package Instances',
+          url: '/dashboard/packages/instances/view',
+          icon: Package,
+        },
+        {
+          name: 'Waitlist',
+          url: '#',
+        },
+      ],
+    },
+    {
+      name: 'Customers',
+      url: '#',
+      icon: BookUser,
+      isActive: false,
+      items: [
+        {
+          name: 'Walk-in Customers',
+          url: '/dashboard/customers/walk-in/view',
+          icon: BookUser,
+        },
+      ],
+    },
+    {
+      name: 'Finance',
+      url: '#',
+      icon: Wallet,
+      isActive: false,
+      items: [
+        {
+          name: 'Expenses',
+          url: '/dashboard/expenses/view',
+          icon: Receipt,
+        },
+        {
+          name: 'Payouts',
+          url: '/dashboard/payouts/view',
+          icon: DollarSign,
+        },
+      ],
+    },
+    {
+      name: 'Communications',
+      url: '#',
+      icon: Megaphone,
+      isActive: false,
+      items: [
+        {
+          name: 'Announcements',
+          url: '/dashboard/announcements/view',
+          icon: Megaphone,
+        },
+        {
+          name: 'Notifications',
+          url: '/dashboard/notifications/view',
+          icon: Bell,
+        },
+      ],
+    },
+    {
       name: 'Reports',
       url: '#',
       icon: FileChartColumnIncreasing,
@@ -396,8 +487,9 @@ export const SIDEBAR_DATA = {
       isActive: false,
       items: [
         {
-          name: '...',
-          url: '#',
+          name: 'Tax Rates',
+          url: '/dashboard/settings/tax-rates',
+          icon: Tag,
         },
       ],
     },

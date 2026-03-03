@@ -11,7 +11,7 @@ export function useUserAssignment(organizationId: string) {
 	const qc = useQueryClient();
 
 	const usersQuery = useQuery({
-		...orpc.members.list.queryOptions({ organizationId }),
+		...orpc.members.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
@@ -21,21 +21,21 @@ export function useUserAssignment(organizationId: string) {
 			newRole: "admin" | "trainer" | "staff" | "client";
 		}) => client.members.updateRole({ organizationId, ...input }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.members.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.members.list.key() }),
 	});
 
 	const suspend = useMutation({
 		mutationFn: (memberId: string) =>
 			client.members.suspend({ organizationId, memberId }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.members.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.members.list.key() }),
 	});
 
 	const reactivate = useMutation({
 		mutationFn: (memberId: string) =>
 			client.members.reactivate({ organizationId, memberId }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.members.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.members.list.key() }),
 	});
 
 	return { usersQuery, updateRole, suspend, reactivate };

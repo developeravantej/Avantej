@@ -16,6 +16,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@avantej-core/services";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
+import { deactivateMember } from "@avantej-core/services/member.service";
 
 export const memberRouter = {
   /**
@@ -824,6 +825,59 @@ export const memberRouter = {
         success: true,
         message: "Member removed successfully",
       };
+    }),
+
+  /**
+   * Deactivate member
+   *
+   * Sets a member's status to "inactive" directly in the tenant database.
+   * Unlike suspend (which dual-writes to control panel via MembershipService),
+   * this is a simpler tenant-only status change.
+   * Requires user_management.update permission.
+   */
+  deactivate: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      try {
+        return await deactivateMember(context.tenantDb, input.memberId);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          throw new ORPCError("NOT_FOUND", { message: error.message });
+        }
+        throw error;
+      }
     }),
 };
 

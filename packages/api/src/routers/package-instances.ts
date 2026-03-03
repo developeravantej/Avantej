@@ -11,6 +11,8 @@ import {
   createPackageInstance,
   requirePermission,
 } from "@avantej-core/services";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { desc, and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -224,5 +226,61 @@ export const packageInstancesRouter = {
             error instanceof Error ? error.message : "Failed to create package instance",
         });
       }
+    }),
+
+  /**
+   * List all package instances for an organization (admin view).
+   * Supports optional filters by clientId, status, and source.
+   */
+  listAll: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        clientId: z.string().optional(),
+        status: statusSchema.optional(),
+        source: sourceSchema.optional(),
+        limit: z.number().int().min(1).max(200).optional().default(100),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Build filter conditions dynamically
+      const conditions = [];
+      if (input.clientId) conditions.push(eq(packageInstances.clientId, input.clientId));
+      if (input.status) conditions.push(eq(packageInstances.status, input.status));
+      if (input.source) conditions.push(eq(packageInstances.source, input.source));
+
+      const rows = await context.tenantDb
+        .select()
+        .from(packageInstances)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(packageInstances.createdAt))
+        .limit(input.limit);
+
+      return rows;
     }),
 };

@@ -39,7 +39,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
   const qc = useQueryClient();
 
   const { data: serviceCategories = [], isLoading: isLoadingCategories } = useQuery({
-    ...orpc.serviceCategories.list.queryOptions({ organizationId, isActive: true }),
+    ...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
     enabled: isOpen && !!organizationId,
   });
 
@@ -62,7 +62,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orpc.services.list.queryKey() });
+      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
       toast.success("Service created successfully");
       onClose();
     },
@@ -85,7 +85,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orpc.services.list.queryKey() });
+      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
       toast.success("Service updated successfully");
       onClose();
     },

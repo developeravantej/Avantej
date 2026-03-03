@@ -1,0 +1,212 @@
+import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "../helpers/render-with-providers";
+import { mockClient } from "../helpers/mock-client";
+
+let DashboardComponent: React.ComponentType;
+vi.mock("@tanstack/react-router", () => ({
+	createFileRoute: () => (opts: { component: React.ComponentType }) => {
+		DashboardComponent = opts.component;
+		return { component: opts.component };
+	},
+	Link: ({ children }: { children: React.ReactNode }) => children,
+}));
+vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/hooks/useUserContext", () => ({
+	useUserContext: () => ({
+		data: {
+			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
+		},
+	}),
+}));
+vi.mock("@/lib/currency", () => ({
+	formatPriceMYR: (amount: number) => `RM ${amount.toFixed(2)}`,
+}));
+
+// Mock child widgets that have their own data fetching
+vi.mock("@/components/appointments-widget", () => ({
+	AppointmentsWidget: () => (
+		<div data-testid="appointments-widget">Appointments Widget</div>
+	),
+}));
+vi.mock("@/components/announcements-widget", () => ({
+	AnnouncementsWidget: () => (
+		<div data-testid="announcements-widget">Announcements Widget</div>
+	),
+}));
+vi.mock("@/components/payroll-widget", () => ({
+	PayrollWidget: () => <div data-testid="payroll-widget">Payroll Widget</div>,
+}));
+vi.mock("@/components/claims-widget", () => ({
+	ClaimsWidget: () => <div data-testid="claims-widget">Claims Widget</div>,
+}));
+
+beforeAll(async () => {
+	await import("@/routes/_authenticated/dashboard/_layout/index");
+});
+
+describe("Dashboard page", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockClient.analytics.getDashboardKpis.mockResolvedValue({
+			totalSales: 0,
+			salesOrderCount: 0,
+			totalAppointments: 0,
+			completedAppointments: 0,
+			activeMembersCount: 0,
+			revenueByBranch: [],
+		});
+		mockClient.analytics.getStaffPerformance.mockResolvedValue([]);
+	});
+
+	test("renders Dashboard heading", async () => {
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Dashboard")).toBeInTheDocument();
+		});
+	});
+
+	test("defaults to 'this_month' period", async () => {
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(
+				mockClient.analytics.getDashboardKpis,
+			).toHaveBeenCalledWith(
+				expect.objectContaining({ period: "this_month" }),
+			);
+		});
+	});
+
+	test("renders period selector tabs", async () => {
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Today")).toBeInTheDocument();
+			expect(screen.getByText("This Week")).toBeInTheDocument();
+			expect(screen.getByText("This Month")).toBeInTheDocument();
+			expect(screen.getByText("This Year")).toBeInTheDocument();
+		});
+	});
+
+	test("switching to 'Today' maps staff performance period to 'this_week'", async () => {
+		const user = userEvent.setup();
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByRole("tab", { name: "Today" })).toBeInTheDocument();
+		});
+
+		// Use userEvent for Radix UI TabsTrigger
+		await user.click(screen.getByRole("tab", { name: "Today" }));
+
+		await waitFor(() => {
+			expect(
+				mockClient.analytics.getDashboardKpis,
+			).toHaveBeenCalledWith(
+				expect.objectContaining({ period: "today" }),
+			);
+			expect(
+				mockClient.analytics.getStaffPerformance,
+			).toHaveBeenCalledWith(
+				expect.objectContaining({ period: "this_week" }),
+			);
+		});
+	});
+
+	test("KPI cards show formatted sales total (cents to RM)", async () => {
+		mockClient.analytics.getDashboardKpis.mockResolvedValue({
+			totalSales: 250000,
+			salesOrderCount: 50,
+			totalAppointments: 120,
+			completedAppointments: 100,
+			activeMembersCount: 45,
+			revenueByBranch: [],
+		});
+
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText(/2[,.]500/)).toBeInTheDocument();
+		});
+	});
+
+	test("displays order count", async () => {
+		mockClient.analytics.getDashboardKpis.mockResolvedValue({
+			totalSales: 100000,
+			salesOrderCount: 25,
+			totalAppointments: 0,
+			completedAppointments: 0,
+			activeMembersCount: 0,
+			revenueByBranch: [],
+		});
+
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText(/25 orders/)).toBeInTheDocument();
+		});
+	});
+
+	test("completion rate displays as percentage", async () => {
+		mockClient.analytics.getDashboardKpis.mockResolvedValue({
+			totalSales: 0,
+			salesOrderCount: 0,
+			totalAppointments: 100,
+			completedAppointments: 75,
+			activeMembersCount: 0,
+			revenueByBranch: [],
+		});
+
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText(/75%/)).toBeInTheDocument();
+		});
+	});
+
+	test("revenue by branch table renders branch data", async () => {
+		mockClient.analytics.getDashboardKpis.mockResolvedValue({
+			totalSales: 500000,
+			salesOrderCount: 10,
+			totalAppointments: 0,
+			completedAppointments: 0,
+			activeMembersCount: 0,
+			revenueByBranch: [
+				{
+					branchId: "b1",
+					branchName: "KL Branch",
+					totalRevenue: 300000,
+					orderCount: 6,
+				},
+				{
+					branchId: "b2",
+					branchName: "Penang Branch",
+					totalRevenue: 200000,
+					orderCount: 4,
+				},
+			],
+		});
+
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText("KL Branch")).toBeInTheDocument();
+			expect(screen.getByText("Penang Branch")).toBeInTheDocument();
+		});
+	});
+
+	test("renders KPI card titles", async () => {
+		renderWithProviders(<DashboardComponent />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Sales Overview")).toBeInTheDocument();
+			// "Appointments" appears both as KPI card title and widget mock
+			expect(screen.getByText("Active Members")).toBeInTheDocument();
+			expect(screen.getByText("Revenue by Branch")).toBeInTheDocument();
+			expect(screen.getByText("Staff Performance")).toBeInTheDocument();
+		});
+	});
+});

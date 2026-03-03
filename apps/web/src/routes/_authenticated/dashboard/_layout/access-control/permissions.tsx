@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Plus, Search, Shield, Settings, Users, Database, FileText, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Search, Shield, Settings, Users, Database, FileText, Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils';
 import { PermissionEditor } from '@/components/access-control/editors/PermissionEditor';
 import type { PermissionResource } from '@/components/access-control/permission-matrix/PermissionMatrix';
 import { requirePermission } from '@/lib/route-guards';
+import { client } from '@/utils/orpc';
+import { useQuery } from '@tanstack/react-query';
+import { useUserContext } from '@/hooks/useUserContext';
 
 export const Route = createFileRoute('/_authenticated/dashboard/_layout/access-control/permissions')({
   beforeLoad: async () => {
@@ -23,69 +26,38 @@ export const Route = createFileRoute('/_authenticated/dashboard/_layout/access-c
   component: PermissionManagementPage,
 });
 
-// Mock data for UI development
-const MOCK_RESOURCES: PermissionResource[] = [
-  {
-    id: 'users',
-    name: 'Users',
-    description: 'User management and access control',
-    icon: Users,
-    actions: [
-      { id: 'create', name: 'Create', description: 'Create new users' },
-      { id: 'read', name: 'View', description: 'View user profiles' },
-      { id: 'update', name: 'Edit', description: 'Edit user information' },
-      { id: 'delete', name: 'Delete', description: 'Delete users' },
-    ],
-  },
-  {
-    id: 'roles',
-    name: 'Roles',
-    description: 'Role and permission management',
-    icon: Shield,
-    actions: [
-      { id: 'create', name: 'Create', description: 'Create new roles' },
-      { id: 'read', name: 'View', description: 'View roles' },
-      { id: 'update', name: 'Edit', description: 'Edit roles' },
-      { id: 'delete', name: 'Delete', description: 'Delete roles' },
-    ],
-  },
-  {
-    id: 'branches',
-    name: 'Branches',
-    description: 'Branch management',
-    icon: Database,
-    actions: [
-      { id: 'create', name: 'Create', description: 'Create new branches' },
-      { id: 'read', name: 'View', description: 'View branch data' },
-      { id: 'update', name: 'Edit', description: 'Edit branch information' },
-      { id: 'delete', name: 'Delete', description: 'Delete branches' },
-    ],
-  },
-  {
-    id: 'reports',
-    name: 'Reports',
-    description: 'Analytics and reporting',
-    icon: FileText,
-    actions: [
-      { id: 'read', name: 'View', description: 'View reports' },
-      { id: 'export', name: 'Export', description: 'Export report data' },
-      { id: 'create', name: 'Create', description: 'Create custom reports' },
-    ],
-  },
-  {
-    id: 'inventory',
-    name: 'Inventory',
-    description: 'Product and stock management',
-    icon: Settings,
-    actions: [
-      { id: 'create', name: 'Create', description: 'Add new products' },
-      { id: 'read', name: 'View', description: 'View inventory data' },
-      { id: 'update', name: 'Edit', description: 'Update product information' },
-      { id: 'delete', name: 'Delete', description: 'Remove products' },
-      { id: 'transfer', name: 'Transfer', description: 'Transfer stock between locations' },
-    ],
-  },
-];
+/** Map resource identifiers to display-friendly names */
+function formatResourceName(resource: string): string {
+	return resource
+		.split('_')
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(' ');
+}
+
+/** Map action identifiers to display-friendly names */
+function formatActionName(action: string): string {
+	const map: Record<string, string> = {
+		create: 'Create',
+		read: 'View',
+		update: 'Edit',
+		delete: 'Delete',
+		export: 'Export',
+		import: 'Import',
+		approve: 'Approve',
+		reject: 'Reject',
+		transfer: 'Transfer',
+	};
+	return map[action] || action.charAt(0).toUpperCase() + action.slice(1);
+}
+
+/** Map resource identifiers to icons */
+const RESOURCE_ICON_MAP: Record<string, typeof Shield> = {
+	user_management: Users,
+	role_management: Shield,
+	hierarchy_management: Database,
+	reports: FileText,
+	inventory_management: Settings,
+};
 
 interface ResourceCardProps {
   resource: PermissionResource;
@@ -165,7 +137,44 @@ function ResourceCard({ resource, onEdit, onDelete, onDuplicate }: ResourceCardP
 
 function PermissionManagementPage() {
   const isMobile = useIsMobile();
-  const [resources, setResources] = useState<PermissionResource[]>(MOCK_RESOURCES);
+  const { data: userContext } = useUserContext();
+  const organizationId = userContext?.currentOrganizationId ?? null;
+
+  const { data: permissions = [], isLoading } = useQuery({
+    queryKey: ['permissions', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      return client.permissions.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  // Group flat permission records into PermissionResource objects
+  const resources = useMemo<PermissionResource[]>(() => {
+    const grouped = new Map<string, PermissionResource>();
+
+    for (const perm of permissions) {
+      let resource = grouped.get(perm.resource);
+      if (!resource) {
+        resource = {
+          id: perm.resource,
+          name: formatResourceName(perm.resource),
+          description: `${formatResourceName(perm.resource)} permissions`,
+          icon: RESOURCE_ICON_MAP[perm.resource] || Shield,
+          actions: [],
+        };
+        grouped.set(perm.resource, resource);
+      }
+      resource.actions.push({
+        id: perm.action,
+        name: formatActionName(perm.action),
+        description: perm.description ?? undefined,
+      });
+    }
+
+    return Array.from(grouped.values());
+  }, [permissions]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [editingResource, setEditingResource] = useState<PermissionResource | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -173,7 +182,7 @@ function PermissionManagementPage() {
   const filteredResources = resources.filter(resource =>
     resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     resource.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    resource.actions.some(action => 
+    resource.actions.some(action =>
       action.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       action.description?.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -189,34 +198,16 @@ function PermissionManagementPage() {
     setIsCreating(true);
   };
 
-  const handleDeleteResource = (resourceId: string) => {
-    setResources(prev => prev.filter(resource => resource.id !== resourceId));
+  const handleDeleteResource = (_resourceId: string) => {
+    // TODO: Wire to API when delete endpoint is available
   };
 
-  const handleDuplicateResource = (resource: PermissionResource) => {
-    const newResource: PermissionResource = {
-      ...resource,
-      id: Math.random().toString(36).substr(2, 9),
-      name: `${resource.name} Copy`,
-    };
-    setResources(prev => [...prev, newResource]);
+  const handleDuplicateResource = (_resource: PermissionResource) => {
+    // TODO: Wire to API when create endpoint is available
   };
 
-  const handleSaveResource = (resourceData: any) => {
-    if (editingResource) {
-      setResources(prev => prev.map(resource =>
-        resource.id === editingResource.id
-          ? { ...resource, ...resourceData }
-          : resource
-      ));
-    } else {
-      const newResource: PermissionResource = {
-        id: Math.random().toString(36).substr(2, 9),
-        icon: Shield,
-        ...resourceData,
-      };
-      setResources(prev => [...prev, newResource]);
-    }
+  const handleSaveResource = (_resourceData: any) => {
+    // TODO: Wire to API when create/update endpoint is available
     setEditingResource(null);
     setIsCreating(false);
   };
@@ -314,41 +305,54 @@ function PermissionManagementPage() {
       </Card>
 
       {/* Resource Grid */}
-      <div className={cn(
-        'grid gap-4',
-        isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
-      )}>
-        {filteredResources.map((resource) => (
-          <ResourceCard
-            key={resource.id}
-            resource={resource}
-            onEdit={() => handleEditResource(resource)}
-            onDelete={() => handleDeleteResource(resource.id)}
-            onDuplicate={() => handleDuplicateResource(resource)}
-          />
-        ))}
-      </div>
-
-      {filteredResources.length === 0 && (
+      {isLoading ? (
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No resources found</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery
-                  ? 'No resources match your search criteria.'
-                  : 'Get started by creating your first permission resource.'}
-              </p>
-              {!searchQuery && (
-                <Button onClick={handleCreateResource}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Resource
-                </Button>
-              )}
+              <Loader2 className="w-8 h-8 mx-auto text-muted-foreground mb-4 animate-spin" />
+              <p className="text-muted-foreground">Loading permissions...</p>
             </div>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <div className={cn(
+            'grid gap-4',
+            isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+          )}>
+            {filteredResources.map((resource) => (
+              <ResourceCard
+                key={resource.id}
+                resource={resource}
+                onEdit={() => handleEditResource(resource)}
+                onDelete={() => handleDeleteResource(resource.id)}
+                onDuplicate={() => handleDuplicateResource(resource)}
+              />
+            ))}
+          </div>
+
+          {filteredResources.length === 0 && (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No resources found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery
+                      ? 'No resources match your search criteria.'
+                      : 'Get started by creating your first permission resource.'}
+                  </p>
+                  {!searchQuery && (
+                    <Button onClick={handleCreateResource}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Resource
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

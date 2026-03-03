@@ -5,6 +5,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatPrice } from "@/lib/currency";
 
 export interface PaymentRow {
 	date?: string | null;
@@ -64,13 +65,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-// Helper function to format price in MYR
-const formatPriceMYR = (price: number): string => {
-	return new Intl.NumberFormat("en-MY", {
-		style: "currency",
-		currency: "MYR",
-	}).format(price);
-};
 
 // Helper function to format E-Invoice Status
 const formatEInvoiceStatus = (
@@ -166,7 +160,7 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const totalPaid = getValue<number>();
-			return totalPaid !== undefined ? formatPriceMYR(totalPaid) : "N/A";
+			return totalPaid !== undefined ? formatPrice(totalPaid, "MYR") : "N/A";
 		},
 		enableSorting: true,
 		enableHiding: false,

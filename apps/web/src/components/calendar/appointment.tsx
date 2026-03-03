@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddAppointmentModal } from "./add-appointment-modal";
+import { useUserContext } from "@/hooks/useUserContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { client } from "@/utils/orpc";
 
 interface Appointment {
   id: string;
@@ -58,6 +62,34 @@ export function AppointmentCalendar({
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<Set<string>>(new Set());
   const [showTeamFilter, setShowTeamFilter] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const { data: userCtx } = useUserContext();
+  const organizationId = userCtx?.currentOrganizationId ?? "";
+  const org = userCtx?.organizations.find((o) => o.id === organizationId);
+  const branchId = org?.hierarchy.member?.hierarchyScopeId ?? "";
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: (params: { start: Date; duration: number; notes?: string }) =>
+      client.appointments.create({
+        organizationId,
+        type: "private",
+        startTime: params.start.toISOString(),
+        duration: params.duration,
+        branchId,
+        sessionTotal: 1,
+        pricePerClient: 0,
+        notes: params.notes ?? null,
+      }),
+    onSuccess: () => {
+      toast.success("Appointment created");
+      closeAddModal();
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to create appointment");
+    },
+  });
 
   // Debug: Log modal state changes
   useEffect(() => {
@@ -203,15 +235,16 @@ export function AppointmentCalendar({
   };
 
   const handleSubmitAppointment = (appointment: any) => {
-    console.log('Submitting appointment:', appointment);
-    // Call the callback function
-    onAddAppointment?.();
-    
-    // You can also add the appointment to your local state here if needed
-    console.log("New appointment:", appointment);
-    
-    // Close the modal
-    closeAddModal();
+    if (organizationId && branchId) {
+      createMutation.mutate({
+        start: new Date(appointment.start),
+        duration: appointment.duration,
+        notes: appointment.remarks,
+      });
+    } else {
+      onAddAppointment?.();
+      closeAddModal();
+    }
   };
 
   const handleAppointmentClick = (appointment: Appointment) => {

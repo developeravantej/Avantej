@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
@@ -241,10 +241,19 @@ function UserCard({
   );
 }
 
+type SystemRole = "admin" | "trainer" | "staff" | "client";
+
+const SYSTEM_ROLES: { value: SystemRole; label: string; description: string }[] = [
+  { value: "admin", label: "Admin", description: "Full access to all organization features" },
+  { value: "trainer", label: "Trainer", description: "Can manage appointments and client sessions" },
+  { value: "staff", label: "Staff", description: "General staff with limited access" },
+  { value: "client", label: "Client", description: "End-user/customer access only" },
+];
+
 interface RoleAssignmentSheetProps {
   user: UserForAssignment | null;
   roles: RoleResponse[];
-  onSave: (userRoles: string[]) => Promise<void>;
+  onSave: (newRole: SystemRole) => Promise<void>;
   onClose: () => void;
   isOpen: boolean;
   isLoading?: boolean;
@@ -252,40 +261,21 @@ interface RoleAssignmentSheetProps {
 
 function RoleAssignmentSheet({
   user,
-  roles,
   onSave,
   onClose,
   isOpen,
   isLoading,
 }: RoleAssignmentSheetProps) {
-  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(
-    new Set(user?.roles || [])
-  );
-
-  const handleRoleToggle = (roleId: string) => {
-    setSelectedRoles((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(roleId)) {
-        newSet.delete(roleId);
-      } else {
-        newSet.add(roleId);
-      }
-      return newSet;
-    });
-  };
+  const [selectedRole, setSelectedRole] = useState<SystemRole>("staff");
 
   const handleSave = async () => {
     try {
-      await onSave(Array.from(selectedRoles));
+      await onSave(selectedRole);
       onClose();
     } catch (error) {
-      console.error('Failed to save roles:', error);
+      console.error("Failed to save role:", error);
     }
   };
-
-  useEffect(() => {
-    setSelectedRoles(new Set(user?.roles || []));
-  }, [user]);
 
   const isMobile = useIsMobile();
 
@@ -296,29 +286,59 @@ function RoleAssignmentSheet({
         className="sm:max-w-md"
       >
         <SheetHeader>
-          <SheetTitle>Assign Roles to {user?.name}</SheetTitle>
+          <SheetTitle>Assign Role to {user?.name}</SheetTitle>
         </SheetHeader>
 
         <div className="p-4 mt-6 space-y-4">
-          <div className="space-y-3">
-            {roles.map((role) => (
-              <Card key={role.id} className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={selectedRoles.has(role.id)}
-                      onCheckedChange={() => handleRoleToggle(role.id)}
-                    />
+          <div className="space-y-2">
+            <label className="text-sm font-medium">System Role</label>
+            <Select
+              value={selectedRole}
+              onValueChange={(value) => setSelectedRole(value as SystemRole)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {SYSTEM_ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
                     <div>
-                      <div className="font-medium text-sm">{role.name}</div>
+                      <div className="font-medium">{role.label}</div>
                       <div className="text-xs text-muted-foreground">
                         {role.description}
                       </div>
                     </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            {SYSTEM_ROLES.map((role) => (
+              <Card
+                key={role.value}
+                className={cn(
+                  "p-3 cursor-pointer transition-colors",
+                  selectedRole === role.value && "border-primary bg-primary/5"
+                )}
+                onClick={() => setSelectedRole(role.value)}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "w-4 h-4 rounded-full border-2 flex-shrink-0",
+                      selectedRole === role.value
+                        ? "border-primary bg-primary"
+                        : "border-muted-foreground"
+                    )}
+                  />
+                  <div>
+                    <div className="font-medium text-sm">{role.label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {role.description}
+                    </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    Priority {role.priority}
-                  </Badge>
                 </div>
               </Card>
             ))}
@@ -329,7 +349,7 @@ function RoleAssignmentSheet({
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
@@ -341,53 +361,36 @@ function RoleAssignmentSheet({
 interface InviteUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  roles: RoleResponse[];
-  onInvite: (email: string, name: string, selectedRoles: string[]) => Promise<void>;
+  onInvite: (email: string, role: SystemRole) => Promise<void>;
   isLoading?: boolean;
 }
 
 function InviteUserDialog({
   isOpen,
   onClose,
-  roles,
   onInvite,
   isLoading,
 }: InviteUserDialogProps) {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
+  const [role, setRole] = useState<SystemRole>("staff");
   const isMobile = useIsMobile();
 
-  const handleRoleToggle = (roleId: string) => {
-    setSelectedRoles((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(roleId)) {
-        newSet.delete(roleId);
-      } else {
-        newSet.add(roleId);
-      }
-      return newSet;
-    });
-  };
-
   const handleSubmit = async () => {
-    if (!email || !name) {
-      toast.error("Please fill in all required fields");
+    if (!email) {
+      toast.error("Please enter an email address");
       return;
     }
 
-    await onInvite(email, name, Array.from(selectedRoles));
-    
+    await onInvite(email, role);
+
     // Reset form
     setEmail("");
-    setName("");
-    setSelectedRoles(new Set());
+    setRole("staff");
   };
 
   const handleClose = () => {
     setEmail("");
-    setName("");
-    setSelectedRoles(new Set());
+    setRole("staff");
     onClose();
   };
 
@@ -403,15 +406,6 @@ function InviteUserDialog({
 
         <div className="p-4 mt-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
-            <Input
-              placeholder="Enter user name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
             <label className="text-sm font-medium">Email</label>
             <Input
               type="email"
@@ -422,30 +416,27 @@ function InviteUserDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Assign Roles (Optional)</label>
-            <div className="space-y-3">
-              {roles.map((role) => (
-                <Card key={role.id} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={selectedRoles.has(role.id)}
-                        onCheckedChange={() => handleRoleToggle(role.id)}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">{role.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {role.description}
-                        </div>
+            <label className="text-sm font-medium">Role</label>
+            <Select
+              value={role}
+              onValueChange={(value) => setRole(value as SystemRole)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {SYSTEM_ROLES.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    <div>
+                      <div className="font-medium">{r.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.description}
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      Priority {role.priority}
-                    </Badge>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -466,6 +457,15 @@ function UserAssignmentPage() {
   const isMobile = useIsMobile();
   const { data: userContext } = useUserContext();
   const organizationId = userContext?.currentOrganizationId ?? null;
+  const queryClient = useQueryClient();
+
+  // Derive the current member's hierarchyScopeId from the user context.
+  // This is needed for invitation creation (the invited member will be scoped
+  // to the same hierarchy node as the inviter by default).
+  const currentOrg = userContext?.organizations.find(
+    (org) => org.id === organizationId
+  );
+  const inviterHierarchyScopeId = currentOrg?.hierarchy.member?.hierarchyScopeId ?? null;
 
   const { data: membersApiData = [], isLoading: membersLoading } = useQuery({
     queryKey: ["members", organizationId],
@@ -560,67 +560,85 @@ function UserAssignmentPage() {
     setEditingUser(user);
   };
 
-  const handleSaveUserRoles = async (userRoles: string[]) => {
-    if (editingUser) {
-      setIsSaving(true);
-      try {
-        // TODO: Replace with actual API call
-        // const result = await assignRolesToUser(editingUser.id, userRoles);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Update local state
-        setUsers(prev => prev.map(u => 
-          u.id === editingUser.id ? { ...u, roles: userRoles } : u
-        ));
-        
-        toast.success(`Successfully updated roles for ${editingUser.name}`);
-        setEditingUser(null);
-      } catch (error) {
-        toast.error('Failed to update user roles');
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  };
-
-  const handleDeactivateUser = async (userId: string) => {
+  const handleSaveUserRoles = async (newRole: SystemRole) => {
+    if (!editingUser || !organizationId) return;
     setIsSaving(true);
     try {
-      // TODO: Replace with actual API call
-      // const result = await toggleUserStatus(userId);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update local state
-      setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, isActive: !u.isActive } : u
-      ));
-      
-      const user = users.find(u => u.id === userId);
-      toast.success(`Successfully ${user?.isActive ? 'deactivated' : 'activated'} user`);
+      await client.members.updateRole({
+        organizationId,
+        memberId: editingUser.id,
+        newRole,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["members", organizationId] });
+      toast.success(`Successfully updated role for ${editingUser.name}`);
+      setEditingUser(null);
     } catch (error) {
-      toast.error('Failed to update user status');
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update user role"
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleInviteUser = async (email: string, name: string, selectedRoles: string[]) => {
+  const handleDeactivateUser = async (userId: string) => {
+    if (!organizationId) return;
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
     setIsSaving(true);
     try {
-      // TODO: Replace with actual API call
-      // await inviteUser(email, name, selectedRoles);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      if (user.isActive) {
+        await client.members.deactivate({ organizationId, memberId: userId });
+        toast.success(`Successfully deactivated ${user.name}`);
+      } else {
+        await client.members.reactivate({ organizationId, memberId: userId });
+        toast.success(`Successfully reactivated ${user.name}`);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["members", organizationId] });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update user status"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInviteUser = async (email: string, role: SystemRole) => {
+    if (!organizationId) return;
+    if (!inviterHierarchyScopeId) {
+      toast.error("Unable to determine your hierarchy scope. Please refresh and try again.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      // Step 1: Create the invitation record in the tenant database.
+      const result = await client.invitations.create({
+        organizationId,
+        email,
+        role,
+        hierarchyScopeId: inviterHierarchyScopeId,
+      });
+
+      // Step 2: Send the invitation email via the server-side email procedure.
+      await client.invitations.sendEmail({
+        invitation: {
+          token: result.invitation.token,
+          email: result.invitation.email,
+          role: result.invitation.role,
+        },
+        organizationId,
+        organizationName: result.organizationName,
+        inviterName: result.inviterName,
+      });
+
       toast.success(`Invitation sent to ${email}`);
       setShowInviteDialog(false);
+      await queryClient.invalidateQueries({ queryKey: ["members", organizationId] });
     } catch (error) {
-      toast.error('Failed to send invitation');
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send invitation"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -833,7 +851,6 @@ function UserAssignmentPage() {
       <InviteUserDialog
         isOpen={showInviteDialog}
         onClose={() => setShowInviteDialog(false)}
-        roles={roles}
         onInvite={handleInviteUser}
         isLoading={isSaving}
       />

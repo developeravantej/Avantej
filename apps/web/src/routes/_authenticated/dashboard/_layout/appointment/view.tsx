@@ -67,9 +67,7 @@ function RouteComponent() {
 		toast.info(`Appointment: ${appointment.title} with ${appointment.clientName}`);
 	};
 
-	const handleAddAppointment = () => {
-		toast.info("Add appointment form coming soon");
-	};
+	const handleAddAppointment = () => {};
 
 	if (!organizationId) {
 		return (

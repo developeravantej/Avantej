@@ -60,3 +60,4 @@ export * from "./purchase-orders";
 export * from "./promotions";
 export * from "./walk-in-customers";
 export * from "./tax-rates";
+export * from "./dashboard-snapshots";

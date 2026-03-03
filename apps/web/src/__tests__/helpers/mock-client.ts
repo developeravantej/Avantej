@@ -1,0 +1,118 @@
+import { vi } from "vitest";
+
+export const mockClient = {
+	expenses: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "exp-1" }),
+		approve: vi.fn().mockResolvedValue({}),
+		reject: vi.fn().mockResolvedValue({}),
+		markPaid: vi.fn().mockResolvedValue({}),
+	},
+	announcements: {
+		list: vi.fn().mockResolvedValue([]),
+		listActive: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({}),
+		update: vi.fn().mockResolvedValue({}),
+		delete: vi.fn().mockResolvedValue({}),
+	},
+	promotions: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({}),
+		update: vi.fn().mockResolvedValue({}),
+		deactivate: vi.fn().mockResolvedValue({}),
+	},
+	taxRates: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({}),
+		update: vi.fn().mockResolvedValue({}),
+		setDefault: vi.fn().mockResolvedValue({}),
+		deactivate: vi.fn().mockResolvedValue({}),
+	},
+	purchaseOrders: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({}),
+		approve: vi.fn().mockResolvedValue({}),
+		receiveItems: vi.fn().mockResolvedValue({}),
+		cancel: vi.fn().mockResolvedValue({}),
+	},
+	analytics: {
+		getDashboardKpis: vi.fn().mockResolvedValue({
+			totalSales: 0,
+			salesOrderCount: 0,
+			totalAppointments: 0,
+			completedAppointments: 0,
+			activeMembersCount: 0,
+			revenueByBranch: [],
+		}),
+		getStaffPerformance: vi.fn().mockResolvedValue([]),
+	},
+	walkInCustomers: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({}),
+		update: vi.fn().mockResolvedValue({}),
+		deactivate: vi.fn().mockResolvedValue({}),
+	},
+	notifications: { list: vi.fn().mockResolvedValue([]) },
+	members: {
+		list: vi.fn().mockResolvedValue([]),
+		deactivate: vi.fn().mockResolvedValue({}),
+		reactivate: vi.fn().mockResolvedValue({}),
+		updateRole: vi.fn().mockResolvedValue({}),
+	},
+	permissions: { list: vi.fn().mockResolvedValue([]) },
+	suppliers: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "sup-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		deactivate: vi.fn().mockResolvedValue({}),
+	},
+	brands: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "brand-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		delete: vi.fn().mockResolvedValue({}),
+	},
+	productCategories: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "cat-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		delete: vi.fn().mockResolvedValue({}),
+	},
+	unitsOfMeasure: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "uom-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		delete: vi.fn().mockResolvedValue({}),
+	},
+	stockRequests: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "sr-1" }),
+		approve: vi.fn().mockResolvedValue({}),
+		reject: vi.fn().mockResolvedValue({}),
+		fulfill: vi.fn().mockResolvedValue({}),
+	},
+	transferOrders: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "to-1" }),
+		markInTransit: vi.fn().mockResolvedValue({}),
+		complete: vi.fn().mockResolvedValue({}),
+		cancel: vi.fn().mockResolvedValue({}),
+	},
+	packages: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "pkg-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		archive: vi.fn().mockResolvedValue({}),
+	},
+	packageInstances: {
+		list: vi.fn().mockResolvedValue([]),
+		listAll: vi.fn().mockResolvedValue([]),
+		assign: vi.fn().mockResolvedValue({ id: "pi-1" }),
+	},
+	products: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "prod-1" }),
+		update: vi.fn().mockResolvedValue({}),
+	},
+	auth: { userContext: vi.fn().mockResolvedValue({}) },
+};

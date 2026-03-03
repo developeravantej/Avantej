@@ -149,7 +149,7 @@ export function AddAppointmentModal({
   const organizationId = userCtx?.currentOrganizationId ?? "";
 
   const { data: clientMembers = [] } = useQuery({
-    ...orpc.members.list.queryOptions({ organizationId, role: "client", status: "active" }),
+    ...orpc.members.list.queryOptions({ input: { organizationId, role: "client", status: "active" } }),
     enabled: !!organizationId,
   });
 
@@ -162,7 +162,7 @@ export function AddAppointmentModal({
   }));
 
   const { data: servicesData = [] } = useQuery({
-    ...orpc.services.list.queryOptions({ organizationId, isActive: true }),
+    ...orpc.services.list.queryOptions({ input: { organizationId, isActive: true } }),
     enabled: !!organizationId,
   });
 

@@ -1,0 +1,621 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
+import { toast } from "sonner";
+import { useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import DataTable from "@/components/tables/sales/view/data-table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+	SheetFooter,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Megaphone, Plus, Pin, Edit, Trash2 } from "lucide-react";
+
+export const Route = createFileRoute(
+	"/_authenticated/dashboard/_layout/announcements/view",
+)({
+	component: AnnouncementsViewPage,
+});
+
+type Priority = "low" | "normal" | "high" | "urgent";
+type TargetAudience = "all" | "staff" | "clients";
+type StatusFilter = "active" | "inactive" | "all";
+
+type AnnouncementRow = {
+	id: string;
+	title: string;
+	message: string;
+	priority: Priority;
+	targetAudience: TargetAudience;
+	branchId: string | null;
+	startDate: string | null;
+	endDate: string | null;
+	isPinned: boolean;
+	isActive: boolean;
+	createdAt: string;
+};
+
+type FormState = {
+	title: string;
+	message: string;
+	priority: Priority;
+	targetAudience: TargetAudience;
+	startDate: string;
+	endDate: string;
+	isPinned: boolean;
+};
+
+const EMPTY_FORM: FormState = {
+	title: "",
+	message: "",
+	priority: "normal",
+	targetAudience: "all",
+	startDate: "",
+	endDate: "",
+	isPinned: false,
+};
+
+function priorityBadge(priority: Priority) {
+	switch (priority) {
+		case "low":
+			return (
+				<Badge variant="outline" className="text-gray-500">
+					Low
+				</Badge>
+			);
+		case "normal":
+			return <Badge variant="secondary">Normal</Badge>;
+		case "high":
+			return (
+				<Badge variant="secondary" className="text-orange-600 border-orange-200 bg-orange-50">
+					High
+				</Badge>
+			);
+		case "urgent":
+			return <Badge variant="destructive">Urgent</Badge>;
+	}
+}
+
+function capitalize(str: string): string {
+	if (!str) return "";
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function AnnouncementsViewPage() {
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
+	const queryClient = useQueryClient();
+
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+	const [audienceFilter, setAudienceFilter] = useState<string>("all");
+
+	// Sheet state
+	const [sheetOpen, setSheetOpen] = useState(false);
+	const [editingId, setEditingId] = useState<string | null>(null);
+	const [form, setForm] = useState<FormState>(EMPTY_FORM);
+
+	// Derived isActive filter for query
+	const isActiveFilter =
+		statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined;
+
+	const { data: apiData = [], isLoading } = useQuery({
+		queryKey: ["announcements", organizationId, isActiveFilter],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.announcements.list({
+				organizationId,
+				isActive: isActiveFilter,
+			});
+		},
+		enabled: !!organizationId,
+	});
+
+	const createMutation = useMutation({
+		mutationFn: (values: FormState) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.announcements.create({
+				organizationId,
+				title: values.title,
+				message: values.message,
+				priority: values.priority,
+				targetAudience: values.targetAudience,
+				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+				isPinned: values.isPinned,
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
+			toast.success("Announcement created successfully.");
+			setSheetOpen(false);
+			setForm(EMPTY_FORM);
+		},
+		onError: (err) => {
+			toast.error(err instanceof Error ? err.message : "Failed to create announcement.");
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: ({ id, values }: { id: string; values: FormState }) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.announcements.update({
+				organizationId,
+				id,
+				title: values.title,
+				message: values.message,
+				priority: values.priority,
+				targetAudience: values.targetAudience,
+				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+				isPinned: values.isPinned,
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
+			toast.success("Announcement updated successfully.");
+			setSheetOpen(false);
+			setEditingId(null);
+			setForm(EMPTY_FORM);
+		},
+		onError: (err) => {
+			toast.error(err instanceof Error ? err.message : "Failed to update announcement.");
+		},
+	});
+
+	const deactivateMutation = useMutation({
+		mutationFn: (id: string) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.announcements.update({
+				organizationId,
+				id,
+				isActive: false,
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
+			toast.success("Announcement deactivated.");
+		},
+		onError: (err) => {
+			toast.error(err instanceof Error ? err.message : "Failed to deactivate announcement.");
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.announcements.delete({ organizationId, id });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
+			toast.success("Announcement deleted.");
+		},
+		onError: (err) => {
+			toast.error(err instanceof Error ? err.message : "Failed to delete announcement.");
+		},
+	});
+
+	function openCreate() {
+		setEditingId(null);
+		setForm(EMPTY_FORM);
+		setSheetOpen(true);
+	}
+
+	function openEdit(row: AnnouncementRow) {
+		setEditingId(row.id);
+		// Convert ISO dates to datetime-local format (strip seconds/Z for input compatibility)
+		const toDatetimeLocal = (iso: string | null) => {
+			if (!iso) return "";
+			// datetime-local expects "YYYY-MM-DDTHH:MM"
+			return iso.slice(0, 16);
+		};
+		setForm({
+			title: row.title,
+			message: row.message,
+			priority: row.priority,
+			targetAudience: row.targetAudience,
+			startDate: toDatetimeLocal(row.startDate),
+			endDate: toDatetimeLocal(row.endDate),
+			isPinned: row.isPinned,
+		});
+		setSheetOpen(true);
+	}
+
+	function handleSubmit(e: React.FormEvent) {
+		e.preventDefault();
+		if (!form.title.trim() || !form.message.trim()) {
+			toast.error("Title and message are required.");
+			return;
+		}
+		if (editingId) {
+			updateMutation.mutate({ id: editingId, values: form });
+		} else {
+			createMutation.mutate(form);
+		}
+	}
+
+	// Filter by audience on the client side (API doesn't support targetAudience filter)
+	const filteredData: AnnouncementRow[] = apiData
+		.filter((item) => {
+			if (audienceFilter === "all") return true;
+			return item.targetAudience === audienceFilter;
+		})
+		.map((item) => ({
+			id: item.id,
+			title: item.title,
+			message: item.message,
+			priority: item.priority as Priority,
+			targetAudience: item.targetAudience as TargetAudience,
+			branchId: item.branchId ?? null,
+			startDate: item.startDate ? String(item.startDate) : null,
+			endDate: item.endDate ? String(item.endDate) : null,
+			isPinned: item.isPinned ?? false,
+			isActive: item.isActive ?? true,
+			createdAt: item.createdAt ? String(item.createdAt) : "",
+		}));
+
+	const isMutating =
+		createMutation.isPending ||
+		updateMutation.isPending ||
+		deactivateMutation.isPending ||
+		deleteMutation.isPending;
+
+	const columns: ColumnDef<AnnouncementRow>[] = [
+		{
+			accessorKey: "title",
+			header: "Title",
+			cell: ({ row }) => (
+				<span className="font-semibold">{row.original.title}</span>
+			),
+		},
+		{
+			accessorKey: "priority",
+			header: "Priority",
+			cell: ({ row }) => priorityBadge(row.original.priority),
+		},
+		{
+			accessorKey: "targetAudience",
+			header: "Target",
+			cell: ({ row }) => <span>{capitalize(row.original.targetAudience)}</span>,
+		},
+		{
+			accessorKey: "branchId",
+			header: "Scope",
+			cell: ({ row }) => (
+				<span>{row.original.branchId == null ? "Org-wide" : row.original.branchId}</span>
+			),
+		},
+		{
+			accessorKey: "startDate",
+			header: "Valid From",
+			cell: ({ row }) =>
+				row.original.startDate
+					? new Date(row.original.startDate).toLocaleDateString()
+					: "—",
+		},
+		{
+			accessorKey: "endDate",
+			header: "Valid Until",
+			cell: ({ row }) =>
+				row.original.endDate
+					? new Date(row.original.endDate).toLocaleDateString()
+					: "No expiry",
+		},
+		{
+			accessorKey: "isPinned",
+			header: "Pinned",
+			cell: ({ row }) =>
+				row.original.isPinned ? (
+					<Pin className="h-4 w-4 text-amber-500" />
+				) : null,
+		},
+		{
+			accessorKey: "isActive",
+			header: "Status",
+			cell: ({ row }) =>
+				row.original.isActive ? (
+					<Badge variant="default">Active</Badge>
+				) : (
+					<Badge variant="outline">Inactive</Badge>
+				),
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			enableSorting: false,
+			enableHiding: false,
+			cell: ({ row }) => (
+				<div className="flex items-center gap-2">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => openEdit(row.original)}
+						disabled={isMutating}
+					>
+						<Edit className="h-4 w-4 mr-1" />
+						Edit
+					</Button>
+					{row.original.isActive && (
+						<Button
+							variant="ghost"
+							size="sm"
+							className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+							onClick={() => deactivateMutation.mutate(row.original.id)}
+							disabled={isMutating}
+						>
+							Deactivate
+						</Button>
+					)}
+					<Button
+						variant="ghost"
+						size="sm"
+						className="text-destructive hover:text-destructive hover:bg-destructive/10"
+						onClick={() => deleteMutation.mutate(row.original.id)}
+						disabled={isMutating}
+					>
+						<Trash2 className="h-4 w-4" />
+					</Button>
+				</div>
+			),
+		},
+	];
+
+	if (!organizationId) {
+		return (
+			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+				Select an organization to manage announcements.
+			</div>
+		);
+	}
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center min-h-96">
+				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
+					<span className="sr-only">Loading...</span>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="p-6 space-y-6">
+			{/* Header */}
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Megaphone className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-2xl font-bold">Announcements</h1>
+						<p className="text-muted-foreground text-sm">
+							Manage organization-wide and branch-specific announcements.
+						</p>
+					</div>
+				</div>
+				<Button onClick={openCreate} disabled={isMutating}>
+					<Plus className="h-4 w-4 mr-2" />
+					Create Announcement
+				</Button>
+			</div>
+
+			{/* Filters */}
+			<div className="flex flex-wrap items-center gap-3">
+				{/* Status tabs */}
+				<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
+					{(["active", "inactive", "all"] as const).map((s) => (
+						<button
+							key={s}
+							type="button"
+							onClick={() => setStatusFilter(s)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								statusFilter === s
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{capitalize(s)}
+						</button>
+					))}
+				</div>
+
+				{/* Target audience filter */}
+				<Select value={audienceFilter} onValueChange={setAudienceFilter}>
+					<SelectTrigger className="w-44">
+						<SelectValue placeholder="Audience" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All Audiences</SelectItem>
+						<SelectItem value="staff">Staff only</SelectItem>
+						<SelectItem value="clients">Clients only</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
+			<Separator />
+
+			{/* Table */}
+			<DataTable<AnnouncementRow, unknown>
+				columns={columns}
+				data={filteredData}
+			/>
+
+			{/* Create / Edit Sheet */}
+			<Sheet open={sheetOpen} onOpenChange={(open) => {
+				setSheetOpen(open);
+				if (!open) {
+					setEditingId(null);
+					setForm(EMPTY_FORM);
+				}
+			}}>
+				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+					<SheetHeader>
+						<SheetTitle>
+							{editingId ? "Edit Announcement" : "Create Announcement"}
+						</SheetTitle>
+						<SheetDescription>
+							{editingId
+								? "Update the details of this announcement."
+								: "Fill in the details to publish a new announcement."}
+						</SheetDescription>
+					</SheetHeader>
+
+					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-2">
+						{/* Title */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="ann-title">
+								Title <span className="text-destructive">*</span>
+							</Label>
+							<Input
+								id="ann-title"
+								placeholder="Announcement title"
+								value={form.title}
+								onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+								required
+							/>
+						</div>
+
+						{/* Message */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="ann-message">
+								Message <span className="text-destructive">*</span>
+							</Label>
+							<Textarea
+								id="ann-message"
+								placeholder="Announcement body text"
+								rows={4}
+								value={form.message}
+								onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+								required
+							/>
+						</div>
+
+						{/* Priority */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="ann-priority">Priority</Label>
+							<Select
+								value={form.priority}
+								onValueChange={(v) =>
+									setForm((f) => ({ ...f, priority: v as Priority }))
+								}
+							>
+								<SelectTrigger id="ann-priority">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="low">Low</SelectItem>
+									<SelectItem value="normal">Normal</SelectItem>
+									<SelectItem value="high">High</SelectItem>
+									<SelectItem value="urgent">Urgent</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Target Audience */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="ann-audience">Target Audience</Label>
+							<Select
+								value={form.targetAudience}
+								onValueChange={(v) =>
+									setForm((f) => ({ ...f, targetAudience: v as TargetAudience }))
+								}
+							>
+								<SelectTrigger id="ann-audience">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All</SelectItem>
+									<SelectItem value="staff">Staff</SelectItem>
+									<SelectItem value="clients">Clients</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Date range */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="ann-start">Start Date</Label>
+								<Input
+									id="ann-start"
+									type="datetime-local"
+									value={form.startDate}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, startDate: e.target.value }))
+									}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="ann-end">End Date</Label>
+								<Input
+									id="ann-end"
+									type="datetime-local"
+									value={form.endDate}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, endDate: e.target.value }))
+									}
+								/>
+							</div>
+						</div>
+
+						{/* Pin to top */}
+						<div className="flex items-center gap-2">
+							<Checkbox
+								id="ann-pinned"
+								checked={form.isPinned}
+								onCheckedChange={(checked) =>
+									setForm((f) => ({ ...f, isPinned: checked === true }))
+								}
+							/>
+							<Label htmlFor="ann-pinned" className="cursor-pointer font-normal">
+								Pin to top
+							</Label>
+						</div>
+
+						<SheetFooter className="px-0 pt-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => {
+									setSheetOpen(false);
+									setEditingId(null);
+									setForm(EMPTY_FORM);
+								}}
+								disabled={createMutation.isPending || updateMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								type="submit"
+								disabled={createMutation.isPending || updateMutation.isPending}
+							>
+								{createMutation.isPending || updateMutation.isPending
+									? "Saving…"
+									: editingId
+									? "Save Changes"
+									: "Create"}
+							</Button>
+						</SheetFooter>
+					</form>
+				</SheetContent>
+			</Sheet>
+		</div>
+	);
+}

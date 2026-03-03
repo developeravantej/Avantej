@@ -1,12 +1,3 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -15,8 +6,23 @@ import {
 	getSortedRowModel,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
+import type {
+	ColumnDef,
+	SortingState,
+	ColumnFiltersState,
+} from "@tanstack/react-table";
+
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
 interface DataTableProps<TData, TValue> {
@@ -28,34 +34,32 @@ export function DataTable<TData, TValue>({
 	columns,
 	data,
 }: DataTableProps<TData, TValue>) {
-	const [columnFilters, setColumnFilters] = useState<
-		{ id: string; value: unknown }[]
-	>([]);
+	const [sorting, setSorting] = useState<SortingState>([]);
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
 	const table = useReactTable({
 		data,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
+		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(),
 		onColumnFiltersChange: setColumnFilters,
 		getFilteredRowModel: getFilteredRowModel(),
-		state: { columnFilters },
+		state: {
+			sorting,
+			columnFilters,
+		},
 	});
 
 	return (
 		<div className="w-full">
-			<div className="flex items-center justify-between">
-				<h1 className="text-2xl md:text-3xl font-bold tracking-tight">Stock Requests</h1>
-			</div>
 			<div className="flex items-center py-4">
 				<Input
 					placeholder="Filter stock requests..."
-					value={
-						(table.getColumn("Request Number")?.getFilterValue() as string) ?? ""
-					}
+					value={(table.getColumn("requestNumber")?.getFilterValue() as string) ?? ""}
 					onChange={(event) =>
-						table.getColumn("Request Number")?.setFilterValue(event.target.value)
+						table.getColumn("requestNumber")?.setFilterValue(event.target.value)
 					}
 					className="max-w-sm"
 				/>
@@ -87,20 +91,14 @@ export function DataTable<TData, TValue>({
 								>
 									{row.getVisibleCells().map((cell) => (
 										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
 										</TableCell>
 									))}
 								</TableRow>
 							))
 						) : (
 							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
+								<TableCell colSpan={columns.length} className="h-24 text-center">
 									No results.
 								</TableCell>
 							</TableRow>
@@ -117,7 +115,6 @@ export function DataTable<TData, TValue>({
 					<Button
 						variant="outline"
 						size="sm"
-						type="button"
 						onClick={() => table.previousPage()}
 						disabled={!table.getCanPreviousPage()}
 					>
@@ -126,7 +123,6 @@ export function DataTable<TData, TValue>({
 					<Button
 						variant="outline"
 						size="sm"
-						type="button"
 						onClick={() => table.nextPage()}
 						disabled={!table.getCanNextPage()}
 					>

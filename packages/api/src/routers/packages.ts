@@ -8,6 +8,9 @@
 import {
   listPackages,
   getPackageById,
+  createPackage,
+  updatePackage,
+  archivePackage,
   getDescendantNodeIds,
   requirePermission,
 } from "@avantej-core/services";
@@ -129,5 +132,107 @@ export const packagesRouter = {
       }
 
       return pkg;
+    }),
+
+  create: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        name: z.string().min(1).max(255),
+        appointmentType: appointmentTypeSchema,
+        crossUsageEnabled: z.boolean().optional(),
+        sessionCount: z.number().int().min(1),
+        pricePerSession: z.number().int().min(0),
+        maxClientsPerSession: z.number().int().min(1),
+        expiryDays: z.number().int().min(1).optional(),
+        expiryDate: z.string().datetime().optional(),
+        autoGenerateInvoice: z.boolean().optional(),
+        branchId: z.string().uuid().optional(),
+        allowedServiceIds: z.array(z.string().uuid()).optional(),
+      }).refine(
+        (data) => !(data.expiryDays !== undefined && data.expiryDate !== undefined),
+        { message: "Provide either expiryDays or expiryDate, not both" }
+      )
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+      if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      try {
+        await requirePermission(context.tenantDb, context.member, "service_management", "create");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+      }
+      try {
+        return await createPackage(context.tenantDb, {
+          name: input.name,
+          appointmentType: input.appointmentType,
+          crossUsageEnabled: input.crossUsageEnabled,
+          sessionCount: input.sessionCount,
+          pricePerSession: input.pricePerSession,
+          maxClientsPerSession: input.maxClientsPerSession,
+          expiryDays: input.expiryDays,
+          expiryDate: input.expiryDate ? new Date(input.expiryDate) : undefined,
+          autoGenerateInvoice: input.autoGenerateInvoice,
+          branchId: input.branchId,
+          allowedServiceIds: input.allowedServiceIds,
+        });
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to create package" });
+      }
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        name: z.string().min(1).max(255).optional(),
+        appointmentType: appointmentTypeSchema.optional(),
+        crossUsageEnabled: z.boolean().optional(),
+        sessionCount: z.number().int().min(1).optional(),
+        pricePerSession: z.number().int().min(0).optional(),
+        maxClientsPerSession: z.number().int().min(1).optional(),
+        expiryDays: z.number().int().min(1).nullable().optional(),
+        expiryDate: z.string().datetime().nullable().optional(),
+        autoGenerateInvoice: z.boolean().optional(),
+        branchId: z.string().uuid().nullable().optional(),
+        allowedServiceIds: z.array(z.string().uuid()).nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+      if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      try {
+        await requirePermission(context.tenantDb, context.member, "service_management", "update");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+      }
+      const { organizationId: _org, id, ...rest } = input;
+      const updated = await updatePackage(context.tenantDb, id, {
+        ...rest,
+        expiryDate: rest.expiryDate === null ? null : rest.expiryDate ? new Date(rest.expiryDate) : undefined,
+      });
+      if (!updated) throw new ORPCError("NOT_FOUND", { message: "Package not found" });
+      return updated;
+    }),
+
+  archive: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+      if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      try {
+        await requirePermission(context.tenantDb, context.member, "service_management", "delete");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+      }
+      const archived = await archivePackage(context.tenantDb, input.id);
+      if (!archived) throw new ORPCError("NOT_FOUND", { message: "Package not found" });
+      return archived;
     }),
 };

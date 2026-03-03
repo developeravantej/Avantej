@@ -64,7 +64,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
   // Fetch roles from API
   const { data: rolesData = [], isLoading: isLoadingRoles } = useQuery({
-    ...orpc.roles.list.queryOptions({ organizationId }),
+    ...orpc.roles.list.queryOptions({ input: { organizationId } }),
     enabled: !!organizationId && isOpen,
   });
 
@@ -476,7 +476,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
       });
 
       // Invalidate relevant queries
-      qc.invalidateQueries({ queryKey: orpc.services.list.queryKey() });
+      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
 
       toast.success(`Service category ${mode === 'create' ? 'created' : 'updated'} successfully`);
 

@@ -6,7 +6,6 @@
  */
 
 import { serviceCommissionConfig } from "@avantej-core/db/schema/tenant/service-commission-config";
-import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";

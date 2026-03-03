@@ -16,7 +16,7 @@ function RouteComponent() {
   const organizationId = userCtx?.currentOrganizationId ?? "";
 
   const { data = [], isLoading } = useQuery({
-    ...orpc.roles.list.queryOptions({ organizationId }),
+    ...orpc.roles.list.queryOptions({ input: { organizationId } }),
     enabled: !!organizationId,
   });
 

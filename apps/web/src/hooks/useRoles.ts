@@ -11,7 +11,7 @@ export function useRoles(organizationId: string) {
 	const qc = useQueryClient();
 
 	const rolesQuery = useQuery({
-		...orpc.roles.list.queryOptions({ organizationId }),
+		...orpc.roles.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
@@ -22,25 +22,25 @@ export function useRoles(organizationId: string) {
 			priority: number;
 		}) => client.roles.create({ organizationId, ...input }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const updateRole = useMutation({
 		mutationFn: (input: {
 			id: string;
 			name?: string;
-			description?: string | null;
+			description?: string | undefined;
 			priority?: number;
 		}) => client.roles.update({ organizationId, ...input }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const deleteRole = useMutation({
 		mutationFn: (id: string) =>
 			client.roles.delete({ organizationId, id }),
 		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.queryKey() }),
+			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const addPermission = useMutation({
@@ -48,7 +48,7 @@ export function useRoles(organizationId: string) {
 			client.rolePermissions.add({ organizationId, ...input }),
 		onSuccess: () =>
 			qc.invalidateQueries({
-				queryKey: orpc.rolePermissions.list.queryKey(),
+				queryKey: orpc.rolePermissions.list.key(),
 			}),
 	});
 
@@ -57,7 +57,7 @@ export function useRoles(organizationId: string) {
 			client.rolePermissions.remove({ organizationId, ...input }),
 		onSuccess: () =>
 			qc.invalidateQueries({
-				queryKey: orpc.rolePermissions.list.queryKey(),
+				queryKey: orpc.rolePermissions.list.key(),
 			}),
 	});
 

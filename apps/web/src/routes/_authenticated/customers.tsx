@@ -64,17 +64,16 @@ function CustomersComponent() {
 
 	const { data: customers = [], isLoading: customersLoading } = useQuery({
 		...orpc.members.list.queryOptions({
-			organizationId: organizationId ?? "",
-			role: "client",
+			input: { organizationId: organizationId ?? "", role: "client" },
+			enabled: !!organizationId,
 		}),
-		enabled: !!organizationId,
 	});
 
 	const { data: hierarchyData } = useQuery({
 		...orpc.hierarchy.listNodes.queryOptions({
-			organizationId: organizationId ?? "",
+			input: { organizationId: organizationId ?? "" },
+			enabled: !!organizationId,
 		}),
-		enabled: !!organizationId,
 	});
 	const branchNodes = (hierarchyData?.nodes ?? []).filter(
 		(n) => n.type === "branch",
@@ -117,7 +116,7 @@ function CustomersComponent() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries(
-				orpc.members.list.queryOptions({ organizationId: organizationId ?? "", role: "client" }),
+				orpc.members.list.queryOptions({ input: { organizationId: organizationId ?? "", role: "client" } }),
 			);
 			toast.success("Customer added");
 			setIsAddCustomerOpen(false);

@@ -31,6 +31,17 @@ import { unitsOfMeasureRouter } from "./units-of-measure";
 import { productsRouter } from "./products";
 import { stockRequestsRouter } from "./stock-requests";
 import { transferOrdersRouter } from "./transfer-orders";
+import { expensesRouter } from "./expenses";
+import { announcementsRouter } from "./announcements";
+import { classSlotsRouter } from "./class-slots";
+import { memberProfilesRouter } from "./member-profiles";
+import { waitlistRouter } from "./waitlist";
+import { commissionSplitsRouter } from "./commission-splits";
+import { purchaseOrdersRouter } from "./purchase-orders";
+import { promotionsRouter } from "./promotions";
+import { walkInCustomersRouter } from "./walk-in-customers";
+import { taxRatesRouter } from "./tax-rates";
+import { analyticsRouter } from "./analytics";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -73,6 +84,17 @@ export const baseRouter = {
 	products: productsRouter,
 	stockRequests: stockRequestsRouter,
 	transferOrders: transferOrdersRouter,
+	expenses: expensesRouter,
+	announcements: announcementsRouter,
+	classSlots: classSlotsRouter,
+	memberProfiles: memberProfilesRouter,
+	waitlist: waitlistRouter,
+	commissionSplits: commissionSplitsRouter,
+	purchaseOrders: purchaseOrdersRouter,
+	promotions: promotionsRouter,
+	walkInCustomers: walkInCustomersRouter,
+	taxRates: taxRatesRouter,
+	analytics: analyticsRouter,
 };
 
 // Auth router type definition for client type inference

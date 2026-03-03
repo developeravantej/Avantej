@@ -1,4 +1,5 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/table-core";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import {
@@ -6,192 +7,192 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export interface SupplierRow {
-	Name: string;
-	Description: string;
-	Account: string;
-	Terms: string;
-	"Contact Person": string;
-	Contact: string;
-	Office: string;
-	Email: string;
-	Website: string;
-	Barcode: string;
-	ID: string;
-	"Created At"?: string;
-	"Updated At"?: string;
+	id: string;
+	name: string;
+	description?: string | null;
+	accountNumber?: string | null;
+	paymentTerms?: string | null;
+	contactPerson?: string | null;
+	contactPhone?: string | null;
+	officePhone?: string | null;
+	email?: string | null;
+	website?: string | null;
+	barcode?: string | null;
+	isActive: boolean;
+	createdAt?: string | null;
+	updatedAt?: string | null;
 }
 
-export const columns: ColumnDef<SupplierRow>[] = [
-	{
-		accessorKey: "Name",
-		header: ({ column }) => (
-			<Button
-				variant="ghost"
-				type="button"
-				onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-			>
-				Name
-				<ArrowUpDown className="ml-2 h-4 w-4" />
-			</Button>
-		),
-	},
-	{
-		accessorKey: "Description",
-		header: "Description",
-		cell: ({ row }) => {
-			const description = row.getValue("Description") as string;
-			return (
-				<div className="max-w-[200px] truncate" title={description}>
-					{description === "N/A" ? (
-						<span className="text-muted-foreground">N/A</span>
-					) : (
-						description
-					)}
-				</div>
-			);
-		},
-	},
-	{
-		accessorKey: "Account",
-		header: "Account",
-		cell: ({ row }) => {
-			const account = row.getValue("Account") as string;
-			return account === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				account
-			);
-		},
-	},
-	{
-		accessorKey: "Terms",
-		header: "Terms",
-		cell: ({ row }) => {
-			const terms = row.getValue("Terms") as string;
-			return terms === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				<span>{terms}</span>
-			);
-		},
-	},
-	{
-		accessorKey: "Contact Person",
-		header: "PIC",
-		cell: ({ row }) => {
-			const contactPerson = row.getValue("Contact Person") as string;
-			return contactPerson === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				contactPerson
-			);
-		},
-	},
-	{
-		accessorKey: "Contact",
-		header: "Contact",
-		cell: ({ row }) => {
-			const contact = row.getValue("Contact") as string;
-			return contact === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				<a href={`tel:${contact}`} className="text-blue-600 hover:underline">
-					{contact}
-				</a>
-			);
-		},
-	},
-	{
-		accessorKey: "Office",
-		header: "Office",
-		cell: ({ row }) => {
-			const office = row.getValue("Office") as string;
-			return office === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				<a href={`tel:${office}`} className="text-blue-600 hover:underline">
-					{office}
-				</a>
-			);
-		},
-	},
-	{
-		accessorKey: "Email",
-		header: "Email",
-		cell: ({ row }) => {
-			const email = row.getValue("Email") as string;
-			return email === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				<a href={`mailto:${email}`} className="text-blue-600 hover:underline">
-					{email}
-				</a>
-			);
-		},
-	},
-	{
-		accessorKey: "Website",
-		header: "Website",
-		cell: ({ row }) => {
-			const website = row.getValue("Website") as string;
-			return website === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				<a
-					href={website}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="text-blue-600 hover:underline"
+interface ColumnMeta {
+	onEdit: (supplier: SupplierRow) => void;
+	onDeactivate: (supplier: SupplierRow) => void;
+	onViewDetails: (supplier: SupplierRow) => void;
+}
+
+function na(value?: string | null): React.ReactNode {
+	if (!value) return <span className="text-gray-400">N/A</span>;
+	return value;
+}
+
+export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
+	return [
+		{
+			accessorKey: "name",
+			header: ({ column }) => (
+				<Button
+					variant="ghost"
+					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 				>
-					{website}
-				</a>
-			);
+					Name
+					<ArrowUpDown className="ml-2 h-4 w-4" />
+				</Button>
+			),
 		},
-	},
-	{
-		accessorKey: "Barcode",
-		header: "Barcode",
-		cell: ({ row }) => {
-			const barcode = row.getValue("Barcode") as string;
-			return barcode === "N/A" ? (
-				<span className="text-muted-foreground">N/A</span>
-			) : (
-				barcode
-			);
+		{
+			accessorKey: "description",
+			header: "Description",
+			cell: ({ row }) => {
+				const val = row.original.description;
+				if (!val) return <span className="text-gray-400">N/A</span>;
+				return (
+					<div className="max-w-[200px] truncate" title={val}>
+						{val}
+					</div>
+				);
+			},
 		},
-	},
-	{
-		id: "actions",
-		enableHiding: false,
-		cell: ({ row }) => {
-			const supplier = row.original;
-			return (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0" type="button">
-							<span className="sr-only">Open menu</span>
-							<MoreHorizontal className="h-4 w-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Actions</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={() => navigator.clipboard.writeText(supplier.Name)}
-						>
-							Copy supplier name
-						</DropdownMenuItem>
-						<DropdownMenuItem>View details</DropdownMenuItem>
-						<DropdownMenuItem>Edit supplier</DropdownMenuItem>
-						<DropdownMenuItem className="text-red-600 focus:text-red-600">
-							Delete supplier
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			);
+		{
+			accessorKey: "accountNumber",
+			header: "Account",
+			cell: ({ row }) => na(row.original.accountNumber),
 		},
-	},
-];
+		{
+			accessorKey: "paymentTerms",
+			header: "Terms",
+			cell: ({ row }) => na(row.original.paymentTerms),
+		},
+		{
+			accessorKey: "contactPerson",
+			header: "PIC",
+			cell: ({ row }) => na(row.original.contactPerson),
+		},
+		{
+			accessorKey: "contactPhone",
+			header: "Contact",
+			cell: ({ row }) => {
+				const phone = row.original.contactPhone;
+				if (!phone) return <span className="text-gray-400">N/A</span>;
+				return (
+					<a href={`tel:${phone}`} className="text-blue-600 hover:underline">
+						{phone}
+					</a>
+				);
+			},
+		},
+		{
+			accessorKey: "officePhone",
+			header: "Office",
+			cell: ({ row }) => {
+				const phone = row.original.officePhone;
+				if (!phone) return <span className="text-gray-400">N/A</span>;
+				return (
+					<a href={`tel:${phone}`} className="text-blue-600 hover:underline">
+						{phone}
+					</a>
+				);
+			},
+		},
+		{
+			accessorKey: "email",
+			header: "Email",
+			cell: ({ row }) => {
+				const email = row.original.email;
+				if (!email) return <span className="text-gray-400">N/A</span>;
+				return (
+					<a
+						href={`mailto:${email}`}
+						className="text-blue-600 hover:underline"
+					>
+						{email}
+					</a>
+				);
+			},
+		},
+		{
+			accessorKey: "website",
+			header: "Website",
+			cell: ({ row }) => {
+				const website = row.original.website;
+				if (!website) return <span className="text-gray-400">N/A</span>;
+				return (
+					<a
+						href={website}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="text-blue-600 hover:underline"
+					>
+						{website}
+					</a>
+				);
+			},
+		},
+		{
+			accessorKey: "isActive",
+			header: "Status",
+			cell: ({ row }) => (
+				<Badge variant={row.original.isActive ? "default" : "secondary"}>
+					{row.original.isActive ? "Active" : "Inactive"}
+				</Badge>
+			),
+		},
+		{
+			id: "actions",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const supplier = row.original;
+				return (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" className="h-8 w-8 p-0">
+								<span className="sr-only">Open menu</span>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuLabel>Actions</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={() =>
+									navigator.clipboard.writeText(supplier.name)
+								}
+							>
+								Copy supplier name
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => meta.onViewDetails(supplier)}
+							>
+								View details
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => meta.onEdit(supplier)}>
+								Edit supplier
+							</DropdownMenuItem>
+							{supplier.isActive && (
+								<DropdownMenuItem
+									onClick={() => meta.onDeactivate(supplier)}
+									className="text-red-600 focus:text-red-600"
+								>
+									Deactivate supplier
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				);
+			},
+		},
+	];
+}

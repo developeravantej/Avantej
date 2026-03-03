@@ -27,7 +27,7 @@ function UserViewComponent() {
 	const organizationId = userCtx?.currentOrganizationId ?? "";
 
 	const { data: membersData = [], isLoading } = useQuery({
-		...orpc.members.list.queryOptions({ organizationId }),
+		...orpc.members.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
