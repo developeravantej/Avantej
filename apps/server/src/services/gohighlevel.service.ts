@@ -32,6 +32,30 @@ export type ExtractedGhlContactPayload = {
 	dynamicFields: Record<string, unknown>;
 };
 
+export type GhlContactResponseData = {
+	id: string | null;
+	name: string | null;
+	first_name: string | null;
+	last_name: string | null;
+	email: string | null;
+	phone: string | null;
+	id_passport: string | null;
+	address_type: string | null;
+	address: string | null;
+	dob: string | null;
+	emergency_name: string | null;
+	emergency_phone: string | null;
+	emergency_relationship: string | null;
+	country: string | null;
+	location: string | null;
+	service: string | null;
+	service_start_date: string | null;
+	currency: string | null;
+	payment_method: string | null;
+	remark: string | null;
+	primary_coach: string | null;
+};
+
 export function detectGhlEventType(payload: AnyRecord): GhlEventType {
 	const rawType =
 		normalizeString(payload.eventType) ||
@@ -62,10 +86,14 @@ export function extractGhlContactPayload(
 		normalizeString(payload.contact_id) ||
 		normalizeString(payload.id);
 	const email =
+		normalizeString(contact?.email_update_override) ||
+		normalizeString(payload.email_update_override) ||
 		normalizeString(contact?.email) ||
 		normalizeString(payload.email) ||
 		normalizeString(payload.contact_email);
 	const phone =
+		normalizeString(contact?.phone_update_override) ||
+		normalizeString(payload.phone_update_override) ||
 		normalizeString(contact?.phone) ||
 		normalizeString(payload.phone) ||
 		normalizeString(payload.contact_phone);
@@ -97,6 +125,63 @@ export function extractGhlContactPayload(
 	};
 }
 
+export function buildGhlResponseData(payload: AnyRecord): GhlContactResponseData {
+	const contact = asRecord(payload.contact);
+	const firstName =
+		pickField(payload, contact, ["first_name", "firstName"]) || null;
+	const lastName =
+		pickField(payload, contact, ["last_name", "lastName"]) || null;
+	const fallbackName = [firstName, lastName].filter(Boolean).join(" ").trim() || null;
+	const explicitLocation = pickField(payload, contact, ["location"]);
+	const preferredBranch =
+		pickField(payload, contact, ["select_preferred_branch_1"]) || "";
+	const mainBranch =
+		pickField(payload, contact, [
+			"select_main_branch_assigned_in_contract_for_service_thailand",
+		]) || "";
+	const computedLocation = `${preferredBranch}${mainBranch}`.trim();
+	const location = explicitLocation || computedLocation || null;
+
+	return {
+		id: pickField(payload, contact, ["id", "contactId", "contact_id"]),
+		name: pickField(payload, contact, ["name"]) || fallbackName,
+		first_name: firstName,
+		last_name: lastName,
+		email: pickField(payload, contact, [
+			"email_update_override",
+			"email",
+			"contact_email",
+		]),
+		phone: pickField(payload, contact, [
+			"phone_update_override",
+			"phone",
+			"contact_phone",
+		]),
+		id_passport: pickField(payload, contact, ["id_passport", "nric_no__id_no"]),
+		address_type: pickField(payload, contact, ["address_type", "homework_address_indicator"]),
+		address: pickField(payload, contact, ["full_address", "address"]),
+		dob: pickField(payload, contact, ["dob", "date_of_birth", "dateOfBirth"]),
+		emergency_name: pickField(payload, contact, ["emergency_name", "emergency_contact_name"]),
+		emergency_phone: pickField(payload, contact, [
+			"emergency_phone",
+			"emergency_contact_no",
+			"emergency_contact_phone",
+		]),
+		emergency_relationship: pickField(payload, contact, [
+			"emergency_relationship",
+			"emergency_contact_relationship",
+		]),
+		country: pickField(payload, contact, ["country_to_determine_branch__new", "country"]),
+		location,
+		service: pickField(payload, contact, ["service", "client_purchase"]),
+		service_start_date: pickField(payload, contact, ["service_start_date", "commencement_date"]),
+		currency: pickField(payload, contact, ["currency_picker", "currency"]),
+		payment_method: pickField(payload, contact, ["payment_method"]),
+		remark: pickField(payload, contact, ["remark_on_paymentpackage", "remark"]),
+		primary_coach: pickField(payload, contact, ["primary_coach"]),
+	};
+}
+
 export async function buildGhlEventKey(args: {
 	locationId: string;
 	contactId: string;
@@ -109,11 +194,25 @@ export async function buildGhlEventKey(args: {
 }
 
 function normalizeString(value: unknown): string | null {
-	if (typeof value !== "string") {
+	if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
 		return null;
 	}
-	const trimmed = value.trim();
+	const trimmed = String(value).trim();
 	return trimmed.length > 0 ? trimmed : null;
+}
+
+function pickField(payload: AnyRecord, contact: AnyRecord | null, keys: string[]): string | null {
+	for (const key of keys) {
+		const contactValue = normalizeString(contact?.[key]);
+		if (contactValue) {
+			return contactValue;
+		}
+		const payloadValue = normalizeString(payload[key]);
+		if (payloadValue) {
+			return payloadValue;
+		}
+	}
+	return null;
 }
 
 function asRecord(value: unknown): AnyRecord | null {
@@ -218,6 +317,25 @@ function isSecretMatch(expectedSecret: string, provided: string | undefined): bo
 	return provided.trim() === expectedSecret;
 }
 
+function extractAuthorizationToken(authorization: string | undefined): string | undefined {
+	if (!authorization) {
+		return undefined;
+	}
+	const normalized = authorization.trim();
+	if (normalized.length === 0) {
+		return undefined;
+	}
+
+	// Accept both "Bearer <token>" (case-insensitive) and raw token values.
+	const bearerMatch = /^Bearer\s+(.+)$/i.exec(normalized);
+	if (bearerMatch?.[1]) {
+		const token = bearerMatch[1].trim();
+		return token.length > 0 ? token : undefined;
+	}
+
+	return normalized;
+}
+
 export async function verifyGhlWebhookAuth(args: {
 	rawBody: string;
 	signature: string | undefined;
@@ -260,9 +378,7 @@ export async function verifyGhlWebhookAuth(args: {
 		return;
 	}
 
-	const bearerToken = authorization?.startsWith("Bearer ")
-		? authorization.slice("Bearer ".length).trim()
-		: undefined;
+	const bearerToken = extractAuthorizationToken(authorization);
 	const hasValidSharedSecret =
 		isSecretMatch(webhookSecret, bearerToken) ||
 		isSecretMatch(webhookSecret, headerSecret) ||
@@ -294,6 +410,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 	contactId: string;
 	eventKey: string;
 	message: string;
+	responseData: GhlContactResponseData;
 }> {
 	const { c, locationId, rawBody, signature, authorization, headerSecret, querySecret, payload } =
 		args;
@@ -325,6 +442,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 
 	const eventType = detectGhlEventType(payload);
 	const extracted = extractGhlContactPayload(payload);
+	const responseData = buildGhlResponseData(payload);
 	if (extracted.payloadLocationId && extracted.payloadLocationId !== locationId) {
 		throw new GhlWebhookError(
 			"Payload locationId does not match URL locationId",
@@ -361,6 +479,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			contactId: extracted.contactId,
 			eventKey,
 			message: "Duplicate event skipped",
+			responseData,
 		};
 	}
 
@@ -373,14 +492,15 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 	if (eventType === "delete") {
 		if (!existingLink) {
 			await updateEventStatus(tenantDb, eventKey, "skipped", "Unmapped delete event");
-			return {
-				status: "skipped",
-				eventType,
-				contactId: extracted.contactId,
-				eventKey,
-				message: "Delete skipped for unmapped contact",
-			};
-		}
+				return {
+					status: "skipped",
+					eventType,
+					contactId: extracted.contactId,
+					eventKey,
+					message: "Delete skipped for unmapped contact",
+					responseData,
+				};
+			}
 
 		if (existingLink.customerProfileId) {
 			await tenantDb
@@ -410,6 +530,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			contactId: extracted.contactId,
 			eventKey,
 			message: "Contact soft-deleted",
+			responseData,
 		};
 	}
 
@@ -530,6 +651,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		contactId: extracted.contactId,
 		eventKey,
 		message: existingLink ? "Contact updated" : "Customer created from webhook",
+		responseData,
 	};
 }
 

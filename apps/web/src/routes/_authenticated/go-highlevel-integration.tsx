@@ -62,38 +62,71 @@ function GoHighLevelIntegrationPage() {
 		}
 	};
 
-	const extractCoreFieldsPreview = (
-		event: GhlSyncEvent
-	): { id: string | null; name: string | null; email: string | null; phone: string | null } => {
+	const extractParsedFieldsPreview = (event: GhlSyncEvent) => {
 		const payload = event.rawPayload ?? {};
 		const asRecord = (v: unknown) =>
 			v && typeof v === "object" && !Array.isArray(v)
 				? (v as Record<string, unknown>)
 				: null;
 		const asText = (v: unknown) =>
-			typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+			(typeof v === "string" || typeof v === "number" || typeof v === "boolean")
+				&& String(v).trim().length > 0
+				? String(v).trim()
+				: null;
+		const pickField = (keys: string[]) => {
+			const payloadRecord = payload as Record<string, unknown>;
+			const contact = asRecord(payloadRecord.contact);
+			for (const key of keys) {
+				const contactValue = asText(contact?.[key]);
+				if (contactValue) {
+					return contactValue;
+				}
+				const payloadValue = asText(payloadRecord[key]);
+				if (payloadValue) {
+					return payloadValue;
+				}
+			}
+			return null;
+		};
 
-		const contact = asRecord(payload.contact);
+		const firstName = pickField(["first_name", "firstName"]);
+		const lastName = pickField(["last_name", "lastName"]);
+		const fallbackName = [firstName, lastName].filter(Boolean).join(" ").trim() || null;
+		const preferredBranch = pickField(["select_preferred_branch_1"]) || "";
+		const mainBranch =
+			pickField(["select_main_branch_assigned_in_contract_for_service_thailand"]) || "";
+		const computedLocation = `${preferredBranch}${mainBranch}`.trim();
+		const location = pickField(["location"]) || computedLocation || null;
 
 		return {
-			id:
-				asText(contact?.id) ||
-				asText((payload as Record<string, unknown>).contactId) ||
-				asText((payload as Record<string, unknown>).contact_id) ||
-				event.ghlContactId ||
-				asText((payload as Record<string, unknown>).id),
-			name:
-				asText(contact?.name) ||
-				asText((payload as Record<string, unknown>).name) ||
-				null,
-			email:
-				asText(contact?.email) ||
-				event.email ||
-				asText((payload as Record<string, unknown>).email),
-			phone:
-				asText(contact?.phone) ||
-				asText((payload as Record<string, unknown>).phone) ||
-				null,
+			id: pickField(["id", "contactId", "contact_id"]) || event.ghlContactId || null,
+			name: pickField(["name"]) || fallbackName,
+			first_name: firstName,
+			last_name: lastName,
+			email: pickField(["email_update_override", "email", "contact_email"]) || event.email || null,
+			phone: pickField(["phone_update_override", "phone", "contact_phone"]),
+			id_passport: pickField(["id_passport", "nric_no__id_no"]),
+			address_type: pickField(["address_type", "homework_address_indicator"]),
+			address: pickField(["full_address", "address"]),
+			dob: pickField(["dob", "date_of_birth", "dateOfBirth"]),
+			emergency_name: pickField(["emergency_name", "emergency_contact_name"]),
+			emergency_phone: pickField([
+				"emergency_phone",
+				"emergency_contact_no",
+				"emergency_contact_phone",
+			]),
+			emergency_relationship: pickField([
+				"emergency_relationship",
+				"emergency_contact_relationship",
+			]),
+			country: pickField(["country_to_determine_branch__new", "country"]),
+			location,
+			service: pickField(["service", "client_purchase"]),
+			service_start_date: pickField(["service_start_date", "commencement_date"]),
+			currency: pickField(["currency_picker", "currency"]),
+			payment_method: pickField(["payment_method"]),
+			remark: pickField(["remark_on_paymentpackage", "remark"]),
+			primary_coach: pickField(["primary_coach"]),
 		};
 	};
 
@@ -330,10 +363,10 @@ function GoHighLevelIntegrationPage() {
 														</div>
 														<div>
 															<div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-																Parsed Core Fields (id/name/email/phone)
+																Parsed Fields (normalized mapping preview)
 															</div>
 															<pre className="max-h-64 overflow-auto rounded border bg-muted p-2 text-xs">
-																{JSON.stringify(extractCoreFieldsPreview(event), null, 2)}
+																{JSON.stringify(extractParsedFieldsPreview(event), null, 2)}
 															</pre>
 														</div>
 													</div>

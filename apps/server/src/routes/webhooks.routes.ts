@@ -363,24 +363,26 @@ webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
 		return c.json({ error: "Invalid JSON payload" }, 400);
 	}
 
-	try {
-		const result = await processGhlWebhook({
-			c,
-			locationId,
+		try {
+			const result = await processGhlWebhook({
+				c,
+				locationId,
 			rawBody,
 			signature,
 			authorization,
 			headerSecret,
 			querySecret,
-			payload,
-		});
+				payload,
+			});
+			const { responseData, ...meta } = result;
 
-		return c.json({
-			received: true,
-			locationId,
-			...result,
-		});
-	} catch (error) {
+			return c.json({
+				received: true,
+				locationId,
+				...meta,
+				...responseData,
+			});
+		} catch (error) {
 		const status = (
 			error instanceof GhlWebhookError ? error.status : 500
 		) as 400 | 401 | 403 | 404 | 500;
