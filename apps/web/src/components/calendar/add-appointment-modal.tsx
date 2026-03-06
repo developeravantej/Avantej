@@ -2396,11 +2396,11 @@ export function AddAppointmentModal({
                     size="sm"
                     onClick={() => {
                       // Actually submit the appointment
-                      if (testAppointmentData.type === 'SINGLE APPOINTMENT') {
+                      if (testAppointmentData.type === 'SINGLE APPOINTMENT' || testAppointmentData.type === 'RECURRING APPOINTMENT') {
                         onSubmit(testAppointmentData.appointment);
                         resetForm();
                         onClose();
-                      } else if (testAppointmentData.type === 'BLOCKED TIMING') {
+                      } else if (testAppointmentData.type === 'BLOCKED TIMING' || testAppointmentData.type === 'BLOCKED TIME') {
                         onSubmit(testAppointmentData.appointment);
                         setIsBlockedTiming(false);
                         resetForm();

@@ -154,8 +154,10 @@ function TaxRatesPage() {
 				code: values.code.toUpperCase(),
 				rateInBasisPoints: Math.round(parseFloat(values.ratePercent) * 100),
 				category: values.category,
-				effectiveFrom: values.effectiveFrom,
-				effectiveUntil: values.effectiveUntil || undefined,
+				effectiveFrom: new Date(values.effectiveFrom).toISOString(),
+				effectiveUntil: values.effectiveUntil
+					? new Date(values.effectiveUntil).toISOString()
+					: undefined,
 				description: values.description || undefined,
 				isDefault: values.isDefault,
 			});
@@ -180,8 +182,10 @@ function TaxRatesPage() {
 				code: values.code.toUpperCase(),
 				rateInBasisPoints: Math.round(parseFloat(values.ratePercent) * 100),
 				category: values.category,
-				effectiveFrom: values.effectiveFrom,
-				effectiveUntil: values.effectiveUntil || undefined,
+				effectiveFrom: new Date(values.effectiveFrom).toISOString(),
+				effectiveUntil: values.effectiveUntil
+					? new Date(values.effectiveUntil).toISOString()
+					: undefined,
 				description: values.description || undefined,
 			});
 		},

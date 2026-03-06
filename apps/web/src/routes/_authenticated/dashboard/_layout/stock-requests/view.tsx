@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -116,6 +116,17 @@ function StockRequestsViewPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const queryClient = useQueryClient();
+
+	// ---- Branch nodes query ----
+	const { data: nodesData } = useQuery({
+		queryKey: ["hierarchyNodes", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return { nodes: [] };
+			return client.hierarchy.listNodes({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+	const branches = (nodesData?.nodes ?? []).filter((n) => n.type === "branch");
 
 	// ---- Filter state ----
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -241,7 +252,7 @@ function StockRequestsViewPage() {
 
 	function handleCreateSubmit() {
 		if (!formToBranchId.trim()) {
-			toast.error("Destination branch ID is required");
+			toast.error("Destination branch is required");
 			return;
 		}
 		if (!formProductId.trim()) {
@@ -386,6 +397,74 @@ function StockRequestsViewPage() {
 		},
 	];
 
+	// ---- Branch combobox ----
+	function BranchCombobox({
+		value,
+		onChange,
+		placeholder,
+		required,
+	}: {
+		value: string;
+		onChange: (id: string) => void;
+		placeholder: string;
+		required?: boolean;
+	}) {
+		const [search, setSearch] = useState("");
+		const [open, setOpen] = useState(false);
+		const containerRef = useRef<HTMLDivElement>(null);
+
+		const selectedBranch = branches.find((b) => b.id === value);
+		const displayValue = open ? search : (selectedBranch?.name ?? "");
+		const filtered = branches.filter((b) =>
+			b.name.toLowerCase().includes(search.toLowerCase()),
+		);
+
+		return (
+			<div className="relative" ref={containerRef}>
+				<Input
+					placeholder={placeholder}
+					value={displayValue}
+					onChange={(e) => {
+						setSearch(e.target.value);
+						if (!open) setOpen(true);
+					}}
+					onFocus={() => {
+						setSearch("");
+						setOpen(true);
+					}}
+					onBlur={() => setTimeout(() => setOpen(false), 150)}
+				/>
+				{open && (
+					<div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+						<div className="max-h-48 overflow-y-auto p-1">
+							{filtered.length === 0 ? (
+								<div className="px-2 py-3 text-sm text-muted-foreground text-center">
+									No branches found
+								</div>
+							) : (
+								filtered.map((b) => (
+									<button
+										key={b.id}
+										type="button"
+										className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+										onMouseDown={(e) => e.preventDefault()}
+										onClick={() => {
+											onChange(b.id);
+											setSearch("");
+											setOpen(false);
+										}}
+									>
+										{b.name}
+									</button>
+								))
+							)}
+						</div>
+					</div>
+				)}
+			</div>
+		);
+	}
+
 	// ---- Guard ----
 	if (!organizationId) {
 		return (
@@ -467,24 +546,25 @@ function StockRequestsViewPage() {
 					<div className="flex flex-col gap-4 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
 							<label className="text-sm font-medium">
-								To Branch ID <span className="text-destructive">*</span>
+								To Branch <span className="text-destructive">*</span>
 							</label>
-							<Input
-								placeholder="UUID of destination branch"
+							<BranchCombobox
 								value={formToBranchId}
-								onChange={(e) => setFormToBranchId(e.target.value)}
+								onChange={setFormToBranchId}
+								placeholder="Search destination branch..."
+								required
 							/>
 						</div>
 
 						<div className="flex flex-col gap-1.5">
 							<label className="text-sm font-medium">
-								From Branch ID{" "}
+								From Branch{" "}
 								<span className="text-muted-foreground text-xs">(optional)</span>
 							</label>
-							<Input
-								placeholder="UUID of source branch"
+							<BranchCombobox
 								value={formFromBranchId}
-								onChange={(e) => setFormFromBranchId(e.target.value)}
+								onChange={setFormFromBranchId}
+								placeholder="Search source branch..."
 							/>
 						</div>
 

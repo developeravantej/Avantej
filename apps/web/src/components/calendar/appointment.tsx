@@ -235,16 +235,19 @@ export function AppointmentCalendar({
   };
 
   const handleSubmitAppointment = (appointment: any) => {
-    if (organizationId && branchId) {
-      createMutation.mutate({
-        start: new Date(appointment.start),
-        duration: appointment.duration,
-        notes: appointment.remarks,
-      });
-    } else {
-      onAddAppointment?.();
-      closeAddModal();
+    if (!organizationId) {
+      toast.error("No organization selected. Please select an organization first.");
+      return;
     }
+    if (!branchId) {
+      toast.error("Your account is not scoped to a branch. Please contact your administrator.");
+      return;
+    }
+    createMutation.mutate({
+      start: new Date(appointment.start),
+      duration: appointment.duration,
+      notes: appointment.remarks,
+    });
   };
 
   const handleAppointmentClick = (appointment: Appointment) => {

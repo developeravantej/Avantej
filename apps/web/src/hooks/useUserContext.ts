@@ -140,10 +140,18 @@ export function useUserContext(enabled = true) {
               name: "",
               emailVerified: false,
             },
-            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => ({
-              ...org,
-              hierarchy: { nodes: [], member: null },
-            })),
+            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => {
+              let hierarchy: UserContextResponse["organizations"][0]["hierarchy"] = { nodes: [], member: null };
+              try {
+                const cachedHierarchy = localStorage.getItem(`org_${org.id}_hierarchy`);
+                if (cachedHierarchy) {
+                  hierarchy = JSON.parse(cachedHierarchy);
+                }
+              } catch {
+                // ignore
+              }
+              return { ...org, hierarchy };
+            }),
             currentOrganizationId: isUuid ? storedOrgId : null,
           } as UserContextResponse;
         }
