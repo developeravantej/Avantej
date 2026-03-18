@@ -1,0 +1,15 @@
+{
+  "orgId": "996febce-aaad-4ded-8f47-02d2b566c8ee",
+  "branchNodeId": "0ca11a66-261e-47f2-8fc7-236149b888c9",
+  "branchNodeName": "Tenant Test Fitness Franchise Branch",
+  "franchiseeUserId": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+  "categoryId": "dd6af167-2276-454a-95cb-e6253ce01b51",
+  "categoryName": "Personal Training",
+  "serviceId": "a25b8cc6-5cf2-4372-963b-5388fde6db8f",
+  "serviceName": "Private Session",
+  "package1Id": "889c3c3a-a8cd-4bfc-a75e-627a83bb5b2c",
+  "package1Name": "Private 10-Session Pack",
+  "package2Id": "bf61789c-37cd-465c-80be-bd19c44648e9",
+  "package2Name": "Semi-Private 20-Session Pack",
+  "packageInstanceId": "44da99c0-49e8-4383-85a5-196cf5ffadc6"
+}

@@ -1,8 +1,8 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState, useEffect } from 'react';
-// TODO: Replace with actual oRPC client when backend is ready
-// import apiClient from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { orpc, client } from '@/utils/orpc';
+import { useUserContext } from '@/hooks/useUserContext';
 import { toast } from 'sonner';
 
 
@@ -17,6 +17,8 @@ interface ServiceFormData {
   tax_percentage: number;
   category_id: string;
   schedulingType: 'appointment-based' | 'time-preset';
+  sessionDurationMinutes: number;
+  maxAttendees: number;
   timePresetConfig?: {
     recurringDays: string[];
     timeSlotsPerDay: { [day: string]: string[] };
@@ -32,9 +34,63 @@ interface ServiceFormDialogProps {
 }
 
 export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: ServiceFormDialogProps) {
-  const { user } = useAuth();
-  const [serviceCategories, setServiceCategories] = useState<Array<{ id: string; name: string }>>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const { data: userCtx } = useUserContext();
+  const organizationId = userCtx?.currentOrganizationId ?? "";
+  const qc = useQueryClient();
+
+  const { data: serviceCategories = [], isLoading: isLoadingCategories } = useQuery({
+    ...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
+    enabled: isOpen && !!organizationId,
+  });
+
+  // NOTE: sessions/expirable/expiry fields are package concepts, not service fields. Phase A (Option A): submit only valid service fields.
+  const createMutation = useMutation({
+    mutationFn: (data: ServiceFormData) =>
+      client.services.create({
+        organizationId,
+        name: data.name,
+        categoryId: data.category_id || null,
+        duration: data.sessionDurationMinutes * 60, // minutes → seconds
+        durationUnitType: "minutes",
+        maxAttendees: data.maxAttendees ?? 1,
+        attendanceThreshold: null,
+        branchId: null,
+        isActive: true,
+        price: data.price ? Math.round(data.price * 100) : null, // dollars → cents
+        taxable: data.taxable,
+        taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
+        schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
+      toast.success("Service created successfully");
+      onClose();
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to create service"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: ServiceFormData) =>
+      client.services.update({
+        organizationId,
+        id: initialData!.id.toString(),
+        name: data.name,
+        categoryId: data.category_id || null,
+        duration: data.sessionDurationMinutes * 60, // minutes → seconds
+        durationUnitType: "minutes",
+        maxAttendees: data.maxAttendees ?? 1,
+        price: data.price ? Math.round(data.price * 100) : null, // dollars → cents
+        taxable: data.taxable,
+        taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
+        schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
+      toast.success("Service updated successfully");
+      onClose();
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to update service"),
+  });
 
   const [formData, setFormData] = useState<ServiceFormData>({
     name: '',
@@ -47,6 +103,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     tax_percentage: 6,
     category_id: '',
     schedulingType: 'appointment-based',
+    sessionDurationMinutes: 60,
+    maxAttendees: 1,
     timePresetConfig: {
       recurringDays: [],
       timeSlotsPerDay: {}
@@ -55,34 +113,6 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch service categories when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      const fetchServiceCategories = async () => {
-        try {
-          setIsLoadingCategories(true);
-          // TODO: Replace with actual oRPC client call
-          // const response = await apiClient.getListServiceCategories({
-          //   limit: 1000,
-          // });
-          // setServiceCategories(response.data.map((category: any) => ({
-          //   id: category.id,
-          //   name: category.name,
-          // })));
-          console.warn("API call to fetchServiceCategories is mocked.");
-          setServiceCategories([]); // Mock data
-        } catch (error) {
-          console.error('Failed to fetch service categories:', error);
-          setError('Failed to load service categories');
-        } finally {
-          setIsLoadingCategories(false);
-        }
-      };
-
-      fetchServiceCategories();
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (initialData) {
@@ -97,10 +127,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         tax_percentage: initialData.tax_percentage,
         category_id: initialData.category_id,
         schedulingType: initialData.schedulingType || 'appointment-based',
-      timePresetConfig: initialData.timePresetConfig || {
-        recurringDays: [],
-        timeSlotsPerDay: {}
-      },
+        sessionDurationMinutes: initialData.sessionDurationMinutes ?? 60,
+        maxAttendees: initialData.maxAttendees ?? 1,
+        timePresetConfig: initialData.timePresetConfig || {
+          recurringDays: [],
+          timeSlotsPerDay: {}
+        },
       });
     } else {
       setFormData({
@@ -114,6 +146,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         tax_percentage: 6,
         category_id: '',
         schedulingType: 'appointment-based',
+        sessionDurationMinutes: 60,
+        maxAttendees: 1,
         timePresetConfig: {
           recurringDays: [],
           timeSlotsPerDay: {}
@@ -128,63 +162,22 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     setError(null);
 
     try {
-      // Get organization_id from user
-      const organizationId = user?.current_organization_id;
       if (!organizationId) {
         throw new Error('User must be part of an organization to create services');
       }
 
-      // Transform form data to API format
-      const apiData: any = {
-        organization_id: organizationId,
-        service_category_id: formData.category_id,
-        name: formData.name,
-        price: formData.price,
-        sessions: formData.sessions,
-        taxable: formData.taxable,
-        tax_percentage: formData.tax_percentage,
-        expirable: formData.expirable,
-        scheduling_type: formData.schedulingType,
-      };
-
-      // Add duration fields only if expirable
-      if (formData.expirable) {
-        apiData.duration = formData.duration;
-        apiData.duration_unit = formData.duration_unit;
+      if (mode === 'edit' && initialData?.id) {
+        await updateMutation.mutateAsync(formData);
+      } else {
+        await createMutation.mutateAsync(formData);
       }
-
-      // Add time_preset_config only if scheduling_type is time-preset
-      if (formData.schedulingType === 'time-preset' && formData.timePresetConfig) {
-        apiData.time_preset_config = {
-          recurring_days: formData.timePresetConfig.recurringDays,
-          time_slots_per_day: formData.timePresetConfig.timeSlotsPerDay,
-        };
-      }
-
-      // TODO: Replace with actual oRPC client calls
-      // if (mode === 'edit' && initialData?.id) {
-      //   const serviceId = (initialData as any).serviceId || initialData.id.toString();
-      //   await apiClient.putUpdateService({
-      //     service_id: serviceId,
-      //     body: apiData,
-      //   });
-      //   toast.success('Service updated successfully');
-      // } else {
-      //   await apiClient.postCreateService({
-      //     body: apiData,
-      //   });
-      //   toast.success('Service created successfully');
-      // }
-      console.warn("API call to create/update service is mocked.", apiData);
-      toast.success(`Service ${mode === 'create' ? 'created' : 'updated'} successfully (simulated)`);
 
       // Call the onSubmit callback for parent component to refresh data
       await onSubmit(formData, initialData?.id);
-      onClose();
     } catch (err: any) {
       const errorMessage = err?.message || err?.detail || 'An error occurred';
       setError(errorMessage);
-      toast.error(errorMessage);
+      // Mutation onError already toasts, so only set local error state here
     } finally {
       setIsSubmitting(false);
     }
@@ -394,6 +387,41 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="sessionDurationMinutes" className="block text-sm font-medium text-gray-700">
+                        Session Duration (minutes) *
+                      </label>
+                      <input
+                        type="number"
+                        name="sessionDurationMinutes"
+                        id="sessionDurationMinutes"
+                        required
+                        min="1"
+                        value={formData.sessionDurationMinutes}
+                        onChange={handleChange}
+                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onWheel={(e) => e.currentTarget.blur()}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="maxAttendees" className="block text-sm font-medium text-gray-700">
+                        Max Attendees *
+                      </label>
+                      <input
+                        type="number"
+                        name="maxAttendees"
+                        id="maxAttendees"
+                        required
+                        min="1"
+                        value={formData.maxAttendees}
+                        onChange={handleChange}
+                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onWheel={(e) => e.currentTarget.blur()}
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

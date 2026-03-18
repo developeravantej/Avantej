@@ -1,0 +1,396 @@
+/**
+ * Appointments Router
+ *
+ * API endpoints for managing appointments in tenant organizations.
+ * list: staff view (branch, date range). listForUser: client view (user_id).
+ * Requires appointment_management permission for staff; listForUser/getById can be called by client (user_id = session user).
+ */
+
+import {
+  listAppointments,
+  listAppointmentsForUser,
+  getAppointmentById,
+  createAppointment,
+  updateAppointment,
+  getDescendantNodeIds,
+  requirePermission,
+} from "@avantej-core/services";
+import { ORPCError } from "@orpc/server";
+import { z } from "zod";
+import { protectedProcedure } from "../index";
+
+const appointmentTypeSchema = z.enum(["private", "semi-private"]);
+const statusSchema = z.enum([
+  "pending",
+  "confirmed",
+  "completed",
+  "cancelled",
+  "no-show",
+]);
+
+export const appointmentsRouter = {
+  /**
+   * List appointments (staff view): by branch, date range, optional status.
+   */
+  list: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        branchId: z.string().uuid().optional(),
+        serviceId: z.string().uuid().nullable().optional(),
+        status: statusSchema.optional(),
+        startFrom: z.string().datetime().optional(),
+        startTo: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "appointment_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const accessibleNodeIds =
+        context.accessibleNodeIds ??
+        (context.member
+          ? await getDescendantNodeIds(
+              context.tenantDb,
+              context.member.hierarchyScopeId
+            )
+          : []);
+
+      const items = await listAppointments(context.tenantDb, {
+        branchId: input.branchId,
+        serviceId: input.serviceId ?? undefined,
+        status: input.status,
+        startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
+        startTo: input.startTo ? new Date(input.startTo) : undefined,
+        accessibleNodeIds,
+        limit: input.limit,
+      });
+
+      return items;
+    }),
+
+  /**
+   * List appointments for the current user (client view). Uses session user id.
+   */
+  listForUser: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        status: statusSchema.optional(),
+        startFrom: z.string().datetime().optional(),
+        startTo: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      const userId = context.session?.user?.id;
+      if (!userId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "User session required",
+        });
+      }
+
+      const items = await listAppointmentsForUser(context.tenantDb, {
+        userId,
+        status: input.status,
+        startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
+        startTo: input.startTo ? new Date(input.startTo) : undefined,
+        limit: input.limit,
+      });
+
+      return items;
+    }),
+
+  getById: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      const appointment = await getAppointmentById(context.tenantDb, input.id);
+      if (!appointment) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Appointment not found",
+        });
+      }
+
+      const userId = context.session?.user?.id;
+      const isClient = userId && appointment.userId === userId;
+      const isStaff = context.member;
+
+      if (isClient) {
+        return appointment;
+      }
+
+      if (isStaff) {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member!,
+            "appointment_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(
+                context.tenantDb,
+                context.member.hierarchyScopeId
+              )
+            : []);
+        if (!accessibleNodeIds.includes(appointment.branchId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to this appointment",
+          });
+        }
+        return appointment;
+      }
+
+      throw new ORPCError("FORBIDDEN", {
+        message: "Access denied",
+      });
+    }),
+
+  create: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        type: appointmentTypeSchema,
+        startTime: z.string().datetime(),
+        duration: z.number().int().min(1),
+        branchId: z.string().uuid(),
+        serviceId: z.string().uuid().nullable().optional(),
+        status: statusSchema.optional(),
+        sessionTotal: z.number().int().min(0),
+        pricePerClient: z.number().int().min(0),
+        userId: z.string().nullable().optional(),
+        trainerId: z.string().uuid().nullable().optional(),
+        packageInstanceId: z.string().uuid().nullable().optional(),
+        creditsUsed: z.number().int().min(0).optional(),
+        location: z.string().nullable().optional(),
+        classSlotId: z.string().uuid().nullable().optional(),
+        description: z.string().nullable().optional(),
+        imageUrl: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        bookingNumber: z.string().nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "appointment_management",
+          "create"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const accessibleNodeIds =
+        context.accessibleNodeIds ??
+        (context.member
+          ? await getDescendantNodeIds(
+              context.tenantDb,
+              context.member.hierarchyScopeId
+            )
+          : []);
+      if (!accessibleNodeIds.includes(input.branchId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this branch",
+        });
+      }
+
+      try {
+        const created = await createAppointment(context.tenantDb, {
+          type: input.type,
+          startTime: new Date(input.startTime),
+          duration: input.duration,
+          branchId: input.branchId,
+          serviceId: input.serviceId ?? null,
+          status: input.status,
+          sessionTotal: input.sessionTotal,
+          pricePerClient: input.pricePerClient,
+          createdBy: context.member.userId,
+          userId: input.userId ?? null,
+          trainerId: input.trainerId ?? null,
+          packageInstanceId: input.packageInstanceId ?? null,
+          creditsUsed: input.creditsUsed,
+          location: input.location ?? null,
+          classSlotId: input.classSlotId ?? null,
+          description: input.description ?? null,
+          imageUrl: input.imageUrl ?? null,
+          notes: input.notes ?? null,
+          bookingNumber: input.bookingNumber ?? null,
+        });
+        return created;
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: error instanceof Error ? error.message : "Failed to create appointment",
+        });
+      }
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        status: statusSchema.optional(),
+        startTime: z.string().datetime().optional(),
+        duration: z.number().int().min(1).optional(),
+        trainerId: z.string().uuid().nullable().optional(),
+        location: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        cancelledAt: z.string().datetime().nullable().optional(),
+        cancellationReason: z.string().nullable().optional(),
+        description: z.string().nullable().optional(),
+        imageUrl: z.string().nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      const existing = await getAppointmentById(context.tenantDb, input.id);
+      if (!existing) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Appointment not found",
+        });
+      }
+
+      const userId = context.session?.user?.id;
+      const isClient = userId && existing.userId === userId;
+      const isStaff = context.member;
+
+      if (isStaff) {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member!,
+            "appointment_management",
+            "update"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(
+                context.tenantDb,
+                context.member.hierarchyScopeId
+              )
+            : []);
+        if (!accessibleNodeIds.includes(existing.branchId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to this appointment",
+          });
+        }
+      } else if (isClient) {
+        if (input.status && input.status !== "cancelled") {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Clients can only cancel (set status to cancelled)",
+          });
+        }
+      } else {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Access denied",
+        });
+      }
+
+      const updateParams = {
+        status: input.status,
+        startTime: input.startTime ? new Date(input.startTime) : undefined,
+        duration: input.duration,
+        trainerId: input.trainerId,
+        location: input.location,
+        notes: input.notes,
+        cancelledAt: input.cancelledAt ? new Date(input.cancelledAt) : undefined,
+        cancellationReason:
+          input.cancellationReason ??
+          (input.status === "cancelled" ? "Cancelled by client" : undefined),
+        description: input.description,
+        imageUrl: input.imageUrl,
+      };
+
+      try {
+        const updated = await updateAppointment(
+          context.tenantDb,
+          input.id,
+          updateParams
+        );
+        return updated;
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: error instanceof Error ? error.message : "Failed to update appointment",
+        });
+      }
+    }),
+};

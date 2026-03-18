@@ -1,0 +1,110 @@
+import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { useUserContext } from "@/hooks/useUserContext";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { AppointmentCalendar } from "@/components/calendar/appointment";
+import { requirePermission } from "@/lib/route-guards";
+import { client } from "@/utils/orpc";
+import {
+	mapApiAppointmentToCalendar,
+	getAppointmentQueryRange,
+} from "@/lib/appointment-mapper";
+
+export const Route = createFileRoute(
+	"/_authenticated/dashboard/_layout/appointment/view"
+)({
+	beforeLoad: async () => {
+		await requirePermission(
+			{ resource: "appointment_management", action: "read" },
+			"/dashboard"
+		);
+	},
+	component: RouteComponent,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			view: search.view as string | undefined,
+		};
+	},
+});
+
+function RouteComponent() {
+	const search = useSearch({ from: "/_authenticated/dashboard/_layout/appointment/view" });
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
+
+	const { startFrom, startTo } = getAppointmentQueryRange();
+
+	const {
+		data: apiAppointments = [],
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["appointments", organizationId, startFrom, startTo],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.appointments.list({
+				organizationId,
+				startFrom,
+				startTo,
+				limit: 200,
+			});
+		},
+		enabled: !!organizationId,
+		staleTime: 60 * 1000,
+	});
+
+	const appointments = useMemo(
+		() => apiAppointments.map(mapApiAppointmentToCalendar),
+		[apiAppointments]
+	);
+
+	const handleDateSelect = (date: Date) => {
+		toast.info(`Selected date: ${date.toLocaleDateString()}`);
+	};
+
+	const handleAppointmentClick = (appointment: { id: string; title: string; clientName: string }) => {
+		toast.info(`Appointment: ${appointment.title} with ${appointment.clientName}`);
+	};
+
+	const handleAddAppointment = () => {};
+
+	if (!organizationId) {
+		return (
+			<div className="space-y-4">
+				<h1 className="text-3xl font-bold">Appointments</h1>
+				<p className="text-muted-foreground">No organization selected.</p>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="space-y-4">
+				<h1 className="text-3xl font-bold">Appointments</h1>
+				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			<div className="flex items-center justify-between">
+				<h1 className="text-3xl font-bold">Appointments</h1>
+			</div>
+			{isLoading ? (
+				<div className="flex items-center justify-center py-24 text-muted-foreground">
+					Loading appointments...
+				</div>
+			) : (
+				<AppointmentCalendar
+					appointments={appointments}
+					onDateSelect={handleDateSelect}
+					onAppointmentClick={handleAppointmentClick}
+					onAddAppointment={handleAddAppointment}
+					initialView={search.view === "weekly" ? "weekly" : "monthly"}
+				/>
+			)}
+		</div>
+	);
+}

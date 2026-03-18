@@ -587,6 +587,39 @@ async function seedFranchiseOwner() {
       console.log(
         "   ✅ Created area node: " + areaNode.id + " (California)\n"
       );
+
+      // Create sample branch nodes under the area
+      if (areaNode) {
+        const branchNames = ["Los Angeles Branch", "San Francisco Branch"];
+        for (const branchName of branchNames) {
+          const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+            where: (nodes, { eq, and: andFn }) =>
+              andFn(eq(nodes.type, "branch"), eq(nodes.name, branchName)),
+          });
+
+          if (!existingBranch) {
+            const [createdBranch] = await tenantDb
+              .insert(hierarchyNodes)
+              .values({
+                name: branchName,
+                type: "branch",
+                depth: 4,
+                parentId: areaNode!.id,
+                address: branchName === "Los Angeles Branch"
+                  ? "123 Main St, Los Angeles, CA 90001"
+                  : "456 Market St, San Francisco, CA 94105",
+              })
+              .returning();
+
+            if (createdBranch) {
+              console.log(`   ✅ Created branch node: ${createdBranch.id} (${branchName})`);
+            }
+          } else {
+            console.log(`   ⚠️  Branch already exists: ${existingBranch.id} (${branchName})`);
+          }
+        }
+        console.log();
+      }
     }
 
     // ============================================

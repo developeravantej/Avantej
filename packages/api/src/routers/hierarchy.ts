@@ -10,12 +10,19 @@ import {
   requirePermission,
   validateHierarchyRules,
   validateParentAccess,
+  getMembersByHierarchyScope,
+  updateMemberHierarchyScope,
+  bulkUpdateMemberHierarchyScope,
+  getAllOrganizationMembersWithUserDetails,
 } from "@avantej-core/services";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export const hierarchyRouter = {
   /**
@@ -143,46 +150,27 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:125',message:'listNodes handler entry',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasAccessibleNodeIds:!!context.accessibleNodeIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      
       // Tenant DB should be set up by createContext for oRPC routes
       const tenantDb = context.tenantDb;
       const member = context.member;
       const accessibleNodeIds = context.accessibleNodeIds;
 
       if (!tenantDb) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/e34d4304-92ac-4a46-85ec-68df3ca09c04',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hierarchy.ts:135',message:'Tenant DB missing in handler',data:{organizationId:input.organizationId,hasTenantDb:!!context.tenantDb,hasMember:!!context.member,hasOrgId:!!context.organizationId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-        console.error("listNodes: Tenant DB not available", {
-          organizationId: input.organizationId,
-          hasTenantDb: !!context.tenantDb,
-          hasMember: !!context.member,
-        });
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: `Tenant database not available for organization ${input.organizationId}. Ensure organization context is set.`,
         });
       }
 
       if (!member) {
-        console.error("listNodes: Member not found", {
-          organizationId: input.organizationId,
-          userId: context.session?.user?.id,
-          hasTenantDb: !!context.tenantDb,
-        });
         throw new ORPCError("FORBIDDEN", {
           message: `User is not a member of organization ${input.organizationId}`,
         });
       }
-      
-      console.log(`[listNodes] Member found: ${member.id}, hierarchyScopeId: ${member.hierarchyScopeId}, role: ${member.role}`);
 
       // Use the accessibleNodeIds from context (already calculated in createContext)
       const finalAccessibleNodeIds = accessibleNodeIds || [];
 
-      // Get all nodes - ensure this completes before returning
+      // Get all nodes
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allNodes = await tenantDb.query.hierarchyNodes.findMany({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,55 +180,20 @@ export const hierarchyRouter = {
         ],
       });
 
-      console.log(`[listNodes] Total nodes in DB: ${allNodes.length}`);
-      console.log(`[listNodes] Accessible node IDs count: ${finalAccessibleNodeIds.length}`);
-      console.log(`[listNodes] Member hierarchyScopeId: ${member?.hierarchyScopeId}`);
-      console.log(`[listNodes] Member role: ${member?.role}`);
-
-      // Log branch nodes specifically
-      const branchNodes = allNodes.filter((n: any) => n.type === "branch");
-      console.log(`[listNodes] Branch nodes in DB: ${branchNodes.length}`);
-      branchNodes.forEach((branch: any) => {
-        const isAccessible = finalAccessibleNodeIds.includes(branch.id);
-        console.log(`[listNodes] Branch ${branch.id} (${branch.name}): accessible=${isAccessible}, depth=${branch.depth}, type=${branch.type}`);
-        if (branch.id === "7cce143b-627c-472c-a6b6-57696e2b2a75") {
-          console.log(`[listNodes] *** TARGET BRANCH FOUND IN DB ***`, branch);
-        }
-      });
-
-      // If accessibleNodeIds is empty OR member is admin, return all nodes
-      // Organization admins should see all nodes regardless of scope
+      // If admin: return all nodes; if no accessible IDs: return all nodes; otherwise filter
       let accessibleNodes: typeof allNodes;
       const isAdmin = member.role === "admin";
-      
-      if (isAdmin) {
-        console.log(`[listNodes] Member is admin, returning ALL nodes (${allNodes.length} total)`);
-        accessibleNodes = allNodes;
-      } else if (finalAccessibleNodeIds.length === 0) {
-        console.warn(`[listNodes] WARNING: accessibleNodeIds is empty! Returning all nodes. This might indicate a member scope issue.`);
+
+      if (isAdmin || finalAccessibleNodeIds.length === 0) {
         accessibleNodes = allNodes;
       } else {
-        // Filter to accessible nodes (synchronous operation)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         accessibleNodes = allNodes.filter((node: any) =>
           finalAccessibleNodeIds.includes(node.id)
         );
-        console.log(`[listNodes] Filtered to ${accessibleNodes.length} accessible nodes (out of ${allNodes.length} total)`);
       }
 
-      console.log(`[listNodes] Accessible nodes after filtering: ${accessibleNodes.length}`);
-      const accessibleBranches = accessibleNodes.filter((n: any) => n.type === "branch");
-      console.log(`[listNodes] Accessible branches: ${accessibleBranches.length}`);
-      
-      // Check if target branch is in accessible nodes
-      const targetBranchInAccessible = accessibleNodes.find((n: any) => n.id === "7cce143b-627c-472c-a6b6-57696e2b2a75");
-      if (targetBranchInAccessible) {
-        console.log(`[listNodes] *** TARGET BRANCH IS ACCESSIBLE ***`, targetBranchInAccessible);
-      } else {
-        console.warn(`[listNodes] *** TARGET BRANCH IS NOT ACCESSIBLE ***`);
-      }
-
-      // Map nodes to response format (synchronous operation)
+      // Map nodes to response format
       return {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         nodes: accessibleNodes.map((node: any) => ({
@@ -373,6 +326,160 @@ export const hierarchyRouter = {
    * Options can be provided to customize behavior, but defaults are recommended
    * for a smooth user experience.
    */
+  /**
+   * Get a single hierarchy node by ID
+   */
+  getNode: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        nodeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access this node
+      if (!accessibleNodeIds.includes(input.nodeId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this node",
+        });
+      }
+
+      // Get the node
+      const node = await tenantDb.query.hierarchyNodes.findFirst({
+        where: eq(hierarchyNodes.id, input.nodeId),
+      });
+
+      if (!node) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Node not found: ${input.nodeId}`,
+        });
+      }
+
+      return {
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        depth: node.depth,
+        parentId: node.parentId,
+        address: (node as any).address,
+        picUserId: (node as any).picUserId,
+        createdAt: node.createdAt,
+        updatedAt: node.updatedAt,
+      };
+    }),
+
+  /**
+   * Get all descendant nodes of a given node
+   */
+  getDescendants: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        nodeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access the parent node
+      if (!accessibleNodeIds.includes(input.nodeId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this node",
+        });
+      }
+
+      // Get all descendant node IDs using the service function
+      const descendantIds = await getDescendantNodeIds(
+        tenantDb,
+        input.nodeId
+      );
+
+      // Remove the parent node ID from the list (descendants only)
+      const descendantIdsOnly = descendantIds.filter(
+        (id) => id !== input.nodeId
+      );
+
+      if (descendantIdsOnly.length === 0) {
+        return {
+          descendants: [],
+        };
+      }
+
+      // Get full node details for all descendants
+      const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
+        where: (nodes, { inArray }) => inArray(nodes.id, descendantIdsOnly),
+        orderBy: (nodes: any, { asc }: any) => [
+          asc(nodes.depth),
+          asc(nodes.name),
+        ],
+      });
+
+      // Filter to only accessible nodes
+      const accessibleDescendants = descendantNodes.filter((node) =>
+        accessibleNodeIds.includes(node.id)
+      );
+
+      return {
+        descendants: accessibleDescendants.map((node: any) => ({
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          depth: node.depth,
+          parentId: node.parentId,
+          address: node.address,
+          picUserId: node.picUserId,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
+        })),
+      };
+    }),
+
   deleteNode: protectedProcedure
     .input(
       z.object({
@@ -594,6 +701,296 @@ export const hierarchyRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message:
             error instanceof Error ? error.message : "Failed to move node",
+        });
+      }
+    }),
+
+  /**
+   * List members assigned to a hierarchy node
+   */
+  listMembers: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        hierarchyScopeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access this hierarchy node
+      if (!accessibleNodeIds.includes(input.hierarchyScopeId) && member.role !== "admin") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this hierarchy node",
+        });
+      }
+
+      // Check permission
+      try {
+        await requirePermission(
+          tenantDb,
+          member,
+          "user_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      try {
+        const memberList = await getMembersByHierarchyScope(
+          tenantDb,
+          input.hierarchyScopeId
+        );
+        return { members: memberList };
+      } catch (error) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            error instanceof Error ? error.message : "Failed to list members",
+        });
+      }
+    }),
+
+  /**
+   * Reassign a member to a new hierarchy scope
+   */
+  reassignMember: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+        newHierarchyScopeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check permission
+      try {
+        await requirePermission(
+          tenantDb,
+          member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Check if user can access the target hierarchy node
+      if (!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== "admin") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to the target hierarchy node",
+        });
+      }
+
+      // Get the member being reassigned to check current scope
+      const memberToReassign = await tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+
+      if (!memberToReassign) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Member not found",
+        });
+      }
+
+      // Check if user can access the member's current scope (for admin override)
+      if (
+        !accessibleNodeIds.includes(memberToReassign.hierarchyScopeId) &&
+        member.role !== "admin"
+      ) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to reassign this member",
+        });
+      }
+
+      try {
+        const updatedMember = await updateMemberHierarchyScope(
+          tenantDb,
+          input.memberId,
+          input.newHierarchyScopeId
+        );
+        return { member: updatedMember };
+      } catch (error) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            error instanceof Error ? error.message : "Failed to reassign member",
+        });
+      }
+    }),
+
+  /**
+   * Bulk reassign members to a new hierarchy scope
+   */
+  bulkReassignMembers: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberIds: z.array(z.string().uuid()),
+        newHierarchyScopeId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check permission
+      try {
+        await requirePermission(
+          tenantDb,
+          member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Check if user can access the target hierarchy node
+      if (!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== "admin") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to the target hierarchy node",
+        });
+      }
+
+      try {
+        const updatedMembers = await bulkUpdateMemberHierarchyScope(
+          tenantDb,
+          input.memberIds,
+          input.newHierarchyScopeId
+        );
+        return { members: updatedMembers };
+      } catch (error) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            error instanceof Error ? error.message : "Failed to bulk reassign members",
+        });
+      }
+    }),
+
+  /**
+   * List all members in the organization with user details
+   * Returns members with their names and emails from the control panel database
+   */
+  listAllMembers: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        includeInactive: z.boolean().optional().default(false),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const { tenantDb, member } = context;
+
+      // Check permission
+      try {
+        await requirePermission(
+          tenantDb,
+          member,
+          "user_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      // Get control panel database from Hono context
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      if (!controlPanelDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Control panel database not available in context",
+        });
+      }
+
+      try {
+        const membersWithDetails = await getAllOrganizationMembersWithUserDetails(
+          tenantDb,
+          controlPanelDb,
+          input.organizationId,
+          input.includeInactive
+        );
+        return { members: membersWithDetails };
+      } catch (error) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            error instanceof Error ? error.message : "Failed to list all members",
         });
       }
     }),

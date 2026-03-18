@@ -1,6 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import {
 	BarChart3,
 	Users,
@@ -35,8 +35,22 @@ import {
 	CardFooter,
 } from "@/components/ui/card";
 
+type LandingSearch = {
+	invitationToken?: string;
+	orgId?: string;
+};
+
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
+	validateSearch: (search: Record<string, unknown>): LandingSearch => {
+		return {
+			invitationToken:
+				typeof search.invitationToken === "string"
+					? search.invitationToken
+					: undefined,
+			orgId: typeof search.orgId === "string" ? search.orgId : undefined,
+		};
+	},
 });
 
 function FeatureCard({
@@ -91,6 +105,10 @@ function TestimonialCard({
 }
 
 function HomeComponent() {
+	const { invitationToken, orgId } = useSearch({ from: "/" });
+	const loginSearch: LandingSearch =
+		invitationToken && orgId ? { invitationToken, orgId } : {};
+
 	return (
 		<div className="min-h-screen">
 			{/* Header */}
@@ -110,6 +128,7 @@ function HomeComponent() {
 					<div className="flex gap-4 items-center">
 						<Link
 							to="/login"
+							search={loginSearch}
 							className={cn(
 								buttonVariants({
 									variant: "ghost",
@@ -121,6 +140,7 @@ function HomeComponent() {
 						</Link>
 						<Link
 							to="/login"
+							search={loginSearch}
 							className={cn(
 								buttonVariants({
 									size: "sm",
@@ -144,30 +164,32 @@ function HomeComponent() {
 							Get complete visibility into your branches, staff performance, and
 							financial metrics all in one place.
 						</p>
-						<div className="flex gap-4 justify-center">
-							<Link
-								to="/login"
-								className={cn(
-									buttonVariants({
-										size: "lg",
-									}),
-									"bg-black text-white hover:bg-black/90"
-								)}
-							>
-								Get Started
-							</Link>
-							<Link
-								to="/login"
-								className={cn(
-									buttonVariants({
-										size: "lg",
-										variant: "outline",
-									})
-								)}
-							>
-								Request Demo
-							</Link>
-						</div>
+					<div className="flex gap-4 justify-center">
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
+								buttonVariants({
+									size: "lg",
+								}),
+								"bg-black text-white hover:bg-black/90"
+							)}
+						>
+							Get Started
+						</Link>
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
+								buttonVariants({
+									size: "lg",
+									variant: "outline",
+								})
+							)}
+						>
+							Request Demo
+						</Link>
+					</div>
 					</div>
 				</div>
 			</section>
@@ -255,10 +277,11 @@ function HomeComponent() {
 						</div>
 					</div>
 
-					<div className="text-center">
-						<Link
-							to="/login"
-							className={cn(
+						<div className="text-center">
+							<Link
+								to="/login"
+								search={loginSearch}
+								className={cn(
 								buttonVariants({
 									size: "lg",
 								}),
@@ -653,10 +676,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -712,10 +736,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -775,10 +800,11 @@ function HomeComponent() {
 										</li>
 									</ul>
 								</CardContent>
-								<CardFooter>
-									<Link
-										to="/login"
-										className={cn(
+									<CardFooter>
+										<Link
+											to="/login"
+											search={loginSearch}
+											className={cn(
 											buttonVariants({
 												size: "lg",
 											}),
@@ -804,9 +830,10 @@ function HomeComponent() {
 						Join thousands of businesses using Avantej to scale their
 						operations.
 					</h3>
-					<Link
-						to="/login"
-						className={cn(
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
 							buttonVariants({
 								size: "lg",
 							}),
@@ -828,9 +855,10 @@ function HomeComponent() {
 						Discover all the tools and features that make Avantej the perfect
 						solution for managing your business operations.
 					</h3>
-					<Link
-						to="/login"
-						className={cn(
+						<Link
+							to="/login"
+							search={loginSearch}
+							className={cn(
 							buttonVariants({
 								size: "lg",
 							}),

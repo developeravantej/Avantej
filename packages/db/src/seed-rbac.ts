@@ -15,7 +15,6 @@
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "./schema/tenant-schema";
 import { roles, permissions, rolePermissions } from "./schema/tenant";
-import { eq, and } from "drizzle-orm";
 
 /**
  * Seed RBAC data (roles, permissions, role-permission mappings)

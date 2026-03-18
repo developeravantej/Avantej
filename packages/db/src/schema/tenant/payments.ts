@@ -13,7 +13,10 @@
  */
 
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
-import { appointments } from "./appointments";
+// NOTE: appointments is intentionally not imported here to break the circular
+// dependency chain: appointments → package-instances → payments → appointments.
+// The FK constraint on appointment_id exists at the DB level (via migration).
+// Do not add .references(() => appointments.id) here or the TS7022 error returns.
 
 export const payments = pgTable("payments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -41,12 +44,36 @@ export const payments = pgTable("payments", {
 	
 	status: text("status").notNull(), // "pending" | "succeeded" | "failed" | "canceled" | "refunded"
 	
-	// Optional appointment link
-	appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+	// Optional appointment link (FK to appointments.id exists at DB level via migration)
+	appointmentId: uuid("appointment_id"),
 	
 	description: text("description"), // Payment description
 	metadata: text("metadata"), // JSON metadata (optional)
-	
+
+	// ========== NEW FIELDS ==========
+
+	// Client reference (for mobile app payments)
+	userId: text("user_id"), // References Control Panel user.id
+
+	// Payment identifier
+	paymentNumber: text("payment_number").unique(),
+
+	// Payment method details
+	paymentMethod: text("payment_method"), // "card" | "apple_pay" | "google_pay" | "cash"
+
+	// Invoice linkage (circular import avoidance: no .references() in schema, enforced via manual SQL migration)
+	invoiceId: uuid("invoice_id"),
+
+	// LHDN e-invoice tracking
+	eInvoiceStatus: text("e_invoice_status"),
+	// "pending" | "generated" | "failed" — nullable
+	eInvoiceId: text("e_invoice_id"), // LHDN MyInvois API UUID — nullable
+
+	// Refund tracking
+	refundedAt: timestamp("refunded_at"),
+	refundAmount: integer("refund_amount"),
+	failureReason: text("failure_reason"),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -56,5 +83,10 @@ export const payments = pgTable("payments", {
 	appointmentIdIdx: index("payments_appointment_idx").on(table.appointmentId),
 	statusIdx: index("payments_status_idx").on(table.status),
 	customerStatusIdx: index("payments_customer_status_idx").on(table.customerId, table.status),
+	userIdIdx: index("payments_user_idx").on(table.userId),
+	paymentNumberIdx: index("payments_payment_number_idx").on(table.paymentNumber),
+	paymentMethodIdx: index("payments_payment_method_idx").on(table.paymentMethod),
+	invoiceIdIdx: index("payments_invoice_idx").on(table.invoiceId),
+	eInvoiceStatusIdx: index("payments_e_invoice_status_idx").on(table.eInvoiceStatus),
 }));
 

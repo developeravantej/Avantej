@@ -80,6 +80,16 @@ export const routeConfigs: Record<string, RoutePermissionConfig> = {
     allowSystemAdmin: true,
   },
   
+  // Access control routes
+  "/dashboard/access-control/invitations": {
+    path: "/dashboard/access-control/invitations",
+    requiredPermissions: [
+      { resource: "user_management", action: "read" }
+    ],
+    requiresOrganization: true,
+    allowSystemAdmin: true,
+  },
+  
   // Onboarding route - special case for users without organizations
   "/onboarding": {
     path: "/onboarding",

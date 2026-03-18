@@ -18,8 +18,8 @@ export function createDb(connectionString: string) {
 // Export encryption utilities
 export { encrypt, decrypt } from "./lib/encryption";
 
-// Export migration runner
-export { runTenantMigrations } from "./migrate-tenant";
+// Export migration runner and version constant
+export { runTenantMigrations, LATEST_MIGRATION_VERSION } from "./migrate-tenant";
 
 // Export RBAC seed function
 export { seedRBACData } from "./seed-rbac";

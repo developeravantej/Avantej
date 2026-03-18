@@ -20,28 +20,26 @@
 
 import { getBetterAuth } from "@/lib/better-auth";
 import { getControlPanelDb } from "@/lib/db";
+import { user, verification } from "@avantej-core/db/schema/auth";
+import { eq, lt } from "drizzle-orm";
 import type { Context } from "hono";
-import { lt, eq } from "drizzle-orm";
-import { verification } from "@avantej-core/db/schema/auth";
-import { user } from "@avantej-core/db/schema/auth";
 import { jwtVerify } from "jose";
 
 function getEnvVar(key: string): string | undefined {
-	try {
-		// @ts-expect-error - cloudflare:workers only available in Workers runtime
-		const { env } = require("cloudflare:workers");
-		return env[key];
-	} catch {
-		return process.env[key];
-	}
+  try {
+    const { env } = require("cloudflare:workers");
+    return env[key];
+  } catch {
+    return process.env[key];
+  }
 }
 
 function getBetterAuthSecret(): string {
-	const secret = getEnvVar("BETTER_AUTH_SECRET");
-	if (!secret) {
-		throw new Error("BETTER_AUTH_SECRET environment variable is required");
-	}
-	return secret;
+  const secret = getEnvVar("BETTER_AUTH_SECRET");
+  if (!secret) {
+    throw new Error("BETTER_AUTH_SECRET environment variable is required");
+  }
+  return secret;
 }
 
 /**
@@ -86,7 +84,9 @@ export async function sendVerificationEmail(
 
     // Better-Auth API returns void or success status
     // Check for errors by catching exceptions
-    console.log(`Verification email sent to ${email} for user ${userId} via Resend`);
+    console.log(
+      `Verification email sent to ${email} for user ${userId} via Resend`
+    );
   } catch (error) {
     throw new Error(
       `Failed to send verification email: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -113,56 +113,61 @@ export async function sendVerificationEmail(
  * const userId = await verifyEmailToken("verification-token-from-email", c); // c is Hono context
  * ```
  */
-export async function verifyEmailToken(token: string, c?: Context): Promise<string> {
-	if (!token) {
-		throw new Error("Verification token is required");
-	}
+export async function verifyEmailToken(
+  token: string,
+  c?: Context
+): Promise<string> {
+  if (!token) {
+    throw new Error("Verification token is required");
+  }
 
-	try {
-		const auth = getBetterAuth(c);
-		await auth.api.verifyEmail({
-			query: {
-				token,
-			},
-			headers: new Headers(),
-		});
+  try {
+    const auth = getBetterAuth(c);
+    await auth.api.verifyEmail({
+      query: {
+        token,
+      },
+      headers: new Headers(),
+    });
 
-		const { payload } = await jwtVerify(
-			token,
-			new TextEncoder().encode(getBetterAuthSecret()),
-			{
-				algorithms: ["HS256"],
-			}
-		);
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(getBetterAuthSecret()),
+      {
+        algorithms: ["HS256"],
+      }
+    );
 
-		const payloadEmail =
-			typeof payload.email === "string" ? payload.email.toLowerCase() : undefined;
-		const updatedEmail =
-			typeof payload.updateTo === "string"
-				? payload.updateTo.toLowerCase()
-				: undefined;
+    const payloadEmail =
+      typeof payload.email === "string"
+        ? payload.email.toLowerCase()
+        : undefined;
+    const updatedEmail =
+      typeof payload.updateTo === "string"
+        ? payload.updateTo.toLowerCase()
+        : undefined;
 
-		const emailToLookup = updatedEmail || payloadEmail;
+    const emailToLookup = updatedEmail || payloadEmail;
 
-		if (!emailToLookup) {
-			throw new Error("Invalid verification token payload");
-		}
+    if (!emailToLookup) {
+      throw new Error("Invalid verification token payload");
+    }
 
-		const db = getControlPanelDb(c);
-		const userRecord = await db.query.user.findFirst({
-			where: eq(user.email, emailToLookup),
-		});
+    const db = getControlPanelDb(c);
+    const userRecord = await db.query.user.findFirst({
+      where: eq(user.email, emailToLookup),
+    });
 
-		if (!userRecord) {
-			throw new Error("User not found for verification token");
-		}
+    if (!userRecord) {
+      throw new Error("User not found for verification token");
+    }
 
-		return userRecord.id;
-	} catch (error) {
-		throw new Error(
-			`Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
-		);
-	}
+    return userRecord.id;
+  } catch (error) {
+    throw new Error(
+      `Email verification failed: ${error instanceof Error ? error.message : "Invalid or expired token"}`
+    );
+  }
 }
 
 /**
@@ -184,7 +189,10 @@ export async function verifyEmailToken(token: string, c?: Context): Promise<stri
  * await sendPasswordResetEmail("user@example.com", c); // c is Hono context
  * ```
  */
-export async function sendPasswordResetEmail(email: string, c?: Context): Promise<void> {
+export async function sendPasswordResetEmail(
+  email: string,
+  c?: Context
+): Promise<void> {
   if (!email) {
     throw new Error("Email is required");
   }
@@ -202,7 +210,9 @@ export async function sendPasswordResetEmail(email: string, c?: Context): Promis
 
     // Don't reveal if email exists (security best practice)
     // Always return success even if email not found
-    console.log(`Password reset email sent to ${email} via Resend (or email not found)`);
+    console.log(
+      `Password reset email sent to ${email} via Resend (or email not found)`
+    );
   } catch (error) {
     // Don't reveal error details (security best practice)
     console.error(`Failed to send password reset email: ${error}`);

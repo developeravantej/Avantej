@@ -29,6 +29,8 @@ export const organizations = pgTable("organizations", {
 	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected
 	stripeConnectAccountType: text("stripe_connect_account_type").default("franchiser").notNull(),
 	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
+	// Tenant schema migration tracking
+	schemaVersion: text("schema_version").default("0000"),
 }, (table) => ({
 	// Indexes for performance
 	// Note: slug and neonProjectId already have unique constraints/indexes via .unique()

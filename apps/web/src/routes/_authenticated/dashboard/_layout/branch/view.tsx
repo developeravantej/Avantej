@@ -26,6 +26,8 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { MemberReassignment } from "@/components/branch/member-reassignment";
+import { MemberSelector } from "@/components/branch/member-selector";
 
 export const Route = createFileRoute(
   "/_authenticated/dashboard/_layout/branch/view"
@@ -33,10 +35,19 @@ export const Route = createFileRoute(
   component: RouteComponent,
 });
 
+type HierarchyNode = {
+  id: string;
+  name: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  code?: string | null;
+};
+
 function RouteComponent() {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const { data: userContext, isLoading: isLoadingContext } = useUserContext();
+  const { data: userContext, isLoading: isLoadingContext, error: userContextError } = useUserContext();
   const navigate = useNavigate();
   const orgErrorShown = useRef(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -53,22 +64,19 @@ function RouteComponent() {
   const [editBranchCountryId, setEditBranchCountryId] = useState<string>("");
   const [editBranchRegionId, setEditBranchRegionId] = useState<string>("");
   const [editBranchAreaId, setEditBranchAreaId] = useState<string>("");
-  const [allHierarchyNodes, setAllHierarchyNodes] = useState<
-    Array<{
-      id: string;
-      name: string;
-      type: string;
-      depth: number;
-      parentId: string | null;
-    }>
-  >([]);
+  const [allHierarchyNodes, setAllHierarchyNodes] = useState<HierarchyNode[]>([]);
 
-  // Get organizationId from React Query data (single source of truth)
-  const organizationId =
+  // Get organizationId from React Query data (single source of truth).
+  // Only use for API calls when it's a valid UUID (server rejects e.g. mock "org-1").
+  const rawOrgId =
     userContext?.currentOrganizationId ||
     user?.current_organization_id ||
     user?.organizations?.[0]?.id ||
     null;
+  const organizationId =
+    rawOrgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawOrgId)
+      ? rawOrgId
+      : null;
 
   // Computed values for cascading dropdowns
   const countries = useMemo(
@@ -102,7 +110,7 @@ function RouteComponent() {
   // Use React Query to load all hierarchy nodes (for cascading dropdowns)
   const { data: hierarchyNodesData, error: hierarchyNodesError } = useQuery({
     queryKey: ["hierarchy-nodes", organizationId],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ nodes: HierarchyNode[] }> => {
       if (!organizationId) return { nodes: [] };
 
       // Try cached first
@@ -134,8 +142,10 @@ function RouteComponent() {
       return result;
     },
     enabled: !!organizationId && isAuthenticated,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: 1,
+    staleTime: 30 * 1000, // 30 seconds
+    retry: 2,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Update allHierarchyNodes state when hierarchyNodesData changes
@@ -173,21 +183,11 @@ function RouteComponent() {
       });
 
       // Filter branches and map with hierarchy
-      const branches = allNodes.filter((node) => {
-        const isBranch = node.type === "branch" && node.depth === 4;
-        if (node.type === "branch" && node.depth !== 4) {
-          console.warn(
-            `[mapBranchesWithHierarchy] Branch node ${node.id} (${node.name}) has unexpected depth: ${node.depth} (expected 4)`
-          );
-        }
-        if (node.id === "7cce143b-627c-472c-a6b6-57696e2b2a75") {
-          console.log("[mapBranchesWithHierarchy] Found target branch:", node);
-        }
-        return isBranch;
-      });
-
+      // First, get all nodes with type="branch"
+      const branchNodes = allNodes.filter((node) => node.type === "branch");
+      
       console.log(
-        "[mapBranchesWithHierarchy] Found ${branches.length} branches out of ${allNodes.length} total nodes"
+        `[mapBranchesWithHierarchy] Found ${branchNodes.length} nodes with type="branch" out of ${allNodes.length} total nodes`
       );
       console.log("[mapBranchesWithHierarchy] All node types:", [
         ...new Set(allNodes.map((n) => n.type)),
@@ -195,17 +195,33 @@ function RouteComponent() {
       console.log("[mapBranchesWithHierarchy] All depths:", [
         ...new Set(allNodes.map((n) => n.depth)),
       ]);
-      if (branches.length === 0 && allNodes.length > 0) {
-        const branchNodes = allNodes.filter((n) => n.type === "branch");
+
+      // Filter branches - prefer depth=4, but also include branches with wrong depth (with warning)
+      const branches = branchNodes.filter((node) => {
+        if (node.depth === 4) {
+          return true; // Correct depth
+        }
+        // Include branches with wrong depth but log warning
         console.warn(
-          `[mapBranchesWithHierarchy] Found ${branchNodes.length} nodes with type="branch" but none have depth=4`
+          `[mapBranchesWithHierarchy] Branch node ${node.id} (${node.name}) has unexpected depth: ${node.depth} (expected 4). Including anyway.`
+        );
+        return true; // Include even with wrong depth to prevent data loss
+      });
+
+      if (branchNodes.length > 0 && branches.length === 0) {
+        console.error(
+          `[mapBranchesWithHierarchy] CRITICAL: Found ${branchNodes.length} branch nodes but none passed filter!`
         );
         branchNodes.forEach((b) => {
-          console.warn(
-            `  - Branch ${b.id} (${b.name}): depth=${b.depth}, type=${b.type}`
+          console.error(
+            `  - Branch ${b.id} (${b.name}): depth=${b.depth}, type=${b.type}, parentId=${b.parentId}`
           );
         });
       }
+
+      console.log(
+        `[mapBranchesWithHierarchy] Filtered to ${branches.length} branches`
+      );
 
       return branches.map((branch) => {
         // Find parent nodes by traversing up the hierarchy
@@ -292,27 +308,60 @@ function RouteComponent() {
             }
           : null;
 
-      // Try cached hierarchy first
+      // Try cached hierarchy first (but prefer fresh data on page load)
+      // Only use cache if it's recent (less than 30 seconds old)
       const cachedHierarchy = localStorage.getItem(
         `org_${organizationId}_hierarchy`
       );
-      if (cachedHierarchy) {
-        try {
-          const hierarchy = JSON.parse(cachedHierarchy);
-          const allNodes = hierarchy.nodes || [];
-          console.log("Using cached hierarchy, nodes count:", allNodes.length);
-          const mappedBranches = mapBranchesWithHierarchy(
-            allNodes,
-            currentUser,
-            organizationId
+      const cacheTimestamp = localStorage.getItem(
+        `org_${organizationId}_hierarchy_timestamp`
+      );
+      
+      if (cachedHierarchy && cacheTimestamp) {
+        const cacheAge = Date.now() - parseInt(cacheTimestamp, 10);
+        const maxCacheAge = 30 * 1000; // 30 seconds
+        
+        if (cacheAge < maxCacheAge) {
+          try {
+            const hierarchy = JSON.parse(cachedHierarchy);
+            const allNodes = hierarchy.nodes || [];
+            console.log(
+              `Using cached hierarchy (${Math.round(cacheAge / 1000)}s old), nodes count:`,
+              allNodes.length
+            );
+            const mappedBranches = mapBranchesWithHierarchy(
+              allNodes,
+              currentUser,
+              organizationId
+            );
+            console.log("Mapped branches from cache:", mappedBranches.length);
+            
+            // If cache has no nodes, or has nodes but no branches, fetch fresh data
+            if (mappedBranches.length === 0) {
+              console.warn(
+                allNodes.length > 0
+                  ? "Cache has nodes but no branches found. Fetching fresh data..."
+                  : "Cache has no nodes. Fetching fresh data..."
+              );
+              localStorage.removeItem(`org_${organizationId}_hierarchy`);
+              localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
+            } else {
+              return { items: mappedBranches };
+            }
+          } catch (e) {
+            console.warn(
+              "Failed to parse cached hierarchy, fetching from API:",
+              e
+            );
+            localStorage.removeItem(`org_${organizationId}_hierarchy`);
+            localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
+          }
+        } else {
+          console.log(
+            `Cache is too old (${Math.round(cacheAge / 1000)}s), fetching fresh data`
           );
-          console.log("Mapped branches from cache:", mappedBranches.length);
-          return { items: mappedBranches };
-        } catch (e) {
-          console.warn(
-            "Failed to parse cached hierarchy, fetching from API:",
-            e
-          );
+          localStorage.removeItem(`org_${organizationId}_hierarchy`);
+          localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
         }
       }
 
@@ -366,6 +415,10 @@ function RouteComponent() {
           console.warn(
             "4. User needs to create branches first via /dashboard/branch/create"
           );
+          console.warn("Organization ID:", organizationId);
+          console.warn("Is Authenticated:", isAuthenticated);
+          // Clear stale cache
+          localStorage.removeItem(`org_${organizationId}_hierarchy`);
           return { items: [] };
         }
 
@@ -386,6 +439,16 @@ function RouteComponent() {
             nodes: result.nodes,
           })
         );
+        localStorage.setItem(
+          `org_${organizationId}_hierarchy_timestamp`,
+          Date.now().toString()
+        );
+
+        if (mappedBranches.length === 0) {
+          console.warn(
+            "[branches query] No branches found after mapping. Check console for details."
+          );
+        }
 
         return { items: mappedBranches };
       } catch (apiError: any) {
@@ -402,8 +465,10 @@ function RouteComponent() {
       }
     },
     enabled: !!organizationId && isAuthenticated,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: 1,
+    staleTime: 30 * 1000, // 30 seconds - shorter to ensure fresh data
+    retry: 2,
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch on mount
   });
 
   // Show error only once when we're sure there's no organization (after loading completes)
@@ -434,7 +499,7 @@ function RouteComponent() {
         errorMessage.includes("Not authenticated")
       ) {
         toast.error("Please log in to access this page");
-        navigate({ to: "/login" });
+        navigate({ to: "/login", search: {} });
       } else {
         toast.error(`Failed to load branches: ${errorMessage}`);
       }
@@ -593,22 +658,60 @@ function RouteComponent() {
         return;
       }
 
-      // Find current hierarchy position from allHierarchyNodes
-      const branchNode = allHierarchyNodes.find((n) => n.id === branch.id);
+      // Use hierarchyNodesData directly if available, otherwise fallback to allHierarchyNodes state
+      const hierarchyNodes: HierarchyNode[] =
+        (hierarchyNodesData?.nodes as HierarchyNode[] | undefined) ||
+        allHierarchyNodes;
+      
+      if (!hierarchyNodes || hierarchyNodes.length === 0) {
+        toast.error("Branch hierarchy not found. Please wait for data to load.");
+        return;
+      }
+
+      // Find current hierarchy position from hierarchy nodes
+      const branchNode = hierarchyNodes.find((n) => n.id === branch.id);
       if (!branchNode) {
+        // Fallback: try to use branch's area_id if available
+        if (branch.area_id) {
+          const currentArea = hierarchyNodes.find((n) => n.id === branch.area_id);
+          if (currentArea) {
+            const currentRegion = currentArea.parentId
+              ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
+              : null;
+            const currentCountry = currentRegion?.parentId
+              ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
+              : null;
+
+            setEditingBranch({
+              id: branch.id,
+              name: branch.name,
+              address: branch.address || null,
+              picUserId: branch.picUserId || null,
+              areaId: branch.area_id || null,
+            });
+            setEditBranchName(branch.name);
+            setEditBranchAddress(branch.address || "");
+            setEditBranchPicUserId(branch.picUserId || "");
+            setEditBranchCountryId(currentCountry?.id || "");
+            setEditBranchRegionId(currentRegion?.id || "");
+            setEditBranchAreaId(currentArea?.id || "");
+            setIsEditDialogOpen(true);
+            return;
+          }
+        }
         toast.error("Branch node not found in hierarchy");
         return;
       }
 
       // Find current area, region, country by traversing up the hierarchy
       const currentArea = branchNode.parentId
-        ? allHierarchyNodes.find((n) => n.id === branchNode.parentId)
+        ? hierarchyNodes.find((n) => n.id === branchNode.parentId)
         : null;
       const currentRegion = currentArea?.parentId
-        ? allHierarchyNodes.find((n) => n.id === currentArea.parentId)
+        ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
         : null;
       const currentCountry = currentRegion?.parentId
-        ? allHierarchyNodes.find((n) => n.id === currentRegion.parentId)
+        ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
         : null;
 
       setEditingBranch({
@@ -626,7 +729,7 @@ function RouteComponent() {
       setEditBranchAreaId(currentArea?.id || "");
       setIsEditDialogOpen(true);
     },
-    [allHierarchyNodes]
+    [allHierarchyNodes, hierarchyNodesData]
   );
 
   // Handle edit dialog submit
@@ -765,6 +868,7 @@ function RouteComponent() {
               onClick={() => {
                 if (organizationId) {
                   localStorage.removeItem(`org_${organizationId}_hierarchy`);
+                  localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
                   queryClient.invalidateQueries({
                     queryKey: ["branches", organizationId],
                   });
@@ -780,7 +884,9 @@ function RouteComponent() {
             </Button>
           </div>
           <p>Organization ID: {organizationId || "None"}</p>
+          <p>Context user email: {userContext?.user?.email ?? "—"}</p>
           <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
+          <p>User Context Error: {userContextError ? String(userContextError) : "None"}</p>
           <p>Branch Data Items: {branchData?.items?.length || 0}</p>
           <p>Is Loading Branches: {isLoadingBranches ? "Yes" : "No"}</p>
           <p>Error: {error ? String(error) : "None"}</p>
@@ -818,12 +924,38 @@ function RouteComponent() {
           )}
         </div>
       )}
-      <DataTable
-        columns={columns}
-        data={branchData?.items || []}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      
+      {/* Empty State */}
+      {!isLoadingBranches && branchData?.items?.length === 0 && (
+        <div className="py-12 text-center border rounded-lg bg-gray-50">
+          <p className="text-lg font-medium text-gray-900 mb-2">
+            No branches found
+          </p>
+          <p className="text-sm text-gray-600 mb-4">
+            {organizationId
+              ? "Create your first branch to get started."
+              : "Please ensure you're logged in and have an organization selected."}
+          </p>
+          {organizationId && (
+            <Link to="/dashboard/branch/create">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Branch
+              </Button>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Data Table */}
+      {!isLoadingBranches && branchData?.items && branchData.items.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={branchData.items}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
 
       {/* Edit Branch Dialog */}
       <Transition appear show={isEditDialogOpen} as={Fragment}>
@@ -980,19 +1112,56 @@ function RouteComponent() {
                     {/* PIC User ID */}
                     <div className="space-y-2">
                       <Label htmlFor="branch-pic">
-                        Person In Charge (User ID)
+                        Person In Charge
                       </Label>
-                      <Input
-                        id="branch-pic"
-                        value={editBranchPicUserId}
-                        onChange={(e) => setEditBranchPicUserId(e.target.value)}
-                        placeholder="Enter user ID for Person In Charge"
-                      />
+                      {organizationId ? (
+                        <MemberSelector
+                          organizationId={organizationId}
+                          value={editBranchPicUserId}
+                          onChange={setEditBranchPicUserId}
+                          placeholder="Select Person In Charge"
+                          allowClear={true}
+                          disabled={updateMutation.isPending || moveMutation.isPending}
+                        />
+                      ) : (
+                        <Input
+                          id="branch-pic"
+                          value={editBranchPicUserId}
+                          onChange={(e) => setEditBranchPicUserId(e.target.value)}
+                          placeholder="Enter user ID for Person In Charge"
+                          disabled
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">
-                        Enter the user ID of the person in charge. Leave empty
-                        to clear.
+                        Select the person in charge for this branch from the organization members.
                       </p>
                     </div>
+
+                    {/* Members Section */}
+                    {editingBranch?.id && organizationId && (
+                      <div className="pt-4 border-t">
+                        <MemberReassignment
+                          branchId={editingBranch.id}
+                          organizationId={organizationId}
+                          allBranches={allHierarchyNodes.filter(
+                            (node) => node.type === "branch"
+                          )}
+                          picUserId={editBranchPicUserId || editingBranch.picUserId || null}
+                          onReassigned={() => {
+                            // Invalidate queries to refresh data
+                            queryClient.invalidateQueries({
+                              queryKey: ["branches", organizationId],
+                            });
+                            queryClient.invalidateQueries({
+                              queryKey: ["user-context"],
+                            });
+                            queryClient.invalidateQueries({
+                              queryKey: ["branch-members", organizationId, editingBranch.id],
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
                     <Button

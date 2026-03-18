@@ -16,6 +16,7 @@ import { hierarchyNodes } from "./hierarchy";
 export const serviceCategories = pgTable("service_categories", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	name: text("name").notNull(),
+	description: text("description"),
 	displayOrder: integer("display_order").default(0).notNull(),
 	branchId: uuid("branch_id").references(() => hierarchyNodes.id, { onDelete: "restrict" }), // Scoped to branch
 	isActive: boolean("is_active").default(true).notNull(),

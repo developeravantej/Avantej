@@ -20,6 +20,7 @@
     "test:email:integration": "bun test src/lib/email.integration.test.ts",
     "test:auth": "bun test src/services/auth.service.test.ts",
     "test:auth:email": "bun test src/tests/integration/auth-email.test.ts",
+    "backup:tenant": "bun run scripts/backup-tenant-tables.ts",
     "cleanup:test-projects": "bun run scripts/cleanup-test-projects.ts",
     "inspect-test-data": "bun run scripts/inspect-and-cleanup-test-data.ts",
     "inspect-test-data:inspect-only": "bun run scripts/inspect-and-cleanup-test-data.ts --inspect-only",

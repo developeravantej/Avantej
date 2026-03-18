@@ -96,6 +96,10 @@ function createBetterAuthDb(c?: Context) {
  * @returns Better-Auth instance configured with request-scoped database
  */
 function createBetterAuth(c?: Context) {
+  // Determine if we're running over HTTPS (production) or HTTP (development)
+  const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
+  const isHttps = betterAuthUrl.startsWith("https://");
+
   return betterAuth({
     database: drizzleAdapter(createBetterAuthDb(c), {
       provider: "pg",
@@ -190,8 +194,8 @@ function createBetterAuth(c?: Context) {
   baseURL: getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000",
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
+      sameSite: isHttps ? "none" : "lax",
+      secure: isHttps,
       httpOnly: true,
     },
     // uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains

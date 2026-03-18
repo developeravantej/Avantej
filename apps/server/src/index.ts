@@ -4,8 +4,13 @@ import { orpcTenantMiddleware } from "@/middleware/orpc-tenant.middleware";
 import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
+import { invitationRoutes } from "@/routes/invitations.routes";
+import { webhookRoutes } from "@/routes/webhooks.routes";
+import { authRouter } from "@/routers/auth";
+import { serverInvitationRouter } from "@/routers/invitations";
+import { adminRouter } from "@/routers/admin";
 import { createContext } from "@avantej-core/api/context";
-import { appRouter } from "@avantej-core/api/routers/index";
+import { baseRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -16,13 +21,27 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+const ALLOWED_ORIGIN = (typeof env !== "undefined" && env?.CORS_ORIGIN) || "http://localhost:3001";
+
+// Combine base router with server-specific routers
+const appRouter = {
+	...baseRouter,
+	auth: authRouter,
+	// Extend invitations router with server-specific sendEmail procedure
+	invitations: {
+		...baseRouter.invitations,
+		...serverInvitationRouter,
+	},
+	admin: adminRouter,
+};
+
 const app = new Hono();
 
 app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN || "http://localhost:3001", // Add fallback for local development
+    origin: ALLOWED_ORIGIN,
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -37,7 +56,21 @@ app.use("/*", dbMiddleware);
 // Must run after dbMiddleware but before createContext
 app.use("/*", orpcTenantMiddleware);
 
-// Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
+// Better-Auth handler for internal auth routes (e.g., /api/auth/get-session, sign-in, sign-up)
+// OPTIONS: respond to CORS preflight so browser allows GET/POST from web origin
+app.on(["OPTIONS"], "/api/auth/*", (_c) => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+      "Access-Control-Allow-Credentials": "true",
+    },
+  });
+});
+
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
@@ -57,7 +90,18 @@ app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 
   // Use request-scoped Better-Auth instance
   const auth = getBetterAuth(c);
-  return auth.handler(newRequest);
+  const response = await auth.handler(newRequest);
+
+  // Ensure CORS headers on auth response (browser requires them for cross-origin requests)
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  newHeaders.set("Access-Control-Allow-Credentials", "true");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
 });
 
 // Custom auth routes following OpenAPI contract
@@ -68,6 +112,12 @@ app.route("/orgs", organizationRoutes);
 
 // Hierarchy routes (nested under organizations)
 app.route("/orgs/:organizationId/hierarchy", hierarchyRoutes);
+
+// Invitation routes (for email sending)
+app.route("/api/invitations", invitationRoutes);
+
+// Webhook routes (external integrations)
+app.route("/webhooks", webhookRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
@@ -90,7 +140,8 @@ export const rpcHandler = new RPCHandler(appRouter, {
   ],
 });
 
-app.use("/*", async (c, next) => {
+// oRPC and OpenAPI handlers - only for specific prefixes
+app.use("/rpc/*", async (c, next) => {
   const context = await createContext({ context: c });
 
   const rpcResult = await rpcHandler.handle(c.req.raw, {
@@ -101,6 +152,12 @@ app.use("/*", async (c, next) => {
   if (rpcResult.matched) {
     return c.newResponse(rpcResult.response.body, rpcResult.response);
   }
+
+  await next();
+});
+
+app.use("/api-reference/*", async (c, next) => {
+  const context = await createContext({ context: c });
 
   const apiResult = await apiHandler.handle(c.req.raw, {
     prefix: "/api-reference",

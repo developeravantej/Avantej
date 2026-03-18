@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +12,7 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -31,16 +30,35 @@ const formSchema = z
 
 export function SignupForm({
 	className,
+	invitationEmail,
+	invitationToken,
+	orgId,
+	onSignupSuccess,
 	...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & {
+	invitationEmail?: string;
+	invitationToken?: string;
+	orgId?: string;
+	onSignupSuccess?: () => void;
+}) {
 	const navigate = useNavigate();
-	const { isPending } = authClient.useSession();
+	const { isPending, refetch } = authClient.useSession();
+	
+	// Read search params without 'from' - will work on any route but may be undefined
+	// Props take precedence, so this is just a fallback for when used on /signup route
+	const searchParams = useSearch({ strict: false });
+	const searchInvitationToken = searchParams.invitationToken as string | undefined;
+	const searchOrgId = searchParams.orgId as string | undefined;
+	
+	// Use props first, then search params
+	const finalInvitationToken = invitationToken || searchInvitationToken;
+	const finalOrgId = orgId || searchOrgId;
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			name: "",
-			email: "",
+			email: invitationEmail || "", // Pre-fill email from invitation
 			password: "",
 			confirmPassword: "",
 		},
@@ -48,6 +66,16 @@ export function SignupForm({
 
 	async function onSubmit(values: z.infer<typeof formSchema>) {
 		try {
+			// Validate email matches invitation if provided
+			if (invitationEmail && values.email.toLowerCase() !== invitationEmail.toLowerCase()) {
+				toast.error(`This invitation was sent to ${invitationEmail}. Please use that email address.`);
+				form.setError("email", {
+					type: "manual",
+					message: `This invitation was sent to ${invitationEmail}`,
+				});
+				return;
+			}
+
 			await authClient.signUp.email(
 				{
 					email: values.email,
@@ -55,73 +83,135 @@ export function SignupForm({
 					name: values.name,
 				},
 				{
-					onSuccess: () => {
-						toast.success("Sign up successful");
-						navigate({ to: "/dashboard" });
+					onSuccess: async () => {
+						toast.success("Account created successfully!");
+						
+						// Refresh session to ensure user is logged in
+						await refetch();
+						
+						// Small delay to ensure session is propagated
+						await new Promise(resolve => setTimeout(resolve, 300));
+						
+						// Call onSignupSuccess callback if provided (for auto-accept)
+						if (onSignupSuccess) {
+							await onSignupSuccess();
+						} else if (finalInvitationToken && finalOrgId) {
+							// Otherwise redirect to accept invitation page
+							navigate({
+								to: "/accept-invitation",
+								search: { token: finalInvitationToken, orgId: finalOrgId },
+							});
+						} else {
+							navigate({ to: "/dashboard" });
+						}
 					},
 					onError: (error) => {
-						toast.error(error.error.message || error.error.statusText);
+						// Check if user already exists
+						const errorMessage = error.error.message || error.error.statusText || "";
+						const isUserExists = 
+							errorMessage.toLowerCase().includes("already exists") ||
+							errorMessage.toLowerCase().includes("user already") ||
+							errorMessage.toLowerCase().includes("email already") ||
+							errorMessage.toLowerCase().includes("duplicate") ||
+							errorMessage.toLowerCase().includes("already registered");
+						
+						if (isUserExists) {
+							// User already exists - redirect to login with invitation params
+							toast.info("Account already exists. Please log in to accept the invitation.");
+							if (finalInvitationToken && finalOrgId) {
+								navigate({
+									to: "/login",
+									search: { invitationToken: finalInvitationToken, orgId: finalOrgId },
+								});
+							} else {
+								navigate({ to: "/login", search: {} });
+							}
+						} else {
+							toast.error(errorMessage || "Signup failed");
+						}
 					},
 				}
 			);
 		} catch (error: any) {
 			console.error("Signup error:", error);
-			toast.error(error.message || "Signup failed");
+			const errorMessage = error.message || "Signup failed";
+			
+			// Check if user already exists
+			const isUserExists = 
+				errorMessage.toLowerCase().includes("already exists") ||
+				errorMessage.toLowerCase().includes("user already") ||
+				errorMessage.toLowerCase().includes("email already") ||
+				errorMessage.toLowerCase().includes("duplicate");
+			
+			if (isUserExists && finalInvitationToken && finalOrgId) {
+				toast.info("Account already exists. Please log in to accept the invitation.");
+				navigate({
+					to: "/login",
+					search: { invitationToken: finalInvitationToken, orgId: finalOrgId },
+				});
+			} else if (isUserExists) {
+				toast.info("Account already exists. Please log in.");
+				navigate({ to: "/login", search: {} });
+			} else {
+				toast.error(errorMessage);
+			}
 		}
 	}
 
 	return (
 		<div
-			className={cn("flex flex-col gap-6 min-w-[400px]", className)}
+			className={cn("flex flex-col gap-6", className)}
 			{...props}
 		>
-			<Card>
-				<CardHeader>
-					<CardTitle>Create an account</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Form {...form}>
-						<form onSubmit={form.handleSubmit(onSubmit)}>
-							<div className="flex flex-col gap-6">
-								<FormField
-									control={form.control}
-									name="name"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Name</FormLabel>
-											<FormControl>
-												<Input
-													id="name"
-													placeholder="John Doe"
-													required
-													{...field}
-													disabled={isPending}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
+			<Form {...form}>
+				<form onSubmit={form.handleSubmit(onSubmit)}>
+					<div className="flex flex-col gap-6">
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Full Name</FormLabel>
+									<FormControl>
+										<Input
+											id="name"
+											placeholder="John Doe"
+											required
+											{...field}
+											disabled={isPending}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Email Address</FormLabel>
+									<FormControl>
+										<Input
+											id="email"
+											type="email"
+											placeholder="example@gmail.com"
+											required
+											{...field}
+											disabled={isPending || !!invitationEmail} // Disable if pre-filled from invitation
+											readOnly={!!invitationEmail} // Make read-only if pre-filled
+											className={invitationEmail ? "bg-muted" : ""}
+										/>
+									</FormControl>
+									{invitationEmail && (
+										<p className="text-xs text-muted-foreground mt-1">
+											This email is required for this invitation
+										</p>
 									)}
-								/>
-								<FormField
-									control={form.control}
-									name="email"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Email</FormLabel>
-											<FormControl>
-												<Input
-													id="email"
-													type="email"
-													placeholder="example@gmail.com"
-													required
-													{...field}
-													disabled={isPending}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 								<FormField
 									control={form.control}
 									name="password"
@@ -160,30 +250,31 @@ export function SignupForm({
 										</FormItem>
 									)}
 								/>
-								<div className="flex flex-col gap-3">
-									<Button
-										type="submit"
-										className="w-full"
-										disabled={isPending || form.formState.isSubmitting}
-									>
-										{form.formState.isSubmitting ? "Submitting..." : "Signup"}
-									</Button>
-								</div>
-							</div>
+						<div className="flex flex-col gap-3">
+							<Button
+								type="submit"
+								className="w-full"
+								disabled={isPending || form.formState.isSubmitting}
+							>
+								{form.formState.isSubmitting 
+									? "Creating Account..." 
+									: invitationEmail 
+										? "Sign Up & Accept Invitation" 
+										: "Sign Up"}
+							</Button>
+						</div>
+					</div>
+						{!invitationEmail && (
 							<div className="mt-4 text-center text-sm">
 								Already have an account?{" "}
-								<Link to="/login" className="underline underline-offset-4">
+								<Link to="/login" search={{}} className="underline underline-offset-4">
 									Login
 								</Link>
 							</div>
-						</form>
-					</Form>
-				</CardContent>
-			</Card>
+						)}
+				</form>
+			</Form>
 		</div>
 	);
 }
-
-
-
 

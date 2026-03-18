@@ -12,14 +12,17 @@ import { authClient } from "@/lib/auth-client";
  */
 export const Route = createFileRoute("/_authenticated")({
 	beforeLoad: async () => {
-		const session = await authClient.getSession();
-		if (!session.data) {
-			throw redirect({
-				to: "/login",
-				throw: true,
-			});
+		try {
+			const session = await authClient.getSession();
+			if (!session.data) {
+				throw redirect({ to: "/login", search: {} });
+			}
+		} catch (err) {
+			// If it's a redirect, re-throw it
+			if (err && typeof err === "object" && "to" in err) throw err;
+			// Network / server error — redirect to login
+			throw redirect({ to: "/login", search: {} });
 		}
-		// Return session in context for child routes if needed
 		return {};
 	},
 	component: AuthenticatedLayout,
@@ -34,4 +37,3 @@ function AuthenticatedLayout() {
 		</AppLayout>
 	);
 }
-

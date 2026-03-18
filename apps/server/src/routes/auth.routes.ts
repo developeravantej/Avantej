@@ -14,32 +14,31 @@
  * - POST /auth/refresh - Refresh access token
  */
 
-import { Hono } from "hono";
 import { getBetterAuth } from "@/lib/better-auth";
 import { getControlPanelDb } from "@/lib/db";
-import { decrypt } from "@avantej-core/db";
-import { eq, isNull } from "drizzle-orm";
-import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
-import { getDescendantNodeIds } from "@avantej-core/services";
-import { Pool } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { authMiddleware } from "@/middleware/auth.middleware";
 import {
+  resetPassword,
+  sendPasswordResetEmail,
   sendVerificationEmail,
   verifyEmailToken,
-  sendPasswordResetEmail,
-  resetPassword,
 } from "@/services/auth.service";
-import { authMiddleware } from "@/middleware/auth.middleware";
+import { decrypt } from "@avantej-core/db";
+import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { getDescendantNodeIds } from "@avantej-core/services";
 import type { BetterAuthGetSessionResponse } from "@avantej-core/types/better-auth";
 import {
-  isBetterAuthSignUpResponse,
-  isBetterAuthSignInResponse,
   isBetterAuthError,
+  isBetterAuthSignInResponse,
+  isBetterAuthSignUpResponse,
 } from "@avantej-core/types/better-auth";
+import { Pool } from "@neondatabase/serverless";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Hono } from "hono";
 
 export const authRoutes = new Hono();
 
@@ -411,7 +410,9 @@ authRoutes.get("/organizations", authMiddleware, async (c) => {
     })) as BetterAuthGetSessionResponse;
 
     if (!session || !session.user) {
-      console.error("Get organizations error: Unauthorized - No session or user");
+      console.error(
+        "Get organizations error: Unauthorized - No session or user"
+      );
       return c.json({ error: "Unauthorized" }, 401);
     }
 
@@ -552,10 +553,13 @@ authRoutes.get("/user-context", authMiddleware, async (c) => {
         const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
 
         try {
-          // Get all active hierarchy nodes (exclude soft-deleted)
+          // Get all hierarchy nodes (no soft-delete in current schema)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const allNodes = await tenantDb.query.hierarchyNodes.findMany({
-            where: (nodes, { isNull }) => isNull(nodes.deletedAt), // Only active nodes
-            orderBy: (nodes, { asc }) => [asc(nodes.depth), asc(nodes.name)],
+            orderBy: (nodes: any, { asc }: any) => [
+              asc(nodes.depth),
+              asc(nodes.name),
+            ],
           });
 
           hierarchyData.nodes = allNodes.map((node) => ({

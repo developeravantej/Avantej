@@ -26,6 +26,7 @@ export function NotFoundComponent() {
 
               <Link
                 to="/"
+                search={{}}
                 className={buttonVariants({
                   size: "lg",
                   variant: "default",
@@ -40,7 +41,6 @@ export function NotFoundComponent() {
     </section>
   );
 }
-
 
 
 

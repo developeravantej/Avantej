@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppointmentCalendar } from "@/components/calendar/appointment";
 import { requirePermission } from "@/lib/route-guards";
+import { useUserContext } from "@/hooks/useUserContext";
+import { useQuery } from "@tanstack/react-query";
+import { client } from "@/utils/orpc";
+import { useMemo } from "react";
+import {
+	mapApiAppointmentToCalendar,
+	getAppointmentQueryRange,
+} from "@/lib/appointment-mapper";
 
 /**
  * Appointment View Route
- * 
+ *
  * Calendar view for managing appointments with monthly and weekly views.
  * Requires: appointment_management:read permission
  */
@@ -19,44 +27,65 @@ export const Route = createFileRoute("/_authenticated/appointment/view")({
 });
 
 function AppointmentViewComponent() {
-	// TODO: Replace with actual API call when backend is ready
-	// const { data: appointments } = useQuery(apiClient.getListAppointments.queryOptions());
-	
-	// Mock data for UI development
-	const mockAppointments = [
-		{
-			id: "1",
-			title: "Personal Training",
-			start: new Date(2024, 0, 15, 10, 0),
-			end: new Date(2024, 0, 15, 11, 0),
-			status: "confirmed" as const,
-			clientName: "John Client",
-			service: "Personal Training Session",
-			assignedTo: {
-				id: "1",
-				name: "John Doe",
-				email: "john@example.com",
-				color: "#3b82f6",
-			},
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
+
+	const { startFrom, startTo } = getAppointmentQueryRange();
+
+	const {
+		data: apiAppointments = [],
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["appointments", organizationId, startFrom, startTo],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.appointments.list({
+				organizationId,
+				startFrom,
+				startTo,
+				limit: 200,
+			});
 		},
-		{
-			id: "2",
-			title: "Group Class",
-			start: new Date(2024, 0, 15, 14, 0),
-			end: new Date(2024, 0, 15, 15, 0),
-			status: "pending" as const,
-			clientName: "Jane Client",
-			service: "Group Fitness Class",
-		},
-	];
+		enabled: !!organizationId,
+		staleTime: 60 * 1000,
+	});
+
+	const appointments = useMemo(
+		() => apiAppointments.map(mapApiAppointmentToCalendar),
+		[apiAppointments]
+	);
+
+	if (!organizationId) {
+		return (
+			<div className="space-y-4">
+				<h1 className="text-3xl font-bold">Appointments</h1>
+				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="space-y-4">
+				<h1 className="text-3xl font-bold">Appointments</h1>
+				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">Appointments</h1>
 			</div>
-			<AppointmentCalendar appointments={mockAppointments} />
+			{isLoading ? (
+				<div className="flex items-center justify-center py-24 text-muted-foreground">
+					Loading appointments...
+				</div>
+			) : (
+				<AppointmentCalendar appointments={appointments} />
+			)}
 		</div>
 	);
 }
-

@@ -42,11 +42,41 @@ export const services = pgTable("services", {
 	
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+
+	// ========== NEW FIELDS ==========
+
+	// Display info
+	title: text("title"),
+	description: text("description"),
+	imageUrl: text("image_url"),
+
+	// Service type
+	type: text("type").default("private").notNull(), // "private" | "semi_private"
+
+	// Pricing display (for mobile app catalog)
+	price: integer("price"), // Display price in cents
+	priceUnit: text("price_unit").default("session"), // "session" | "class" | "package"
+
+	// Tax configuration
+	taxable: boolean("taxable").default(false).notNull(),
+	taxPercentage: integer("tax_percentage").default(0).notNull(), // 0-100
+
+	// Discovery
+	isRecommended: boolean("is_recommended").default(false).notNull(),
+	location: text("location"),
+	features: text("features").array(),
+
+	// Scheduling
+	schedulingType: text("scheduling_type").default("appointment").notNull(),
+	// "appointment" (flexible booking) | "class_slot" (pre-defined slots)
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),
 	branchIdIdx: index("services_branch_idx").on(table.branchId),
 	stripeProductIdIdx: index("services_stripe_product_idx").on(table.stripeProductId),
 	stripeSyncStatusIdx: index("services_stripe_sync_status_idx").on(table.stripeSyncStatus),
 	isActiveIdx: index("services_active_idx").on(table.isActive),
+	typeIdx: index("services_type_idx").on(table.type),
+	recommendedIdx: index("services_recommended_idx").on(table.isRecommended),
+	schedulingTypeIdx: index("services_scheduling_type_idx").on(table.schedulingType),
 }));
 

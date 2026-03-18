@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getServerUrl } from "@/lib/config";
+import { client } from "@/utils/orpc";
 
 export interface UserContextResponse {
   user: {
@@ -34,26 +34,74 @@ export interface UserContextResponse {
   currentOrganizationId: string | null;
 }
 
+// Mock data for development (when API is not available).
+// currentOrganizationId is null so we never send mock "org-1" to the API (server expects UUID).
+const MOCK_USER_CONTEXT: UserContextResponse = {
+  user: {
+    id: "mock-user-1",
+    email: "demo@avantej.com",
+    name: "Demo User",
+    emailVerified: true,
+  },
+  organizations: [
+    {
+      id: "org-1",
+      name: "Demo Franchise",
+      slug: "demo-franchise",
+      role: "Organization Owner",
+      hierarchy: {
+        nodes: [
+          {
+            id: "node-1",
+            name: "Headquarters",
+            type: "region",
+            depth: 0,
+            parentId: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: "node-2",
+            name: "Branch A",
+            type: "branch",
+            depth: 1,
+            parentId: "node-1",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: "node-3",
+            name: "Branch B",
+            type: "branch",
+            depth: 1,
+            parentId: "node-1",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        member: {
+          role: "Organization Owner",
+          hierarchyScopeId: "node-1",
+          hierarchyScopeName: "Headquarters",
+          accessibleNodeIds: ["node-1", "node-2", "node-3"],
+        },
+      },
+    },
+  ],
+  currentOrganizationId: null,
+};
+
 export function useUserContext(enabled = true) {
   return useQuery<UserContextResponse>({
     queryKey: ["user-context"],
     queryFn: async () => {
-      const serverUrl = getServerUrl();
-      const response = await fetch(`${serverUrl}/auth/user-context`, {
-        method: "GET",
-        credentials: "include",
-      });
+      // Use oRPC client for type-safe API calls
+      const data = await client.auth.userContext({});
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch user context");
-      }
-
-      const data = await response.json();
-      
       // Persist to localStorage for offline/quick access
       if (data.organizations?.length > 0) {
         localStorage.setItem("user_organizations", JSON.stringify(
-          data.organizations.map((org: UserContextResponse["organizations"][0]) => ({
+          data.organizations.map((org) => ({
             id: org.id,
             name: org.name,
             slug: org.slug,
@@ -61,28 +109,30 @@ export function useUserContext(enabled = true) {
           }))
         ));
         localStorage.setItem("current_organization_id", data.currentOrganizationId || data.organizations[0].id);
-        
+
         // Cache hierarchy data
-        data.organizations.forEach((org: UserContextResponse["organizations"][0]) => {
+        data.organizations.forEach((org) => {
           if (org.hierarchy?.nodes) {
             localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
           }
         });
       }
 
-      return data;
+      return data as UserContextResponse;
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - data doesn't change often
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 1,
-    // Use localStorage as initial data if available
+    // Use localStorage as initial data if available (faster first render).
+    // Don't use stored "org-1" as currentOrganizationId (server expects UUID).
     initialData: () => {
       try {
         const storedOrgs = localStorage.getItem("user_organizations");
         const storedOrgId = localStorage.getItem("current_organization_id");
         if (storedOrgs && storedOrgId) {
           const orgs = JSON.parse(storedOrgs);
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storedOrgId);
           return {
             user: {
               id: "",
@@ -90,20 +140,36 @@ export function useUserContext(enabled = true) {
               name: "",
               emailVerified: false,
             },
-            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => ({
-              ...org,
-              hierarchy: { nodes: [], member: null },
-            })),
-            currentOrganizationId: storedOrgId,
+            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => {
+              let hierarchy: UserContextResponse["organizations"][0]["hierarchy"] = { nodes: [], member: null };
+              try {
+                const cachedHierarchy = localStorage.getItem(`org_${org.id}_hierarchy`);
+                if (cachedHierarchy) {
+                  hierarchy = JSON.parse(cachedHierarchy);
+                }
+              } catch {
+                // ignore
+              }
+              return { ...org, hierarchy };
+            }),
+            currentOrganizationId: isUuid ? storedOrgId : null,
           } as UserContextResponse;
         }
       } catch {
         // Ignore parse errors
       }
+      // Return undefined so TanStack Query fetches fresh data immediately
       return undefined;
     },
   });
 }
+
+
+
+
+
+
+
 
 
 

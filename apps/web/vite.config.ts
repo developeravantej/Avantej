@@ -12,4 +12,26 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},
+	server: {
+		// In local dev the API (Wrangler) runs on :3000 while the web app runs on :3001.
+		// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
+		proxy: {
+			"/rpc": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+			"/api": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+			"/auth": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+			"/api-reference": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+		},
+	},
 });
