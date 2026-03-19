@@ -64,6 +64,13 @@
       "when": 1762147327394,
       "tag": "0008_productive_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773917301084,
+      "tag": "0009_short_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

@@ -1,18 +1,19 @@
 /**
  * Tenant Hierarchy Nodes Schema
- * 
+ *
  * Represents the 5-level organizational hierarchy within a tenant organization:
  * organization (0) → country (1) → region (2) → area (3) → branch (4)
- * 
+ *
  * Each tenant database has its own isolated hierarchy_nodes table.
  * No organizationId field needed since each tenant has its own database.
- * 
+ *
  * Business Rules:
  * - Fixed 5-level depth: organization (0) → country (1) → region (2) → area (3) → branch (4)
  * - Cannot add nodes deeper than branch level (depth > 4) (enforced in app layer)
  * - Cannot delete node with active child nodes (enforced in app layer)
  * - Cannot delete node with assigned members (enforced in app layer)
- * - Node names unique within parent scope (enforced in app layer)
+ * - Branch names must be globally unique across organization (enforced by database constraint)
+ * - Other node names unique within parent scope (enforced in app layer)
  * - At least one active branch must exist under organization (enforced in app layer)
  * - Deletion is hard delete (permanently removes the record)
  */
@@ -36,5 +37,8 @@ export const hierarchyNodes = pgTable("hierarchy_nodes", {
 	typeIdx: index("hierarchy_type_idx").on(table.type),
 	depthIdx: index("hierarchy_depth_idx").on(table.depth),
 	picUserIdIdx: index("hierarchy_pic_user_idx").on(table.picUserId),
+	// Note: Partial unique index on branch names is added via migration script
+	// (Drizzle doesn't support partial unique constraints directly)
+	// SQL: CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique" ON "hierarchy_nodes"("name") WHERE "type" = 'branch';
 }));
 

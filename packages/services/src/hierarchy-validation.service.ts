@@ -124,8 +124,23 @@ export async function validateHierarchyRules(
     }
   }
 
-  // Rule 5: Check for duplicate names within parent scope
-  if (parentId) {
+  // Rule 5: Check for duplicate names
+  if (type === "branch") {
+    // For branches: check global uniqueness (enforced by database constraint)
+    const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+      where: and(
+        eq(hierarchyNodes.name, name),
+        eq(hierarchyNodes.type, "branch")
+      ),
+    });
+
+    if (existingBranch) {
+      throw new Error(
+        `Branch name "${name}" already exists. Branch names must be unique across your organization.`
+      );
+    }
+  } else if (parentId) {
+    // For other node types: check uniqueness within parent scope
     const existingNode = await tenantDb.query.hierarchyNodes.findFirst({
       where: and(
         eq(hierarchyNodes.name, name),
