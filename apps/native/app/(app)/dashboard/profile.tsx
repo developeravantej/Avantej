@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
+	Alert,
 	ScrollView,
 	Switch,
 	Text,
@@ -10,14 +11,33 @@ import {
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
 import { colors } from "@/lib/colors";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ProfileScreen() {
-	// User data
+	const { user, logout } = useAuth();
+
+	const handleLogout = () => {
+		Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Sign Out",
+				style: "destructive",
+				onPress: () => logout(),
+			},
+		]);
+	};
+
+	// User data — pre-fill from session
 	const [userData, setUserData] = useState({
-		fullName: "Alex Johnson",
-		email: "alex.johnson@example.com",
-		phoneNumber: "+1 (555) 123-4567",
-		memberSince: "January 2024",
+		fullName: user?.name || "",
+		email: user?.email || "",
+		phoneNumber: "",
+		memberSince: user?.createdAt
+			? new Date(user.createdAt).toLocaleDateString("en-US", {
+					month: "long",
+					year: "numeric",
+				})
+			: "",
 	});
 
 	// Notification preferences
@@ -270,7 +290,7 @@ export default function ProfileScreen() {
 							</TouchableOpacity>
 
 							{/* Terms & Privacy */}
-							<TouchableOpacity className="flex-row items-center p-4">
+							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
 								<Ionicons
 									name="document-text-outline"
 									size={20}
@@ -284,6 +304,21 @@ export default function ProfileScreen() {
 									size={20}
 									color={colors.secondary[1]}
 								/>
+							</TouchableOpacity>
+
+							{/* Sign Out */}
+							<TouchableOpacity
+								onPress={handleLogout}
+								className="flex-row items-center p-4"
+							>
+								<Ionicons
+									name="log-out-outline"
+									size={20}
+									color="#EF4444"
+								/>
+								<Text className="ml-3 flex-1 text-base text-red-500">
+									Sign Out
+								</Text>
 							</TouchableOpacity>
 						</View>
 					</View>

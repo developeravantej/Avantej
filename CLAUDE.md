@@ -117,5 +117,5 @@ Uses TanStack Router with file-based routing in `apps/web/src/routes/`. Route fi
 
 ## Test Credentials
 
-- Control Panel: `developer.avantej@gmail.com` / `password123`
+- Control Panel: `developer.avantej@gmail.com` / `password1234`
 - Tenant DB: `franchisee@gmail.com` / `password123`

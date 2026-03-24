@@ -3,6 +3,7 @@ import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createDb } from "@avantej-core/db";
 import * as schema from "@avantej-core/db/schema/auth";
+import { eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 
 // Create database instance using Cloudflare Workers env
@@ -16,6 +17,23 @@ export const auth = betterAuth<BetterAuthOptions>({
   trustedOrigins: [env.CORS_ORIGIN, "mybettertapp://", "exp://"],
   emailAndPassword: {
     enabled: true,
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const existing = await db
+            .select({ id: schema.user.id })
+            .from(schema.user)
+            .where(eq(schema.user.email, user.email))
+            .limit(1);
+          if (existing.length > 0) {
+            return false;
+          }
+          return { data: user };
+        },
+      },
+    },
   },
   // uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains
   // session: {

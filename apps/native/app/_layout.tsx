@@ -6,7 +6,7 @@ import {
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
@@ -24,10 +24,6 @@ const LIGHT_THEME: Theme = {
 const DARK_THEME: Theme = {
 	...DarkTheme,
 	colors: NAV_THEME.dark,
-};
-
-export const unstable_settings = {
-	initialRouteName: "index",
 };
 
 export default function RootLayout() {
@@ -62,18 +58,7 @@ export default function RootLayout() {
 			<ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
 				<StatusBar style={isDarkColorScheme ? "light" : "dark"} />
 				<GestureHandlerRootView style={{ flex: 1 }}>
-					<Stack>
-						<Stack.Screen name="index" options={{ headerShown: false }} />
-						<Stack.Screen
-							name="sign-up"
-							options={{ title: "Sign Up", headerShown: false }}
-						/>
-						<Stack.Screen name="dashboard" options={{ headerShown: false }} />
-						<Stack.Screen
-							name="modal"
-							options={{ title: "Modal", presentation: "modal" }}
-						/>
-					</Stack>
+					<Slot />
 				</GestureHandlerRootView>
 			</ThemeProvider>
 		</QueryClientProvider>
