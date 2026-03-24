@@ -190,6 +190,8 @@ async function seedFranchiseOwner() {
           id: userId,
           email: testEmail.toLowerCase(), // Better-Auth stores emails in lowercase
           name: testName,
+          firstName: "Franchise",
+          lastName: "Owner",
           emailVerified: true,
           createdAt: new Date(),
           updatedAt: new Date(),

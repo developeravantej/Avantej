@@ -49,6 +49,8 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 type User = {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   email_verified: boolean;
   onboarding_completed: boolean | null;
@@ -66,15 +68,12 @@ export const columns: ColumnDef<User>[] = [
     ),
     cell: ({ row }) => {
       const user = row.original;
-      const initials = user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase();
-      
+      const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "?";
+      const fullName = `${user.firstName} ${user.lastName}`.trim();
+
       return (
         <Avatar className="h-8 w-8">
-          <AvatarImage src={user.image || undefined} alt={user.name} />
+          <AvatarImage src={user.image || undefined} alt={fullName} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
       );
@@ -95,15 +94,31 @@ export const columns: ColumnDef<User>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "name",
+    accessorKey: "firstName",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
+      <DataTableColumnHeader column={column} title="First Name" />
     ),
     cell: ({ getValue }) => {
-      const name = getValue<string>();
+      const firstName = getValue<string>();
       return (
         <span className="font-medium">
-          {name}
+          {firstName}
+        </span>
+      );
+    },
+    enableSorting: true,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "lastName",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Last Name" />
+    ),
+    cell: ({ getValue }) => {
+      const lastName = getValue<string>();
+      return (
+        <span className="font-medium">
+          {lastName}
         </span>
       );
     },

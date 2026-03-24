@@ -101,6 +101,20 @@ function createBetterAuth(c?: Context) {
       provider: "pg",
       schema: schema,
     }),
+  user: {
+    additionalFields: {
+      firstName: {
+        type: "string",
+        required: true,
+        fieldName: "firstName",
+      },
+      lastName: {
+        type: "string",
+        required: true,
+        fieldName: "lastName",
+      },
+    },
+  },
   trustedOrigins: [
     getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
     "mybettertapp://",

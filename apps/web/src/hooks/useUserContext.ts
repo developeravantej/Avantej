@@ -6,6 +6,8 @@ export interface UserContextResponse {
     id: string;
     email: string;
     name: string;
+    firstName: string;
+    lastName: string;
     emailVerified: boolean;
   };
   organizations: Array<{
@@ -40,6 +42,8 @@ const MOCK_USER_CONTEXT: UserContextResponse = {
     id: "mock-user-1",
     email: "demo@avantej.com",
     name: "Demo User",
+    firstName: "Demo",
+    lastName: "User",
     emailVerified: true,
   },
   organizations: [
@@ -141,6 +145,8 @@ export function useUserContext(enabled = true) {
               id: "",
               email: "",
               name: "",
+              firstName: "",
+              lastName: "",
               emailVerified: false,
             },
             organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => ({

@@ -24,7 +24,7 @@ export default function Home() {
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="text-foreground text-base">
                   Welcome,{" "}
-                  <Text className="font-medium">{session.user.name}</Text>
+                  <Text className="font-medium">{`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.name}</Text>
                 </Text>
               </View>
               <Text className="text-muted-foreground text-sm mb-4">

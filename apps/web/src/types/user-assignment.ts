@@ -1,6 +1,8 @@
 export interface UserForAssignment {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   roles: string[];
   isActive: boolean;

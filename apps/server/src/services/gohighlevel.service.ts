@@ -562,6 +562,8 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.values({
 				id: crypto.randomUUID(),
 				name: extracted.name || extracted.email,
+				firstName: extracted.name?.split(" ")[0] || extracted.email,
+				lastName: extracted.name?.split(" ").slice(1).join(" ") || "",
 				email: extracted.email,
 				emailVerified: true,
 				image: null,
