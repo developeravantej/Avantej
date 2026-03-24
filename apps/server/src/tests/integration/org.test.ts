@@ -135,6 +135,8 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
         id: userId,
         email: testEmail,
         name: testName,
+        firstName: "Test",
+        lastName: "User",
         emailVerified: true, // Skip email verification for test
         createdAt: new Date(),
         updatedAt: new Date(),

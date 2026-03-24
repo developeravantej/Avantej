@@ -173,8 +173,3 @@ export const columns: ColumnDef<MemberRow>[] = [
     enableHiding: true,
   },
 ];
-
-
-
-
-

@@ -35,6 +35,8 @@ interface AppTopbarProps {
   title: string;
   user?: {
     name: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     avatar: string;
   };

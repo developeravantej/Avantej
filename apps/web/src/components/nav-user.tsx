@@ -29,6 +29,8 @@ export function NavUser({
 }: {
   user: {
     name: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     avatar: string;
   };

@@ -23,14 +23,17 @@ export default function SignUpForm({
 		defaultValues: {
 			email: "",
 			password: "",
-			name: "",
+			firstName: "",
+			lastName: "",
 		},
 		onSubmit: async ({ value }) => {
 			await authClient.signUp.email(
 				{
 					email: value.email,
 					password: value.password,
-					name: value.name,
+					name: `${value.firstName} ${value.lastName}`,
+					firstName: value.firstName,
+					lastName: value.lastName,
 				},
 				{
 					onSuccess: () => {
@@ -55,7 +58,8 @@ export default function SignUpForm({
 		},
 		validators: {
 			onSubmit: z.object({
-				name: z.string().min(2, "Name must be at least 2 characters"),
+				firstName: z.string().min(1, "First name is required"),
+				lastName: z.string().min(1, "Last name is required"),
 				email: z.email("Invalid email address"),
 				password: z.string().min(8, "Password must be at least 8 characters"),
 			}),
@@ -79,10 +83,32 @@ export default function SignUpForm({
 				className="space-y-4"
 			>
 				<div>
-					<form.Field name="name">
+					<form.Field name="firstName">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Name</Label>
+								<Label htmlFor={field.name}>First Name</Label>
+								<Input
+									id={field.name}
+									name={field.name}
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								{field.state.meta.errors.map((error) => (
+									<p key={error?.message} className="text-red-500">
+										{error?.message}
+									</p>
+								))}
+							</div>
+						)}
+					</form.Field>
+				</div>
+
+				<div>
+					<form.Field name="lastName">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Last Name</Label>
 								<Input
 									id={field.name}
 									name={field.name}

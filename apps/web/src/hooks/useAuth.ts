@@ -70,7 +70,7 @@ export function useAuth(): UseAuthReturn {
     const user: UserWithPermissions = {
       id: session.user.id,
       email: session.user.email,
-      full_name: session.user.name || "",
+      full_name: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.name || "",
       phone: null,
       is_system_admin: false,
       is_active: true,

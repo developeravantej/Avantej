@@ -48,6 +48,8 @@ interface BetterAuthSignInResponse {
     id: string;
     email: string;
     name: string;
+    firstName: string;
+    lastName: string;
     emailVerified: boolean;
     createdAt: Date;
   };
@@ -200,6 +202,8 @@ const login = o
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
       },
@@ -387,6 +391,8 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
       id: context.session!.user.id,
       email: context.session!.user.email,
       name: context.session!.user.name,
+      firstName: context.session!.user.firstName,
+      lastName: context.session!.user.lastName,
       emailVerified: context.session!.user.emailVerified,
     },
     organizations: organizationsWithHierarchy,

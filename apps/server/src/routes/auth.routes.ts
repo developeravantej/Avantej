@@ -49,11 +49,11 @@ export const authRoutes = new Hono();
 authRoutes.post("/register", async (c) => {
   try {
     const body = await c.req.json();
-    const { email, password, name } = body;
+    const { email, password, firstName, lastName, name } = body;
 
     // Validate input
-    if (!email || !password || !name) {
-      return c.json({ error: "Email, password, and name are required" }, 400);
+    if (!email || !password || (!name && (!firstName || !lastName))) {
+      return c.json({ error: "Email, password, and name (or firstName + lastName) are required" }, 400);
     }
 
     if (password.length < 8) {
@@ -66,11 +66,14 @@ authRoutes.post("/register", async (c) => {
     // Register user via Better-Auth
     // Better-Auth API method name is signUpEmail (camelCase)
     const auth = getBetterAuth(c);
+    const computedName = name || `${firstName} ${lastName}`;
     const result = (await (auth.api as any).signUpEmail({
       body: {
         email,
         password,
-        name,
+        name: computedName,
+        firstName: firstName || computedName.split(" ")[0],
+        lastName: lastName || computedName.split(" ").slice(1).join(" "),
       },
       headers: c.req.raw.headers,
     })) as unknown;

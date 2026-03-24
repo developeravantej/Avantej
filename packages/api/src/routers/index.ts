@@ -106,13 +106,13 @@ const authRouterType = {
 		.handler((): {
 			accessToken: string;
 			refreshToken: string;
-			user: { id: string; email: string; name: string; emailVerified: boolean; createdAt: Date };
+			user: { id: string; email: string; name: string; firstName: string; lastName: string; emailVerified: boolean; createdAt: Date };
 			organizations: Array<{ id: string; name: string; slug: string; role: string }>;
 		} => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 	userContext: protectedProcedure.handler((): {
-		user: { id: string; email: string; name: string; emailVerified: boolean };
+		user: { id: string; email: string; name: string; firstName: string; lastName: string; emailVerified: boolean };
 		organizations: Array<{
 			id: string;
 			name: string;

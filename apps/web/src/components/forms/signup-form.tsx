@@ -18,7 +18,8 @@ import { authClient } from "@/lib/auth-client";
 
 const formSchema = z
 	.object({
-		name: z.string().min(1, "Name is required"),
+		firstName: z.string().min(1, "First name is required"),
+		lastName: z.string().min(1, "Last name is required"),
 		email: z.string().email("Invalid email address"),
 		password: z.string().min(8, "Password must be at least 8 characters"),
 		confirmPassword: z.string().min(8, "Please confirm your password"),
@@ -57,7 +58,8 @@ export function SignupForm({
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
-			name: "",
+			firstName: "",
+			lastName: "",
 			email: invitationEmail || "", // Pre-fill email from invitation
 			password: "",
 			confirmPassword: "",
@@ -80,7 +82,9 @@ export function SignupForm({
 				{
 					email: values.email,
 					password: values.password,
-					name: values.name,
+					name: `${values.firstName} ${values.lastName}`,
+					firstName: values.firstName,
+					lastName: values.lastName,
 				},
 				{
 					onSuccess: async () => {
@@ -168,14 +172,33 @@ export function SignupForm({
 					<div className="flex flex-col gap-6">
 						<FormField
 							control={form.control}
-							name="name"
+							name="firstName"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Full Name</FormLabel>
+									<FormLabel>First Name</FormLabel>
 									<FormControl>
 										<Input
-											id="name"
-											placeholder="John Doe"
+											id="firstName"
+											placeholder="John"
+											required
+											{...field}
+											disabled={isPending}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="lastName"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Last Name</FormLabel>
+									<FormControl>
+										<Input
+											id="lastName"
+											placeholder="Doe"
 											required
 											{...field}
 											disabled={isPending}

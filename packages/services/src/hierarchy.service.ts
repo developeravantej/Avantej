@@ -264,9 +264,26 @@ export async function updateHierarchyNode(
       throw new Error(`Node not found: ${nodeId}`);
     }
 
-    // Check for duplicate name within the same parent scope (if name is being updated)
+    // Check for duplicate name (if name is being updated)
     if (name !== undefined && name !== node.name) {
-      if (node.parentId) {
+      if (node.type === "branch") {
+        // For branches: check global uniqueness
+        const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+          where: (nodes, { and, eq, ne }) =>
+            and(
+              eq(nodes.name, name),
+              eq(nodes.type, "branch"),
+              ne(nodes.id, nodeId)
+            ),
+        });
+
+        if (existingBranch) {
+          throw new Error(
+            `Branch name "${name}" already exists. Branch names must be unique across your organization.`
+          );
+        }
+      } else if (node.parentId) {
+        // For other node types: check uniqueness within parent scope
         const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
           where: (nodes, { and, eq, ne }) =>
             and(
@@ -633,21 +650,40 @@ export async function moveHierarchyNode(
       throw new Error("Cannot move node: would create circular reference");
     }
 
-    // Check for duplicate name within new parent scope
-    const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
-      where: (nodes, { and, eq, ne }) =>
-        and(
-          eq(nodes.name, node.name),
-          eq(nodes.parentId, newParentId),
-          eq(nodes.type, node.type),
-          ne(nodes.id, nodeId)
-        ),
-    });
+    // Check for duplicate name
+    if (node.type === "branch") {
+      // For branches: check global uniqueness
+      const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+        where: (nodes, { and, eq, ne }) =>
+          and(
+            eq(nodes.name, node.name),
+            eq(nodes.type, "branch"),
+            ne(nodes.id, nodeId)
+          ),
+      });
 
-    if (existingSibling) {
-      throw new Error(
-        `A ${node.type} with the name "${node.name}" already exists under the new parent`
-      );
+      if (existingBranch) {
+        throw new Error(
+          `Branch name "${node.name}" already exists. Branch names must be unique across your organization.`
+        );
+      }
+    } else {
+      // For other types: check within new parent scope
+      const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
+        where: (nodes, { and, eq, ne }) =>
+          and(
+            eq(nodes.name, node.name),
+            eq(nodes.parentId, newParentId),
+            eq(nodes.type, node.type),
+            ne(nodes.id, nodeId)
+          ),
+      });
+
+      if (existingSibling) {
+        throw new Error(
+          `A ${node.type} with the name "${node.name}" already exists under the new parent`
+        );
+      }
     }
 
     // Update the node's parentId

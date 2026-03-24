@@ -2,7 +2,9 @@ import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
 	id: text("id").primaryKey(),
-	name: text("name").notNull(),
+	name: text("name").notNull(), // Required by Better-Auth core, computed as firstName + lastName
+	firstName: text("first_name").notNull().default(""),
+	lastName: text("last_name").notNull().default(""),
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").notNull(),
 	image: text("image"),
