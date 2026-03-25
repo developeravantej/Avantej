@@ -1,0 +1,2 @@
+ALTER TABLE "organization_branches" ADD COLUMN "country_tenant_node_id" uuid;--> statement-breakpoint
+CREATE INDEX "org_branches_country_node_idx" ON "organization_branches" USING btree ("country_tenant_node_id");

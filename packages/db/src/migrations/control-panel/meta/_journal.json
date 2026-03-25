@@ -50,6 +50,27 @@
       "when": 1770455253425,
       "tag": "0006_free_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774428982484,
+      "tag": "0007_narrow_boom_boom",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774436029466,
+      "tag": "0008_cooing_the_spike",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774438107010,
+      "tag": "0009_abandoned_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }

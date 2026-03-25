@@ -9,6 +9,7 @@ export * from "./users";
 export * from "./subscriptions";
 export * from "./organizations";
 export * from "./organization-members";
+export * from "./organization-branches";
 export * from "./platform-admins";
 export * from "./admin-sessions";
 export * from "./organization-analytics";
