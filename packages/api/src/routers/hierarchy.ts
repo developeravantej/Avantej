@@ -17,12 +17,17 @@ import {
 } from "@avantej-core/services";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof controlPanelSchema> | null {
+  return context.honoContext?.get("controlPanelDb") as NeonDatabase<typeof controlPanelSchema> | null;
+}
 
 export const hierarchyRouter = {
   /**
@@ -121,6 +126,43 @@ export const hierarchyRouter = {
       // Create node
       try {
         const node = await createHierarchyNode(tenantDb, params);
+
+        // Sync branch to control panel organization_branches registry
+        if (node.type === "branch" && context.organizationId) {
+          const controlPanelDb = getControlPanelDb(context);
+          if (controlPanelDb) {
+            try {
+              // Resolve country ancestor by walking up the hierarchy
+              let countryName: string | null = null;
+              let countryTenantNodeId: string | null = null;
+              let currentParentId = node.parentId;
+              while (currentParentId) {
+                const parent = await tenantDb.query.hierarchyNodes.findFirst({
+                  where: eq(hierarchyNodes.id, currentParentId),
+                });
+                if (!parent) break;
+                if (parent.type === "country") {
+                  countryName = parent.name;
+                  countryTenantNodeId = parent.id;
+                  break;
+                }
+                currentParentId = parent.parentId;
+              }
+
+              await controlPanelDb.insert(organizationBranches).values({
+                organizationId: context.organizationId,
+                tenantNodeId: node.id,
+                name: node.name,
+                countryTenantNodeId,
+                country: countryName,
+                address: (node as any).address,
+              });
+            } catch (syncError) {
+              console.error("Failed to sync branch to organization_branches:", syncError);
+            }
+          }
+        }
+
         return {
           id: node.id,
           name: node.name,
@@ -284,6 +326,41 @@ export const hierarchyRouter = {
       // Update node
       try {
         const node = await updateHierarchyNode(tenantDb, input.nodeId, updateParams);
+
+        // Sync updates to control panel organization_branches registry
+        const controlPanelDb = getControlPanelDb(context);
+        if (controlPanelDb) {
+          // Branch name/address update → update the branch row
+          if (node.type === "branch" && (input.name !== undefined || input.address !== undefined)) {
+            try {
+              const syncData: { name?: string; address?: string | null; updatedAt: Date } = {
+                updatedAt: new Date(),
+              };
+              if (input.name !== undefined) syncData.name = node.name;
+              if (input.address !== undefined) syncData.address = (node as any).address;
+
+              await controlPanelDb
+                .update(organizationBranches)
+                .set(syncData)
+                .where(eq(organizationBranches.tenantNodeId, input.nodeId));
+            } catch (syncError) {
+              console.error("Failed to sync branch update to organization_branches:", syncError);
+            }
+          }
+
+          // Country rename → update country name on all branches under this country
+          if (node.type === "country" && input.name !== undefined) {
+            try {
+              await controlPanelDb
+                .update(organizationBranches)
+                .set({ country: node.name, updatedAt: new Date() })
+                .where(eq(organizationBranches.countryTenantNodeId, input.nodeId));
+            } catch (syncError) {
+              console.error("Failed to sync country rename to organization_branches:", syncError);
+            }
+          }
+        }
+
         return {
           id: node.id,
           name: node.name,
@@ -550,9 +627,41 @@ export const hierarchyRouter = {
         autoReassignMembers: input.options?.autoReassignMembers ?? true,
       };
 
+      // Collect branch node IDs before deletion (for sync cleanup)
+      // This includes the node itself (if branch) and any descendant branches
+      let branchNodeIds: string[] = [];
+      const controlPanelDb = getControlPanelDb(context);
+      if (controlPanelDb) {
+        try {
+          const descendantIds = await getDescendantNodeIds(tenantDb, input.nodeId);
+          const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
+            where: (nodes, { inArray }) => inArray(nodes.id, descendantIds),
+          });
+          branchNodeIds = descendantNodes
+            .filter((n: any) => n.type === "branch")
+            .map((n: any) => n.id);
+        } catch {
+          // If we can't collect IDs, proceed with delete anyway
+        }
+      }
+
       // Delete node with automatic handling
       try {
         await deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions);
+
+        // Sync: remove deleted branches from organization_branches registry
+        if (controlPanelDb && branchNodeIds.length > 0) {
+          try {
+            for (const branchId of branchNodeIds) {
+              await controlPanelDb
+                .delete(organizationBranches)
+                .where(eq(organizationBranches.tenantNodeId, branchId));
+            }
+          } catch (syncError) {
+            console.error("Failed to sync branch deletion to organization_branches:", syncError);
+          }
+        }
+
         return { success: true };
       } catch (error) {
         // Handle specific error cases
