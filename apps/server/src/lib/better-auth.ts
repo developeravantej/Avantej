@@ -109,13 +109,15 @@ function createBetterAuth(c?: Context) {
     additionalFields: {
       firstName: {
         type: "string",
-        required: true,
+        required: false,
         fieldName: "firstName",
+        defaultValue: "",
       },
       lastName: {
         type: "string",
-        required: true,
+        required: false,
         fieldName: "lastName",
+        defaultValue: "",
       },
     },
   },
@@ -196,6 +198,15 @@ function createBetterAuth(c?: Context) {
         url,
         user.name || undefined
       );
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          return { data: { ...user, role: null } };
+        },
+      },
     },
   },
   session: {
@@ -298,7 +309,6 @@ function createBetterAuth(c?: Context) {
       },
     }),
     admin({
-      // 1 hour max impersonation session duration
       impersonationSessionDuration: 60 * 60,
     }),
   ],

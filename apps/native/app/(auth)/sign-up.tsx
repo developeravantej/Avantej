@@ -44,7 +44,7 @@ export default function SignUpScreen() {
 		setError(null);
 
 		try {
-			await signUp(`${firstName.trim()} ${lastName.trim()}`, email, password);
+			await signUp(`${firstName.trim()} ${lastName.trim()}`, email, password, firstName.trim(), lastName.trim());
 			router.replace({
 				pathname: "/(auth)/verify-email",
 				params: { email },

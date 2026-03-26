@@ -1,8 +1,8 @@
 import RegistrationForm from "@/components/registration-form";
 import { useAuth } from "@/hooks/useAuth";
+import { colors } from "@/lib/colors";
 import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AppLayout() {
 	const { isAuthenticated, isPending, user } = useAuth();
@@ -30,9 +30,9 @@ export default function AppLayout() {
 
 	if (!userRole) {
 		return (
-			<SafeAreaView style={{ flex: 1, backgroundColor: "#F5F5F5" }}>
+			<View style={{ flex: 1, backgroundColor: colors.secondary[3] }}>
 				<RegistrationForm />
-			</SafeAreaView>
+			</View>
 		);
 	}
 

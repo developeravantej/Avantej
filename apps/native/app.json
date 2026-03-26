@@ -21,6 +21,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "adjustResize",
       "predictiveBackGestureEnabled": false,
       "package": "com.avantej.app",
       "versionCode": 1

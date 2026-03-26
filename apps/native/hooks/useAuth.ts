@@ -24,11 +24,13 @@ export function useAuth() {
 	);
 
 	const signUp = useCallback(
-		async (name: string, email: string, password: string) => {
+		async (name: string, email: string, password: string, firstName?: string, lastName?: string) => {
 			const result = await authClient.signUp.email({
 				name,
 				email,
 				password,
+				firstName: firstName || name.split(" ")[0] || "",
+				lastName: lastName || name.split(" ").slice(1).join(" ") || "",
 			});
 			if (result.error) {
 				throw new Error(result.error.message || "Failed to sign up");

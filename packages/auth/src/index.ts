@@ -14,6 +14,22 @@ export const auth = betterAuth<BetterAuthOptions>({
     provider: "pg",
     schema: schema,
   }),
+  user: {
+    additionalFields: {
+      firstName: {
+        type: "string",
+        required: false,
+        fieldName: "firstName",
+        defaultValue: "",
+      },
+      lastName: {
+        type: "string",
+        required: false,
+        fieldName: "lastName",
+        defaultValue: "",
+      },
+    },
+  },
   trustedOrigins: [env.CORS_ORIGIN, "mybettertapp://", "exp://"],
   emailAndPassword: {
     enabled: true,

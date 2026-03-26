@@ -1,14 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
 import { colors } from "@/lib/colors";
-import { fonts } from "@/lib/font";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
+	FlatList,
 	Image,
-	KeyboardAvoidingView,
+	Modal,
 	Platform,
 	ScrollView,
 	Text,
@@ -16,6 +16,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -83,18 +84,165 @@ const BRANCHES: Record<string, { id: string; name: string }[]> = {
 	],
 };
 
+const STEPS = [
+	{ number: 1, label: "Personal" },
+	{ number: 2, label: "Emergency" },
+	{ number: 3, label: "Branch" },
+];
+
+// ─── Country Phone Codes ─────────────────────────────────────────
+
+interface CountryCode {
+	code: string;
+	dialCode: string;
+	flag: string;
+	name: string;
+}
+
+const COUNTRY_CODES: CountryCode[] = [
+	{ code: "MY", dialCode: "+60", flag: "🇲🇾", name: "Malaysia" },
+	{ code: "SG", dialCode: "+65", flag: "🇸🇬", name: "Singapore" },
+	{ code: "TH", dialCode: "+66", flag: "🇹🇭", name: "Thailand" },
+	{ code: "ID", dialCode: "+62", flag: "🇮🇩", name: "Indonesia" },
+	{ code: "PH", dialCode: "+63", flag: "🇵🇭", name: "Philippines" },
+	{ code: "VN", dialCode: "+84", flag: "🇻🇳", name: "Vietnam" },
+	{ code: "MM", dialCode: "+95", flag: "🇲🇲", name: "Myanmar" },
+	{ code: "KH", dialCode: "+855", flag: "🇰🇭", name: "Cambodia" },
+	{ code: "LA", dialCode: "+856", flag: "🇱🇦", name: "Laos" },
+	{ code: "BN", dialCode: "+673", flag: "🇧🇳", name: "Brunei" },
+	{ code: "IN", dialCode: "+91", flag: "🇮🇳", name: "India" },
+	{ code: "CN", dialCode: "+86", flag: "🇨🇳", name: "China" },
+	{ code: "JP", dialCode: "+81", flag: "🇯🇵", name: "Japan" },
+	{ code: "KR", dialCode: "+82", flag: "🇰🇷", name: "South Korea" },
+	{ code: "TW", dialCode: "+886", flag: "🇹🇼", name: "Taiwan" },
+	{ code: "HK", dialCode: "+852", flag: "🇭🇰", name: "Hong Kong" },
+	{ code: "AU", dialCode: "+61", flag: "🇦🇺", name: "Australia" },
+	{ code: "NZ", dialCode: "+64", flag: "🇳🇿", name: "New Zealand" },
+	{ code: "US", dialCode: "+1", flag: "🇺🇸", name: "United States" },
+	{ code: "GB", dialCode: "+44", flag: "🇬🇧", name: "United Kingdom" },
+	{ code: "CA", dialCode: "+1", flag: "🇨🇦", name: "Canada" },
+	{ code: "DE", dialCode: "+49", flag: "🇩🇪", name: "Germany" },
+	{ code: "FR", dialCode: "+33", flag: "🇫🇷", name: "France" },
+	{ code: "IT", dialCode: "+39", flag: "🇮🇹", name: "Italy" },
+	{ code: "ES", dialCode: "+34", flag: "🇪🇸", name: "Spain" },
+	{ code: "NL", dialCode: "+31", flag: "🇳🇱", name: "Netherlands" },
+	{ code: "AE", dialCode: "+971", flag: "🇦🇪", name: "UAE" },
+	{ code: "SA", dialCode: "+966", flag: "🇸🇦", name: "Saudi Arabia" },
+	{ code: "QA", dialCode: "+974", flag: "🇶🇦", name: "Qatar" },
+	{ code: "BD", dialCode: "+880", flag: "🇧🇩", name: "Bangladesh" },
+	{ code: "PK", dialCode: "+92", flag: "🇵🇰", name: "Pakistan" },
+	{ code: "LK", dialCode: "+94", flag: "🇱🇰", name: "Sri Lanka" },
+	{ code: "NP", dialCode: "+977", flag: "🇳🇵", name: "Nepal" },
+	{ code: "BR", dialCode: "+55", flag: "🇧🇷", name: "Brazil" },
+	{ code: "MX", dialCode: "+52", flag: "🇲🇽", name: "Mexico" },
+	{ code: "ZA", dialCode: "+27", flag: "🇿🇦", name: "South Africa" },
+	{ code: "NG", dialCode: "+234", flag: "🇳🇬", name: "Nigeria" },
+	{ code: "KE", dialCode: "+254", flag: "🇰🇪", name: "Kenya" },
+	{ code: "EG", dialCode: "+20", flag: "🇪🇬", name: "Egypt" },
+	{ code: "RU", dialCode: "+7", flag: "🇷🇺", name: "Russia" },
+	{ code: "SE", dialCode: "+46", flag: "🇸🇪", name: "Sweden" },
+	{ code: "NO", dialCode: "+47", flag: "🇳🇴", name: "Norway" },
+	{ code: "DK", dialCode: "+45", flag: "🇩🇰", name: "Denmark" },
+	{ code: "FI", dialCode: "+358", flag: "🇫🇮", name: "Finland" },
+	{ code: "CH", dialCode: "+41", flag: "🇨🇭", name: "Switzerland" },
+	{ code: "AT", dialCode: "+43", flag: "🇦🇹", name: "Austria" },
+	{ code: "PT", dialCode: "+351", flag: "🇵🇹", name: "Portugal" },
+	{ code: "IE", dialCode: "+353", flag: "🇮🇪", name: "Ireland" },
+	{ code: "PL", dialCode: "+48", flag: "🇵🇱", name: "Poland" },
+	{ code: "TR", dialCode: "+90", flag: "🇹🇷", name: "Turkey" },
+];
+
+const DEFAULT_COUNTRY = COUNTRY_CODES[0]; // Malaysia
+
+// Map IANA timezone to country code
+const TIMEZONE_TO_COUNTRY: Record<string, string> = {
+	"Asia/Kuala_Lumpur": "MY",
+	"Asia/Singapore": "SG",
+	"Asia/Bangkok": "TH",
+	"Asia/Jakarta": "ID",
+	"Asia/Makassar": "ID",
+	"Asia/Jayapura": "ID",
+	"Asia/Manila": "PH",
+	"Asia/Ho_Chi_Minh": "VN",
+	"Asia/Yangon": "MM",
+	"Asia/Phnom_Penh": "KH",
+	"Asia/Vientiane": "LA",
+	"Asia/Brunei": "BN",
+	"Asia/Kolkata": "IN",
+	"Asia/Calcutta": "IN",
+	"Asia/Shanghai": "CN",
+	"Asia/Tokyo": "JP",
+	"Asia/Seoul": "KR",
+	"Asia/Taipei": "TW",
+	"Asia/Hong_Kong": "HK",
+	"Australia/Sydney": "AU",
+	"Australia/Melbourne": "AU",
+	"Australia/Brisbane": "AU",
+	"Australia/Perth": "AU",
+	"Pacific/Auckland": "NZ",
+	"America/New_York": "US",
+	"America/Chicago": "US",
+	"America/Denver": "US",
+	"America/Los_Angeles": "US",
+	"Europe/London": "GB",
+	"America/Toronto": "CA",
+	"America/Vancouver": "CA",
+	"Europe/Berlin": "DE",
+	"Europe/Paris": "FR",
+	"Europe/Rome": "IT",
+	"Europe/Madrid": "ES",
+	"Europe/Amsterdam": "NL",
+	"Asia/Dubai": "AE",
+	"Asia/Riyadh": "SA",
+	"Asia/Qatar": "QA",
+	"Asia/Dhaka": "BD",
+	"Asia/Karachi": "PK",
+	"Asia/Colombo": "LK",
+	"Asia/Kathmandu": "NP",
+	"America/Sao_Paulo": "BR",
+	"America/Mexico_City": "MX",
+	"Africa/Johannesburg": "ZA",
+	"Africa/Lagos": "NG",
+	"Africa/Nairobi": "KE",
+	"Africa/Cairo": "EG",
+	"Europe/Moscow": "RU",
+	"Europe/Stockholm": "SE",
+	"Europe/Oslo": "NO",
+	"Europe/Copenhagen": "DK",
+	"Europe/Helsinki": "FI",
+	"Europe/Zurich": "CH",
+	"Europe/Vienna": "AT",
+	"Europe/Lisbon": "PT",
+	"Europe/Dublin": "IE",
+	"Europe/Warsaw": "PL",
+	"Europe/Istanbul": "TR",
+};
+
+function getDefaultCountry(): CountryCode {
+	try {
+		const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
+
+		// Primary: use timezone which reflects physical location
+		if (timeZone) {
+			const countryCode = TIMEZONE_TO_COUNTRY[timeZone];
+			if (countryCode) {
+				const found = COUNTRY_CODES.find((c) => c.code === countryCode);
+				if (found) return found;
+			}
+		}
+	} catch {
+		// Intl not available
+	}
+	return DEFAULT_COUNTRY;
+}
+
 // ─── Sub-Components ──────────────────────────────────────────────
 
 function FormLabel({ text, required }: { text: string; required?: boolean }) {
 	return (
 		<Text
-			style={{
-				fontSize: 14,
-				fontWeight: "600",
-				color: "#1A1A1A",
-				marginBottom: 8,
-				fontFamily: fonts.body,
-			}}
+			className="mb-2 font-semibold text-sm"
+			style={{ color: colors.primary[1] }}
 		>
 			{text}
 			{required && <Text style={{ color: "#E53935" }}> *</Text>}
@@ -118,150 +266,236 @@ function FormInput({
 	error?: string;
 }) {
 	return (
-		<View style={{ marginBottom: 16 }}>
+		<View className="mb-4">
 			<TextInput
+				className="rounded-xl border bg-primary-2 px-4 py-3 text-base"
 				style={{
-					borderBottomWidth: 1,
-					borderBottomColor: error ? "#E53935" : "#D1D5DB",
-					paddingVertical: 10,
-					fontSize: 15,
-					color: "#1A1A1A",
-					fontFamily: fonts.body,
+					borderColor: error ? "#E53935" : colors.secondary[2],
+					color: colors.primary[1],
 				}}
 				placeholder={placeholder}
-				placeholderTextColor="#9CA3AF"
+				placeholderTextColor={colors.secondary[1]}
 				value={value}
 				onChangeText={onChangeText}
 				keyboardType={keyboardType || "default"}
 				autoCapitalize={autoCapitalize || "sentences"}
 			/>
 			{error && (
-				<Text
-					style={{
-						color: "#E53935",
-						fontSize: 12,
-						marginTop: 4,
-						fontFamily: fonts.body,
-					}}
-				>
+				<Text className="mt-1 text-xs" style={{ color: "#E53935" }}>
 					{error}
 				</Text>
 			)}
 		</View>
+	);
+}
+
+function CountryCodePicker({
+	selected,
+	onSelect,
+	visible,
+	onClose,
+}: {
+	selected: CountryCode;
+	onSelect: (country: CountryCode) => void;
+	visible: boolean;
+	onClose: () => void;
+}) {
+	const [search, setSearch] = useState("");
+
+	const filtered = search.trim()
+		? COUNTRY_CODES.filter(
+				(c) =>
+					c.name.toLowerCase().includes(search.toLowerCase()) ||
+					c.dialCode.includes(search) ||
+					c.code.toLowerCase().includes(search.toLowerCase()),
+			)
+		: COUNTRY_CODES;
+
+	return (
+		<Modal visible={visible} animationType="slide" transparent>
+			<View className="flex-1 justify-end">
+				<TouchableOpacity
+					className="flex-1"
+					activeOpacity={1}
+					onPress={onClose}
+				/>
+				<View
+					className="rounded-t-3xl bg-primary-2"
+					style={{ maxHeight: "70%" }}
+				>
+					{/* Handle bar */}
+					<View className="items-center py-3">
+						<View
+							className="h-1 w-10 rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
+						/>
+					</View>
+
+					{/* Header */}
+					<View className="px-4 pb-3">
+						<Text
+							className="mb-3 text-center font-bold text-lg"
+							style={{ color: colors.primary[1] }}
+						>
+							Select Country Code
+						</Text>
+						<View
+							className="flex-row items-center rounded-xl border bg-primary-3 px-3"
+							style={{ borderColor: colors.secondary[2] }}
+						>
+							<Ionicons
+								name="search"
+								size={18}
+								color={colors.secondary[1]}
+							/>
+							<TextInput
+								className="ml-2 flex-1 py-3 text-base"
+								style={{ color: colors.primary[1] }}
+								placeholder="Search country or code..."
+								placeholderTextColor={colors.secondary[1]}
+								value={search}
+								onChangeText={setSearch}
+								autoCapitalize="none"
+								autoCorrect={false}
+							/>
+							{search.length > 0 && (
+								<TouchableOpacity onPress={() => setSearch("")}>
+									<Ionicons
+										name="close-circle"
+										size={18}
+										color={colors.secondary[1]}
+									/>
+								</TouchableOpacity>
+							)}
+						</View>
+					</View>
+
+					{/* List */}
+					<FlatList
+						data={filtered}
+						keyExtractor={(item) => item.code}
+						keyboardShouldPersistTaps="handled"
+						renderItem={({ item }) => (
+							<TouchableOpacity
+								onPress={() => {
+									onSelect(item);
+									setSearch("");
+									onClose();
+								}}
+								className="mx-4 flex-row items-center border-b px-2 py-3"
+								style={{
+									borderBottomColor: colors.secondary[3],
+									backgroundColor:
+										selected.code === item.code
+											? colors.secondary[3]
+											: "transparent",
+								}}
+							>
+								<Text className="mr-3 text-2xl">{item.flag}</Text>
+								<Text
+									className="flex-1 text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{item.name}
+								</Text>
+								<Text
+									className="font-medium text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									{item.dialCode}
+								</Text>
+								{selected.code === item.code && (
+									<Ionicons
+										name="checkmark"
+										size={20}
+										color={colors.primary[1]}
+										style={{ marginLeft: 8 }}
+									/>
+								)}
+							</TouchableOpacity>
+						)}
+						ListEmptyComponent={
+							<Text
+								className="py-8 text-center text-sm"
+								style={{ color: colors.secondary[1] }}
+							>
+								No countries found
+							</Text>
+						}
+					/>
+
+					{/* Bottom safe area */}
+					<SafeAreaView edges={["bottom"]} />
+				</View>
+			</View>
+		</Modal>
 	);
 }
 
 function PhoneInput({
 	value,
 	onChangeText,
+	selectedCountry,
+	onCountryChange,
 	error,
 }: {
 	value: string;
 	onChangeText: (text: string) => void;
+	selectedCountry: CountryCode;
+	onCountryChange: (country: CountryCode) => void;
 	error?: string;
 }) {
+	const [pickerVisible, setPickerVisible] = useState(false);
+
 	return (
-		<View style={{ marginBottom: 16 }}>
+		<View className="mb-4">
 			<View
-				style={{
-					flexDirection: "row",
-					alignItems: "center",
-					borderBottomWidth: 1,
-					borderBottomColor: error ? "#E53935" : "#D1D5DB",
-				}}
+				className="flex-row items-center rounded-xl border bg-primary-2"
+				style={{ borderColor: error ? "#E53935" : colors.secondary[2] }}
 			>
-				<Text style={{ fontSize: 18, marginRight: 4 }}>🇲🇾</Text>
-				<Text
-					style={{
-						fontSize: 14,
-						color: "#6B7280",
-						marginRight: 8,
-						fontFamily: fonts.body,
-					}}
+				{/* Country code selector */}
+				<TouchableOpacity
+					onPress={() => setPickerVisible(true)}
+					className="flex-row items-center border-r py-3 pl-4 pr-3"
+					style={{ borderRightColor: colors.secondary[2] }}
 				>
-					+60
-				</Text>
+					<Text className="mr-1 text-lg">{selectedCountry.flag}</Text>
+					<Text
+						className="mr-1 text-sm font-medium"
+						style={{ color: colors.primary[1] }}
+					>
+						{selectedCountry.dialCode}
+					</Text>
+					<Ionicons
+						name="chevron-down"
+						size={14}
+						color={colors.secondary[1]}
+					/>
+				</TouchableOpacity>
+
+				{/* Phone number input */}
 				<TextInput
-					style={{
-						flex: 1,
-						paddingVertical: 10,
-						fontSize: 15,
-						color: "#1A1A1A",
-						fontFamily: fonts.body,
-					}}
-					placeholder="12-345 6789"
-					placeholderTextColor="#9CA3AF"
+					className="flex-1 py-3 pl-3 pr-4 text-base"
+					style={{ color: colors.primary[1] }}
+					placeholder="Phone number"
+					placeholderTextColor={colors.secondary[1]}
 					value={value}
 					onChangeText={onChangeText}
 					keyboardType="phone-pad"
 				/>
 			</View>
 			{error && (
-				<Text
-					style={{
-						color: "#E53935",
-						fontSize: 12,
-						marginTop: 4,
-						fontFamily: fonts.body,
-					}}
-				>
+				<Text className="mt-1 text-xs" style={{ color: "#E53935" }}>
 					{error}
 				</Text>
 			)}
-		</View>
-	);
-}
 
-function StepHeader({ title }: { title: string }) {
-	return (
-		<View
-			style={{
-				backgroundColor: "#000000",
-				paddingVertical: 10,
-				paddingHorizontal: 16,
-				borderRadius: 4,
-				alignItems: "center",
-				marginBottom: 24,
-			}}
-		>
-			<Text
-				style={{
-					fontSize: 14,
-					fontWeight: "600",
-					color: "#FFFFFF",
-					fontFamily: fonts.subheading,
-				}}
-			>
-				{title}
-			</Text>
-		</View>
-	);
-}
-
-function StepIndicator({
-	currentStep,
-	totalSteps,
-}: { currentStep: number; totalSteps: number }) {
-	return (
-		<View
-			style={{
-				flexDirection: "row",
-				justifyContent: "center",
-				gap: 8,
-				marginBottom: 0,
-			}}
-		>
-			{Array.from({ length: totalSteps }, (_, i) => (
-				<View
-					key={i}
-					style={{
-						width: i === currentStep ? 24 : 8,
-						height: 8,
-						borderRadius: 4,
-						backgroundColor: i === currentStep ? "#000000" : "#D1D5DB",
-					}}
-				/>
-			))}
+			<CountryCodePicker
+				selected={selectedCountry}
+				onSelect={onCountryChange}
+				visible={pickerVisible}
+				onClose={() => setPickerVisible(false)}
+			/>
 		</View>
 	);
 }
@@ -272,16 +506,27 @@ function PersonalDetailsStep({
 	data,
 	onChange,
 	errors,
+	phoneCountry,
+	onPhoneCountryChange,
 }: {
 	data: PersonalDetails;
 	onChange: (data: Partial<PersonalDetails>) => void;
 	errors: Record<string, string>;
+	phoneCountry: CountryCode;
+	onPhoneCountryChange: (country: CountryCode) => void;
 }) {
 	const [showDatePicker, setShowDatePicker] = useState(false);
+	const { logout } = useAuth();
+
+	const handleSignOut = () => {
+		Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+			{ text: "Cancel", style: "cancel" },
+			{ text: "Sign Out", style: "destructive", onPress: () => logout() },
+		]);
+	};
 
 	return (
 		<>
-			<StepHeader title="Personal Details" />
 
 			<FormLabel text="First Name" required />
 			<FormInput
@@ -305,6 +550,8 @@ function PersonalDetailsStep({
 			<PhoneInput
 				value={data.phone}
 				onChangeText={(v) => onChange({ phone: v })}
+				selectedCountry={phoneCountry}
+				onCountryChange={onPhoneCountryChange}
 				error={errors.phone}
 			/>
 
@@ -328,65 +575,69 @@ function PersonalDetailsStep({
 			/>
 
 			<FormLabel text="Address Type" required />
-			<View style={{ flexDirection: "row", gap: 16, marginBottom: 16 }}>
+			<View className="mb-4 flex-row gap-4">
 				<TouchableOpacity
 					onPress={() => onChange({ addressType: "home" })}
-					style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
+						data.addressType === "home"
+							? "border-primary-1"
+							: "border-secondary-2"
+					} bg-primary-2`}
 				>
 					<View
+						className="h-5 w-5 items-center justify-center rounded-full border-2"
 						style={{
-							width: 20,
-							height: 20,
-							borderRadius: 10,
-							borderWidth: 2,
 							borderColor:
-								data.addressType === "home" ? "#000000" : "#D1D5DB",
-							justifyContent: "center",
-							alignItems: "center",
+								data.addressType === "home"
+									? colors.primary[1]
+									: colors.secondary[2],
 						}}
 					>
 						{data.addressType === "home" && (
 							<View
-								style={{
-									width: 10,
-									height: 10,
-									borderRadius: 5,
-									backgroundColor: "#000000",
-								}}
+								className="h-2.5 w-2.5 rounded-full"
+								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
 					</View>
-					<Text style={{ fontSize: 14, fontFamily: fonts.body }}>Home</Text>
+					<Text
+						className="text-sm font-medium"
+						style={{ color: colors.primary[1] }}
+					>
+						Home
+					</Text>
 				</TouchableOpacity>
 
 				<TouchableOpacity
 					onPress={() => onChange({ addressType: "work" })}
-					style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
+						data.addressType === "work"
+							? "border-primary-1"
+							: "border-secondary-2"
+					} bg-primary-2`}
 				>
 					<View
+						className="h-5 w-5 items-center justify-center rounded-full border-2"
 						style={{
-							width: 20,
-							height: 20,
-							borderRadius: 10,
-							borderWidth: 2,
 							borderColor:
-								data.addressType === "work" ? "#000000" : "#D1D5DB",
-							justifyContent: "center",
-							alignItems: "center",
+								data.addressType === "work"
+									? colors.primary[1]
+									: colors.secondary[2],
 						}}
 					>
 						{data.addressType === "work" && (
 							<View
-								style={{
-									width: 10,
-									height: 10,
-									borderRadius: 5,
-									backgroundColor: "#000000",
-								}}
+								className="h-2.5 w-2.5 rounded-full"
+								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
 					</View>
-					<Text style={{ fontSize: 14, fontFamily: fonts.body }}>Work</Text>
+					<Text
+						className="text-sm font-medium"
+						style={{ color: colors.primary[1] }}
+					>
+						Work
+					</Text>
 				</TouchableOpacity>
 			</View>
 
@@ -398,8 +649,8 @@ function PersonalDetailsStep({
 				error={errors.streetAddress}
 			/>
 
-			<View style={{ flexDirection: "row", gap: 12 }}>
-				<View style={{ flex: 1 }}>
+			<View className="flex-row gap-3">
+				<View className="flex-1">
 					<FormLabel text="City" required />
 					<FormInput
 						placeholder="City"
@@ -408,7 +659,7 @@ function PersonalDetailsStep({
 						error={errors.city}
 					/>
 				</View>
-				<View style={{ flex: 1 }}>
+				<View className="flex-1">
 					<FormLabel text="State" required />
 					<FormInput
 						placeholder="State"
@@ -419,8 +670,8 @@ function PersonalDetailsStep({
 				</View>
 			</View>
 
-			<View style={{ flexDirection: "row", gap: 12 }}>
-				<View style={{ flex: 1 }}>
+			<View className="flex-row gap-3">
+				<View className="flex-1">
 					<FormLabel text="Country" required />
 					<FormInput
 						placeholder="Country"
@@ -429,7 +680,7 @@ function PersonalDetailsStep({
 						error={errors.country}
 					/>
 				</View>
-				<View style={{ flex: 1 }}>
+				<View className="flex-1">
 					<FormLabel text="Postal Code" required />
 					<FormInput
 						placeholder="Postal Code"
@@ -444,18 +695,19 @@ function PersonalDetailsStep({
 			<FormLabel text="Date of Birth" required />
 			<TouchableOpacity
 				onPress={() => setShowDatePicker(true)}
+				className="mb-4 rounded-xl border bg-primary-2 px-4 py-3"
 				style={{
-					borderBottomWidth: 1,
-					borderBottomColor: errors.dateOfBirth ? "#E53935" : "#D1D5DB",
-					paddingVertical: 10,
-					marginBottom: 16,
+					borderColor: errors.dateOfBirth
+						? "#E53935"
+						: colors.secondary[2],
 				}}
 			>
 				<Text
+					className="text-base"
 					style={{
-						fontSize: 15,
-						color: data.dateOfBirth ? "#1A1A1A" : "#9CA3AF",
-						fontFamily: fonts.body,
+						color: data.dateOfBirth
+							? colors.primary[1]
+							: colors.secondary[1],
 					}}
 				>
 					{data.dateOfBirth
@@ -469,13 +721,8 @@ function PersonalDetailsStep({
 			</TouchableOpacity>
 			{errors.dateOfBirth && (
 				<Text
-					style={{
-						color: "#E53935",
-						fontSize: 12,
-						marginTop: -12,
-						marginBottom: 16,
-						fontFamily: fonts.body,
-					}}
+					className="-mt-3 mb-4 text-xs"
+					style={{ color: "#E53935" }}
 				>
 					{errors.dateOfBirth}
 				</Text>
@@ -494,6 +741,15 @@ function PersonalDetailsStep({
 					}}
 				/>
 			)}
+						<TouchableOpacity
+				onPress={handleSignOut}
+				className="mb-4 self-start flex-row items-center gap-2 rounded-xl border border-red-400 bg-red-50 px-4 py-2"
+			>
+				<Ionicons name="log-out-outline" size={18} color="#E53935" />
+				<Text className="text-sm font-medium" style={{ color: "#E53935" }}>
+					Sign Out
+				</Text>
+			</TouchableOpacity>
 		</>
 	);
 }
@@ -504,15 +760,17 @@ function EmergencyContactStep({
 	data,
 	onChange,
 	errors,
+	phoneCountry,
+	onPhoneCountryChange,
 }: {
 	data: EmergencyContact;
 	onChange: (data: Partial<EmergencyContact>) => void;
 	errors: Record<string, string>;
+	phoneCountry: CountryCode;
+	onPhoneCountryChange: (country: CountryCode) => void;
 }) {
 	return (
 		<>
-			<StepHeader title="Emergency Contact Details" />
-
 			<FormLabel text="Emergency Contact Name" required />
 			<FormInput
 				placeholder="Full name"
@@ -535,6 +793,8 @@ function EmergencyContactStep({
 			<PhoneInput
 				value={data.phone}
 				onChangeText={(v) => onChange({ phone: v })}
+				selectedCountry={phoneCountry}
+				onCountryChange={onPhoneCountryChange}
 				error={errors.phone}
 			/>
 		</>
@@ -553,44 +813,31 @@ function BranchSelectionStep({
 	errors: Record<string, string>;
 }) {
 	const branches = data.country ? BRANCHES[data.country] || [] : [];
-	const [showBranchPicker, setShowBranchPicker] = useState(false);
 	const selectedBranch = branches.find((b) => b.id === data.branchId);
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 
 	return (
 		<>
 			<FormLabel text="Country" required />
-			<View
-				style={{
-					flexDirection: "row",
-					justifyContent: "center",
-					gap: 16,
-					marginBottom: 24,
-				}}
-			>
+			<View className="mb-6 flex-row justify-center gap-4">
 				{COUNTRY_OPTIONS.map((c) => (
 					<TouchableOpacity
 						key={c.id}
-						onPress={() => onChange({ country: c.id, branchId: "" })}
-						style={{
-							width: 100,
-							alignItems: "center",
-							borderWidth: 2,
-							borderColor: data.country === c.id ? "#2E7D32" : "#E5E7EB",
-							borderRadius: 12,
-							paddingVertical: 12,
-							paddingHorizontal: 8,
-							backgroundColor: "#FFFFFF",
+						onPress={() => {
+							onChange({ country: c.id, branchId: "" });
+							setDropdownOpen(false);
 						}}
+						className={`items-center rounded-2xl border bg-primary-2 px-3 py-3 ${
+							data.country === c.id
+								? "border-primary-1"
+								: "border-secondary-2"
+						}`}
+						style={{ width: 100 }}
 					>
-						<Text style={{ fontSize: 48, marginBottom: 8 }}>{c.flag}</Text>
+						<Text className="mb-2 text-5xl">{c.flag}</Text>
 						<Text
-							style={{
-								fontSize: 13,
-								fontWeight: "600",
-								color: "#1A1A1A",
-								fontFamily: fonts.body,
-								textAlign: "center",
-							}}
+							className="text-center font-semibold text-sm"
+							style={{ color: colors.primary[1] }}
 						>
 							{c.name}
 						</Text>
@@ -599,14 +846,8 @@ function BranchSelectionStep({
 			</View>
 			{errors.country && (
 				<Text
-					style={{
-						color: "#E53935",
-						fontSize: 12,
-						marginTop: -16,
-						marginBottom: 16,
-						textAlign: "center",
-						fontFamily: fonts.body,
-					}}
+					className="-mt-4 mb-4 text-center text-xs"
+					style={{ color: "#E53935" }}
 				>
 					{errors.country}
 				</Text>
@@ -618,86 +859,82 @@ function BranchSelectionStep({
 						text={`Select Branch (${COUNTRY_OPTIONS.find((c) => c.id === data.country)?.name})`}
 						required
 					/>
+					{/* Dropdown trigger */}
 					<TouchableOpacity
-						onPress={() => setShowBranchPicker(!showBranchPicker)}
-						style={{
-							borderBottomWidth: 1,
-							borderBottomColor: errors.branchId ? "#E53935" : "#D1D5DB",
-							paddingVertical: 10,
-							marginBottom: showBranchPicker ? 0 : 16,
-							flexDirection: "row",
-							justifyContent: "space-between",
-							alignItems: "center",
-						}}
+						onPress={() => setDropdownOpen(!dropdownOpen)}
+						className={`mb-1 flex-row items-center justify-between rounded-xl border bg-primary-2 px-4 py-3 ${
+							errors.branchId
+								? ""
+								: dropdownOpen
+									? "border-primary-1"
+									: "border-secondary-2"
+						}`}
+						style={errors.branchId ? { borderColor: "#E53935" } : undefined}
 					>
 						<Text
+							className="flex-1 text-base"
 							style={{
-								fontSize: 15,
-								color: selectedBranch ? "#1A1A1A" : "#9CA3AF",
-								fontFamily: fonts.body,
+								color: selectedBranch
+									? colors.primary[1]
+									: colors.secondary[1],
 							}}
 						>
 							{selectedBranch?.name || "Select a branch"}
 						</Text>
 						<Ionicons
-							name={showBranchPicker ? "chevron-up" : "chevron-down"}
-							size={20}
-							color="#6B7280"
+							name={dropdownOpen ? "chevron-up" : "chevron-down"}
+							size={18}
+							color={colors.secondary[1]}
 						/>
 					</TouchableOpacity>
-					{errors.branchId && (
-						<Text
-							style={{
-								color: "#E53935",
-								fontSize: 12,
-								marginTop: 4,
-								marginBottom: 16,
-								fontFamily: fonts.body,
-							}}
-						>
-							{errors.branchId}
-						</Text>
-					)}
 
-					{showBranchPicker && (
+					{/* Dropdown list */}
+					{dropdownOpen && (
 						<View
-							style={{
-								backgroundColor: "#FFFFFF",
-								borderWidth: 1,
-								borderColor: "#E5E7EB",
-								borderRadius: 8,
-								marginBottom: 16,
-								overflow: "hidden",
-							}}
+							className="mb-1 overflow-hidden rounded-xl border border-secondary-2 bg-primary-2"
 						>
-							{branches.map((branch) => (
+							{branches.map((branch, index) => (
 								<TouchableOpacity
 									key={branch.id}
 									onPress={() => {
 										onChange({ branchId: branch.id });
-										setShowBranchPicker(false);
+										setDropdownOpen(false);
 									}}
+									className="flex-row items-center justify-between px-4 py-3"
 									style={{
-										paddingVertical: 12,
-										paddingHorizontal: 16,
-										borderBottomWidth: 1,
-										borderBottomColor: "#F3F4F6",
 										backgroundColor:
-											data.branchId === branch.id ? "#F3F3F3" : "#FFFFFF",
+											data.branchId === branch.id
+												? colors.secondary[3]
+												: colors.primary[2],
+										borderTopWidth: index > 0 ? 1 : 0,
+										borderTopColor: colors.secondary[3],
 									}}
 								>
 									<Text
-										style={{
-											fontSize: 14,
-											color: "#1A1A1A",
-											fontFamily: fonts.body,
-										}}
+										className="flex-1 text-base"
+										style={{ color: colors.primary[1] }}
 									>
 										{branch.name}
 									</Text>
+									{data.branchId === branch.id && (
+										<Ionicons
+											name="checkmark"
+											size={18}
+											color={colors.primary[1]}
+										/>
+									)}
 								</TouchableOpacity>
 							))}
 						</View>
+					)}
+
+					{errors.branchId && (
+						<Text
+							className="mt-1 text-xs"
+							style={{ color: "#E53935" }}
+						>
+							{errors.branchId}
+						</Text>
 					)}
 				</>
 			)}
@@ -713,9 +950,12 @@ export default function RegistrationForm() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 
+	const userFirstName = (user as { firstName?: string } | null)?.firstName || "";
+	const userLastName = (user as { lastName?: string } | null)?.lastName || "";
+
 	const [personalDetails, setPersonalDetails] = useState<PersonalDetails>({
-		firstName: "",
-		lastName: "",
+		firstName: userFirstName,
+		lastName: userLastName,
 		phone: "",
 		email: user?.email || "",
 		idPassportNo: "",
@@ -728,6 +968,21 @@ export default function RegistrationForm() {
 		dateOfBirth: null,
 	});
 
+	// Auto-fill user details once session loads
+	useEffect(() => {
+		if (user) {
+			setPersonalDetails((prev) => ({
+				...prev,
+				firstName: prev.firstName || userFirstName,
+				lastName: prev.lastName || userLastName,
+				email: prev.email || user.email || "",
+			}));
+		}
+	}, [user, userFirstName, userLastName]);
+
+	const [phoneCountry, setPhoneCountry] = useState<CountryCode>(getDefaultCountry);
+	const [emergencyPhoneCountry, setEmergencyPhoneCountry] = useState<CountryCode>(getDefaultCountry);
+
 	const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
 		name: "",
 		relationship: "",
@@ -738,6 +993,9 @@ export default function RegistrationForm() {
 		country: "",
 		branchId: "",
 	});
+
+	const totalSteps = 3;
+	const progressPercentage = Math.round(((currentStep + 1) / totalSteps) * 100);
 
 	const validateStep = (step: number): boolean => {
 		const newErrors: Record<string, string> = {};
@@ -793,7 +1051,6 @@ export default function RegistrationForm() {
 
 		setIsSubmitting(true);
 		try {
-			// Build address string from components
 			const fullAddress = [
 				personalDetails.streetAddress,
 				personalDetails.city,
@@ -803,15 +1060,6 @@ export default function RegistrationForm() {
 			]
 				.filter(Boolean)
 				.join(", ");
-
-			// TODO: Replace with actual client registration API endpoint
-			// This should:
-			// 1. Create/update customer profile in tenant DB
-			// 2. Add user as client member in the organization
-			// 3. Set user role to "user"
-			//
-			// For now, we'll call the customer profile upsert if organizationId is available
-			// and show an alert about the registration data
 
 			const registrationData = {
 				personalDetails: {
@@ -845,166 +1093,233 @@ export default function RegistrationForm() {
 	};
 
 	return (
-		<KeyboardAvoidingView
-			behavior={Platform.OS === "ios" ? "padding" : "height"}
-			style={{ flex: 1, backgroundColor: "#F5F5F5" }}
-		>
+		<SafeAreaView edges={["top"]} className="flex-1 bg-secondary-3">
 			<ScrollView
-				contentContainerStyle={{
-					flexGrow: 1,
-					paddingHorizontal: 24,
-					paddingTop: 16,
-					paddingBottom: 120,
-				}}
+				className="flex-1 bg-secondary-3"
+				contentContainerStyle={{ paddingBottom: 120 }}
 				keyboardShouldPersistTaps="handled"
 				showsVerticalScrollIndicator={false}
+				automaticallyAdjustKeyboardInsets
 			>
-				{/* Header */}
-				<View style={{ alignItems: "center", marginBottom: 16 }}>
-					<Image
-						source={require("../assets/images/Logo-B.png")}
-						style={{ width: 48, height: 48, marginBottom: 8 }}
-						resizeMode="contain"
-					/>
-					<Text
-						style={{
-							fontSize: 20,
-							fontWeight: "bold",
-							color: "#1A1A1A",
-							fontFamily: fonts.heading,
-						}}
-					>
-						Client Registration Form
-					</Text>
-				</View>
-
-				{/* Step Indicator */}
-				<StepIndicator currentStep={currentStep} totalSteps={3} />
-
-				{/* Form Card */}
-				<View
-					style={{
-						backgroundColor: "#FFFFFF",
-						borderRadius: 16,
-						padding: 20,
-						shadowColor: "#000",
-						shadowOffset: { width: 0, height: 2 },
-						shadowOpacity: 0.05,
-						shadowRadius: 8,
-						elevation: 2,
-					}}
-				>
-					{currentStep === 0 && (
-						<PersonalDetailsStep
-							data={personalDetails}
-							onChange={(d) =>
-								setPersonalDetails((prev) => ({ ...prev, ...d }))
-							}
-							errors={errors}
+					{/* Header */}
+					<View className="items-center px-4 pt-4 pb-2">
+						<Image
+							source={require("../assets/images/Logo-B.png")}
+							className="mb-2 h-12 w-12"
+							resizeMode="contain"
 						/>
-					)}
-
-					{currentStep === 1 && (
-						<EmergencyContactStep
-							data={emergencyContact}
-							onChange={(d) =>
-								setEmergencyContact((prev) => ({ ...prev, ...d }))
-							}
-							errors={errors}
-						/>
-					)}
-
-					{currentStep === 2 && (
-						<BranchSelectionStep
-							data={branchSelection}
-							onChange={(d) =>
-								setBranchSelection((prev) => ({ ...prev, ...d }))
-							}
-							errors={errors}
-						/>
-					)}
-				</View>
-			</ScrollView>
-
-			{/* Bottom Navigation Buttons */}
-			<View
-				style={{
-					position: "absolute",
-					bottom: 0,
-					left: 0,
-					right: 0,
-					flexDirection: "row",
-					paddingHorizontal: 24,
-					paddingBottom: Platform.OS === "ios" ? 34 : 24,
-					paddingTop: 12,
-					backgroundColor: "#F5F5F5",
-				}}
-			>
-				{currentStep > 0 && (
-					<TouchableOpacity
-						onPress={handlePrev}
-						style={{
-							flex: 1,
-							height: 50,
-							backgroundColor: "#000000",
-							borderRadius: 8,
-							justifyContent: "center",
-							alignItems: "center",
-							marginRight: 8,
-							flexDirection: "row",
-							gap: 4,
-						}}
-					>
-						<Ionicons name="arrow-back" size={18} color="#FFFFFF" />
-						<Text
-							style={{
-								fontSize: 15,
-								fontWeight: "600",
-								color: "#FFFFFF",
-								fontFamily: fonts.subheading,
-							}}
-						>
-							PREV
+						<Text className="font-bold text-2xl text-primary-1">
+							User Registration
 						</Text>
-					</TouchableOpacity>
-				)}
+					</View>
 
-				<TouchableOpacity
-					onPress={currentStep === 2 ? handleSubmit : handleNext}
-					disabled={isSubmitting}
-					style={{
-						flex: currentStep > 0 ? 0.5 : 1,
-						height: 50,
-						backgroundColor: "#000000",
-						borderRadius: 8,
-						justifyContent: "center",
-						alignItems: "center",
-						flexDirection: "row",
-						gap: 4,
-						opacity: isSubmitting ? 0.6 : 1,
-					}}
-				>
-					{isSubmitting ? (
-						<ActivityIndicator size="small" color="#FFFFFF" />
-					) : (
-						<>
-							<Text
-								style={{
-									fontSize: 15,
-									fontWeight: "600",
-									color: "#FFFFFF",
-									fontFamily: fonts.subheading,
-								}}
+					<View className="px-4 pb-6">
+						{/* Progress Indicator */}
+						<View className="mb-6">
+							<View className="mb-2 flex-row items-center justify-between">
+								<Text className="font-semibold text-primary-1 text-sm">
+									Step {currentStep + 1} of {totalSteps}
+								</Text>
+								<Text className="font-semibold text-primary-1 text-sm">
+									{progressPercentage}%
+								</Text>
+							</View>
+
+							{/* Progress Bar */}
+							<View
+								className="mb-4 h-2 overflow-hidden rounded-full"
+								style={{ backgroundColor: colors.secondary[2] }}
 							>
-								{currentStep === 2 ? "SUBMIT" : "NEXT"}
-							</Text>
-							{currentStep < 2 && (
-								<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+								<View
+									className="h-full rounded-full"
+									style={{
+										width: `${progressPercentage}%`,
+										backgroundColor: colors.primary[1],
+									}}
+								/>
+							</View>
+
+							{/* Step Navigation */}
+							<View className="relative" style={{ height: 50 }}>
+								{/* Connector line */}
+								<View
+									className="absolute rounded-full"
+									style={{
+										left: "15%",
+										right: "14%",
+										top: "24%",
+										height: 2,
+										backgroundColor: colors.secondary[2],
+										zIndex: 0,
+									}}
+								/>
+								{/* Steps */}
+								<View className="absolute inset-0 flex-row items-center justify-between">
+									{STEPS.map((step, index) => (
+										<View
+											key={step.number}
+											className="items-center justify-center"
+											style={{ flex: 1, zIndex: 1 }}
+										>
+											{index <= currentStep ? (
+												<View className="mb-1 items-center justify-center">
+													<View
+														className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
+														style={{
+															backgroundColor:
+																index === currentStep
+																	? colors.primary[1]
+																	: colors.primary[2],
+															zIndex: 2,
+														}}
+													>
+														{index < currentStep ? (
+															<Ionicons
+																name="checkmark"
+																size={14}
+																color={colors.primary[1]}
+															/>
+														) : (
+															<View
+																className="h-2 w-2 rounded-full"
+																style={{
+																	backgroundColor: colors.primary[2],
+																}}
+															/>
+														)}
+													</View>
+												</View>
+											) : (
+												<View className="mb-1 items-center justify-center">
+													<View
+														className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														style={{ zIndex: 2 }}
+													>
+														<Text className="font-semibold text-primary-1 text-xs">
+															{step.number}
+														</Text>
+													</View>
+												</View>
+											)}
+											<Text
+												className={`mt-1 text-center text-xs ${
+													index === currentStep
+														? "font-bold"
+														: "font-medium"
+												}`}
+												style={{
+													color:
+														index <= currentStep
+															? colors.primary[1]
+															: colors.secondary[1],
+												}}
+											>
+												{step.label}
+											</Text>
+										</View>
+									))}
+								</View>
+							</View>
+						</View>
+
+						{/* Section Title */}
+						<Text
+							className="mb-4 font-bold text-sm uppercase tracking-wide"
+							style={{ color: colors.primary[1] }}
+						>
+							{currentStep === 0
+								? "PERSONAL DETAILS"
+								: currentStep === 1
+									? "EMERGENCY CONTACT"
+									: "SELECT PREFERRED LOCATION"}
+						</Text>
+
+						{/* Form Card */}
+						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+							{currentStep === 0 && (
+								<PersonalDetailsStep
+									data={personalDetails}
+									onChange={(d) =>
+										setPersonalDetails((prev) => ({ ...prev, ...d }))
+									}
+									errors={errors}
+									phoneCountry={phoneCountry}
+									onPhoneCountryChange={setPhoneCountry}
+								/>
 							)}
-						</>
-					)}
-				</TouchableOpacity>
-			</View>
-		</KeyboardAvoidingView>
+
+							{currentStep === 1 && (
+								<EmergencyContactStep
+									data={emergencyContact}
+									onChange={(d) =>
+										setEmergencyContact((prev) => ({ ...prev, ...d }))
+									}
+									errors={errors}
+									phoneCountry={emergencyPhoneCountry}
+									onPhoneCountryChange={setEmergencyPhoneCountry}
+								/>
+							)}
+
+							{currentStep === 2 && (
+								<BranchSelectionStep
+									data={branchSelection}
+									onChange={(d) =>
+										setBranchSelection((prev) => ({ ...prev, ...d }))
+									}
+									errors={errors}
+								/>
+							)}
+						</View>
+					</View>
+				</ScrollView>
+
+				{/* Bottom Navigation */}
+				<SafeAreaView
+					edges={["bottom"]}
+					className="border-secondary-3 border-t bg-primary-2"
+				>
+					<View className="flex-row gap-3 px-4 py-4">
+						{currentStep > 0 && (
+							<TouchableOpacity
+								onPress={handlePrev}
+								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
+							>
+								<Ionicons
+									name="arrow-back"
+									size={18}
+									color={colors.primary[1]}
+								/>
+								<Text className="font-semibold text-base text-primary-1">
+									Back
+								</Text>
+							</TouchableOpacity>
+						)}
+
+						<TouchableOpacity
+							onPress={currentStep === 2 ? handleSubmit : handleNext}
+							disabled={isSubmitting}
+							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
+							style={{ opacity: isSubmitting ? 0.6 : 1 }}
+						>
+							{isSubmitting ? (
+								<ActivityIndicator size="small" color={colors.primary[2]} />
+							) : (
+								<>
+									<Text className="font-semibold text-base text-primary-2">
+										{currentStep === 2 ? "Submit" : "Continue"}
+									</Text>
+									{currentStep < 2 && (
+										<Ionicons
+											name="arrow-forward"
+											size={18}
+											color={colors.primary[2]}
+										/>
+									)}
+								</>
+							)}
+						</TouchableOpacity>
+					</View>
+				</SafeAreaView>
+		</SafeAreaView>
 	);
 }
