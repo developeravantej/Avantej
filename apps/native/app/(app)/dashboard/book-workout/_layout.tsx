@@ -1,6 +1,7 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
+import { BookingFlowProvider } from "@/contexts/booking-flow-context";
 import { colors } from "@/lib/colors";
 
 export default function BookWorkoutLayout() {
@@ -90,15 +91,17 @@ export default function BookWorkoutLayout() {
 	}, [navigation, hideTabBar, showTabBar]);
 
 	return (
-		<Stack
-			screenOptions={{
-				headerShown: false,
-			}}
-		>
-			<Stack.Screen name="book-workout" />
-			<Stack.Screen name="schedule" />
-			<Stack.Screen name="review" />
-			<Stack.Screen name="done" />
-		</Stack>
+		<BookingFlowProvider>
+			<Stack
+				screenOptions={{
+					headerShown: false,
+				}}
+			>
+				<Stack.Screen name="book-workout" />
+				<Stack.Screen name="schedule" />
+				<Stack.Screen name="review" />
+				<Stack.Screen name="done" />
+			</Stack>
+		</BookingFlowProvider>
 	);
 }

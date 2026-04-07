@@ -1,266 +1,54 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-
-// Service Categories
-const SERVICE_CATEGORY = {
-	PRIVATE: 1, // Personal Training
-	SEMI_PRIVATE: 2, // Classes
-	GROUP: 3, // Group Training
-	ONLINE: 4, // Online Training
-	NUTRITION: 5, // Nutrition Coaching
-	RECOVERY: 6, // Recovery & Wellness
-} as const;
-
-// Dummy data for service categories
-const serviceCategories = [
-	{
-		id: SERVICE_CATEGORY.PRIVATE,
-		name: "Private",
-		description:
-			"Personal Training - One-on-one sessions with your preferred coach",
-	},
-	{
-		id: SERVICE_CATEGORY.SEMI_PRIVATE,
-		name: "Semi-Private",
-		description:
-			"Classes - Group sessions with fixed schedules and assigned instructors",
-	},
-	{
-		id: SERVICE_CATEGORY.GROUP,
-		name: "Group Training",
-		description:
-			"Small group sessions - Train with 2-4 others for motivation and camaraderie",
-	},
-	{
-		id: SERVICE_CATEGORY.ONLINE,
-		name: "Online Training",
-		description:
-			"Virtual sessions - Train from anywhere with live or on-demand coaching",
-	},
-	{
-		id: SERVICE_CATEGORY.NUTRITION,
-		name: "Nutrition Coaching",
-		description:
-			"Meal planning and nutrition guidance - Personalized diet plans and coaching",
-	},
-	{
-		id: SERVICE_CATEGORY.RECOVERY,
-		name: "Recovery & Wellness",
-		description:
-			"Massage, stretching, and recovery - Enhance your performance and well-being",
-	},
-];
-
-// Dummy data for services
-const services = [
-	// Personal Training services
-	{
-		id: 1,
-		title: "2×12-Week Personal Training",
-		description:
-			"24 credits - 12 weeks of personalized training, 2 sessions per week",
-		credits: 24,
-		categoryId: SERVICE_CATEGORY.PRIVATE,
-	},
-	{
-		id: 2,
-		title: "2×24-Week Personal Training",
-		description:
-			"48 credits - 24 weeks of personalized training, 2 sessions per week",
-		credits: 48,
-		categoryId: SERVICE_CATEGORY.PRIVATE,
-	},
-	{
-		id: 3,
-		title: "3×8-Week Personal Training",
-		description:
-			"24 credits - 8 weeks of intensive training, 3 sessions per week",
-		credits: 24,
-		categoryId: SERVICE_CATEGORY.PRIVATE,
-	},
-	{
-		id: 4,
-		title: "1×16-Week Personal Training",
-		description:
-			"16 credits - 16 weeks of flexible training, 1 session per week",
-		credits: 16,
-		categoryId: SERVICE_CATEGORY.PRIVATE,
-	},
-	// Semi-Private Class services
-	{
-		id: 5,
-		title: "Class A",
-		description: "Every Mon/Wed/Fri at 7:00 PM",
-		schedule: "Mon/Wed/Fri 7:00 PM",
-		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
-	},
-	{
-		id: 6,
-		title: "Class B",
-		description: "Every Tue at 8:00 AM",
-		schedule: "Tue 8:00 AM",
-		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
-	},
-	{
-		id: 7,
-		title: "Class C - Morning Bootcamp",
-		description: "Every Mon/Wed/Fri at 6:30 AM",
-		schedule: "Mon/Wed/Fri 6:30 AM",
-		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
-	},
-	{
-		id: 8,
-		title: "Class D - Evening Yoga",
-		description: "Every Tue/Thu at 6:00 PM",
-		schedule: "Tue/Thu 6:00 PM",
-		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
-	},
-	{
-		id: 9,
-		title: "Class E - Weekend Warrior",
-		description: "Every Sat at 9:00 AM",
-		schedule: "Sat 9:00 AM",
-		categoryId: SERVICE_CATEGORY.SEMI_PRIVATE,
-	},
-	// Group Training services
-	{
-		id: 10,
-		title: "4×8-Week Group Training",
-		description:
-			"32 credits - 8 weeks of small group training, 4 sessions per week",
-		credits: 32,
-		categoryId: SERVICE_CATEGORY.GROUP,
-	},
-	{
-		id: 11,
-		title: "3×12-Week Group Training",
-		description: "36 credits - 12 weeks of group sessions, 3 sessions per week",
-		credits: 36,
-		categoryId: SERVICE_CATEGORY.GROUP,
-	},
-	{
-		id: 12,
-		title: "2×16-Week Group Training",
-		description: "32 credits - 16 weeks of group training, 2 sessions per week",
-		credits: 32,
-		categoryId: SERVICE_CATEGORY.GROUP,
-	},
-	// Online Training services
-	{
-		id: 13,
-		title: "Monthly Online Coaching",
-		description:
-			"12 credits - Live sessions and on-demand workouts for one month",
-		credits: 12,
-		categoryId: SERVICE_CATEGORY.ONLINE,
-	},
-	{
-		id: 14,
-		title: "3-Month Online Program",
-		description:
-			"36 credits - 3 months of virtual training with weekly check-ins",
-		credits: 36,
-		categoryId: SERVICE_CATEGORY.ONLINE,
-	},
-	{
-		id: 15,
-		title: "On-Demand Library Access",
-		description:
-			"Unlimited access to workout library and pre-recorded sessions",
-		credits: 0,
-		categoryId: SERVICE_CATEGORY.ONLINE,
-	},
-	// Nutrition Coaching services
-	{
-		id: 16,
-		title: "4-Week Nutrition Plan",
-		description: "8 credits - Personalized meal plan with weekly consultations",
-		credits: 8,
-		categoryId: SERVICE_CATEGORY.NUTRITION,
-	},
-	{
-		id: 17,
-		title: "12-Week Nutrition Coaching",
-		description:
-			"24 credits - 3 months of nutrition guidance and meal planning",
-		credits: 24,
-		categoryId: SERVICE_CATEGORY.NUTRITION,
-	},
-	{
-		id: 18,
-		title: "One-Time Nutrition Consultation",
-		description:
-			"2 credits - Initial assessment and personalized recommendations",
-		credits: 2,
-		categoryId: SERVICE_CATEGORY.NUTRITION,
-	},
-	// Recovery & Wellness services
-	{
-		id: 19,
-		title: "Monthly Recovery Package",
-		description: "8 credits - 4 sessions of massage or stretching per month",
-		credits: 8,
-		categoryId: SERVICE_CATEGORY.RECOVERY,
-	},
-	{
-		id: 20,
-		title: "Deep Tissue Massage",
-		description: "2 credits per session - 60-minute deep tissue massage",
-		credits: 2,
-		categoryId: SERVICE_CATEGORY.RECOVERY,
-	},
-	{
-		id: 21,
-		title: "Stretching & Mobility Session",
-		description: "1 credit per session - 30-minute guided stretching session",
-		credits: 1,
-		categoryId: SERVICE_CATEGORY.RECOVERY,
-	},
-	{
-		id: 22,
-		title: "Wellness Assessment",
-		description:
-			"1 credit - Comprehensive wellness evaluation and recommendations",
-		credits: 1,
-		categoryId: SERVICE_CATEGORY.RECOVERY,
-	},
-];
+import { orpc } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: true },
 	{ number: 2, label: "Schedule", active: false },
-	{ number: 3, label: "Review", active: false },
-	{ number: 4, label: "Info", active: false },
+	{ number: 3, label: "Info", active: false },
+	{ number: 4, label: "Review", active: false },
 	{ number: 5, label: "Sign", active: false },
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: false },
 ];
 
+function SkeletonCard() {
+	return (
+		<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View
+				className="mb-2 h-5 w-3/4 rounded"
+				style={{ backgroundColor: colors.secondary[3] }}
+			/>
+			<View
+				className="h-4 w-1/2 rounded"
+				style={{ backgroundColor: colors.secondary[3] }}
+			/>
+		</View>
+	);
+}
+
 export default function SetupScreen() {
 	const navigation = useNavigation();
-	const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-	const [selectedService, setSelectedService] = useState<number | null>(null);
-	const currentStep = 1;
-	const totalSteps = 7;
-	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
-
-	// Check if selected category is Personal Training
-	const _isPersonalTraining = selectedCategory === SERVICE_CATEGORY.PRIVATE;
-
-	// Filter services by selected category
-	const availableServices = selectedCategory
-		? services.filter((service) => service.categoryId === selectedCategory)
-		: [];
+	const { organizationId } = useOrganization();
+	const { state, update } = usePurchaseFlow();
 
 	useFocusEffect(
 		useCallback(() => {
-			// Hide tab bar when this screen is focused
 			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
 				if (depth > 5) return null;
 				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
@@ -279,8 +67,8 @@ export default function SetupScreen() {
 						state?.routes?.some(
 							(r) =>
 								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
+								r.name === "explore" ||
+								r.name === "bookings" ||
 								r.name === "profile",
 						)
 					) {
@@ -304,9 +92,85 @@ export default function SetupScreen() {
 					tabBarStyle: { display: "none" },
 				});
 			}
-			// Don't restore in cleanup - layout handles it
 		}, [navigation]),
 	);
+
+	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+		state.categoryId,
+	);
+	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+		state.serviceId,
+	);
+	const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
+		state.packageId,
+	);
+
+	const currentStep = 1;
+	const totalSteps = 7;
+	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
+
+	// Fetch categories
+	const { data: categories, isLoading: categoriesLoading } = useQuery(
+		orpc.serviceCategories.list.queryOptions({
+			input: { organizationId },
+		}),
+	);
+
+	// Fetch services for selected category
+	const { data: services, isLoading: servicesLoading } = useQuery({
+		...orpc.services.list.queryOptions({
+			input: { organizationId, categoryId: selectedCategoryId! },
+		}),
+		enabled: !!selectedCategoryId,
+	});
+
+	// Fetch packages matching the selected service's appointment type
+	const selectedService = services?.find((s: any) => s.id === selectedServiceId);
+	// Map service type to package appointmentType format (underscore -> hyphen)
+	const serviceType = selectedService?.type as string | undefined;
+	const packageAppointmentType =
+		serviceType === "semi_private" ? "semi-private" : serviceType;
+
+	const { data: availablePackages, isLoading: packagesLoading } = useQuery({
+		...orpc.packages.list.queryOptions({
+			input: {
+				organizationId,
+				appointmentType: packageAppointmentType as
+					| "private"
+					| "semi-private"
+					| "both",
+			},
+		}),
+		enabled: !!packageAppointmentType,
+	});
+
+	const handleContinue = () => {
+		const selectedCat = categories?.find(
+			(c: any) => c.id === selectedCategoryId,
+		);
+		const selectedSvc = services?.find(
+			(s: any) => s.id === selectedServiceId,
+		);
+		const selectedPkg = (availablePackages as any[])?.find(
+			(p: any) => p.id === selectedPackageId,
+		);
+
+		update({
+			categoryId: selectedCategoryId,
+			categoryName: selectedCat?.name ?? null,
+			serviceId: selectedServiceId,
+			serviceName: selectedSvc?.name ?? null,
+			serviceType: (serviceType as "private" | "semi_private") ?? null,
+			packageId: selectedPackageId,
+			packageName: selectedPkg?.name ?? null,
+			creditsTotal: selectedPkg?.sessionCount ?? null,
+			price: selectedPkg?.pricePerSession
+				? selectedPkg.pricePerSession * (selectedPkg.sessionCount ?? 1)
+				: null,
+			validityDays: selectedPkg?.validityDays ?? null,
+		});
+		router.push("./schedule");
+	};
 
 	return (
 		<Container>
@@ -318,7 +182,11 @@ export default function SetupScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Buy Package
@@ -338,7 +206,7 @@ export default function SetupScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility */}
+					{/* Progress Indicator */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
@@ -349,7 +217,6 @@ export default function SetupScreen() {
 							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
@@ -377,7 +244,7 @@ export default function SetupScreen() {
 								}}
 							/>
 							<View className="absolute inset-0 flex-row items-center justify-between">
-								{steps.map((step, _index) => (
+								{steps.map((step) => (
 									<View
 										key={step.number}
 										className="items-center justify-center"
@@ -443,36 +310,46 @@ export default function SetupScreen() {
 							Choose a category to explore available services
 						</Text>
 
-						{/* Category Cards */}
-						{serviceCategories.map((category) => (
-							<TouchableOpacity
-								key={category.id}
-								onPress={() => {
-									setSelectedCategory(category.id);
-									setSelectedService(null); // Reset service selection when category changes
-								}}
-								className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-									selectedCategory === category.id
-										? "border-primary-1"
-										: "border-secondary-3"
-								} shadow-sm`}
-							>
-								<View className="mb-2 flex-row items-start justify-between">
-									<Text
-										className="flex-1 font-bold text-lg"
-										style={{ color: colors.primary[1] }}
-									>
-										{category.name}
-									</Text>
-								</View>
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
+						{categoriesLoading ? (
+							<>
+								<SkeletonCard />
+								<SkeletonCard />
+								<SkeletonCard />
+							</>
+						) : (
+							(categories ?? []).map((category: any) => (
+								<TouchableOpacity
+									key={category.id}
+									onPress={() => {
+										setSelectedCategoryId(category.id);
+										setSelectedServiceId(null);
+										setSelectedPackageId(null);
+									}}
+									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
+										selectedCategoryId === category.id
+											? "border-primary-1"
+											: "border-secondary-3"
+									} shadow-sm`}
 								>
-									{category.description}
-								</Text>
-							</TouchableOpacity>
-						))}
+									<View className="mb-2 flex-row items-start justify-between">
+										<Text
+											className="flex-1 font-bold text-lg"
+											style={{ color: colors.primary[1] }}
+										>
+											{category.name}
+										</Text>
+									</View>
+									{category.description && (
+										<Text
+											className="text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											{category.description}
+										</Text>
+									)}
+								</TouchableOpacity>
+							))
+						)}
 					</View>
 
 					{/* Service Selection Section */}
@@ -490,14 +367,39 @@ export default function SetupScreen() {
 							What would you like to focus on today?
 						</Text>
 
-						{selectedCategory ? (
-							/* Service Cards */
-							availableServices.map((service) => (
+						{!selectedCategoryId ? (
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+								<Text
+									className="text-center text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Please select a category first
+								</Text>
+							</View>
+						) : servicesLoading ? (
+							<>
+								<SkeletonCard />
+								<SkeletonCard />
+							</>
+						) : (services ?? []).length === 0 ? (
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+								<Text
+									className="text-center text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									No services available in this category
+								</Text>
+							</View>
+						) : (
+							(services ?? []).map((service: any) => (
 								<TouchableOpacity
 									key={service.id}
-									onPress={() => setSelectedService(service.id)}
+									onPress={() => {
+										setSelectedServiceId(service.id);
+										setSelectedPackageId(null);
+									}}
 									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedService === service.id
+										selectedServiceId === service.id
 											? "border-primary-1"
 											: "border-secondary-3"
 									} shadow-sm`}
@@ -507,9 +409,9 @@ export default function SetupScreen() {
 											className="flex-1 font-bold text-lg"
 											style={{ color: colors.primary[1] }}
 										>
-											{service.title}
+											{service.name}
 										</Text>
-										{"credits" in service && (
+										{service.type && (
 											<View
 												className="ml-2 rounded-full px-2 py-1"
 												style={{ backgroundColor: colors.secondary[3] }}
@@ -518,50 +420,137 @@ export default function SetupScreen() {
 													className="font-medium text-xs"
 													style={{ color: colors.primary[1] }}
 												>
-													{service.credits} credits
+													{service.type === "semi_private"
+														? "Semi-Private"
+														: "Private"}
 												</Text>
 											</View>
 										)}
 									</View>
-									<Text
-										className="text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
-										{service.description}
-									</Text>
+									{service.description && (
+										<Text
+											className="text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											{service.description}
+										</Text>
+									)}
 								</TouchableOpacity>
 							))
-						) : (
-							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
-								<Text
-									className="text-center text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									Please select a category first
-								</Text>
-							</View>
 						)}
 					</View>
+
+					{/* Package Selection Section */}
+					{selectedServiceId && (
+						<View className="mb-4">
+							<Text
+								className="mb-2 font-bold text-sm uppercase tracking-wide"
+								style={{ color: colors.primary[1] }}
+							>
+								SELECT PACKAGE
+							</Text>
+							<Text
+								className="mb-4 text-base"
+								style={{ color: colors.primary[1] }}
+							>
+								Choose a package that suits your needs
+							</Text>
+
+							{packagesLoading ? (
+								<>
+									<SkeletonCard />
+									<SkeletonCard />
+								</>
+							) : (availablePackages as any[] ?? []).length === 0 ? (
+								<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+									<Text
+										className="text-center text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										No packages available for this service type
+									</Text>
+								</View>
+							) : (
+								(availablePackages as any[] ?? []).map((pkg: any) => {
+									const totalPrice = pkg.pricePerSession
+										? pkg.pricePerSession * (pkg.sessionCount ?? 1)
+										: 0;
+
+									return (
+										<TouchableOpacity
+											key={pkg.id}
+											onPress={() => setSelectedPackageId(pkg.id)}
+											className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
+												selectedPackageId === pkg.id
+													? "border-primary-1"
+													: "border-secondary-3"
+											} shadow-sm`}
+										>
+											<View className="mb-2 flex-row items-start justify-between">
+												<Text
+													className="flex-1 font-bold text-lg"
+													style={{ color: colors.primary[1] }}
+												>
+													{pkg.name}
+												</Text>
+												{pkg.sessionCount && (
+													<View
+														className="ml-2 rounded-full px-2 py-1"
+														style={{
+															backgroundColor: colors.secondary[3],
+														}}
+													>
+														<Text
+															className="font-medium text-xs"
+															style={{ color: colors.primary[1] }}
+														>
+															{pkg.sessionCount} credits
+														</Text>
+													</View>
+												)}
+											</View>
+											{pkg.description && (
+												<Text
+													className="mb-2 text-sm"
+													style={{ color: colors.secondary[1] }}
+												>
+													{pkg.description}
+												</Text>
+											)}
+											<View className="flex-row items-center justify-between">
+												<Text
+													className="font-semibold text-base"
+													style={{ color: colors.primary[1] }}
+												>
+													${totalPrice.toFixed(2)}
+												</Text>
+												{pkg.validityDays && (
+													<Text
+														className="text-xs"
+														style={{ color: colors.secondary[1] }}
+													>
+														Valid for {pkg.validityDays} days
+													</Text>
+												)}
+											</View>
+										</TouchableOpacity>
+									);
+								})
+							)}
+						</View>
+					)}
 				</View>
 			</ScrollView>
 
 			{/* Continue Button */}
-			{selectedCategory && selectedService && (
+			{selectedCategoryId && selectedServiceId && selectedPackageId && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
-							onPress={() =>
-								router.push({
-									pathname: "./schedule" as never,
-									params: {
-										serviceId: selectedService,
-										categoryId: selectedCategory,
-									},
-								})
-							}
+							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">

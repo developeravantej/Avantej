@@ -1,32 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import { router, useNavigation } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import {
+	ActivityIndicator,
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { useBookingFlow } from "@/contexts/booking-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { orpc } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: true },
 	{ number: 3, label: "Review", active: false },
 	{ number: 4, label: "Done", active: false },
-];
-
-// Service types - 1 is Personal Training (1-on-1), others are classes
-const isOneOnOneService = (serviceId: number) => serviceId === 1;
-
-// Dummy time slots for class services
-const timeSlots = [
-	{ time: "9:00 AM", available: true, spotsLeft: null },
-	{ time: "10:00 AM", available: true, spotsLeft: 3 },
-	{ time: "11:00 AM", available: false, spotsLeft: null },
-	{ time: "12:00 PM", available: true, spotsLeft: null },
-	{ time: "1:00 PM", available: false, spotsLeft: null, full: true },
-	{ time: "2:00 PM", available: true, spotsLeft: null },
-	{ time: "3:00 PM", available: false, spotsLeft: null },
-	{ time: "4:00 PM", available: true, spotsLeft: null },
 ];
 
 // Generate dates for the next 7 days
@@ -41,13 +37,45 @@ const generateDates = () => {
 	return dates;
 };
 
+// Generate 1-on-1 time slots from 8AM to 7PM
+const generatePrivateTimeSlots = () => {
+	const slots = [];
+	for (let hour = 8; hour <= 19; hour++) {
+		const period = hour >= 12 ? "PM" : "AM";
+		const displayHour = hour > 12 ? hour - 12 : hour;
+		slots.push(`${displayHour}:00 ${period}`);
+	}
+	return slots;
+};
+
+// Parse time string like "10:00 AM" into [hours24, minutes]
+const parseTime = (timeStr: string): [number, number] => {
+	const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+	if (!match) return [0, 0];
+	let hours = Number.parseInt(match[1], 10);
+	const minutes = Number.parseInt(match[2], 10);
+	const period = match[3].toUpperCase();
+	if (period === "PM" && hours !== 12) hours += 12;
+	if (period === "AM" && hours === 12) hours = 0;
+	return [hours, minutes];
+};
+
+// Format ISO time string to display format
+const formatTime = (isoString: string): string => {
+	const date = new Date(isoString);
+	const hours = date.getHours();
+	const minutes = date.getMinutes();
+	const period = hours >= 12 ? "PM" : "AM";
+	const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+	return `${displayHour}:${minutes.toString().padStart(2, "0")} ${period}`;
+};
+
 export default function ScheduleScreen() {
 	const navigation = useNavigation();
-	const params = useLocalSearchParams<{ serviceId?: string }>();
-	const serviceId = params.serviceId
-		? Number.parseInt(params.serviceId, 10)
-		: null;
-	const isOneOnOne = serviceId ? isOneOnOneService(serviceId) : false;
+	const { organizationId } = useOrganization();
+	const { state, update } = useBookingFlow();
+
+	const isPrivate = state.serviceType === "private";
 
 	const currentStep = 2;
 	const totalSteps = 4;
@@ -56,24 +84,75 @@ export default function ScheduleScreen() {
 	const [viewMode, setViewMode] = useState<"week" | "month">("week");
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 	const [selectedTime, setSelectedTime] = useState<string | null>(null);
+	const [selectedClassSlotId, setSelectedClassSlotId] = useState<
+		string | null
+	>(null);
 
 	const dates = generateDates();
+	const privateTimeSlots = generatePrivateTimeSlots();
 
-	// Time options for 1-on-1 service
-	const timeOptions = [
-		"8:00 AM",
-		"9:00 AM",
-		"10:00 AM",
-		"11:00 AM",
-		"12:00 PM",
-		"1:00 PM",
-		"2:00 PM",
-		"3:00 PM",
-		"4:00 PM",
-		"5:00 PM",
-		"6:00 PM",
-		"7:00 PM",
-	];
+	// Build ISO date range for class slots query
+	const selectedDateISO = useMemo(() => {
+		if (!selectedDate) return "";
+		const d = new Date(selectedDate);
+		d.setHours(0, 0, 0, 0);
+		return d.toISOString();
+	}, [selectedDate]);
+
+	const nextDayISO = useMemo(() => {
+		if (!selectedDate) return "";
+		const d = new Date(selectedDate);
+		d.setDate(d.getDate() + 1);
+		d.setHours(0, 0, 0, 0);
+		return d.toISOString();
+	}, [selectedDate]);
+
+	// Fetch class slots for the selected date (only for non-private services)
+	const {
+		data: classSlots,
+		isLoading: classSlotsLoading,
+	} = useQuery({
+		...orpc.classSlots.list.queryOptions({
+			input: {
+				organizationId,
+				serviceId: state.serviceId!,
+				from: selectedDateISO,
+				to: nextDayISO,
+			},
+		}),
+		enabled: !isPrivate && !!selectedDate && !!state.serviceId,
+	});
+
+	const handleContinue = () => {
+		if (!selectedDate || !selectedTime) return;
+
+		if (isPrivate) {
+			// Build ISO datetime from selected date and time
+			const [hours, minutes] = parseTime(selectedTime);
+			const dt = new Date(selectedDate);
+			dt.setHours(hours, minutes, 0, 0);
+
+			update({
+				date: selectedDate.toISOString().split("T")[0],
+				startTime: dt.toISOString(),
+				duration: state.serviceDuration ?? 60,
+				classSlotId: null,
+			});
+		} else {
+			// For class, use the class slot's startTime
+			const selectedSlot = classSlots?.find(
+				(s: any) => s.id === selectedClassSlotId,
+			);
+
+			update({
+				date: selectedDate.toISOString().split("T")[0],
+				startTime: selectedSlot?.startTime ?? selectedTime,
+				duration: state.serviceDuration ?? 60,
+				classSlotId: selectedClassSlotId,
+			});
+		}
+		router.push("./review");
+	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -288,7 +367,7 @@ export default function ScheduleScreen() {
 					</View>
 
 					{/* Schedule Selection Section */}
-					{isOneOnOne ? (
+					{isPrivate ? (
 						/* 1-on-1 Service: Date and Time Picker */
 						<View className="mb-4">
 							<Text
@@ -379,7 +458,7 @@ export default function ScheduleScreen() {
 									Select Time
 								</Text>
 								<View className="flex-row flex-wrap">
-									{timeOptions.map((time) => {
+									{privateTimeSlots.map((time) => {
 										const isSelected = selectedTime === time;
 										return (
 											<TouchableOpacity
@@ -492,7 +571,11 @@ export default function ScheduleScreen() {
 										return (
 											<TouchableOpacity
 												key={date.toISOString()}
-												onPress={() => setSelectedDate(date)}
+												onPress={() => {
+													setSelectedDate(date);
+													setSelectedTime(null);
+													setSelectedClassSlotId(null);
+												}}
 												className={`mr-3 rounded-2xl p-3 ${
 													isSelected ? "" : "border border-secondary-3"
 												}`}
@@ -550,72 +633,94 @@ export default function ScheduleScreen() {
 								</Text>
 
 								{/* Time Slot Grid */}
-								<View className="flex-row flex-wrap">
-									{timeSlots.map((slot) => {
-										const isSelected = selectedTime === slot.time;
-										const isUnavailable = !slot.available;
+								{!selectedDate ? (
+									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+										<Text className="text-center text-secondary-1 text-sm">
+											Please select a date first
+										</Text>
+									</View>
+								) : classSlotsLoading ? (
+									<View className="items-center py-8">
+										<ActivityIndicator
+											size="large"
+											color={colors.primary[1]}
+										/>
+									</View>
+								) : !classSlots || classSlots.length === 0 ? (
+									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+										<Text className="text-center text-secondary-1 text-sm">
+											No available slots for this date
+										</Text>
+									</View>
+								) : (
+									<View className="flex-row flex-wrap">
+										{classSlots.map((slot: any) => {
+											const spotsLeft =
+												slot.capacity - (slot.currentBookings ?? 0);
+											const isFull = spotsLeft <= 0;
+											const isSelected = selectedClassSlotId === slot.id;
+											const isUnavailable =
+												isFull || slot.status === "cancelled";
+											const displayTime = formatTime(slot.startTime);
 
-										return (
-											<TouchableOpacity
-												key={slot.time}
-												onPress={() => {
-													if (slot.available && !slot.full) {
-														setSelectedTime(slot.time);
-													}
-												}}
-												disabled={isUnavailable || slot.full}
-												className={`mr-3 mb-3 rounded-xl p-3 ${
-													isSelected
-														? "border-2"
-														: isUnavailable || slot.full
-															? ""
-															: "border border-secondary-3"
-												}`}
-												style={{
-													backgroundColor:
-														isUnavailable || slot.full
-															? colors.secondary[3]
-															: colors.primary[2],
-													borderColor: isSelected
-														? colors.primary[1]
-														: "transparent",
-													width: "30%",
-													minWidth: 100,
-												}}
-											>
-												<Text
-													className={`text-center text-sm ${
-														slot.time === "10:00 AM" ? "font-bold" : ""
+											return (
+												<TouchableOpacity
+													key={slot.id}
+													onPress={() => {
+														if (!isUnavailable) {
+															setSelectedTime(displayTime);
+															setSelectedClassSlotId(slot.id);
+														}
+													}}
+													disabled={isUnavailable}
+													className={`mr-3 mb-3 rounded-xl p-3 ${
+														isSelected
+															? "border-2"
+															: isUnavailable
+																? ""
+																: "border border-secondary-3"
 													}`}
 													style={{
-														color:
-															isUnavailable || slot.full
-																? colors.secondary[1]
-																: colors.primary[1],
+														backgroundColor: isUnavailable
+															? colors.secondary[3]
+															: colors.primary[2],
+														borderColor: isSelected
+															? colors.primary[1]
+															: "transparent",
+														width: "30%",
+														minWidth: 100,
 													}}
 												>
-													{slot.time}
-												</Text>
-												{slot.spotsLeft !== null && (
 													<Text
-														className="mt-1 text-center text-xs"
-														style={{ color: colors.secondary[1] }}
+														className="text-center text-sm"
+														style={{
+															color: isUnavailable
+																? colors.secondary[1]
+																: colors.primary[1],
+														}}
 													>
-														{slot.spotsLeft} spots left
+														{displayTime}
 													</Text>
-												)}
-												{slot.full && (
-													<Text
-														className="mt-1 text-center text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														Full
-													</Text>
-												)}
-											</TouchableOpacity>
-										);
-									})}
-								</View>
+													{isFull ? (
+														<Text
+															className="mt-1 text-center text-xs"
+															style={{ color: colors.secondary[1] }}
+														>
+															Full
+														</Text>
+													) : (
+														<Text
+															className="mt-1 text-center text-xs"
+															style={{ color: colors.secondary[1] }}
+														>
+															{spotsLeft} spots left
+														</Text>
+													)}
+												</TouchableOpacity>
+											);
+										})}
+									</View>
+								)}
 
 								{/* Waitlist Option */}
 								<TouchableOpacity className="mt-2 items-center">
@@ -628,16 +733,14 @@ export default function ScheduleScreen() {
 			</ScrollView>
 
 			{/* Continue Button - Only shows when date and time are selected */}
-			{(isOneOnOne
-				? selectedDate && selectedTime
-				: selectedDate && selectedTime) && (
+			{selectedDate && selectedTime && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
-							onPress={() => router.push("./review" as never)}
+							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">

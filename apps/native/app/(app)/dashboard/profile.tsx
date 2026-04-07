@@ -1,7 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
 	Alert,
+	Linking,
+	Modal,
 	ScrollView,
 	Switch,
 	Text,
@@ -10,11 +13,102 @@ import {
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
-import { colors } from "@/lib/colors";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
+import { authClient } from "@/lib/auth-client";
+import { colors } from "@/lib/colors";
+import { client, orpc } from "@/utils/orpc";
 
 export default function ProfileScreen() {
 	const { user, logout } = useAuth();
+	const { organizationId } = useOrganization();
+	const queryClient = useQueryClient();
+	const tabBarHeight = useTabBarHeight();
+
+	const [isEditing, setIsEditing] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
+	const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+	// Fetch customer profile
+	const { data: profile } = useQuery({
+		...orpc.customerProfiles.get.queryOptions({
+			input: { organizationId },
+		}),
+	});
+
+	// Fetch notification preferences
+	const { data: notifPrefs } = useQuery({
+		...orpc.notificationPreferences.get.queryOptions({
+			input: { organizationId },
+		}),
+	});
+
+	// Form state
+	const [formData, setFormData] = useState({
+		fullName: user?.name ?? "",
+		email: user?.email ?? "",
+		phone: "",
+	});
+
+	// Sync profile data into form when loaded
+	const profilePhone = (profile as any)?.phone ?? "";
+	if (profilePhone && !formData.phone && !isEditing) {
+		setFormData((prev) => ({ ...prev, phone: profilePhone }));
+	}
+
+	const memberSince = user?.createdAt
+		? new Date(user.createdAt).toLocaleDateString("en-US", {
+				month: "long",
+				year: "numeric",
+			})
+		: "";
+
+	const handleSaveChanges = async () => {
+		setIsSaving(true);
+		try {
+			// Update customer profile (phone, etc.)
+			await client.customerProfiles.upsert({
+				organizationId,
+				phone: formData.phone,
+			});
+			queryClient.invalidateQueries({ queryKey: ["customerProfiles"] });
+
+			// Update name via Better-Auth if changed
+			if (formData.fullName !== user?.name) {
+				try {
+					await authClient.updateUser({
+						name: formData.fullName,
+					});
+				} catch {
+					// Name update may not be supported
+				}
+			}
+
+			setIsEditing(false);
+			Alert.alert("Success", "Profile updated");
+		} catch {
+			Alert.alert("Error", "Failed to update profile");
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const handleToggleNotifPref = async (
+		key: "emailEnabled" | "pushEnabled" | "smsEnabled",
+		value: boolean,
+	) => {
+		try {
+			await client.notificationPreferences.update({
+				organizationId,
+				[key]: value,
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["notificationPreferences"],
+			});
+		} catch {
+			Alert.alert("Error", "Failed to update preference");
+		}
+	};
 
 	const handleLogout = () => {
 		Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -27,39 +121,8 @@ export default function ProfileScreen() {
 		]);
 	};
 
-	// User data — pre-fill from session
-	const [userData, setUserData] = useState({
-		fullName: user?.name || "",
-		email: user?.email || "",
-		phoneNumber: "",
-		memberSince: user?.createdAt
-			? new Date(user.createdAt).toLocaleDateString("en-US", {
-					month: "long",
-					year: "numeric",
-				})
-			: "",
-	});
-
-	// Notification preferences
-	const [notifications, setNotifications] = useState({
-		email: true,
-		sms: true,
-		push: false,
-	});
-
-	const handleSaveChanges = () => {
-		// TODO: Implement save functionality
-		console.log("Saving changes...", userData);
-	};
-
-	const toggleNotification = (type: keyof typeof notifications) => {
-		setNotifications((prev) => ({
-			...prev,
-			[type]: !prev[type],
-		}));
-	};
-
-	const tabBarHeight = useTabBarHeight();
+	const emailEnabled = (notifPrefs as any)?.emailEnabled ?? true;
+	const pushEnabled = (notifPrefs as any)?.pushEnabled ?? false;
 
 	return (
 		<TabContainer>
@@ -72,22 +135,33 @@ export default function ProfileScreen() {
 					{/* User Summary Section */}
 					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 						<View className="flex-row items-center">
-							{/* Avatar */}
 							<View
 								className="mr-4 h-16 w-16 items-center justify-center rounded-full"
 								style={{ backgroundColor: colors.secondary[2] }}
 							>
-								<Ionicons name="person" size={32} color={colors.secondary[1]} />
+								<Ionicons
+									name="person"
+									size={32}
+									color={colors.secondary[1]}
+								/>
 							</View>
-							{/* User Info */}
 							<View className="flex-1">
 								<Text className="mb-1 font-bold text-primary-1 text-xl">
-									{userData.fullName}
+									{formData.fullName || "User"}
 								</Text>
 								<Text className="text-secondary-1 text-sm">
-									Member since {userData.memberSince}
+									Member since {memberSince}
 								</Text>
 							</View>
+							<TouchableOpacity
+								onPress={() => setIsEditing(!isEditing)}
+							>
+								<Ionicons
+									name={isEditing ? "close" : "create-outline"}
+									size={24}
+									color={colors.primary[1]}
+								/>
+							</TouchableOpacity>
 						</View>
 					</View>
 
@@ -103,14 +177,16 @@ export default function ProfileScreen() {
 									Full Name
 								</Text>
 								<TextInput
-									value={userData.fullName}
+									value={formData.fullName}
 									onChangeText={(text) =>
-										setUserData({ ...userData, fullName: text })
+										setFormData({ ...formData, fullName: text })
 									}
+									editable={isEditing}
 									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
+										opacity: isEditing ? 1 : 0.7,
 									}}
 								/>
 							</View>
@@ -121,16 +197,15 @@ export default function ProfileScreen() {
 									Email
 								</Text>
 								<TextInput
-									value={userData.email}
-									onChangeText={(text) =>
-										setUserData({ ...userData, email: text })
-									}
+									value={formData.email}
+									editable={false}
 									keyboardType="email-address"
 									autoCapitalize="none"
 									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
+										opacity: 0.5,
 									}}
 								/>
 							</View>
@@ -141,28 +216,33 @@ export default function ProfileScreen() {
 									Phone Number
 								</Text>
 								<TextInput
-									value={userData.phoneNumber}
+									value={formData.phone}
 									onChangeText={(text) =>
-										setUserData({ ...userData, phoneNumber: text })
+										setFormData({ ...formData, phone: text })
 									}
+									editable={isEditing}
 									keyboardType="phone-pad"
 									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
 									style={{
 										color: colors.primary[1],
 										fontSize: 16,
+										opacity: isEditing ? 1 : 0.7,
 									}}
 								/>
 							</View>
 
-							{/* Save Changes Button - STYLE: Primary button */}
-							<TouchableOpacity
-								onPress={handleSaveChanges}
-								className="mt-2 items-center justify-center rounded-xl bg-primary-1 py-4"
-							>
-								<Text className="font-semibold text-base text-primary-2">
-									Save Changes
-								</Text>
-							</TouchableOpacity>
+							{/* Save Changes Button */}
+							{isEditing && (
+								<TouchableOpacity
+									onPress={handleSaveChanges}
+									disabled={isSaving}
+									className={`mt-2 items-center justify-center rounded-xl bg-primary-1 py-4 ${isSaving ? "opacity-50" : ""}`}
+								>
+									<Text className="font-semibold text-base text-primary-2">
+										{isSaving ? "Saving..." : "Save Changes"}
+									</Text>
+								</TouchableOpacity>
+							)}
 						</View>
 					</View>
 
@@ -184,8 +264,10 @@ export default function ProfileScreen() {
 										</Text>
 									</View>
 									<Switch
-										value={notifications.email}
-										onValueChange={() => toggleNotification("email")}
+										value={emailEnabled}
+										onValueChange={(v) =>
+											handleToggleNotifPref("emailEnabled", v)
+										}
 										trackColor={{
 											false: colors.secondary[3],
 											true: colors.primary[1],
@@ -194,35 +276,6 @@ export default function ProfileScreen() {
 									/>
 								</View>
 							</View>
-
-							{/* SMS Notifications */}
-							{/* <View className="p-4 border-b border-gray-200">
-								<View className="flex-row items-center justify-between">
-									<View className="flex-1 mr-4">
-										<Text
-											className="text-base font-semibold mb-1"
-											style={{ color: colors.primary[1] }}
-										>
-											SMS Notifications
-										</Text>
-										<Text
-											className="text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											Receive text message reminders
-										</Text>
-									</View>
-									<Switch
-										value={notifications.sms}
-										onValueChange={() => toggleNotification("sms")}
-										trackColor={{
-											false: colors.secondary[3],
-											true: "#2563EB",
-										}}
-										thumbColor={colors.primary[2]}
-									/>
-								</View>
-							</View> */}
 
 							{/* Push Notifications */}
 							<View className="p-4">
@@ -236,8 +289,10 @@ export default function ProfileScreen() {
 										</Text>
 									</View>
 									<Switch
-										value={notifications.push}
-										onValueChange={() => toggleNotification("push")}
+										value={pushEnabled}
+										onValueChange={(v) =>
+											handleToggleNotifPref("pushEnabled", v)
+										}
 										trackColor={{
 											false: colors.secondary[3],
 											true: colors.primary[1],
@@ -256,7 +311,10 @@ export default function ProfileScreen() {
 						</Text>
 						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 							{/* Change Password */}
-							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
+							<TouchableOpacity
+								onPress={() => setShowPasswordModal(true)}
+								className="flex-row items-center border-secondary-3 border-b p-4"
+							>
 								<Ionicons
 									name="lock-closed-outline"
 									size={20}
@@ -273,7 +331,12 @@ export default function ProfileScreen() {
 							</TouchableOpacity>
 
 							{/* Help & Support */}
-							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
+							<TouchableOpacity
+								onPress={() =>
+									Linking.openURL("mailto:support@avantej.com")
+								}
+								className="flex-row items-center border-secondary-3 border-b p-4"
+							>
 								<Ionicons
 									name="help-circle-outline"
 									size={20}
@@ -290,7 +353,12 @@ export default function ProfileScreen() {
 							</TouchableOpacity>
 
 							{/* Terms & Privacy */}
-							<TouchableOpacity className="flex-row items-center border-secondary-3 border-b p-4">
+							<TouchableOpacity
+								onPress={() =>
+									Linking.openURL("https://avantej.com/terms")
+								}
+								className="flex-row items-center border-secondary-3 border-b p-4"
+							>
 								<Ionicons
 									name="document-text-outline"
 									size={20}
@@ -324,6 +392,146 @@ export default function ProfileScreen() {
 					</View>
 				</View>
 			</ScrollView>
+
+			{/* Change Password Modal */}
+			<ChangePasswordModal
+				visible={showPasswordModal}
+				onClose={() => setShowPasswordModal(false)}
+			/>
 		</TabContainer>
+	);
+}
+
+function ChangePasswordModal({
+	visible,
+	onClose,
+}: {
+	visible: boolean;
+	onClose: () => void;
+}) {
+	const [currentPassword, setCurrentPassword] = useState("");
+	const [newPassword, setNewPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const handleSubmit = async () => {
+		if (newPassword !== confirmPassword) {
+			Alert.alert("Error", "New passwords do not match");
+			return;
+		}
+		if (newPassword.length < 8) {
+			Alert.alert("Error", "Password must be at least 8 characters");
+			return;
+		}
+
+		setIsSubmitting(true);
+		try {
+			await authClient.changePassword({
+				currentPassword,
+				newPassword,
+			});
+			Alert.alert("Success", "Password changed successfully");
+			setCurrentPassword("");
+			setNewPassword("");
+			setConfirmPassword("");
+			onClose();
+		} catch {
+			Alert.alert(
+				"Error",
+				"Failed to change password. Check your current password.",
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	return (
+		<Modal
+			visible={visible}
+			animationType="slide"
+			presentationStyle="pageSheet"
+			onRequestClose={onClose}
+		>
+			<View className="flex-1 bg-secondary-3">
+				<View className="flex-row items-center justify-between border-secondary-3 border-b bg-primary-2 px-4 py-4">
+					<TouchableOpacity onPress={onClose}>
+						<Text className="text-base text-primary-1">Cancel</Text>
+					</TouchableOpacity>
+					<Text className="font-bold text-lg text-primary-1">
+						Change Password
+					</Text>
+					<View style={{ width: 50 }} />
+				</View>
+
+				<View className="p-4">
+					<View className="mb-4">
+						<Text className="mb-2 font-medium text-base text-primary-1">
+							Current Password
+						</Text>
+						<TextInput
+							value={currentPassword}
+							onChangeText={setCurrentPassword}
+							secureTextEntry
+							placeholder="Enter current password"
+							placeholderTextColor={colors.secondary[1]}
+							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
+							style={{ color: colors.primary[1], fontSize: 16 }}
+						/>
+					</View>
+
+					<View className="mb-4">
+						<Text className="mb-2 font-medium text-base text-primary-1">
+							New Password
+						</Text>
+						<TextInput
+							value={newPassword}
+							onChangeText={setNewPassword}
+							secureTextEntry
+							placeholder="Enter new password"
+							placeholderTextColor={colors.secondary[1]}
+							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
+							style={{ color: colors.primary[1], fontSize: 16 }}
+						/>
+					</View>
+
+					<View className="mb-6">
+						<Text className="mb-2 font-medium text-base text-primary-1">
+							Confirm New Password
+						</Text>
+						<TextInput
+							value={confirmPassword}
+							onChangeText={setConfirmPassword}
+							secureTextEntry
+							placeholder="Confirm new password"
+							placeholderTextColor={colors.secondary[1]}
+							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
+							style={{ color: colors.primary[1], fontSize: 16 }}
+						/>
+					</View>
+
+					<TouchableOpacity
+						onPress={handleSubmit}
+						disabled={
+							isSubmitting ||
+							!currentPassword ||
+							!newPassword ||
+							!confirmPassword
+						}
+						className={`items-center justify-center rounded-xl bg-primary-1 py-4 ${
+							isSubmitting ||
+							!currentPassword ||
+							!newPassword ||
+							!confirmPassword
+								? "opacity-50"
+								: ""
+						}`}
+					>
+						<Text className="font-semibold text-base text-primary-2">
+							{isSubmitting ? "Changing..." : "Change Password"}
+						</Text>
+					</TouchableOpacity>
+				</View>
+			</View>
+		</Modal>
 	);
 }

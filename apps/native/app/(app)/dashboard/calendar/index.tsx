@@ -1,285 +1,98 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useCallback, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import {
+	ActivityIndicator,
+	RefreshControl,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { Calendar } from "react-native-calendars";
 import { Container } from "@/components/container";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-
-// Generate dummy booking data with current dates
-const getBookingsData = () => {
-	const today = new Date();
-	const currentYear = today.getFullYear();
-	const currentMonth = today.getMonth();
-
-	// Helper to format date as YYYY-MM-DD
-	const formatDate = (date: Date) => {
-		return date.toISOString().split("T")[0];
-	};
-
-	// Generate dates for current and next month
-	const dates: Record<
-		string,
-		{
-			marked: boolean;
-			dotColor: string;
-			bookings: Array<{
-				id: number;
-				name: string;
-				time: string;
-				credits: number;
-				icon: string;
-				trainer?: string;
-				instructor?: string;
-				studio?: string;
-			}>;
-		}
-	> = {};
-
-	// Add bookings for various dates
-	const bookingDates = [
-		{
-			day: 3,
-			bookings: [
-				{
-					id: 1,
-					name: "HIIT Class",
-					time: "9:00 AM",
-					credits: -1,
-					icon: "flash",
-					studio: "PowerFit Studio",
-				},
-				{
-					id: 2,
-					name: "Personal Training",
-					time: "2:00 PM",
-					credits: -1,
-					icon: "person",
-					trainer: "Sarah Johnson",
-				},
-			],
-		},
-		{
-			day: 7,
-			bookings: [
-				{
-					id: 3,
-					name: "Strength Training",
-					time: "10:00 AM",
-					credits: -1,
-					icon: "fitness",
-					trainer: "Mike Chen",
-				},
-			],
-		},
-		{
-			day: 12,
-			bookings: [
-				{
-					id: 4,
-					name: "Yoga Flow",
-					time: "6:00 PM",
-					credits: -1,
-					icon: "leaf-outline",
-					instructor: "Mindful Movement",
-				},
-			],
-		},
-		{
-			day: 15,
-			bookings: [
-				{
-					id: 5,
-					name: "HIIT Class",
-					time: "8:00 AM",
-					credits: -1,
-					icon: "flash",
-					studio: "PowerFit Studio",
-				},
-				{
-					id: 6,
-					name: "Strength Training",
-					time: "4:00 PM",
-					credits: -1,
-					icon: "fitness",
-					trainer: "Mike Chen",
-				},
-			],
-		},
-		{
-			day: 18,
-			bookings: [
-				{
-					id: 7,
-					name: "Personal Training",
-					time: "11:00 AM",
-					credits: -1,
-					icon: "person",
-					trainer: "Sarah Johnson",
-				},
-			],
-		},
-		{
-			day: 22,
-			bookings: [
-				{
-					id: 8,
-					name: "Yoga Flow",
-					time: "5:30 PM",
-					credits: -1,
-					icon: "leaf-outline",
-					instructor: "Mindful Movement",
-				},
-				{
-					id: 9,
-					name: "HIIT Class",
-					time: "7:00 AM",
-					credits: -1,
-					icon: "flash",
-					studio: "PowerFit Studio",
-				},
-			],
-		},
-		{
-			day: 25,
-			bookings: [
-				{
-					id: 10,
-					name: "Strength Training",
-					time: "3:00 PM",
-					credits: -1,
-					icon: "fitness",
-					trainer: "Mike Chen",
-				},
-			],
-		},
-		{
-			day: 28,
-			bookings: [
-				{
-					id: 11,
-					name: "Personal Training",
-					time: "1:00 PM",
-					credits: -1,
-					icon: "person",
-					trainer: "Sarah Johnson",
-				},
-				{
-					id: 12,
-					name: "Yoga Flow",
-					time: "6:30 PM",
-					credits: -1,
-					icon: "leaf-outline",
-					instructor: "Mindful Movement",
-				},
-			],
-		},
-	];
-
-	// Add bookings for current month
-	bookingDates.forEach(({ day, bookings }) => {
-		const date = new Date(currentYear, currentMonth, day);
-		const dateKey = formatDate(date);
-		dates[dateKey] = {
-			marked: true,
-			dotColor: colors.primary[1],
-			bookings: bookings,
-		};
-	});
-
-	// Add some bookings for next month
-	const nextMonth = currentMonth + 1;
-	[
-		{
-			day: 2,
-			bookings: [
-				{
-					id: 13,
-					name: "HIIT Class",
-					time: "9:30 AM",
-					credits: -1,
-					icon: "flash",
-					studio: "PowerFit Studio",
-				},
-			],
-		},
-		{
-			day: 5,
-			bookings: [
-				{
-					id: 14,
-					name: "Strength Training",
-					time: "11:00 AM",
-					credits: -1,
-					icon: "fitness",
-					trainer: "Mike Chen",
-				},
-				{
-					id: 15,
-					name: "Personal Training",
-					time: "3:00 PM",
-					credits: -1,
-					icon: "person",
-					trainer: "Sarah Johnson",
-				},
-			],
-		},
-		{
-			day: 10,
-			bookings: [
-				{
-					id: 16,
-					name: "Yoga Flow",
-					time: "7:00 PM",
-					credits: -1,
-					icon: "leaf-outline",
-					instructor: "Mindful Movement",
-				},
-			],
-		},
-	].forEach(({ day, bookings }) => {
-		const date = new Date(currentYear, nextMonth, day);
-		const dateKey = formatDate(date);
-		dates[dateKey] = {
-			marked: true,
-			dotColor: colors.primary[1],
-			bookings: bookings,
-		};
-	});
-
-	return dates;
-};
-
-const bookingsData = getBookingsData();
+import { orpc } from "@/utils/orpc";
 
 export default function CalendarScreen() {
 	const navigation = useNavigation();
+	const { organizationId } = useOrganization();
+
 	const [selectedDate, setSelectedDate] = useState<string>(
 		new Date().toISOString().split("T")[0],
 	);
 
-	// Create markedDates object for calendar (only marking properties, no bookings data)
-	const markedDates = Object.keys(bookingsData).reduce(
-		(acc, date) => {
-			acc[date] = {
-				marked: bookingsData[date].marked,
-				dotColor: bookingsData[date].dotColor,
-			};
-			return acc;
-		},
-		{} as Record<string, { marked: boolean; dotColor: string }>,
+	const [currentMonth, setCurrentMonth] = useState(() => {
+		const now = new Date();
+		return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+	});
+
+	// Compute month boundaries for API query
+	const monthStart = useMemo(
+		() => `${currentMonth}-01T00:00:00.000Z`,
+		[currentMonth],
+	);
+	const monthEnd = useMemo(() => {
+		const [y, m] = currentMonth.split("-").map(Number);
+		const lastDay = new Date(y, m, 0).getDate();
+		return `${currentMonth}-${String(lastDay).padStart(2, "0")}T23:59:59.999Z`;
+	}, [currentMonth]);
+
+	const {
+		data: appointments,
+		isLoading,
+		refetch,
+		isRefetching,
+	} = useQuery(
+		orpc.appointments.listForUser.queryOptions({
+			input: {
+				organizationId,
+				startFrom: monthStart,
+				startTo: monthEnd,
+			},
+		}),
 	);
 
-	// Add selected state to the selected date
-	const calendarMarkedDates = {
-		...markedDates,
-		[selectedDate]: {
-			...markedDates[selectedDate],
-			selected: true,
-			selectedColor: colors.primary[1],
-		},
-	};
+	const markedDates = useMemo(() => {
+		const marks: Record<string, any> = {};
+		for (const apt of appointments ?? []) {
+			const dateKey = new Date(apt.startTime).toISOString().split("T")[0];
+			marks[dateKey] = { marked: true, dotColor: colors.primary[1] };
+		}
+		if (selectedDate) {
+			marks[selectedDate] = {
+				...marks[selectedDate],
+				selected: true,
+				selectedColor: colors.primary[1],
+			};
+		}
+		return marks;
+	}, [appointments, selectedDate]);
+
+	const selectedDateBookings = useMemo(() => {
+		return (appointments ?? [])
+			.filter((apt) => {
+				const dateKey = new Date(apt.startTime).toISOString().split("T")[0];
+				return dateKey === selectedDate;
+			})
+			.map((apt) => ({
+				id: apt.id,
+				name:
+					apt.type === "private" ? "Personal Training" : "Class Session",
+				time: new Date(apt.startTime).toLocaleTimeString("en-US", {
+					hour: "numeric",
+					minute: "2-digit",
+					hour12: true,
+				}),
+				credits: apt.creditsUsed ?? 1,
+				icon: apt.type === "private" ? "person" : "people",
+				location: apt.location ?? undefined,
+				status: apt.status,
+			}));
+	}, [appointments, selectedDate]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -338,6 +151,13 @@ export default function CalendarScreen() {
 				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 8 }}
 				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={isRefetching}
+						onRefresh={refetch}
+						tintColor={colors.primary[1]}
+					/>
+				}
 			>
 				<View className="px-4 pt-4">
 					{/* Header Section */}
@@ -369,7 +189,12 @@ export default function CalendarScreen() {
 							onDayPress={(day) => {
 								setSelectedDate(day.dateString);
 							}}
-							markedDates={calendarMarkedDates}
+							onMonthChange={(month) => {
+								setCurrentMonth(
+									`${month.year}-${String(month.month).padStart(2, "0")}`,
+								);
+							}}
+							markedDates={markedDates}
 							markingType="dot"
 							theme={{
 								backgroundColor: colors.primary[2],
@@ -398,9 +223,23 @@ export default function CalendarScreen() {
 						/>
 					</View>
 
+					{/* Loading Indicator */}
+					{isLoading && (
+						<View className="mb-4 items-center py-8">
+							<ActivityIndicator
+								size="large"
+								color={colors.primary[1]}
+							/>
+							<Text className="mt-2 text-secondary-1 text-sm">
+								Loading appointments...
+							</Text>
+						</View>
+					)}
+
 					{/* Selected Date Bookings */}
-					{selectedDate &&
-						bookingsData[selectedDate as keyof typeof bookingsData] && (
+					{!isLoading &&
+						selectedDate &&
+						selectedDateBookings.length > 0 && (
 							<View className="mb-4">
 								<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 									BOOKINGS ON{" "}
@@ -412,9 +251,7 @@ export default function CalendarScreen() {
 										})
 										.toUpperCase()}
 								</Text>
-								{bookingsData[
-									selectedDate as keyof typeof bookingsData
-								].bookings.map((booking) => (
+								{selectedDateBookings.map((booking) => (
 									<View
 										key={booking.id}
 										className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
@@ -438,8 +275,8 @@ export default function CalendarScreen() {
 													color={colors.secondary[1]}
 												/>
 												<Text className="ml-1 font-semibold text-secondary-1 text-sm">
-													{Math.abs(booking.credits)} credit
-													{booking.credits !== -1 ? "s" : ""}
+													{booking.credits} credit
+													{booking.credits !== 1 ? "s" : ""}
 												</Text>
 											</View>
 										</View>
@@ -453,32 +290,27 @@ export default function CalendarScreen() {
 												{booking.time}
 											</Text>
 										</View>
-										{("trainer" in booking && booking.trainer) ||
-										("instructor" in booking && booking.instructor) ||
-										("studio" in booking && booking.studio) ? (
+										{booking.location && (
 											<View className="flex-row items-center">
 												<Ionicons
-													name="person-outline"
+													name="location-outline"
 													size={14}
 													color={colors.secondary[1]}
 												/>
 												<Text className="ml-1 text-secondary-1 text-sm">
-													{"trainer" in booking
-														? booking.trainer
-														: "instructor" in booking
-															? booking.instructor
-															: booking.studio}
+													{booking.location}
 												</Text>
 											</View>
-										) : null}
+										)}
 									</View>
 								))}
 							</View>
 						)}
 
 					{/* No Bookings Message */}
-					{selectedDate &&
-						!bookingsData[selectedDate as keyof typeof bookingsData] && (
+					{!isLoading &&
+						selectedDate &&
+						selectedDateBookings.length === 0 && (
 							<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6 shadow-sm">
 								<View className="items-center">
 									<Ionicons

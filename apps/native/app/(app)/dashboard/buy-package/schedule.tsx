@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
 	Image,
 	Platform,
@@ -13,12 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
-
-const SERVICE_CATEGORY = {
-	PRIVATE: 1, // Personal Training
-	SEMI_PRIVATE: 2, // Classes
-} as const;
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
@@ -59,7 +54,7 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5).map((m) =>
 	m.toString().padStart(2, "0"),
 );
 
-// Custom Android Time Picker Component (inline, no dialog, always visible)
+// Custom Android Time Picker Component
 const AndroidTimePicker = ({
 	selectedTime,
 	onTimeChange,
@@ -111,7 +106,6 @@ const AndroidTimePicker = ({
 		onTimeChange(newDate);
 	};
 
-	// Initialize scroll positions
 	useEffect(() => {
 		const hourIndex = HOURS.indexOf(displayHour);
 		if (hourIndex !== -1 && hourRef.current) {
@@ -319,82 +313,29 @@ const AndroidTimePicker = ({
 	);
 };
 
-// Preferred time preference type
 type PreferredTime = {
 	day: string;
 	time: string;
 };
 
 export default function ScheduleScreen() {
-	const navigation = useNavigation();
-	const params = useLocalSearchParams<{
-		serviceId?: string;
-		categoryId?: string;
-	}>();
+	const { state, update } = usePurchaseFlow();
 
-	const serviceId = params.serviceId
-		? Number.parseInt(params.serviceId, 10)
-		: null;
-	const categoryId = params.categoryId
-		? Number.parseInt(params.categoryId, 10)
-		: null;
-
-	const isPersonalTraining = categoryId === SERVICE_CATEGORY.PRIVATE;
+	const isPersonalTraining = state.serviceType === "private";
 
 	const currentStep = 2;
 	const totalSteps = 7;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
-	const [preferredTimes, setPreferredTimes] = useState<PreferredTime[]>([]);
+	const [preferredTimes, setPreferredTimes] = useState<PreferredTime[]>(
+		state.preferredTimes,
+	);
 	const [expandedDay, setExpandedDay] = useState<string | null>(null);
 	const [selectedTime, setSelectedTime] = useState<Date>(new Date());
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				tabsNavigator.setOptions({
-					tabBarStyle: { display: "none" },
-				});
-			}
-		}, [navigation]),
-	);
 
 	// Add preferred time directly
 	const handleAddPreferredTime = (day: string, time: string) => {
 		if (preferredTimes.length < 4) {
-			// Check if this exact combination already exists
 			const exists = preferredTimes.some(
 				(pt) => pt.day === day && pt.time === time,
 			);
@@ -409,6 +350,11 @@ export default function ScheduleScreen() {
 		setPreferredTimes(preferredTimes.filter((_, i) => i !== index));
 	};
 
+	const handleContinue = () => {
+		update({ preferredTimes });
+		router.push("./info");
+	};
+
 	return (
 		<Container>
 			<ScrollView className="flex-1 bg-secondary-3">
@@ -419,7 +365,11 @@ export default function ScheduleScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Select Schedule
@@ -439,7 +389,7 @@ export default function ScheduleScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility */}
+					{/* Progress Indicator */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
@@ -450,7 +400,6 @@ export default function ScheduleScreen() {
 							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
@@ -579,7 +528,7 @@ export default function ScheduleScreen() {
 										Selected Preferences ({preferredTimes.length}/4)
 									</Text>
 									<View className="flex-row flex-wrap gap-2">
-										{preferredTimes.map((pt) => (
+										{preferredTimes.map((pt, index) => (
 											<View
 												key={`${pt.day}-${pt.time}`}
 												className="flex-row items-center rounded-xl border border-secondary-3 bg-secondary-3 px-4 py-3"
@@ -681,7 +630,9 @@ export default function ScheduleScreen() {
 														{hasSelections && !isExpanded && (
 															<View
 																className="ml-2 h-2 w-2 rounded-full"
-																style={{ backgroundColor: colors.primary[1] }}
+																style={{
+																	backgroundColor: colors.primary[1],
+																}}
 															/>
 														)}
 														{isExpanded && (
@@ -718,7 +669,7 @@ export default function ScheduleScreen() {
 												</Text>
 											</View>
 
-											{/* Time Picker - Custom inline for Android, native spinner for iOS */}
+											{/* Time Picker */}
 											<View className="mb-4 rounded-xl bg-primary-2 p-4">
 												{Platform.OS === "ios" ? (
 													<DateTimePicker
@@ -836,15 +787,7 @@ export default function ScheduleScreen() {
 									className="mb-2 font-bold text-lg"
 									style={{ color: colors.primary[1] }}
 								>
-									{serviceId === 3 ? "Class A" : "Class B"}
-								</Text>
-								<Text
-									className="mb-1 text-base"
-									style={{ color: colors.secondary[1] }}
-								>
-									{serviceId === 3
-										? "Every Mon/Wed/Fri at 7:00 PM"
-										: "Every Tue at 8:00 AM"}
+									{state.serviceName ?? "Class"}
 								</Text>
 								<Text
 									className="mt-2 text-sm"
@@ -867,16 +810,7 @@ export default function ScheduleScreen() {
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
-							onPress={() =>
-								router.push({
-									pathname: "./info" as never,
-									params: {
-										serviceId: serviceId?.toString(),
-										categoryId: categoryId?.toString(),
-										preferredTimes: JSON.stringify(preferredTimes),
-									},
-								})
-							}
+							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">

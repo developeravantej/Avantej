@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
+import { router } from "expo-router";
+import { useState } from "react";
 import {
 	Image,
 	ScrollView,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
 
 const steps = [
@@ -25,77 +25,17 @@ const steps = [
 ];
 
 export default function InfoScreen() {
-	const navigation = useNavigation();
-	const params = useLocalSearchParams<{
-		serviceId?: string;
-		categoryId?: string;
-		coachId?: string;
-		date?: string;
-		time?: string;
-		preferredTimes?: string;
-	}>();
+	const { state, update } = usePurchaseFlow();
 
 	const currentStep = 3;
 	const totalSteps = 7;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
-	// Remark state
-	const [remark, setRemark] = useState("");
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-		}, [navigation]),
-	);
+	const [remark, setRemark] = useState(state.remark ?? "");
 
 	const handleContinue = () => {
-		router.push({
-			pathname: "./review" as never,
-			params: {
-				...params,
-				remark,
-			},
-		});
+		update({ remark: remark || null });
+		router.push("./review");
 	};
 
 	return (
@@ -108,7 +48,11 @@ export default function InfoScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Additional Information
@@ -128,7 +72,7 @@ export default function InfoScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility */}
+					{/* Progress Indicator */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
@@ -139,7 +83,6 @@ export default function InfoScreen() {
 							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}

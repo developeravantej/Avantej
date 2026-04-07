@@ -1,151 +1,128 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
+import { authClient } from "@/lib/auth-client";
 import { colors } from "@/lib/colors";
-
-const SERVICE_CATEGORY = {
-	PRIVATE: 1,
-	SEMI_PRIVATE: 2,
-} as const;
+import { client, orpc } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: false },
-	{ number: 3, label: "Review", active: false },
-	{ number: 4, label: "Info", active: false },
+	{ number: 3, label: "Info", active: false },
+	{ number: 4, label: "Review", active: false },
 	{ number: 5, label: "Sign", active: false },
 	{ number: 6, label: "Pay", active: true },
 	{ number: 7, label: "Done", active: false },
 ];
 
-// Dummy service data
-const services = [
-	{ id: 1, title: "2×12-Week Personal Training", credits: 24, price: 1200 },
-	{ id: 2, title: "2×24-Week Personal Training", credits: 48, price: 2200 },
-	{ id: 3, title: "Class A", schedule: "Mon/Wed/Fri 7:00 PM", price: 800 },
-	{ id: 4, title: "Class B", schedule: "Tue 8:00 AM", price: 600 },
-];
-
 export default function PayScreen() {
-	const navigation = useNavigation();
-	const params = useLocalSearchParams<{
-		serviceId?: string;
-		categoryId?: string;
-		coachId?: string;
-		date?: string;
-		time?: string;
-		preferredTimes?: string;
-		additionalInfo?: string;
-		medicalNotes?: string;
-		goals?: string;
-		signature?: string;
-	}>();
-
-	const serviceId = params.serviceId
-		? Number.parseInt(params.serviceId, 10)
-		: null;
-	const categoryId = params.categoryId
-		? Number.parseInt(params.categoryId, 10)
-		: null;
-	const _coachId =
-		params.coachId === "auto"
-			? "auto"
-			: params.coachId
-				? Number.parseInt(params.coachId, 10)
-				: null;
-	const selectedDate = params.date ? new Date(params.date) : null;
-	const selectedTime = params.time || null;
+	const { organizationId } = useOrganization();
+	const { state, update } = usePurchaseFlow();
+	const queryClient = useQueryClient();
 
 	const currentStep = 6;
 	const totalSteps = 7;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
-	const [paymentMethod, setPaymentMethod] = useState<
-		"card" | "apple" | "google" | null
-	>(null);
 	const [isProcessing, setIsProcessing] = useState(false);
+	const { data: session } = authClient.useSession();
 
-	const selectedService = services.find((s) => s.id === serviceId);
+	// Fetch default tax rate
+	const { data: taxRate } = useQuery({
+		...orpc.taxRates.getDefault.queryOptions({
+			input: { organizationId },
+		}),
+	});
 
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-		}, [navigation]),
-	);
+	const subtotal = state.price ?? 0;
+	// Tax rate is in basis points (e.g., 1000 = 10%)
+	const taxRatePercent = taxRate ? (taxRate as any).rateInBasisPoints / 100 : 0;
+	const taxAmount = subtotal * (taxRatePercent / 100);
+	const total = subtotal + taxAmount;
 
 	const handlePayment = async () => {
-		if (!paymentMethod) return;
+		if (!state.packageId) return;
 
 		setIsProcessing(true);
 
-		// Simulate payment processing
-		setTimeout(() => {
-			setIsProcessing(false);
-			router.push({
-				pathname: "./done" as never,
-				params: {
-					...params,
-				},
+		try {
+			// Create package instance
+			const now = new Date();
+			const validityMs = (state.validityDays ?? 365) * 24 * 60 * 60 * 1000;
+			const expiresAt = new Date(now.getTime() + validityMs).toISOString();
+
+			const instance = await client.packageInstances.create({
+				organizationId,
+				packageId: state.packageId!,
+				clientId: session?.user?.id ?? "",
+				source: "purchased",
+				totalPrice: total,
+				taxAmount,
+				paymentStatus: "pending",
+				paymentMethod: "pending",
+				eSignature: state.signature,
+				termsAgreedAt: state.termsAgreedAt,
+				creditsTotal: state.creditsTotal ?? 0,
+				creditsRemaining: state.creditsTotal ?? 0,
+				creditsUsed: 0,
+				startsAt: now.toISOString(),
+				expiresAt,
+				status: "active",
+				remark: state.remark,
 			});
-		}, 2000);
-	};
 
-	const formatDate = (date: Date | null) => {
-		if (!date) return "Not selected";
-		return date.toLocaleDateString("en-US", {
-			weekday: "short",
-			month: "short",
-			day: "numeric",
-		});
-	};
+			// Save preferred times if any
+			if (state.preferredTimes.length > 0 && instance?.id) {
+				try {
+					type DayOfWeek =
+						| "monday"
+						| "tuesday"
+						| "wednesday"
+						| "thursday"
+						| "friday"
+						| "saturday"
+						| "sunday";
 
-	const subtotal = selectedService?.price || 0;
-	const tax = subtotal * 0.1; // 10% tax
-	const total = subtotal + tax;
+					await client.preferredTimes.upsert({
+						organizationId,
+						packageInstanceId: instance.id,
+						items: state.preferredTimes.map((pt, index) => ({
+							dayOfWeek: pt.day.toLowerCase() as DayOfWeek,
+							time: pt.time,
+							priority: index + 1,
+						})),
+					});
+				} catch {
+					// Preferred times saving is non-critical
+				}
+			}
+
+			// Invalidate queries to refresh data
+			queryClient.invalidateQueries({
+				queryKey: ["packageInstances"],
+			});
+
+			update({
+				paymentMethod: "pending",
+				packageInstanceId: instance?.id ?? null,
+			});
+
+			router.push("./done");
+		} catch (error: any) {
+			Alert.alert(
+				"Purchase Failed",
+				error?.message ?? "Something went wrong. Please try again.",
+			);
+		} finally {
+			setIsProcessing(false);
+		}
+	};
 
 	return (
 		<Container>
@@ -157,7 +134,11 @@ export default function PayScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Payment
@@ -177,7 +158,7 @@ export default function PayScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility */}
+					{/* Progress Indicator */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
@@ -188,7 +169,6 @@ export default function PayScreen() {
 							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
@@ -305,22 +285,22 @@ export default function PayScreen() {
 										className="mb-1 font-semibold text-base"
 										style={{ color: colors.primary[1] }}
 									>
-										{selectedService?.title || "Not selected"}
+										{state.packageName ?? "Package"}
 									</Text>
-									{selectedService && "credits" in selectedService && (
+									{state.creditsTotal && (
 										<Text
 											className="text-sm"
 											style={{ color: colors.secondary[1] }}
 										>
-											{selectedService.credits} credits
+											{state.creditsTotal} credits
 										</Text>
 									)}
-									{selectedService && "schedule" in selectedService && (
+									{state.serviceName && (
 										<Text
-											className="text-sm"
+											className="mt-1 text-sm"
 											style={{ color: colors.secondary[1] }}
 										>
-											{selectedService.schedule}
+											Service: {state.serviceName}
 										</Text>
 									)}
 								</View>
@@ -328,28 +308,20 @@ export default function PayScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									${selectedService?.price?.toFixed(2) || "0.00"}
+									${subtotal.toFixed(2)}
 								</Text>
 							</View>
 
-							{categoryId === SERVICE_CATEGORY.PRIVATE &&
-								selectedDate &&
-								selectedTime && (
-									<View className="border-secondary-3 border-t pt-3">
-										<Text
-											className="mb-1 text-xs"
-											style={{ color: colors.secondary[1] }}
-										>
-											First Session
-										</Text>
-										<Text
-											className="text-sm"
-											style={{ color: colors.primary[1] }}
-										>
-											{formatDate(selectedDate)} at {selectedTime}
-										</Text>
-									</View>
-								)}
+							{state.validityDays && (
+								<View className="border-secondary-3 border-t pt-3">
+									<Text
+										className="text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Valid for {state.validityDays} days from purchase
+									</Text>
+								</View>
+							)}
 						</View>
 
 						{/* Price Breakdown */}
@@ -361,7 +333,10 @@ export default function PayScreen() {
 								>
 									Subtotal
 								</Text>
-								<Text className="text-sm" style={{ color: colors.primary[1] }}>
+								<Text
+									className="text-sm"
+									style={{ color: colors.primary[1] }}
+								>
 									${subtotal.toFixed(2)}
 								</Text>
 							</View>
@@ -370,10 +345,13 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.secondary[1] }}
 								>
-									Tax
+									Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
 								</Text>
-								<Text className="text-sm" style={{ color: colors.primary[1] }}>
-									${tax.toFixed(2)}
+								<Text
+									className="text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									${taxAmount.toFixed(2)}
 								</Text>
 							</View>
 							<View className="flex-row justify-between border-secondary-3 border-t pt-3">
@@ -393,160 +371,51 @@ export default function PayScreen() {
 						</View>
 					</View>
 
-					{/* Payment Methods */}
-					<View className="mb-4">
+					{/* Payment Methods - disabled until Stripe integration */}
+					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm opacity-50">
 						<Text
-							className="mb-4 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
+							className="mb-2 font-bold text-sm uppercase tracking-wide"
+							style={{ color: colors.secondary[1] }}
 						>
-							SELECT PAYMENT METHOD
+							PAYMENT METHOD
 						</Text>
-
-						{/* Credit/Debit Card */}
-						<TouchableOpacity
-							onPress={() => setPaymentMethod("card")}
-							className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-								paymentMethod === "card"
-									? "border-primary-1"
-									: "border-secondary-3"
-							} shadow-sm`}
+						<Text
+							className="text-sm"
+							style={{ color: colors.secondary[1] }}
 						>
-							<View className="flex-row items-center justify-between">
-								<View className="flex-1 flex-row items-center">
-									<Ionicons
-										name="card-outline"
-										size={24}
-										color={colors.primary[1]}
-									/>
-									<Text
-										className="ml-3 text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										Credit/Debit Card
-									</Text>
-								</View>
-								{paymentMethod === "card" && (
-									<View
-										className="h-6 w-6 items-center justify-center rounded-full"
-										style={{ backgroundColor: colors.primary[1] }}
-									>
-										<Ionicons
-											name="checkmark"
-											size={16}
-											color={colors.primary[2]}
-										/>
-									</View>
-								)}
-							</View>
-						</TouchableOpacity>
-
-						{/* Apple Pay */}
-						<TouchableOpacity
-							onPress={() => setPaymentMethod("apple")}
-							className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-								paymentMethod === "apple"
-									? "border-primary-1"
-									: "border-secondary-3"
-							} shadow-sm`}
-						>
-							<View className="flex-row items-center justify-between">
-								<View className="flex-1 flex-row items-center">
-									<Ionicons
-										name="logo-apple"
-										size={24}
-										color={colors.primary[1]}
-									/>
-									<Text
-										className="ml-3 text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										Apple Pay
-									</Text>
-								</View>
-								{paymentMethod === "apple" && (
-									<View
-										className="h-6 w-6 items-center justify-center rounded-full"
-										style={{ backgroundColor: colors.primary[1] }}
-									>
-										<Ionicons
-											name="checkmark"
-											size={16}
-											color={colors.primary[2]}
-										/>
-									</View>
-								)}
-							</View>
-						</TouchableOpacity>
-
-						{/* Google Pay */}
-						<TouchableOpacity
-							onPress={() => setPaymentMethod("google")}
-							className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-								paymentMethod === "google"
-									? "border-primary-1"
-									: "border-secondary-3"
-							} shadow-sm`}
-						>
-							<View className="flex-row items-center justify-between">
-								<View className="flex-1 flex-row items-center">
-									<Ionicons
-										name="logo-google"
-										size={24}
-										color={colors.primary[1]}
-									/>
-									<Text
-										className="ml-3 text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										Google Pay
-									</Text>
-								</View>
-								{paymentMethod === "google" && (
-									<View
-										className="h-6 w-6 items-center justify-center rounded-full"
-										style={{ backgroundColor: colors.primary[1] }}
-									>
-										<Ionicons
-											name="checkmark"
-											size={16}
-											color={colors.primary[2]}
-										/>
-									</View>
-								)}
-							</View>
-						</TouchableOpacity>
+							Payment processing will be available soon. Tap the button
+							below to complete your purchase.
+						</Text>
 					</View>
 				</View>
 			</ScrollView>
 
 			{/* Pay Button */}
-			{paymentMethod && (
-				<SafeAreaView
-					edges={["bottom"]}
-					className="border-secondary-3 border-t bg-white"
-				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
-							onPress={handlePayment}
-							disabled={isProcessing}
-							className={`items-center justify-center rounded-xl py-4 ${
-								isProcessing ? "opacity-50" : ""
-							}`}
-							style={{ backgroundColor: colors.primary[1] }}
-						>
-							{isProcessing ? (
-								<Text className="font-semibold text-base text-primary-2">
-									Processing...
-								</Text>
-							) : (
-								<Text className="font-semibold text-base text-primary-2">
-									Pay ${total.toFixed(2)}
-								</Text>
-							)}
-						</TouchableOpacity>
-					</View>
-				</SafeAreaView>
-			)}
+			<SafeAreaView
+				edges={["bottom"]}
+				className="border-secondary-3 border-t bg-white"
+			>
+				<View className="px-4 py-4">
+					<TouchableOpacity
+						onPress={handlePayment}
+						disabled={isProcessing}
+						className={`items-center justify-center rounded-xl py-4 ${
+							isProcessing ? "opacity-50" : ""
+						}`}
+						style={{ backgroundColor: colors.primary[1] }}
+					>
+						{isProcessing ? (
+							<Text className="font-semibold text-base text-primary-2">
+								Processing...
+							</Text>
+						) : (
+							<Text className="font-semibold text-base text-primary-2">
+								Pay ${total.toFixed(2)}
+							</Text>
+						)}
+					</TouchableOpacity>
+				</View>
+			</SafeAreaView>
 		</Container>
 	);
 }

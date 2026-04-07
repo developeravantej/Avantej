@@ -22,11 +22,12 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
     return;
   }
 
-  // Check if this is a public invitation endpoint by path (more reliable than method name)
-  // oRPC routes are at /rpc/invitations/getByToken or /rpc/invitations/accept
+  // Check if this is a public-like endpoint by path (needs tenantDb but not necessarily an existing member)
+  // oRPC routes are at /rpc/invitations/getByToken or /rpc/invitations/accept or /rpc/registration/complete
   const isInvitationPublicEndpointByPath = c.req.path.includes('/invitations/getByToken') ||
                                            c.req.path.includes('/invitations/accept') ||
-                                           c.req.path.includes('/invitations/verifyEmailByToken');
+                                           c.req.path.includes('/invitations/verifyEmailByToken') ||
+                                           c.req.path.includes('/registration/complete');
 
   try {
     // Parse request body to extract organizationId
@@ -88,7 +89,10 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         method.includes('invitations/verifyEmailByToken') ||
         method === 'invitations.getByToken' ||
         method === 'invitations.accept' ||
-        method === 'invitations.verifyEmailByToken'
+        method === 'invitations.verifyEmailByToken' ||
+        method.includes('registration.complete') ||
+        method.includes('registration/complete') ||
+        method === 'registration.complete'
       );
 
       const isInvitationPublicEndpoint = isInvitationPublicEndpointByPath || isInvitationPublicEndpointByMethod;

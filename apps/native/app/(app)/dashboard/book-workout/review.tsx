@@ -1,11 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { useCallback } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	ActivityIndicator,
+	Alert,
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { useBookingFlow } from "@/contexts/booking-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { client } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
@@ -14,19 +26,75 @@ const steps = [
 	{ number: 4, label: "Done", active: false },
 ];
 
+// Format ISO datetime string nicely
+const formatDateTime = (isoString: string | null): string => {
+	if (!isoString) return "Not selected";
+	const date = new Date(isoString);
+	const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+	const month = date.toLocaleDateString("en-US", { month: "short" });
+	const day = date.getDate();
+	const hours = date.getHours();
+	const minutes = date.getMinutes();
+	const period = hours >= 12 ? "PM" : "AM";
+	const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+	return `${dayName}, ${month} ${day} at ${displayHour}:${minutes.toString().padStart(2, "0")} ${period}`;
+};
+
 export default function ReviewScreen() {
 	const navigation = useNavigation();
+	const { organizationId } = useOrganization();
+	const { state } = useBookingFlow();
+	const queryClient = useQueryClient();
+
 	const currentStep = 3;
 	const totalSteps = 4;
 	const progressPercentage = 75;
 
-	// Dummy booking data - in real app, this would come from state/context
-	const bookingData = {
-		service: "Personal Training",
-		trainer: "Auto-assign best available",
-		date: "Sun, Dec 28",
-		time: "10:00 AM",
-	};
+	const confirmMutation = useMutation({
+		mutationFn: () =>
+			client.appointments.create({
+				organizationId,
+				type:
+					state.serviceType === "semi-private" ||
+					state.serviceType === "semi_private"
+						? "semi-private"
+						: "private",
+				startTime: state.startTime!,
+				duration: state.duration ?? 60,
+				branchId: state.branchId!,
+				serviceId: state.serviceId ?? undefined,
+				trainerId: state.trainerId ?? undefined,
+				classSlotId: state.classSlotId ?? undefined,
+				packageInstanceId: state.packageInstanceId ?? undefined,
+				creditsUsed: 1,
+				status: "confirmed",
+				sessionTotal: 1,
+				pricePerClient: 0,
+			}),
+		onSuccess: (data: any) => {
+			queryClient.invalidateQueries({
+				predicate: (q) =>
+					JSON.stringify(q.queryKey).includes("appointments"),
+			});
+			queryClient.invalidateQueries({
+				predicate: (q) =>
+					JSON.stringify(q.queryKey).includes("packageInstances"),
+			});
+			router.push({
+				pathname: "./done",
+				params: {
+					bookingId: data.id,
+					bookingNumber: data.bookingNumber ?? "",
+				},
+			});
+		},
+		onError: (error: Error) => {
+			Alert.alert(
+				"Booking Failed",
+				error.message || "Could not create booking. Please try again.",
+			);
+		},
+	});
 
 	useFocusEffect(
 		useCallback(() => {
@@ -254,7 +322,7 @@ export default function ReviewScreen() {
 								className="font-semibold text-base"
 								style={{ color: colors.primary[1] }}
 							>
-								{bookingData.service}
+								{state.serviceName ?? "Not selected"}
 							</Text>
 						</View>
 
@@ -276,7 +344,7 @@ export default function ReviewScreen() {
 								className="font-semibold text-base"
 								style={{ color: colors.primary[1] }}
 							>
-								{bookingData.trainer}
+								{state.trainerName ?? "Auto-assign"}
 							</Text>
 						</View>
 
@@ -298,8 +366,39 @@ export default function ReviewScreen() {
 								className="font-semibold text-base"
 								style={{ color: colors.primary[1] }}
 							>
-								{bookingData.date} at {bookingData.time}
+								{formatDateTime(state.startTime)}
 							</Text>
+						</View>
+
+						{/* Credits Card */}
+						<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+							<View className="mb-3 flex-row items-center">
+								<Ionicons
+									name="ticket-outline"
+									size={20}
+									color={colors.secondary[1]}
+								/>
+								<Text
+									className="ml-2 text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Credits
+								</Text>
+							</View>
+							<Text
+								className="font-semibold text-base"
+								style={{ color: colors.primary[1] }}
+							>
+								1 credit will be deducted
+							</Text>
+							{state.packageName && (
+								<Text
+									className="mt-1 text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Package: {state.packageName}
+								</Text>
+							)}
 						</View>
 					</View>
 				</View>
@@ -312,12 +411,20 @@ export default function ReviewScreen() {
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
-						onPress={() => router.push("./done" as never)}
+						onPress={() => confirmMutation.mutate()}
+						disabled={confirmMutation.isPending}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
+						style={{
+							opacity: confirmMutation.isPending ? 0.6 : 1,
+						}}
 					>
-						<Text className="font-semibold text-base text-primary-2">
-							Confirm Booking
-						</Text>
+						{confirmMutation.isPending ? (
+							<ActivityIndicator size="small" color={colors.primary[2]} />
+						) : (
+							<Text className="font-semibold text-base text-primary-2">
+								Confirm Booking
+							</Text>
+						)}
 					</TouchableOpacity>
 				</View>
 			</SafeAreaView>

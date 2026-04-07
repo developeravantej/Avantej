@@ -28,6 +28,66 @@ export const auth = betterAuth<BetterAuthOptions>({
         fieldName: "lastName",
         defaultValue: "",
       },
+      phone: {
+        type: "string",
+        required: false,
+        fieldName: "phone",
+      },
+      idPassportNo: {
+        type: "string",
+        required: false,
+        fieldName: "idPassportNo",
+      },
+      addressType: {
+        type: "string",
+        required: false,
+        fieldName: "addressType",
+      },
+      streetAddress: {
+        type: "string",
+        required: false,
+        fieldName: "streetAddress",
+      },
+      city: {
+        type: "string",
+        required: false,
+        fieldName: "city",
+      },
+      state: {
+        type: "string",
+        required: false,
+        fieldName: "state",
+      },
+      country: {
+        type: "string",
+        required: false,
+        fieldName: "country",
+      },
+      postalCode: {
+        type: "string",
+        required: false,
+        fieldName: "postalCode",
+      },
+      dateOfBirth: {
+        type: "string",
+        required: false,
+        fieldName: "dateOfBirth",
+      },
+      emergencyContactName: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactName",
+      },
+      emergencyContactRelationship: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactRelationship",
+      },
+      emergencyContactPhone: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactPhone",
+      },
     },
   },
   trustedOrigins: [env.CORS_ORIGIN, "mybettertapp://", "exp://"],

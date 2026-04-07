@@ -1,9 +1,10 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
+import { PurchaseFlowProvider } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
 
-export default function BookWorkoutLayout() {
+export default function BuyPackageLayout() {
 	const navigation = useNavigation();
 	const hideTabBarRef = useRef(false);
 
@@ -23,8 +24,8 @@ export default function BookWorkoutLayout() {
 				state?.routes?.some(
 					(r) =>
 						r.name === "index" ||
-						r.name === "calendar" ||
-						r.name === "notifications" ||
+						r.name === "explore" ||
+						r.name === "bookings" ||
 						r.name === "profile",
 				)
 			) {
@@ -94,32 +95,32 @@ export default function BookWorkoutLayout() {
 	useEffect(() => {
 		hideTabBar();
 
-		// Listen to navigation state changes
 		const unsubscribe = navigation.addListener("state", () => {
 			hideTabBar();
 		});
 
 		return () => {
 			unsubscribe();
-			// Only restore when component unmounts (leaving the entire stack)
 			showTabBar();
 		};
 	}, [navigation, hideTabBar, showTabBar]);
 
 	return (
-		<Stack
-			screenOptions={{
-				headerShown: false,
-			}}
-		>
-			<Stack.Screen name="setup" />
-			<Stack.Screen name="schedule" />
-			<Stack.Screen name="review" />
-			<Stack.Screen name="info" />
-			<Stack.Screen name="sign" />
-			<Stack.Screen name="terms" />
-			<Stack.Screen name="pay" />
-			<Stack.Screen name="done" />
-		</Stack>
+		<PurchaseFlowProvider>
+			<Stack
+				screenOptions={{
+					headerShown: false,
+				}}
+			>
+				<Stack.Screen name="setup" />
+				<Stack.Screen name="schedule" />
+				<Stack.Screen name="info" />
+				<Stack.Screen name="review" />
+				<Stack.Screen name="sign" />
+				<Stack.Screen name="terms" />
+				<Stack.Screen name="pay" />
+				<Stack.Screen name="done" />
+			</Stack>
+		</PurchaseFlowProvider>
 	);
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, date } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
 	id: text("id").primaryKey(),
@@ -8,6 +8,18 @@ export const user = pgTable("user", {
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").notNull(),
 	image: text("image"),
+	phone: text("phone"),
+	idPassportNo: text("id_passport_no"),
+	addressType: text("address_type"), // "home" | "work"
+	streetAddress: text("street_address"),
+	city: text("city"),
+	state: text("state"),
+	country: text("country"),
+	postalCode: text("postal_code"),
+	dateOfBirth: date("date_of_birth"),
+	emergencyContactName: text("emergency_contact_name"),
+	emergencyContactRelationship: text("emergency_contact_relationship"),
+	emergencyContactPhone: text("emergency_contact_phone"),
 	role: text("role"), // Optional field for Better-Auth admin plugin
 	banned: boolean("banned"), // Optional field for Better-Auth admin plugin
 	banReason: text("ban_reason"), // Optional field for Better-Auth admin plugin

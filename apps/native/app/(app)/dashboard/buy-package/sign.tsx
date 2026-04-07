@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { router } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	Alert,
 	Image,
@@ -15,46 +14,34 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import SignatureCanvas from "react-native-signature-canvas";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: false },
-	{ number: 3, label: "Review", active: false },
-	{ number: 4, label: "Info", active: false },
+	{ number: 3, label: "Info", active: false },
+	{ number: 4, label: "Review", active: false },
 	{ number: 5, label: "Sign", active: true },
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: false },
 ];
 
-/** PDFs from assets/documents – id is passed to terms screen to open the correct file. */
 const TERMS_DOCUMENTS = [
-	{ id: "agreement" as const, name: "Company–Client Agreement" },
+	{ id: "agreement" as const, name: "Company\u2013Client Agreement" },
 	{ id: "satisfaction" as const, name: "100% Satisfaction Guarantee" },
 	{ id: "parq" as const, name: "Par-Q & You" },
 ] as const;
 
 export default function SignScreen() {
-	const navigation = useNavigation();
-	const params = useLocalSearchParams<{
-		serviceId?: string;
-		categoryId?: string;
-		coachId?: string;
-		date?: string;
-		time?: string;
-		preferredTimes?: string;
-		additionalInfo?: string;
-		medicalNotes?: string;
-		goals?: string;
-	}>();
+	const { state, update } = usePurchaseFlow();
 
 	const currentStep = 5;
 	const totalSteps = 7;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
-	// E-Signature state
-	const [signature, setSignature] = useState("");
-	const [agreedToTerms, setAgreedToTerms] = useState(false);
+	const [signature, setSignature] = useState(state.signature ?? "");
+	const [agreedToTerms, setAgreedToTerms] = useState(state.termsAgreed);
 	const [showSignatureModal, setShowSignatureModal] = useState(false);
 	const [viewedDocs, setViewedDocs] = useState<Record<string, boolean>>({
 		agreement: false,
@@ -65,13 +52,11 @@ export default function SignScreen() {
 	const allTermsViewed =
 		viewedDocs.agreement && viewedDocs.satisfaction && viewedDocs.parq;
 
-	const signatureRef = useRef<any>(null);
 	const modalSignatureRef = useRef<any>(null);
 
 	const handleSignature = async (signatureData: string) => {
 		setSignature(signatureData);
 		setShowSignatureModal(false);
-		// Unlock orientation when signature is confirmed
 		await ScreenOrientation.unlockAsync();
 	};
 
@@ -80,12 +65,10 @@ export default function SignScreen() {
 	};
 
 	const handleConfirm = () => {
-		// Read and save the signature from modal
 		modalSignatureRef.current?.readSignature();
 	};
 
 	const handleOpenSignatureModal = async () => {
-		// Lock to landscape orientation
 		await ScreenOrientation.lockAsync(
 			ScreenOrientation.OrientationLock.LANDSCAPE,
 		);
@@ -94,72 +77,23 @@ export default function SignScreen() {
 
 	const handleCloseSignatureModal = async () => {
 		setShowSignatureModal(false);
-		// Unlock orientation back to default
 		await ScreenOrientation.unlockAsync();
 	};
 
-	// Cleanup orientation when component unmounts
 	useEffect(() => {
 		return () => {
 			ScreenOrientation.unlockAsync();
 		};
 	}, []);
 
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-		}, [navigation]),
-	);
-
 	const handleContinue = () => {
 		if (signature && agreedToTerms) {
-			router.push({
-				pathname: "./pay" as never,
-				params: {
-					...params,
-					signature,
-				},
+			update({
+				signature,
+				termsAgreed: true,
+				termsAgreedAt: new Date().toISOString(),
 			});
+			router.push("./pay");
 		}
 	};
 
@@ -192,7 +126,11 @@ export default function SignScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							E-Signature
@@ -212,7 +150,7 @@ export default function SignScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility */}
+					{/* Progress Indicator */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
@@ -223,7 +161,6 @@ export default function SignScreen() {
 							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
@@ -239,7 +176,6 @@ export default function SignScreen() {
 
 						{/* Step Navigation */}
 						<View className="relative" style={{ height: 50 }}>
-							{/* Connector line - visible against background */}
 							<View
 								className="absolute rounded-full"
 								style={{
@@ -334,7 +270,7 @@ export default function SignScreen() {
 							E-SIGNATURE
 						</Text>
 
-						{/* Terms and Conditions – links to the three PDFs */}
+						{/* Terms and Conditions */}
 						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							<Text
 								className="mb-3 text-sm"
@@ -383,7 +319,7 @@ export default function SignScreen() {
 							</View>
 						</View>
 
-						{/* Agreement Checkbox - visible and tappable */}
+						{/* Agreement Checkbox */}
 						<TouchableOpacity
 							onPress={handleAgreementPress}
 							activeOpacity={0.7}
@@ -412,7 +348,7 @@ export default function SignScreen() {
 							</View>
 						</TouchableOpacity>
 
-						{/* Signature area - clearly visible signing board */}
+						{/* Signature area */}
 						<View className="mb-4">
 							<Text className="mb-2 font-semibold text-primary-1 text-sm">
 								Sign Below
@@ -460,7 +396,7 @@ export default function SignScreen() {
 								<TouchableOpacity
 									onPress={() => {
 										setSignature("");
-										setShowSignatureModal(true);
+										handleOpenSignatureModal();
 									}}
 									className="mb-2 self-end"
 								>
@@ -536,7 +472,7 @@ export default function SignScreen() {
 										</View>
 									</View>
 
-									{/* Signature Canvas - Full Screen */}
+									{/* Signature Canvas */}
 									<View
 										style={{
 											flex: 1,

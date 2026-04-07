@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	Image,
 	ScrollView,
@@ -10,143 +11,94 @@ import {
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { orpc } from "@/utils/orpc";
 
-// Service categories
-const categories = [
-	{ id: 1, name: "Training" },
-	{ id: 2, name: "Classes" },
-	{ id: 3, name: "Yoga" },
-	{ id: 4, name: "Cardio" },
-	{ id: 5, name: "Strength" },
-	{ id: 6, name: "Pilates" },
-];
+const DEFAULT_IMAGE =
+	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
 
-// Mock data for services
-const allServices = [
-	{
-		id: 1,
-		name: "Personal Training",
-		description:
-			"Build strength and consistency with a personalized workout plan tailored to your goals",
-		imageUrl:
-			"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop",
-		popularityPercentage: 40,
-		price: 75,
-		priceUnit: "class",
-		category: "Training",
-		recommended: true,
-	},
-	{
-		id: 2,
-		name: "HIIT Class",
-		description:
-			"High-energy group workout focused on fat burning and cardiovascular fitness",
-		imageUrl:
-			"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop",
-		popularityPercentage: 35,
-		price: 25,
-		priceUnit: "class",
-		category: "Classes",
-		recommended: true,
-	},
-	{
-		id: 3,
-		name: "Yoga Flow",
-		description:
-			"Improve flexibility, balance, and recovery with this gentle yet invigorating practice",
-		imageUrl:
-			"https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop",
-		popularityPercentage: 28,
-		price: 20,
-		priceUnit: "class",
-		category: "Yoga",
-		recommended: false,
-	},
-	{
-		id: 4,
-		name: "Strength Training",
-		description:
-			"Build muscle mass and increase power with progressive resistance training",
-		imageUrl:
-			"https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&h=300&fit=crop",
-		popularityPercentage: 32,
-		price: 30,
-		priceUnit: "class",
-		category: "Training",
-		recommended: false,
-	},
-	{
-		id: 5,
-		name: "Cardio Blast",
-		description:
-			"High-intensity cardio session designed to boost endurance and burn calories",
-		imageUrl:
-			"https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop",
-		popularityPercentage: 25,
-		price: 22,
-		priceUnit: "class",
-		category: "Cardio",
-		recommended: false,
-	},
-	{
-		id: 6,
-		name: "Pilates Core",
-		description:
-			"Strengthen your core and improve posture with controlled movements",
-		imageUrl:
-			"https://images.unsplash.com/photo-1601925260368-ae2f83d8b3d8?w=400&h=300&fit=crop",
-		popularityPercentage: 20,
-		price: 18,
-		priceUnit: "class",
-		category: "Pilates",
-		recommended: false,
-	},
-	{
-		id: 7,
-		name: "Boxing Training",
-		description:
-			"Learn boxing techniques while getting an intense full-body workout",
-		imageUrl:
-			"https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=300&fit=crop",
-		popularityPercentage: 30,
-		price: 35,
-		priceUnit: "class",
-		category: "Training",
-		recommended: false,
-	},
-	{
-		id: 8,
-		name: "Spin Class",
-		description:
-			"Indoor cycling class with energizing music and motivating instructors",
-		imageUrl:
-			"https://images.unsplash.com/photo-1576678927484-cc907957088c?w=400&h=300&fit=crop",
-		popularityPercentage: 27,
-		price: 24,
-		priceUnit: "class",
-		category: "Cardio",
-		recommended: false,
-	},
-];
+function SkeletonCard() {
+	return (
+		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View className="flex-row">
+				<View
+					className="mr-4 h-24 w-24 rounded-xl"
+					style={{ backgroundColor: colors.secondary[3] }}
+				/>
+				<View className="flex-1">
+					<View
+						className="mb-2 h-5 w-3/4 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="mb-2 h-4 w-full rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="h-4 w-1/3 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+				</View>
+			</View>
+		</View>
+	);
+}
 
 export default function ExploreScreen() {
-	const [selectedCategory, setSelectedCategory] = useState("Training");
+	const { organizationId } = useOrganization();
+	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+		null,
+	);
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearch = useDebounce(searchQuery, 300);
 	const tabBarHeight = useTabBarHeight();
 
-	// Filter services based on selected category
-	const filteredServices = allServices.filter(
-		(service) =>
-			service.category === selectedCategory &&
-			(service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				service.description.toLowerCase().includes(searchQuery.toLowerCase())),
+	// Fetch categories
+	const { data: categories } = useQuery(
+		orpc.serviceCategories.list.queryOptions({
+			input: { organizationId },
+		}),
 	);
 
-	// Get recommended services
-	const recommendedServices = allServices.filter(
-		(service) => service.recommended,
-	);
+	// Build filter tabs
+	const filterTabs = useMemo(() => {
+		const tabs: Array<{ id: string | null; name: string }> = [
+			{ id: null, name: "All" },
+		];
+		(categories ?? []).forEach((cat: any) =>
+			tabs.push({ id: cat.id, name: cat.name }),
+		);
+		return tabs;
+	}, [categories]);
+
+	// Fetch services with optional category filter and search
+	const { data: services, isLoading: servicesLoading } = useQuery({
+		...orpc.services.list.queryOptions({
+			input: {
+				organizationId,
+				categoryId: selectedCategoryId ?? undefined,
+				isActive: true,
+			},
+		}),
+	});
+
+	// Client-side search filter (until server-side search is implemented)
+	const filteredServices = useMemo(() => {
+		if (!services) return [];
+		if (!debouncedSearch) return services;
+		const q = debouncedSearch.toLowerCase();
+		return services.filter(
+			(svc: any) =>
+				svc.name?.toLowerCase().includes(q) ||
+				svc.description?.toLowerCase().includes(q),
+		);
+	}, [services, debouncedSearch]);
+
+	// Recommended: first 4 services (MVP approach)
+	const recommended = filteredServices.slice(0, 4);
+	const browse = filteredServices;
 
 	return (
 		<TabContainer>
@@ -172,6 +124,15 @@ export default function ExploreScreen() {
 								className="ml-2 flex-1"
 								style={{ color: colors.primary[1] }}
 							/>
+							{searchQuery.length > 0 && (
+								<TouchableOpacity onPress={() => setSearchQuery("")}>
+									<Ionicons
+										name="close-circle"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+								</TouchableOpacity>
+							)}
 						</View>
 						<TouchableOpacity className="p-3">
 							<Ionicons
@@ -189,12 +150,12 @@ export default function ExploreScreen() {
 						className="mb-6"
 					>
 						<View className="flex-row">
-							{categories.map((category) => {
-								const isSelected = category.name === selectedCategory;
+							{filterTabs.map((tab) => {
+								const isSelected = tab.id === selectedCategoryId;
 								return (
 									<TouchableOpacity
-										key={category.id}
-										onPress={() => setSelectedCategory(category.name)}
+										key={tab.id ?? "all"}
+										onPress={() => setSelectedCategoryId(tab.id)}
 										className={`mr-2 rounded-full px-4 py-2 ${
 											isSelected ? "" : "border bg-white"
 										}`}
@@ -209,11 +170,9 @@ export default function ExploreScreen() {
 									>
 										<Text
 											className="font-medium text-sm"
-											style={{
-												color: colors.primary[1],
-											}}
+											style={{ color: colors.primary[1] }}
 										>
-											{category.name}
+											{tab.name}
 										</Text>
 									</TouchableOpacity>
 								);
@@ -221,133 +180,170 @@ export default function ExploreScreen() {
 						</View>
 					</ScrollView>
 
-					{/* Recommended For You Section */}
-					{recommendedServices.length > 0 && (
-						<View className="mb-6">
-							<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-								RECOMMENDED FOR YOU
-							</Text>
-
-							{recommendedServices.map((service) => (
-								<TouchableOpacity
-									key={service.id}
-									onPress={() => {
-										router.push({
-											pathname: "/dashboard/explore/[id]" as never,
-											params: { id: service.id.toString() },
-										});
-									}}
-									className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
-								>
-									<View className="flex-row">
-										{/* Image */}
-										<Image
-											source={{ uri: service.imageUrl }}
-											className="mr-4 h-24 w-24 rounded-xl"
-											resizeMode="cover"
-										/>
-
-										{/* Details */}
-										<View className="flex-1">
-											<Text
-												className="mb-1 font-bold text-lg"
-												style={{ color: colors.primary[1] }}
-											>
-												{service.name}
-											</Text>
-											<Text
-												className="mb-1 text-sm"
-												style={{ color: colors.secondary[1] }}
-												numberOfLines={2}
-											>
-												{service.description}
-											</Text>
-											<Text
-												className="mb-2 text-xs"
-												style={{ color: colors.secondary[1] }}
-											>
-												{service.popularityPercentage}% of members chose this
-											</Text>
-											<View className="flex-row items-baseline">
-												<Text className="font-bold text-lg text-primary-1">
-													${service.price}
-												</Text>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													/ {service.priceUnit}
-												</Text>
-											</View>
-										</View>
-									</View>
-								</TouchableOpacity>
-							))}
-						</View>
+					{/* Loading State */}
+					{servicesLoading && (
+						<>
+							<SkeletonCard />
+							<SkeletonCard />
+							<SkeletonCard />
+						</>
 					)}
 
-					{/* Browse Workouts Section */}
-					<View>
-						<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							BROWSE WORKOUTS
-						</Text>
+					{/* Recommended For You Section */}
+					{!servicesLoading &&
+						!debouncedSearch &&
+						!selectedCategoryId &&
+						recommended.length > 0 && (
+							<View className="mb-6">
+								<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+									RECOMMENDED FOR YOU
+								</Text>
 
-						{filteredServices.map((service) => (
-							<TouchableOpacity
-								key={service.id}
-								onPress={() => {
-									router.push({
-										pathname: "/dashboard/explore/[id]" as never,
-										params: { id: service.id.toString() },
-									});
-								}}
-								className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
-							>
-								<View className="flex-row">
-									{/* Image */}
-									<Image
-										source={{ uri: service.imageUrl }}
-										className="mr-4 h-24 w-24 rounded-xl"
-										resizeMode="cover"
-									/>
-
-									{/* Details */}
-									<View className="flex-1">
-										<Text
-											className="mb-1 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{service.name}
-										</Text>
-										<Text
-											className="mb-1 text-sm"
-											style={{ color: colors.secondary[1] }}
-											numberOfLines={2}
-										>
-											{service.description}
-										</Text>
-										<Text
-											className="mb-2 text-xs"
-											style={{ color: colors.secondary[1] }}
-										>
-											{service.popularityPercentage}% of members chose this
-										</Text>
-										<View className="flex-row items-baseline">
-											<Text className="font-bold text-lg text-primary-1">
-												${service.price}
-											</Text>
-											<Text
-												className="ml-1 text-sm"
-												style={{ color: colors.secondary[1] }}
-											>
-												/ {service.priceUnit}
-											</Text>
+								{recommended.map((service: any) => (
+									<TouchableOpacity
+										key={service.id}
+										onPress={() => {
+											router.push({
+												pathname: "/dashboard/explore/[id]" as never,
+												params: { id: service.id },
+											});
+										}}
+										className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+									>
+										<View className="flex-row">
+											<Image
+												source={{
+													uri: service.imageUrl ?? DEFAULT_IMAGE,
+												}}
+												className="mr-4 h-24 w-24 rounded-xl"
+												resizeMode="cover"
+											/>
+											<View className="flex-1">
+												<Text
+													className="mb-1 font-bold text-lg"
+													style={{ color: colors.primary[1] }}
+												>
+													{service.name}
+												</Text>
+												<Text
+													className="mb-2 text-sm"
+													style={{ color: colors.secondary[1] }}
+													numberOfLines={2}
+												>
+													{service.description}
+												</Text>
+												<View className="flex-row items-baseline">
+													<Text className="font-bold text-lg text-primary-1">
+														${service.price ?? service.pricePerSession ?? 0}
+													</Text>
+													<Text
+														className="ml-1 text-sm"
+														style={{ color: colors.secondary[1] }}
+													>
+														/{" "}
+														{service.type === "private"
+															? "session"
+															: "class"}
+													</Text>
+												</View>
+											</View>
 										</View>
-									</View>
+									</TouchableOpacity>
+								))}
+							</View>
+						)}
+
+					{/* Browse Workouts Section */}
+					{!servicesLoading && (
+						<View>
+							<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+								{debouncedSearch
+									? "SEARCH RESULTS"
+									: selectedCategoryId
+										? "SERVICES"
+										: "BROWSE WORKOUTS"}
+							</Text>
+
+							{browse.length === 0 ? (
+								<View className="items-center py-12">
+									<Ionicons
+										name="search-outline"
+										size={48}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="mt-4 text-center font-semibold text-lg"
+										style={{ color: colors.primary[1] }}
+									>
+										No services found
+									</Text>
+									<Text
+										className="mt-1 text-center text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										{debouncedSearch
+											? "Try a different search term"
+											: "No services available in this category"}
+									</Text>
 								</View>
-							</TouchableOpacity>
-						))}
-					</View>
+							) : (
+								browse.map((service: any) => (
+									<TouchableOpacity
+										key={service.id}
+										onPress={() => {
+											router.push({
+												pathname: "/dashboard/explore/[id]" as never,
+												params: { id: service.id },
+											});
+										}}
+										className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+									>
+										<View className="flex-row">
+											<Image
+												source={{
+													uri: service.imageUrl ?? DEFAULT_IMAGE,
+												}}
+												className="mr-4 h-24 w-24 rounded-xl"
+												resizeMode="cover"
+											/>
+											<View className="flex-1">
+												<Text
+													className="mb-1 font-bold text-lg"
+													style={{ color: colors.primary[1] }}
+												>
+													{service.name}
+												</Text>
+												<Text
+													className="mb-2 text-sm"
+													style={{ color: colors.secondary[1] }}
+													numberOfLines={2}
+												>
+													{service.description}
+												</Text>
+												<View className="flex-row items-baseline">
+													<Text className="font-bold text-lg text-primary-1">
+														$
+														{service.price ??
+															service.pricePerSession ??
+															0}
+													</Text>
+													<Text
+														className="ml-1 text-sm"
+														style={{ color: colors.secondary[1] }}
+													>
+														/{" "}
+														{service.type === "private"
+															? "session"
+															: "class"}
+													</Text>
+												</View>
+											</View>
+										</View>
+									</TouchableOpacity>
+								))
+							)}
+						</View>
+					)}
 				</View>
 			</ScrollView>
 		</TabContainer>

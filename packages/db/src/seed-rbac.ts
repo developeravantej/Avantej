@@ -134,6 +134,8 @@ export async function seedRBACData(
 			"appointment_management:read",
 		],
 		client: [
+			"service_management:read", // Browse services, categories, and packages
+			"service_management:create", // Purchase packages (create package instances)
 			"appointment_management:read", // Only own appointments
 		],
 	};

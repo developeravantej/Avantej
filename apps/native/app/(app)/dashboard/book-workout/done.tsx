@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, useNavigation } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { useBookingFlow } from "@/contexts/booking-flow-context";
 import { colors } from "@/lib/colors";
 
 const steps = [
@@ -14,11 +15,41 @@ const steps = [
 	{ number: 4, label: "Done", active: true },
 ];
 
+// Format ISO datetime string nicely
+const formatDateTime = (isoString: string | null): string => {
+	if (!isoString) return "Not available";
+	const date = new Date(isoString);
+	const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+	const month = date.toLocaleDateString("en-US", { month: "short" });
+	const day = date.getDate();
+	const hours = date.getHours();
+	const minutes = date.getMinutes();
+	const period = hours >= 12 ? "PM" : "AM";
+	const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+	return `${dayName}, ${month} ${day} at ${displayHour}:${minutes.toString().padStart(2, "0")} ${period}`;
+};
+
 export default function DoneScreen() {
 	const navigation = useNavigation();
+	const params = useLocalSearchParams<{
+		bookingId?: string;
+		bookingNumber?: string;
+	}>();
+	const { state, reset } = useBookingFlow();
+
 	const currentStep = 4;
 	const totalSteps = 4;
 	const progressPercentage = 100;
+
+	const handleBackToHome = () => {
+		reset();
+		router.replace("/dashboard");
+	};
+
+	const handleViewBookings = () => {
+		reset();
+		router.replace("/dashboard/bookings");
+	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -74,7 +105,7 @@ export default function DoneScreen() {
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
-							onPress={() => router.replace("/dashboard")}
+							onPress={handleBackToHome}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
@@ -260,7 +291,7 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									Personal Training
+									{state.serviceName ?? "N/A"}
 								</Text>
 							</View>
 
@@ -275,7 +306,7 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									Sun, Dec 28 at 10:00 AM
+									{formatDateTime(state.startTime)}
 								</Text>
 							</View>
 
@@ -290,9 +321,26 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									Auto-assign best available
+									{state.trainerName ?? "Auto-assign"}
 								</Text>
 							</View>
+
+							{params.bookingNumber ? (
+								<View className="mb-3">
+									<Text
+										className="mb-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Booking Reference
+									</Text>
+									<Text
+										className="font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{params.bookingNumber}
+									</Text>
+								</View>
+							) : null}
 						</View>
 					</View>
 				</View>
@@ -305,7 +353,7 @@ export default function DoneScreen() {
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
-						onPress={() => router.replace("/dashboard")}
+						onPress={handleBackToHome}
 						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
@@ -314,7 +362,7 @@ export default function DoneScreen() {
 					</TouchableOpacity>
 
 					<TouchableOpacity
-						onPress={() => router.push("/dashboard/notifications" as never)}
+						onPress={handleViewBookings}
 						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-1">

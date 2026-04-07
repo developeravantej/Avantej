@@ -1,162 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import {
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { useBookingFlow } from "@/contexts/booking-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-
-// Dummy data for service categories
-const serviceCategories = [
-	{
-		id: 1,
-		name: "Fitness & Training",
-		description: "Personalized training and strength building",
-	},
-	{
-		id: 2,
-		name: "Group Classes",
-		description: "High-energy group workouts",
-	},
-	{
-		id: 3,
-		name: "Wellness & Recovery",
-		description: "Yoga, stretching, and recovery sessions",
-	},
-	{
-		id: 4,
-		name: "Specialized Programs",
-		description: "Targeted programs for specific goals",
-	},
-];
-
-// Dummy data for services (now includes categoryId)
-const services = [
-	{
-		id: 1,
-		title: "Personal Training",
-		description: "Personalized one-on-one training",
-		tag: "Most booked",
-		categoryId: 1, // Fitness & Training
-	},
-	{
-		id: 2,
-		title: "HIIT Class",
-		description: "High-energy fat burn and endurance",
-		categoryId: 2, // Group Classes
-	},
-	{
-		id: 3,
-		title: "Yoga Flow",
-		description: "Improve flexibility and recovery",
-		tag: "Good for recovery days",
-		categoryId: 3, // Wellness & Recovery
-	},
-	{
-		id: 4,
-		title: "Strength Training",
-		description: "Build muscle and functional strength",
-		categoryId: 1, // Fitness & Training
-	},
-	{
-		id: 5,
-		title: "Pilates",
-		description: "Core strength and body alignment",
-		categoryId: 3, // Wellness & Recovery
-	},
-	{
-		id: 6,
-		title: "Spin Class",
-		description: "Indoor cycling for cardio fitness",
-		categoryId: 2, // Group Classes
-	},
-	{
-		id: 7,
-		title: "Weight Loss Program",
-		description: "Structured program for weight management",
-		tag: "12-week program",
-		categoryId: 4, // Specialized Programs
-	},
-	{
-		id: 8,
-		title: "Athletic Performance",
-		description: "Sport-specific training and conditioning",
-		categoryId: 4, // Specialized Programs
-	},
-];
-
-// Dummy data for trainers by service
-const trainersByService: Record<
-	number,
-	Array<{ id: number; name: string; specialization: string }>
-> = {
-	1: [
-		// Personal Training
-		{ id: 1, name: "Sarah Johnson", specialization: "Strength & Conditioning" },
-		{ id: 2, name: "Mike Chen", specialization: "HIIT & Cardio" },
-		{ id: 3, name: "Emma Wilson", specialization: "Weight Loss & Nutrition" },
-	],
-	2: [
-		// HIIT Class
-		{ id: 4, name: "Alex Martinez", specialization: "High-Intensity Training" },
-		{ id: 5, name: "Jordan Taylor", specialization: "Cardio & Endurance" },
-	],
-	3: [
-		// Yoga Flow
-		{ id: 6, name: "Luna Patel", specialization: "Vinyasa & Flexibility" },
-		{ id: 7, name: "Zen Kim", specialization: "Yin & Restorative Yoga" },
-	],
-	4: [
-		// Strength Training
-		{
-			id: 8,
-			name: "David Strong",
-			specialization: "Powerlifting & Bodybuilding",
-		},
-		{ id: 9, name: "Rachel Power", specialization: "Functional Strength" },
-	],
-	5: [
-		// Pilates
-		{
-			id: 10,
-			name: "Sophie Grace",
-			specialization: "Classical Pilates & Core",
-		},
-		{ id: 11, name: "Maya Rodriguez", specialization: "Contemporary Pilates" },
-	],
-	6: [
-		// Spin Class
-		{
-			id: 12,
-			name: "Chris Thompson",
-			specialization: "Indoor Cycling & Endurance",
-		},
-		{ id: 13, name: "Taylor Swift", specialization: "Rhythm-Based Cycling" },
-	],
-	7: [
-		// Weight Loss Program
-		{
-			id: 14,
-			name: "Dr. Lisa Chen",
-			specialization: "Nutrition & Weight Management",
-		},
-		{
-			id: 15,
-			name: "Marcus Williams",
-			specialization: "Metabolic Conditioning",
-		},
-	],
-	8: [
-		// Athletic Performance
-		{
-			id: 16,
-			name: "Coach James",
-			specialization: "Sports Performance & Agility",
-		},
-		{ id: 17, name: "Nina Torres", specialization: "Athletic Conditioning" },
-	],
-};
+import { orpc } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: true },
@@ -165,26 +24,87 @@ const steps = [
 	{ number: 4, label: "Done", active: false },
 ];
 
+function SkeletonCard() {
+	return (
+		<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View
+				className="mb-2 h-5 w-3/4 rounded"
+				style={{ backgroundColor: colors.secondary[3] }}
+			/>
+			<View
+				className="h-4 w-1/2 rounded"
+				style={{ backgroundColor: colors.secondary[3] }}
+			/>
+		</View>
+	);
+}
+
 export default function BookWorkoutScreen() {
 	const navigation = useNavigation();
-	const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-	const [selectedService, setSelectedService] = useState<number | null>(null);
+	const { organizationId } = useOrganization();
+	const { state, update } = useBookingFlow();
+
+	const [selectedPackageInstanceId, setSelectedPackageInstanceId] = useState<
+		string | null
+	>(state.packageInstanceId);
 	const [selectedTrainer, setSelectedTrainer] = useState<
-		number | "auto" | null
-	>(null);
+		string | "auto" | null
+	>(state.trainerId ?? null);
+
 	const currentStep = 1;
 	const totalSteps = 4;
 	const progressPercentage = 25;
 
-	// Filter services by selected category
-	const availableServices = selectedCategory
-		? services.filter((service) => service.categoryId === selectedCategory)
-		: [];
+	// Fetch user's active package instances
+	const { data: packageInstances, isLoading: packagesLoading } = useQuery(
+		orpc.packageInstances.listForClient.queryOptions({
+			input: { organizationId, status: "active" },
+		}),
+	);
 
-	// Get trainers for selected service
-	const availableTrainers = selectedService
-		? trainersByService[selectedService] || []
-		: [];
+	const selectedPackage = useMemo(() => {
+		if (!selectedPackageInstanceId || !packageInstances) return null;
+		return (packageInstances as any[]).find(
+			(inst) => inst.id === selectedPackageInstanceId,
+		);
+	}, [packageInstances, selectedPackageInstanceId]);
+
+	// Fetch trainers
+	const { data: trainers, isLoading: trainersLoading } = useQuery({
+		...orpc.members.list.queryOptions({
+			input: { organizationId, role: "trainer", status: "active" },
+		}),
+		enabled: !!selectedPackageInstanceId,
+	});
+
+	const handleContinue = () => {
+		const selectedTrn =
+			selectedTrainer !== "auto"
+				? trainers?.find((t: any) => t.id === selectedTrainer)
+				: null;
+
+		const apptType = selectedPackage?.package?.appointmentType;
+		const serviceType: "private" | "semi-private" =
+			apptType === "semi-private" ? "semi-private" : "private";
+
+		update({
+			packageInstanceId: selectedPackageInstanceId,
+			packageName: selectedPackage?.package?.name ?? null,
+			categoryId: null,
+			categoryName: null,
+			serviceId: null,
+			serviceName: null,
+			serviceType,
+			serviceDuration: 60,
+			trainerId: selectedTrainer === "auto" ? null : selectedTrainer,
+			trainerName:
+				selectedTrainer === "auto"
+					? "Auto-assign"
+					: (selectedTrn?.user?.name ?? null),
+			branchId: null,
+		});
+		router.push("./schedule");
+	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -360,80 +280,43 @@ export default function BookWorkoutScreen() {
 						</View>
 					</View>
 
-					{/* Category Selection Section */}
+					{/* Package Selection Section */}
 					<View className="mb-4">
 						<Text
 							className="mb-2 font-bold text-sm uppercase tracking-wide"
 							style={{ color: colors.primary[1] }}
 						>
-							SELECT CATEGORY
+							SELECT PACKAGE
 						</Text>
 						<Text
 							className="mb-4 text-base"
 							style={{ color: colors.primary[1] }}
 						>
-							Choose a category to explore available services
+							Choose a package to book from
 						</Text>
 
-						{/* Category Cards */}
-						{serviceCategories.map((category) => (
-							<TouchableOpacity
-								key={category.id}
-								onPress={() => {
-									setSelectedCategory(category.id);
-									setSelectedService(null); // Reset service selection when category changes
-									setSelectedTrainer(null); // Reset trainer selection when category changes
-								}}
-								className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-									selectedCategory === category.id
-										? "border-primary-1"
-										: "border-secondary-3"
-								} shadow-sm`}
-							>
-								<View className="mb-2 flex-row items-start justify-between">
-									<Text
-										className="flex-1 font-bold text-lg"
-										style={{ color: colors.primary[1] }}
-									>
-										{category.name}
-									</Text>
-								</View>
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									{category.description}
+						{packagesLoading ? (
+							<>
+								<SkeletonCard />
+								<SkeletonCard />
+								<SkeletonCard />
+							</>
+						) : !packageInstances || packageInstances.length === 0 ? (
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+								<Text className="text-center text-secondary-1 text-sm">
+									No active packages found. Purchase a package to book workouts.
 								</Text>
-							</TouchableOpacity>
-						))}
-					</View>
-
-					{/* Service Selection Section */}
-					<View className="mb-4">
-						<Text
-							className="mb-2 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
-						>
-							SELECT SERVICE
-						</Text>
-						<Text
-							className="mb-4 text-base"
-							style={{ color: colors.primary[1] }}
-						>
-							What would you like to focus on today?
-						</Text>
-
-						{selectedCategory ? (
-							/* Service Cards */
-							availableServices.map((service) => (
+							</View>
+						) : (
+							(packageInstances as any[]).map((inst) => (
 								<TouchableOpacity
-									key={service.id}
+									key={inst.id}
 									onPress={() => {
-										setSelectedService(service.id);
-										setSelectedTrainer(null); // Reset trainer selection when service changes
+										setSelectedPackageInstanceId(inst.id);
+										setSelectedTrainer(null);
 									}}
 									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedService === service.id
+										selectedPackageInstanceId === inst.id
 											? "border-primary-1"
 											: "border-secondary-3"
 									} shadow-sm`}
@@ -443,9 +326,9 @@ export default function BookWorkoutScreen() {
 											className="flex-1 font-bold text-lg"
 											style={{ color: colors.primary[1] }}
 										>
-											{service.title}
+											{inst.package?.name ?? "Package"}
 										</Text>
-										{service.tag && (
+										{inst.package?.appointmentType && (
 											<View
 												className="ml-2 rounded-full px-2 py-1"
 												style={{ backgroundColor: colors.secondary[3] }}
@@ -454,25 +337,37 @@ export default function BookWorkoutScreen() {
 													className="font-medium text-xs"
 													style={{ color: colors.primary[1] }}
 												>
-													{service.tag}
+													{inst.package.appointmentType === "semi-private"
+														? "Semi-Private"
+														: inst.package.appointmentType === "both"
+															? "All Types"
+															: "Private"}
 												</Text>
 											</View>
 										)}
 									</View>
 									<Text
-										className="text-sm"
+										className="mb-2 text-sm"
 										style={{ color: colors.secondary[1] }}
 									>
-										{service.description}
+										{inst.creditsRemaining} / {inst.creditsTotal} sessions
+										remaining
 									</Text>
+									{inst.expiresAt && (
+										<Text
+											className="text-xs"
+											style={{ color: colors.secondary[1] }}
+										>
+											Expires{" "}
+											{new Date(inst.expiresAt).toLocaleDateString("en-US", {
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											})}
+										</Text>
+									)}
 								</TouchableOpacity>
 							))
-						) : (
-							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
-								<Text className="text-center text-secondary-1 text-sm">
-									Please select a category first
-								</Text>
-							</View>
 						)}
 					</View>
 
@@ -485,51 +380,20 @@ export default function BookWorkoutScreen() {
 							SELECT PROVIDER
 						</Text>
 
-						{selectedService ? (
-							<>
-								{/* Auto-assign Option */}
-								<TouchableOpacity
-									onPress={() => setSelectedTrainer("auto")}
-									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedTrainer === "auto"
-											? "border-primary-1"
-											: "border-secondary-3"
-									} relative shadow-sm`}
-								>
-									<View className="flex-row items-start justify-between">
-										<View className="mr-2 flex-1">
-											<Text
-												className="mb-1 font-bold text-lg"
-												style={{ color: colors.primary[1] }}
-											>
-												Auto-assign best available
-											</Text>
-											<Text
-												className="text-sm"
-												style={{ color: colors.secondary[1] }}
-											>
-												We'll match you with the best trainer for your needs
-											</Text>
-										</View>
-										{selectedTrainer === "auto" && (
-											<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
-												<Ionicons
-													name="checkmark"
-													size={16}
-													color={colors.primary[2]}
-												/>
-											</View>
-										)}
-									</View>
-								</TouchableOpacity>
-
-								{/* Trainer Cards */}
-								{availableTrainers.map((trainer) => (
+						{selectedPackageInstanceId ? (
+							trainersLoading ? (
+								<>
+									<SkeletonCard />
+									<SkeletonCard />
+									<SkeletonCard />
+								</>
+							) : (
+								<>
+									{/* Auto-assign Option */}
 									<TouchableOpacity
-										key={trainer.id}
-										onPress={() => setSelectedTrainer(trainer.id)}
+										onPress={() => setSelectedTrainer("auto")}
 										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-											selectedTrainer === trainer.id
+											selectedTrainer === "auto"
 												? "border-primary-1"
 												: "border-secondary-3"
 										} relative shadow-sm`}
@@ -540,16 +404,16 @@ export default function BookWorkoutScreen() {
 													className="mb-1 font-bold text-lg"
 													style={{ color: colors.primary[1] }}
 												>
-													{trainer.name}
+													Auto-assign best available
 												</Text>
 												<Text
 													className="text-sm"
 													style={{ color: colors.secondary[1] }}
 												>
-													{trainer.specialization}
+													We'll match you with the best trainer for your needs
 												</Text>
 											</View>
-											{selectedTrainer === trainer.id && (
+											{selectedTrainer === "auto" && (
 												<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
 													<Ionicons
 														name="checkmark"
@@ -560,12 +424,51 @@ export default function BookWorkoutScreen() {
 											)}
 										</View>
 									</TouchableOpacity>
-								))}
-							</>
+
+									{/* Trainer Cards */}
+									{trainers?.map((trainer: any) => (
+										<TouchableOpacity
+											key={trainer.id}
+											onPress={() => setSelectedTrainer(trainer.id)}
+											className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
+												selectedTrainer === trainer.id
+													? "border-primary-1"
+													: "border-secondary-3"
+											} relative shadow-sm`}
+										>
+											<View className="flex-row items-start justify-between">
+												<View className="mr-2 flex-1">
+													<Text
+														className="mb-1 font-bold text-lg"
+														style={{ color: colors.primary[1] }}
+													>
+														{trainer.user?.name ?? "Unknown"}
+													</Text>
+													<Text
+														className="text-sm"
+														style={{ color: colors.secondary[1] }}
+													>
+														{trainer.role}
+													</Text>
+												</View>
+												{selectedTrainer === trainer.id && (
+													<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
+														<Ionicons
+															name="checkmark"
+															size={16}
+															color={colors.primary[2]}
+														/>
+													</View>
+												)}
+											</View>
+										</TouchableOpacity>
+									))}
+								</>
+							)
 						) : (
 							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
 								<Text className="text-center text-secondary-1 text-sm">
-									Please select a service first
+									Please select a package first
 								</Text>
 							</View>
 						)}
@@ -574,19 +477,14 @@ export default function BookWorkoutScreen() {
 			</ScrollView>
 
 			{/* Continue Button - Only shows when category, service and trainer are selected */}
-			{selectedCategory && selectedService && selectedTrainer && (
+			{selectedPackageInstanceId && selectedTrainer && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="px-4 py-4">
 						<TouchableOpacity
-							onPress={() =>
-								router.push({
-									pathname: "./schedule" as never,
-									params: { serviceId: selectedService },
-								})
-							}
+							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">

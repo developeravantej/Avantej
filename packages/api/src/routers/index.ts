@@ -42,6 +42,7 @@ import { promotionsRouter } from "./promotions";
 import { walkInCustomersRouter } from "./walk-in-customers";
 import { taxRatesRouter } from "./tax-rates";
 import { analyticsRouter } from "./analytics";
+import { registrationRouter } from "./registration";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -95,6 +96,7 @@ export const baseRouter = {
 	walkInCustomers: walkInCustomersRouter,
 	taxRates: taxRatesRouter,
 	analytics: analyticsRouter,
+	registration: registrationRouter,
 };
 
 // Auth router type definition for client type inference

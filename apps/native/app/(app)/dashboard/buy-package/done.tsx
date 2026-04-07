@@ -1,121 +1,42 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback } from "react";
+import { router } from "expo-router";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
-
-const SERVICE_CATEGORY = {
-	PRIVATE: 1,
-	SEMI_PRIVATE: 2,
-} as const;
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: false },
-	{ number: 3, label: "Review", active: false },
-	{ number: 4, label: "Info", active: false },
+	{ number: 3, label: "Info", active: false },
+	{ number: 4, label: "Review", active: false },
 	{ number: 5, label: "Sign", active: false },
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: true },
 ];
 
-// Dummy service data
-const services = [
-	{ id: 1, title: "2×12-Week Personal Training", credits: 24, price: 1200 },
-	{ id: 2, title: "2×24-Week Personal Training", credits: 48, price: 2200 },
-	{ id: 3, title: "Class A", schedule: "Mon/Wed/Fri 7:00 PM", price: 800 },
-	{ id: 4, title: "Class B", schedule: "Tue 8:00 AM", price: 600 },
-];
-
 export default function DoneScreen() {
-	const navigation = useNavigation();
-	const params = useLocalSearchParams<{
-		serviceId?: string;
-		categoryId?: string;
-		coachId?: string;
-		date?: string;
-		time?: string;
-		preferredTimes?: string;
-		remark?: string;
-		signature?: string;
-	}>();
+	const { state, reset } = usePurchaseFlow();
 
-	const serviceId = params.serviceId
-		? Number.parseInt(params.serviceId, 10)
-		: null;
-	const categoryId = params.categoryId
-		? Number.parseInt(params.categoryId, 10)
-		: null;
+	const subtotal = state.price ?? 0;
+	// Use same calculation approach as pay screen
+	const total = subtotal * 1.1; // Approximate with tax
 
-	const currentStep = 7;
-	const totalSteps = 7;
-	const _progressPercentage = 100;
+	const handleGoHome = () => {
+		reset();
+		router.replace("/dashboard" as never);
+	};
 
-	const selectedService = services.find((s) => s.id === serviceId);
+	const handleViewPackages = () => {
+		reset();
+		router.replace("/dashboard/packages" as never);
+	};
 
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-		}, [navigation]),
-	);
-
-	const subtotal = selectedService?.price || 0;
-	const tax = subtotal * 0.1; // 10% tax
-	const total = subtotal + tax;
-
-	// Parse preferredTimes from params
-	const preferredTimes = params.preferredTimes
-		? (JSON.parse(params.preferredTimes) as Array<{
-				day: string;
-				time: string;
-			}>)
-		: [];
-
-	// Get remark from params
-	const remark = params.remark || "";
+	const handleStartBooking = () => {
+		reset();
+		router.replace("/dashboard/book-workout/book-workout" as never);
+	};
 
 	return (
 		<Container>
@@ -124,10 +45,14 @@ export default function DoneScreen() {
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
-							onPress={() => router.replace("/dashboard" as never)}
+							onPress={handleGoHome}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Purchase Complete
@@ -147,16 +72,17 @@ export default function DoneScreen() {
 				</View>
 
 				<View className="px-4 pb-6">
-					{/* Progress Indicator - high contrast for visibility (all steps completed) */}
+					{/* Progress Indicator - all steps completed */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center justify-between">
 							<Text className="font-semibold text-primary-1 text-sm">
-								Step {currentStep} of {totalSteps}
+								Step 7 of 7
 							</Text>
-							<Text className="font-semibold text-primary-1 text-sm">100%</Text>
+							<Text className="font-semibold text-primary-1 text-sm">
+								100%
+							</Text>
 						</View>
 
-						{/* Progress Bar - visible track and fill */}
 						<View
 							className="mb-4 h-2 overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
@@ -220,7 +146,11 @@ export default function DoneScreen() {
 							className="mb-4 h-20 w-20 items-center justify-center rounded-full"
 							style={{ backgroundColor: "#10B981" }}
 						>
-							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
+							<Ionicons
+								name="checkmark"
+								size={40}
+								color={colors.primary[2]}
+							/>
 						</View>
 
 						<Text
@@ -258,20 +188,37 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									{selectedService?.title || "Not selected"}
+									{state.packageName ?? "Package"}
 								</Text>
-								{selectedService && "credits" in selectedService && (
+								{state.creditsTotal && (
 									<Text
 										className="mt-1 text-sm"
 										style={{ color: colors.secondary[1] }}
 									>
-										{selectedService.credits} credits included
+										{state.creditsTotal} credits included
 									</Text>
 								)}
 							</View>
 
-							{categoryId === SERVICE_CATEGORY.PRIVATE &&
-								preferredTimes.length > 0 && (
+							{state.serviceName && (
+								<View className="mb-3">
+									<Text
+										className="mb-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Service
+									</Text>
+									<Text
+										className="font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{state.serviceName}
+									</Text>
+								</View>
+							)}
+
+							{state.serviceType === "private" &&
+								state.preferredTimes.length > 0 && (
 									<View className="mb-3">
 										<Text
 											className="mb-1 text-xs"
@@ -279,7 +226,7 @@ export default function DoneScreen() {
 										>
 											Preferred Times
 										</Text>
-										{preferredTimes.map((pt) => (
+										{state.preferredTimes.map((pt) => (
 											<Text
 												key={`${pt.day}-${pt.time}`}
 												className="mb-1 font-semibold text-base"
@@ -291,7 +238,24 @@ export default function DoneScreen() {
 									</View>
 								)}
 
-							{remark && (
+							{state.validityDays && (
+								<View className="mb-3">
+									<Text
+										className="mb-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Validity
+									</Text>
+									<Text
+										className="font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{state.validityDays} days from purchase
+									</Text>
+								</View>
+							)}
+
+							{state.remark && (
 								<View className="mb-3">
 									<Text
 										className="mb-1 text-xs"
@@ -303,7 +267,7 @@ export default function DoneScreen() {
 										className="text-base"
 										style={{ color: colors.primary[1] }}
 									>
-										{remark}
+										{state.remark}
 									</Text>
 								</View>
 							)}
@@ -334,20 +298,29 @@ export default function DoneScreen() {
 			>
 				<View className="px-4 py-4">
 					<TouchableOpacity
-						onPress={() => router.replace("/dashboard" as never)}
+						onPress={handleViewPackages}
 						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
-							Back to Home
+							View My Packages
 						</Text>
 					</TouchableOpacity>
 
 					<TouchableOpacity
-						onPress={() => router.push("/dashboard/bookings" as never)}
+						onPress={handleStartBooking}
+						className="mb-3 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"
+					>
+						<Text className="font-semibold text-base text-primary-1">
+							Start Booking
+						</Text>
+					</TouchableOpacity>
+
+					<TouchableOpacity
+						onPress={handleGoHome}
 						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-1">
-							View My Packages
+							Back to Home
 						</Text>
 					</TouchableOpacity>
 				</View>

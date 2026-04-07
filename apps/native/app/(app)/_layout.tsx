@@ -1,4 +1,5 @@
 import RegistrationForm from "@/components/registration-form";
+import { OrganizationProvider } from "@/contexts/organization-context";
 import { useAuth } from "@/hooks/useAuth";
 import { colors } from "@/lib/colors";
 import { Redirect, Stack } from "expo-router";
@@ -37,12 +38,14 @@ export default function AppLayout() {
 	}
 
 	return (
-		<Stack screenOptions={{ headerShown: false }}>
-			<Stack.Screen name="dashboard" />
-			<Stack.Screen
-				name="modal"
-				options={{ title: "Modal", presentation: "modal" }}
-			/>
-		</Stack>
+		<OrganizationProvider isAuthenticated={isAuthenticated}>
+			<Stack screenOptions={{ headerShown: false }}>
+				<Stack.Screen name="dashboard" />
+				<Stack.Screen
+					name="modal"
+					options={{ title: "Modal", presentation: "modal" }}
+				/>
+			</Stack>
+		</OrganizationProvider>
 	);
 }

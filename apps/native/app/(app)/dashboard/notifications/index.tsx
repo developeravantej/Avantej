@@ -1,84 +1,131 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	RefreshControl,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { Container } from "@/components/container";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { client, orpc } from "@/utils/orpc";
 
-// Dummy notification data
-const notifications = [
-	{
-		id: 1,
-		type: "booking",
-		title: "Booking Confirmed",
-		message:
-			"Your Personal Training session on March 15 at 2:00 PM has been confirmed",
-		time: "2 hours ago",
-		read: false,
-		icon: "checkmark-circle",
-		color: "#16A34A",
-	},
-	{
-		id: 2,
-		type: "reminder",
-		title: "Upcoming Session",
-		message: "You have a HIIT Class scheduled for tomorrow at 10:00 AM",
-		time: "5 hours ago",
-		read: false,
-		icon: "time",
-		color: colors.primary[1],
-	},
-	{
-		id: 3,
-		type: "promotion",
-		title: "Special Offer",
-		message: "Get 20% off on your next booking. Limited time only!",
-		time: "1 day ago",
-		read: true,
-		icon: "gift",
-		color: "#DC2626",
-	},
-	{
-		id: 4,
-		type: "system",
-		title: "Profile Updated",
-		message: "Your profile information has been successfully updated",
-		time: "2 days ago",
-		read: true,
-		icon: "person",
-		color: colors.secondary[1],
-	},
-	{
-		id: 5,
-		type: "booking",
-		title: "Class Reminder",
-		message: "Don't forget your Yoga Flow class today at 3:00 PM",
-		time: "3 days ago",
-		read: true,
-		icon: "calendar",
-		color: colors.primary[1],
-	},
-	{
-		id: 6,
-		type: "system",
-		title: "Welcome!",
-		message: "Welcome to Avantej! Start your fitness journey today",
-		time: "1 week ago",
-		read: true,
-		icon: "star",
-		color: colors.secondary[1],
-	},
-];
+function getNotificationIcon(type: string): string {
+	switch (type) {
+		case "booking":
+			return "calendar";
+		case "reminder":
+			return "time";
+		case "promotion":
+			return "gift";
+		case "system":
+			return "information-circle";
+		default:
+			return "notifications";
+	}
+}
+
+function getNotificationColor(type: string): string {
+	switch (type) {
+		case "booking":
+			return "#4F46E5";
+		case "reminder":
+			return "#F59E0B";
+		case "promotion":
+			return "#10B981";
+		case "system":
+			return "#6B7280";
+		default:
+			return "#6B7280";
+	}
+}
+
+function formatTimeAgo(dateStr: string): string {
+	const now = new Date();
+	const date = new Date(dateStr);
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	const diffHours = Math.floor(diffMs / 3600000);
+	const diffDays = Math.floor(diffMs / 86400000);
+
+	if (diffMins < 1) return "just now";
+	if (diffMins < 60) return `${diffMins} min ago`;
+	if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+	if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function SkeletonNotification() {
+	return (
+		<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View className="flex-row">
+				<View
+					className="mr-3 h-12 w-12 rounded-full"
+					style={{ backgroundColor: colors.secondary[3] }}
+				/>
+				<View className="flex-1">
+					<View
+						className="mb-2 h-4 w-3/4 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="mb-2 h-3 w-full rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="h-3 w-1/4 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+				</View>
+			</View>
+		</View>
+	);
+}
 
 export default function NotificationsScreen() {
 	const navigation = useNavigation();
 	const hideTabBarRef = useRef(false);
-	const [notificationList, setNotificationList] = useState(notifications);
+	const { organizationId } = useOrganization();
+	const queryClient = useQueryClient();
+	const [refreshing, setRefreshing] = useState(false);
+
+	// Fetch notifications
+	const {
+		data: notifications,
+		isLoading,
+		refetch,
+	} = useQuery(
+		orpc.notifications.list.queryOptions({
+			input: { organizationId, limit: 50 },
+		}),
+	);
+
+	const notificationList = (notifications ?? []).map((notif: any) => ({
+		id: notif.id,
+		type: notif.type ?? "system",
+		title: notif.title,
+		message: notif.message ?? notif.body ?? "",
+		time: notif.createdAt ? formatTimeAgo(notif.createdAt) : "",
+		read: notif.isRead ?? false,
+		icon: getNotificationIcon(notif.type ?? "system"),
+		color: getNotificationColor(notif.type ?? "system"),
+		referenceId: notif.referenceId,
+	}));
 
 	const unreadCount = notificationList.filter((n) => !n.read).length;
 
-	// Helper function to find Tabs navigator
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await refetch();
+		setRefreshing(false);
+	}, [refetch]);
+
+	// Tab bar hiding
 	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
 		if (depth > 5) return null;
 		const parent = (nav as { getParent?: () => unknown })?.getParent?.();
@@ -154,13 +201,10 @@ export default function NotificationsScreen() {
 		}
 	}, [navigation, findTabsNavigator]);
 
-	// Hide tab bar when screen is focused
 	useFocusEffect(
 		useCallback(() => {
 			hideTabBar();
-			const timer = setTimeout(() => {
-				hideTabBar();
-			}, 50);
+			const timer = setTimeout(() => hideTabBar(), 50);
 			return () => {
 				clearTimeout(timer);
 				showTabBar();
@@ -168,28 +212,53 @@ export default function NotificationsScreen() {
 		}, [hideTabBar, showTabBar]),
 	);
 
-	// Also hide on mount
 	useEffect(() => {
 		hideTabBar();
-		const timer = setTimeout(() => {
-			hideTabBar();
-		}, 100);
+		const timer = setTimeout(() => hideTabBar(), 100);
 		return () => {
 			clearTimeout(timer);
 			showTabBar();
 		};
 	}, [hideTabBar, showTabBar]);
 
-	const markAsRead = (id: number) => {
-		setNotificationList((prev) =>
-			prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif)),
-		);
+	const handleMarkRead = async (notifId: string) => {
+		try {
+			await client.notifications.markRead({ organizationId, id: notifId });
+			queryClient.invalidateQueries({ queryKey: ["notifications"] });
+		} catch {
+			// Silently fail
+		}
 	};
 
-	const markAllAsRead = () => {
-		setNotificationList((prev) =>
-			prev.map((notif) => ({ ...notif, read: true })),
-		);
+	const handleMarkAllRead = async () => {
+		try {
+			await client.notifications.markAllRead({ organizationId });
+			queryClient.invalidateQueries({ queryKey: ["notifications"] });
+		} catch {
+			// Silently fail
+		}
+	};
+
+	const handleNotificationPress = (notification: (typeof notificationList)[0]) => {
+		if (!notification.read) {
+			handleMarkRead(notification.id);
+		}
+		switch (notification.type) {
+			case "booking":
+				if (notification.referenceId) {
+					router.push({
+						pathname: "/dashboard/bookings/[id]" as never,
+						params: { id: notification.referenceId },
+					});
+				}
+				break;
+			case "reminder":
+				router.push("/dashboard/bookings" as never);
+				break;
+			case "promotion":
+				router.push("/dashboard/explore" as never);
+				break;
+		}
 	};
 
 	return (
@@ -198,12 +267,18 @@ export default function NotificationsScreen() {
 				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 8 }}
 				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+				}
 			>
 				<View className="px-4 pt-4">
 					{/* Header */}
 					<View className="mb-6 flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<TouchableOpacity onPress={() => router.back()} className="mr-4">
+							<TouchableOpacity
+								onPress={() => router.back()}
+								className="mr-4"
+							>
 								<Ionicons
 									name="arrow-back"
 									size={24}
@@ -222,7 +297,7 @@ export default function NotificationsScreen() {
 							)}
 						</View>
 						{unreadCount > 0 && (
-							<TouchableOpacity onPress={markAllAsRead}>
+							<TouchableOpacity onPress={handleMarkAllRead}>
 								<Text className="font-medium text-primary-1 text-sm">
 									Mark all read
 								</Text>
@@ -230,8 +305,17 @@ export default function NotificationsScreen() {
 						)}
 					</View>
 
+					{/* Loading State */}
+					{isLoading && (
+						<>
+							<SkeletonNotification />
+							<SkeletonNotification />
+							<SkeletonNotification />
+						</>
+					)}
+
 					{/* Notifications List */}
-					{notificationList.length === 0 ? (
+					{!isLoading && notificationList.length === 0 ? (
 						<View className="items-center justify-center py-20">
 							<Ionicons
 								name="notifications-off-outline"
@@ -243,10 +327,11 @@ export default function NotificationsScreen() {
 							</Text>
 						</View>
 					) : (
+						!isLoading &&
 						notificationList.map((notification) => (
 							<TouchableOpacity
 								key={notification.id}
-								onPress={() => markAsRead(notification.id)}
+								onPress={() => handleNotificationPress(notification)}
 								className={`mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm ${
 									!notification.read ? "border-l-4" : ""
 								}`}

@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { colors } from "@/lib/colors";
+import { client } from "@/utils/orpc";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useEffect, useState } from "react";
@@ -46,42 +47,31 @@ interface EmergencyContact {
 interface BranchSelection {
 	country: string;
 	branchId: string;
+	organizationId: string;
 }
 
-// Country options for step 3
-const COUNTRY_OPTIONS = [
-	{
-		id: "malaysia",
-		name: "Malaysia",
-		flag: "🇲🇾",
-	},
-	{
-		id: "thailand",
-		name: "Thailand",
-		flag: "🇹🇭",
-	},
-	{
-		id: "singapore",
-		name: "Singapore",
-		flag: "🇸🇬",
-	},
-];
-
-// Dummy branches - replace with API data
-const BRANCHES: Record<string, { id: string; name: string }[]> = {
-	malaysia: [
-		{ id: "kl-solaris", name: "Kuala Lumpur - Solaris" },
-		{ id: "kl-bangsar", name: "Kuala Lumpur - Bangsar" },
-		{ id: "penang", name: "Penang - Gurney" },
-	],
-	thailand: [
-		{ id: "bkk-sukhumvit", name: "Bangkok - Sukhumvit" },
-		{ id: "bkk-silom", name: "Bangkok - Silom" },
-	],
-	singapore: [
-		{ id: "sg-orchard", name: "Singapore - Orchard" },
-		{ id: "sg-marina", name: "Singapore - Marina Bay" },
-	],
+// Country flag mapping for display
+const COUNTRY_FLAGS: Record<string, string> = {
+	Malaysia: "🇲🇾",
+	Thailand: "🇹🇭",
+	Singapore: "🇸🇬",
+	Indonesia: "🇮🇩",
+	Philippines: "🇵🇭",
+	Vietnam: "🇻🇳",
+	Myanmar: "🇲🇲",
+	Cambodia: "🇰🇭",
+	Laos: "🇱🇦",
+	Brunei: "🇧🇳",
+	India: "🇮🇳",
+	China: "🇨🇳",
+	Japan: "🇯🇵",
+	"South Korea": "🇰🇷",
+	Taiwan: "🇹🇼",
+	"Hong Kong": "🇭🇰",
+	Australia: "🇦🇺",
+	"New Zealand": "🇳🇿",
+	"United States": "🇺🇸",
+	"United Kingdom": "🇬🇧",
 };
 
 const STEPS = [
@@ -812,34 +802,87 @@ function BranchSelectionStep({
 	onChange: (data: Partial<BranchSelection>) => void;
 	errors: Record<string, string>;
 }) {
-	const branches = data.country ? BRANCHES[data.country] || [] : [];
-	const selectedBranch = branches.find((b) => b.id === data.branchId);
+	const [countries, setCountries] = useState<string[]>([]);
+	const [branches, setBranches] = useState<
+		{ id: string; name: string; address: string | null; organizationId: string }[]
+	>([]);
+	const [loadingCountries, setLoadingCountries] = useState(true);
+	const [loadingBranches, setLoadingBranches] = useState(false);
 	const [dropdownOpen, setDropdownOpen] = useState(false);
+
+	const selectedBranch = branches.find((b) => b.id === data.branchId);
+
+	// Fetch countries on mount
+	useEffect(() => {
+		(async () => {
+			try {
+				const result = await client.registration.listCountries();
+				setCountries(result);
+			} catch (err) {
+				console.error("Failed to fetch countries:", err);
+			} finally {
+				setLoadingCountries(false);
+			}
+		})();
+	}, []);
+
+	// Fetch branches when country changes
+	useEffect(() => {
+		if (!data.country) {
+			setBranches([]);
+			return;
+		}
+		setLoadingBranches(true);
+		(async () => {
+			try {
+				const result = await client.registration.listBranches({
+					country: data.country,
+				});
+				setBranches(result);
+			} catch (err) {
+				console.error("Failed to fetch branches:", err);
+				setBranches([]);
+			} finally {
+				setLoadingBranches(false);
+			}
+		})();
+	}, [data.country]);
+
+	if (loadingCountries) {
+		return (
+			<View className="items-center py-8">
+				<ActivityIndicator size="large" color={colors.primary[1]} />
+				<Text className="mt-2 text-secondary-1">Loading countries...</Text>
+			</View>
+		);
+	}
 
 	return (
 		<>
 			<FormLabel text="Country" required />
-			<View className="mb-6 flex-row justify-center gap-4">
-				{COUNTRY_OPTIONS.map((c) => (
+			<View className="mb-6 flex-row flex-wrap justify-center gap-4">
+				{countries.map((country) => (
 					<TouchableOpacity
-						key={c.id}
+						key={country}
 						onPress={() => {
-							onChange({ country: c.id, branchId: "" });
+							onChange({ country, branchId: "", organizationId: "" });
 							setDropdownOpen(false);
 						}}
 						className={`items-center rounded-2xl border bg-primary-2 px-3 py-3 ${
-							data.country === c.id
+							data.country === country
 								? "border-primary-1"
 								: "border-secondary-2"
 						}`}
 						style={{ width: 100 }}
 					>
-						<Text className="mb-2 text-5xl">{c.flag}</Text>
+						<Text className="mb-2 text-5xl">
+							{COUNTRY_FLAGS[country] || "🏳️"}
+						</Text>
 						<Text
 							className="text-center font-semibold text-sm"
 							style={{ color: colors.primary[1] }}
 						>
-							{c.name}
+							{country}
 						</Text>
 					</TouchableOpacity>
 				))}
@@ -855,77 +898,98 @@ function BranchSelectionStep({
 
 			{data.country && (
 				<>
-					<FormLabel
-						text={`Select Branch (${COUNTRY_OPTIONS.find((c) => c.id === data.country)?.name})`}
-						required
-					/>
-					{/* Dropdown trigger */}
-					<TouchableOpacity
-						onPress={() => setDropdownOpen(!dropdownOpen)}
-						className={`mb-1 flex-row items-center justify-between rounded-xl border bg-primary-2 px-4 py-3 ${
-							errors.branchId
-								? ""
-								: dropdownOpen
-									? "border-primary-1"
-									: "border-secondary-2"
-						}`}
-						style={errors.branchId ? { borderColor: "#E53935" } : undefined}
-					>
-						<Text
-							className="flex-1 text-base"
-							style={{
-								color: selectedBranch
-									? colors.primary[1]
-									: colors.secondary[1],
-							}}
-						>
-							{selectedBranch?.name || "Select a branch"}
-						</Text>
-						<Ionicons
-							name={dropdownOpen ? "chevron-up" : "chevron-down"}
-							size={18}
-							color={colors.secondary[1]}
-						/>
-					</TouchableOpacity>
+					<FormLabel text={`Select Branch (${data.country})`} required />
 
-					{/* Dropdown list */}
-					{dropdownOpen && (
-						<View
-							className="mb-1 overflow-hidden rounded-xl border border-secondary-2 bg-primary-2"
-						>
-							{branches.map((branch, index) => (
-								<TouchableOpacity
-									key={branch.id}
-									onPress={() => {
-										onChange({ branchId: branch.id });
-										setDropdownOpen(false);
-									}}
-									className="flex-row items-center justify-between px-4 py-3"
+					{loadingBranches ? (
+						<View className="items-center py-4">
+							<ActivityIndicator size="small" color={colors.primary[1]} />
+						</View>
+					) : (
+						<>
+							{/* Dropdown trigger */}
+							<TouchableOpacity
+								onPress={() => setDropdownOpen(!dropdownOpen)}
+								className={`mb-1 flex-row items-center justify-between rounded-xl border bg-primary-2 px-4 py-3 ${
+									errors.branchId
+										? ""
+										: dropdownOpen
+											? "border-primary-1"
+											: "border-secondary-2"
+								}`}
+								style={
+									errors.branchId
+										? { borderColor: "#E53935" }
+										: undefined
+								}
+							>
+								<Text
+									className="flex-1 text-base"
 									style={{
-										backgroundColor:
-											data.branchId === branch.id
-												? colors.secondary[3]
-												: colors.primary[2],
-										borderTopWidth: index > 0 ? 1 : 0,
-										borderTopColor: colors.secondary[3],
+										color: selectedBranch
+											? colors.primary[1]
+											: colors.secondary[1],
 									}}
 								>
-									<Text
-										className="flex-1 text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{branch.name}
-									</Text>
-									{data.branchId === branch.id && (
-										<Ionicons
-											name="checkmark"
-											size={18}
-											color={colors.primary[1]}
-										/>
-									)}
-								</TouchableOpacity>
-							))}
-						</View>
+									{selectedBranch?.name || "Select a branch"}
+								</Text>
+								<Ionicons
+									name={dropdownOpen ? "chevron-up" : "chevron-down"}
+									size={18}
+									color={colors.secondary[1]}
+								/>
+							</TouchableOpacity>
+
+							{/* Dropdown list */}
+							{dropdownOpen && (
+								<View className="mb-1 overflow-hidden rounded-xl border border-secondary-2 bg-primary-2">
+									{branches.map((branch, index) => (
+										<TouchableOpacity
+											key={branch.id}
+											onPress={() => {
+												onChange({
+													branchId: branch.id,
+													organizationId: branch.organizationId,
+												});
+												setDropdownOpen(false);
+											}}
+											className="flex-row items-center justify-between px-4 py-3"
+											style={{
+												backgroundColor:
+													data.branchId === branch.id
+														? colors.secondary[3]
+														: colors.primary[2],
+												borderTopWidth: index > 0 ? 1 : 0,
+												borderTopColor: colors.secondary[3],
+											}}
+										>
+											<View className="flex-1">
+												<Text
+													className="text-base"
+													style={{ color: colors.primary[1] }}
+												>
+													{branch.name}
+												</Text>
+												{branch.address && (
+													<Text
+														className="text-xs"
+														style={{ color: colors.secondary[1] }}
+													>
+														{branch.address}
+													</Text>
+												)}
+											</View>
+											{data.branchId === branch.id && (
+												<Ionicons
+													name="checkmark"
+													size={18}
+													color={colors.primary[1]}
+												/>
+											)}
+										</TouchableOpacity>
+									))}
+								</View>
+							)}
+						</>
 					)}
 
 					{errors.branchId && (
@@ -992,6 +1056,7 @@ export default function RegistrationForm() {
 	const [branchSelection, setBranchSelection] = useState<BranchSelection>({
 		country: "",
 		branchId: "",
+		organizationId: "",
 	});
 
 	const totalSteps = 3;
@@ -1051,26 +1116,24 @@ export default function RegistrationForm() {
 
 		setIsSubmitting(true);
 		try {
-			const fullAddress = [
-				personalDetails.streetAddress,
-				personalDetails.city,
-				personalDetails.state,
-				personalDetails.postalCode,
-				personalDetails.country,
-			]
-				.filter(Boolean)
-				.join(", ");
-
-			const registrationData = {
-				personalDetails: {
-					...personalDetails,
-					fullAddress,
-				},
-				emergencyContact,
-				branchSelection,
-			};
-
-			console.log("Registration data:", JSON.stringify(registrationData, null, 2));
+			await client.registration.complete({
+				phone: `${phoneCountry.dialCode}${personalDetails.phone}`,
+				idPassportNo: personalDetails.idPassportNo,
+				addressType: personalDetails.addressType,
+				streetAddress: personalDetails.streetAddress,
+				city: personalDetails.city,
+				state: personalDetails.state,
+				country: personalDetails.country,
+				postalCode: personalDetails.postalCode,
+				dateOfBirth: personalDetails.dateOfBirth
+					? `${personalDetails.dateOfBirth.getFullYear()}-${String(personalDetails.dateOfBirth.getMonth() + 1).padStart(2, "0")}-${String(personalDetails.dateOfBirth.getDate()).padStart(2, "0")}`
+					: "",
+				emergencyContactName: emergencyContact.name,
+				emergencyContactRelationship: emergencyContact.relationship,
+				emergencyContactPhone: `${emergencyPhoneCountry.dialCode}${emergencyContact.phone}`,
+				branchId: branchSelection.branchId,
+				organizationId: branchSelection.organizationId,
+			});
 
 			Alert.alert(
 				"Registration Submitted",
