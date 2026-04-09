@@ -127,8 +127,10 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
 // ---------------------------------------------------------------------------
 
 function ExpensesViewPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const canCreate = hasPermission("expense_management:create");
+	const canUpdate = hasPermission("expense_management:update");
 	const queryClient = useQueryClient();
 
 	// ---- Filter state ----
@@ -191,8 +193,9 @@ function ExpensesViewPage() {
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to submit expense");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to submit expense: ${message}`);
 		},
 	});
 
@@ -205,8 +208,9 @@ function ExpensesViewPage() {
 			});
 			toast.success("Expense approved");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to approve expense");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to approve expense: ${message}`);
 		},
 	});
 
@@ -225,8 +229,9 @@ function ExpensesViewPage() {
 			setRejectTarget(null);
 			setRejectionReason("");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to reject expense");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to reject expense: ${message}`);
 		},
 	});
 
@@ -245,8 +250,9 @@ function ExpensesViewPage() {
 			setPaidTarget(null);
 			setPaymentReference("");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to mark expense as paid");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to mark expense as paid: ${message}`);
 		},
 	});
 
@@ -272,6 +278,14 @@ function ExpensesViewPage() {
 		if (!formDate) {
 			toast.error("Expense date is required");
 			return;
+		}
+		if (formReceiptUrl.trim()) {
+			try {
+				new URL(formReceiptUrl.trim());
+			} catch {
+				toast.error("Receipt URL must be a valid URL (e.g. https://example.com/receipt.pdf).");
+				return;
+			}
 		}
 		const amountCents = Math.round(rmValue * 100);
 		// Convert local date string to ISO datetime (start of day UTC)
@@ -390,6 +404,9 @@ function ExpensesViewPage() {
 			enableHiding: false,
 			cell: ({ row }) => {
 				const { id, status } = row.original;
+				if (!canUpdate) {
+					return <span className="text-muted-foreground text-xs">—</span>;
+				}
 				if (status === "pending") {
 					return (
 						<div className="flex items-center gap-2">
@@ -468,22 +485,24 @@ function ExpensesViewPage() {
 						<Receipt className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Expenses</h1>
-						<p className="text-sm text-muted-foreground">
+						<h1 className="text-2xl font-bold font-heading">Expenses</h1>
+						<p className="text-sm text-brand-secondary-1">
 							Submit and manage expense claims
 						</p>
 					</div>
 				</div>
-				<Button
-					onClick={() => {
-						resetCreateForm();
-						setIsCreateOpen(true);
-					}}
-					className="gap-2"
-				>
-					<Plus className="h-4 w-4" />
-					Submit Expense
-				</Button>
+				{canCreate && (
+					<Button
+						onClick={() => {
+							resetCreateForm();
+							setIsCreateOpen(true);
+						}}
+						className="gap-2"
+					>
+						<Plus className="h-4 w-4" />
+						Submit Expense
+					</Button>
+				)}
 			</div>
 
 			{/* Status filter tabs */}

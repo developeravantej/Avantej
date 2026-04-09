@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -41,6 +42,9 @@ import { Package, Plus, Edit, Archive } from "lucide-react";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/packages/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("service_management:read");
+	},
 	component: PackagesViewPage,
 });
 
@@ -382,7 +386,7 @@ function PackagesViewPage() {
 						<Package className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Packages</h1>
+						<h1 className="text-2xl font-bold font-heading">Packages</h1>
 						<p className="text-sm text-muted-foreground">
 							Manage session packages available for purchase or assignment.
 						</p>

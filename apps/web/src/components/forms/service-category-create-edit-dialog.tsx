@@ -104,7 +104,7 @@ export function ServiceCategoryCreateEditDialog({
 					leaveFrom="opacity-100"
 					leaveTo="opacity-0"
 				>
-					<div className="fixed inset-0 bg-gray-500/50" />
+					<div className="fixed inset-0 bg-brand-primary-1/50" />
 				</Transition.Child>
 				<div className="fixed inset-0 overflow-y-auto">
 					<div className="flex min-h-full items-center justify-center p-4">
@@ -159,7 +159,7 @@ export function ServiceCategoryCreateEditDialog({
 											id="isActive"
 											checked={isActive}
 											onChange={(e) => setIsActive(e.target.checked)}
-											className="h-4 w-4 rounded border-gray-300"
+											className="h-4 w-4 rounded border-brand-secondary-3"
 										/>
 										<Label htmlFor="isActive">Active</Label>
 									</div>

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -34,6 +35,9 @@ import { Layers, Plus } from "lucide-react";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/packages/instances/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("service_management:read");
+	},
 	component: PackageInstancesViewPage,
 });
 
@@ -312,7 +316,7 @@ function PackageInstancesViewPage() {
 						<Layers className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Package Instances</h1>
+						<h1 className="text-2xl font-bold font-heading">Package Instances</h1>
 						<p className="text-sm text-muted-foreground">
 							Assigned and purchased package records for all clients.
 						</p>

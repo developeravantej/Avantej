@@ -489,7 +489,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                     ? "text-blue-600"
                     : step.completed
                       ? "text-green-600"
-                      : "text-gray-400"
+                      : "text-brand-secondary-1"
                 }`}
               >
                 <div
@@ -498,7 +498,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                       ? "border-blue-600 bg-blue-50"
                       : step.completed
                         ? "border-green-600 bg-green-50"
-                        : "border-gray-300 bg-gray-50"
+                        : "border-brand-secondary-3 bg-brand-secondary-3/50"
                   }`}
                 >
                   <step.icon className="h-5 w-5" />
@@ -510,7 +510,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                     ? "text-blue-600"
                     : step.completed
                       ? "text-green-600"
-                      : "text-gray-400"
+                      : "text-brand-secondary-1"
                 }`}
               >
                 {step.title}
@@ -520,7 +520,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <div className="flex-1 mx-4 flex items-center">
                 <div
                   className={`flex-1 h-0.5 ${
-                    step.completed ? "bg-green-600" : "bg-gray-300"
+                    step.completed ? "bg-green-600" : "bg-brand-secondary-2"
                   }`}
                 />
               </div>

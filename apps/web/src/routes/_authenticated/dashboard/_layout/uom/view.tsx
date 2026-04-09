@@ -4,6 +4,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/tables/uom/view/data-table";
 import { columns } from "@/components/tables/uom/view/columns";
 
@@ -25,7 +26,7 @@ function RouteComponent() {
 		description: string;
 	} | null>(null);
 
-	const { data: allUoms = [], isLoading } = useQuery({
+	const { data: allUoms = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["unitsOfMeasure", organizationId],
 		queryFn: () =>
 			client.unitsOfMeasure.list({ organizationId: organizationId! }),
@@ -49,8 +50,9 @@ function RouteComponent() {
 			toast.success("UoM created");
 			setIsAddDialogOpen(false);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create UoM");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create UoM: ${message}`);
 		},
 	});
 
@@ -69,8 +71,9 @@ function RouteComponent() {
 			toast.success("UoM updated");
 			setEditTarget(null);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update UoM");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to update UoM: ${message}`);
 		},
 	});
 
@@ -86,8 +89,9 @@ function RouteComponent() {
 			});
 			toast.success("UoM deleted");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to delete UoM");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to delete UoM: ${message}`);
 		},
 	});
 
@@ -109,8 +113,29 @@ function RouteComponent() {
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
 	return (
-		<DataTable
+		<>
+			{baseUoms.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No units of measure defined</p>
+					<p className="text-sm">Add a unit of measure.</p>
+				</div>
+			)}
+			<DataTable
 			columns={columns}
 			data={baseUoms}
 			isAddDialogOpen={isAddDialogOpen}
@@ -124,5 +149,6 @@ function RouteComponent() {
 			isUpdating={updateMutation.isPending}
 			isDeleting={deleteMutation.isPending}
 		/>
+		</>
 	);
 }

@@ -33,7 +33,7 @@ function RouteComponent() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">User Roles</h1>
+        <h1 className="text-3xl font-bold font-heading">User Roles</h1>
       </div>
       <DataTable columns={columns} data={data} />
     </div>

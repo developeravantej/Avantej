@@ -1,20 +1,20 @@
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Plus, Search, Shield, Settings, Users, Database, FileText, Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { Search, Shield, Settings, Users, Database, FileText, Trash2, MoreVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { PermissionEditor } from '@/components/access-control/editors/PermissionEditor';
 import type { PermissionResource } from '@/components/access-control/permission-matrix/PermissionMatrix';
 import { requirePermission } from '@/lib/route-guards';
 import { client } from '@/utils/orpc';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserContext } from '@/hooks/useUserContext';
+import { toast } from 'sonner';
 
 export const Route = createFileRoute('/_authenticated/dashboard/_layout/access-control/permissions')({
   beforeLoad: async () => {
@@ -61,12 +61,10 @@ const RESOURCE_ICON_MAP: Record<string, typeof Shield> = {
 
 interface ResourceCardProps {
   resource: PermissionResource;
-  onEdit: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
+  onRemovePermissions: () => void;
 }
 
-function ResourceCard({ resource, onEdit, onDelete, onDuplicate }: ResourceCardProps) {
+function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
   const Icon = resource.icon || Shield;
 
   return (
@@ -84,7 +82,7 @@ function ResourceCard({ resource, onEdit, onDelete, onDuplicate }: ResourceCardP
               </p>
             </div>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -92,21 +90,13 @@ function ResourceCard({ resource, onEdit, onDelete, onDuplicate }: ResourceCardP
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Resource
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate} className="cursor-pointer">
-                <Shield className="w-4 h-4 mr-2" />
-                Duplicate Resource
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={onDelete}
+                onClick={onRemovePermissions}
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete Resource
+                Remove All Permissions
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -139,12 +129,23 @@ function PermissionManagementPage() {
   const isMobile = useIsMobile();
   const { data: userContext } = useUserContext();
   const organizationId = userContext?.currentOrganizationId ?? null;
+  const queryClient = useQueryClient();
 
   const { data: permissions = [], isLoading } = useQuery({
     queryKey: ['permissions', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
       return client.permissions.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  // Fetch all role-permission assignments so we can look up permissionIds by resource
+  const { data: rolePermissionAssignments = [] } = useQuery({
+    queryKey: ['rolePermissions', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      return client.rolePermissions.list({ organizationId });
     },
     enabled: !!organizationId,
   });
@@ -176,8 +177,8 @@ function PermissionManagementPage() {
   }, [permissions]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingResource, setEditingResource] = useState<PermissionResource | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [confirmResource, setConfirmResource] = useState<PermissionResource | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const filteredResources = resources.filter(resource =>
     resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -188,28 +189,44 @@ function PermissionManagementPage() {
     )
   );
 
-  const handleEditResource = (resource: PermissionResource) => {
-    setEditingResource(resource);
-    setIsCreating(false);
-  };
+  // Remove all role-permission assignments for a given resource
+  const handleConfirmRemovePermissions = async () => {
+    if (!confirmResource || !organizationId) return;
+    setIsRemoving(true);
+    try {
+      // Find all permission IDs that belong to this resource
+      const resourcePermIds = permissions
+        .filter((p) => p.resource === confirmResource.id)
+        .map((p) => p.id);
 
-  const handleCreateResource = () => {
-    setEditingResource(null);
-    setIsCreating(true);
-  };
+      // Find all role-permission assignments for those permissions
+      const assignmentsToRemove = rolePermissionAssignments.filter((rp) =>
+        resourcePermIds.includes(rp.permissionId)
+      );
 
-  const handleDeleteResource = (_resourceId: string) => {
-    // TODO: Wire to API when delete endpoint is available
-  };
+      // Remove each assignment
+      await Promise.all(
+        assignmentsToRemove.map((rp) =>
+          client.rolePermissions.remove({
+            organizationId,
+            roleId: rp.roleId,
+            permissionId: rp.permissionId,
+          })
+        )
+      );
 
-  const handleDuplicateResource = (_resource: PermissionResource) => {
-    // TODO: Wire to API when create endpoint is available
-  };
-
-  const handleSaveResource = (_resourceData: any) => {
-    // TODO: Wire to API when create/update endpoint is available
-    setEditingResource(null);
-    setIsCreating(false);
+      await queryClient.invalidateQueries({ queryKey: ['rolePermissions', organizationId] });
+      toast.success(
+        `Removed all role assignments for ${confirmResource.name} (${assignmentsToRemove.length} removed)`
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to remove permissions'
+      );
+    } finally {
+      setIsRemoving(false);
+      setConfirmResource(null);
+    }
   };
 
   const getTotalActions = () => {
@@ -221,43 +238,38 @@ function PermissionManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Permission Management</h1>
-          <p className="text-muted-foreground">
-            Define and manage permission resources and actions
+          <h1 className="text-2xl font-bold font-heading">Permission Management</h1>
+          <p className="text-brand-secondary-1">
+            View and manage permission resources and actions
           </p>
         </div>
-        
-        <Sheet open={isCreating || !!editingResource} onOpenChange={(open) => {
-          if (!open) {
-            setIsCreating(false);
-            setEditingResource(null);
-          }
-        }}>
-          <SheetTrigger asChild>
-            <Button onClick={handleCreateResource}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Resource
-            </Button>
-          </SheetTrigger>
-          <SheetContent side={isMobile ? 'bottom' : 'right'} className="sm:max-w-2xl">
-            <SheetHeader>
-              <SheetTitle>
-                {editingResource ? 'Edit Permission Resource' : 'Create New Permission Resource'}
-              </SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">
-              <PermissionEditor
-                resource={editingResource || undefined}
-                onSave={handleSaveResource}
-                onCancel={() => {
-                  setIsCreating(false);
-                  setEditingResource(null);
-                }}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
+
+      {/* Confirm Remove All Permissions Dialog */}
+      <Dialog open={!!confirmResource} onOpenChange={(open) => { if (!open) setConfirmResource(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove All Permissions for {confirmResource?.name}</DialogTitle>
+            <DialogDescription>
+              This will remove all role assignments for every action in the{' '}
+              <strong>{confirmResource?.name}</strong> resource. The resource itself will remain
+              in the system but no roles will have access to it. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmResource(null)} disabled={isRemoving}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmRemovePermissions}
+              disabled={isRemoving}
+            >
+              {isRemoving ? 'Removing...' : 'Remove All Permissions'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -324,9 +336,7 @@ function PermissionManagementPage() {
               <ResourceCard
                 key={resource.id}
                 resource={resource}
-                onEdit={() => handleEditResource(resource)}
-                onDelete={() => handleDeleteResource(resource.id)}
-                onDuplicate={() => handleDuplicateResource(resource)}
+                onRemovePermissions={() => setConfirmResource(resource)}
               />
             ))}
           </div>
@@ -335,19 +345,13 @@ function PermissionManagementPage() {
             <Card>
               <CardContent className="py-12">
                 <div className="text-center">
-                  <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No resources found</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <Shield className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
+                  <h3 className="text-lg font-medium mb-2 text-brand-primary-1">No resources found</h3>
+                  <p className="text-brand-secondary-1 mb-4">
                     {searchQuery
                       ? 'No resources match your search criteria.'
-                      : 'Get started by creating your first permission resource.'}
+                      : 'No permission resources are configured for this organization.'}
                   </p>
-                  {!searchQuery && (
-                    <Button onClick={handleCreateResource}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Resource
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>

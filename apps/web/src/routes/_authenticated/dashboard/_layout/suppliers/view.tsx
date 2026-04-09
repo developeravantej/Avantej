@@ -31,7 +31,7 @@ function SuppliersViewPage() {
 	const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: [
 			...orpc.suppliers.list.key(),
 			{ organizationId, isActive: activeFilter },
@@ -57,8 +57,9 @@ function SuppliersViewPage() {
 			});
 			toast.success("Supplier created successfully");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create supplier");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create supplier: ${message}`);
 		},
 	});
 
@@ -75,8 +76,9 @@ function SuppliersViewPage() {
 			});
 			toast.success("Supplier updated successfully");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update supplier");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to update supplier: ${message}`);
 		},
 	});
 
@@ -88,8 +90,9 @@ function SuppliersViewPage() {
 				queryKey: [...orpc.suppliers.list.key(), { organizationId }],
 			});
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to deactivate supplier");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to deactivate supplier: ${message}`);
 		},
 	});
 
@@ -130,6 +133,20 @@ function SuppliersViewPage() {
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
 	return (
 		<div className="p-6 space-y-6">
 			{/* Header */}
@@ -139,7 +156,7 @@ function SuppliersViewPage() {
 						<Building2 className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Suppliers</h1>
+						<h1 className="text-2xl font-bold font-heading">Suppliers</h1>
 						<p className="text-sm text-muted-foreground">
 							Manage your product suppliers
 						</p>
@@ -168,6 +185,14 @@ function SuppliersViewPage() {
 					);
 				})}
 			</div>
+
+			{/* Empty state */}
+			{tableData.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No suppliers found</p>
+					<p className="text-sm">Add a supplier to start purchasing.</p>
+				</div>
+			)}
 
 			{/* Table */}
 			<DataTable

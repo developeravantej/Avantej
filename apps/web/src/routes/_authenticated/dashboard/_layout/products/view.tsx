@@ -10,6 +10,7 @@ import DataTable from "@/components/tables/products/view/data-table";
 import { columns } from "@/components/tables/products/view/columns";
 import type { ProductRow } from "@/components/tables/products/view/columns";
 import type { CreateProductInput, UpdateProductInput } from "@/hooks/useProductForm";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/products/view",
@@ -41,7 +42,7 @@ function ProductsViewPage() {
 	}
 
 	// Fetch products via oRPC
-	const { data: products = [], isLoading } = useQuery({
+	const { data: products = [], isLoading, isError, error, refetch } = useQuery({
 		...orpc.products.list.queryOptions({
 			input: {
 				organizationId: organizationId!,
@@ -62,8 +63,9 @@ function ProductsViewPage() {
 			invalidateProducts();
 			toast.success("Product created successfully");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create product");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create product: ${message}`);
 		},
 	});
 
@@ -75,8 +77,9 @@ function ProductsViewPage() {
 			invalidateProducts();
 			toast.success("Product updated successfully");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update product");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to update product: ${message}`);
 		},
 	});
 
@@ -124,6 +127,20 @@ function ProductsViewPage() {
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
 	return (
 		<div className="p-6 space-y-6">
 			{/* Header */}
@@ -132,7 +149,7 @@ function ProductsViewPage() {
 					<Package className="h-5 w-5 text-primary" />
 				</div>
 				<div>
-					<h1 className="text-2xl font-bold">Products</h1>
+					<h1 className="text-2xl font-bold font-heading">Products</h1>
 					<p className="text-sm text-muted-foreground">
 						Manage your product catalog
 					</p>
@@ -159,6 +176,14 @@ function ProductsViewPage() {
 					);
 				})}
 			</div>
+
+			{/* Empty state */}
+			{tableData.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No products found</p>
+					<p className="text-sm">Create your first product to get started.</p>
+				</div>
+			)}
 
 			{/* Table */}
 			<DataTable

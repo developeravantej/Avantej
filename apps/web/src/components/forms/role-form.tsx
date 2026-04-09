@@ -1,12 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState, useEffect } from 'react';
 
-interface StaffRate {
-  id: number;
-  level: number;
-  rate: number;
-}
-
 interface StaffWeightage {
   id: number;
   position: number;
@@ -203,7 +197,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
           const fieldName = `role_${role.id}`;
           return (
             <div key={role.id}>
-              <label htmlFor={`${section}-${fieldName}`} className="block text-sm font-medium text-gray-700">
+              <label htmlFor={`${section}-${fieldName}`} className="block text-sm font-medium text-brand-primary-1">
                 {role.name} {formData.incentive.type === 'fixed' ? '(RM)' : '(%)'}
               </label>
               <input
@@ -214,7 +208,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                 step={formData.incentive.type === 'fixed' ? "0.01" : "0.1"}
                 value={structure[fieldName] || 0}
                 onChange={handleChange}
-                className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
             </div>
           );
@@ -323,7 +317,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/50" />
+          <div className="fixed inset-0 bg-brand-primary-1/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -340,7 +334,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                 <Dialog.Title
                   as="h1"
-                  className="text-lg font-medium leading-6 text-gray-900 mb-4"
+                  className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
                 >
                   {mode === 'create' ? 'Add New Service' : 'Edit Service'}
                 </Dialog.Title>
@@ -354,7 +348,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                 <form onSubmit={handleSubmit} className="space-y-4">
                     
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="name" className="block text-sm font-medium text-brand-primary-1">
                       Service Name *
                     </label>
                     <input
@@ -364,12 +358,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="description" className="block text-sm font-medium text-brand-primary-1">
                       Description
                     </label>
                     <textarea
@@ -378,13 +372,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       rows={3}
                       value={formData.description}
                       onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                      className="mt-1 block w-full rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="commission" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="commission" className="block text-sm font-medium text-brand-primary-1">
                         Commission ( % ) *
                       </label>
                       <input
@@ -396,12 +390,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         step="0.01"
                         value={formData.commission}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="duration" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="duration" className="block text-sm font-medium text-brand-primary-1">
                         Duration (minutes) *
                       </label>
                       <input
@@ -412,14 +406,14 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         min="0"
                         value={formData.duration}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="category" className="block text-sm font-medium text-brand-primary-1">
                         Category *
                       </label>
                       <input
@@ -429,12 +423,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         required
                         value={formData.category}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="status" className="block text-sm font-medium text-brand-primary-1">
                         Status *
                       </label>
                       <select
@@ -443,7 +437,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         required
                         value={formData.status}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                       >
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -451,13 +445,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Staff Payment Incentive Structure</h3>
+                  <div className="border-t border-brand-secondary-3 pt-4 mt-4">
+                    <h3 className="text-lg font-medium text-brand-primary-1 mb-4">Staff Payment Incentive Structure</h3>
                     
                     <div className="space-y-6">
                       {/* Step 1: Payment Type */}
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="text-md font-medium text-gray-900 mb-2">Step 1: Choose Payment Type</h4>
+                      <div className="bg-brand-secondary-3/50 p-4 rounded-lg">
+                        <h4 className="text-md font-medium text-brand-primary-1 mb-2">Step 1: Choose Payment Type</h4>
                         <div className="space-y-2">
                           <div className="flex gap-4">
                             <div className="flex items-center">
@@ -468,9 +462,9 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                 value="fixed"
                                 checked={formData.incentive.type === 'fixed'}
                                 onChange={handleChange}
-                                className="h-4 w-4 text-black focus:ring-black border-gray-300"
+                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
                               />
-                              <label htmlFor="fixedPayment" className="ml-2 block text-sm text-gray-700">
+                              <label htmlFor="fixedPayment" className="ml-2 block text-sm text-brand-primary-1">
                                 Fixed Amount (RM per appointment)
                               </label>
                             </div>
@@ -482,14 +476,14 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                 value="variable"
                                 checked={formData.incentive.type === 'variable'}
                                 onChange={handleChange}
-                                className="h-4 w-4 text-black focus:ring-black border-gray-300"
+                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
                               />
-                              <label htmlFor="variablePayment" className="ml-2 block text-sm text-gray-700">
+                              <label htmlFor="variablePayment" className="ml-2 block text-sm text-brand-primary-1">
                                 Variable (% of appointment commission)
                               </label>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-brand-secondary-1 mt-1">
                             {formData.incentive.type === 'fixed' 
                               ? 'Set a fixed amount in RM for each appointment'
                               : 'Set a percentage of the appointment commission'}
@@ -498,8 +492,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       </div>
 
                       {/* Step 2: Payment Rules */}
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="text-md font-medium text-gray-900 mb-2">Step 2: Define Payment Rules</h4>
+                      <div className="bg-brand-secondary-3/50 p-4 rounded-lg">
+                        <h4 className="text-md font-medium text-brand-primary-1 mb-2">Step 2: Define Payment Rules</h4>
                         
                         {/* Conditional Toggle */}
                         <div className="mb-4">
@@ -510,13 +504,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                               name="incentive.isConditional"
                               checked={formData.incentive.isConditional}
                               onChange={(e) => handleConditionalToggle(e.target.checked)}
-                              className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                              className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
                             />
-                            <label htmlFor="isConditional" className="ml-2 block text-sm text-gray-700">
+                            <label htmlFor="isConditional" className="ml-2 block text-sm text-brand-primary-1">
                               Enable conditional payment based on attendee count
                             </label>
                           </div>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-brand-secondary-1 mt-1">
                             Set different rates based on the number of attendees
                           </p>
                         </div>
@@ -524,7 +518,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         {/* Non-conditional Payment Structure */}
                         {!formData.incentive.isConditional && (
                           <div className="space-y-4">
-                            <p className="text-sm text-gray-700">Set {formData.incentive.type === 'fixed' ? 'fixed amount' : 'percentage'} for each staff level:</p>
+                            <p className="text-sm text-brand-primary-1">Set {formData.incentive.type === 'fixed' ? 'fixed amount' : 'percentage'} for each staff level:</p>
                             {renderStaffRates('nonConditional')}
                           </div>
                         )}
@@ -533,7 +527,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         {formData.incentive.isConditional && (
                           <div className="space-y-6">
                             <div>
-                              <label htmlFor="threshold" className="block text-sm font-medium text-gray-700">
+                              <label htmlFor="threshold" className="block text-sm font-medium text-brand-primary-1">
                                 Attendee Threshold
                               </label>
                               <div className="mt-1">
@@ -544,9 +538,9 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                   min="1"
                                   value={formData.incentive.paymentStructure.conditional?.threshold || 10}
                                   onChange={handleChange}
-                                  className="block w-32 p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                                  className="block w-32 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                                 />
-                                <p className="text-sm text-gray-500 mt-1">
+                                <p className="text-sm text-brand-secondary-1 mt-1">
                                   Different rates will apply above and below this number of attendees
                                 </p>
                               </div>
@@ -554,12 +548,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                             <div className="space-y-4">
                               <div>
-                                <h5 className="text-sm font-medium text-gray-900">Below {formData.incentive.paymentStructure.conditional?.threshold || 10} Attendees</h5>
+                                <h5 className="text-sm font-medium text-brand-primary-1">Below {formData.incentive.paymentStructure.conditional?.threshold || 10} Attendees</h5>
                                 {renderStaffRates('belowThreshold')}
                               </div>
 
                               <div>
-                                <h5 className="text-sm font-medium text-gray-900">{formData.incentive.paymentStructure.conditional?.threshold || 10} or More Attendees</h5>
+                                <h5 className="text-sm font-medium text-brand-primary-1">{formData.incentive.paymentStructure.conditional?.threshold || 10} or More Attendees</h5>
                                 {renderStaffRates('aboveThreshold')}
                               </div>
                             </div>
@@ -568,19 +562,19 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       </div>
 
                       {/* Step 3: Staff Allocation & Weightage */}
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="text-md font-medium text-gray-900 mb-2">Step 3: Staff Allocation & Weightage</h4>
+                      <div className="bg-brand-secondary-3/50 p-4 rounded-lg">
+                        <h4 className="text-md font-medium text-brand-primary-1 mb-2">Step 3: Staff Allocation & Weightage</h4>
                         <div className="space-y-4">
                           <div>
-                            <h5 className="text-sm font-medium text-gray-900 mb-2">Staff Weightage Distribution</h5>
-                            <p className="text-sm text-gray-500 mb-4">
+                            <h5 className="text-sm font-medium text-brand-primary-1 mb-2">Staff Weightage Distribution</h5>
+                            <p className="text-sm text-brand-secondary-1 mb-4">
                               Total weightage must equal 100%. Percentages will be automatically adjusted when adding or removing staff.
                             </p>
                             <div className="space-y-4">
                               {formData.incentive.staffWeightage.map((staff) => (
                                 <div key={staff.id} className="flex items-center gap-4">
                                   <div className="flex-1">
-                                    <label htmlFor={`staff-weight-${staff.id}`} className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor={`staff-weight-${staff.id}`} className="block text-sm font-medium text-brand-primary-1">
                                       {staff.title} (%)
                                     </label>
                                     <input
@@ -590,13 +584,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                       max="100"
                                       value={staff.percentage}
                                       onChange={(e) => handleStaffWeightageChange(staff.id, parseFloat(e.target.value) || 0)}
-                                      className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                                     />
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => removeStaffWeightage(staff.id)}
-                                    className="mt-6 p-2 text-gray-400 hover:text-gray-600"
+                                    className="mt-6 p-2 text-brand-secondary-1 hover:text-brand-primary-1"
                                     disabled={formData.incentive.staffWeightage.length === 1}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -609,14 +603,14 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                 type="button"
                                 onClick={addStaffWeightage}
                                 disabled={formData.incentive.staffWeightage.length >= 4}
-                                className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="mt-2 inline-flex items-center px-3 py-2 border border-brand-secondary-3 shadow-sm text-sm leading-4 font-medium rounded-md text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                                 </svg>
                                 Add Staff
                               </button>
-                              <p className="text-sm text-gray-500 mt-2">
+                              <p className="text-sm text-brand-secondary-1 mt-2">
                                 {formData.incentive.staffWeightage.length}/4 staff members allocated
                               </p>
                             </div>
@@ -630,7 +624,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     <button
                       type="button"
                       onClick={onClose}
-                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                     >
                       Cancel
                     </button>

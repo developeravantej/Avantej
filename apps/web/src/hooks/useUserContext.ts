@@ -10,11 +10,14 @@ export interface UserContextResponse {
     lastName: string;
     emailVerified: boolean;
   };
+  isSystemAdmin?: boolean;
   organizations: Array<{
     id: string;
     name: string;
     slug: string;
     role: string;
+    /** Flat list of "resource:action" strings the member's role grants in this org */
+    permissions?: string[];
     hierarchy: {
       nodes: Array<{
         id: string;
@@ -38,7 +41,7 @@ export interface UserContextResponse {
 
 // Mock data for development (when API is not available).
 // currentOrganizationId is null so we never send mock "org-1" to the API (server expects UUID).
-const MOCK_USER_CONTEXT: UserContextResponse = {
+const _MOCK_USER_CONTEXT: UserContextResponse = {
   user: {
     id: "mock-user-1",
     email: "demo@avantej.com",
@@ -47,12 +50,14 @@ const MOCK_USER_CONTEXT: UserContextResponse = {
     lastName: "User",
     emailVerified: true,
   },
+  isSystemAdmin: false,
   organizations: [
     {
       id: "org-1",
       name: "Demo Franchise",
       slug: "demo-franchise",
       role: "Organization Owner",
+      permissions: [],
       hierarchy: {
         nodes: [
           {
@@ -96,7 +101,7 @@ const MOCK_USER_CONTEXT: UserContextResponse = {
 };
 
 export function useUserContext(enabled = true) {
-  return useQuery<UserContextResponse>({
+  const query = useQuery<UserContextResponse>({
     queryKey: ["user-context"],
     queryFn: async () => {
       // Use oRPC client for type-safe API calls
@@ -110,6 +115,8 @@ export function useUserContext(enabled = true) {
             name: org.name,
             slug: org.slug,
             role: org.role,
+            // permissions may not exist in older cached responses — default to []
+            permissions: (org as { permissions?: string[] }).permissions ?? [],
           }))
         ));
         localStorage.setItem("current_organization_id", data.currentOrganizationId || data.organizations[0].id);
@@ -146,7 +153,8 @@ export function useUserContext(enabled = true) {
               lastName: "",
               emailVerified: false,
             },
-            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string }) => {
+            isSystemAdmin: false,
+            organizations: orgs.map((org: { id: string; name: string; slug: string; role: string; permissions?: string[] }) => {
               let hierarchy: UserContextResponse["organizations"][0]["hierarchy"] = { nodes: [], member: null };
               try {
                 const cachedHierarchy = localStorage.getItem(`org_${org.id}_hierarchy`);
@@ -156,7 +164,7 @@ export function useUserContext(enabled = true) {
               } catch {
                 // ignore
               }
-              return { ...org, hierarchy };
+              return { ...org, permissions: org.permissions ?? [], hierarchy };
             }),
             currentOrganizationId: isUuid ? storedOrgId : null,
           } as UserContextResponse;
@@ -168,6 +176,43 @@ export function useUserContext(enabled = true) {
       return undefined;
     },
   });
+
+  /**
+   * Returns true if the current user has the given permission in their current
+   * organization. Permission format: "resource:action" (e.g. "user_management:read").
+   * System admins always return true.
+   */
+  function hasPermission(permission: string): boolean {
+    const ctx = query.data;
+    if (!ctx) return false;
+    if (ctx.isSystemAdmin) return true;
+    const orgId = ctx.currentOrganizationId;
+    const org = orgId ? ctx.organizations.find((o) => o.id === orgId) : ctx.organizations[0];
+    return org?.permissions?.includes(permission) ?? false;
+  }
+
+  /**
+   * Returns true if the user has at least one of the given permissions.
+   */
+  function hasAnyPermission(permissions: string[]): boolean {
+    return permissions.some((p) => hasPermission(p));
+  }
+
+  /**
+   * Returns true if the member's role matches one of the provided role names.
+   * Comparison is case-insensitive.
+   */
+  function hasRole(roleNames: string[]): boolean {
+    const ctx = query.data;
+    if (!ctx) return false;
+    if (ctx.isSystemAdmin) return true;
+    const orgId = ctx.currentOrganizationId;
+    const org = orgId ? ctx.organizations.find((o) => o.id === orgId) : ctx.organizations[0];
+    const memberRole = org?.hierarchy?.member?.role?.toLowerCase() ?? "";
+    return roleNames.some((r) => r.toLowerCase() === memberRole);
+  }
+
+  return { ...query, hasPermission, hasAnyPermission, hasRole };
 }
 
 

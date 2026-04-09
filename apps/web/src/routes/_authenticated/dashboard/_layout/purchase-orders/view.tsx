@@ -28,7 +28,7 @@ import {
 	SheetDescription,
 } from "@/components/ui/sheet";
 import { ShoppingCart, Plus, CheckCircle, Package, Trash2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/purchase-orders/view"
@@ -182,7 +182,7 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 		if (!orderDate) { toast.error("Please set an order date."); return; }
 
 		const validItems = lineItems.filter(
-			(l) => l.productId && parseInt(l.orderedQty, 10) > 0 && parseFloat(l.unitCostRM) >= 0
+			(l) => l.productId && parseInt(l.orderedQty, 10) > 0 && parseFloat(l.unitCostRM) > 0
 		);
 		if (validItems.length === 0) {
 			toast.error("Add at least one valid line item.");
@@ -409,6 +409,17 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 		enabled: !!poId && !!organizationId,
 	});
 
+	const { data: products = [] } = useQuery({
+		queryKey: ["products", organizationId],
+		queryFn: () => client.products.list({ organizationId }),
+		enabled: !!poId && !!organizationId,
+	});
+
+	const productNameMap = useMemo(
+		() => new Map(products.map((p) => [p.id, p.name])),
+		[products],
+	);
+
 	const receiveMutation = useMutation({
 		mutationFn: (input: Parameters<typeof client.purchaseOrders.receiveItems>[0]) =>
 			client.purchaseOrders.receiveItems(input),
@@ -478,7 +489,7 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 							<div key={item.id} className="space-y-1.5">
 								<div className="flex items-center justify-between">
 									<Label className="text-sm font-medium truncate max-w-[60%]">
-										{item.productId}
+										{productNameMap.get(item.productId) ?? item.productId}
 									</Label>
 									<span className="text-xs text-muted-foreground">
 										Ordered: {item.orderedQty} | Received: {item.receivedQty ?? 0} | Remaining: {remaining}
@@ -523,8 +534,10 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 // ---------------------------------------------------------------------------
 
 function RouteComponent() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const canCreate = hasPermission("purchase_order_management:create");
+	const canUpdate = hasPermission("purchase_order_management:update");
 	const qc = useQueryClient();
 
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
@@ -637,13 +650,16 @@ function RouteComponent() {
 			header: "Actions",
 			cell: ({ row }) => {
 				const { id, status } = row.original;
-				const canApprove = status === "draft";
-				const canReceive = ["approved", "ordered", "partially_received"].includes(status);
-				const canCancel = ["draft", "approved"].includes(status);
+				if (!canUpdate) {
+					return <span className="text-muted-foreground text-xs">—</span>;
+				}
+				const isApprovable = status === "draft";
+				const isReceivable = ["approved", "ordered", "partially_received"].includes(status);
+				const isCancellable = ["draft", "approved"].includes(status);
 
 				return (
 					<div className="flex items-center gap-1.5">
-						{canApprove && (
+						{isApprovable && (
 							<Button
 								size="sm"
 								variant="outline"
@@ -655,7 +671,7 @@ function RouteComponent() {
 								Approve
 							</Button>
 						)}
-						{canReceive && (
+						{isReceivable && (
 							<Button
 								size="sm"
 								variant="outline"
@@ -666,7 +682,7 @@ function RouteComponent() {
 								Receive
 							</Button>
 						)}
-						{canCancel && (
+						{isCancellable && (
 							<Button
 								size="sm"
 								variant="destructive"
@@ -711,10 +727,10 @@ function RouteComponent() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<ShoppingCart className="h-5 w-5 text-muted-foreground" />
-					<h1 className="text-xl font-semibold">Purchase Orders</h1>
+					<ShoppingCart className="h-5 w-5 text-brand-secondary-1" />
+					<h1 className="text-xl font-semibold font-heading">Purchase Orders</h1>
 				</div>
-				{organizationId && (
+				{organizationId && canCreate && (
 					<Button size="sm" onClick={() => setCreateSheetOpen(true)}>
 						<Plus className="h-4 w-4 mr-1" />
 						New PO
@@ -726,7 +742,7 @@ function RouteComponent() {
 			<DataTable<PurchaseOrderRow, unknown> columns={columns} data={data} />
 
 			{/* Create Sheet */}
-			{organizationId && (
+			{organizationId && canCreate && (
 				<CreatePOSheet
 					open={createSheetOpen}
 					onOpenChange={setCreateSheetOpen}

@@ -27,6 +27,14 @@ import {
 	SheetDescription,
 	SheetFooter,
 } from "@/components/ui/sheet";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Megaphone, Plus, Pin, Edit, Trash2 } from "lucide-react";
 
@@ -78,7 +86,7 @@ function priorityBadge(priority: Priority) {
 	switch (priority) {
 		case "low":
 			return (
-				<Badge variant="outline" className="text-gray-500">
+				<Badge variant="outline" className="text-brand-secondary-1">
 					Low
 				</Badge>
 			);
@@ -112,6 +120,10 @@ function AnnouncementsViewPage() {
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
+
+	// Confirmation dialog state
+	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+	const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null);
 
 	// Derived isActive filter for query
 	const isActiveFilter =
@@ -245,6 +257,10 @@ function AnnouncementsViewPage() {
 			toast.error("Title and message are required.");
 			return;
 		}
+		if (form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate)) {
+			toast.error("End Date must be after Start Date.");
+			return;
+		}
 		if (editingId) {
 			updateMutation.mutate({ id: editingId, values: form });
 		} else {
@@ -358,7 +374,7 @@ function AnnouncementsViewPage() {
 							variant="ghost"
 							size="sm"
 							className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-							onClick={() => deactivateMutation.mutate(row.original.id)}
+							onClick={() => setDeactivateTarget(row.original.id)}
 							disabled={isMutating}
 						>
 							Deactivate
@@ -368,7 +384,7 @@ function AnnouncementsViewPage() {
 						variant="ghost"
 						size="sm"
 						className="text-destructive hover:text-destructive hover:bg-destructive/10"
-						onClick={() => deleteMutation.mutate(row.original.id)}
+						onClick={() => setDeleteTarget(row.original.id)}
 						disabled={isMutating}
 					>
 						<Trash2 className="h-4 w-4" />
@@ -405,8 +421,8 @@ function AnnouncementsViewPage() {
 						<Megaphone className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Announcements</h1>
-						<p className="text-muted-foreground text-sm">
+						<h1 className="text-2xl font-bold font-heading">Announcements</h1>
+						<p className="text-brand-secondary-1 text-sm">
 							Manage organization-wide and branch-specific announcements.
 						</p>
 					</div>
@@ -457,6 +473,63 @@ function AnnouncementsViewPage() {
 				columns={columns}
 				data={filteredData}
 			/>
+
+			{/* Delete Confirmation Dialog */}
+			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Confirm Delete</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to delete this announcement? This action cannot be undone.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleteTarget(null)}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (deleteTarget) {
+									deleteMutation.mutate(deleteTarget);
+									setDeleteTarget(null);
+								}
+							}}
+							disabled={deleteMutation.isPending}
+						>
+							{deleteMutation.isPending ? "Deleting..." : "Delete"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Deactivate Confirmation Dialog */}
+			<Dialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Confirm Deactivate</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to deactivate this announcement?
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeactivateTarget(null)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								if (deactivateTarget) {
+									deactivateMutation.mutate(deactivateTarget);
+									setDeactivateTarget(null);
+								}
+							}}
+							disabled={deactivateMutation.isPending}
+						>
+							{deactivateMutation.isPending ? "Deactivating..." : "Deactivate"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* Create / Edit Sheet */}
 			<Sheet open={sheetOpen} onOpenChange={(open) => {

@@ -43,8 +43,8 @@ function UserViewPage() {
 		<div className="p-6 space-y-6">
 			<div className="flex items-center gap-3">
 				<div>
-					<h1 className="text-2xl font-bold">Members</h1>
-					<p className="text-sm text-muted-foreground">
+					<h1 className="text-2xl font-bold font-heading">Members</h1>
+					<p className="text-sm text-brand-secondary-1">
 						Manage organization members and their roles
 					</p>
 				</div>

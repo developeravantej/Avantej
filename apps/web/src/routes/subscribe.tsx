@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -59,11 +60,19 @@ export const Route = createFileRoute("/subscribe")({
   },
 });
 
+const isAuthError = (error: unknown): boolean => {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("401") || msg.includes("403") || msg.includes("not authenticated");
+  }
+  return false;
+};
+
 function SubscribePage() {
   const navigate = useNavigate();
   const { session_id, canceled } = Route.useSearch();
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Guest checkout form state
   const [isGuestSheetOpen, setIsGuestSheetOpen] = useState(false);
@@ -89,13 +98,9 @@ function SubscribePage() {
         let response;
         try {
           response = await apiClient.getStripeRetrieveSession(sessionId);
-        } catch (authError: any) {
+        } catch (authError: unknown) {
           // Check if it's a 403/401 error (authentication issue)
-          if (
-            authError?.message?.includes("403") ||
-            authError?.message?.includes("401") ||
-            authError?.message?.includes("Not authenticated")
-          ) {
+          if (isAuthError(authError)) {
             // This might be a guest checkout, try the guest endpoint
             console.log(
               "Auth failed, trying guest endpoint for session:",
@@ -164,8 +169,8 @@ function SubscribePage() {
           })
           .catch((error) => {
             console.error("Failed to get setup token:", error);
-            alert(
-              `Please check the backend console logs for your password setup token for ${data.guest_email}, then navigate to /setup-password?token=YOUR_TOKEN`
+            toast.error(
+              `Could not retrieve password setup link for ${data.guest_email}. Please contact support.`
             );
             navigate({ to: "/login" });
           });
@@ -240,8 +245,6 @@ function SubscribePage() {
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
-
-  console.log("stripe plans: ", plans)
 
   // Create checkout session mutation
   const { mutate: createCheckout, isPending: isCreatingCheckout } = useMutation(
@@ -751,7 +754,7 @@ function SubscribePage() {
         <p className="text-muted-foreground">
           Need help choosing a plan?{" "}
           <a
-            href="mailto:support@example.com"
+            href="mailto:support@avantej.com"
             className="text-primary hover:underline"
           >
             Contact our sales team

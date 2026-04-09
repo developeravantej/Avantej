@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Calendar, CalendarDays, Clock, X, User, Calendar as CalendarIcon, MapPin, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,12 +62,22 @@ export function AppointmentCalendar({
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<Set<string>>(new Set());
   const [showTeamFilter, setShowTeamFilter] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [_editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const { data: userCtx } = useUserContext();
   const organizationId = userCtx?.currentOrganizationId ?? "";
   const org = userCtx?.organizations.find((o) => o.id === organizationId);
   const branchId = org?.hierarchy.member?.hierarchyScopeId ?? "";
   const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: (params: { id: string; status: "confirmed" | "cancelled" }) =>
+      client.appointments.update({
+        organizationId,
+        id: params.id,
+        status: params.status,
+      }),
+  });
 
   const createMutation = useMutation({
     mutationFn: (params: { start: Date; duration: number; notes?: string }) =>
@@ -91,14 +101,9 @@ export function AppointmentCalendar({
     },
   });
 
-  // Debug: Log modal state changes
-  useEffect(() => {
-    console.log('Modal state changed:', showAddModal);
-  }, [showAddModal]);
-
   const {
-    monthStart,
-    monthEnd,
+    monthStart: _monthStart,
+    monthEnd: _monthEnd,
     startDate,
     endDate,
     dateDisplay,
@@ -184,7 +189,7 @@ export function AppointmentCalendar({
       case "cancelled":
         return "bg-red-100 text-red-800 border-red-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3";
     }
   };
 
@@ -223,15 +228,13 @@ export function AppointmentCalendar({
   };
 
   const openAddModal = () => {
-    console.log('Opening add modal');
     setShowAddModal(true);
-    console.log('Modal state after opening:', true);
+    onAddAppointment?.();
   };
 
   const closeAddModal = () => {
-    console.log('Closing add modal');
     setShowAddModal(false);
-    console.log('Modal state after closing:', false);
+    setEditingAppointment(null);
   };
 
   const handleSubmitAppointment = (appointment: any) => {
@@ -274,9 +277,8 @@ export function AppointmentCalendar({
     setSelectedAppointments(new Set());
   };
 
-  const handleBulkStatusChange = (newStatus: "confirmed" | "cancelled") => {
+  const handleBulkStatusChange = (_newStatus: "confirmed" | "cancelled") => {
     // Handle bulk status change
-    console.log(`Bulk ${newStatus} appointments:`, Array.from(selectedAppointments));
     // You can add your bulk status change logic here
     // For example: updateMultipleAppointmentStatus(Array.from(selectedAppointments), newStatus)
     
@@ -285,9 +287,6 @@ export function AppointmentCalendar({
     setIsGroupSelectMode(false);
   };
 
-  const getPendingAppointments = () => {
-    return appointments.filter(appointment => appointment.status === "pending");
-  };
 
   const getFilteredAppointments = () => {
     return appointments.filter(appointment => {
@@ -352,12 +351,12 @@ export function AppointmentCalendar({
     });
 
     return (
-      <div className="fixed inset-0 bg-gray-500/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-brand-primary-1/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden">
           <CardHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-gray-600" />
+              <Clock className="h-5 w-5 text-brand-secondary-1" />
               <CardTitle className="text-xl font-semibold">{dateString}</CardTitle>
             </div>
             <Button
@@ -437,8 +436,8 @@ export function AppointmentCalendar({
           </CardHeader>
           <CardContent className="overflow-y-auto max-h-[60vh]">
             {dayAppointments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-8 text-brand-secondary-1">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-brand-secondary-2" />
                 <p className="text-lg font-medium">No appointments scheduled</p>
                 <p className="text-sm">This day is free for new appointments</p>
                 <Button
@@ -456,7 +455,7 @@ export function AppointmentCalendar({
                   <div
                     key={appointment.id}
                     className={cn(
-                      "flex items-start space-x-4 p-4 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 relative",
+                      "flex items-start space-x-4 p-4 rounded-lg border cursor-pointer transition-colors hover:bg-brand-secondary-3/50 relative",
                       getStatusColor(appointment.status),
                       isGroupSelectMode && appointment.status === "pending" && "hover:ring-2 hover:ring-blue-300",
                       isGroupSelectMode && selectedAppointments.has(appointment.id) && "ring-2 ring-blue-500 bg-blue-50",
@@ -467,15 +466,15 @@ export function AppointmentCalendar({
                   >
                     {/* Selection indicator for group mode - using border style instead of radio button */}
                     {isGroupSelectMode && appointment.status === "pending" && !selectedAppointments.has(appointment.id) && (
-                      <div className="absolute inset-0 border-2 border-dashed border-gray-400 rounded pointer-events-none" style={{ margin: '-2px' }} />
+                      <div className="absolute inset-0 border-2 border-dashed border-brand-secondary-2 rounded pointer-events-none" style={{ margin: '-2px' }} />
                     )}
                     
                     {/* Time indicator */}
                     <div className="flex-shrink-0 w-20 text-center">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-brand-primary-1">
                         {formatTime(new Date(appointment.start))}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-brand-secondary-1">
                         {formatTime(new Date(appointment.end))}
                       </div>
                     </div>
@@ -484,7 +483,7 @@ export function AppointmentCalendar({
                     <div className="flex-shrink-0 w-4 flex flex-col items-center">
                       <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                       {index < dayAppointments.length - 1 && (
-                        <div className="w-0.5 h-8 bg-gray-300 mt-1"></div>
+                        <div className="w-0.5 h-8 bg-brand-secondary-2 mt-1"></div>
                       )}
                     </div>
 
@@ -492,10 +491,10 @@ export function AppointmentCalendar({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                          <h3 className="text-sm font-medium text-brand-primary-1 truncate">
                             {appointment.title}
                           </h3>
-                          <p className="text-sm text-gray-600 truncate">
+                          <p className="text-sm text-brand-secondary-1 truncate">
                             {appointment.clientName}
                           </p>
                           {appointment.assignedTo && (
@@ -506,7 +505,7 @@ export function AppointmentCalendar({
                               {appointment.assignedTo.name}
                             </p>
                           )}
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-brand-secondary-1 truncate">
                             {appointment.service}
                           </p>
                         </div>
@@ -560,11 +559,11 @@ export function AppointmentCalendar({
     };
 
     return (
-      <div className="fixed inset-0 bg-gray-500/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-brand-primary-1/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div className="flex items-center space-x-2">
-              <CalendarIcon className="h-5 w-5 text-gray-600" />
+              <CalendarIcon className="h-5 w-5 text-brand-secondary-1" />
               <CardTitle className="text-xl font-semibold">Appointment Details</CardTitle>
             </div>
             <Button
@@ -596,11 +595,21 @@ export function AppointmentCalendar({
                 <div className="flex space-x-2">
                   <Button
                     size="sm"
+                    disabled={updateMutation.isPending}
                     onClick={() => {
-                      // Handle confirm appointment
-                      console.log("Confirm appointment:", selectedAppointment.id);
-                      // You can add your confirmation logic here
-                      // For example: updateAppointmentStatus(selectedAppointment.id, "confirmed")
+                      updateMutation.mutate(
+                        { id: selectedAppointment.id, status: "confirmed" },
+                        {
+                          onSuccess: () => {
+                            toast.success("Appointment confirmed");
+                            queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                            closeAppointmentModal();
+                          },
+                          onError: (err: unknown) => {
+                            toast.error(err instanceof Error ? err.message : "Failed to confirm appointment");
+                          },
+                        }
+                      );
                     }}
                     className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                   >
@@ -609,11 +618,21 @@ export function AppointmentCalendar({
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={updateMutation.isPending}
                     onClick={() => {
-                      // Handle cancel appointment
-                      console.log("Cancel appointment:", selectedAppointment.id);
-                      // You can add your cancellation logic here
-                      // For example: updateAppointmentStatus(selectedAppointment.id, "cancelled")
+                      updateMutation.mutate(
+                        { id: selectedAppointment.id, status: "cancelled" },
+                        {
+                          onSuccess: () => {
+                            toast.success("Appointment cancelled");
+                            queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                            closeAppointmentModal();
+                          },
+                          onError: (err: unknown) => {
+                            toast.error(err instanceof Error ? err.message : "Failed to cancel appointment");
+                          },
+                        }
+                      );
                     }}
                     className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
                   >
@@ -625,67 +644,67 @@ export function AppointmentCalendar({
 
             {/* Appointment Title */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl font-bold text-brand-primary-1 mb-2">
                 {selectedAppointment.title}
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-brand-secondary-1">
                 {selectedAppointment.service}
               </p>
             </div>
 
             {/* Date and Time */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                <CalendarIcon className="h-5 w-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-brand-primary-1 flex items-center space-x-2">
+                <CalendarIcon className="h-5 w-5 text-brand-secondary-1" />
                 <span>Date & Time</span>
               </h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div className="bg-brand-secondary-3/50 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Date:</span>
-                  <span className="text-sm text-gray-900">{formatDate(new Date(selectedAppointment.start))}</span>
+                  <span className="text-sm font-medium text-brand-primary-1">Date:</span>
+                  <span className="text-sm text-brand-primary-1">{formatDate(new Date(selectedAppointment.start))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Start Time:</span>
-                  <span className="text-sm text-gray-900">{formatTime(new Date(selectedAppointment.start))}</span>
+                  <span className="text-sm font-medium text-brand-primary-1">Start Time:</span>
+                  <span className="text-sm text-brand-primary-1">{formatTime(new Date(selectedAppointment.start))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">End Time:</span>
-                  <span className="text-sm text-gray-900">{formatTime(new Date(selectedAppointment.end))}</span>
+                  <span className="text-sm font-medium text-brand-primary-1">End Time:</span>
+                  <span className="text-sm text-brand-primary-1">{formatTime(new Date(selectedAppointment.end))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Duration:</span>
-                  <span className="text-sm text-gray-900">{formatDuration(new Date(selectedAppointment.start), new Date(selectedAppointment.end))}</span>
+                  <span className="text-sm font-medium text-brand-primary-1">Duration:</span>
+                  <span className="text-sm text-brand-primary-1">{formatDuration(new Date(selectedAppointment.start), new Date(selectedAppointment.end))}</span>
                 </div>
               </div>
             </div>
 
             {/* Client Information */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                <User className="h-5 w-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-brand-primary-1 flex items-center space-x-2">
+                <User className="h-5 w-5 text-brand-secondary-1" />
                 <span>Client Information</span>
               </h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="bg-brand-secondary-3/50 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Name:</span>
-                  <span className="text-sm text-gray-900">{selectedAppointment.clientName}</span>
+                  <span className="text-sm font-medium text-brand-primary-1">Name:</span>
+                  <span className="text-sm text-brand-primary-1">{selectedAppointment.clientName}</span>
                 </div>
                 {selectedAppointment.clientEmail && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 flex items-center space-x-1">
+                    <span className="text-sm font-medium text-brand-primary-1 flex items-center space-x-1">
                       <Mail className="h-4 w-4" />
                       <span>Email:</span>
                     </span>
-                    <span className="text-sm text-gray-900">{selectedAppointment.clientEmail}</span>
+                    <span className="text-sm text-brand-primary-1">{selectedAppointment.clientEmail}</span>
                   </div>
                 )}
                 {selectedAppointment.clientPhone && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 flex items-center space-x-1">
+                    <span className="text-sm font-medium text-brand-primary-1 flex items-center space-x-1">
                       <Phone className="h-4 w-4" />
                       <span>Phone:</span>
                     </span>
-                    <span className="text-sm text-gray-900">{selectedAppointment.clientPhone}</span>
+                    <span className="text-sm text-brand-primary-1">{selectedAppointment.clientPhone}</span>
                   </div>
                 )}
               </div>
@@ -694,12 +713,12 @@ export function AppointmentCalendar({
             {/* Location */}
             {selectedAppointment.location && (
               <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-brand-primary-1 flex items-center space-x-2">
+                  <MapPin className="h-5 w-5 text-brand-secondary-1" />
                   <span>Location</span>
                 </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-900">{selectedAppointment.location}</p>
+                <div className="bg-brand-secondary-3/50 rounded-lg p-4">
+                  <p className="text-sm text-brand-primary-1">{selectedAppointment.location}</p>
                 </div>
               </div>
             )}
@@ -707,9 +726,9 @@ export function AppointmentCalendar({
             {/* Notes */}
             {selectedAppointment.notes && (
               <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-900">Notes</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedAppointment.notes}</p>
+                <h3 className="text-lg font-semibold text-brand-primary-1">Notes</h3>
+                <div className="bg-brand-secondary-3/50 rounded-lg p-4">
+                  <p className="text-sm text-brand-primary-1 whitespace-pre-wrap">{selectedAppointment.notes}</p>
                 </div>
               </div>
             )}
@@ -727,8 +746,9 @@ export function AppointmentCalendar({
               {/* Edit Button - Show for all statuses */}
               <Button
                 onClick={() => {
-                  // Handle edit appointment
-                  console.log("Edit appointment:", selectedAppointment.id);
+                  setEditingAppointment(selectedAppointment);
+                  closeAppointmentModal();
+                  setShowAddModal(true);
                 }}
                 className="flex-1"
               >
@@ -744,12 +764,12 @@ export function AppointmentCalendar({
   const renderCalendarGrid = () => {
     if (view === "monthly") {
       return (
-        <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-brand-secondary-3 rounded-lg overflow-hidden">
           {/* Day Headers */}
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div
               key={day}
-              className="bg-gray-50 p-3 text-center text-sm font-medium text-gray-700"
+              className="bg-brand-secondary-3/50 p-3 text-center text-sm font-medium text-brand-primary-1"
             >
               {day}
             </div>
@@ -765,8 +785,8 @@ export function AppointmentCalendar({
               <div
                 key={index}
                 className={cn(
-                  "min-h-[120px] bg-white p-2 cursor-pointer transition-colors hover:bg-gray-50",
-                  !isCurrentPeriodDay && "bg-gray-50 text-gray-400",
+                  "min-h-[120px] bg-white p-2 cursor-pointer transition-colors hover:bg-brand-secondary-3/50",
+                  !isCurrentPeriodDay && "bg-brand-secondary-3/50 text-brand-secondary-2",
                   isTodayDate && "bg-blue-50 border-2 border-blue-200"
                 )}
                 onClick={() => handleDateSelect(date)}
@@ -811,7 +831,7 @@ export function AppointmentCalendar({
                     >
                       {/* Selection indicator for group mode - using border style instead of radio button */}
                       {isGroupSelectMode && appointment.status === "pending" && !selectedAppointments.has(appointment.id) && (
-                        <div className="absolute inset-0 border-2 border-dashed border-gray-400 rounded pointer-events-none" />
+                        <div className="absolute inset-0 border-2 border-dashed border-brand-secondary-2 rounded pointer-events-none" />
                       )}
                       
                       <div className="font-medium truncate">
@@ -834,7 +854,7 @@ export function AppointmentCalendar({
                     </div>
                   ))}
                   {dayAppointments.length > 2 && (
-                    <div className="text-xs text-gray-500 text-center">
+                    <div className="text-xs text-brand-secondary-1 text-center">
                       +{dayAppointments.length - 2} more
                     </div>
                   )}
@@ -847,12 +867,12 @@ export function AppointmentCalendar({
     } else {
       // Weekly view
       return (
-        <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-brand-secondary-3 rounded-lg overflow-hidden">
           {/* Day Headers */}
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div
               key={day}
-              className="bg-gray-50 p-3 text-center text-sm font-medium text-gray-700"
+              className="bg-brand-secondary-3/50 p-3 text-center text-sm font-medium text-brand-primary-1"
             >
               {day}
             </div>
@@ -867,7 +887,7 @@ export function AppointmentCalendar({
               <div
                 key={index}
                 className={cn(
-                  "min-h-[150px] bg-white p-2 cursor-pointer transition-colors hover:bg-gray-50",
+                  "min-h-[150px] bg-white p-2 cursor-pointer transition-colors hover:bg-brand-secondary-3/50",
                   isTodayDate && "bg-blue-50 border-2 border-blue-200"
                 )}
                 onClick={() => handleDateSelect(date)}
@@ -912,7 +932,7 @@ export function AppointmentCalendar({
                     >
                       {/* Selection indicator for group mode - using border style instead of radio button */}
                       {isGroupSelectMode && appointment.status === "pending" && !selectedAppointments.has(appointment.id) && (
-                        <div className="absolute inset-0 border-2 border-dashed border-gray-400 rounded pointer-events-none" />
+                        <div className="absolute inset-0 border-2 border-dashed border-brand-secondary-2 rounded pointer-events-none" />
                       )}
                       
                       <div className="font-medium truncate">
@@ -935,7 +955,7 @@ export function AppointmentCalendar({
                     </div>
                   ))}
                   {dayAppointments.length > 15 && (
-                    <div className="text-xs text-gray-500 text-center">
+                    <div className="text-xs text-brand-secondary-1 text-center">
                       +{dayAppointments.length - 15} more
                     </div>
                   )}
@@ -1003,14 +1023,14 @@ export function AppointmentCalendar({
           {/* View Switcher and Status Filters */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center bg-brand-secondary-3 rounded-lg p-1">
                 <button
                   onClick={() => setView("monthly")}
                   className={cn(
                     "flex items-center space-x-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
                     view === "monthly"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-white text-brand-primary-1 shadow-sm"
+                      : "text-brand-secondary-1 hover:text-brand-primary-1"
                   )}
                 >
                   <Calendar className="h-4 w-4" />
@@ -1021,8 +1041,8 @@ export function AppointmentCalendar({
                   className={cn(
                     "flex items-center space-x-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
                     view === "weekly"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-white text-brand-primary-1 shadow-sm"
+                      : "text-brand-secondary-1 hover:text-brand-primary-1"
                   )}
                 >
                   <CalendarDays className="h-4 w-4" />
@@ -1040,7 +1060,7 @@ export function AppointmentCalendar({
                 >
                   <div className={cn(
                     "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200",
-                    showConfirmed ? "bg-green-500" : "bg-gray-300"
+                    showConfirmed ? "bg-green-500" : "bg-brand-secondary-2"
                   )}>
                     <div className={cn(
                       "inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200",
@@ -1049,7 +1069,7 @@ export function AppointmentCalendar({
                   </div>
                   <span className={cn(
                     "text-sm font-medium",
-                    showConfirmed ? "text-green-700" : "text-gray-500"
+                    showConfirmed ? "text-green-700" : "text-brand-secondary-1"
                   )}>
                     Confirmed
                   </span>
@@ -1063,7 +1083,7 @@ export function AppointmentCalendar({
                 >
                   <div className={cn(
                     "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200",
-                    showCancelled ? "bg-red-500" : "bg-gray-300"
+                    showCancelled ? "bg-red-500" : "bg-brand-secondary-2"
                   )}>
                     <div className={cn(
                       "inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200",
@@ -1072,7 +1092,7 @@ export function AppointmentCalendar({
                   </div>
                   <span className={cn(
                     "text-sm font-medium",
-                    showCancelled ? "text-red-700" : "text-gray-500"
+                    showCancelled ? "text-red-700" : "text-brand-secondary-1"
                   )}>
                     Cancelled
                   </span>
@@ -1088,7 +1108,7 @@ export function AppointmentCalendar({
                   >
                     <div className={cn(
                       "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200",
-                      showTeamFilter ? "bg-blue-500" : "bg-gray-300"
+                      showTeamFilter ? "bg-blue-500" : "bg-brand-secondary-2"
                     )}>
                       <div className={cn(
                         "inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200",
@@ -1097,7 +1117,7 @@ export function AppointmentCalendar({
                     </div>
                     <span className={cn(
                       "text-sm font-medium",
-                      showTeamFilter ? "text-blue-700" : "text-gray-500"
+                      showTeamFilter ? "text-blue-700" : "text-brand-secondary-1"
                     )}>
                       Team Filter
                     </span>
@@ -1109,8 +1129,8 @@ export function AppointmentCalendar({
           
           {/* Team Member Filter Dropdown */}
           {showTeamFilter && getTeamMembers().length > 0 && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Filter by Team Member</h3>
+            <div className="mb-6 p-4 bg-brand-secondary-3/50 rounded-lg">
+              <h3 className="text-sm font-medium text-brand-primary-1 mb-3">Filter by Team Member</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {getTeamMembers().map((member) => (
                   <button
@@ -1120,7 +1140,7 @@ export function AppointmentCalendar({
                       "flex items-center space-x-2 p-2 rounded-md text-sm transition-colors",
                       selectedTeamMembers.has(member.id)
                         ? "bg-blue-100 text-blue-700 border border-blue-200"
-                        : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                        : "bg-white text-brand-primary-1 border border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                     )}
                   >
                     <div 
@@ -1133,7 +1153,7 @@ export function AppointmentCalendar({
               </div>
               {selectedTeamMembers.size > 0 && (
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-brand-secondary-1">
                     {selectedTeamMembers.size} member(s) selected
                   </span>
                   <button

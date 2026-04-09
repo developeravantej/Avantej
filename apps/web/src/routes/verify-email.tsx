@@ -17,9 +17,12 @@ import { useEffect, useState } from "react";
 export const Route = createFileRoute("/verify-email")({
   component: VerifyEmailPage,
   validateSearch: (search: Record<string, unknown>) => {
+    const rawCallbackURL = (search.callbackURL as string) || "";
+    const isRelativePath =
+      rawCallbackURL.startsWith("/") && !rawCallbackURL.startsWith("//");
     return {
       token: (search.token as string) || "",
-      callbackURL: (search.callbackURL as string) || "/login",
+      callbackURL: isRelativePath ? rawCallbackURL : "/login",
     };
   },
 });
@@ -55,9 +58,10 @@ function VerifyEmailPage() {
         }, 1200);
       } catch (e) {
         if (cancelled) return;
+        console.error("Email verification error:", e);
         setStatus("error");
         setErrorMessage(
-          e instanceof Error ? e.message : "Email verification failed"
+          "Email verification failed. The link may be expired or invalid."
         );
       }
     }

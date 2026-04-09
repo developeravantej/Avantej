@@ -113,8 +113,10 @@ function StatusBadge({ status }: { status: StockRequestStatus }) {
 // ---------------------------------------------------------------------------
 
 function StockRequestsViewPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const canCreate = hasPermission("inventory_management:create");
+	const canUpdate = hasPermission("inventory_management:update");
 	const queryClient = useQueryClient();
 
 	// ---- Branch nodes query ----
@@ -145,6 +147,7 @@ function StockRequestsViewPage() {
 	// ---- Fulfill dialog state ----
 	const [fulfillTarget, setFulfillTarget] = useState<StockRequestRow | null>(null);
 	const [fulfillQuantities, setFulfillQuantities] = useState<Record<string, string>>({});
+	const [isFetchingFulfillItems, setIsFetchingFulfillItems] = useState(false);
 
 	// ---- Query ----
 	const { data: apiData = [], isLoading } = useQuery({
@@ -192,8 +195,9 @@ function StockRequestsViewPage() {
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create stock request");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create stock request: ${message}`);
 		},
 	});
 
@@ -204,8 +208,9 @@ function StockRequestsViewPage() {
 			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
 			toast.success("Stock request approved");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to approve stock request");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to approve stock request: ${message}`);
 		},
 	});
 
@@ -216,8 +221,9 @@ function StockRequestsViewPage() {
 			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
 			toast.success("Stock request rejected");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to reject stock request");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to reject stock request: ${message}`);
 		},
 	});
 
@@ -234,8 +240,9 @@ function StockRequestsViewPage() {
 			setFulfillTarget(null);
 			setFulfillQuantities({});
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to fulfill stock request");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to fulfill stock request: ${message}`);
 		},
 	});
 
@@ -282,6 +289,38 @@ function StockRequestsViewPage() {
 			quantityFulfilled: parseInt(fulfillQuantities[item.id] ?? "0", 10) || 0,
 		}));
 		fulfillMutation.mutate({ id: fulfillTarget.id, items });
+	}
+
+	// ---- Fetch items for fulfill dialog ----
+	async function openFulfillDialog(row: StockRequestRow) {
+		if (!organizationId) return;
+		setIsFetchingFulfillItems(true);
+		try {
+			const detail = await client.stockRequests.getById({
+				organizationId,
+				id: row.id,
+			});
+			const rowWithItems: StockRequestRow = {
+				...row,
+				items: detail.items.map((item) => ({
+					id: item.id,
+					productId: item.productId,
+					quantityRequested: item.quantityRequested,
+					quantityFulfilled: item.quantityFulfilled ?? null,
+					notes: item.notes ?? null,
+				})),
+			};
+			setFulfillTarget(rowWithItems);
+			const initial: Record<string, string> = {};
+			for (const item of rowWithItems.items) {
+				initial[item.id] = String(item.quantityRequested);
+			}
+			setFulfillQuantities(initial);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to load request items");
+		} finally {
+			setIsFetchingFulfillItems(false);
+		}
 	}
 
 	// ---- Table data ----
@@ -346,6 +385,9 @@ function StockRequestsViewPage() {
 			enableHiding: false,
 			cell: ({ row }) => {
 				const { id, status } = row.original;
+				if (!canUpdate) {
+					return <span className="text-muted-foreground text-xs">—</span>;
+				}
 				if (status === "pending") {
 					return (
 						<div className="flex items-center gap-2">
@@ -378,17 +420,11 @@ function StockRequestsViewPage() {
 							size="sm"
 							variant="outline"
 							className="h-7 gap-1 text-blue-700 border-blue-300 hover:bg-blue-50"
-							onClick={() => {
-								setFulfillTarget(row.original);
-								const initial: Record<string, string> = {};
-								for (const item of row.original.items) {
-									initial[item.id] = String(item.quantityRequested);
-								}
-								setFulfillQuantities(initial);
-							}}
+							onClick={() => openFulfillDialog(row.original)}
+							disabled={isFetchingFulfillItems}
 						>
 							<PackageCheck className="h-3.5 w-3.5" />
-							Fulfill
+							{isFetchingFulfillItems ? "Loading…" : "Fulfill"}
 						</Button>
 					);
 				}
@@ -402,7 +438,7 @@ function StockRequestsViewPage() {
 		value,
 		onChange,
 		placeholder,
-		required,
+		required: _required,
 	}: {
 		value: string;
 		onChange: (id: string) => void;
@@ -490,21 +526,23 @@ function StockRequestsViewPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Stock Requests</h1>
-					<p className="text-sm text-muted-foreground">
+					<h1 className="text-2xl font-bold font-heading">Stock Requests</h1>
+					<p className="text-sm text-brand-secondary-1">
 						Manage inventory stock requests between branches
 					</p>
 				</div>
-				<Button
-					onClick={() => {
-						resetCreateForm();
-						setIsCreateOpen(true);
-					}}
-					className="gap-2"
-				>
-					<Plus className="h-4 w-4" />
-					New Request
-				</Button>
+				{canCreate && (
+					<Button
+						onClick={() => {
+							resetCreateForm();
+							setIsCreateOpen(true);
+						}}
+						className="gap-2"
+					>
+						<Plus className="h-4 w-4" />
+						New Request
+					</Button>
+				)}
 			</div>
 
 			{/* Status filter tabs */}

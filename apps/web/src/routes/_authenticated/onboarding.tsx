@@ -34,15 +34,13 @@ const formSchema = z.object({
 });
 
 function RouteComponent() {
-  const { user, isLoading: authLoading, checkAuth } = useAuth();
+  const { isLoading: authLoading, checkAuth } = useAuth();
   const navigate = useNavigate();
   const [nameToCheck, setNameToCheck] = useState("");
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const debouncedName = useDebounce(nameToCheck, 500);
-
-  console.log("useAuth user: ", user);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,25 +49,27 @@ function RouteComponent() {
     },
   });
 
-  // Mock name availability check
+  // TODO: Replace with actual API call when backend endpoint is ready
+  // Should call: client.organizations.checkNameAvailability({ name })
   useEffect(() => {
-    if (!debouncedName || debouncedName.length === 0) {
+    if (!debouncedName || debouncedName.length < 2) {
       setIsCheckingAvailability(false);
       setIsAvailable(null);
       form.clearErrors("name");
       return;
     }
 
+    let cancelled = false;
     setIsCheckingAvailability(true);
-    
-    // Simulate API call
+
+    // Mock availability check — replace with real API
     const timer = setTimeout(() => {
-      // Mock: names starting with "test" are unavailable
-      const mockAvailable = !debouncedName.toLowerCase().startsWith("test");
-      setIsAvailable(mockAvailable);
+      if (cancelled) return;
+      const available = !debouncedName.toLowerCase().startsWith("test");
+      setIsAvailable(available);
       setIsCheckingAvailability(false);
 
-      if (!mockAvailable) {
+      if (!available) {
         form.setError("name", {
           type: "availability",
           message: "This organization name is already taken",
@@ -79,11 +79,15 @@ function RouteComponent() {
       }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [debouncedName, form]);
 
+  // TODO: Replace with actual API call when backend endpoint is ready
+  // Should call: client.organizations.create({ name, slug })
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Final check for name availability before submission
     if (isAvailable === false) {
       form.setError("name", {
         type: "availability",
@@ -94,21 +98,16 @@ function RouteComponent() {
 
     setIsCreating(true);
     try {
-      // TODO: Replace with actual API call when backend is ready
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Mock organization creation — replace with real API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       toast.success("Organization created successfully!");
-      console.log("Organization created:", values);
-
-      // Refetch user data to get updated organization info
       await checkAuth();
-
-      // Navigate to dashboard
       navigate({ to: "/dashboard" });
     } catch (error) {
-      console.error("Failed to create organization:", error);
-      toast.error("Failed to create organization. Please try again.");
+      const message =
+        error instanceof Error ? error.message : "Failed to create organization. Please try again.";
+      toast.error(message);
     } finally {
       setIsCreating(false);
     }

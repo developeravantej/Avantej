@@ -35,7 +35,7 @@ interface ColumnMeta {
 }
 
 function na(value?: string | null): React.ReactNode {
-	if (!value) return <span className="text-gray-400">N/A</span>;
+	if (!value) return <span className="text-brand-secondary-2">N/A</span>;
 	return value;
 }
 
@@ -58,7 +58,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Description",
 			cell: ({ row }) => {
 				const val = row.original.description;
-				if (!val) return <span className="text-gray-400">N/A</span>;
+				if (!val) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<div className="max-w-[200px] truncate" title={val}>
 						{val}
@@ -86,7 +86,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Contact",
 			cell: ({ row }) => {
 				const phone = row.original.contactPhone;
-				if (!phone) return <span className="text-gray-400">N/A</span>;
+				if (!phone) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<a href={`tel:${phone}`} className="text-blue-600 hover:underline">
 						{phone}
@@ -99,7 +99,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Office",
 			cell: ({ row }) => {
 				const phone = row.original.officePhone;
-				if (!phone) return <span className="text-gray-400">N/A</span>;
+				if (!phone) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<a href={`tel:${phone}`} className="text-blue-600 hover:underline">
 						{phone}
@@ -112,7 +112,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Email",
 			cell: ({ row }) => {
 				const email = row.original.email;
-				if (!email) return <span className="text-gray-400">N/A</span>;
+				if (!email) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<a
 						href={`mailto:${email}`}
@@ -128,7 +128,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Website",
 			cell: ({ row }) => {
 				const website = row.original.website;
-				if (!website) return <span className="text-gray-400">N/A</span>;
+				if (!website) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<a
 						href={website}

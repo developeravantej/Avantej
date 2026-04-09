@@ -142,10 +142,6 @@ export function RoleEditor({
     return permissions.length;
   };
 
-  const getResourcePermissionCount = (resourceId: string) => {
-    return permissions.filter(p => p.resourceId === resourceId).length;
-  };
-
   const isFormValid = form.formState.isValid && getTotalPermissions() > 0;
 
   return (

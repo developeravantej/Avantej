@@ -8,8 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { client } from "@/utils/orpc";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, User } from "lucide-react";
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface Member {
   id: string;
@@ -37,8 +36,6 @@ export function MemberSelector({
   allowClear = true,
   disabled = false,
 }: MemberSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
   // Fetch all organization members with user details
   const { data: membersData, isLoading, error } = useQuery({
     queryKey: ["organization-members", organizationId],

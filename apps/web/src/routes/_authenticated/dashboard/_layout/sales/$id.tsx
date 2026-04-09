@@ -99,7 +99,7 @@ function SalesOrderDetailPage() {
 
 			<div className="flex items-start justify-between mb-6">
 				<div>
-					<h1 className="text-2xl font-bold">
+					<h1 className="text-2xl font-bold font-heading">
 						Sales Order #{order.salesOrderNumber}
 					</h1>
 					<div className="flex items-center gap-3 mt-1">

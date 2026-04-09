@@ -56,7 +56,7 @@ function DataTable<TData extends CategoryRow, TValue>({
 		(CategoryFormData & { id?: string }) | null
 	>(null);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [_isDeleting, _setIsDeleting] = useState(false);
 	const [categoryToDelete, setCategoryToDelete] = useState<{
 		id: string;
 		name: string;
@@ -217,12 +217,12 @@ function DataTable<TData extends CategoryRow, TValue>({
 
 			{/* Delete Confirmation Dialog */}
 			{isDeleteDialogOpen && categoryToDelete && (
-				<div className="fixed inset-0 bg-gray-500/50 flex items-center justify-center z-50">
+				<div className="fixed inset-0 bg-brand-primary-1/50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-						<h3 className="text-lg font-semibold text-gray-900 mb-4">
+						<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
 							Delete Category
 						</h3>
-						<p className="text-gray-600 mb-6">
+						<p className="text-brand-secondary-1 mb-6">
 							Are you sure you want to delete the category "
 							{categoryToDelete.name}"? This action cannot be undone.
 						</p>

@@ -94,7 +94,7 @@ export function InvitationList({
 				);
 			case "declined":
 				return (
-					<Badge variant="outline" className="gap-1 text-gray-600">
+					<Badge variant="outline" className="gap-1 text-brand-secondary-1">
 						<XCircle className="h-3 w-3" />
 						Declined
 					</Badge>

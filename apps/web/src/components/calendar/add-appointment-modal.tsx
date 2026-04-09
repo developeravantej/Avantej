@@ -1,18 +1,16 @@
 import React from "react";
-import { UserPlus, X, ChevronDown, ThumbsDown, Calendar, Check, Plus, Minus } from "lucide-react";
+import { UserPlus, X, ThumbsDown, Calendar, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/utils/orpc";
+import { orpc, client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface TeamMember {
@@ -121,21 +119,9 @@ export function AddAppointmentModal({
   teamMembers,
   selectedDate,
 }: AddAppointmentModalProps) {
-  // Helper function for day suffixes
-  const getDaySuffix = (day: number): string => {
-    if (day >= 11 && day <= 13) return 'th';
-    switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
-    }
-  };
-
   // Helper function to get the week position (e.g., "1st", "2nd", "3rd", "4th", "last")
   const getWeekPosition = (date: Date): string => {
     const dayOfMonth = date.getDate();
-    const dayOfWeek = date.getDay(); // 0 for Sunday, 6 for Saturday
     const weekNumber = Math.ceil((dayOfMonth + 6) / 7); // Calculate week number
 
     if (weekNumber === 1) return "first";
@@ -173,21 +159,31 @@ export function AddAppointmentModal({
     creditCost: s.price ?? 0, // cents; TODO: confirm display unit with team
   }));
 
-  const mockRooms = [
-    { id: "room-1", name: "Room A", capacity: 4, type: "Consultation" },
-    { id: "room-2", name: "Room B", capacity: 6, type: "Group Session" },
-    { id: "room-3", name: "Room C", capacity: 2, type: "Private" },
-    { id: "room-4", name: "Room D", capacity: 8, type: "Training" },
-    { id: "room-5", name: "Room E", capacity: 1, type: "Individual" },
-  ];
+  const { data: roomsData = [] } = useQuery({
+    queryKey: ["rooms", organizationId],
+    queryFn: () => client.rooms.list({ organizationId }),
+    enabled: !!organizationId,
+  });
 
-  const mockEmployees = [
-    { id: "emp-1", name: "Dr. Sarah Johnson", role: "Senior Therapist", department: "Psychology" },
-    { id: "emp-2", name: "Dr. Michael Chen", role: "Clinical Psychologist", department: "Psychology" },
-    { id: "emp-3", name: "Lisa Rodriguez", role: "Counselor", department: "Counseling" },
-    { id: "emp-4", name: "James Wilson", role: "Therapist", department: "Therapy" },
-    { id: "emp-5", name: "Dr. Emily Davis", role: "Psychiatrist", department: "Psychiatry" },
-  ];
+  const rooms = roomsData.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    capacity: r.capacity,
+    type: r.roomType ?? "",
+  }));
+
+  const { data: staffData = [] } = useQuery({
+    queryKey: ["members", organizationId, "staff"],
+    queryFn: () => client.members.list({ organizationId }),
+    enabled: !!organizationId,
+  });
+
+  const employees: { id: string; name: string; role: string; department: string }[] = staffData.map((m: any) => ({
+    id: m.id as string,
+    name: (m.name ?? m.email ?? m.userId) as string,
+    role: (m.role ?? "") as string,
+    department: "",
+  }));
 
   const { user } = useAuth();
 
@@ -447,23 +443,14 @@ export function AddAppointmentModal({
   const addNewAppointmentSlot = () => {
     // Check maximum appointment limit
     if (appointmentSlots.length >= 5) {
-      alert("Maximum of 5 appointments allowed per booking");
+      toast.error("Maximum of 5 appointments allowed per booking");
       return;
     }
     
     const baseDate = selectedDate ? new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     // Calculate next available time slot (increment by 30 minutes from last appointment)
-    let nextStartTime = getCurrentTimeRounded();
-    // if (appointmentSlots.length > 0) {
-    //   const lastSlot = appointmentSlots[appointmentSlots.length - 1];
-    //   const [lastHours, lastMinutes] = lastSlot.startTime.split(':').map(Number);
-    //   const lastTotalMinutes = lastHours * 60 + lastMinutes + lastSlot.duration;
-    //   const nextTotalMinutes = lastTotalMinutes + 30; // 30-minute buffer
-    //   const nextHours = Math.floor(nextTotalMinutes / 60) % 24;
-    //   const nextMins = nextTotalMinutes % 60;
-    //   nextStartTime = `${nextHours.toString().padStart(2, '0')}:${nextMins.toString().padStart(2, '0')}`;
-    // }
+    const nextStartTime = getCurrentTimeRounded();
 
     const newSlot: AppointmentSlot = {
       id: `slot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -666,26 +653,26 @@ export function AddAppointmentModal({
     // Handle blocked timing submission
     if (isBlockedTiming) {
       if (!newAppointment.startDate || !newAppointment.startTime || newAppointment.duration === 0) {
-        alert("Please fill in date, time, and duration for blocked timing");
+        toast.error("Please fill in date, time, and duration for blocked timing");
         return;
       }
 
       // Validate custom recurrence if selected
       if (newAppointment.recurrence === "custom") {
         if (!newAppointment.customRecurrence?.frequency || newAppointment.customRecurrence.frequency < 1) {
-          alert("Please enter a valid frequency for custom recurrence");
+          toast.error("Please enter a valid frequency for custom recurrence");
           return;
         }
         if (newAppointment.customRecurrence.timeUnit === "week" && newAppointment.customRecurrence.repeatOn.length === 0) {
-          alert("Please select at least one day for weekly custom recurrence");
+          toast.error("Please select at least one day for weekly custom recurrence");
           return;
         }
         if (newAppointment.customRecurrence.endsType === "on" && !newAppointment.customRecurrence.endsDate) {
-          alert("Please select an end date for the recurrence");
+          toast.error("Please select an end date for the recurrence");
           return;
         }
         if (newAppointment.customRecurrence.endsType === "after" && (!newAppointment.customRecurrence.endsOccurrences || newAppointment.customRecurrence.endsOccurrences < 1)) {
-          alert("Please enter a valid number of occurrences");
+          toast.error("Please enter a valid number of occurrences");
           return;
         }
       }
@@ -747,7 +734,7 @@ export function AddAppointmentModal({
       allErrors.push(...conflictErrors);
 
       if (allErrors.length > 0) {
-        alert(`Please fix the following issues:\n\n${allErrors.join('\n')}`);
+        toast.error(`Please fix the following issues: ${allErrors.join("; ")}`);
         return;
       }
 
@@ -793,45 +780,45 @@ export function AddAppointmentModal({
 
     // Handle single appointment submission
     if (!newAppointment.clientId && !isBlockedTiming) {
-      alert("Please select a customer");
+      toast.error("Please select a customer");
       return;
     }
-    
+
     if (!isBlockedTiming && !isMultiAppointment && newAppointment.selectedServices.length === 0) {
-      alert("Please select at least one service");
+      toast.error("Please select at least one service");
       return;
     }
-    
+
     // For multi-appointment mode, check if all slots have services
     if (!isBlockedTiming && isMultiAppointment) {
       const slotsWithoutServices = appointmentSlots.filter(slot => slot.selectedServices.length === 0);
       if (slotsWithoutServices.length > 0) {
-        alert(`Please select services for all appointment slots. ${slotsWithoutServices.length} slot(s) are missing services.`);
+        toast.error(`Please select services for all appointment slots. ${slotsWithoutServices.length} slot(s) are missing services.`);
         return;
       }
     }
-    
+
     if (!newAppointment.startDate || !newAppointment.startTime) {
-      alert("Please fill in date and time");
+      toast.error("Please fill in date and time");
       return;
     }
 
     // Validate custom recurrence if selected
     if (newAppointment.recurrence === "custom") {
       if (!newAppointment.customRecurrence?.frequency || newAppointment.customRecurrence.frequency < 1) {
-        alert("Please enter a valid frequency for custom recurrence");
+        toast.error("Please enter a valid frequency for custom recurrence");
         return;
       }
       if (newAppointment.customRecurrence.timeUnit === "week" && newAppointment.customRecurrence.repeatOn.length === 0) {
-        alert("Please select at least one day for weekly custom recurrence");
+        toast.error("Please select at least one day for weekly custom recurrence");
         return;
       }
       if (newAppointment.customRecurrence.endsType === "on" && !newAppointment.customRecurrence.endsDate) {
-        alert("Please select an end date for the recurrence");
+        toast.error("Please select an end date for the recurrence");
         return;
       }
       if (newAppointment.customRecurrence.endsType === "after" && (!newAppointment.customRecurrence.endsOccurrences || newAppointment.customRecurrence.endsOccurrences < 1)) {
-        alert("Please enter a valid number of occurrences");
+        toast.error("Please enter a valid number of occurrences");
         return;
       }
     }
@@ -839,17 +826,17 @@ export function AddAppointmentModal({
     // Find the selected client (only for regular appointments)
     const selectedClient = isBlockedTiming ? null : clients.find(client => client.id === newAppointment.clientId);
     if (!isBlockedTiming && !selectedClient) {
-      alert("Please select a valid client");
+      toast.error("Please select a valid client");
       return;
     }
 
     // Get selected services (only for regular appointments)
-    const selectedServices = isBlockedTiming ? [] : newAppointment.selectedServices.map(serviceId => 
+    const selectedServices = isBlockedTiming ? [] : newAppointment.selectedServices.map(serviceId =>
       services.find(svc => svc.id === serviceId)
     ).filter(Boolean);
-    
+
     if (!isBlockedTiming && !isMultiAppointment && selectedServices.length === 0) {
-      alert("Please select at least one service");
+      toast.error("Please select at least one service");
       return;
     }
 
@@ -1040,15 +1027,15 @@ export function AddAppointmentModal({
           <TooltipProvider>    
               <div className="grid grid-cols-6 grid-rows-5 ">
                   {/* Profile Part */}
-                  <div className="col-span-1 row-span-5 bg-gray-50 border border-gray-200 rounded-lg p-6 flex flex-col space-y-4">
+                  <div className="col-span-1 row-span-5 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg p-6 flex flex-col space-y-4">
                     {/* Profile Icon */}
-                    <div className="w-20 h-20 bg-gray-300 rounded-full flex items-center justify-center">
-                      <UserPlus className="h-10 w-10 text-gray-600" />
+                    <div className="w-20 h-20 bg-brand-secondary-2 rounded-full flex items-center justify-center">
+                      <UserPlus className="h-10 w-10 text-brand-secondary-1" />
                     </div>
                     
                     {/* Customer Name */}
                     <div className="space-y-2">
-                      <h3 className="text-lg font-bold text-gray-900">
+                      <h3 className="text-lg font-bold text-brand-primary-1">
                         {newAppointment.clientId ? 
                           clients.find(c => c.id === newAppointment.clientId)?.name || 'Select Customer' 
                           : 'Select Customer'
@@ -1057,7 +1044,7 @@ export function AddAppointmentModal({
                       
                       {/* No Show Count */}
                       {newAppointment.clientId && (
-                        <div className="flex gap-1 text-sm text-gray-600 items-center">
+                        <div className="flex gap-1 text-sm text-brand-secondary-1 items-center">
                           <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
                             <ThumbsDown className="h-4 w-4 text-white" />
                           </div>
@@ -1072,11 +1059,11 @@ export function AddAppointmentModal({
                     {/* Appointment Details */}
                     <div className="space-y-4 w-full">
                       <div className="text-left">
-                        <div className="flex flex-col gap-0 text-sm text-gray-700">
+                        <div className="flex flex-col gap-0 text-sm text-brand-primary-1">
                           <span className="font-medium">MOVE PRIVATE FITNESS -</span>
                           <div className="flex gap-2 items-center">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <span className="text-gray-500">{new Date().toLocaleDateString('en-US', { 
+                            <Calendar className="h-4 w-4 text-brand-secondary-1" />
+                            <span className="text-brand-secondary-1">{new Date().toLocaleDateString('en-US', { 
                               month: '2-digit', 
                               day: '2-digit', 
                               year: 'numeric' 
@@ -1089,14 +1076,14 @@ export function AddAppointmentModal({
                       {/* Multi-Appointment Toggle */}
                       {newAppointment.clientId && (<div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium text-gray-700">Multi-Appointment</Label>
+                          <Label className="text-sm font-medium text-brand-primary-1">Multi-Appointment</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                              <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                 ?
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                            <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                               <p className="text-black font-medium">Enable to create multiple appointments for the same customer with different time slots.</p>
                             </TooltipContent>
                           </Tooltip>
@@ -1106,7 +1093,7 @@ export function AddAppointmentModal({
                             type="button"
                             onClick={handleMultiAppointmentToggle}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                              isMultiAppointment ? 'bg-blue-600' : 'bg-gray-200'
+                              isMultiAppointment ? 'bg-blue-600' : 'bg-brand-secondary-3'
                             }`}
                           >
                             <span
@@ -1115,7 +1102,7 @@ export function AddAppointmentModal({
                               }`}
                             />
                           </button>
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-brand-secondary-1">
                             {isMultiAppointment ? 'Enabled' : 'Disabled'}
                           </span>
                         </div>
@@ -1128,13 +1115,13 @@ export function AddAppointmentModal({
                   <div className="col-span-5 row-span-5 rounded-lg py-2 flex flex-col items-center font-semibold">
                       <div>
                         <div className="text-center pb-6">
-                            <h1 className="text-2xl font-bold text-gray-900">Add New Appointment</h1>
+                            <h1 className="text-2xl font-bold text-brand-primary-1">Add New Appointment</h1>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={handleClose}
-                          className="absolute top-4 right-4 h-8 w-8 p-0 hover:bg-gray-200 z-10"
+                          className="absolute top-4 right-4 h-8 w-8 p-0 hover:bg-brand-secondary-3 z-10"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -1144,21 +1131,21 @@ export function AddAppointmentModal({
                     {!newAppointment.clientId && !isBlockedTiming && (
                       <div className="space-y-2 w-full px-6">
                         <div className="flex items-center gap-2">
-                          <Label htmlFor="clientId" className="text-sm font-medium text-gray-700">Customer *</Label>
+                          <Label htmlFor="clientId" className="text-sm font-medium text-brand-primary-1">Customer *</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                              <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                 ?
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent  side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                            <TooltipContent  side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                               <p className="text-black font-medium">Select the client for this appointment. Their credit balance will be checked against the service cost.</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
                         <div className="flex gap-2">
                           <Select value={newAppointment.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
-                            <SelectTrigger className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectTrigger className="flex-1 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                               <SelectValue placeholder="Search Customer by Name" />
                             </SelectTrigger>
                             <SelectContent className="z-[10001]">
@@ -1166,7 +1153,7 @@ export function AddAppointmentModal({
                                 <SelectItem key={client.id} value={client.id}>
                                   <div className="flex items-center justify-between w-full">
                                     <span className="font-medium pr-2">{client.name}</span>
-                                    <span className="text-sm text-gray-500">{client.email}</span>
+                                    <span className="text-sm text-brand-secondary-1">{client.email}</span>
                                   </div>
                                 </SelectItem>
                               ))}
@@ -1176,21 +1163,20 @@ export function AddAppointmentModal({
                             type="button"
                             variant="outline"
                             size="default"
-                            className="px-5 border-gray-300 hover:bg-gray-50"
+                            className="px-5 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                             onClick={() => {
                               // Add your plus button functionality here
-                              console.log('Add new client clicked');
                             }}
                           >
                             <UserPlus className="h-5 w-5" />
                           </Button>
                         </div>
-                        
+
 
                         {/* add the seperator line */}
                         <div className="relative flex items-center justify-center my-4">
-                          <div className="w-full h-px bg-gray-200"></div>
-                          <span className="absolute bg-white px-3 text-sm text-gray-500 font-medium">or</span>
+                          <div className="w-full h-px bg-brand-secondary-3"></div>
+                          <span className="absolute bg-white px-3 text-sm text-brand-secondary-1 font-medium">or</span>
                         </div>
                             
                         {/* Blocked Timing Button */}
@@ -1215,19 +1201,19 @@ export function AddAppointmentModal({
                           {/* Date and Time */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="startDate" className="text-sm font-medium text-gray-700">Date *</Label>
+                              <Label htmlFor="startDate" className="text-sm font-medium text-brand-primary-1">Date *</Label>
                               <Input
                                 id="startDate"
                                 type="date"
                                 value={newAppointment.startDate}
                                 onChange={(e) => handleInputChange('startDate', e.target.value)}
                                 required
-                                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                               />
                             </div>
                             
                             <div className="space-y-2">
-                              <Label className="text-sm font-medium text-gray-700">Start Time *</Label>
+                              <Label className="text-sm font-medium text-brand-primary-1">Start Time *</Label>
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <Select 
@@ -1238,7 +1224,7 @@ export function AddAppointmentModal({
                                       handleInputChange('startTime', timeString);
                                     }}
                                   >
-                                    <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                    <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                       <SelectValue placeholder="Hour" />
                                     </SelectTrigger>
                                     <SelectContent className="z-[10001]">
@@ -1264,7 +1250,7 @@ export function AddAppointmentModal({
                                       handleInputChange('startTime', timeString);
                                     }}
                                   >
-                                    <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                    <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                       <SelectValue placeholder="Minute" />
                                     </SelectTrigger>
                                     <SelectContent className="z-[10001]">
@@ -1281,20 +1267,20 @@ export function AddAppointmentModal({
 
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <Label htmlFor="recurrence" className="text-sm font-medium text-gray-700">Recurrence</Label>
+                                <Label htmlFor="recurrence" className="text-sm font-medium text-brand-primary-1">Recurrence</Label>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                    <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                       ?
                                     </button>
                                   </TooltipTrigger>
-                                  <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                  <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                     <p className="text-black font-medium">Set how often this blocked time repeats.</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </div>
                               <Select value={newAppointment.recurrence} onValueChange={(value) => handleInputChange('recurrence', value)}>
-                                <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                   <SelectValue placeholder="Select recurrence" />
                                 </SelectTrigger>
                                 <SelectContent className="z-[10001]">
@@ -1312,21 +1298,21 @@ export function AddAppointmentModal({
 
                           {/* Duration */}
                           <div className="space-y-2">
-                            <Label htmlFor="duration" className="text-sm font-medium text-gray-700">Duration *</Label>
+                            <Label htmlFor="duration" className="text-sm font-medium text-brand-primary-1">Duration *</Label>
                             <div className="flex items-center gap-2">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => adjustDuration(-5)}
-                                className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                 disabled={newAppointment.duration <= 5}
                               >
                                 <Minus className="h-4 w-4" />
                               </Button>
                               
-                              <div className="flex-1 text-center py-2 px-3 bg-gray-50 border border-gray-300 rounded-md">
-                                <span className="text-sm font-medium text-gray-900">
+                              <div className="flex-1 text-center py-2 px-3 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-md">
+                                <span className="text-sm font-medium text-brand-primary-1">
                                   {formatDuration(newAppointment.duration)}
                                 </span>
                               </div>
@@ -1336,13 +1322,13 @@ export function AddAppointmentModal({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => adjustDuration(5)}
-                                className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                               >
                                 <Plus className="h-4 w-4" />
                               </Button>
                             </div>
                             
-                            <div className="text-xs text-gray-500 text-center">
+                            <div className="text-xs text-brand-secondary-1 text-center">
                               START: {newAppointment.startTime} | END: {
                                 (() => {
                                   const [hours, minutes] = newAppointment.startTime.split(':').map(Number);
@@ -1358,24 +1344,24 @@ export function AddAppointmentModal({
                           {/* Employee */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Label htmlFor="employeeId" className="text-sm font-medium text-gray-700">Employee</Label>
+                              <Label htmlFor="employeeId" className="text-sm font-medium text-brand-primary-1">Employee</Label>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                  <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                     ?
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                   <p className="text-black font-medium">Select the employee for this blocked time.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
                             <Select value={newAppointment.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)}>
-                              <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                              <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                 <SelectValue placeholder="Select employee (optional)" />
                               </SelectTrigger>
                               <SelectContent className="z-[10001]">
-                                {mockEmployees.map((employee) => (
+                                {employees.map((employee) => (
                                   <SelectItem key={employee.id} value={employee.id}>
                                     {employee.name}
                                   </SelectItem>
@@ -1386,14 +1372,14 @@ export function AddAppointmentModal({
 
                           {/* Remarks */}
                           <div className="space-y-2">
-                            <Label htmlFor="remarks" className="text-sm font-medium text-gray-700">Remarks</Label>
+                            <Label htmlFor="remarks" className="text-sm font-medium text-brand-primary-1">Remarks</Label>
                             <Textarea
                               id="remarks"
                               value={newAppointment.remarks}
                               onChange={(e) => handleInputChange('remarks', e.target.value)}
                               placeholder="Enter reason for blocked time..."
                               rows={3}
-                              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                              className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                             />
                           </div>
 
@@ -1405,7 +1391,7 @@ export function AddAppointmentModal({
                                 setIsBlockedTiming(false);
                                 resetForm();
                               }}
-                              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                              className="flex-1 border-brand-secondary-3 text-brand-primary-1 hover:bg-brand-secondary-3/50"
                             >
                               Cancel
                             </Button>
@@ -1425,25 +1411,25 @@ export function AddAppointmentModal({
                     {(newAppointment.clientId && 
                       <div className="grid grid-cols-6 grid-rows-5 w-full">
                         {/* Row A */}
-                        <div className="col-span-3 row-span-5 border-r border-gray-200 p-2 flex flex-col space-y-4">
+                        <div className="col-span-3 row-span-5 border-r border-brand-secondary-3 p-2 flex flex-col space-y-4">
                             {/* Customer Information */}
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                  <Label htmlFor="clientId" className="text-sm font-medium text-gray-700">Customer *</Label>
+                                  <Label htmlFor="clientId" className="text-sm font-medium text-brand-primary-1">Customer *</Label>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                      <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                         ?
                                       </button>
                                     </TooltipTrigger>
-                                    <TooltipContent  side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                    <TooltipContent  side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                       <p className="text-black font-medium">Select the client for this appointment. Their credit balance will be checked against the service cost.</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </div>
                                 <div className="flex gap-2">
                                     <Select value={newAppointment.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
-                                                    <SelectTrigger className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                                    <SelectTrigger className="flex-1 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                                       <SelectValue placeholder="Search Customer by Name" />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
@@ -1451,7 +1437,7 @@ export function AddAppointmentModal({
                                           <SelectItem key={client.id} value={client.id}>
                                             <div className="flex items-center justify-between w-full">
                                               <span className="font-medium pr-2">{client.name}</span>
-                                              <span className="text-sm text-gray-500">{client.email}</span>
+                                              <span className="text-sm text-brand-secondary-1">{client.email}</span>
                                             </div>
                                           </SelectItem>
                                         ))}
@@ -1461,10 +1447,9 @@ export function AddAppointmentModal({
                                     type="button"
                                     variant="outline"
                                     size="default"
-                                    className="px-5 border-gray-300 hover:bg-gray-50"
+                                    className="px-5 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                     onClick={() => {
                                       // Add your plus button functionality here
-                                      console.log('Add new client clicked');
                                     }}
                                   >
                                     <UserPlus className="h-5 w-5" />
@@ -1488,15 +1473,15 @@ export function AddAppointmentModal({
                                 {/* Appointment Cards */}
                                 {appointmentSlots.length > 0 && (
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-gray-700">Appointments:</Label>
-                                    <div className="space-y-2 max-h-[475px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                    <Label className="text-sm font-medium text-brand-primary-1">Appointments:</Label>
+                                    <div className="space-y-2 max-h-[475px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-brand-secondary-2 [&::-webkit-scrollbar-thumb]:rounded-full">
                                       {appointmentSlots.map((slot, index) => (
                                         <Card 
                                           key={slot.id} 
                                           className={`cursor-pointer transition-colors ${
                                             selectedAppointmentId === slot.id 
                                               ? 'border-blue-500 bg-blue-50' 
-                                              : 'border-gray-200 hover:border-gray-300'
+                                              : 'border-brand-secondary-3 hover:border-brand-secondary-3'
                                           }`}
                                           onClick={() => selectAppointmentSlot(slot.id)}
                                         >
@@ -1505,13 +1490,13 @@ export function AddAppointmentModal({
                                             <div className="flex items-center justify-between mb-3">
                                               <div className="flex items-center gap-2">
                                                 <div className={`w-3 h-3 rounded-full ${
-                                                  selectedAppointmentId === slot.id ? 'bg-blue-500' : 'bg-gray-300'
+                                                  selectedAppointmentId === slot.id ? 'bg-blue-500' : 'bg-brand-secondary-2'
                                                 }`}></div>
                                                 <div>
-                                                  <div className="text-sm font-medium text-gray-900">
+                                                  <div className="text-sm font-medium text-brand-primary-1">
                                                     Appointment {index + 1}
                                                   </div>
-                                                  <div className="text-xs text-gray-500">
+                                                  <div className="text-xs text-brand-secondary-1">
                                                     {slot.startDate} at {slot.startTime}
                                                     {slot.endTime && ` → ${slot.endTime}`}
                                                     {slot.duration > 0 && ` • ${formatDuration(slot.duration)}`}
@@ -1535,12 +1520,12 @@ export function AddAppointmentModal({
                                             {/* Service Selection for this Appointment */}
                                             <div className="space-y-2">
                                               <div className="flex items-center gap-2">
-                                                <Label className="text-xs font-medium text-gray-600">Services:</Label>
+                                                <Label className="text-xs font-medium text-brand-secondary-1">Services:</Label>
                                                 <Button
                                                   type="button"
                                                   variant="outline"
                                                   size="sm"
-                                                  className="h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
+                                                  className="h-6 px-2 text-xs border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     setSelectedAppointmentId(slot.id);
@@ -1558,11 +1543,11 @@ export function AddAppointmentModal({
                                                   {slot.selectedServices.map((serviceId) => {
                                                     const service = services.find(s => s.id === serviceId);
                                                     return service ? (
-                                                      <div key={serviceId} className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded text-xs">
+                                                      <div key={serviceId} className="flex items-center justify-between p-2 bg-white border border-brand-secondary-3 rounded text-xs">
                                                         <div className="flex items-center gap-2">
                                                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                                                          <span className="font-medium text-gray-800">{service.name}</span>
-                                                          <span className="text-gray-500">({service.durationMinutes}m)</span>
+                                                          <span className="font-medium text-brand-primary-1">{service.name}</span>
+                                                          <span className="text-brand-secondary-1">({service.durationMinutes}m)</span>
                                                         </div>
                                                         <Button
                                                           type="button"
@@ -1583,7 +1568,7 @@ export function AddAppointmentModal({
                                               )}
                                               
                                               {slot.selectedServices.length === 0 && (
-                                                <div className="text-center py-2 text-gray-400 text-xs">
+                                                <div className="text-center py-2 text-brand-secondary-2 text-xs">
                                                   No services selected
                                                 </div>
                                               )}
@@ -1601,14 +1586,14 @@ export function AddAppointmentModal({
                             {!isMultiAppointment && (
                               <div className="space-y-2 h-full">
                                 <div className="flex items-center gap-2">
-                                  <Label className="text-sm font-medium text-gray-700">Services *</Label>
+                                  <Label className="text-sm font-medium text-brand-primary-1">Services *</Label>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                        <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                           ?
                                         </button>
                                       </TooltipTrigger>
-                                      <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                      <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                                         <p className="text-black font-medium">Add services to this appointment. Duration will be calculated automatically.</p>
                                       </TooltipContent>
                                     </Tooltip>
@@ -1618,7 +1603,7 @@ export function AddAppointmentModal({
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className=" border-gray-300 focus:border-blue-500 focus:ring-blue-500 justify-start"
+                                  className=" border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 justify-start"
                                   onClick={() => setIsServiceDialogOpen(true)}
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
@@ -1629,17 +1614,17 @@ export function AddAppointmentModal({
                                 {/* Selected Services List */}
                                 {newAppointment.selectedServices.length > 0 && (
                                   <div className="space-y-2 mt-3">
-                                    <Label className="text-sm font-medium text-gray-700">Selected Services:</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Selected Services:</Label>
                                     <div className="space-y-2">
                                       {newAppointment.selectedServices.map((serviceId) => {
                                         const service = services.find(s => s.id === serviceId);
                                         return service ? (
-                                          <div key={serviceId} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                          <div key={serviceId} className="flex items-center justify-between p-3 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg">
                                             <div className="flex items-center gap-3">
                                               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                                               <div>
-                                                <span className="font-medium text-gray-900">{service.name}</span>
-                                                <span className="text-sm text-gray-500 ml-2">({service.durationMinutes} min)</span>
+                                                <span className="font-medium text-brand-primary-1">{service.name}</span>
+                                                <span className="text-sm text-brand-secondary-1 ml-2">({service.durationMinutes} min)</span>
                                               </div>
                                             </div>
                                             <Button
@@ -1659,7 +1644,7 @@ export function AddAppointmentModal({
                                 )}
                                 
                                 {newAppointment.selectedServices.length === 0 && (
-                                  <div className="text-center py-8 text-gray-500">
+                                  <div className="text-center py-8 text-brand-secondary-1">
                                     <div className="text-sm">No services selected</div>
                                     <div className="text-xs mt-1">Add services using the button above</div>
                                   </div>
@@ -1675,12 +1660,12 @@ export function AddAppointmentModal({
                             <Card className="w-full max-w-md max-h-[80vh] overflow-hidden bg-white shadow-2xl">
                               <CardContent className="p-6">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h3 className="text-lg font-semibold text-gray-900">Select Services</h3>
+                                  <h3 className="text-lg font-semibold text-brand-primary-1">Select Services</h3>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setIsServiceDialogOpen(false)}
-                                    className="h-8 w-8 p-0 hover:bg-gray-200"
+                                    className="h-8 w-8 p-0 hover:bg-brand-secondary-3"
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
@@ -1697,7 +1682,7 @@ export function AddAppointmentModal({
                                     .map((svc) => (
                                       <div
                                         key={svc.id}
-                                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                                        className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer"
                                         onClick={() => {
                                           if (isMultiAppointment && selectedAppointmentId) {
                                             addServiceToSlot(selectedAppointmentId, svc.id);
@@ -1709,7 +1694,7 @@ export function AddAppointmentModal({
                                       >
                                         <div className="flex justify-between w-full">
                                           <span className="font-medium pr-2">{svc.name}</span>
-                                          <span className="text-sm text-gray-500">{svc.durationMinutes} min</span>
+                                          <span className="text-sm text-brand-secondary-1">{svc.durationMinutes} min</span>
                                         </div>
                                       </div>
                                     ))}
@@ -1720,7 +1705,7 @@ export function AddAppointmentModal({
                                     }
                                     return !newAppointment.selectedServices.includes(svc.id);
                                   }).length === 0 && (
-                                    <div className="text-center py-4 text-gray-500">
+                                    <div className="text-center py-4 text-brand-secondary-1">
                                       All services have been selected
                               </div>
                                   )}
@@ -1739,7 +1724,6 @@ export function AddAppointmentModal({
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                                 <h3 className="text-sm font-semibold text-blue-900">
                                   Editing: {(() => {
-                                    const selectedSlot = appointmentSlots.find(slot => slot.id === selectedAppointmentId);
                                     const index = appointmentSlots.findIndex(slot => slot.id === selectedAppointmentId);
                                     return `Appointment ${index + 1}`;
                                   })()}
@@ -1765,23 +1749,23 @@ export function AddAppointmentModal({
                             if (!selectedSlot) return null;
 
                             return (
-                              <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-lg border">
-                                <h4 className="text-sm font-semibold text-gray-900">Edit Appointment Details</h4>
+                              <div className="space-y-4 mb-6 p-4 bg-brand-secondary-3/50 rounded-lg border">
+                                <h4 className="text-sm font-semibold text-brand-primary-1">Edit Appointment Details</h4>
                                 
                                 {/* Date and Time for Selected Slot */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-gray-700">Date</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Date</Label>
                                     <Input
                                       type="date"
                                       value={selectedSlot.startDate}
                                       onChange={(e) => updateAppointmentSlot(selectedSlot.id, 'startDate', e.target.value)}
-                                      className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                      className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                                     />
                                   </div>
                                   
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-gray-700">Start Time</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Start Time</Label>
                                     <div className="flex gap-2">
                                       <div className="flex-1">
                                         <Select 
@@ -1792,7 +1776,7 @@ export function AddAppointmentModal({
                                             updateAppointmentSlot(selectedSlot.id, 'startTime', timeString);
                                           }}
                                         >
-                                          <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                          <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                             <SelectValue placeholder="Hour" />
                                           </SelectTrigger>
                                           <SelectContent className="z-[10001]">
@@ -1818,7 +1802,7 @@ export function AddAppointmentModal({
                                             updateAppointmentSlot(selectedSlot.id, 'startTime', timeString);
                                           }}
                                         >
-                                          <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                          <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                             <SelectValue placeholder="Minute" />
                                           </SelectTrigger>
                                           <SelectContent className="z-[10001]">
@@ -1837,13 +1821,13 @@ export function AddAppointmentModal({
                                 {/* Room and Employee for Selected Slot */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-gray-700">Area</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Area</Label>
                                     <Select value={selectedSlot.roomId} onValueChange={(value) => updateAppointmentSlot(selectedSlot.id, 'roomId', value)}>
-                                      <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                         <SelectValue placeholder="Please Choose..." />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {mockRooms.map((room) => (
+                                        {rooms.map((room) => (
                                           <SelectItem key={room.id} value={room.id}>
                                             {room.name}
                                           </SelectItem>
@@ -1853,13 +1837,13 @@ export function AddAppointmentModal({
                                   </div>
                                 
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-gray-700">Employee</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Employee</Label>
                                     <Select value={selectedSlot.employeeId} onValueChange={(value) => updateAppointmentSlot(selectedSlot.id, 'employeeId', value)}>
-                                      <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                         <SelectValue placeholder="There are no employees available" />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {mockEmployees.map((employee) => (
+                                        {employees.map((employee) => (
                                           <SelectItem key={employee.id} value={employee.id}>
                                             {employee.name}
                                           </SelectItem>
@@ -1871,7 +1855,7 @@ export function AddAppointmentModal({
 
                                 {/* Duration for Selected Slot */}
                                 <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">Duration</Label>
+                                  <Label className="text-sm font-medium text-brand-primary-1">Duration</Label>
                                   <div className="flex items-center gap-2">
                                     <Button
                                       type="button"
@@ -1881,14 +1865,14 @@ export function AddAppointmentModal({
                                         const newDuration = Math.max(5, selectedSlot.duration - 5);
                                         updateAppointmentSlot(selectedSlot.id, 'duration', newDuration);
                                       }}
-                                      className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                      className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                       disabled={selectedSlot.duration <= 5}
                                     >
                                       <Minus className="h-4 w-4" />
                                     </Button>
                                     
-                                    <div className="flex-1 text-center py-2 px-3 bg-white border border-gray-300 rounded-md">
-                                      <span className="text-sm font-medium text-gray-900">
+                                    <div className="flex-1 text-center py-2 px-3 bg-white border border-brand-secondary-3 rounded-md">
+                                      <span className="text-sm font-medium text-brand-primary-1">
                                         {formatDuration(selectedSlot.duration)}
                                       </span>
                                     </div>
@@ -1901,13 +1885,13 @@ export function AddAppointmentModal({
                                         const newDuration = selectedSlot.duration + 5;
                                         updateAppointmentSlot(selectedSlot.id, 'duration', newDuration);
                                       }}
-                                      className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                      className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                     >
                                       <Plus className="h-4 w-4" />
                                     </Button>
                                   </div>
                                   
-                                  <div className="text-xs text-gray-500 text-center">
+                                  <div className="text-xs text-brand-secondary-1 text-center">
                                     START: {selectedSlot.startTime} | END: {
                                       selectedSlot.endTime || (() => {
                                         const [hours, minutes] = selectedSlot.startTime.split(':').map(Number);
@@ -1922,13 +1906,13 @@ export function AddAppointmentModal({
 
                                 {/* Remarks for Selected Slot */}
                                 <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">Remarks</Label>
+                                  <Label className="text-sm font-medium text-brand-primary-1">Remarks</Label>
                                   <Textarea
                                     value={selectedSlot.remarks}
                                     onChange={(e) => updateAppointmentSlot(selectedSlot.id, 'remarks', e.target.value)}
                                     placeholder="Enter any additional remarks for this appointment..."
                                     rows={2}
-                                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                    className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                                   />
                                 </div>
                               </div>
@@ -1941,19 +1925,19 @@ export function AddAppointmentModal({
                               {/* Date and Time */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                  <Label htmlFor="startDate" className="text-sm font-medium text-gray-700">Date *</Label>
+                                  <Label htmlFor="startDate" className="text-sm font-medium text-brand-primary-1">Date *</Label>
                                   <Input
                                     id="startDate"
                                     type="date"
                                     value={newAppointment.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
                                     required
-                                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                    className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                                   />
                                 </div>
                                 
                                 <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">Start Time *</Label>
+                                  <Label className="text-sm font-medium text-brand-primary-1">Start Time *</Label>
                                   <div className="flex gap-2">
                                     {/* Hour Selector */}
                                     <div className="flex-1">
@@ -1965,7 +1949,7 @@ export function AddAppointmentModal({
                                           handleInputChange('startTime', timeString);
                                         }}
                                       >
-                                        <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                           <SelectValue placeholder="Hour" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -1992,7 +1976,7 @@ export function AddAppointmentModal({
                                           handleInputChange('startTime', timeString);
                                         }}
                                       >
-                                        <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                           <SelectValue placeholder="Minute" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -2009,20 +1993,20 @@ export function AddAppointmentModal({
 
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <Label htmlFor="recurrence" className="text-sm font-medium text-gray-700">Recurrence</Label>
+                                    <Label htmlFor="recurrence" className="text-sm font-medium text-brand-primary-1">Recurrence</Label>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                        <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                           ?
                                         </button>
                                       </TooltipTrigger>
-                                      <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                      <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                         <p className="text-black font-medium">Set how often this appointment repeats. Recurring appointments will multiply the credit cost.</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>
                                   <Select value={newAppointment.recurrence} onValueChange={(value) => handleInputChange('recurrence', value)}>
-                                    <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                    <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                       <SelectValue placeholder="Select recurrence" />
                                     </SelectTrigger>
                                     <SelectContent className="z-[10001]">
@@ -2040,12 +2024,12 @@ export function AddAppointmentModal({
 
                               {/* Custom Recurrence Section */}
                               {newAppointment.recurrence === "custom" && (
-                                <div className="space-y-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
-                                  <h4 className="text-lg font-semibold text-gray-900">Custom Recurrence</h4>
+                                <div className="space-y-6 p-6 bg-brand-secondary-3/50 rounded-lg border border-brand-secondary-3">
+                                  <h4 className="text-lg font-semibold text-brand-primary-1">Custom Recurrence</h4>
                                   
                                   {/* Repeat every section */}
                                   <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-gray-700">Repeat every</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Repeat every</Label>
                                     <div className="flex items-center space-x-3">
                                       <Input
                                         type="number"
@@ -2053,13 +2037,13 @@ export function AddAppointmentModal({
                                         max="99"
                                         value={newAppointment.customRecurrence?.frequency || 1}
                                         onChange={(e) => handleCustomRecurrenceChange('frequency', parseInt(e.target.value) || 1)}
-                                        className="w-20 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center"
+                                        className="w-20 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 text-center"
                                       />
                                       <Select 
                                         value={newAppointment.customRecurrence?.timeUnit || "week"} 
                                         onValueChange={(value) => handleCustomRecurrenceChange('timeUnit', value)}
                                       >
-                                        <SelectTrigger className="w-32 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                        <SelectTrigger className="w-32 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -2075,7 +2059,7 @@ export function AddAppointmentModal({
                                   {/* Repeat on section - only show for weekly recurrence */}
                                   {newAppointment.customRecurrence?.timeUnit === "week" && (
                                     <div className="space-y-3">
-                                      <Label className="text-sm font-medium text-gray-700">Repeat on</Label>
+                                      <Label className="text-sm font-medium text-brand-primary-1">Repeat on</Label>
                                       <div className="flex gap-2">
                                         {[
                                           { key: 'M', label: 'M', full: 'Monday' },
@@ -2093,7 +2077,7 @@ export function AddAppointmentModal({
                                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-colors ${
                                               newAppointment.customRecurrence?.repeatOn.includes(day.key)
                                                 ? 'bg-blue-600 border-blue-600 text-white'
-                                                : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                                                : 'bg-white border-brand-secondary-3 text-brand-secondary-1 hover:border-brand-secondary-2'
                                             }`}
                                             title={day.full}
                                           >
@@ -2107,12 +2091,12 @@ export function AddAppointmentModal({
                                   {/* Monthly recurrence options */}
                                   {newAppointment.customRecurrence?.timeUnit === "month" && (
                                     <div className="space-y-3">
-                                      <Label className="text-sm font-medium text-gray-700">Monthly on</Label>
+                                      <Label className="text-sm font-medium text-brand-primary-1">Monthly on</Label>
                                       <Select 
                                         value={newAppointment.customRecurrence.monthlyType || "day"} 
                                         onValueChange={(value) => handleCustomRecurrenceChange('monthlyType', value)}
                                       >
-                                        <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -2129,7 +2113,7 @@ export function AddAppointmentModal({
 
                                   {/* Ends section */}
                                   <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-gray-700">Ends</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Ends</Label>
                                     <div className="space-y-2">
                                       <div className="flex items-center space-x-2">
                                         <input
@@ -2139,9 +2123,9 @@ export function AddAppointmentModal({
                                           value="never"
                                           checked={newAppointment.customRecurrence?.endsType === "never"}
                                           onChange={() => handleCustomRecurrenceChange('endsType', 'never')}
-                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
                                         />
-                                        <Label htmlFor="ends-never" className="text-sm text-gray-700 cursor-pointer">
+                                        <Label htmlFor="ends-never" className="text-sm text-brand-primary-1 cursor-pointer">
                                           Never
                                         </Label>
                                       </div>
@@ -2153,12 +2137,12 @@ export function AddAppointmentModal({
                                           value="on"
                                           checked={newAppointment.customRecurrence?.endsType === "on"}
                                           onChange={() => handleCustomRecurrenceChange('endsType', 'on')}
-                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
                                         />
-                                        <Label htmlFor="ends-on" className="text-sm text-gray-700 cursor-pointer">
+                                        <Label htmlFor="ends-on" className="text-sm text-brand-primary-1 cursor-pointer">
                                           On
                                         </Label>
-                                        <div className="ml-2 px-3 py-1 bg-gray-100 border border-gray-300 rounded text-sm text-gray-600">
+                                        <div className="ml-2 px-3 py-1 bg-brand-secondary-3 border border-brand-secondary-3 rounded text-sm text-brand-secondary-1">
                                           <Input
                                             type="date"
                                             value={newAppointment.customRecurrence?.endsDate || ''}
@@ -2175,9 +2159,9 @@ export function AddAppointmentModal({
                                           value="after"
                                           checked={newAppointment.customRecurrence?.endsType === "after"}
                                           onChange={() => handleCustomRecurrenceChange('endsType', 'after')}
-                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
                                         />
-                                        <Label htmlFor="ends-after" className="text-sm text-gray-700 cursor-pointer">
+                                        <Label htmlFor="ends-after" className="text-sm text-brand-primary-1 cursor-pointer">
                                           After
                                         </Label>
                                         <div className="ml-2 flex items-center space-x-1">
@@ -2187,9 +2171,9 @@ export function AddAppointmentModal({
                                             max="999"
                                             value={newAppointment.customRecurrence?.endsOccurrences || 1}
                                             onChange={(e) => handleCustomRecurrenceChange('endsOccurrences', parseInt(e.target.value) || 1)}
-                                            className="w-16 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center"
+                                            className="w-16 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 text-center"
                                           />
-                                          <span className="text-sm text-gray-600">occurrences</span>
+                                          <span className="text-sm text-brand-secondary-1">occurrences</span>
                                         </div>
                                       </div>
                                     </div>
@@ -2198,21 +2182,21 @@ export function AddAppointmentModal({
                               )}
 
                               <div className="space-y-2">
-                                <Label htmlFor="duration" className="text-sm font-medium text-gray-700">Duration</Label>
+                                <Label htmlFor="duration" className="text-sm font-medium text-brand-primary-1">Duration</Label>
                                 <div className="flex items-center gap-2">
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => adjustDuration(-5)}
-                                    className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                    className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                     disabled={newAppointment.duration <= 5}
                                   >
                                     <Minus className="h-4 w-4" />
                                   </Button>
                                   
-                                  <div className="flex-1 text-center py-2 px-3 bg-gray-50 border border-gray-300 rounded-md">
-                                    <span className="text-sm font-medium text-gray-900">
+                                  <div className="flex-1 text-center py-2 px-3 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-md">
+                                    <span className="text-sm font-medium text-brand-primary-1">
                                       {formatDuration(newAppointment.duration)}
                                     </span>
                                   </div>
@@ -2222,13 +2206,13 @@ export function AddAppointmentModal({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => adjustDuration(5)}
-                                    className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
+                                    className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
                                 </div>
                                 
-                                <div className="text-xs text-gray-500 text-center">
+                                <div className="text-xs text-brand-secondary-1 text-center">
                                   START: {newAppointment.startTime} | END: {
                                     (() => {
                                       const [hours, minutes] = newAppointment.startTime.split(':').map(Number);
@@ -2246,24 +2230,24 @@ export function AddAppointmentModal({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                      <Label htmlFor="roomId" className="text-sm font-medium text-gray-700">Area *</Label>
+                                      <Label htmlFor="roomId" className="text-sm font-medium text-brand-primary-1">Area *</Label>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                          <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                             ?
                                           </button>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                        <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                           <p className="text-black font-medium">Select the room where the appointment will take place.</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
                                     <Select value={newAppointment.roomId} onValueChange={(value) => handleInputChange('roomId', value)}>
-                                      <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                         <SelectValue placeholder="Please Choose..." />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {mockRooms.map((room) => (
+                                        {rooms.map((room) => (
                                           <SelectItem key={room.id} value={room.id}>
                                             {room.name}
                                           </SelectItem>
@@ -2274,24 +2258,24 @@ export function AddAppointmentModal({
                                 
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                      <Label htmlFor="employeeId" className="text-sm font-medium text-gray-700">Employee</Label>
+                                      <Label htmlFor="employeeId" className="text-sm font-medium text-brand-primary-1">Employee</Label>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <button type="button" className="w-5 h-5 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700 flex items-center justify-center text-xs font-medium">
+                                          <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
                                             ?
                                           </button>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" align="start" className="z-[10002] bg-gray-200 text-black font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
+                                        <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
                                           <p className="text-black font-medium">Select the employee who will handle this appointment.</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
                                     <Select value={newAppointment.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)}>
-                                      <SelectTrigger className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                         <SelectValue placeholder="There are no employees available" />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {mockEmployees.map((employee) => (
+                                        {employees.map((employee) => (
                                           <SelectItem key={employee.id} value={employee.id}>
                                             {employee.name}
                                           </SelectItem>
@@ -2305,14 +2289,14 @@ export function AddAppointmentModal({
                               {/* Remarks Section */}
                               <div className="space-y-4">                              
                                 <div className="space-y-2">
-                                  <Label htmlFor="remarks" className="text-sm font-medium text-gray-700">Remarks</Label>
+                                  <Label htmlFor="remarks" className="text-sm font-medium text-brand-primary-1">Remarks</Label>
                                   <Textarea
                                     id="remarks"
                                     value={newAppointment.remarks}
                                     onChange={(e) => handleInputChange('remarks', e.target.value)}
                                     placeholder="Enter any additional remarks..."
                                     rows={3}
-                                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                    className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
                                   />
                                 </div>
                               </div>
@@ -2330,7 +2314,7 @@ export function AddAppointmentModal({
                           <Button
                             variant="outline"
                             onClick={clearAllForm}
-                            className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                            className="flex-1 border-brand-secondary-3 text-brand-primary-1 hover:bg-brand-secondary-3/50"
                           >
                             Reset
                           </Button>
@@ -2377,7 +2361,7 @@ export function AddAppointmentModal({
           <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white shadow-2xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-brand-primary-1">
                   🧪 Test Data - {testAppointmentData.type}
                 </h3>
                 <div className="flex gap-2">
@@ -2388,7 +2372,7 @@ export function AddAppointmentModal({
                       setIsTestDialogOpen(false);
                       setTestAppointmentData(null);
                     }}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                    className="border-brand-secondary-3 text-brand-primary-1 hover:bg-brand-secondary-3/50"
                   >
                     Close
                   </Button>
@@ -2427,9 +2411,9 @@ export function AddAppointmentModal({
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 {/* Appointment Object */}
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-gray-800">📋 Appointment Object:</h4>
-                  <div className="bg-gray-50 p-3 rounded-lg border">
-                    <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                  <h4 className="text-sm font-semibold text-brand-primary-1">📋 Appointment Object:</h4>
+                  <div className="bg-brand-secondary-3/50 p-3 rounded-lg border">
+                    <pre className="text-xs text-brand-primary-1 whitespace-pre-wrap">
                       {JSON.stringify(testAppointmentData.appointment || testAppointmentData.appointments, null, 2)}
                     </pre>
                   </div>
@@ -2438,9 +2422,9 @@ export function AddAppointmentModal({
                 {/* Client Details */}
                 {testAppointmentData.clientDetails && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-800">👤 Client Details:</h4>
+                    <h4 className="text-sm font-semibold text-brand-primary-1">👤 Client Details:</h4>
                     <div className="bg-blue-50 p-3 rounded-lg border">
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <pre className="text-xs text-brand-primary-1 whitespace-pre-wrap">
                         {JSON.stringify(testAppointmentData.clientDetails, null, 2)}
                       </pre>
                     </div>
@@ -2450,9 +2434,9 @@ export function AddAppointmentModal({
                 {/* Service Details */}
                 {testAppointmentData.serviceDetails && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-800">🔧 Service Details:</h4>
+                    <h4 className="text-sm font-semibold text-brand-primary-1">🔧 Service Details:</h4>
                     <div className="bg-green-50 p-3 rounded-lg border">
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <pre className="text-xs text-brand-primary-1 whitespace-pre-wrap">
                         {JSON.stringify(testAppointmentData.serviceDetails, null, 2)}
                       </pre>
                     </div>
@@ -2462,9 +2446,9 @@ export function AddAppointmentModal({
                 {/* Form Data */}
                 {testAppointmentData.formData && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-800">📝 Form Data:</h4>
+                    <h4 className="text-sm font-semibold text-brand-primary-1">📝 Form Data:</h4>
                     <div className="bg-yellow-50 p-3 rounded-lg border">
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <pre className="text-xs text-brand-primary-1 whitespace-pre-wrap">
                         {JSON.stringify(testAppointmentData.formData, null, 2)}
                       </pre>
                     </div>
@@ -2474,9 +2458,9 @@ export function AddAppointmentModal({
                 {/* Calculated Values */}
                 {testAppointmentData.calculatedValues && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-800">⚡ Calculated Values:</h4>
+                    <h4 className="text-sm font-semibold text-brand-primary-1">⚡ Calculated Values:</h4>
                     <div className="bg-purple-50 p-3 rounded-lg border">
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <pre className="text-xs text-brand-primary-1 whitespace-pre-wrap">
                         {JSON.stringify(testAppointmentData.calculatedValues, null, 2)}
                       </pre>
                     </div>
@@ -2486,14 +2470,14 @@ export function AddAppointmentModal({
                 {/* Multiple Appointments Slot Details */}
                 {testAppointmentData.type === 'MULTIPLE APPOINTMENTS' && testAppointmentData.appointments && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-800">📊 Multiple Appointments Slots:</h4>
+                    <h4 className="text-sm font-semibold text-brand-primary-1">📊 Multiple Appointments Slots:</h4>
                     <div className="space-y-3">
                       {testAppointmentData.appointments.map((appointment: any, index: number) => (
                         <div key={index} className="bg-orange-50 p-3 rounded-lg border">
-                          <div className="text-sm font-medium text-gray-700 mb-2">
+                          <div className="text-sm font-medium text-brand-primary-1 mb-2">
                             Slot {index + 1}: {appointment.title}
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                          <div className="grid grid-cols-2 gap-2 text-xs text-brand-secondary-1">
                             <div><strong>Date:</strong> {appointment.start ? new Date(appointment.start).toLocaleDateString('en-US') : 'N/A'}</div>
                             <div><strong>Time:</strong> {appointment.start ? new Date(appointment.start).toLocaleTimeString('en-US') : 'N/A'}</div>
                             <div><strong>Duration:</strong> {appointment.duration} minutes</div>
@@ -2502,7 +2486,7 @@ export function AddAppointmentModal({
                             <div><strong>Remarks:</strong> {appointment.remarks || 'None'}</div>
                           </div>
                           {appointment.recurrence && appointment.recurrence !== 'none' && (
-                            <div className="mt-2 text-xs text-gray-600">
+                            <div className="mt-2 text-xs text-brand-secondary-1">
                               <strong>Recurrence:</strong> {appointment.recurrence}
                               {appointment.customRecurrence && (
                                 <div className="ml-2">
@@ -2524,7 +2508,7 @@ export function AddAppointmentModal({
                       ))}
                     </div>
                     <div className="bg-blue-50 p-3 rounded-lg border">
-                      <div className="text-sm text-gray-700">
+                      <div className="text-sm text-brand-primary-1">
                         <p><strong>Total Appointments:</strong> {testAppointmentData.totalCount}</p>
                         <p><strong>Client ID:</strong> {testAppointmentData.clientId}</p>
                       </div>

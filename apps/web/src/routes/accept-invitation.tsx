@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Mail, CheckCircle, XCircle, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { SignupForm } from "@/components/forms/signup-form";
 
 export const Route = createFileRoute("/accept-invitation")({
@@ -99,8 +99,12 @@ function AcceptInvitationPage() {
 		},
 	});
 
+	const hasProcessedRef = useRef(false);
+
 	// Auto-accept if user is logged in and invitation is valid (for existing users logging in)
 	useEffect(() => {
+		if (hasProcessedRef.current) return;
+
 		if (
 			!isSessionLoading &&
 			session?.user &&
@@ -110,10 +114,17 @@ function AcceptInvitationPage() {
 		) {
 			// Verify email matches invitation before auto-accepting
 			const userEmail = session.user.email?.toLowerCase();
-			const invitationEmail = invitation?.email.toLowerCase();
-			
+			const invitationEmail = invitation?.email?.toLowerCase();
+
 			if (userEmail === invitationEmail) {
+				hasProcessedRef.current = true;
 				acceptMutation.mutate();
+			} else if (userEmail && invitationEmail) {
+				// Email mismatch — show a user-facing warning instead of silently ignoring
+				toast.warning(
+					`This invitation was sent to ${invitation?.email}. You're signed in as ${session.user.email}. Please sign out and use the correct email.`,
+					{ duration: 10000 }
+				);
 			}
 		}
 	}, [

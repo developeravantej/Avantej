@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,7 @@ import { Search, Plus, Users, Mail, Calendar, User } from "lucide-react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
 	Dialog,
@@ -26,14 +27,19 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/customers")({
+	beforeLoad: async () => {
+		await requirePermission("user_management:read");
+	},
 	component: CustomersComponent,
 });
 
 function CustomersComponent() {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
+	const [searchQuery, setSearchQuery] = useState("");
 	const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 	const [phone, setPhone] = useState("");
 	const [address, setAddress] = useState("");
@@ -77,6 +83,17 @@ function CustomersComponent() {
 	});
 	const branchNodes = (hierarchyData?.nodes ?? []).filter(
 		(n) => n.type === "branch",
+	);
+
+	const filteredCustomers = useMemo(
+		() =>
+			customers.filter(
+				(c) =>
+					!searchQuery ||
+					c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					c.email?.toLowerCase().includes(searchQuery.toLowerCase()),
+			),
+		[customers, searchQuery],
 	);
 
 	const upsertMutation = useMutation({
@@ -208,6 +225,8 @@ function CustomersComponent() {
 							<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
 							<Input
 								placeholder="Search customers..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
 								className="pl-8"
 							/>
 						</div>
@@ -216,12 +235,14 @@ function CustomersComponent() {
 					<div className="grid gap-4">
 						{customersLoading ? (
 							<p className="text-sm text-muted-foreground py-4">Loading customers…</p>
-						) : customers.length === 0 ? (
+						) : filteredCustomers.length === 0 ? (
 							<p className="text-sm text-muted-foreground py-4">
-								No customers yet. Click "Add Customer" to add one.
+								{searchQuery
+									? "No customers match your search."
+									: "No customers yet. Click \"Add Customer\" to add one."}
 							</p>
 						) : (
-							customers.map((customer) => (
+							filteredCustomers.map((customer) => (
 								<div key={customer.id} className="border rounded-lg p-4">
 									<div className="flex items-center justify-between">
 										<div className="flex items-center space-x-4">
@@ -237,11 +258,19 @@ function CustomersComponent() {
 											<Badge variant={customer.status === "active" ? "default" : "destructive"}>
 												{customer.status}
 											</Badge>
-											<Button variant="outline" size="sm">
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => { window.location.href = `mailto:${customer.email}`; }}
+											>
 												<Mail className="h-4 w-4 mr-1" />
 												Contact
 											</Button>
-											<Button variant="outline" size="sm">
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => navigate({ to: "/dashboard/appointment/view" })}
+											>
 												<Calendar className="h-4 w-4 mr-1" />
 												Schedule
 											</Button>

@@ -4,6 +4,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import DataTable from "@/components/tables/uom-conversions/view/data-table";
 import { columns } from "@/components/tables/uom-conversions/view/columns";
 
@@ -27,7 +28,7 @@ function RouteComponent() {
 		conversionFactor: string;
 	} | null>(null);
 
-	const { data: allUoms = [], isLoading } = useQuery({
+	const { data: allUoms = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["unitsOfMeasure", organizationId],
 		queryFn: () =>
 			client.unitsOfMeasure.list({ organizationId: organizationId! }),
@@ -61,8 +62,9 @@ function RouteComponent() {
 			toast.success("Conversion created");
 			setIsAddDialogOpen(false);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create conversion");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create conversion: ${message}`);
 		},
 	});
 
@@ -85,8 +87,9 @@ function RouteComponent() {
 			toast.success("Conversion updated");
 			setEditTarget(null);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update conversion");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to update conversion: ${message}`);
 		},
 	});
 
@@ -102,8 +105,9 @@ function RouteComponent() {
 			});
 			toast.success("Conversion deleted");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to delete conversion");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to delete conversion: ${message}`);
 		},
 	});
 
@@ -125,8 +129,29 @@ function RouteComponent() {
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
 	return (
-		<DataTable
+		<>
+			{conversions.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No UOM conversions defined</p>
+					<p className="text-sm">Add a conversion.</p>
+				</div>
+			)}
+			<DataTable
 			columns={columns}
 			data={conversions}
 			uomMap={uomMap}
@@ -142,5 +167,6 @@ function RouteComponent() {
 			isUpdating={updateMutation.isPending}
 			isDeleting={deleteMutation.isPending}
 		/>
+		</>
 	);
 }

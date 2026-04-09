@@ -321,7 +321,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/50" />
+          <div className="fixed inset-0 bg-brand-primary-1/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -338,7 +338,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                 <Dialog.Title
                   as="h1"
-                  className="text-lg font-medium leading-6 text-gray-900 mb-4"
+                  className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
                 >
                   {mode === 'create' ? 'Add New Service' : 'Edit Service'}
                 </Dialog.Title>
@@ -351,7 +351,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="name" className="block text-sm font-medium text-brand-primary-1">
                       Service Name *
                     </label>
                     <input
@@ -361,12 +361,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="category_id" className="block text-sm font-medium text-brand-primary-1">
                       Service Category *
                     </label>
                     <select
@@ -376,7 +376,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                       value={formData.category_id}
                       onChange={handleChange}
                       disabled={isLoadingCategories}
-                      className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm disabled:bg-brand-secondary-3 disabled:cursor-not-allowed"
                     >
                       <option value="">
                         {isLoadingCategories ? 'Loading categories...' : 'Select a category'}
@@ -391,7 +391,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="sessionDurationMinutes" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="sessionDurationMinutes" className="block text-sm font-medium text-brand-primary-1">
                         Session Duration (minutes) *
                       </label>
                       <input
@@ -402,12 +402,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         min="1"
                         value={formData.sessionDurationMinutes}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
                     <div>
-                      <label htmlFor="maxAttendees" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="maxAttendees" className="block text-sm font-medium text-brand-primary-1">
                         Max Attendees *
                       </label>
                       <input
@@ -418,7 +418,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         min="1"
                         value={formData.maxAttendees}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
@@ -432,16 +432,16 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         id="expirable"
                         checked={formData.expirable}
                         onChange={handleChange}
-                        className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                        className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
                       />
-                      <label htmlFor="expirable" className="ml-2 text-sm font-medium text-gray-700">
+                      <label htmlFor="expirable" className="ml-2 text-sm font-medium text-brand-primary-1">
                         Expirable
                       </label>
                     </div>
 
                     {formData.expirable && (
                       <div>
-                        <label htmlFor="duration" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="duration" className="block text-sm font-medium text-brand-primary-1">
                           Duration *
                         </label>
                         <div className="mt-1 flex gap-2">
@@ -453,7 +453,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         min="1"
                         value={formData.duration}
                         onChange={handleChange}
-                        className="block flex-1 p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="block flex-1 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="1"
                         onWheel={(e) => e.currentTarget.blur()}
                       />
@@ -463,7 +463,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                             required
                             value={formData.duration_unit}
                             onChange={handleChange}
-                            className="block flex-1 p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                            className="block flex-1 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                           >
                             <option value="day">Day(s)</option>
                             <option value="week">Week(s)</option>
@@ -478,7 +478,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                    <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="price" className="block text-sm font-medium text-brand-primary-1">
                         Price *
                       </label>
                       <input
@@ -490,12 +490,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         step="0.01"
                         value={formData.price}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
                     <div>
-                      <label htmlFor="sessions" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="sessions" className="block text-sm font-medium text-brand-primary-1">
                         Sessions *
                       </label>
                       <input
@@ -507,7 +507,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         step="1"
                         value={formData.sessions}
                         onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
@@ -515,14 +515,14 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                   
                   <div>
                      <div className="mt-2 flex items-center">
-                       <span className="text-sm font-medium text-gray-700">
+                       <span className="text-sm font-medium text-brand-primary-1">
                          Credit per Session: ${formData.sessions > 0 ? calculateCreditPerSession().toFixed(2) : '0.00'}
                        </span>
                      </div>
                      
                      {formData.sessions > 0 && formData.price > 0 && (
-                       <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                         <div className="text-sm text-gray-600">
+                       <div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
+                         <div className="text-sm text-brand-secondary-1">
                            <div className="flex justify-between">
                              <span>Total Price:</span>
                              <span>${formData.price.toFixed(2)}</span>
@@ -548,16 +548,16 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                            id="taxable"
                            checked={formData.taxable}
                            onChange={handleChange}
-                           className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                           className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
                          />
-                         <label htmlFor="taxable" className="ml-2 text-sm font-medium text-gray-700">
+                         <label htmlFor="taxable" className="ml-2 text-sm font-medium text-brand-primary-1">
                            Taxable
                          </label>
                        </div>
                        
                        {formData.taxable && (
-                         <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                           <div className="text-sm text-gray-600">
+                         <div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
+                           <div className="text-sm text-brand-secondary-1">
                              <div className="flex justify-between">
                                <span>Base Price:</span>
                                <span>${formData.price.toFixed(2)}</span>
@@ -576,12 +576,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                   </div>
 
                   {/* Scheduling Type Configuration */}
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Scheduling Configuration</h3>
+                  <div className="border-t border-brand-secondary-3 pt-4 mt-4">
+                    <h3 className="text-lg font-medium text-brand-primary-1 mb-4">Scheduling Configuration</h3>
                     
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-brand-primary-1 mb-2">
                           Scheduling Type *
                         </label>
                         <div className="space-y-2">
@@ -594,9 +594,9 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                 value="appointment-based"
                                 checked={formData.schedulingType === 'appointment-based'}
                                 onChange={(e) => handleSchedulingTypeChange(e.target.value as 'appointment-based' | 'time-preset')}
-                                className="h-4 w-4 text-black focus:ring-black border-gray-300"
+                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
                               />
-                              <label htmlFor="appointment-based" className="ml-2 block text-sm text-gray-700">
+                              <label htmlFor="appointment-based" className="ml-2 block text-sm text-brand-primary-1">
                                 Appointment-Based
                               </label>
                             </div>
@@ -608,14 +608,14 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                 value="time-preset"
                                 checked={formData.schedulingType === 'time-preset'}
                                 onChange={(e) => handleSchedulingTypeChange(e.target.value as 'appointment-based' | 'time-preset')}
-                                className="h-4 w-4 text-black focus:ring-black border-gray-300"
+                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
                               />
-                              <label htmlFor="time-preset" className="ml-2 block text-sm text-gray-700">
+                              <label htmlFor="time-preset" className="ml-2 block text-sm text-brand-primary-1">
                                 Time-Preset (Fixed Schedule)
                               </label>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-brand-secondary-1">
                             {formData.schedulingType === 'appointment-based' 
                               ? 'Sessions are booked flexibly based on coach and client availability'
                               : 'Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)'
@@ -626,12 +626,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                       {/* Time-Preset Configuration */}
                       {formData.schedulingType === 'time-preset' && formData.timePresetConfig && (
-                        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                          <h4 className="text-md font-medium text-gray-900">Time-Preset Configuration</h4>
+                        <div className="bg-brand-secondary-3/50 p-4 rounded-lg space-y-4">
+                          <h4 className="text-md font-medium text-brand-primary-1">Time-Preset Configuration</h4>
                           
                           {/* Recurring Days */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-brand-primary-1 mb-2">
                               Recurring Days *
                             </label>
                             <div className="grid grid-cols-7 gap-2">
@@ -642,9 +642,9 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                     id={`day-${day}`}
                                     checked={formData.timePresetConfig?.recurringDays.includes(day) || false}
                                     onChange={() => handleRecurringDayToggle(day)}
-                                    className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                                    className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
                                   />
-                                  <label htmlFor={`day-${day}`} className="ml-1 text-xs text-gray-700">
+                                  <label htmlFor={`day-${day}`} className="ml-1 text-xs text-brand-primary-1">
                                     {day.slice(0, 3)}
                                   </label>
                                 </div>
@@ -654,7 +654,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
 
                           {/* Time Slots per Day */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-brand-primary-1 mb-2">
                               Time Slots per Day *
                             </label>
                             <div className="space-y-4">
@@ -664,13 +664,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                   return dayOrder.indexOf(a) - dayOrder.indexOf(b);
                                 })
                                 .map((day) => (
-                                <div key={day} className="border border-gray-200 rounded-lg p-3">
+                                <div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
                                   <div className="flex items-center justify-between mb-2">
-                                    <h5 className="text-sm font-medium text-gray-900">{day}</h5>
+                                    <h5 className="text-sm font-medium text-brand-primary-1">{day}</h5>
                                     <button
                                       type="button"
                                       onClick={() => addTimeSlot(day)}
-                                      className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                                      className="inline-flex items-center px-2 py-1 border border-brand-secondary-3 shadow-sm text-xs leading-4 font-medium rounded-md text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -685,12 +685,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                           type="time"
                                           value={time}
                                           onChange={(e) => updateTimeSlot(day, index, e.target.value)}
-                                          className="p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                                          className="p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                                         />
                                         <button
                                           type="button"
                                           onClick={() => removeTimeSlot(day, index)}
-                                          className="p-2 text-gray-400 hover:text-gray-600"
+                                          className="p-2 text-brand-secondary-1 hover:text-brand-secondary-1"
                                           disabled={(formData.timePresetConfig?.timeSlotsPerDay[day] || []).length === 1}
                                         >
                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -700,13 +700,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                                       </div>
                                     ))}
                                     {(!formData.timePresetConfig?.timeSlotsPerDay[day] || formData.timePresetConfig?.timeSlotsPerDay[day]?.length === 0) && (
-                                      <p className="text-sm text-gray-500 italic">No time slots configured for {day}</p>
+                                      <p className="text-sm text-brand-secondary-1 italic">No time slots configured for {day}</p>
                                     )}
                                   </div>
                                 </div>
                               ))}
                               {formData.timePresetConfig.recurringDays.length === 0 && (
-                                <p className="text-sm text-gray-500 italic">Select recurring days above to configure time slots</p>
+                                <p className="text-sm text-brand-secondary-1 italic">Select recurring days above to configure time slots</p>
                               )}
                             </div>
                           </div>
@@ -719,7 +719,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     <button
                       type="button"
                       onClick={onClose}
-                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                     >
                       Cancel
                     </button>

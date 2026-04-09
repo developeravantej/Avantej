@@ -130,7 +130,7 @@ export function SupplierFormDialog({
 					leaveFrom="opacity-100"
 					leaveTo="opacity-0"
 				>
-					<div className="fixed inset-0 bg-gray-500/50" />
+					<div className="fixed inset-0 bg-brand-primary-1/50" />
 				</Transition.Child>
 
 				<div className="fixed inset-0 overflow-y-auto">
@@ -149,17 +149,17 @@ export function SupplierFormDialog({
 									<div>
 										<Dialog.Title
 											as="h1"
-											className="text-2xl font-semibold text-gray-900"
+											className="text-2xl font-semibold text-brand-primary-1"
 										>
 											{mode === "create" ? "ADD SUPPLIER" : "EDIT SUPPLIER"}
 										</Dialog.Title>
-										<p className="text-sm text-gray-600 mt-1">
+										<p className="text-sm text-brand-secondary-1 mt-1">
 											Supplier Details
 										</p>
 									</div>
 									<button
 										onClick={onClose}
-										className="text-gray-400 hover:text-gray-600 focus:outline-none"
+										className="text-brand-secondary-1 hover:text-brand-secondary-1 focus:outline-none"
 									>
 										<svg
 											className="h-6 w-6"
@@ -185,15 +185,15 @@ export function SupplierFormDialog({
 
 								<form onSubmit={handleSubmit} className="space-y-8">
 									{/* Supplier Details Section */}
-									<div className="bg-gray-50 p-6 rounded-lg">
-										<h3 className="text-lg font-semibold text-gray-900 mb-4">
+									<div className="bg-brand-secondary-3/50 p-6 rounded-lg">
+										<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
 											Supplier Details
 										</h3>
 										<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 											<div>
 												<label
 													htmlFor="name"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Supplier Name *
 												</label>
@@ -204,7 +204,7 @@ export function SupplierFormDialog({
 													required
 													value={formData.name}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: THE BODY SHOP"
 												/>
 											</div>
@@ -212,7 +212,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="description"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Supplier Description
 												</label>
@@ -222,7 +222,7 @@ export function SupplierFormDialog({
 													type="text"
 													value={formData.description}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: SUPPLY LOTION"
 												/>
 											</div>
@@ -230,7 +230,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="accountNumber"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Account Number
 												</label>
@@ -240,7 +240,7 @@ export function SupplierFormDialog({
 													type="text"
 													value={formData.accountNumber}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="888888888888 (BANK)"
 												/>
 											</div>
@@ -248,7 +248,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="paymentTerms"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Payment Terms
 												</label>
@@ -258,7 +258,7 @@ export function SupplierFormDialog({
 													type="text"
 													value={formData.paymentTerms}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: 30 days"
 												/>
 											</div>
@@ -266,7 +266,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="barcode"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Barcode
 												</label>
@@ -276,7 +276,7 @@ export function SupplierFormDialog({
 													type="text"
 													value={formData.barcode}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: 1234567890"
 												/>
 											</div>
@@ -288,11 +288,11 @@ export function SupplierFormDialog({
 													type="checkbox"
 													checked={formData.isActive ?? true}
 													onChange={handleChange}
-													className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+													className="h-4 w-4 rounded border-brand-secondary-3 text-black focus:ring-black"
 												/>
 												<label
 													htmlFor="isActive"
-													className="text-sm font-medium text-gray-700"
+													className="text-sm font-medium text-brand-primary-1"
 												>
 													Active
 												</label>
@@ -301,15 +301,15 @@ export function SupplierFormDialog({
 									</div>
 
 									{/* Contact Information Section */}
-									<div className="bg-gray-50 p-6 rounded-lg">
-										<h3 className="text-lg font-semibold text-gray-900 mb-4">
+									<div className="bg-brand-secondary-3/50 p-6 rounded-lg">
+										<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
 											Contact Information
 										</h3>
 										<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 											<div>
 												<label
 													htmlFor="contactPerson"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Contact Person
 												</label>
@@ -319,7 +319,7 @@ export function SupplierFormDialog({
 													type="text"
 													value={formData.contactPerson}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: JONATHAN MORRISON"
 												/>
 											</div>
@@ -327,7 +327,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="contactPhone"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Mobile Number
 												</label>
@@ -337,7 +337,7 @@ export function SupplierFormDialog({
 													type="tel"
 													value={formData.contactPhone}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="+60 12-345 6789"
 												/>
 											</div>
@@ -345,7 +345,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="officePhone"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Office Phone
 												</label>
@@ -355,7 +355,7 @@ export function SupplierFormDialog({
 													type="tel"
 													value={formData.officePhone}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="+60 3-1234 5678"
 												/>
 											</div>
@@ -363,7 +363,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="email"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													E-Mail
 												</label>
@@ -373,7 +373,7 @@ export function SupplierFormDialog({
 													type="email"
 													value={formData.email}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: SUPPLIER@EXAMPLE.COM"
 												/>
 											</div>
@@ -381,7 +381,7 @@ export function SupplierFormDialog({
 											<div>
 												<label
 													htmlFor="website"
-													className="block text-sm font-medium text-gray-700 mb-2"
+													className="block text-sm font-medium text-brand-primary-1 mb-2"
 												>
 													Website
 												</label>
@@ -391,7 +391,7 @@ export function SupplierFormDialog({
 													type="url"
 													value={formData.website}
 													onChange={handleChange}
-													className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+													className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: https://www.example.com"
 												/>
 											</div>
@@ -399,12 +399,12 @@ export function SupplierFormDialog({
 									</div>
 
 									{/* Form Actions */}
-									<div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+									<div className="flex justify-end space-x-4 pt-6 border-t border-brand-secondary-3">
 										<button
 											type="button"
 											onClick={onClose}
 											disabled={busy}
-											className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+											className="px-6 py-2 border border-brand-secondary-3 rounded-md text-sm font-medium text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 										>
 											Cancel
 										</button>

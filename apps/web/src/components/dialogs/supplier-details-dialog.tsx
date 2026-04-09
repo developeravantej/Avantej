@@ -77,19 +77,19 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Description</label>
+								<label className="text-sm font-medium text-brand-secondary-1">Description</label>
 								<p className="text-sm">{supplier.description || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Account Number</label>
+								<label className="text-sm font-medium text-brand-secondary-1">Account Number</label>
 								<p className="text-sm font-mono">{supplier.accountNumber || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Payment Terms</label>
+								<label className="text-sm font-medium text-brand-secondary-1">Payment Terms</label>
 								<p className="text-sm">{supplier.paymentTerms || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Barcode</label>
+								<label className="text-sm font-medium text-brand-secondary-1">Barcode</label>
 								<p className="text-sm font-mono">{supplier.barcode || "N/A"}</p>
 							</div>
 						</div>
@@ -105,11 +105,11 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Contact Person</label>
+								<label className="text-sm font-medium text-brand-secondary-1">Contact Person</label>
 								<p className="text-sm">{supplier.contactPerson || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Phone className="h-4 w-4" />
 									Mobile
 								</label>
@@ -125,7 +125,7 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Phone className="h-4 w-4" />
 									Office Phone
 								</label>
@@ -141,7 +141,7 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Mail className="h-4 w-4" />
 									Email
 								</label>
@@ -157,7 +157,7 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Globe className="h-4 w-4" />
 									Website
 								</label>
@@ -187,22 +187,22 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Calendar className="h-4 w-4" />
 									Created At
 								</label>
 								<p className="text-sm">{formatDate(supplier.createdAt)}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Calendar className="h-4 w-4" />
 									Updated At
 								</label>
 								<p className="text-sm">{formatDate(supplier.updatedAt)}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-500">Supplier ID</label>
-								<p className="text-sm font-mono text-gray-600">{supplier.id}</p>
+								<label className="text-sm font-medium text-brand-secondary-1">Supplier ID</label>
+								<p className="text-sm font-mono text-brand-secondary-1">{supplier.id}</p>
 							</div>
 						</div>
 					</div>

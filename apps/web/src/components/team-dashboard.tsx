@@ -62,7 +62,7 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
           </DropdownMenu>
         </div>
 
-        <div className="overflow-y-auto max-h-[200px] pr-4 -mr-4  [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className="overflow-y-auto max-h-[200px] pr-4 -mr-4  [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-brand-secondary-2 [&::-webkit-scrollbar-thumb]:rounded-full">
           <div className="space-y-6 max-w-2xl mx-auto">
             {customDataKeys.map((key: any) => {
               const team = selectedTeam.teamData.find(

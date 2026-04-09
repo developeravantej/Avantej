@@ -278,6 +278,10 @@ function TaxRatesPage() {
 			toast.error("Rate must be a valid non-negative number.");
 			return;
 		}
+		if (Math.round(rate * 100) > 10000) {
+			toast.error("Rate cannot exceed 100% (10,000 basis points).");
+			return;
+		}
 		if (!form.effectiveFrom) {
 			toast.error("Effective From date is required.");
 			return;
@@ -464,8 +468,8 @@ function TaxRatesPage() {
 						<Tag className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Tax Configuration</h1>
-						<p className="text-muted-foreground text-sm">
+						<h1 className="text-2xl font-bold font-heading">Tax Configuration</h1>
+						<p className="text-brand-secondary-1 text-sm">
 							Manage tax rates applied to sales orders and invoices.
 						</p>
 					</div>

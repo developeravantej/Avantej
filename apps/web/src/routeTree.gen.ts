@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
@@ -35,6 +37,7 @@ import { Route as AuthenticatedDashboardLayoutUserViewRouteImport } from './rout
 import { Route as AuthenticatedDashboardLayoutUomViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom/view'
 import { Route as AuthenticatedDashboardLayoutUomConversionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom-conversions/view'
 import { Route as AuthenticatedDashboardLayoutTransferOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/transfer-orders/view'
+import { Route as AuthenticatedDashboardLayoutTrainersViewRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/view'
 import { Route as AuthenticatedDashboardLayoutSuppliersViewRouteImport } from './routes/_authenticated/dashboard/_layout/suppliers/view'
 import { Route as AuthenticatedDashboardLayoutStockRequestsViewRouteImport } from './routes/_authenticated/dashboard/_layout/stock-requests/view'
 import { Route as AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport } from './routes/_authenticated/dashboard/_layout/settings/tax-rates'
@@ -65,6 +68,10 @@ import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImpor
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
 import { Route as AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/walk-in/view'
 import { Route as AuthenticatedDashboardLayoutAppointmentClassSlotsViewRouteImport } from './routes/_authenticated/dashboard/_layout/appointment/class-slots/view'
+
+const AuthenticatedDashboardRouteImport = createFileRoute(
+  '/_authenticated/dashboard',
+)()
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -109,6 +116,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
@@ -160,9 +172,8 @@ const AuthenticatedServiceCategoryViewRoute =
   } as any)
 const AuthenticatedDashboardLayoutRoute =
   AuthenticatedDashboardLayoutRouteImport.update({
-    id: '/dashboard/_layout',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedRoute,
+    id: '/_layout',
+    getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
 const AuthenticatedAppointmentViewRoute =
   AuthenticatedAppointmentViewRouteImport.update({
@@ -204,6 +215,12 @@ const AuthenticatedDashboardLayoutTransferOrdersViewRoute =
   AuthenticatedDashboardLayoutTransferOrdersViewRouteImport.update({
     id: '/transfer-orders/view',
     path: '/transfer-orders/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutTrainersViewRoute =
+  AuthenticatedDashboardLayoutTrainersViewRouteImport.update({
+    id: '/trainers/view',
+    path: '/trainers/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutSuppliersViewRoute =
@@ -436,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
@@ -460,11 +478,11 @@ export interface FileRoutesByTo {
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
-  '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
   '/dashboard/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/dashboard/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
   '/dashboard/access-control/roles': typeof AuthenticatedDashboardLayoutAccessControlRolesRoute
@@ -492,6 +510,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
@@ -518,6 +537,7 @@ export interface FileRoutesById {
   '/_authenticated/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
@@ -551,6 +571,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/_authenticated/dashboard/_layout/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/_authenticated/dashboard/_layout/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/_authenticated/dashboard/_layout/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/_authenticated/dashboard/_layout/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/_authenticated/dashboard/_layout/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/_authenticated/dashboard/_layout/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
@@ -610,6 +631,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
@@ -634,11 +656,11 @@ export interface FileRouteTypes {
     | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
+    | '/dashboard'
     | '/service-category/view'
     | '/service/view'
     | '/user/view'
     | '/dashboard/inventory-options'
-    | '/dashboard'
     | '/dashboard/access-control/invitations'
     | '/dashboard/access-control/permissions'
     | '/dashboard/access-control/roles'
@@ -666,6 +688,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
@@ -691,6 +714,7 @@ export interface FileRouteTypes {
     | '/_authenticated/go-highlevel-integration'
     | '/_authenticated/onboarding'
     | '/_authenticated/appointment/view'
+    | '/_authenticated/dashboard'
     | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
     | '/_authenticated/service/view'
@@ -724,6 +748,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/settings/tax-rates'
     | '/_authenticated/dashboard/_layout/stock-requests/view'
     | '/_authenticated/dashboard/_layout/suppliers/view'
+    | '/_authenticated/dashboard/_layout/trainers/view'
     | '/_authenticated/dashboard/_layout/transfer-orders/view'
     | '/_authenticated/dashboard/_layout/uom-conversions/view'
     | '/_authenticated/dashboard/_layout/uom/view'
@@ -802,7 +827,7 @@ declare module '@tanstack/react-router' {
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
-      fullPath: '/'
+      fullPath: ''
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -812,6 +837,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
@@ -881,7 +913,7 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedDashboardRoute
     }
     '/_authenticated/appointment/view': {
       id: '/_authenticated/appointment/view'
@@ -930,6 +962,13 @@ declare module '@tanstack/react-router' {
       path: '/transfer-orders/view'
       fullPath: '/dashboard/transfer-orders/view'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutTransferOrdersViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/trainers/view': {
+      id: '/_authenticated/dashboard/_layout/trainers/view'
+      path: '/trainers/view'
+      fullPath: '/dashboard/trainers/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutTrainersViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/suppliers/view': {
@@ -1175,6 +1214,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutSettingsTaxRatesRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   AuthenticatedDashboardLayoutStockRequestsViewRoute: typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   AuthenticatedDashboardLayoutSuppliersViewRoute: typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  AuthenticatedDashboardLayoutTrainersViewRoute: typeof AuthenticatedDashboardLayoutTrainersViewRoute
   AuthenticatedDashboardLayoutTransferOrdersViewRoute: typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   AuthenticatedDashboardLayoutUomConversionsViewRoute: typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   AuthenticatedDashboardLayoutUomViewRoute: typeof AuthenticatedDashboardLayoutUomViewRoute
@@ -1244,6 +1284,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutStockRequestsViewRoute,
     AuthenticatedDashboardLayoutSuppliersViewRoute:
       AuthenticatedDashboardLayoutSuppliersViewRoute,
+    AuthenticatedDashboardLayoutTrainersViewRoute:
+      AuthenticatedDashboardLayoutTrainersViewRoute,
     AuthenticatedDashboardLayoutTransferOrdersViewRoute:
       AuthenticatedDashboardLayoutTransferOrdersViewRoute,
     AuthenticatedDashboardLayoutUomConversionsViewRoute:
@@ -1265,12 +1307,27 @@ const AuthenticatedDashboardLayoutRouteWithChildren =
     AuthenticatedDashboardLayoutRouteChildren,
   )
 
+interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
+}
+
+const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
+  {
+    AuthenticatedDashboardLayoutRoute:
+      AuthenticatedDashboardLayoutRouteWithChildren,
+  }
+
+const AuthenticatedDashboardRouteWithChildren =
+  AuthenticatedDashboardRoute._addFileChildren(
+    AuthenticatedDashboardRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedGoHighlevelIntegrationRoute: typeof AuthenticatedGoHighlevelIntegrationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedAppointmentViewRoute: typeof AuthenticatedAppointmentViewRoute
-  AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
   AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
   AuthenticatedUserViewRoute: typeof AuthenticatedUserViewRoute
@@ -1282,8 +1339,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedGoHighlevelIntegrationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedAppointmentViewRoute: AuthenticatedAppointmentViewRoute,
-  AuthenticatedDashboardLayoutRoute:
-    AuthenticatedDashboardLayoutRouteWithChildren,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,
   AuthenticatedServiceViewRoute: AuthenticatedServiceViewRoute,
   AuthenticatedUserViewRoute: AuthenticatedUserViewRoute,

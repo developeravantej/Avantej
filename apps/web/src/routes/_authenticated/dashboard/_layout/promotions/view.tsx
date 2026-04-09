@@ -19,6 +19,14 @@ import {
 	SheetFooter,
 } from "@/components/ui/sheet";
 import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -252,6 +260,9 @@ function PromotionsViewPage() {
 	const [editOpen, setEditOpen] = useState(false);
 	const [editTarget, setEditTarget] = useState<PromotionRow | null>(null);
 
+	// Confirmation dialog state
+	const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null);
+
 	// Form state
 	const [createForm, setCreateForm] = useState<CreateFormState>(defaultCreateForm);
 	const [editForm, setEditForm] = useState<EditFormState>({
@@ -263,7 +274,7 @@ function PromotionsViewPage() {
 
 	// ── Query ──────────────────────────────────────────────────────────────────
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["promotions", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -360,6 +371,16 @@ function PromotionsViewPage() {
 		e.preventDefault();
 		if (!organizationId) return;
 
+		const trimmedCode = createForm.code.trim();
+		if (trimmedCode.length < 3) {
+			toast.error("Promo code must be at least 3 characters.");
+			return;
+		}
+		if (!/^[A-Z0-9_-]+$/i.test(trimmedCode)) {
+			toast.error("Promo code may only contain letters, numbers, hyphens, and underscores.");
+			return;
+		}
+
 		const rawValue = parseFloat(createForm.value);
 		if (Number.isNaN(rawValue) || rawValue <= 0) {
 			toast.error("Please enter a valid value.");
@@ -367,6 +388,10 @@ function PromotionsViewPage() {
 		}
 		if (!createForm.validFrom) {
 			toast.error("Valid From date is required.");
+			return;
+		}
+		if (createForm.validUntil && new Date(createForm.validUntil) <= new Date(createForm.validFrom)) {
+			toast.error("Valid Until must be after Valid From.");
 			return;
 		}
 
@@ -413,6 +438,10 @@ function PromotionsViewPage() {
 			toast.error("Valid From date is required.");
 			return;
 		}
+		if (editForm.validUntil && new Date(editForm.validUntil) <= new Date(editForm.validFrom)) {
+			toast.error("Valid Until must be after Valid From.");
+			return;
+		}
 
 		updatePromotion({
 			organizationId,
@@ -426,7 +455,7 @@ function PromotionsViewPage() {
 		});
 	}
 
-	const columns = buildColumns(handleOpenEdit, deactivatePromotion, isDeactivating);
+	const columns = buildColumns(handleOpenEdit, setDeactivateTarget, isDeactivating);
 
 	// ── Render ─────────────────────────────────────────────────────────────────
 
@@ -448,6 +477,20 @@ function PromotionsViewPage() {
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-6">
 			{/* Page header */}
@@ -457,7 +500,7 @@ function PromotionsViewPage() {
 						<Tag className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold tracking-tight">Promotions</h1>
+						<h1 className="text-2xl font-bold font-heading tracking-tight">Promotions</h1>
 						<p className="text-sm text-muted-foreground">
 							Manage discount codes and promotions for checkout.
 						</p>
@@ -468,6 +511,14 @@ function PromotionsViewPage() {
 					New Promotion
 				</Button>
 			</div>
+
+			{/* Empty state */}
+			{data.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No promotions created yet</p>
+					<p className="text-sm">Create a promotion to get started.</p>
+				</div>
+			)}
 
 			{/* Table */}
 			<DataTable<PromotionRow, unknown> columns={columns} data={data} />
@@ -728,6 +779,34 @@ function PromotionsViewPage() {
 					</form>
 				</SheetContent>
 			</Sheet>
+
+			{/* ── Deactivate Confirmation Dialog ──────────────────────────────── */}
+			<Dialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Confirm Deactivate</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to deactivate this promotion?
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeactivateTarget(null)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								if (deactivateTarget) {
+									deactivatePromotion(deactivateTarget);
+									setDeactivateTarget(null);
+								}
+							}}
+							disabled={isDeactivating}
+						>
+							{isDeactivating ? "Deactivating..." : "Deactivate"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ── Edit Sheet ───────────────────────────────────────────────────── */}
 			<Sheet

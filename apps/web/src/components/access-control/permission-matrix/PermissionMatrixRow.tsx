@@ -57,7 +57,7 @@ function PermissionCell({ role, resource, action, onPermissionChange }: Permissi
       case 'branch':
         return 'bg-orange-100 border-orange-300 text-orange-800';
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-500';
+        return 'bg-brand-secondary-3 border-brand-secondary-3 text-brand-secondary-1';
     }
   };
 
@@ -118,7 +118,7 @@ export function PermissionMatrixRow({
       case 3:
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3';
     }
   };
 

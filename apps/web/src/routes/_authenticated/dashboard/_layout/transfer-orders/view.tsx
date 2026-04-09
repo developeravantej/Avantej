@@ -112,8 +112,10 @@ function StatusBadge({ status }: { status: TransferOrderStatus }) {
 // ---------------------------------------------------------------------------
 
 function TransferOrdersViewPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const canCreate = hasPermission("inventory_management:create");
+	const canUpdate = hasPermission("inventory_management:update");
 	const queryClient = useQueryClient();
 
 	// ---- Branch nodes query ----
@@ -142,6 +144,7 @@ function TransferOrdersViewPage() {
 	// ---- Complete dialog state ----
 	const [completeTarget, setCompleteTarget] = useState<TransferOrderRow | null>(null);
 	const [receiveQuantities, setReceiveQuantities] = useState<Record<string, string>>({});
+	const [isFetchingCompleteItems, setIsFetchingCompleteItems] = useState(false);
 
 	// ---- Cancel dialog state ----
 	const [cancelTarget, setCancelTarget] = useState<string | null>(null);
@@ -190,8 +193,9 @@ function TransferOrdersViewPage() {
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create transfer order");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create transfer order: ${message}`);
 		},
 	});
 
@@ -202,8 +206,9 @@ function TransferOrdersViewPage() {
 			queryClient.invalidateQueries({ queryKey: ["transferOrders", organizationId] });
 			toast.success("Transfer order marked in transit");
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to mark transfer in transit");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to mark transfer in transit: ${message}`);
 		},
 	});
 
@@ -220,8 +225,9 @@ function TransferOrdersViewPage() {
 			setCompleteTarget(null);
 			setReceiveQuantities({});
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to complete transfer order");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to complete transfer order: ${message}`);
 		},
 	});
 
@@ -233,8 +239,9 @@ function TransferOrdersViewPage() {
 			toast.success("Transfer order cancelled");
 			setCancelTarget(null);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to cancel transfer order");
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to cancel transfer order: ${message}`);
 		},
 	});
 
@@ -283,6 +290,38 @@ function TransferOrdersViewPage() {
 			quantityReceived: parseInt(receiveQuantities[item.id] ?? "0", 10) || 0,
 		}));
 		completeMutation.mutate({ id: completeTarget.id, items });
+	}
+
+	// ---- Fetch items for complete dialog ----
+	async function openCompleteDialog(row: TransferOrderRow) {
+		if (!organizationId) return;
+		setIsFetchingCompleteItems(true);
+		try {
+			const detail = await client.transferOrders.getById({
+				organizationId,
+				id: row.id,
+			});
+			const rowWithItems: TransferOrderRow = {
+				...row,
+				items: detail.items.map((item) => ({
+					id: item.id,
+					productId: item.productId,
+					quantityTransferred: item.quantityTransferred,
+					quantityReceived: item.quantityReceived ?? null,
+					notes: item.notes ?? null,
+				})),
+			};
+			setCompleteTarget(rowWithItems);
+			const initial: Record<string, string> = {};
+			for (const item of rowWithItems.items) {
+				initial[item.id] = String(item.quantityTransferred);
+			}
+			setReceiveQuantities(initial);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to load transfer items");
+		} finally {
+			setIsFetchingCompleteItems(false);
+		}
 	}
 
 	// ---- Table data ----
@@ -346,6 +385,9 @@ function TransferOrdersViewPage() {
 			enableHiding: false,
 			cell: ({ row }) => {
 				const { id, status } = row.original;
+				if (!canUpdate) {
+					return <span className="text-muted-foreground text-xs">—</span>;
+				}
 
 				if (status === "pending") {
 					return (
@@ -380,17 +422,11 @@ function TransferOrdersViewPage() {
 								size="sm"
 								variant="outline"
 								className="h-7 gap-1 text-green-700 border-green-300 hover:bg-green-50"
-								onClick={() => {
-									setCompleteTarget(row.original);
-									const initial: Record<string, string> = {};
-									for (const item of row.original.items) {
-										initial[item.id] = String(item.quantityTransferred);
-									}
-									setReceiveQuantities(initial);
-								}}
+								onClick={() => openCompleteDialog(row.original)}
+								disabled={isFetchingCompleteItems}
 							>
 								<CheckCircle className="h-3.5 w-3.5" />
-								Complete
+								{isFetchingCompleteItems ? "Loading…" : "Complete"}
 							</Button>
 							<Button
 								size="sm"
@@ -415,7 +451,7 @@ function TransferOrdersViewPage() {
 		value,
 		onChange,
 		placeholder,
-		required,
+		required: _required,
 	}: {
 		value: string;
 		onChange: (id: string) => void;
@@ -503,21 +539,23 @@ function TransferOrdersViewPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Transfer Orders</h1>
-					<p className="text-sm text-muted-foreground">
+					<h1 className="text-2xl font-bold font-heading">Transfer Orders</h1>
+					<p className="text-sm text-brand-secondary-1">
 						Manage inventory transfers between branches
 					</p>
 				</div>
-				<Button
-					onClick={() => {
-						resetCreateForm();
-						setIsCreateOpen(true);
-					}}
-					className="gap-2"
-				>
-					<Plus className="h-4 w-4" />
-					New Transfer
-				</Button>
+				{canCreate && (
+					<Button
+						onClick={() => {
+							resetCreateForm();
+							setIsCreateOpen(true);
+						}}
+						className="gap-2"
+					>
+						<Plus className="h-4 w-4" />
+						New Transfer
+					</Button>
+				)}
 			</div>
 
 			{/* Status filter tabs */}

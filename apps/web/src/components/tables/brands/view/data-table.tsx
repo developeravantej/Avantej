@@ -212,12 +212,12 @@ function DataTable<TData extends BrandRow, TValue>({
 
 			{/* Delete Confirmation Dialog */}
 			{isDeleteDialogOpen && brandToDelete && (
-				<div className="fixed inset-0 bg-gray-500/50 flex items-center justify-center z-50">
+				<div className="fixed inset-0 bg-brand-primary-1/50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-						<h3 className="text-lg font-semibold text-gray-900 mb-4">
+						<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
 							Delete Brand
 						</h3>
-						<p className="text-gray-600 mb-6">
+						<p className="text-brand-secondary-1 mb-6">
 							Are you sure you want to delete the brand "{brandToDelete.name}"?
 							This action cannot be undone.
 						</p>

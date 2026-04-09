@@ -87,7 +87,7 @@ export function BrandFormDialog({
 					leaveFrom="opacity-100"
 					leaveTo="opacity-0"
 				>
-					<div className="fixed inset-0 bg-gray-500/50" />
+					<div className="fixed inset-0 bg-brand-primary-1/50" />
 				</Transition.Child>
 
 				<div className="fixed inset-0 overflow-y-auto">
@@ -106,15 +106,15 @@ export function BrandFormDialog({
 									<div>
 										<Dialog.Title
 											as="h1"
-											className="text-2xl font-semibold text-gray-900"
+											className="text-2xl font-semibold text-brand-primary-1"
 										>
 											{mode === "create" ? "ADD BRAND" : "EDIT BRAND"}
 										</Dialog.Title>
-										<p className="text-sm text-gray-600 mt-1">Brand Details</p>
+										<p className="text-sm text-brand-secondary-1 mt-1">Brand Details</p>
 									</div>
 									<button
 										onClick={onClose}
-										className="text-gray-400 hover:text-gray-600 focus:outline-none"
+										className="text-brand-secondary-1 hover:text-brand-secondary-1 focus:outline-none"
 									>
 										<svg
 											className="h-6 w-6"
@@ -139,14 +139,14 @@ export function BrandFormDialog({
 								)}
 
 								<form onSubmit={handleSubmit} className="space-y-6">
-									<div className="bg-gray-50 p-6 rounded-lg">
-										<h3 className="text-lg font-semibold text-gray-900 mb-4">
+									<div className="bg-brand-secondary-3/50 p-6 rounded-lg">
+										<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
 											Brand Details
 										</h3>
 										<div>
 											<label
 												htmlFor="name"
-												className="block text-sm font-medium text-gray-700 mb-2"
+												className="block text-sm font-medium text-brand-primary-1 mb-2"
 											>
 												Brand Name *
 											</label>
@@ -157,18 +157,18 @@ export function BrandFormDialog({
 												required
 												value={formData.name}
 												onChange={handleChange}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
+												className="w-full px-3 py-2 border border-brand-secondary-3 rounded-md shadow-sm focus:border-black focus:ring-black sm:text-sm"
 												placeholder="Enter brand name"
 											/>
 										</div>
 									</div>
 
 									{/* Form Actions */}
-									<div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+									<div className="flex justify-end space-x-4 pt-6 border-t border-brand-secondary-3">
 										<button
 											type="button"
 											onClick={onClose}
-											className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+											className="px-6 py-2 border border-brand-secondary-3 rounded-md text-sm font-medium text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
 										>
 											Cancel
 										</button>

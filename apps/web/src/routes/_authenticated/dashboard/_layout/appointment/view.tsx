@@ -67,12 +67,15 @@ function RouteComponent() {
 		toast.info(`Appointment: ${appointment.title} with ${appointment.clientName}`);
 	};
 
-	const handleAddAppointment = () => {};
+	const handleAddAppointment = () => {
+		// The AppointmentCalendar manages its own modal state internally.
+		// This callback fires when the user clicks "Add Appointment" inside the calendar.
+	};
 
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-bold font-heading">Appointments</h1>
 				<p className="text-muted-foreground">No organization selected.</p>
 			</div>
 		);
@@ -81,7 +84,7 @@ function RouteComponent() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-bold font-heading">Appointments</h1>
 				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
 			</div>
 		);
@@ -90,7 +93,7 @@ function RouteComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-bold font-heading">Appointments</h1>
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-24 text-muted-foreground">

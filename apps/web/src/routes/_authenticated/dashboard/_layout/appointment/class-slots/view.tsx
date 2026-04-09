@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -43,6 +44,9 @@ import {
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/appointment/class-slots/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("appointment_management:read");
+	},
 	component: ClassSlotsPage,
 });
 
@@ -408,7 +412,7 @@ function ClassSlotsPage() {
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Class Slots</h1>
+				<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
 				<p className="text-muted-foreground">No organization selected.</p>
 			</div>
 		);
@@ -417,7 +421,7 @@ function ClassSlotsPage() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Class Slots</h1>
+				<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
 				<p className="text-destructive">
 					{error instanceof Error
 						? error.message
@@ -437,7 +441,7 @@ function ClassSlotsPage() {
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
 					<Calendar className="h-6 w-6 text-muted-foreground" />
-					<h1 className="text-3xl font-bold">Class Slots</h1>
+					<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
 				</div>
 				<Button onClick={() => setCreateSheetOpen(true)}>
 					<Plus className="mr-2 h-4 w-4" />

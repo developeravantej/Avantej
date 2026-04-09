@@ -7,9 +7,9 @@
 // import { loadStripe, type Stripe } from "@stripe/stripe-js";
 type Stripe = any;
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const _stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
-let stripePromise: Promise<Stripe | null> | null = null;
+let _stripePromise: Promise<Stripe | null> | null = null;
 
 const getStripe = (): Promise<Stripe | null> => {
   // TODO: Implement Stripe integration when needed

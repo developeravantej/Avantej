@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -39,6 +40,9 @@ import { BookUser, Plus, Search, Edit, ChevronDown } from "lucide-react";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/walk-in/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("walk_in_customer_management:read");
+	},
 	component: WalkInCustomersPage,
 });
 
@@ -426,7 +430,7 @@ function WalkInCustomersPage() {
 						<BookUser className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Walk-in Customers</h1>
+						<h1 className="text-2xl font-bold font-heading">Walk-in Customers</h1>
 						<p className="text-muted-foreground text-sm">
 							Manage unregistered walk-in customers and their details.
 						</p>

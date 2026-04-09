@@ -38,7 +38,7 @@ function CreateBranchComponent() {
 			{/* Main Form - Takes 2 columns on large screens */}
 			<div className="lg:col-span-2 space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold">Create Branch</h1>
+					<h1 className="text-3xl font-bold font-heading">Create Branch</h1>
 				</div>
 				<HierarchicalBranchForm onSuccess={handleSuccess} />
 			</div>
@@ -109,7 +109,7 @@ function CreateBranchComponent() {
 						</div>
 
 						{/* Permissions Required */}
-						<div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+						<div className="rounded-lg bg-brand-secondary-3/50 p-4 border border-brand-secondary-3">
 							<h3 className="font-semibold text-sm mb-2">Permissions Required</h3>
 							<p className="text-sm text-muted-foreground">
 								You need Organization Owner permissions to create branches and hierarchy items.

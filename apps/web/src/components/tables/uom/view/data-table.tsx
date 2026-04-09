@@ -25,6 +25,7 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
+	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -66,6 +67,9 @@ export function DataTable<TData extends UomRow, TValue>({
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
+	// Delete confirmation state
+	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
 	// Create form state
 	const [createName, setCreateName] = useState("");
 	const [createDescription, setCreateDescription] = useState("");
@@ -90,7 +94,7 @@ export function DataTable<TData extends UomRow, TValue>({
 			});
 		},
 		onDelete: (id: string) => {
-			onDelete(id);
+			setDeleteTarget(id);
 		},
 	};
 
@@ -317,6 +321,35 @@ export function DataTable<TData extends UomRow, TValue>({
 						</Button>
 						<Button onClick={handleUpdate} disabled={isUpdating}>
 							{isUpdating ? "Saving..." : "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Confirmation Dialog */}
+			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Confirm Delete</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to delete this unit of measure? This action cannot be undone.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (deleteTarget) {
+									onDelete(deleteTarget);
+									setDeleteTarget(null);
+								}
+							}}
+							disabled={isDeleting}
+						>
+							{isDeleting ? "Deleting..." : "Delete"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

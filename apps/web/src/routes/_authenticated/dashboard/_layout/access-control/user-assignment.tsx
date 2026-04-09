@@ -42,10 +42,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { useUserAssignment } from "@/hooks/useUserAssignment";
 import type { UserForAssignment, RoleResponse } from "@/types/user-assignment";
 import { toast } from "sonner";
 import { requirePermission } from "@/lib/route-guards";
@@ -70,6 +77,7 @@ interface UserCardProps {
   user: UserForAssignment;
   roles: RoleResponse[];
   onEditRoles: () => void;
+  onEditDetails: () => void;
   onDeactivate: () => void;
   onSelect?: (selected: boolean) => void;
   isSelected?: boolean;
@@ -80,10 +88,11 @@ function UserCard({
   user,
   roles,
   onEditRoles,
+  onEditDetails,
   onDeactivate,
   onSelect,
   isSelected,
-  isLoading,
+  isLoading: _isLoading,
 }: UserCardProps) {
   const userRoles = roles.filter((role) => user.roles.includes(role.id));
   const highestRole = userRoles.reduce(
@@ -115,7 +124,7 @@ function UserCard({
       case 3:
         return "bg-blue-100 text-blue-800 border-blue-300";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3";
     }
   };
 
@@ -175,7 +184,7 @@ function UserCard({
                 <Shield className="w-4 h-4 mr-2" />
                 Edit Roles
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem onClick={onEditDetails} className="cursor-pointer">
                 <Edit className="w-4 h-4 mr-2" />
                 Edit User
               </DropdownMenuItem>
@@ -485,6 +494,16 @@ function UserAssignmentPage() {
     enabled: !!organizationId,
   });
 
+  const { data: hierarchyData } = useQuery({
+    queryKey: ["hierarchy", "nodes", organizationId],
+    queryFn: () => {
+      if (!organizationId) return Promise.resolve({ nodes: [] });
+      return client.hierarchy.listNodes({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+  const hierarchyNodes = hierarchyData?.nodes ?? [];
+
   const isLoading = membersLoading || rolesLoading;
 
   const roles: RoleResponse[] = (rolesApiData as RoleApiItem[]).map((r) => ({
@@ -516,6 +535,9 @@ function UserAssignmentPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<UserForAssignment | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [editingUserDetails, setEditingUserDetails] = useState<UserForAssignment | null>(null);
+  const [editRole, setEditRole] = useState<SystemRole>("staff");
+  const [editHierarchyScopeId, setEditHierarchyScopeId] = useState<string>("");
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -620,24 +642,77 @@ function UserAssignmentPage() {
         hierarchyScopeId: inviterHierarchyScopeId,
       });
 
-      // Step 2: Send the invitation email via the server-side email procedure.
-      await client.invitations.sendEmail({
-        invitation: {
-          token: result.invitation.token,
-          email: result.invitation.email,
-          role: result.invitation.role,
-        },
-        organizationId,
-        organizationName: result.organizationName,
-        inviterName: result.inviterName,
-      });
+      // Step 2: Try to send the invitation email via the server-side email procedure.
+      try {
+        await client.invitations.sendEmail({
+          invitation: {
+            token: result.invitation.token,
+            email: result.invitation.email,
+            role: result.invitation.role,
+          },
+          organizationId,
+          organizationName: result.organizationName,
+          inviterName: result.inviterName,
+        });
+        toast.success(`Invitation sent to ${email}`);
+      } catch (emailError) {
+        // Invitation was created but email failed — don't block the user
+        toast.warning(
+          "Invitation created but the email failed to send. You can resend it from the invitations page.",
+          { duration: 8000 }
+        );
+        console.error("Email send failed:", emailError);
+      }
 
-      toast.success(`Invitation sent to ${email}`);
+      // Close dialog and refresh list regardless of email outcome
       setShowInviteDialog(false);
       await queryClient.invalidateQueries({ queryKey: ["members", organizationId] });
+    } catch (createError) {
+      // Invitation creation itself failed
+      toast.error(
+        createError instanceof Error ? createError.message : "Failed to create invitation"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenEditUser = (user: UserForAssignment) => {
+    // Pre-populate form with current member data from API
+    const memberRaw = (membersApiData as MemberApiItem[]).find((m) => m.id === user.id);
+    const currentRole = (memberRaw as any)?.role as SystemRole | undefined;
+    const currentScope = (memberRaw as any)?.hierarchyScopeId as string | undefined;
+    setEditingUserDetails(user);
+    setEditRole(currentRole ?? "staff");
+    setEditHierarchyScopeId(currentScope ?? "");
+  };
+
+  const handleSaveUserDetails = async () => {
+    if (!editingUserDetails || !organizationId) return;
+    setIsSaving(true);
+    try {
+      // Update role
+      await client.members.updateRole({
+        organizationId,
+        memberId: editingUserDetails.id,
+        newRole: editRole,
+      });
+
+      // Update hierarchy scope if provided
+      if (editHierarchyScopeId) {
+        await client.hierarchy.reassignMember({
+          organizationId,
+          memberId: editingUserDetails.id,
+          newHierarchyScopeId: editHierarchyScopeId,
+        });
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["members", organizationId] });
+      toast.success(`Updated details for ${editingUserDetails.name}`);
+      setEditingUserDetails(null);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to send invitation"
+        error instanceof Error ? error.message : "Failed to update user details"
       );
     } finally {
       setIsSaving(false);
@@ -659,8 +734,8 @@ function UserAssignmentPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">User Role Assignment</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold font-heading">User Role Assignment</h1>
+          <p className="text-brand-secondary-1">
             Assign roles and permissions to users
           </p>
         </div>
@@ -807,6 +882,7 @@ function UserAssignmentPage() {
             isSelected={selectedUsers.has(user.id)}
             onSelect={(selected) => handleUserSelect(user.id, selected)}
             onEditRoles={() => handleEditUserRoles(user)}
+            onEditDetails={() => handleOpenEditUser(user)}
             onDeactivate={() => handleDeactivateUser(user.id)}
             isLoading={isSaving}
           />
@@ -817,9 +893,9 @@ function UserAssignmentPage() {
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No users found</h3>
-              <p className="text-muted-foreground mb-4">
+              <Users className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
+              <h3 className="text-lg font-medium mb-2 text-brand-primary-1">No users found</h3>
+              <p className="text-brand-secondary-1 mb-4">
                 {searchQuery || roleFilter !== "all" || statusFilter !== "all"
                   ? "No users match your current filters."
                   : "Get started by inviting your first user."}
@@ -854,6 +930,84 @@ function UserAssignmentPage() {
         onInvite={handleInviteUser}
         isLoading={isSaving}
       />
+
+      {/* Edit User Details Dialog */}
+      <Dialog
+        open={!!editingUserDetails}
+        onOpenChange={(open) => { if (!open) setEditingUserDetails(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User — {editingUserDetails?.name}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <Select
+                value={editRole}
+                onValueChange={(value) => setEditRole(value as SystemRole)}
+              >
+                <SelectTrigger id="edit-role">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SYSTEM_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      <div>
+                        <div className="font-medium">{r.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {r.description}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-hierarchy">Hierarchy Scope</Label>
+              <Select
+                value={editHierarchyScopeId}
+                onValueChange={setEditHierarchyScopeId}
+              >
+                <SelectTrigger id="edit-hierarchy">
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hierarchyNodes.map((node) => (
+                    <SelectItem key={node.id} value={node.id}>
+                      <div>
+                        <div className="font-medium">{node.name}</div>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {node.type} {node.depth > 0 ? `(depth ${node.depth})` : ""}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Determines which parts of the hierarchy this member can access.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingUserDetails(null)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveUserDetails} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {isLoading && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">

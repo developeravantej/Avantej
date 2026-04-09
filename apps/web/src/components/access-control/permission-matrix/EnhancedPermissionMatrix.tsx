@@ -65,7 +65,7 @@ interface RoleGroupConfig {
 }
 
 const ROLE_GROUPS: Record<RoleGroup, RoleGroupConfig> = {
-  all: { label: "All Roles", color: "bg-gray-100", priorities: [] },
+  all: { label: "All Roles", color: "bg-brand-secondary-3", priorities: [] },
   admin: { label: "Admin", color: "bg-red-100 text-red-800", priorities: [1] },
   manager: {
     label: "Manager",
@@ -96,8 +96,8 @@ export function EnhancedPermissionMatrix({
   roles,
   resources,
   onPermissionChange,
-  onRoleSelect,
-  selectedRoles = [],
+  onRoleSelect: _onRoleSelect,
+  selectedRoles: _selectedRoles = [],
   maxVisibleRoles = 6,
   hideControls = false,
 }: EnhancedPermissionMatrixProps) {
@@ -304,7 +304,7 @@ export function EnhancedPermissionMatrix({
       case "branch":
         return <Check className="w-3 h-3 text-green-700" />;
       default:
-        return <X className="w-3 h-3 text-gray-500" />;
+        return <X className="w-3 h-3 text-brand-secondary-1" />;
     }
   };
 
@@ -334,7 +334,7 @@ export function EnhancedPermissionMatrix({
       case "branch":
         return "bg-indigo-100 hover:bg-indigo-200 border-indigo-300";
       default:
-        return "bg-gray-100 hover:bg-gray-200 border-gray-300";
+        return "bg-brand-secondary-3 hover:bg-brand-secondary-3 border-brand-secondary-3";
     }
   };
 
@@ -572,7 +572,7 @@ export function EnhancedPermissionMatrix({
                                                 "w-6 h-6 p-0 rounded-full flex-shrink-0",
                                                 hasAccess
                                                   ? getScopeButtonStyle(scope)
-                                                  : "bg-gray-100 hover:bg-gray-200"
+                                                  : "bg-brand-secondary-3 hover:bg-brand-secondary-3"
                                               )}
                                               onClick={() =>
                                                 handlePermissionToggle(
@@ -824,8 +824,8 @@ export function EnhancedPermissionMatrix({
                 <span>Own</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                  <X className="w-3 h-3 text-gray-500" />
+                <div className="w-5 h-5 rounded-full bg-brand-secondary-3 flex items-center justify-center">
+                  <X className="w-3 h-3 text-brand-secondary-1" />
                 </div>
                 <span>No Access</span>
               </div>
@@ -889,7 +889,7 @@ export function EnhancedPermissionMatrix({
                         const resourcePermissions = role.permissions.filter(
                           (p) => p.resourceId === resource.id
                         );
-                        const resourcePercentage = Math.round(
+                        const _resourcePercentage = Math.round(
                           (resourcePermissions.length /
                             resource.actions.length) *
                             100
@@ -1081,7 +1081,7 @@ export function EnhancedPermissionMatrix({
                                             "w-fit text-xs rounded-full",
                                             hasAccess
                                               ? getScopeButtonStyle(scope)
-                                              : "bg-gray-100 hover:bg-gray-200",
+                                              : "bg-brand-secondary-3 hover:bg-brand-secondary-3",
                                             "focus:ring-0 focus:ring-offset-0"
                                           )}
                                           aria-label="Select permission scope"
@@ -1095,7 +1095,7 @@ export function EnhancedPermissionMatrix({
                                                   ? getScopeButtonStyle(
                                                       scope
                                                     ).split(" ")[0]
-                                                  : "bg-gray-100"
+                                                  : "bg-brand-secondary-3"
                                               )}
                                             >
                                               {getScopeIcon(scope)}
@@ -1112,8 +1112,8 @@ export function EnhancedPermissionMatrix({
                                             className="flex items-center py-1 px-2"
                                           >
                                             <div className="flex items-center gap-2 w-full">
-                                              <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                                                <X className="w-3 h-3 text-gray-500" />
+                                              <div className="w-5 h-5 rounded-full bg-brand-secondary-3 flex items-center justify-center">
+                                                <X className="w-3 h-3 text-brand-secondary-1" />
                                               </div>
                                               <span>No Access</span>
                                             </div>

@@ -446,7 +446,7 @@ export function MemberReassignment({
                       className={`h-5 px-1.5 text-[10px] capitalize ${
                         member.status === "active"
                           ? "text-green-600 border-green-200 bg-green-50"
-                          : "text-gray-500"
+                          : "text-brand-secondary-1"
                       }`}
                     >
                       {member.status}
@@ -459,7 +459,7 @@ export function MemberReassignment({
                             ? "text-purple-600 border-purple-200 bg-purple-50"
                             : isHigherLevel
                             ? "text-blue-600 border-blue-200 bg-blue-50"
-                            : "text-gray-600"
+                            : "text-brand-secondary-1"
                         }`}
                       >
                         {scopeInfo.label}

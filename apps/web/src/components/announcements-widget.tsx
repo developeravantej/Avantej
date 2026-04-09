@@ -34,7 +34,7 @@ export function AnnouncementsWidget() {
 	return (
 		<Card className="h-full">
 			<CardContent>
-				<div className="flex flex-col h-[220px] overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2">
 						<h1 className="font-heading font-bold text-2xl">Announcements</h1>
 						<ChevronsUpDown className="mr-3 h-4 w-4" />
@@ -57,7 +57,7 @@ export function AnnouncementsWidget() {
 							{announcements.map((a) => (
 								<div
 									key={a.id}
-									className="flex flex-col border-b border-gray-200 pr-2 py-2 last:border-0 last:pb-0"
+									className="flex flex-col border-b border-brand-secondary-3 pr-2 py-2 last:border-0 last:pb-0"
 								>
 									<div className="flex items-center">
 										<div className="text-lg font-bold">{a.title}</div>
@@ -65,7 +65,7 @@ export function AnnouncementsWidget() {
 											({formatAnnouncementDate(a.createdAt)})
 										</div>
 									</div>
-									<div className="mt-1 text-sm text-gray-600">
+									<div className="mt-1 text-sm text-brand-secondary-1">
 										{a.message}
 									</div>
 								</div>

@@ -87,8 +87,8 @@ function PayoutsViewPage() {
 						<Banknote className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Payouts</h1>
-						<p className="text-muted-foreground text-sm">
+						<h1 className="text-2xl font-bold font-heading">Payouts</h1>
+						<p className="text-brand-secondary-1 text-sm">
 							Staff and trainer commission payout records.
 						</p>
 					</div>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
+import { Button } from "@/components/ui/button";
 import DataTable from "@/components/tables/payment/view/data-table";
 import { columns, type PaymentRow } from "@/components/tables/payment/view/columns";
 
@@ -15,7 +16,7 @@ function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["invoices", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -41,6 +42,20 @@ function RouteComponent() {
 				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
 					<span className="sr-only">Loading...</span>
 				</div>
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
 			</div>
 		);
 	}

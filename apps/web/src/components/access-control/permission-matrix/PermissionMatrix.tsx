@@ -138,12 +138,11 @@ export function PermissionMatrix({
   roles = MOCK_ROLES,
   resources = MOCK_RESOURCES,
   onPermissionChange,
-  onRoleSelect,
-  selectedRoles = [],
+  onRoleSelect: _onRoleSelect,
+  selectedRoles: _selectedRoles = [],
 }: PermissionMatrixProps) {
   const isMobile = useIsMobile();
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['users']));
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
 
   const toggleResourceExpansion = (resourceId: string) => {
     const newExpanded = new Set(expandedResources);
@@ -188,7 +187,7 @@ export function PermissionMatrix({
       case 'branch':
         return <Check className="w-3 h-3 text-green-600" />;
       default:
-        return <X className="w-3 h-3 text-gray-400" />;
+        return <X className="w-3 h-3 text-brand-secondary-2" />;
     }
   };
 

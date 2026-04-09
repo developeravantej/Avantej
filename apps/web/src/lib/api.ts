@@ -25,12 +25,12 @@ class ApiClient {
   // TODO: All methods should be migrated to oRPC
   // This is a placeholder to prevent import errors
   
-  async getListServices(params: any): Promise<any> {
+  async getListServices(_params: any): Promise<any> {
     console.warn("TODO: Replace apiClient.getListServices with oRPC client");
     return { status: 200, data: [] }; // Mock data
   }
   
-  async getListServiceCategories(params: any): Promise<any> {
+  async getListServiceCategories(_params: any): Promise<any> {
     console.warn("TODO: Replace apiClient.getListServiceCategories with oRPC client");
     return { status: 200, data: [] }; // Mock data
   }

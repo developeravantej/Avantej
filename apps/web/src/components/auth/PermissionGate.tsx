@@ -13,7 +13,7 @@ import {
   checkUserHasAnyRole,
   checkUserPermissions,
 } from "@/lib/permissions";
-import type { RequiredPermission, UserWithPermissions } from "@/types/auth";
+import type { RequiredPermission } from "@/types/auth";
 import { isUserWithPermissions } from "@/types/auth";
 
 interface PermissionGateProps {
@@ -59,7 +59,7 @@ export function PermissionGate({
   if (isLoading && showLoading) {
     return (
       <div className="animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-brand-secondary-3 rounded w-3/4"></div>
       </div>
     );
   }

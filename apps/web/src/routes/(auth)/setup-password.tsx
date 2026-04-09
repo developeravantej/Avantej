@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getServerUrl } from "@/lib/config";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -24,7 +23,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
-import apiClient from "@/lib/api";
+
+interface TokenInfo {
+  email: string;
+  full_name: string;
+  is_expired: boolean;
+  expires_at: string;
+  already_has_password: boolean;
+}
 
 const formSchema = z
   .object({
@@ -49,7 +55,7 @@ function SetupPasswordPage() {
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { token?: string };
   const token = search.token;
-  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [isValidatingToken, setIsValidatingToken] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -88,13 +94,7 @@ function SetupPasswordPage() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const tokenData = (await response.json()) as {
-          email: string;
-          full_name: string;
-          is_expired: boolean;
-          expires_at: string;
-          already_has_password: boolean;
-        };
+        const tokenData = (await response.json()) as TokenInfo;
         setTokenInfo(tokenData);
 
         if (tokenData.is_expired) {
@@ -158,7 +158,7 @@ function SetupPasswordPage() {
       // Redirect to onboarding to create organization
       navigate({ to: "/onboarding" });
     },
-    onError: (error: any) => {
+    onError: (error: Error & { response?: { data?: { detail?: string } } }) => {
       console.error("Password setup error:", error);
 
       const errorMessage =

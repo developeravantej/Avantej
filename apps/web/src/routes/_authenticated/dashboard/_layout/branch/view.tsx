@@ -845,8 +845,8 @@ function RouteComponent() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Branches</h1>
-          <p className="text-gray-600">Manage your organization's branches</p>
+          <h1 className="text-2xl font-bold font-heading">Branches</h1>
+          <p className="text-brand-secondary-1">Manage your organization's branches</p>
         </div>
         <Link to="/dashboard/branch/create">
           <Button className="flex items-center space-x-2">
@@ -857,7 +857,7 @@ function RouteComponent() {
       </div>
 
       {process.env.NODE_ENV === "development" && (
-        <div className="p-4 mb-4 space-y-2 text-xs bg-gray-100 rounded">
+        <div className="p-4 mb-4 space-y-2 text-xs bg-brand-secondary-3 rounded">
           <div className="flex items-center justify-between">
             <p>
               <strong>Debug Info:</strong>
@@ -927,11 +927,11 @@ function RouteComponent() {
       
       {/* Empty State */}
       {!isLoadingBranches && branchData?.items?.length === 0 && (
-        <div className="py-12 text-center border rounded-lg bg-gray-50">
-          <p className="text-lg font-medium text-gray-900 mb-2">
+        <div className="py-12 text-center border border-brand-secondary-3 rounded-lg bg-brand-secondary-3/50">
+          <p className="text-lg font-medium text-brand-primary-1 mb-2">
             No branches found
           </p>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-brand-secondary-1 mb-4">
             {organizationId
               ? "Create your first branch to get started."
               : "Please ensure you're logged in and have an organization selected."}
@@ -973,7 +973,7 @@ function RouteComponent() {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-500/50" />
+            <div className="fixed inset-0 bg-brand-primary-1/50" />
           </Transition.Child>
 
           <div className="fixed inset-0 overflow-y-auto">
@@ -990,7 +990,7 @@ function RouteComponent() {
                 <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all max-h-[90vh] overflow-y-auto">
                   <Dialog.Title
                     as="h3"
-                    className="mb-4 text-lg font-medium leading-6 text-gray-900"
+                    className="mb-4 text-lg font-medium leading-6 text-brand-primary-1"
                   >
                     Edit Branch
                   </Dialog.Title>

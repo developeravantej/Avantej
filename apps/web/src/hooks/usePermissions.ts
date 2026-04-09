@@ -36,7 +36,7 @@ interface UsePermissionResult {
 }
 
 export function usePermission({ resource, action, scope = 'own' }: UsePermissionProps): UsePermissionResult {
-  const { user, hasPermission: authHasPermission } = useAuth();
+  const { hasPermission: authHasPermission } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ interface UseRoleResult {
 }
 
 export function useRole(roleName: string): UseRoleResult {
-  const { user, hasRole: authHasRole } = useAuth();
+  const { hasRole: authHasRole } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { client, orpc } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 export function useProductData(organizationId: string | null) {
 	const { data: brands = [] } = useQuery({

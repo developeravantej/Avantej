@@ -131,8 +131,8 @@ function NotificationsViewPage() {
 						<Bell className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">Notifications</h1>
-						<p className="text-muted-foreground text-sm">
+						<h1 className="text-2xl font-bold font-heading">Notifications</h1>
+						<p className="text-brand-secondary-1 text-sm">
 							Your notification history.
 						</p>
 					</div>
@@ -168,9 +168,9 @@ function NotificationsViewPage() {
 
 			{/* Table or empty state */}
 			{data.length === 0 ? (
-				<div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
-					<Bell className="h-10 w-10 opacity-30" />
-					<p className="text-sm">
+				<div className="flex flex-col items-center justify-center py-16 gap-2">
+					<Bell className="h-10 w-10 text-brand-secondary-2" />
+					<p className="text-sm text-brand-secondary-1">
 						{readFilter === false
 							? "You're all caught up!"
 							: "No notifications"}

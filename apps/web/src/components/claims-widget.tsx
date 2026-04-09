@@ -22,7 +22,7 @@ export function ClaimsWidget() {
 				<CardTitle className="text-2xl font-bold">Claims</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div className="flex flex-col space-y-4 h-[150px] overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+				<div className="flex flex-col space-y-4 max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					{isLoading ? (
 						<div className="flex items-center justify-center h-full text-muted-foreground text-sm">
 							Loading...

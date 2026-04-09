@@ -60,7 +60,7 @@ export function AppointmentsWidget() {
 			case "cancelled":
 				return "bg-red-100 text-red-800 border-red-200";
 			default:
-				return "bg-gray-100 text-gray-800 border-gray-200";
+				return "bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3";
 		}
 	};
 
@@ -81,7 +81,7 @@ export function AppointmentsWidget() {
 			onClick={handleWidgetClick}
 		>
 			<CardContent>
-				<div className="flex flex-col h-[220px] overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2 mb-2">
 						<h1 className="font-heading font-bold text-2xl">Appointments Today</h1>
 						<ChevronsUpDown className="mr-3 h-4 w-4" />
@@ -96,8 +96,8 @@ export function AppointmentsWidget() {
 							Loading…
 						</div>
 					) : appointments.length === 0 ? (
-						<div className="text-center py-8 text-gray-500">
-							<Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+						<div className="text-center py-8 text-brand-secondary-1">
+							<Calendar className="h-12 w-12 mx-auto mb-4 text-brand-secondary-2" />
 							<p className="text-lg font-medium">No appointments today</p>
 							<p className="text-sm">You're all caught up!</p>
 						</div>
@@ -107,39 +107,39 @@ export function AppointmentsWidget() {
 								<div
 									key={appointment.id}
 									className={cn(
-										"flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 relative",
+										"flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-brand-secondary-3/50 relative",
 										getStatusColor(appointment.status)
 									)}
 								>
 									<div className="flex-shrink-0 w-16 text-center">
-										<div className="text-sm font-medium text-gray-900">
+										<div className="text-sm font-medium text-brand-primary-1">
 											{formatTime(appointment.start)}
 										</div>
-										<div className="text-xs text-gray-500">
+										<div className="text-xs text-brand-secondary-1">
 											{formatTime(appointment.end)}
 										</div>
 									</div>
 									<div className="flex-shrink-0 w-4 flex flex-col items-center">
-										<div className="w-3 h-3 rounded-full bg-blue-500" />
+										<div className="w-3 h-3 rounded-full bg-brand-primary-1" />
 										{index < appointments.length - 1 && (
-											<div className="w-0.5 h-8 bg-gray-300 mt-1" />
+											<div className="w-0.5 h-8 bg-brand-secondary-3 mt-1" />
 										)}
 									</div>
 									<div className="flex-1 min-w-0">
 										<div className="flex items-start justify-between">
 											<div className="flex-1 min-w-0">
-												<h3 className="text-sm font-medium text-gray-900 truncate">
+												<h3 className="text-sm font-medium text-brand-primary-1 truncate">
 													{appointment.title}
 												</h3>
 												<div className="flex items-center gap-1 mt-1">
-													<User className="h-3 w-3 text-gray-400" />
-													<p className="text-xs text-gray-600 truncate">
+													<User className="h-3 w-3 text-brand-secondary-1" />
+													<p className="text-xs text-brand-secondary-1 truncate">
 														{appointment.clientName}
 													</p>
 												</div>
 												<div className="flex items-center gap-1 mt-1">
-													<Clock className="h-3 w-3 text-gray-400" />
-													<p className="text-xs text-gray-500 truncate">
+													<Clock className="h-3 w-3 text-brand-secondary-1" />
+													<p className="text-xs text-brand-secondary-1 truncate">
 														{appointment.service} • {formatDuration(appointment.start, appointment.end)}
 													</p>
 												</div>

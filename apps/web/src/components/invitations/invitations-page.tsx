@@ -199,7 +199,7 @@ export function InvitationsPage() {
 						<Badge variant="outline" className="gap-1 text-green-600">
 							Accepted: {statusCounts.accepted}
 						</Badge>
-						<Badge variant="outline" className="gap-1 text-gray-600">
+						<Badge variant="outline" className="gap-1 text-brand-secondary-1">
 							Expired: {statusCounts.expired}
 						</Badge>
 					</div>

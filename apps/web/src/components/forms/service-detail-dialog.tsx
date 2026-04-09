@@ -124,7 +124,7 @@ export function ServiceDetailDialog({
 					leaveFrom="opacity-100"
 					leaveTo="opacity-0"
 				>
-					<div className="fixed inset-0 bg-gray-500/50" />
+					<div className="fixed inset-0 bg-brand-primary-1/50" />
 				</Transition.Child>
 				<div className="fixed inset-0 overflow-y-auto">
 					<div className="flex min-h-full items-center justify-center p-4">
@@ -260,7 +260,7 @@ export function ServiceDetailDialog({
 											leaveFrom="opacity-100"
 											leaveTo="opacity-0"
 										>
-											<div className="fixed inset-0 bg-gray-500/50" />
+											<div className="fixed inset-0 bg-brand-primary-1/50" />
 										</Transition.Child>
 										<div className="fixed inset-0 overflow-y-auto">
 											<div className="flex min-h-full items-center justify-center p-4">

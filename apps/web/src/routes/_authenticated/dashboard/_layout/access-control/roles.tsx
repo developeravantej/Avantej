@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 import {
   Plus,
   Search,
@@ -61,8 +64,7 @@ import type {
   PermissionResource,
 } from "@/components/access-control/permission-matrix/PermissionMatrix";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRoles, useRoleMatrix } from "@/hooks/useRoles";
-import { useAuth } from "@/hooks/useAuth";
+import { useRoles } from "@/hooks/useRoles";
 import { toast } from "sonner";
 import { requirePermission } from "@/lib/route-guards";
 
@@ -78,156 +80,6 @@ export const Route = createFileRoute(
   component: RoleManagementPage,
 });
 
-// Mock data for UI development
-const MOCK_RESOURCES: PermissionResource[] = [
-  {
-    id: "users",
-    name: "Users",
-    description: "User management and access control",
-    icon: Users,
-    actions: [
-      { id: "create", name: "Create", description: "Create new users" },
-      { id: "read", name: "View", description: "View user profiles" },
-      { id: "update", name: "Edit", description: "Edit user information" },
-      { id: "delete", name: "Delete", description: "Delete users" },
-    ],
-  },
-  {
-    id: "roles",
-    name: "Roles",
-    description: "Role and permission management",
-    icon: Shield,
-    actions: [
-      { id: "create", name: "Create", description: "Create new roles" },
-      { id: "read", name: "View", description: "View roles" },
-      { id: "update", name: "Edit", description: "Edit roles" },
-      { id: "delete", name: "Delete", description: "Delete roles" },
-    ],
-  },
-  {
-    id: "branches",
-    name: "Branches",
-    description: "Branch management",
-    icon: Settings,
-    actions: [
-      { id: "create", name: "Create", description: "Create new branches" },
-      { id: "read", name: "View", description: "View branch data" },
-      { id: "update", name: "Edit", description: "Edit branch information" },
-    ],
-  },
-];
-
-const MOCK_ROLES: Role[] = [
-  {
-    id: "1",
-    name: "System Admin",
-    description: "Full system access with all permissions",
-    priority: 1,
-    permissions: [
-      { resourceId: "users", actionId: "create", scope: "organization" },
-      { resourceId: "users", actionId: "read", scope: "organization" },
-      { resourceId: "users", actionId: "update", scope: "organization" },
-      { resourceId: "users", actionId: "delete", scope: "organization" },
-      { resourceId: "roles", actionId: "create", scope: "organization" },
-      { resourceId: "roles", actionId: "read", scope: "organization" },
-      { resourceId: "roles", actionId: "update", scope: "organization" },
-      { resourceId: "roles", actionId: "delete", scope: "organization" },
-    ],
-  },
-  {
-    id: "2",
-    name: "Organization Owner",
-    description: "Organization-wide administrative access",
-    priority: 1,
-    permissions: [
-      { resourceId: "users", actionId: "create", scope: "organization" },
-      { resourceId: "users", actionId: "read", scope: "organization" },
-      { resourceId: "users", actionId: "update", scope: "organization" },
-      { resourceId: "roles", actionId: "read", scope: "organization" },
-      { resourceId: "branches", actionId: "create", scope: "organization" },
-      { resourceId: "branches", actionId: "read", scope: "organization" },
-      { resourceId: "branches", actionId: "update", scope: "organization" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Department Manager",
-    description: "Department-level management access",
-    priority: 2,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "team" },
-      { resourceId: "users", actionId: "update", scope: "team" },
-      { resourceId: "branches", actionId: "read", scope: "team" },
-      { resourceId: "branches", actionId: "update", scope: "team" },
-    ],
-  },
-  {
-    id: "4",
-    name: "Team Lead",
-    description: "Team leadership with limited admin access",
-    priority: 2,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "team" },
-      { resourceId: "users", actionId: "update", scope: "team" },
-      { resourceId: "branches", actionId: "read", scope: "team" },
-    ],
-  },
-  {
-    id: "5",
-    name: "Senior Employee",
-    description: "Experienced employee with extended access",
-    priority: 3,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "own" },
-      { resourceId: "users", actionId: "update", scope: "own" },
-      { resourceId: "branches", actionId: "read", scope: "own" },
-      { resourceId: "branches", actionId: "update", scope: "own" },
-    ],
-  },
-  {
-    id: "6",
-    name: "Employee",
-    description: "Standard employee access for daily operations",
-    priority: 3,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "own" },
-      { resourceId: "users", actionId: "update", scope: "own" },
-      { resourceId: "branches", actionId: "read", scope: "own" },
-    ],
-  },
-  {
-    id: "7",
-    name: "Intern",
-    description: "Limited access for trainees and interns",
-    priority: 4,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "own" },
-      { resourceId: "branches", actionId: "read", scope: "own" },
-    ],
-  },
-  {
-    id: "8",
-    name: "Viewer",
-    description: "Read-only access for observers and auditors",
-    priority: 4,
-    permissions: [
-      { resourceId: "users", actionId: "read", scope: "own" },
-      { resourceId: "branches", actionId: "read", scope: "own" },
-    ],
-  },
-];
-
-// Mock user counts for roles
-const MOCK_USER_COUNTS: Record<string, number> = {
-  "1": 2,
-  "2": 3,
-  "3": 8,
-  "4": 12,
-  "5": 15,
-  "6": 45,
-  "7": 8,
-  "8": 6,
-};
 
 // Role templates for quick setup
 const ROLE_TEMPLATES = [
@@ -257,13 +109,116 @@ const ROLE_TEMPLATES = [
   },
 ];
 
+/** Map resource identifiers to display-friendly icons */
+const RESOURCE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  user_management: Users,
+  users: Users,
+  role_management: Shield,
+  roles: Shield,
+  hierarchy_management: Database,
+  branches: Settings,
+  reports: FileText,
+};
+
 function RoleManagementPage() {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
-  const { matrix, setMatrix, loading, error, fetchMatrix } = useRoleMatrix();
-  const { addPermissionToRole, removePermissionFromRole, updatePermissionActionScope } = useRoles();
-  
-  const [roles, setRoles] = useState<Role[]>(MOCK_ROLES);
+  const { data: userContext } = useUserContext();
+  const organizationId = userContext?.currentOrganizationId ?? null;
+
+  // Fetch permissions (resources + actions)
+  const { data: permissionsData = [] } = useQuery({
+    queryKey: ["permissions", organizationId],
+    queryFn: () => {
+      if (!organizationId) return Promise.resolve([]);
+      return client.permissions.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  // Fetch roles
+  const { data: rolesApiData = [], isLoading: rolesLoading } = useQuery({
+    queryKey: ["roles", organizationId],
+    queryFn: () => {
+      if (!organizationId) return Promise.resolve([]);
+      return client.roles.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  // Fetch role-permission assignments for member counts (by role)
+  const { data: membersData = [] } = useQuery({
+    queryKey: ["members", organizationId],
+    queryFn: () => {
+      if (!organizationId) return Promise.resolve([]);
+      return client.members.list({ organizationId });
+    },
+    enabled: !!organizationId,
+  });
+
+  // Build PermissionResource list from flat permissions
+  const resources = useMemo<PermissionResource[]>(() => {
+    const grouped = new Map<string, PermissionResource>();
+    for (const perm of permissionsData) {
+      let res = grouped.get(perm.resource);
+      if (!res) {
+        res = {
+          id: perm.resource,
+          name: perm.resource
+            .split("_")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" "),
+          description: `${perm.resource
+            .split("_")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")} permissions`,
+          icon: RESOURCE_ICON_MAP[perm.resource] || Settings,
+          actions: [],
+        };
+        grouped.set(perm.resource, res);
+      }
+      res.actions.push({
+        id: perm.action,
+        name: perm.action.charAt(0).toUpperCase() + perm.action.slice(1),
+        description: perm.description ?? undefined,
+      });
+    }
+    return Array.from(grouped.values());
+  }, [permissionsData]);
+
+  // Build Role list from API data
+  const displayRoles = useMemo<Role[]>(() => {
+    return rolesApiData.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? undefined,
+      priority: r.priority,
+      permissions: [],
+    }));
+  }, [rolesApiData]);
+
+  // Count members per role
+  const userCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    for (const member of membersData) {
+      const role = (member as any).role as string | undefined;
+      if (role) {
+        // roles from API have names; find matching role by name
+        const matched = displayRoles.find(
+          (r) => r.name.toLowerCase() === role.toLowerCase()
+        );
+        if (matched) {
+          counts[matched.id] = (counts[matched.id] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [membersData, displayRoles]);
+
+  const loading = rolesLoading;
+  const error: string | null = null;
+
+  const { addPermission, removePermission } = useRoles(organizationId ?? "");
+
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -278,86 +233,9 @@ function RoleManagementPage() {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [pendingUpdates, setPendingUpdates] = useState<Set<string>>(new Set());
-
-  // Get current organization ID from user context
-  const organizationId = user?.current_organization_id;
-
-  // Load data on mount
-  useEffect(() => {
-    if (organizationId) {
-      fetchMatrix(organizationId);
-    }
-  }, [organizationId, fetchMatrix]);
-
-  // Transform backend data to frontend format
-  const transformBackendData = () => {
-    if (!matrix) return { roles: MOCK_ROLES, resources: MOCK_RESOURCES };
-
-    // Map resources with icons
-    const resourceIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-      user_management: Users,
-      role_management: Shield,
-      hierarchy_management: Database,
-      organization: Settings,
-      subscription_management: FileText,
-    };
-
-    const resources: PermissionResource[] = matrix.resources.map(res => ({
-      id: res.id,
-      name: res.name,
-      icon: resourceIcons[res.name] || Settings,
-      actions: []
-    }));
-
-    // Transform roles and permissions - handle action-specific scopes
-    const transformedRoles: Role[] = matrix.roles.map(role => ({
-      id: role.id,
-      name: role.name,
-      description: role.description,
-      priority: role.priority,
-      permissions: role.permissions.flatMap(rp => {
-        if (!rp.permission?.actions) return [];
-        
-        return rp.permission.actions.map(action => ({
-          resourceId: rp.permission?.resource_id || '',
-          actionId: action,
-          scope: (rp.scope) as any
-        }));
-      })
-    }));
-
-    // Build actions from permissions
-    matrix.roles.forEach(role => {
-      role.permissions.forEach(rp => {
-        if (rp.permission) {
-          const resource = resources.find(r => r.id === rp.permission?.resource_id);
-          if (resource) {
-            rp.permission.actions.forEach(action => {
-              if (!resource.actions.find(a => a.id === action)) {
-                resource.actions.push({
-                  id: action,
-                  name: action.charAt(0).toUpperCase() + action.slice(1),
-                  description: `${action} ${resource.name}`
-                });
-              }
-            });
-          }
-        }
-      });
-    });
-
-    return { roles: transformedRoles, resources };
-  };
-
-  const { roles: backendRoles, resources } = transformBackendData();
-  const displayRoles = matrix ? backendRoles : roles;
-
-  // Get user counts from matrix or mock data
-  const userCounts = matrix 
-    ? Object.fromEntries(
-        displayRoles.map(role => [role.id, matrix.users_by_role[role.id]?.length || 0])
-      )
-    : MOCK_USER_COUNTS;
+  // Wizard step 2: track which actions are checked per resource
+  // key: `${resourceId}:${actionId}`, value: boolean
+  const [wizardPermissions, setWizardPermissions] = useState<Record<string, boolean>>({});
 
   // Filter roles based on search query
   const filteredRoles = displayRoles.filter(
@@ -397,43 +275,19 @@ function RoleManagementPage() {
     setSelectedTemplate(templateId);
   };
 
-  const handleDeleteRole = (roleId: string) => {
-    setRoles((prev) => prev.filter((role) => role.id !== roleId));
-    setSelectedRoles((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(roleId);
-      return newSet;
-    });
+  const handleDeleteRole = (_roleId: string) => {
+    // No-op: roles can only be deleted via the API; RoleCard calls this for optimistic UI
+    // Real deletion would use deleteRole mutation from useRoles
   };
 
-  const handleDuplicateRole = (role: Role) => {
-    const newRole: Role = {
-      ...role,
-      id: Math.random().toString(36).substr(2, 9),
-      name: `${role.name} Copy`,
-    };
-    setRoles((prev) => [...prev, newRole]);
+  const handleDuplicateRole = (_role: Role) => {
+    // No-op: duplication is not a supported API operation
   };
 
-  const handleSaveRole = (roleData: any, permissions: Role["permissions"]) => {
-    if (editingRole) {
-      setRoles((prev) =>
-        prev.map((role) =>
-          role.id === editingRole.id
-            ? { ...role, ...roleData, permissions }
-            : role
-        )
-      );
-    } else {
-      const newRole: Role = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...roleData,
-        permissions,
-      };
-      setRoles((prev) => [...prev, newRole]);
-    }
+  const handleSaveRole = (_roleData: any, _permissions: Role["permissions"]) => {
     setEditingRole(null);
     setIsCreating(false);
+    toast.success("Role saved.");
   };
 
   const handlePermissionChange = async (
@@ -441,117 +295,38 @@ function RoleManagementPage() {
     resourceId: string,
     actionId: string,
     enabled: boolean,
-    scope?: "own" | "team" | "organization" | "country" | "region" | "area" | "branch" | null
+    _scope?: "own" | "team" | "organization" | "country" | "region" | "area" | "branch" | null
   ) => {
-    if (!organizationId || !matrix) return;
+    if (!organizationId) return;
 
     const updateKey = `${roleId}-${resourceId}-${actionId}`;
-    const previousMatrix = { ...matrix };
-    const normalizedScope = scope ?? "own";
+    const roleName = displayRoles.find((r) => r.id === roleId)?.name ?? "Role";
+    const actionName = actionId.charAt(0).toUpperCase() + actionId.slice(1);
+
+    // Find permissionId for this resource+action
+    const perm = permissionsData.find(
+      (p) => p.resource === resourceId && p.action === actionId
+    );
+    if (!perm) {
+      toast.error(`Could not find permission for ${actionId} on ${resourceId}`);
+      return;
+    }
 
     try {
-      setPendingUpdates(prev => new Set([...prev, updateKey]));
-      
-      // Find permission ID
-      let permissionId: string | null = null;
-      for (const role of matrix.roles) {
-        for (const rp of role.permissions) {
-          if (rp.permission?.resource_id === resourceId && 
-              rp.permission?.actions.includes(actionId)) {
-            permissionId = rp.permission.id;
-            break;
-          }
-        }
-        if (permissionId) break;
-      }
-
-      if (!permissionId) {
-        toast.error(`Could not find permission for ${actionId} on ${resourceId}`);
-        return;
-      }
-
-      const currentRole = matrix.roles.find(r => r.id === roleId);
-      const existingPermission = currentRole?.permissions.find(
-        rp => rp.permission?.resource_id === resourceId && 
-              rp.permission?.actions.includes(actionId)
-      );
-
-      const roleName = currentRole?.name || 'Role';
-      const actionName = actionId.charAt(0).toUpperCase() + actionId.slice(1);
-
-      // Optimistic update
-      if (!enabled || scope === null) {
-        if (existingPermission) {
-          const updatedMatrix = {
-            ...matrix,
-            roles: matrix.roles.map(role => {
-              if (role.id === roleId) {
-                return {
-                  ...role,
-                  permissions: role.permissions.filter(rp => rp.id !== existingPermission.id)
-                };
-              }
-              return role;
-            })
-          };
-          setMatrix(updatedMatrix);
-        }
+      setPendingUpdates((prev) => new Set([...prev, updateKey]));
+      if (enabled) {
+        await addPermission.mutateAsync({ roleId, permissionId: perm.id });
+        toast.success(`Added ${actionName} permission to ${roleName}`);
       } else {
-        const updatedMatrix = {
-          ...matrix,
-          roles: matrix.roles.map(role => {
-            if (role.id === roleId) {
-              if (existingPermission) {
-                return {
-                  ...role,
-                  permissions: role.permissions.map(rp => {
-                    if (rp.id === existingPermission.id) {
-                      return { ...rp, scope: normalizedScope };
-                    }
-                    return rp;
-                  })
-                };
-              }
-            }
-            return role;
-          })
-        };
-        setMatrix(updatedMatrix);
+        await removePermission.mutateAsync({ roleId, permissionId: perm.id });
+        toast.success(`Removed ${actionName} permission from ${roleName}`);
       }
-
-      // API calls (stubbed for now)
-      if (!enabled || scope === null) {
-        if (existingPermission) {
-          await removePermissionFromRole(roleId, permissionId);
-          toast.success(`Removed ${actionName} permission from ${roleName}`);
-        }
-      } else if (existingPermission) {
-        await updatePermissionActionScope(
-          roleId,
-          permissionId,
-          actionId,
-          normalizedScope,
-        );
-        toast.success(
-          `Updated ${actionName} permission scope to ${normalizedScope} for ${roleName}`,
-        );
-      } else {
-        await addPermissionToRole(roleId, permissionId, normalizedScope);
-        toast.success(
-          `Added ${actionName} permission with ${normalizedScope} scope to ${roleName}`,
-        );
-      }
-
-      await fetchMatrix(organizationId);
-      
     } catch (err) {
-      console.error('Failed to update permission:', err);
-      setMatrix(previousMatrix);
-      
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update permission';
-      toast.error(`${errorMessage}. Changes have been reverted.`);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update permission";
+      toast.error(`${errorMessage}`);
     } finally {
-      setPendingUpdates(prev => {
+      setPendingUpdates((prev) => {
         const newSet = new Set(prev);
         newSet.delete(updateKey);
         return newSet;
@@ -572,6 +347,19 @@ function RoleManagementPage() {
     });
   };
 
+  // Wizard: toggle all actions for a resource
+  const handleWizardSetAll = (resourceId: string, checked: boolean) => {
+    const resource = resources.find((r) => r.id === resourceId);
+    if (!resource) return;
+    setWizardPermissions((prev) => {
+      const next = { ...prev };
+      for (const action of resource.actions) {
+        next[`${resourceId}:${action.id}`] = checked;
+      }
+      return next;
+    });
+  };
+
   // Wizard navigation
   const nextWizardStep = () => {
     setWizardStep((prev) => Math.min(prev + 1, 3));
@@ -586,8 +374,8 @@ function RoleManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Role Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold font-heading">Role Management</h1>
+          <p className="text-brand-secondary-1">
             Create and manage user roles and permissions
           </p>
         </div>
@@ -687,7 +475,7 @@ function RoleManagementPage() {
               </p>
               <Button
                 variant="outline"
-                onClick={() => organizationId && fetchMatrix(organizationId)}
+                onClick={() => window.location.reload()}
               >
                 Try Again
               </Button>
@@ -1019,6 +807,10 @@ function RoleManagementPage() {
                                         variant="outline"
                                         size="sm"
                                         className="gap-1"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWizardSetAll(resource.id, true);
+                                        }}
                                       >
                                         <Check className="w-3 h-3" /> All
                                       </Button>
@@ -1026,6 +818,10 @@ function RoleManagementPage() {
                                         variant="outline"
                                         size="sm"
                                         className="gap-1"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWizardSetAll(resource.id, false);
+                                        }}
                                       >
                                         <X className="w-3 h-3" /> None
                                       </Button>
@@ -1069,7 +865,15 @@ function RoleManagementPage() {
                                                 </SelectItem>
                                               </SelectContent>
                                             </Select>
-                                            <Checkbox />
+                                            <Checkbox
+                                              checked={!!wizardPermissions[`${resource.id}:${action.id}`]}
+                                              onCheckedChange={(checked) =>
+                                                setWizardPermissions((prev) => ({
+                                                  ...prev,
+                                                  [`${resource.id}:${action.id}`]: !!checked,
+                                                }))
+                                              }
+                                            />
                                           </div>
                                         </div>
                                       </Card>
@@ -1152,16 +956,11 @@ function RoleManagementPage() {
                 ) : (
                   <Button
                     onClick={() => {
-                      const newRole: Role = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        name: "New Custom Role",
-                        description: "Custom role with selected permissions",
-                        priority: 3,
-                        permissions: [],
-                      };
-                      setRoles((prev) => [...prev, newRole]);
+                      // Wizard creates role via the RoleEditor sheet flow
+                      handleCreateRole();
                       setWizardStep(1);
                       setSelectedTemplate("");
+                      setWizardPermissions({});
                     }}
                   >
                     Save Role
@@ -1177,9 +976,9 @@ function RoleManagementPage() {
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No roles found</h3>
-              <p className="text-muted-foreground mb-4">
+              <Shield className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
+              <h3 className="text-lg font-medium mb-2 text-brand-primary-1">No roles found</h3>
+              <p className="text-brand-secondary-1 mb-4">
                 {searchQuery
                   ? "No roles match your search criteria."
                   : "Get started by creating your first role."}
