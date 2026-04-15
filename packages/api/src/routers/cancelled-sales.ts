@@ -3,7 +3,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { requirePermission } from "@avantej-core/services";
-import { cancelledSales } from "@avantej-core/db/schema/tenant/cancelled-sales";
+import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 
 export const cancelledSalesRouter = {
 	list: protectedProcedure
@@ -36,21 +36,35 @@ export const cancelledSalesRouter = {
 				});
 			}
 
-			const conditions = [];
+			const conditions = [eq(salesOrders.status, "cancelled")];
 			if (input.customerId) {
-				conditions.push(eq(cancelledSales.customerId, input.customerId));
+				conditions.push(eq(salesOrders.customerId, input.customerId));
 			}
 			if (input.from) {
-				conditions.push(gte(cancelledSales.cancellationDate, new Date(input.from)));
+				conditions.push(gte(salesOrders.cancellationDate, new Date(input.from)));
 			}
 			if (input.to) {
-				conditions.push(lte(cancelledSales.cancellationDate, new Date(input.to)));
+				conditions.push(lte(salesOrders.cancellationDate, new Date(input.to)));
 			}
 
-			return context.tenantDb.query.cancelledSales.findMany({
-				where: conditions.length > 0 ? and(...conditions) : undefined,
-				orderBy: [desc(cancelledSales.cancellationDate)],
-			});
+			const rows = await context.tenantDb
+				.select()
+				.from(salesOrders)
+				.where(and(...conditions))
+				.orderBy(desc(salesOrders.cancellationDate));
+
+			return rows.map((row) => ({
+				id: row.id,
+				cancellationNumber: row.cancellationNumber,
+				salesOrderId: row.id,
+				cancellationDate: row.cancellationDate,
+				cancelledAmount: row.cancelledAmount ?? row.totalAmount,
+				cancellationReason: row.cancellationReason,
+				cancelledBy: row.cancelledBy,
+				customerId: row.customerId,
+				customerName: row.customerName,
+				createdAt: row.createdAt,
+			}));
 		}),
 
 	getById: protectedProcedure
@@ -81,15 +95,30 @@ export const cancelledSalesRouter = {
 				});
 			}
 
-			const record = await context.tenantDb.query.cancelledSales.findFirst({
-				where: eq(cancelledSales.id, input.id),
+			const row = await context.tenantDb.query.salesOrders.findFirst({
+				where: and(
+					eq(salesOrders.id, input.id),
+					eq(salesOrders.status, "cancelled")
+				),
 			});
 
-			if (!record) {
+			if (!row) {
 				throw new ORPCError("NOT_FOUND", {
 					message: `Cancelled sale not found: ${input.id}`,
 				});
 			}
-			return record;
+
+			return {
+				id: row.id,
+				cancellationNumber: row.cancellationNumber,
+				salesOrderId: row.id,
+				cancellationDate: row.cancellationDate,
+				cancelledAmount: row.cancelledAmount ?? row.totalAmount,
+				cancellationReason: row.cancellationReason,
+				cancelledBy: row.cancelledBy,
+				customerId: row.customerId,
+				customerName: row.customerName,
+				createdAt: row.createdAt,
+			};
 		}),
 };

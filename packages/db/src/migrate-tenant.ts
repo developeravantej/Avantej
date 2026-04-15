@@ -1426,6 +1426,188 @@ CREATE INDEX "payment_items_promotion_idx" ON "payment_items" USING btree ("prom
 CREATE INDEX "sales_orders_customer_type_idx" ON "sales_orders" USING btree ("customer_type");
 `;
 
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0008_schema_consolidation
+ *
+ * Schema consolidation — drops 5 redundant tables, absorbs data into services,
+ * sales_orders, package_instances. Renames appointment_clients.package_assignment_id
+ * to package_instance_id. Adds sales_orders.cancelled_amount for partial refunds.
+ *
+ * Dropped tables: packages, package_assignments, cancelled_sales,
+ *                 service_rules, service_commission_config
+ * Modified tables: services (+4 cols), sales_orders (+5 cols),
+ *                  package_instances (package_id -> service_id),
+ *                  appointment_clients (package_assignment_id -> package_instance_id)
+ */
+const MIGRATION_0008_SCHEMA_CONSOLIDATION = `
+ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "session_count" integer;--> statement-breakpoint
+ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "expirable" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "expiry_days" integer;--> statement-breakpoint
+ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "expiry_date" timestamp;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancellation_number" text;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancellation_date" timestamp;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancellation_reason" text;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancelled_by" text;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancelled_amount" integer;--> statement-breakpoint
+ALTER TABLE "package_instances" ADD COLUMN IF NOT EXISTS "service_id" uuid;--> statement-breakpoint
+DO $$
+DECLARE
+  unmapped_count integer;
+BEGIN
+  SELECT COUNT(*) INTO unmapped_count
+  FROM packages p
+  WHERE NOT EXISTS (
+    SELECT 1 FROM services s
+    WHERE s.name = p.name
+      AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+  );
+  IF unmapped_count > 0 THEN
+    RAISE EXCEPTION 'Schema consolidation aborted: % package(s) have no matching service (match by name + branch_id). Resolve manually before re-running.', unmapped_count;
+  END IF;
+END $$;--> statement-breakpoint
+DO $$
+DECLARE
+  ambiguous_count integer;
+BEGIN
+  SELECT COUNT(*) INTO ambiguous_count FROM (
+    SELECT p.id
+    FROM packages p
+    JOIN services s ON s.name = p.name AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+    GROUP BY p.id
+    HAVING COUNT(s.id) > 1
+  ) ambiguous;
+  IF ambiguous_count > 0 THEN
+    RAISE EXCEPTION 'Schema consolidation aborted: % package(s) have ambiguous service matches. Services with duplicate (name, branch_id) must be deduplicated first.', ambiguous_count;
+  END IF;
+END $$;--> statement-breakpoint
+DO $$
+DECLARE
+  orphan_count integer;
+BEGIN
+  SELECT COUNT(*) INTO orphan_count
+  FROM package_instances pi
+  WHERE pi.package_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM packages p WHERE p.id = pi.package_id);
+  IF orphan_count > 0 THEN
+    RAISE EXCEPTION 'Schema consolidation aborted: % package_instances row(s) reference non-existent packages. Delete orphans before re-running.', orphan_count;
+  END IF;
+END $$;--> statement-breakpoint
+DO $$
+DECLARE
+  orphan_count integer;
+BEGIN
+  SELECT COUNT(*) INTO orphan_count
+  FROM cancelled_sales cs
+  WHERE NOT EXISTS (SELECT 1 FROM sales_orders so WHERE so.id = cs.sales_order_id);
+  IF orphan_count > 0 THEN
+    RAISE EXCEPTION 'Schema consolidation aborted: % cancelled_sales row(s) reference non-existent sales orders.', orphan_count;
+  END IF;
+END $$;--> statement-breakpoint
+DO $$
+DECLARE
+  dup_count integer;
+BEGIN
+  SELECT COUNT(*) INTO dup_count FROM (
+    SELECT cancellation_number FROM cancelled_sales
+    GROUP BY cancellation_number HAVING COUNT(*) > 1
+  ) dups;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Schema consolidation aborted: % duplicate cancellation_number(s) in cancelled_sales.', dup_count;
+  END IF;
+END $$;--> statement-breakpoint
+UPDATE services s
+SET session_count = p.session_count,
+    expirable     = (p.expiry_days IS NOT NULL OR p.expiry_date IS NOT NULL),
+    expiry_days   = p.expiry_days,
+    expiry_date   = p.expiry_date,
+    updated_at    = now()
+FROM packages p
+WHERE s.name = p.name
+  AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+  AND s.session_count IS NULL;--> statement-breakpoint
+UPDATE services s
+SET type = p.appointment_type,
+    updated_at = now()
+FROM packages p
+WHERE s.name = p.name
+  AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+  AND s.type = 'private'
+  AND p.appointment_type IN ('private', 'semi_private', 'both');--> statement-breakpoint
+UPDATE services s
+SET price = p.price_per_session,
+    updated_at = now()
+FROM packages p
+WHERE s.name = p.name
+  AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+  AND s.price IS NULL
+  AND p.price_per_session IS NOT NULL;--> statement-breakpoint
+UPDATE package_instances pi
+SET service_id = s.id,
+    updated_at = now()
+FROM packages p
+JOIN services s
+  ON s.name = p.name
+  AND (s.branch_id IS NOT DISTINCT FROM p.branch_id)
+WHERE pi.package_id = p.id
+  AND pi.service_id IS NULL;--> statement-breakpoint
+UPDATE sales_orders so
+SET cancellation_number = cs.cancellation_number,
+    cancellation_date   = cs.cancellation_date,
+    cancellation_reason = cs.cancellation_reason,
+    cancelled_by        = cs.cancelled_by,
+    cancelled_amount    = cs.cancelled_amount,
+    updated_at          = now()
+FROM cancelled_sales cs
+WHERE so.id = cs.sales_order_id
+  AND so.cancellation_number IS NULL;--> statement-breakpoint
+DO $$
+DECLARE
+  null_count integer;
+BEGIN
+  SELECT COUNT(*) INTO null_count FROM package_instances WHERE service_id IS NULL;
+  IF null_count > 0 THEN
+    RAISE EXCEPTION 'Backfill check failed: % package_instances row(s) still have NULL service_id.', null_count;
+  END IF;
+END $$;--> statement-breakpoint
+DO $$
+DECLARE
+  missing_count integer;
+BEGIN
+  SELECT COUNT(*) INTO missing_count
+  FROM sales_orders
+  WHERE status = 'cancelled' AND cancellation_number IS NULL;
+  IF missing_count > 0 THEN
+    RAISE EXCEPTION 'Backfill check failed: % cancelled sales_orders have no cancellation_number.', missing_count;
+  END IF;
+END $$;--> statement-breakpoint
+ALTER TABLE "package_instances" ALTER COLUMN "service_id" SET NOT NULL;--> statement-breakpoint
+ALTER TABLE "package_instances"
+  ADD CONSTRAINT "package_instances_service_id_services_id_fk"
+  FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sales_orders"
+  ADD CONSTRAINT "sales_orders_cancellation_number_unique" UNIQUE ("cancellation_number");--> statement-breakpoint
+DROP INDEX IF EXISTS "appointment_clients_package_idx";--> statement-breakpoint
+ALTER TABLE "appointment_clients"
+  DROP CONSTRAINT IF EXISTS "appointment_clients_package_assignment_id_package_assignments_id_fk";--> statement-breakpoint
+ALTER TABLE "appointment_clients" RENAME COLUMN "package_assignment_id" TO "package_instance_id";--> statement-breakpoint
+UPDATE appointment_clients SET package_instance_id = NULL;--> statement-breakpoint
+ALTER TABLE "appointment_clients"
+  ADD CONSTRAINT "appointment_clients_package_instance_id_package_instances_id_fk"
+  FOREIGN KEY ("package_instance_id") REFERENCES "public"."package_instances"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "package_instances" DROP COLUMN IF EXISTS "package_id";--> statement-breakpoint
+DROP TABLE IF EXISTS "cancelled_sales" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "package_assignments" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "packages" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "service_commission_config" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "service_rules" CASCADE;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "services_expiry_days_idx" ON "services" USING btree ("expiry_days");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "sales_orders_cancellation_number_idx" ON "sales_orders" USING btree ("cancellation_number");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "sales_orders_cancellation_date_idx" ON "sales_orders" USING btree ("cancellation_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "package_instances_service_idx" ON "package_instances" USING btree ("service_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "appointment_clients_package_instance_idx" ON "appointment_clients" USING btree ("package_instance_id");
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -1462,6 +1644,10 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0007_short_korath",
     sql: MIGRATION_0007_SHORT_KORATH,
+  },
+  {
+    hash: "0008_schema_consolidation",
+    sql: MIGRATION_0008_SCHEMA_CONSOLIDATION,
   },
 ] as const;
 

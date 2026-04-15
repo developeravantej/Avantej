@@ -53,8 +53,8 @@ interface ServiceFormData {
 interface ServiceFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: ServiceFormData, serviceId?: number) => Promise<void>;
-  initialData?: ServiceFormData & { id: number };
+  onSubmit: (data: ServiceFormData, serviceId?: string) => Promise<void>;
+  initialData?: ServiceFormData & { id: string };
   mode?: 'create' | 'edit';
 }
 
@@ -410,78 +410,65 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     setError(null);
 
     try {
-      // Step 1: Create the service
-      const serviceResult = await client.services.create({
-        organizationId,
-        name: formData.name,
-        categoryId: null,
-        duration: formData.duration * 60, // minutes → seconds
-        durationUnitType: "minutes",
-        maxAttendees: formData.maxAttendees ?? 1,
-        attendanceThreshold: null,
-        branchId: null,
-        isActive: true,
-        price: null,
-        taxable: false,
-        taxPercentage: 0,
-        schedulingType: "appointment",
-      });
-
-      const serviceId = (serviceResult as any).id;
-
-      // Step 2: Upsert commission configuration
-      // TODO: fixedAmounts in DB stores cents (absolute amounts), but form collects percentages. Clarify with business before production.
-      const selectedRoles = getSelectedRoles();
-      const fixedAmounts: Record<string, number> = {};
-      const structure = formData.incentive.isConditional
-        ? formData.incentive.paymentStructure.conditional?.belowThreshold
-        : formData.incentive.paymentStructure.nonConditional;
-      if (structure) {
-        selectedRoles.forEach(role => {
-          const roleKey = `role_${String(role.id)}`;
-          if (structure[roleKey] !== undefined) {
-            fixedAmounts[String(role.id)] = structure[roleKey];
-          }
+      // Step 1: Create or update the service category
+      let categoryId: string;
+      if (mode === 'edit' && initialData?.id) {
+        await client.serviceCategories.update({
+          organizationId,
+          id: initialData.id,
+          name: formData.name,
+          description: null,
+          displayOrder: 0,
+          isActive: true,
         });
+        categoryId = initialData.id;
+      } else {
+        const categoryResult = await client.serviceCategories.create({
+          organizationId,
+          name: formData.name,
+          description: null,
+          displayOrder: 0,
+          isActive: true,
+        });
+        categoryId = (categoryResult as any).id;
       }
 
-      await client.serviceCommissionConfig.upsert({
+      // Step 2: Upsert category-level config (commission + rules)
+      await client.serviceCategoryConfig.upsert({
         organizationId,
-        serviceId,
-        commissionType: formData.incentive.type === 'fixed' ? 'fixed' : 'percentage',
-        fixedAmounts: Object.keys(fixedAmounts).length > 0 ? fixedAmounts : null,
+        categoryId,
+        defaultDuration: formData.duration,
+        defaultMaxAttendees: formData.maxAttendees ?? 1,
+        incentiveType: formData.incentive.type,
+        isConditional: formData.incentive.isConditional,
+        maxStaff: formData.incentive.staffWeightage.length,
         staffPoolPercentage: formData.incentive.staffPoolPercentage ?? 100,
-        positionWeightage: formData.incentive.staffWeightage.map(sw => ({
+        staffWeightage: formData.incentive.staffWeightage.map(sw => ({
           position: sw.position,
           percentage: sw.percentage,
           title: sw.title,
         })),
-        maxStaff: formData.incentive.staffWeightage.length,
-      });
-
-      // Step 3: Upsert service rules
-      await client.serviceRules.upsert({
-        organizationId,
-        serviceId,
+        paymentStructures: formData.incentive.paymentStructure,
+        threshold: formData.incentive.isConditional
+          ? formData.incentive.paymentStructure.conditional?.threshold ?? null
+          : null,
         requireAdvanceBooking: formData.rules?.requireAdvanceBooking ?? false,
-        minAdvanceBookingDuration: formData.rules?.requireAdvanceBooking
-          ? (formData.rules.minAdvanceHours ?? 0) * 3600 // hours → seconds
+        minAdvanceHours: formData.rules?.requireAdvanceBooking
+          ? formData.rules.minAdvanceHours ?? null
           : null,
-        minAdvanceBookingUnitType: "hours",
         enableCancellationWindow: formData.rules?.enableCancellationWindow ?? false,
-        cancellationCutoffDuration: formData.rules?.enableCancellationWindow
-          ? (formData.rules.cancellationCutoffHours ?? 0) * 3600 // hours → seconds
+        cancellationCutoffHours: formData.rules?.enableCancellationWindow
+          ? formData.rules.cancellationCutoffHours ?? null
           : null,
-        cancellationCutoffUnitType: "hours",
       });
 
       // Invalidate relevant queries
-      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
+      qc.invalidateQueries({ queryKey: orpc.serviceCategories.list.key() });
 
       toast.success(`Service category ${mode === 'create' ? 'created' : 'updated'} successfully`);
 
       // Call the onSubmit callback for parent component to refresh data
-      await onSubmit(formData, initialData?.id);
+      await onSubmit(formData, categoryId);
       onClose();
     } catch (err: any) {
       const errorMessage = err?.message || err?.detail || 'An error occurred while saving';

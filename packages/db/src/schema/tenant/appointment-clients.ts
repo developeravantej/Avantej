@@ -1,18 +1,20 @@
 /**
  * Tenant Appointment Clients Schema
- * 
+ *
  * Links clients to appointments, tracking their attendance and package usage.
- * 
+ *
  * Business Rules:
  * - One client can only be assigned once per appointment (enforced by unique index)
  * - pricePaid may differ from appointment.pricePerClient if discounts applied
  * - attended is null until appointment is completed
- * - packageAssignmentId links to the package used for this booking
+ * - packageInstanceId links to the package instance whose credit was consumed for
+ *   this booking. Per-client (not per-appointment) so group classes can track each
+ *   client drawing from their own pack.
  */
 
 import { pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
-import { packageAssignments } from "./package-assignments";
+import { packageInstances } from "./package-instances";
 
 export const appointmentClients = pgTable("appointment_clients", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -20,8 +22,9 @@ export const appointmentClients = pgTable("appointment_clients", {
 		.notNull()
 		.references(() => appointments.id, { onDelete: "cascade" }),
 	clientId: text("client_id").notNull(), // References members.userId
-	packageAssignmentId: uuid("package_assignment_id")
-		.references(() => packageAssignments.id, { onDelete: "set null" }), // Which package was used
+	// Per-client package credit tracking (group class where 3 clients each use their own pack)
+	packageInstanceId: uuid("package_instance_id")
+		.references(() => packageInstances.id, { onDelete: "set null" }),
 	pricePaid: integer("price_paid").notNull(), // Price this client paid (in cents)
 	attended: boolean("attended"), // null = not yet occurred, true/false after completion
 	notes: text("notes"),
@@ -33,6 +36,5 @@ export const appointmentClients = pgTable("appointment_clients", {
 	),
 	appointmentIdIdx: index("appointment_clients_appointment_idx").on(table.appointmentId),
 	clientIdIdx: index("appointment_clients_client_idx").on(table.clientId),
-	packageAssignmentIdIdx: index("appointment_clients_package_idx").on(table.packageAssignmentId),
+	packageInstanceIdIdx: index("appointment_clients_package_instance_idx").on(table.packageInstanceId),
 }));
-

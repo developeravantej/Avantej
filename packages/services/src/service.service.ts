@@ -20,7 +20,7 @@ export type ListServicesParams = {
   categoryId?: string | null;
   branchId?: string | null;
   isActive?: boolean;
-  type?: "private" | "semi_private";
+  type?: "private" | "semi_private" | "both";
   schedulingType?: "appointment" | "class_slot";
   accessibleNodeIds?: string[];
 };
@@ -37,7 +37,7 @@ export type CreateServiceParams = {
   title?: string | null;
   description?: string | null;
   imageUrl?: string | null;
-  type?: "private" | "semi_private";
+  type?: "private" | "semi_private" | "both";
   price?: number | null;
   priceUnit?: "session" | "class" | "package";
   taxable?: boolean;
@@ -46,6 +46,10 @@ export type CreateServiceParams = {
   location?: string | null;
   features?: string[] | null;
   schedulingType?: "appointment" | "class_slot";
+  sessionCount?: number | null;
+  expirable?: boolean;
+  expiryDays?: number | null;
+  expiryDate?: Date | null;
 };
 
 export type UpdateServiceParams = Partial<CreateServiceParams>;
@@ -141,6 +145,10 @@ export async function createService(
       location: params.location ?? null,
       features: params.features ?? null,
       schedulingType: params.schedulingType ?? "appointment",
+      sessionCount: params.sessionCount ?? null,
+      expirable: params.expirable ?? false,
+      expiryDays: params.expiryDays ?? null,
+      expiryDate: params.expiryDate ?? null,
     })
     .returning();
 
@@ -191,6 +199,10 @@ export async function updateService(
       ...(params.schedulingType !== undefined && {
         schedulingType: params.schedulingType,
       }),
+      ...(params.sessionCount !== undefined && { sessionCount: params.sessionCount }),
+      ...(params.expirable !== undefined && { expirable: params.expirable }),
+      ...(params.expiryDays !== undefined && { expiryDays: params.expiryDays }),
+      ...(params.expiryDate !== undefined && { expiryDate: params.expiryDate }),
       updatedAt: new Date(),
     })
     .where(eq(services.id, id))

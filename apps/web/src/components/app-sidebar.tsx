@@ -2,19 +2,25 @@
 
 import {
 	BadgeDollarSign,
+	Bell,
+	BookUser,
 	Building2,
 	Calendar,
 	ChevronDown,
 	ChevronRight,
+	Cog,
 	DollarSign,
+	Eye,
 	FileChartColumnIncreasing,
 	Home,
 	LogOut,
+	Mail,
 	Map,
 	Megaphone,
 	Package,
 	PackageSearch,
 	Percent,
+	Plus,
 	Receipt,
 	Search,
 	Settings,
@@ -23,7 +29,9 @@ import {
 	Store,
 	Tag,
 	User,
+	UserPlus,
 	Users,
+	Wallet,
 	Warehouse,
 } from "lucide-react";
 import type * as React from "react";
@@ -89,41 +97,96 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Main",
 		items: [
 			{ title: "Home", url: "/dashboard", icon: Home },
-			{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar },
 			{ title: "Trainers", url: "/dashboard/trainers/view", icon: Users },
 		],
 	},
 	{
 		label: "Business",
 		items: [
-			{ title: "Services", url: "/dashboard/service/view", icon: PackageSearch },
-			{ title: "Packages", url: "/dashboard/packages/view", icon: Package },
-			{ title: "Branches", url: "/dashboard/branch/view", icon: Store },
-			{ title: "Customers", url: "/dashboard/customers/walk-in/view", icon: Users },
+			{
+				title: "Branches",
+				url: "/dashboard/branch/view",
+				icon: Store,
+				items: [
+					{ title: "View Branches", url: "/dashboard/branch/view", icon: Eye },
+					{ title: "Create Branch", url: "/dashboard/branch/create", icon: Plus },
+				],
+			},
+			{
+				title: "Services",
+				url: "/dashboard/service/view",
+				icon: PackageSearch,
+				items: [
+					{ title: "Service Categories", url: "/dashboard/service-category/view", icon: Tag },
+					{ title: "View Services", url: "/dashboard/service/view", icon: PackageSearch },
+				],
+			},
+			{
+				title: "Appointments",
+				url: "/dashboard/appointment/view",
+				icon: Calendar,
+				items: [
+					{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar },
+					{ title: "Class Slots", url: "/dashboard/appointment/class-slots/view", icon: Calendar },
+					{ title: "Packages", url: "/dashboard/packages/view", icon: Package },
+					{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package },
+				],
+			},
+			{
+				title: "Customers",
+				url: "/dashboard/customers/walk-in/view",
+				icon: BookUser,
+				items: [
+					{ title: "Walk-in Customers", url: "/dashboard/customers/walk-in/view", icon: BookUser },
+				],
+			},
 		],
 	},
 	{
 		label: "Sales & Inventory",
 		items: [
-			{ title: "Sales", url: "/dashboard/sales/view", icon: BadgeDollarSign },
 			{
-				title: "Promotions",
-				url: "/dashboard/promotions/view",
-				icon: Percent,
+				title: "Sales",
+				url: "/dashboard/sales/view",
+				icon: BadgeDollarSign,
+				items: [
+					{ title: "Sales", url: "/dashboard/sales/view", icon: BadgeDollarSign },
+					{ title: "Payment", url: "/dashboard/payment/view", icon: DollarSign },
+					{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: BadgeDollarSign },
+					{ title: "Promotions", url: "/dashboard/promotions/view", icon: Percent },
+					{ title: "Purchase Orders", url: "/dashboard/purchase-orders/view", icon: ShoppingCart },
+				],
 			},
 			{
-				title: "Purchase Orders",
-				url: "/dashboard/purchase-orders/view",
-				icon: ShoppingCart,
+				title: "Inventory",
+				url: "/dashboard/inventory-options",
+				icon: Warehouse,
+				items: [
+					{ title: "Products", url: "/dashboard/products/view", icon: Package },
+					{ title: "Inventory Options", url: "/dashboard/inventory-options", icon: Warehouse },
+					{ title: "Brands", url: "/dashboard/brands/view", icon: Tag },
+					{ title: "Categories", url: "/dashboard/categories/view", icon: Tag },
+					{ title: "Suppliers", url: "/dashboard/suppliers/view", icon: Store },
+					{ title: "Unit of Measure", url: "/dashboard/uom/view", icon: Package },
+					{ title: "UoM Conversions", url: "/dashboard/uom-conversions/view", icon: Package },
+					{ title: "Stock Requests", url: "/dashboard/stock-requests/view", icon: ShoppingCart },
+					{ title: "Transfer Orders", url: "/dashboard/transfer-orders/view", icon: ShoppingCart },
+				],
 			},
-			{ title: "Inventory", url: "/dashboard/inventory-options", icon: Warehouse },
 		],
 	},
 	{
 		label: "Finance",
 		items: [
-			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
-			{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
+			{
+				title: "Finance",
+				url: "/dashboard/expenses/view",
+				icon: Wallet,
+				items: [
+					{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
+					{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
+				],
+			},
 		],
 	},
 	{
@@ -133,11 +196,30 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Access Control",
 				url: "/dashboard/access-control/user-assignment",
 				icon: Shield,
+				items: [
+					{ title: "Role Management", url: "/dashboard/access-control/roles", icon: Shield },
+					{ title: "Permissions", url: "/dashboard/access-control/permissions", icon: Settings },
+					{ title: "User Assignment", url: "/dashboard/access-control/user-assignment", icon: UserPlus },
+					{ title: "Invitations", url: "/dashboard/access-control/invitations", icon: Mail },
+				],
+			},
+			{
+				title: "User",
+				url: "/dashboard/user/view",
+				icon: Users,
+				items: [
+					{ title: "User Roles", url: "/dashboard/role/view", icon: Shield },
+					{ title: "Employees Listing", url: "/dashboard/user/view", icon: Users },
+				],
 			},
 			{
 				title: "Communications",
 				url: "/dashboard/announcements/view",
 				icon: Megaphone,
+				items: [
+					{ title: "Announcements", url: "/dashboard/announcements/view", icon: Megaphone },
+					{ title: "Notifications", url: "/dashboard/notifications/view", icon: Bell },
+				],
 			},
 		],
 	},
@@ -145,9 +227,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Settings",
 		items: [
 			{
-				title: "Tax Rates",
+				title: "Config",
 				url: "/dashboard/settings/tax-rates",
-				icon: Tag,
+				icon: Cog,
+				items: [
+					{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
+				],
 			},
 			{
 				title: "Reports",

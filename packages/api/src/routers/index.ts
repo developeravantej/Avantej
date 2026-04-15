@@ -9,7 +9,6 @@ import { customerProfilesRouter } from "./customer-profiles";
 import { notificationPreferencesRouter } from "./notification-preferences";
 import { notificationsRouter } from "./notifications";
 import { packageInstancesRouter } from "./package-instances";
-import { packagesRouter } from "./packages";
 import { preferredTimesRouter } from "./preferred-times";
 import { serviceCategoriesRouter } from "./service-categories";
 import { servicesRouter } from "./services";
@@ -17,8 +16,7 @@ import { userActivityLogRouter } from "./user-activity-log";
 import { rolesRouter } from "./roles";
 import { permissionsRouter } from "./permissions";
 import { rolePermissionsRouter } from "./role-permissions";
-import { serviceCommissionConfigRouter } from "./service-commission-config";
-import { serviceRulesRouter } from "./service-rules";
+import { serviceCategoryConfigRouter } from "./service-category-config";
 import { payoutsRouter } from "./payouts";
 import { roomsRouter } from "./rooms";
 import { salesOrdersRouter } from "./sales-orders";
@@ -61,7 +59,6 @@ export const baseRouter = {
 	serviceCategories: serviceCategoriesRouter,
 	services: servicesRouter,
 	appointments: appointmentsRouter,
-	packages: packagesRouter,
 	packageInstances: packageInstancesRouter,
 	preferredTimes: preferredTimesRouter,
 	notifications: notificationsRouter,
@@ -71,8 +68,7 @@ export const baseRouter = {
 	roles: rolesRouter,
 	permissions: permissionsRouter,
 	rolePermissions: rolePermissionsRouter,
-	serviceCommissionConfig: serviceCommissionConfigRouter,
-	serviceRules: serviceRulesRouter,
+	serviceCategoryConfig: serviceCategoryConfigRouter,
 	payouts: payoutsRouter,
 	rooms: roomsRouter,
 	salesOrders: salesOrdersRouter,

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -48,7 +48,8 @@ type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 interface PackageInstanceRow {
 	id: string;
-	packageId: string;
+	serviceId: string;
+	serviceName: string;
 	clientId: string;
 	source: string;
 	creditsTotal: number;
@@ -63,7 +64,7 @@ interface PackageInstanceRow {
 }
 
 interface CreateInstanceFormState {
-	packageId: string;
+	serviceId: string;
 	clientId: string;
 	source: "assigned" | "purchased";
 	creditsTotal: string;
@@ -77,7 +78,7 @@ interface CreateInstanceFormState {
 const today = new Date().toISOString().slice(0, 10);
 
 const EMPTY_FORM: CreateInstanceFormState = {
-	packageId: "",
+	serviceId: "",
 	clientId: "",
 	source: "assigned",
 	creditsTotal: "",
@@ -131,15 +132,33 @@ function PackageInstancesViewPage() {
 		enabled: !!organizationId,
 	});
 
-	// Packages list for the create form selector
+	// Packages list for the create form selector (active services with sessionCount > 0)
 	const { data: packagesList = [] } = useQuery({
-		queryKey: ["packages", organizationId, false],
+		queryKey: ["services-packages", organizationId, true],
 		queryFn: async () => {
 			if (!organizationId) return [];
-			return client.packages.list({ organizationId, isArchived: false });
+			const services = await client.services.list({ organizationId, isActive: true });
+			return services.filter((s) => s.sessionCount != null && s.sessionCount > 0);
 		},
 		enabled: !!organizationId && createOpen,
 	});
+
+	// Always-on services query for the name mapping in the data table.
+	// No isActive filter — historical instances may point at archived services.
+	const { data: allServices = [] } = useQuery({
+		queryKey: ["services-all", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.services.list({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const serviceNameById = useMemo(() => {
+		const map = new Map<string, string>();
+		for (const s of allServices) map.set(s.id, s.name);
+		return map;
+	}, [allServices]);
 
 	const createMutation = useMutation({
 		mutationFn: (input: Parameters<typeof client.packageInstances.create>[0]) =>
@@ -157,7 +176,7 @@ function PackageInstancesViewPage() {
 		e.preventDefault();
 		if (!organizationId) return;
 
-		if (!form.packageId) { toast.error("Please select a package."); return; }
+		if (!form.serviceId) { toast.error("Please select a package."); return; }
 		if (!form.clientId.trim()) { toast.error("Client ID is required."); return; }
 		const creditsTotal = parseInt(form.creditsTotal, 10);
 		if (!Number.isFinite(creditsTotal) || creditsTotal < 1) {
@@ -175,7 +194,7 @@ function PackageInstancesViewPage() {
 
 		createMutation.mutate({
 			organizationId,
-			packageId: form.packageId,
+			serviceId: form.serviceId,
 			clientId: form.clientId.trim(),
 			source: form.source,
 			creditsTotal,
@@ -188,9 +207,10 @@ function PackageInstancesViewPage() {
 		});
 	}
 
-	const data: PackageInstanceRow[] = apiData.map((item: { id: string; packageId: string; clientId: string; source: string; creditsTotal: number; creditsRemaining: number; creditsUsed: number; totalPrice: number | null; startsAt: Date | string | null; expiresAt: Date | string | null; status: string; paymentStatus: string; createdAt: Date | string | null }) => ({
+	const data: PackageInstanceRow[] = apiData.map((item) => ({
 		id: item.id,
-		packageId: item.packageId,
+		serviceId: item.serviceId,
+		serviceName: serviceNameById.get(item.serviceId) ?? `${item.serviceId.slice(0, 8)}…`,
 		clientId: item.clientId,
 		source: item.source,
 		creditsTotal: item.creditsTotal,
@@ -214,12 +234,12 @@ function PackageInstancesViewPage() {
 
 	const columns: ColumnDef<PackageInstanceRow>[] = [
 		{
-			accessorKey: "packageId",
-			header: "Package ID",
+			accessorKey: "serviceName",
+			header: "Service",
 			cell: ({ row }) => (
 				<CopyableCell
-					value={row.original.packageId}
-					displayText={row.original.packageId.slice(0, 8) + "…"}
+					value={row.original.serviceId}
+					displayText={row.original.serviceName}
 				/>
 			),
 		},
@@ -372,8 +392,8 @@ function PackageInstancesViewPage() {
 								Package <span className="text-destructive">*</span>
 							</Label>
 							<Select
-								value={form.packageId}
-								onValueChange={(v) => setForm((f) => ({ ...f, packageId: v }))}
+								value={form.serviceId}
+								onValueChange={(v) => setForm((f) => ({ ...f, serviceId: v }))}
 							>
 								<SelectTrigger id="inst-package">
 									<SelectValue placeholder="Select a package…" />

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ServiceCategoryCreateEditDialog } from "@/components/forms/service-category-create-edit-dialog";
+import { ServiceFormDialog } from "@/components/forms/service-category-form";
 import { ServiceCategoryDetailDialog } from "@/components/forms/service-category-detail-dialog";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
@@ -42,13 +42,7 @@ export default function DataTable<TData, TValue>({
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-	const [editCategoryData, setEditCategoryData] = useState<{
-		id: string;
-		name: string;
-		description: string | null;
-		displayOrder: number;
-		isActive: boolean;
-	} | null>(null);
+	const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
 
 	const table = useReactTable({
 		data,
@@ -61,26 +55,11 @@ export default function DataTable<TData, TValue>({
 	});
 
 	const handleEditCategory = useCallback(
-		async (categoryId: string) => {
-			try {
-				const category = await client.serviceCategories.getById({
-					organizationId,
-					id: categoryId,
-				});
-				setEditCategoryData({
-					id: category.id,
-					name: category.name,
-					description: category.description,
-					displayOrder: category.displayOrder ?? 0,
-					isActive: category.isActive ?? true,
-				});
-				setIsEditDialogOpen(true);
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : "Failed to load category";
-				toast.error(message);
-			}
+		(categoryId: string) => {
+			setEditCategoryId(categoryId);
+			setIsEditDialogOpen(true);
 		},
-		[organizationId]
+		[]
 	);
 
 	const handleDeleteCategory = useCallback(
@@ -195,24 +174,22 @@ export default function DataTable<TData, TValue>({
 				</div>
 			)}
 
-			<ServiceCategoryCreateEditDialog
+			<ServiceFormDialog
 				isOpen={isAddDialogOpen}
 				onClose={() => setIsAddDialogOpen(false)}
-				onSuccess={onSuccess}
-				organizationId={organizationId}
+				onSubmit={async () => { onSuccess(); }}
 				mode="create"
 			/>
 
-			<ServiceCategoryCreateEditDialog
+			<ServiceFormDialog
 				isOpen={isEditDialogOpen}
 				onClose={() => {
 					setIsEditDialogOpen(false);
-					setEditCategoryData(null);
+					setEditCategoryId(null);
 				}}
-				onSuccess={onSuccess}
-				organizationId={organizationId}
+				onSubmit={async () => { onSuccess(); }}
 				mode="edit"
-				initialData={editCategoryData}
+				initialData={editCategoryId ? { id: editCategoryId, name: "", duration: 60, incentive: { type: "fixed", isConditional: false, maxStaff: 1, staffPoolPercentage: 100, paymentStructure: {}, staffWeightage: [] } } : undefined}
 			/>
 
 			<ServiceCategoryDetailDialog

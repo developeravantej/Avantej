@@ -51,7 +51,7 @@ export const services = pgTable("services", {
 	imageUrl: text("image_url"),
 
 	// Service type
-	type: text("type").default("private").notNull(), // "private" | "semi_private"
+	type: text("type").default("private").notNull(), // "private" | "semi_private" | "both"
 
 	// Pricing display (for mobile app catalog)
 	price: integer("price"), // Display price in cents
@@ -69,6 +69,12 @@ export const services = pgTable("services", {
 	// Scheduling
 	schedulingType: text("scheduling_type").default("appointment").notNull(),
 	// "appointment" (flexible booking) | "class_slot" (pre-defined slots)
+
+	// Package-equivalent fields (absorbing packages table)
+	sessionCount: integer("session_count"),
+	expirable: boolean("expirable").default(false).notNull(),
+	expiryDays: integer("expiry_days"),
+	expiryDate: timestamp("expiry_date"),
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),
 	branchIdIdx: index("services_branch_idx").on(table.branchId),
@@ -78,5 +84,6 @@ export const services = pgTable("services", {
 	typeIdx: index("services_type_idx").on(table.type),
 	recommendedIdx: index("services_recommended_idx").on(table.isRecommended),
 	schedulingTypeIdx: index("services_scheduling_type_idx").on(table.schedulingType),
+	expiryDaysIdx: index("services_expiry_days_idx").on(table.expiryDays),
 }));
 

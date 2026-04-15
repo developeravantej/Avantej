@@ -147,7 +147,7 @@ export const packageInstancesRouter = {
     .input(
       z.object({
         organizationId: z.string().uuid(),
-        packageId: z.string().uuid(),
+        serviceId: z.string().uuid(),
         clientId: z.string(),
         source: sourceSchema,
         assignedBy: z.string().nullable().optional(),
@@ -197,7 +197,7 @@ export const packageInstancesRouter = {
 
       try {
         const created = await createPackageInstance(context.tenantDb, {
-          packageId: input.packageId,
+          serviceId: input.serviceId,
           clientId: input.clientId,
           source: input.source,
           assignedBy: input.assignedBy ?? null,

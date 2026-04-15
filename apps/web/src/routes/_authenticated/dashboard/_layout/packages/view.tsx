@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
 	Select,
@@ -58,13 +57,11 @@ interface PackageRow {
 	id: string;
 	name: string;
 	appointmentType: AppointmentType;
-	crossUsageEnabled: boolean;
 	sessionCount: number;
 	pricePerSession: number; // cents
 	maxClientsPerSession: number;
 	expiryDays: number | null;
 	expiryDate: string | null;
-	autoGenerateInvoice: boolean;
 	branchId: string | null;
 	isArchived: boolean;
 	createdAt: string;
@@ -73,28 +70,24 @@ interface PackageRow {
 interface FormState {
 	name: string;
 	appointmentType: AppointmentType;
-	crossUsageEnabled: boolean;
 	sessionCount: string;
 	pricePerSessionRm: string;
 	maxClientsPerSession: string;
 	expiryMode: ExpiryMode;
 	expiryDays: string;
 	expiryDate: string;
-	autoGenerateInvoice: boolean;
 	branchId: string;
 }
 
 const EMPTY_FORM: FormState = {
 	name: "",
 	appointmentType: "private",
-	crossUsageEnabled: false,
 	sessionCount: "1",
 	pricePerSessionRm: "",
 	maxClientsPerSession: "1",
 	expiryMode: "none",
 	expiryDays: "",
 	expiryDate: "",
-	autoGenerateInvoice: false,
 	branchId: "",
 };
 
@@ -132,19 +125,20 @@ function PackagesViewPage() {
 		undefined;
 
 	const { data: apiData = [], isLoading } = useQuery({
-		queryKey: ["packages", organizationId, isArchivedFilter],
+		queryKey: ["services-packages", organizationId, isArchivedFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
-			return client.packages.list({ organizationId, isArchived: isArchivedFilter });
+			const services = await client.services.list({ organizationId, isActive: isArchivedFilter === true ? false : isArchivedFilter === false ? true : undefined });
+			return services.filter((s) => s.sessionCount != null && s.sessionCount > 0);
 		},
 		enabled: !!organizationId,
 	});
 
 	const createMutation = useMutation({
-		mutationFn: (input: Parameters<typeof client.packages.create>[0]) =>
-			client.packages.create(input),
+		mutationFn: (input: Parameters<typeof client.services.create>[0]) =>
+			client.services.create(input),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["packages", organizationId] });
+			queryClient.invalidateQueries({ queryKey: ["services-packages", organizationId] });
 			toast.success("Package created successfully.");
 			closeSheet();
 		},
@@ -152,10 +146,10 @@ function PackagesViewPage() {
 	});
 
 	const updateMutation = useMutation({
-		mutationFn: (input: Parameters<typeof client.packages.update>[0]) =>
-			client.packages.update(input),
+		mutationFn: (input: Parameters<typeof client.services.update>[0]) =>
+			client.services.update(input),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["packages", organizationId] });
+			queryClient.invalidateQueries({ queryKey: ["services-packages", organizationId] });
 			toast.success("Package updated successfully.");
 			closeSheet();
 		},
@@ -164,9 +158,9 @@ function PackagesViewPage() {
 
 	const archiveMutation = useMutation({
 		mutationFn: (id: string) =>
-			client.packages.archive({ organizationId: organizationId!, id }),
+			client.services.update({ organizationId: organizationId!, id, isActive: false }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["packages", organizationId] });
+			queryClient.invalidateQueries({ queryKey: ["services-packages", organizationId] });
 			toast.success("Package archived.");
 			setArchiveTarget(null);
 		},
@@ -184,14 +178,12 @@ function PackagesViewPage() {
 		setForm({
 			name: row.name,
 			appointmentType: row.appointmentType,
-			crossUsageEnabled: row.crossUsageEnabled,
 			sessionCount: String(row.sessionCount),
 			pricePerSessionRm: (row.pricePerSession / 100).toFixed(2),
 			maxClientsPerSession: String(row.maxClientsPerSession),
 			expiryMode: row.expiryDays != null ? "days" : row.expiryDate ? "date" : "none",
 			expiryDays: row.expiryDays ? String(row.expiryDays) : "",
 			expiryDate: row.expiryDate ? row.expiryDate.slice(0, 10) : "",
-			autoGenerateInvoice: row.autoGenerateInvoice,
 			branchId: row.branchId ?? "",
 		});
 		setSheetOpen(true);
@@ -232,42 +224,55 @@ function PackagesViewPage() {
 			expiryDate = new Date(`${form.expiryDate}T00:00:00.000Z`).toISOString();
 		}
 
-		const payload = {
+		const serviceType =
+			form.appointmentType === "semi-private" ? "semi_private" :
+			form.appointmentType === "both" ? "both" :
+			"private";
+
+		const basePayload = {
 			organizationId,
 			name: form.name.trim(),
-			appointmentType: form.appointmentType,
-			crossUsageEnabled: form.crossUsageEnabled,
+			type: serviceType as "private" | "semi_private" | "both",
 			sessionCount,
-			pricePerSession: Math.round(priceRm * 100),
-			maxClientsPerSession: maxClients,
+			price: Math.round(priceRm * 100),
+			maxAttendees: maxClients,
 			expiryDays,
 			expiryDate,
-			autoGenerateInvoice: form.autoGenerateInvoice,
-			branchId: form.branchId.trim() || undefined,
+			expirable: form.expiryMode !== "none",
+			branchId: form.branchId.trim() || null,
+			duration: 60,
+			durationUnitType: "minutes" as const,
+			isActive: true,
+			schedulingType: "appointment" as const,
 		};
 
 		if (editingId) {
-			updateMutation.mutate({ ...payload, id: editingId });
+			updateMutation.mutate({ ...basePayload, id: editingId });
 		} else {
-			createMutation.mutate(payload);
+			createMutation.mutate(basePayload);
 		}
 	}
 
-	const data: PackageRow[] = apiData.map((item) => ({
-		id: item.id,
-		name: item.name,
-		appointmentType: item.appointmentType as AppointmentType,
-		crossUsageEnabled: item.crossUsageEnabled,
-		sessionCount: item.sessionCount,
-		pricePerSession: item.pricePerSession,
-		maxClientsPerSession: item.maxClientsPerSession,
-		expiryDays: item.expiryDays ?? null,
-		expiryDate: item.expiryDate ? String(item.expiryDate) : null,
-		autoGenerateInvoice: item.autoGenerateInvoice,
-		branchId: item.branchId ?? null,
-		isArchived: item.isArchived,
-		createdAt: item.createdAt ? String(item.createdAt) : "",
-	}));
+	const data: PackageRow[] = apiData.map((item) => {
+		// Map service type to appointment type display value
+		const appointmentType: AppointmentType =
+			item.type === "semi_private" ? "semi-private" :
+			item.type === "both" ? "both" :
+			"private";
+		return {
+			id: item.id,
+			name: item.name,
+			appointmentType,
+			sessionCount: item.sessionCount ?? 0,
+			pricePerSession: item.price ?? 0,
+			maxClientsPerSession: item.maxAttendees ?? 1,
+			expiryDays: item.expiryDays ?? null,
+			expiryDate: item.expiryDate ? String(item.expiryDate) : null,
+			branchId: item.branchId ?? null,
+			isArchived: !(item.isActive ?? true),
+			createdAt: item.createdAt ? String(item.createdAt) : "",
+		};
+	});
 
 	const isMutating = createMutation.isPending || updateMutation.isPending || archiveMutation.isPending;
 
@@ -566,34 +571,6 @@ function PackagesViewPage() {
 								/>
 							</div>
 						)}
-
-						{/* Checkboxes */}
-						<div className="flex flex-col gap-3">
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="pkg-cross-usage"
-									checked={form.crossUsageEnabled}
-									onCheckedChange={(checked) =>
-										setForm((f) => ({ ...f, crossUsageEnabled: checked === true }))
-									}
-								/>
-								<Label htmlFor="pkg-cross-usage" className="cursor-pointer font-normal">
-									Allow cross-usage (semi-private ↔ private)
-								</Label>
-							</div>
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="pkg-auto-invoice"
-									checked={form.autoGenerateInvoice}
-									onCheckedChange={(checked) =>
-										setForm((f) => ({ ...f, autoGenerateInvoice: checked === true }))
-									}
-								/>
-								<Label htmlFor="pkg-auto-invoice" className="cursor-pointer font-normal">
-									Auto-generate invoice
-								</Label>
-							</div>
-						</div>
 
 						{/* Branch ID */}
 						<div className="flex flex-col gap-1.5">

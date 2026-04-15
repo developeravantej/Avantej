@@ -24,7 +24,7 @@ export type ListPackageInstancesForClientParams = {
 };
 
 export type CreatePackageInstanceParams = {
-  packageId: string;
+  serviceId: string;
   clientId: string;
   source: "assigned" | "purchased";
   assignedBy?: string | null;
@@ -92,7 +92,7 @@ export async function createPackageInstance(
   const [row] = await tenantDb
     .insert(packageInstances)
     .values({
-      packageId: params.packageId,
+      serviceId: params.serviceId,
       clientId: params.clientId,
       source: params.source,
       assignedBy: params.assignedBy ?? null,

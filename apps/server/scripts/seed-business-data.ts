@@ -22,7 +22,6 @@ import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schem
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
 	packageInstances,
-	packages,
 	serviceCategories,
 	services,
 } from "@avantej-core/db/schema/tenant/index";
@@ -220,84 +219,96 @@ async function seedBusinessData() {
 		}
 
 		// ================================================================
-		// STEP 5: Seed packages
+		// STEP 5: Seed package-style services
 		// ================================================================
-		console.log("\nStep 5: Seeding packages...");
+		console.log("\nStep 5: Seeding package-style services...");
 
-		// Package 1: Private 10-Session Pack
-		let package1: typeof packages.$inferSelect;
-		const existingPackage1 = await tenantDb.query.packages.findFirst({
-			where: (p, { eq: eqFn, and: andFn }) =>
+		// Service 1: Private 10-Session Pack
+		let packageService1: typeof services.$inferSelect;
+		const existingPackageService1 = await tenantDb.query.services.findFirst({
+			where: (s, { eq: eqFn, and: andFn }) =>
 				andFn(
-					eqFn(p.name, "Private 10-Session Pack"),
-					eqFn(p.branchId, branchId),
+					eqFn(s.name, "Private 10-Session Pack"),
+					eqFn(s.branchId, branchId),
 				),
 		});
 
-		if (existingPackage1) {
+		if (existingPackageService1) {
 			console.log(
-				`   Already exists: ${existingPackage1.id} (${existingPackage1.name})`,
+				`   Already exists: ${existingPackageService1.id} (${existingPackageService1.name})`,
 			);
-			package1 = existingPackage1;
+			packageService1 = existingPackageService1;
 		} else {
 			const [created] = await tenantDb
-				.insert(packages)
+				.insert(services)
 				.values({
 					name: "Private 10-Session Pack",
-					appointmentType: "private",
-					crossUsageEnabled: false,
+					categoryId: category.id,
+					type: "private",
 					sessionCount: 10,
-					pricePerSession: 15000,
-					maxClientsPerSession: 1,
+					price: 15000,
+					maxAttendees: 1,
 					expiryDays: 180,
-					autoGenerateInvoice: false,
+					expirable: true,
 					branchId,
-					allowedServiceIds: null,
-					isArchived: false,
+					isActive: true,
+					duration: 60,
+					durationUnitType: "minutes",
+					schedulingType: "appointment",
+					priceUnit: "session",
+					taxable: false,
+					taxPercentage: 0,
+					isRecommended: false,
 				})
 				.returning();
 
-			if (!created) throw new Error("Failed to create package 1");
-			package1 = created;
-			console.log(`   Created: ${package1.id} (${package1.name})`);
+			if (!created) throw new Error("Failed to create package-style service 1");
+			packageService1 = created;
+			console.log(`   Created: ${packageService1.id} (${packageService1.name})`);
 		}
 
-		// Package 2: Semi-Private 20-Session Pack
-		let package2: typeof packages.$inferSelect;
-		const existingPackage2 = await tenantDb.query.packages.findFirst({
-			where: (p, { eq: eqFn, and: andFn }) =>
+		// Service 2: Semi-Private 20-Session Pack
+		let packageService2: typeof services.$inferSelect;
+		const existingPackageService2 = await tenantDb.query.services.findFirst({
+			where: (s, { eq: eqFn, and: andFn }) =>
 				andFn(
-					eqFn(p.name, "Semi-Private 20-Session Pack"),
-					eqFn(p.branchId, branchId),
+					eqFn(s.name, "Semi-Private 20-Session Pack"),
+					eqFn(s.branchId, branchId),
 				),
 		});
 
-		if (existingPackage2) {
+		if (existingPackageService2) {
 			console.log(
-				`   Already exists: ${existingPackage2.id} (${existingPackage2.name})`,
+				`   Already exists: ${existingPackageService2.id} (${existingPackageService2.name})`,
 			);
-			package2 = existingPackage2;
+			packageService2 = existingPackageService2;
 		} else {
 			const [created] = await tenantDb
-				.insert(packages)
+				.insert(services)
 				.values({
 					name: "Semi-Private 20-Session Pack",
-					appointmentType: "semi-private",
-					crossUsageEnabled: false,
+					categoryId: category.id,
+					type: "semi_private",
 					sessionCount: 20,
-					pricePerSession: 8000,
-					maxClientsPerSession: 3,
+					price: 8000,
+					maxAttendees: 3,
 					expiryDays: 365,
-					autoGenerateInvoice: false,
+					expirable: true,
 					branchId,
-					allowedServiceIds: null,
-					isArchived: false,
+					isActive: true,
+					duration: 60,
+					durationUnitType: "minutes",
+					schedulingType: "appointment",
+					priceUnit: "session",
+					taxable: false,
+					taxPercentage: 0,
+					isRecommended: false,
 				})
 				.returning();
 
-			if (!created) throw new Error("Failed to create package 2");
-			package2 = created;
-			console.log(`   Created: ${package2.id} (${package2.name})`);
+			if (!created) throw new Error("Failed to create package-style service 2");
+			packageService2 = created;
+			console.log(`   Created: ${packageService2.id} (${packageService2.name})`);
 		}
 
 		// ================================================================
@@ -309,7 +320,7 @@ async function seedBusinessData() {
 		const existingInstance = await tenantDb.query.packageInstances.findFirst({
 			where: (pi, { eq: eqFn, and: andFn }) =>
 				andFn(
-					eqFn(pi.packageId, package1.id),
+					eqFn(pi.serviceId, packageService1.id),
 					eqFn(pi.clientId, clientId),
 				),
 		});
@@ -324,7 +335,7 @@ async function seedBusinessData() {
 			const [created] = await tenantDb
 				.insert(packageInstances)
 				.values({
-					packageId: package1.id,
+					serviceId: packageService1.id,
 					clientId,
 					source: "assigned",
 					assignedBy: clientId,
@@ -359,10 +370,10 @@ async function seedBusinessData() {
 			categoryName: category.name,
 			serviceId: service.id,
 			serviceName: service.name,
-			package1Id: package1.id,
-			package1Name: package1.name,
-			package2Id: package2.id,
-			package2Name: package2.name,
+			packageService1Id: packageService1.id,
+			packageService1Name: packageService1.name,
+			packageService2Id: packageService2.id,
+			packageService2Name: packageService2.name,
 			packageInstanceId: packageInstance.id,
 		};
 
@@ -385,10 +396,10 @@ async function seedBusinessData() {
 			`Service:           ${service.id} (${service.name}) [${existingService ? "existing" : "created"}]`,
 		);
 		console.log(
-			`Package 1:         ${package1.id} ("${package1.name}") [${existingPackage1 ? "existing" : "created"}]`,
+			`Package Service 1: ${packageService1.id} ("${packageService1.name}") [${existingPackageService1 ? "existing" : "created"}]`,
 		);
 		console.log(
-			`Package 2:         ${package2.id} ("${package2.name}") [${existingPackage2 ? "existing" : "created"}]`,
+			`Package Service 2: ${packageService2.id} ("${packageService2.name}") [${existingPackageService2 ? "existing" : "created"}]`,
 		);
 		console.log(
 			`Package Instance:  ${packageInstance.id} [${existingInstance ? "existing" : "created"}]`,

@@ -86,18 +86,6 @@ export {
   type UpdateAppointmentParams,
 } from "./appointment.service";
 
-// Package services
-export {
-  listPackages,
-  getPackageById,
-  createPackage,
-  updatePackage,
-  archivePackage,
-  type ListPackagesParams,
-  type CreatePackageParams,
-  type UpdatePackageParams,
-} from "./package.service";
-
 // Package instance services
 export {
   listPackageInstancesForClient,

@@ -17,6 +17,13 @@ export const salesOrders = pgTable("sales_orders", {
 	// "draft" | "confirmed" | "completed" | "cancelled"
 	totalAmount: integer("total_amount").notNull(),
 	notes: text("notes"),
+	// Cancellation metadata (populated when status = "cancelled")
+	cancellationNumber: text("cancellation_number").unique(),
+	cancellationDate: timestamp("cancellation_date"),
+	cancellationReason: text("cancellation_reason"),
+	cancelledBy: text("cancelled_by"),
+	cancelledAmount: integer("cancelled_amount"), // Partial or full refund amount in cents
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -27,4 +34,6 @@ export const salesOrders = pgTable("sales_orders", {
 	dateIdx: index("sales_orders_date_idx").on(table.date),
 	statusIdx: index("sales_orders_status_idx").on(table.status),
 	customerTypeIdx: index("sales_orders_customer_type_idx").on(table.customerType),
+	cancellationNumberIdx: index("sales_orders_cancellation_number_idx").on(table.cancellationNumber),
+	cancellationDateIdx: index("sales_orders_cancellation_date_idx").on(table.cancellationDate),
 }));

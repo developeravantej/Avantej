@@ -8,14 +8,14 @@
  */
 
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
-import { packages } from "./packages";
 import { payments } from "./payments";
+import { services } from "./services";
 
 export const packageInstances = pgTable("package_instances", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	packageId: uuid("package_id")
+	serviceId: uuid("service_id")
 		.notNull()
-		.references(() => packages.id, { onDelete: "restrict" }),
+		.references(() => services.id, { onDelete: "restrict" }),
 	clientId: text("client_id").notNull(),
 
 	// Source tracking
@@ -56,7 +56,6 @@ export const packageInstances = pgTable("package_instances", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-	packageIdIdx: index("package_instances_package_idx").on(table.packageId),
 	clientIdIdx: index("package_instances_client_idx").on(table.clientId),
 	sourceIdx: index("package_instances_source_idx").on(table.source),
 	statusIdx: index("package_instances_status_idx").on(table.status),
@@ -65,4 +64,5 @@ export const packageInstances = pgTable("package_instances", {
 	clientStatusIdx: index("package_instances_client_status_idx")
 		.on(table.clientId, table.status),
 	purchaseNumberIdx: index("package_instances_purchase_number_idx").on(table.purchaseNumber),
+	serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
 }));

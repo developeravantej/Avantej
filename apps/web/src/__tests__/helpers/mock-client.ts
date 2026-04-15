@@ -104,6 +104,11 @@ export const mockClient = {
 		update: vi.fn().mockResolvedValue({}),
 		archive: vi.fn().mockResolvedValue({}),
 	},
+	services: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "svc-1" }),
+		update: vi.fn().mockResolvedValue({}),
+	},
 	packageInstances: {
 		list: vi.fn().mockResolvedValue([]),
 		listAll: vi.fn().mockResolvedValue([]),

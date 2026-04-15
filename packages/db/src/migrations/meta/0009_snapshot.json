@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
   "id": "505d4bde-46ce-4ab4-bd5e-a0589e5dfb11",
-=======
-  "id": "47b4e34a-f304-4a0f-a71d-b579ff92d788",
->>>>>>> main
   "prevId": "fe79ca1e-67ce-42cf-a068-d2b70a0431c6",
   "version": "7",
   "dialect": "postgresql",
@@ -1872,7 +1868,6 @@
           "primaryKey": false,
           "notNull": true
         },
-<<<<<<< HEAD
         "scope": {
           "name": "scope",
           "type": "text",
@@ -1880,8 +1875,6 @@
           "notNull": true,
           "default": "'organization'"
         },
-=======
->>>>>>> main
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1920,7 +1913,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-<<<<<<< HEAD
         },
         "role_permissions_scope_idx": {
           "name": "role_permissions_scope_idx",
@@ -1957,8 +1949,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-=======
->>>>>>> main
         }
       },
       "foreignKeys": {
@@ -3229,15 +3219,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-<<<<<<< HEAD
         },
         "room_id": {
           "name": "room_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-=======
->>>>>>> main
         }
       },
       "indexes": {
@@ -3462,7 +3449,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-<<<<<<< HEAD
         },
         "appointments_room_idx": {
           "name": "appointments_room_idx",
@@ -3478,8 +3464,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-=======
->>>>>>> main
         }
       },
       "foreignKeys": {
@@ -3560,7 +3544,6 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-<<<<<<< HEAD
         },
         "appointments_room_id_rooms_id_fk": {
           "name": "appointments_room_id_rooms_id_fk",
@@ -3574,8 +3557,6 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-=======
->>>>>>> main
         }
       },
       "compositePrimaryKeys": {},
@@ -4107,7 +4088,6 @@
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
         "invoice_id": {
           "name": "invoice_id",
           "type": "uuid",
@@ -4126,8 +4106,6 @@
           "primaryKey": false,
           "notNull": false
         },
-=======
->>>>>>> main
         "refunded_at": {
           "name": "refunded_at",
           "type": "timestamp",
@@ -4302,7 +4280,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-<<<<<<< HEAD
         },
         "payments_invoice_idx": {
           "name": "payments_invoice_idx",
@@ -4336,25 +4313,6 @@
         }
       },
       "foreignKeys": {},
-=======
-        }
-      },
-      "foreignKeys": {
-        "payments_appointment_id_appointments_id_fk": {
-          "name": "payments_appointment_id_appointments_id_fk",
-          "tableFrom": "payments",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
->>>>>>> main
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "payments_stripe_payment_intent_id_unique": {
@@ -4521,25 +4479,7 @@
           "with": {}
         }
       },
-<<<<<<< HEAD
       "foreignKeys": {},
-=======
-      "foreignKeys": {
-        "partner_stripe_accounts_partner_id_members_user_id_fk": {
-          "name": "partner_stripe_accounts_partner_id_members_user_id_fk",
-          "tableFrom": "partner_stripe_accounts",
-          "tableTo": "members",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "user_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
->>>>>>> main
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "partner_stripe_accounts_stripe_connect_account_id_unique": {
@@ -7650,15 +7590,12 @@
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
         "promotion_id": {
           "name": "promotion_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-=======
->>>>>>> main
         "description": {
           "name": "description",
           "type": "text",
@@ -7737,7 +7674,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-<<<<<<< HEAD
         },
         "payment_items_promotion_idx": {
           "name": "payment_items_promotion_idx",
@@ -7753,8 +7689,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-=======
->>>>>>> main
         }
       },
       "foreignKeys": {
@@ -7777,7 +7711,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-<<<<<<< HEAD
     },
     "public.rooms": {
       "name": "rooms",
@@ -11340,11 +11273,6 @@
       ]
     }
   },
-=======
-    }
-  },
-  "enums": {},
->>>>>>> main
   "schemas": {},
   "sequences": {},
   "roles": {},

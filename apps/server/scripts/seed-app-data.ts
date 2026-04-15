@@ -19,7 +19,6 @@ import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
 	notifications,
 	packageInstances,
-	packages,
 	serviceCategories,
 	services,
 } from "@avantej-core/db/schema/tenant/index";
@@ -282,85 +281,95 @@ async function main() {
 			}
 		}
 
-		// ──── PACKAGES ────
-		console.log("\nSeeding packages...");
+		// ──── PACKAGE-STYLE SERVICES ────
+		console.log("\nSeeding package-style services...");
 
 		const packageDefs = [
 			{
 				name: "Group 10-Class Pass",
-				appointmentType: "semi-private" as const,
+				type: "semi_private" as const,
 				sessionCount: 10,
-				pricePerSession: 2200,
-				maxClientsPerSession: 20,
+				price: 2200,
+				maxAttendees: 20,
 				expiryDays: 90,
 			},
 			{
 				name: "Group 20-Class Pass",
-				appointmentType: "semi-private" as const,
+				type: "semi_private" as const,
 				sessionCount: 20,
-				pricePerSession: 2000,
-				maxClientsPerSession: 20,
+				price: 2000,
+				maxAttendees: 20,
 				expiryDays: 180,
 			},
 			{
 				name: "Private 5-Session Starter",
-				appointmentType: "private" as const,
+				type: "private" as const,
 				sessionCount: 5,
-				pricePerSession: 12000,
-				maxClientsPerSession: 1,
+				price: 12000,
+				maxAttendees: 1,
 				expiryDays: 60,
 			},
 			{
 				name: "Unlimited Monthly",
-				appointmentType: "both" as const,
+				type: "both" as const,
 				sessionCount: 30,
-				pricePerSession: 3000,
-				maxClientsPerSession: 20,
+				price: 3000,
+				maxAttendees: 20,
 				expiryDays: 30,
 			},
 			{
 				name: "Recovery 8-Session Pack",
-				appointmentType: "private" as const,
+				type: "private" as const,
 				sessionCount: 8,
-				pricePerSession: 7500,
-				maxClientsPerSession: 1,
+				price: 7500,
+				maxAttendees: 1,
 				expiryDays: 120,
 			},
 		];
 
-		const createdPackages: Array<{ id: string; name: string; sessionCount: number; pricePerSession: number; expiryDays: number }> = [];
+		const createdPackages: Array<{ id: string; name: string; sessionCount: number; price: number; expiryDays: number }> = [];
 		for (const pkg of packageDefs) {
-			const existing = await tenantDb.query.packages.findFirst({
-				where: (p, { eq: eqFn, and: andFn }) =>
-					andFn(eqFn(p.name, pkg.name), eqFn(p.branchId, branchId)),
+			const existing = await tenantDb.query.services.findFirst({
+				where: (s, { eq: eqFn, and: andFn }) =>
+					andFn(eqFn(s.name, pkg.name), eqFn(s.branchId, branchId)),
 			});
 
 			if (existing) {
 				createdPackages.push({
 					id: existing.id,
 					name: existing.name,
-					sessionCount: existing.sessionCount,
-					pricePerSession: existing.pricePerSession,
+					sessionCount: existing.sessionCount ?? pkg.sessionCount,
+					price: existing.price ?? pkg.price,
 					expiryDays: existing.expiryDays ?? 365,
 				});
 				console.log(`  [exists] ${pkg.name}`);
 			} else {
 				const [created] = await tenantDb
-					.insert(packages)
+					.insert(services)
 					.values({
-						...pkg,
-						crossUsageEnabled: false,
-						autoGenerateInvoice: false,
+						name: pkg.name,
+						type: pkg.type,
+						sessionCount: pkg.sessionCount,
+						price: pkg.price,
+						maxAttendees: pkg.maxAttendees,
+						expiryDays: pkg.expiryDays,
+						expirable: true,
 						branchId,
-						allowedServiceIds: null,
-						isArchived: false,
+						isActive: true,
+						duration: 60,
+						durationUnitType: "minutes",
+						schedulingType: "appointment",
+						priceUnit: "session",
+						taxable: false,
+						taxPercentage: 0,
+						isRecommended: false,
 					})
 					.returning();
 				createdPackages.push({
 					id: created!.id,
 					name: created!.name,
-					sessionCount: created!.sessionCount,
-					pricePerSession: created!.pricePerSession,
+					sessionCount: created!.sessionCount ?? pkg.sessionCount,
+					price: created!.price ?? pkg.price,
 					expiryDays: created!.expiryDays ?? 365,
 				});
 				console.log(`  [created] ${pkg.name}`);
@@ -391,10 +400,10 @@ async function main() {
 
 				try {
 					await tenantDb.insert(packageInstances).values({
-						packageId: activePkg.id,
+						serviceId: activePkg.id,
 						clientId: userId,
 						source: "purchased",
-						totalPrice: activePkg.sessionCount * activePkg.pricePerSession,
+						totalPrice: activePkg.sessionCount * activePkg.price,
 						taxAmount: 0,
 						paymentStatus: "paid",
 						paymentMethod: "card",
@@ -418,10 +427,10 @@ async function main() {
 
 				try {
 					await tenantDb.insert(packageInstances).values({
-						packageId: secondPkg.id,
+						serviceId: secondPkg.id,
 						clientId: userId,
 						source: "purchased",
-						totalPrice: secondPkg.sessionCount * secondPkg.pricePerSession,
+						totalPrice: secondPkg.sessionCount * secondPkg.price,
 						taxAmount: 0,
 						paymentStatus: "paid",
 						paymentMethod: "card",

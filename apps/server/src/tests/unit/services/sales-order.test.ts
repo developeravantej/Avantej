@@ -24,16 +24,6 @@ const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
 
-const mockTransaction = mock(async (fn: any) => fn(mockTx));
-const mockTx = {
-	update: mock(() => ({
-		set: mock(() => ({
-			where: mock(() => ({ returning: mockReturning })),
-		})),
-	})),
-	insert: mock(() => ({ values: mockValues })),
-};
-
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
@@ -44,7 +34,6 @@ const mockTenantDb = {
 			findFirst: mockFindFirst,
 		},
 	},
-	transaction: mockTransaction,
 } as any;
 
 beforeEach(() => {
@@ -57,7 +46,6 @@ beforeEach(() => {
 	mockSelectWhere.mockClear();
 	mockSelectFrom.mockClear();
 	mockSelect.mockClear();
-	mockTransaction.mockClear();
 });
 
 describe("listSalesOrders", () => {
@@ -176,7 +164,7 @@ describe("createSalesOrder", () => {
 		const fakeOrder = { id: "so1", salesOrderNumber: "SO-20260227-0001" };
 		mockReturning.mockResolvedValueOnce([fakeOrder]);
 
-		const result = await createSalesOrder(mockTenantDb, {
+		await createSalesOrder(mockTenantDb, {
 			date: new Date("2026-02-27"),
 			customerName: "Bob",
 			createdBy: "user-1",
@@ -239,9 +227,16 @@ describe("cancelSalesOrder", () => {
 		).rejects.toThrow("Sales order not found");
 	});
 
-	test("executes transaction with update and insert when order exists", async () => {
+	test("updates sales order with cancellation metadata and returns it directly", async () => {
 		const mockOrder = { id: "so1", customerName: "Alice", customerId: null };
-		const mockCancelledSale = { id: "cs1", cancellationNumber: "CAN-20260227-0001" };
+		const cancelledOrder = {
+			...mockOrder,
+			status: "cancelled",
+			cancellationNumber: "CAN-20260227-0001",
+			cancellationDate: new Date(),
+			cancellationReason: null,
+			cancelledBy: "user-1",
+		};
 
 		// getSalesOrderById internal call
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
@@ -249,61 +244,143 @@ describe("cancelSalesOrder", () => {
 		// generateCancellationNumber count query → total=0
 		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
 
-		// Mock transaction to run callback with custom tx mocks
-		const txReturningOrder = mock(() => Promise.resolve([{ ...mockOrder, status: "cancelled" }]));
-		const txWhereOrder = mock(() => ({ returning: txReturningOrder }));
-		const txSetOrder = mock(() => ({ where: txWhereOrder }));
-		const txUpdate = mock(() => ({ set: txSetOrder }));
-
-		const txReturningInsert = mock(() => Promise.resolve([mockCancelledSale]));
-		const txValuesInsert = mock(() => ({ returning: txReturningInsert }));
-		const txInsert = mock(() => ({ values: txValuesInsert }));
-
-		mockTransaction.mockImplementationOnce(async (fn: any) => {
-			return fn({ update: txUpdate, insert: txInsert });
-		});
+		// update returning cancelled order
+		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await cancelSalesOrder(mockTenantDb, "so1", {
 			cancelledBy: "user-1",
 			refundAmount: 100,
 		});
 
-		expect(result.salesOrder).toBeDefined();
-		expect(result.cancelledSale).toBeDefined();
-		expect(mockTransaction).toHaveBeenCalledTimes(1);
-		expect(txUpdate).toHaveBeenCalledTimes(1);
-		expect(txInsert).toHaveBeenCalledTimes(1);
+		expect(result).toBeDefined();
+		expect(result.status).toBe("cancelled");
+		expect(result.cancellationNumber).toBe("CAN-20260227-0001");
+		expect(result.cancelledBy).toBe("user-1");
+		expect(mockUpdate).toHaveBeenCalledTimes(1);
+		// No transaction used — no insert into cancelled_sales
+		expect(mockInsert).not.toHaveBeenCalled();
 	});
 
-	test("passes cancellation reason and refundAmount to cancelledSale insert", async () => {
+	test("passes cancellation reason to update set", async () => {
 		const mockOrder = { id: "so2", customerName: "Bob", customerId: "cust-2" };
-		const mockCancelledSale = { id: "cs2", cancellationNumber: "CAN-20260227-0001" };
+		const cancelledOrder = {
+			...mockOrder,
+			status: "cancelled",
+			cancellationNumber: "CAN-20260227-0001",
+			cancellationDate: new Date(),
+			cancellationReason: "Customer request",
+			cancelledBy: "user-2",
+		};
 
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
 
-		const txReturningOrder = mock(() => Promise.resolve([{ ...mockOrder, status: "cancelled" }]));
-		const txWhereOrder = mock(() => ({ returning: txReturningOrder }));
-		const txSetOrder = mock(() => ({ where: txWhereOrder }));
-		const txUpdate = mock(() => ({ set: txSetOrder }));
-
-		const txReturningInsert = mock(() => Promise.resolve([mockCancelledSale]));
-		const txValuesInsert = mock(() => ({ returning: txReturningInsert }));
-		const txInsert = mock(() => ({ values: txValuesInsert }));
-
-		mockTransaction.mockImplementationOnce(async (fn: any) => {
-			return fn({ update: txUpdate, insert: txInsert });
+		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const capturedSet: any[] = [];
+		const mockSetUpd = mock((setArg: any) => {
+			capturedSet.push(setArg);
+			return { where: mockWhereUpd };
 		});
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await cancelSalesOrder(mockTenantDb, "so2", {
+		const result = await cancelSalesOrder(mockTenantDb, "so2", {
 			cancelledBy: "user-2",
 			reason: "Customer request",
 			refundAmount: 200,
 		});
 
-		const insertValuesArg = txValuesInsert.mock.calls[0][0];
-		expect(insertValuesArg.cancelledAmount).toBe(200);
-		expect(insertValuesArg.cancellationReason).toBe("Customer request");
-		expect(insertValuesArg.cancelledBy).toBe("user-2");
+		expect(result.cancellationReason).toBe("Customer request");
+		expect(result.cancelledBy).toBe("user-2");
+
+		// Verify the set() call included cancellation fields
+		const setArg = capturedSet[0];
+		expect(setArg.status).toBe("cancelled");
+		expect(setArg.cancellationReason).toBe("Customer request");
+		expect(setArg.cancelledBy).toBe("user-2");
+		expect(setArg.cancellationNumber).toMatch(/CAN-\d{8}-0001/);
+	});
+
+	test("persists refundAmount to cancelled_amount column", async () => {
+		const mockOrder = {
+			id: "so3",
+			customerName: "Carol",
+			customerId: "cust-3",
+			totalAmount: 10000,
+		};
+		const cancelledOrder = {
+			...mockOrder,
+			status: "cancelled",
+			cancellationNumber: "CAN-20260412-0001",
+			cancellationDate: new Date(),
+			cancelledAmount: 5000,
+			cancelledBy: "user-3",
+		};
+
+		mockFindFirst.mockResolvedValueOnce(mockOrder);
+		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+
+		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const capturedSet: any[] = [];
+		const mockSetUpd = mock((setArg: any) => {
+			capturedSet.push(setArg);
+			return { where: mockWhereUpd };
+		});
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+
+		const result = await cancelSalesOrder(mockTenantDb, "so3", {
+			cancelledBy: "user-3",
+			refundAmount: 5000, // partial refund — half of totalAmount
+		});
+
+		// The set() call must write cancelled_amount with the partial refund value
+		const setArg = capturedSet[0];
+		expect(setArg.cancelledAmount).toBe(5000);
+
+		// Returned order reflects the persisted partial amount
+		expect(result.cancelledAmount).toBe(5000);
+	});
+
+	test("throws when refundAmount exceeds totalAmount", async () => {
+		const mockOrder = {
+			id: "so4",
+			customerName: "Dave",
+			customerId: "cust-4",
+			totalAmount: 10000,
+		};
+		mockFindFirst.mockResolvedValueOnce(mockOrder);
+
+		await expect(
+			cancelSalesOrder(mockTenantDb, "so4", {
+				cancelledBy: "user-4",
+				refundAmount: 20000, // > totalAmount
+			})
+		).rejects.toThrow(/out of range/);
+
+		// update() must not have been called — validation happens before the DB write
+		expect(mockUpdate).not.toHaveBeenCalled();
+	});
+
+	test("throws when refundAmount is negative", async () => {
+		const mockOrder = {
+			id: "so5",
+			customerName: "Eve",
+			customerId: "cust-5",
+			totalAmount: 10000,
+		};
+		mockFindFirst.mockResolvedValueOnce(mockOrder);
+
+		await expect(
+			cancelSalesOrder(mockTenantDb, "so5", {
+				cancelledBy: "user-5",
+				refundAmount: -100,
+			})
+		).rejects.toThrow(/out of range/);
+
+		expect(mockUpdate).not.toHaveBeenCalled();
 	});
 });

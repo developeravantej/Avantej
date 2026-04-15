@@ -30,10 +30,9 @@ beforeAll(async () => {
 describe("Packages page", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockClient.packages.list.mockResolvedValue([]);
-		mockClient.packages.create.mockResolvedValue({ id: "pkg-1" });
-		mockClient.packages.update.mockResolvedValue({});
-		mockClient.packages.archive.mockResolvedValue({});
+		mockClient.services.list.mockResolvedValue([]);
+		mockClient.services.create.mockResolvedValue({ id: "svc-1" });
+		mockClient.services.update.mockResolvedValue({});
 	});
 
 	test("renders without crashing (empty state)", async () => {
@@ -44,29 +43,31 @@ describe("Packages page", () => {
 		});
 	});
 
-	test("calls client.packages.list on mount", async () => {
+	test("calls client.services.list on mount", async () => {
 		renderWithProviders(<PackagesViewPage />);
 
 		await waitFor(() => {
-			expect(mockClient.packages.list).toHaveBeenCalled();
+			expect(mockClient.services.list).toHaveBeenCalled();
 		});
 	});
 
 	test("shows package data in the table", async () => {
-		mockClient.packages.list.mockResolvedValue([
+		mockClient.services.list.mockResolvedValue([
 			{
-				id: "pkg1",
+				id: "svc1",
 				name: "Gold Membership",
-				appointmentType: "private",
-				crossUsageEnabled: false,
+				type: "private",
 				sessionCount: 12,
-				pricePerSession: 50000,
-				maxClientsPerSession: 1,
+				price: 50000,
+				maxAttendees: 1,
 				expiryDays: 90,
 				expiryDate: null,
-				autoGenerateInvoice: false,
+				expirable: true,
 				branchId: null,
-				isArchived: false,
+				isActive: true,
+				duration: 3600,
+				durationUnitType: "minutes",
+				schedulingType: "appointment",
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			},

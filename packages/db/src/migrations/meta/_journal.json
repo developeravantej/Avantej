@@ -68,13 +68,8 @@
     {
       "idx": 9,
       "version": "7",
-<<<<<<< HEAD
       "when": 1772184589924,
       "tag": "0009_majestic_switch",
-=======
-      "when": 1773917301084,
-      "tag": "0009_short_cobalt_man",
->>>>>>> main
       "breakpoints": true
     }
   ]

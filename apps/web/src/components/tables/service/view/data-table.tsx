@@ -18,21 +18,15 @@ import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ServiceCreateEditDialog } from "@/components/forms/service-create-edit-dialog";
+import { ServiceFormDialog } from "@/components/forms/service-form";
 import { ServiceDetailDialog } from "@/components/forms/service-detail-dialog";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
-
-interface Category {
-	id: string;
-	name: string;
-}
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 	organizationId: string;
-	categories: Category[];
 	isLoading?: boolean;
 	onSuccess: () => void;
 }
@@ -41,7 +35,6 @@ export default function DataTable<TData, TValue>({
 	columns,
 	data,
 	organizationId,
-	categories,
 	isLoading = false,
 	onSuccess,
 }: DataTableProps<TData, TValue>) {
@@ -50,17 +43,7 @@ export default function DataTable<TData, TValue>({
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-	const [editServiceData, setEditServiceData] = useState<{
-		id: string;
-		name: string;
-		categoryId: string | null;
-		duration: number;
-		durationUnitType: "seconds" | "minutes" | "hours";
-		maxAttendees: number;
-		price: number | null;
-		schedulingType: "appointment" | "class_slot";
-		isActive: boolean;
-	} | null>(null);
+	const [editServiceId, setEditServiceId] = useState<string | null>(null);
 
 	const table = useReactTable({
 		data,
@@ -75,30 +58,11 @@ export default function DataTable<TData, TValue>({
 	});
 
 	const handleEditService = useCallback(
-		async (serviceId: string) => {
-			try {
-				const service = await client.services.getById({
-					organizationId,
-					id: serviceId,
-				});
-				setEditServiceData({
-					id: service.id,
-					name: service.name,
-					categoryId: service.categoryId,
-					duration: service.duration ?? 60,
-					durationUnitType: (service.durationUnitType as "seconds" | "minutes" | "hours") ?? "minutes",
-					maxAttendees: service.maxAttendees ?? 1,
-					price: service.price ?? null,
-					schedulingType: (service.schedulingType as "appointment" | "class_slot") ?? "appointment",
-					isActive: service.isActive ?? true,
-				});
-				setIsEditDialogOpen(true);
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : "Failed to load service";
-				toast.error(message);
-			}
+		(serviceId: string) => {
+			setEditServiceId(serviceId);
+			setIsEditDialogOpen(true);
 		},
-		[organizationId]
+		[]
 	);
 
 	const handleDeleteService = useCallback(
@@ -213,26 +177,22 @@ export default function DataTable<TData, TValue>({
 				</div>
 			)}
 
-			<ServiceCreateEditDialog
+			<ServiceFormDialog
 				isOpen={isAddDialogOpen}
 				onClose={() => setIsAddDialogOpen(false)}
-				onSuccess={onSuccess}
-				organizationId={organizationId}
+				onSubmit={async () => { onSuccess(); }}
 				mode="create"
-				categories={categories}
 			/>
 
-			<ServiceCreateEditDialog
+			<ServiceFormDialog
 				isOpen={isEditDialogOpen}
 				onClose={() => {
 					setIsEditDialogOpen(false);
-					setEditServiceData(null);
+					setEditServiceId(null);
 				}}
-				onSuccess={onSuccess}
-				organizationId={organizationId}
+				onSubmit={async () => { onSuccess(); }}
 				mode="edit"
-				initialData={editServiceData}
-				categories={categories}
+				initialData={editServiceId ? { id: Number(editServiceId), name: "", duration: 60, duration_unit: "minutes", expirable: false, price: 0, sessions: 1, taxable: false, tax_percentage: 0, category_id: "", schedulingType: "appointment-based", sessionDurationMinutes: 60, maxAttendees: 1 } : undefined}
 			/>
 
 			<ServiceDetailDialog

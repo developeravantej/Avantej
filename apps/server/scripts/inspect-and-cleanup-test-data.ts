@@ -121,10 +121,6 @@ const EXPECTED_TENANT_TABLES = [
   "invitations",
   "service_categories",
   "services",
-  "service_commission_config",
-  "service_rules",
-  "packages",
-  "package_assignments",
   "appointments",
   "appointment_clients",
   "appointment_staff",
@@ -132,6 +128,7 @@ const EXPECTED_TENANT_TABLES = [
   "payments",
   "partner_stripe_accounts",
   "payouts",
+  "package_instances",
   "drizzle_migrations", // Migration tracking table
 ];
 

@@ -1,6 +1,5 @@
 import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
-import { cancelledSales } from "@avantej-core/db/schema/tenant/cancelled-sales";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -51,8 +50,8 @@ async function generateCancellationNumber(
 
 	const result = await tenantDb
 		.select({ total: count() })
-		.from(cancelledSales)
-		.where(sql`${cancelledSales.cancellationNumber} LIKE ${prefix + "%"}`);
+		.from(salesOrders)
+		.where(sql`${salesOrders.cancellationNumber} LIKE ${prefix + "%"}`);
 
 	const seq = (result[0]?.total ?? 0) + 1;
 	return `${prefix}${String(seq).padStart(4, "0")}`;
@@ -166,45 +165,38 @@ export async function cancelSalesOrder(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
 	params: { cancelledBy: string; reason?: string; refundAmount: number }
-): Promise<{ salesOrder: typeof salesOrders.$inferSelect; cancelledSale: typeof cancelledSales.$inferSelect }> {
+): Promise<typeof salesOrders.$inferSelect> {
 	const existing = await getSalesOrderById(tenantDb, id);
 	if (!existing) {
 		throw new Error("Sales order not found");
 	}
 
+	if (params.refundAmount < 0 || params.refundAmount > existing.totalAmount) {
+		throw new Error(
+			`refundAmount ${params.refundAmount} is out of range (order total: ${existing.totalAmount})`
+		);
+	}
+
 	const now = new Date();
 	const cancellationNumber = await generateCancellationNumber(tenantDb, now);
 
-	return tenantDb.transaction(async (tx) => {
-		const [updatedOrder] = await tx
-			.update(salesOrders)
-			.set({ status: "cancelled", updatedAt: now })
-			.where(eq(salesOrders.id, id))
-			.returning();
+	const [updatedOrder] = await tenantDb
+		.update(salesOrders)
+		.set({
+			status: "cancelled",
+			cancellationNumber,
+			cancellationDate: now,
+			cancellationReason: params.reason ?? null,
+			cancelledBy: params.cancelledBy,
+			cancelledAmount: params.refundAmount,
+			updatedAt: now,
+		})
+		.where(eq(salesOrders.id, id))
+		.returning();
 
-		if (!updatedOrder) {
-			throw new Error("Failed to cancel sales order");
-		}
+	if (!updatedOrder) {
+		throw new Error("Failed to cancel sales order");
+	}
 
-		const [cancelledSale] = await tx
-			.insert(cancelledSales)
-			.values({
-				cancellationNumber,
-				salesOrderId: id,
-				invoiceId: null,
-				cancellationDate: now,
-				cancelledAmount: params.refundAmount,
-				cancellationReason: params.reason ?? null,
-				cancelledBy: params.cancelledBy,
-				customerId: existing.customerId ?? null,
-				customerName: existing.customerName,
-			})
-			.returning();
-
-		if (!cancelledSale) {
-			throw new Error("Failed to create cancelled sale record");
-		}
-
-		return { salesOrder: updatedOrder, cancelledSale };
-	});
+	return updatedOrder;
 }

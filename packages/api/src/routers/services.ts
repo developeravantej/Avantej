@@ -17,7 +17,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 
-const serviceTypeSchema = z.enum(["private", "semi_private"]);
+const serviceTypeSchema = z.enum(["private", "semi_private", "both"]);
 const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);
 const priceUnitSchema = z.enum(["session", "class", "package"]);
 const durationUnitSchema = z.enum(["seconds", "minutes", "hours"]);
@@ -164,6 +164,10 @@ export const servicesRouter = {
         location: z.string().nullable().optional(),
         features: z.array(z.string()).nullable().optional(),
         schedulingType: schedulingTypeSchema.optional(),
+        sessionCount: z.number().int().min(1).nullable().optional(),
+        expirable: z.boolean().optional(),
+        expiryDays: z.number().int().min(1).nullable().optional(),
+        expiryDate: z.string().datetime().nullable().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -231,6 +235,10 @@ export const servicesRouter = {
           location: input.location ?? null,
           features: input.features ?? null,
           schedulingType: input.schedulingType,
+          sessionCount: input.sessionCount ?? null,
+          expirable: input.expirable,
+          expiryDays: input.expiryDays ?? null,
+          expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
         });
         return created;
       } catch (error) {
@@ -265,6 +273,10 @@ export const servicesRouter = {
         location: z.string().nullable().optional(),
         features: z.array(z.string()).nullable().optional(),
         schedulingType: schedulingTypeSchema.optional(),
+        sessionCount: z.number().int().min(1).nullable().optional(),
+        expirable: z.boolean().optional(),
+        expiryDays: z.number().int().min(1).nullable().optional(),
+        expiryDate: z.string().datetime().nullable().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -348,6 +360,12 @@ export const servicesRouter = {
             location: input.location,
             features: input.features,
             schedulingType: input.schedulingType,
+            sessionCount: input.sessionCount,
+            expirable: input.expirable,
+            expiryDays: input.expiryDays,
+            expiryDate: input.expiryDate !== undefined
+              ? input.expiryDate === null ? null : new Date(input.expiryDate)
+              : undefined,
           }
         );
         return updated;

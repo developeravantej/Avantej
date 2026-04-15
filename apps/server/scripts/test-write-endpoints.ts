@@ -190,8 +190,6 @@ async function main() {
 		franchiseeUserId: string;
 		categoryId: string;
 		serviceId: string;
-		package1Id: string;
-		package2Id: string;
 		packageInstanceId: string;
 	};
 
@@ -208,7 +206,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	const { branchNodeId, franchiseeUserId, categoryId, serviceId, package1Id, packageInstanceId } =
+	const { branchNodeId, franchiseeUserId, categoryId, serviceId, packageInstanceId } =
 		seedIds;
 
 	// ── Group 0: Connectivity ────────────────────────────────────────────────
@@ -302,21 +300,6 @@ async function main() {
 			pass("services.list", `${count} services`);
 		} else {
 			fail("services.list", "Unexpected error", r.error);
-		}
-	}
-
-	{
-		const r = await rpc(
-			"packages",
-			"list",
-			{ organizationId: ORG_ID, isArchived: false, appointmentType: "both" },
-			cookie
-		);
-		if (r.ok) {
-			const count = Array.isArray(r.data) ? r.data.length : "?";
-			pass("packages.list", `${count} packages`);
-		} else {
-			fail("packages.list", "Unexpected error", r.error);
 		}
 	}
 
@@ -588,57 +571,6 @@ async function main() {
 		fail("services.update", "Skipped — no createdServiceId");
 	}
 
-	// serviceRules.upsert
-	if (createdServiceId) {
-		const r = await rpc(
-			"serviceRules",
-			"upsert",
-			{
-				organizationId: ORG_ID,
-				serviceId: createdServiceId,
-				requireAdvanceBooking: true,
-				minAdvanceBookingDuration: 24,
-				minAdvanceBookingUnitType: "hours",
-				enableCancellationWindow: true,
-				cancellationCutoffDuration: 2,
-				cancellationCutoffUnitType: "hours",
-			},
-			cookie
-		);
-		if (r.ok) {
-			pass("serviceRules.upsert", "Rules upserted");
-		} else {
-			fail("serviceRules.upsert", "Unexpected error", r.error);
-		}
-	} else {
-		fail("serviceRules.upsert", "Skipped — no createdServiceId");
-	}
-
-	// serviceCommissionConfig.upsert
-	if (createdServiceId) {
-		const r = await rpc(
-			"serviceCommissionConfig",
-			"upsert",
-			{
-				organizationId: ORG_ID,
-				serviceId: createdServiceId,
-				commissionType: "percentage",
-				staffPoolPercentage: 80,
-				maxStaff: 5,
-				fixedAmounts: null,
-				positionWeightage: null,
-			},
-			cookie
-		);
-		if (r.ok) {
-			pass("serviceCommissionConfig.upsert", "Commission config upserted");
-		} else {
-			fail("serviceCommissionConfig.upsert", "Unexpected error", r.error);
-		}
-	} else {
-		fail("serviceCommissionConfig.upsert", "Skipped — no createdServiceId");
-	}
-
 	// packageInstances.create
 	{
 		const now = new Date().toISOString();
@@ -648,7 +580,7 @@ async function main() {
 			"create",
 			{
 				organizationId: ORG_ID,
-				packageId: package1Id,
+				serviceId: serviceId,
 				clientId: franchiseeUserId,
 				source: "assigned",
 				assignedBy: franchiseeUserId,

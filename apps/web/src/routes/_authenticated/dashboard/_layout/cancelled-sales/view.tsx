@@ -27,7 +27,9 @@ function RouteComponent() {
 	});
 
 	const data: CancelledSaleRow[] = (apiData as CancelledSaleApiItem[]).map((item) => ({
-		date: item.cancellationDate ? item.cancellationDate.toISOString() : null,
+		date: item.cancellationDate
+			? (typeof item.cancellationDate === "string" ? item.cancellationDate : item.cancellationDate.toISOString())
+			: null,
 		cancellation: item.cancellationNumber,
 		sales_order: item.salesOrderId,
 		cancelled_amount: item.cancelledAmount,
