@@ -90,6 +90,9 @@ export const appointments = pgTable("appointments", {
 
 	// Room assignment
 	roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
+
+	// Google Calendar integration
+	googleCalendarEventId: text("google_calendar_event_id"),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),

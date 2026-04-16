@@ -47,6 +47,7 @@ interface ServiceFormData {
     minAdvanceHours: number; // hours before start to allow booking
     enableCancellationWindow: boolean;
     cancellationCutoffHours: number; // hours before start to allow cancel
+    bufferTimeMinutes: number; // minutes required between consecutive bookings
   };
 }
 
@@ -165,7 +166,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
       requireAdvanceBooking: false,
       minAdvanceHours: 0,
       enableCancellationWindow: false,
-      cancellationCutoffHours: 0
+      cancellationCutoffHours: 0,
+      bufferTimeMinutes: 0
     }
   });
 
@@ -239,11 +241,18 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         duration: initialData.duration,
         maxAttendees: initialData.maxAttendees,
         incentive: initialData.incentive,
-        rules: initialData.rules ?? {
+        rules: initialData.rules ? {
+          requireAdvanceBooking: initialData.rules.requireAdvanceBooking,
+          minAdvanceHours: initialData.rules.minAdvanceHours,
+          enableCancellationWindow: initialData.rules.enableCancellationWindow,
+          cancellationCutoffHours: initialData.rules.cancellationCutoffHours,
+          bufferTimeMinutes: initialData.rules.bufferTimeMinutes ?? 0,
+        } : {
           requireAdvanceBooking: false,
           minAdvanceHours: 0,
           enableCancellationWindow: false,
-          cancellationCutoffHours: 0
+          cancellationCutoffHours: 0,
+          bufferTimeMinutes: 0,
         }
       });
       
@@ -267,7 +276,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
           requireAdvanceBooking: false,
           minAdvanceHours: 0,
           enableCancellationWindow: false,
-          cancellationCutoffHours: 0
+          cancellationCutoffHours: 0,
+          bufferTimeMinutes: 0,
         }
       });
       // Reset selected roles when switching to create mode
@@ -460,6 +470,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         cancellationCutoffHours: formData.rules?.enableCancellationWindow
           ? formData.rules.cancellationCutoffHours ?? null
           : null,
+        bufferTimeMinutes: formData.rules?.bufferTimeMinutes ?? 0,
       });
 
       // Invalidate relevant queries
@@ -835,6 +846,24 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                           placeholder={formData.rules?.enableCancellationWindow ? undefined : "Not required"}
                         />
                       </div>
+                    </div>
+                    <div className="mt-3">
+                      <label htmlFor="bufferTimeMinutes" className="block text-sm font-medium text-brand-primary-1">
+                        Buffer Time (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        id="bufferTimeMinutes"
+                        name="rules.bufferTimeMinutes"
+                        min="0"
+                        max="480"
+                        value={formData.rules?.bufferTimeMinutes ?? 0}
+                        onChange={handleChange}
+                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                      />
+                      <p className="text-xs text-brand-secondary-1 mt-1">
+                        Minutes required between consecutive bookings for services in this category
+                      </p>
                     </div>
                   </div>
 

@@ -50,6 +50,7 @@ export const serviceCategoryConfigRouter = {
 				// Cancellation rules
 				enableCancellationWindow: z.boolean().optional(),
 				cancellationCutoffHours: z.number().int().min(0).nullable().optional(),
+				bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
 			})
 		)
 		.handler(async ({ input, context }) => {
@@ -104,6 +105,7 @@ export const serviceCategoryConfigRouter = {
 				minAdvanceHours: input.minAdvanceHours ?? null,
 				enableCancellationWindow: input.enableCancellationWindow ?? false,
 				cancellationCutoffHours: input.cancellationCutoffHours ?? null,
+				bufferTimeMinutes: input.bufferTimeMinutes ?? 0,
 				updatedAt: now,
 			};
 
@@ -126,6 +128,7 @@ export const serviceCategoryConfigRouter = {
 						minAdvanceHours: values.minAdvanceHours,
 						enableCancellationWindow: values.enableCancellationWindow,
 						cancellationCutoffHours: values.cancellationCutoffHours,
+						bufferTimeMinutes: values.bufferTimeMinutes,
 						updatedAt: values.updatedAt,
 					},
 				})

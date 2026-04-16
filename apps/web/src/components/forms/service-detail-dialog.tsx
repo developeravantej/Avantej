@@ -63,6 +63,15 @@ export function ServiceDetailDialog({
 		schedulingType: string | null;
 		isActive: boolean;
 		description: string | null;
+		type: string | null;
+		taxable: boolean;
+		taxPercentage: number;
+		location: string | null;
+		features: string[] | null;
+		expirable: boolean;
+		expiryDays: number | null;
+		sessionCount: number | null;
+		isRecommended: boolean;
 		createdAt: Date | string;
 		updatedAt: Date | string;
 	} | null>(null);
@@ -212,23 +221,79 @@ export function ServiceDetailDialog({
 											<label className="text-sm font-medium text-muted-foreground">Price</label>
 											<p className="mt-1 text-sm">{formatPrice(service.price)}</p>
 										</div>
-										<div>
-											<label className="text-sm font-medium text-muted-foreground">Scheduling</label>
-											<div className="mt-1">
-												<Badge variant="outline">
-													{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
-												</Badge>
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Scheduling</label>
+												<div className="mt-1">
+													<Badge variant="outline">
+														{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
+													</Badge>
+												</div>
+											</div>
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Type</label>
+												<div className="mt-1">
+													<Badge variant="outline" className="capitalize">
+														{service.type ?? "—"}
+													</Badge>
+												</div>
 											</div>
 										</div>
-										<div>
-											<label className="text-sm font-medium text-muted-foreground">Status</label>
-											<div className="mt-1">
-												{service.isActive ? (
-													<Badge variant="default">Active</Badge>
-												) : (
-													<Badge variant="secondary">Inactive</Badge>
-												)}
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Taxable</label>
+												<p className="mt-1 text-sm">
+													{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
+												</p>
 											</div>
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Sessions</label>
+												<p className="mt-1 text-sm">{service.sessionCount ?? "—"}</p>
+											</div>
+										</div>
+										{service.expirable && (
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Expiry</label>
+												<p className="mt-1 text-sm">
+													{service.expiryDays ? `${service.expiryDays} days` : "—"}
+												</p>
+											</div>
+										)}
+										{service.location && (
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Location</label>
+												<p className="mt-1 text-sm">{service.location}</p>
+											</div>
+										)}
+										{service.features && service.features.length > 0 && (
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Features</label>
+												<div className="mt-1 flex flex-wrap gap-1">
+													{service.features.map((f, i) => (
+														<Badge key={i} variant="secondary">{f}</Badge>
+													))}
+												</div>
+											</div>
+										)}
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<label className="text-sm font-medium text-muted-foreground">Status</label>
+												<div className="mt-1">
+													{service.isActive ? (
+														<Badge variant="default">Active</Badge>
+													) : (
+														<Badge variant="secondary">Inactive</Badge>
+													)}
+												</div>
+											</div>
+											{service.isRecommended && (
+												<div>
+													<label className="text-sm font-medium text-muted-foreground">Recommended</label>
+													<div className="mt-1">
+														<Badge variant="default">Yes</Badge>
+													</div>
+												</div>
+											)}
 										</div>
 										<div className="grid grid-cols-2 gap-4 pt-2 border-t">
 											<div>

@@ -18,7 +18,7 @@ const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: false },
 	{ number: 3, label: "Info", active: true },
-	{ number: 4, label: "Review", active: false },
+	{ number: 4, label: "Plan", active: false },
 	{ number: 5, label: "Sign", active: false },
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: false },
@@ -28,14 +28,14 @@ export default function InfoScreen() {
 	const { state, update } = usePurchaseFlow();
 
 	const currentStep = 3;
-	const totalSteps = 7;
+	const totalSteps = 8;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
 	const [remark, setRemark] = useState(state.remark ?? "");
 
 	const handleContinue = () => {
 		update({ remark: remark || null });
-		router.push("./review");
+		router.push("./plan");
 	};
 
 	return (

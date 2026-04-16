@@ -16,6 +16,7 @@ import {
 } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-form";
@@ -56,6 +57,51 @@ export default function DataTable<TData, TValue>({
 		enableSorting: true,
 		state: { globalFilter },
 	});
+
+	// Fetch real data for edit mode
+	const { data: editServiceData } = useQuery({
+		queryKey: ["service", "edit", editServiceId, organizationId],
+		queryFn: async () => {
+			if (!editServiceId || !organizationId) return null;
+			return client.services.getById({ organizationId, id: editServiceId });
+		},
+		enabled: !!editServiceId && !!organizationId && isEditDialogOpen,
+	});
+
+	const editInitialData = editServiceData
+		? (() => {
+				const expiryDays = editServiceData.expiryDays ?? null;
+				let duration = 1;
+				let duration_unit = "day";
+				if (expiryDays) {
+					if (expiryDays % 365 === 0) { duration = expiryDays / 365; duration_unit = "year"; }
+					else if (expiryDays % 30 === 0) { duration = expiryDays / 30; duration_unit = "month"; }
+					else if (expiryDays % 7 === 0) { duration = expiryDays / 7; duration_unit = "week"; }
+					else { duration = expiryDays; duration_unit = "day"; }
+				}
+				return {
+					id: editServiceData.id,
+					name: editServiceData.name,
+					duration,
+					duration_unit,
+					expirable: editServiceData.expirable ?? false,
+					price: editServiceData.price != null ? editServiceData.price / 100 : 0,
+					sessions: editServiceData.sessionCount ?? 1,
+					taxable: editServiceData.taxable ?? false,
+					tax_percentage: editServiceData.taxPercentage ?? 0,
+					category_id: editServiceData.categoryId ?? "",
+					schedulingType: (editServiceData.schedulingType === "class_slot" ? "time-preset" : "appointment-based") as "appointment-based" | "time-preset",
+					sessionDurationMinutes: editServiceData.durationUnitType === "minutes"
+						? editServiceData.duration
+						: editServiceData.durationUnitType === "hours"
+							? editServiceData.duration * 60
+							: Math.round(editServiceData.duration / 60),
+					maxAttendees: editServiceData.maxAttendees ?? 1,
+					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as Array<'full' | 'half' | 'quarterly'>,
+					installmentIntervalDays: editServiceData.installmentIntervalDays ?? 30,
+				};
+			})()
+		: undefined;
 
 	const handleEditService = useCallback(
 		(serviceId: string) => {
@@ -192,7 +238,7 @@ export default function DataTable<TData, TValue>({
 				}}
 				onSubmit={async () => { onSuccess(); }}
 				mode="edit"
-				initialData={editServiceId ? { id: Number(editServiceId), name: "", duration: 60, duration_unit: "minutes", expirable: false, price: 0, sessions: 1, taxable: false, tax_percentage: 0, category_id: "", schedulingType: "appointment-based", sessionDurationMinutes: 60, maxAttendees: 1 } : undefined}
+				initialData={editInitialData}
 			/>
 
 			<ServiceDetailDialog

@@ -64,6 +64,27 @@
       "when": 1775952222783,
       "tag": "0008_schema_consolidation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776038572155,
+      "tag": "0009_bouncy_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776051996530,
+      "tag": "0010_broad_ronan",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776245811268,
+      "tag": "0011_clear_marvex",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,9 @@ interface ServiceFormData {
   schedulingType: 'appointment-based' | 'time-preset';
   sessionDurationMinutes: number;
   maxAttendees: number;
+  availablePaymentPlans: Array<'full' | 'half' | 'quarterly'>;
+  installmentIntervalDays: number;
+  gracePeriodDays: number | null;
   timePresetConfig?: {
     recurringDays: string[];
     timeSlotsPerDay: { [day: string]: string[] };
@@ -28,8 +31,8 @@ interface ServiceFormData {
 interface ServiceFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: ServiceFormData, serviceId?: number) => Promise<void>;
-  initialData?: ServiceFormData & { id: number };
+  onSubmit: (data: ServiceFormData, serviceId?: string) => Promise<void>;
+  initialData?: ServiceFormData & { id: string };
   mode?: 'create' | 'edit';
 }
 
@@ -43,7 +46,13 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     enabled: isOpen && !!organizationId,
   });
 
-  // NOTE: sessions/expirable/expiry fields are package concepts, not service fields. Phase A (Option A): submit only valid service fields.
+  const toExpiryDays = (duration: number, unit: string): number => {
+    if (unit === 'year') return duration * 365;
+    if (unit === 'month') return duration * 30;
+    if (unit === 'week') return duration * 7;
+    return duration;
+  };
+
   const createMutation = useMutation({
     mutationFn: (data: ServiceFormData) =>
       client.services.create({
@@ -60,6 +69,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         taxable: data.taxable,
         taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
         schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
+        sessionCount: data.sessions > 0 ? data.sessions : null,
+        expirable: data.expirable,
+        expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
+        availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
+        installmentIntervalDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.installmentIntervalDays : undefined,
+        gracePeriodDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.gracePeriodDays : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -83,6 +98,12 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         taxable: data.taxable,
         taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
         schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
+        sessionCount: data.sessions > 0 ? data.sessions : null,
+        expirable: data.expirable,
+        expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
+        availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
+        installmentIntervalDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.installmentIntervalDays : undefined,
+        gracePeriodDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.gracePeriodDays : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -98,13 +119,16 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     duration_unit: 'day',
     expirable: false,
     price: 0,
-    sessions: 1,
+    sessions: 0,
     taxable: false,
     tax_percentage: 6,
     category_id: '',
     schedulingType: 'appointment-based',
     sessionDurationMinutes: 60,
     maxAttendees: 1,
+    availablePaymentPlans: [],
+    installmentIntervalDays: 30,
+    gracePeriodDays: null,
     timePresetConfig: {
       recurringDays: [],
       timeSlotsPerDay: {}
@@ -129,6 +153,9 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         schedulingType: initialData.schedulingType || 'appointment-based',
         sessionDurationMinutes: initialData.sessionDurationMinutes ?? 60,
         maxAttendees: initialData.maxAttendees ?? 1,
+        availablePaymentPlans: initialData.availablePaymentPlans ?? [],
+        installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
+        gracePeriodDays: (initialData as any).gracePeriodDays ?? null,
         timePresetConfig: initialData.timePresetConfig || {
           recurringDays: [],
           timeSlotsPerDay: {}
@@ -141,13 +168,16 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         duration_unit: 'day',
         expirable: false,
         price: 0,
-        sessions: 1,
+        sessions: 0,
         taxable: false,
         tax_percentage: 6,
         category_id: '',
         schedulingType: 'appointment-based',
         sessionDurationMinutes: 60,
         maxAttendees: 1,
+        availablePaymentPlans: [],
+        installmentIntervalDays: 30,
+        gracePeriodDays: null,
         timePresetConfig: {
           recurringDays: [],
           timeSlotsPerDay: {}
@@ -172,7 +202,6 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         await createMutation.mutateAsync(formData);
       }
 
-      // Call the onSubmit callback for parent component to refresh data
       await onSubmit(formData, initialData?.id);
     } catch (err: any) {
       const errorMessage = err?.message || err?.detail || 'An error occurred';
@@ -503,7 +532,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         name="sessions"
                         id="sessions"
                         required
-                        min="1"
+                        min="0"
                         step="1"
                         value={formData.sessions}
                         onChange={handleChange}
@@ -573,6 +602,79 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                            </div>
                          </div>
                        )}
+                  </div>
+
+                  {/* Payment Plans */}
+                  <div className="border-t border-brand-secondary-3 pt-4 mt-4">
+                    <h3 className="text-sm font-medium text-brand-primary-1 mb-3">Payment Plans</h3>
+                    <div className="space-y-2">
+                      {(['full', 'half', 'quarterly'] as const).map((plan) => (
+                        <div key={plan} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`plan-${plan}`}
+                            checked={formData.availablePaymentPlans.includes(plan)}
+                            onChange={(e) => {
+                              setFormData(prev => ({
+                                ...prev,
+                                availablePaymentPlans: e.target.checked
+                                  ? [...prev.availablePaymentPlans, plan]
+                                  : prev.availablePaymentPlans.filter(p => p !== plan),
+                              }));
+                            }}
+                            className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
+                          />
+                          <label htmlFor={`plan-${plan}`} className="ml-2 text-sm text-brand-primary-1 capitalize">
+                            {plan === 'full' ? 'Full payment' : plan === 'half' ? 'Half (2 installments)' : 'Quarterly (4 installments)'}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    {formData.availablePaymentPlans.some(p => p !== 'full') && (
+                      <div className="mt-3">
+                        <label htmlFor="installmentIntervalDays" className="block text-sm font-medium text-brand-primary-1">
+                          Installment interval (days)
+                        </label>
+                        <input
+                          type="number"
+                          name="installmentIntervalDays"
+                          id="installmentIntervalDays"
+                          min="1"
+                          value={formData.installmentIntervalDays}
+                          onChange={handleChange}
+                          className="mt-1 block w-40 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          onWheel={(e) => e.currentTarget.blur()}
+                        />
+                      </div>
+                    )}
+                    {formData.availablePaymentPlans.some(p => p !== 'full') && (
+                      <div className="mt-3">
+                        <label htmlFor="gracePeriodDays" className="block text-sm font-medium text-brand-primary-1">
+                          Grace period (days)
+                        </label>
+                        <input
+                          type="number"
+                          name="gracePeriodDays"
+                          id="gracePeriodDays"
+                          min="0"
+                          max="90"
+                          value={formData.gracePeriodDays ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              gracePeriodDays: val === '' ? null : parseInt(val, 10),
+                            }));
+                          }}
+                          placeholder="Default: 7"
+                          className="mt-1 block w-40 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          onWheel={(e) => e.currentTarget.blur()}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Scheduling Type Configuration */}

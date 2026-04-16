@@ -42,6 +42,7 @@ interface AppointmentCalendarProps {
   onAppointmentClick?: (appointment: Appointment) => void;
   onAddAppointment?: () => void;
   initialView?: CalendarView;
+  defaultTrainerId?: string | null;
 }
 
 export function AppointmentCalendar({
@@ -50,6 +51,7 @@ export function AppointmentCalendar({
   onAppointmentClick,
   onAddAppointment,
   initialView = "monthly",
+  defaultTrainerId,
 }: AppointmentCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>(initialView);
@@ -1222,6 +1224,7 @@ export function AppointmentCalendar({
         onSubmit={handleSubmitAppointment}
         teamMembers={getTeamMembers()}
         selectedDate={selectedDate || undefined}
+        defaultTrainerId={defaultTrainerId}
       />
     </>
   );

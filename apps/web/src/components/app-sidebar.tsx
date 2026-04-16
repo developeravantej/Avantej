@@ -4,11 +4,13 @@ import {
 	BadgeDollarSign,
 	Bell,
 	BookUser,
+	Briefcase,
 	Building2,
 	Calendar,
 	ChevronDown,
 	ChevronRight,
 	Cog,
+	CreditCard,
 	DollarSign,
 	Eye,
 	FileChartColumnIncreasing,
@@ -128,8 +130,8 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				items: [
 					{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar },
 					{ title: "Class Slots", url: "/dashboard/appointment/class-slots/view", icon: Calendar },
-					{ title: "Packages", url: "/dashboard/packages/view", icon: Package },
-					{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package },
+		{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package },
+					{ title: "Installments", url: "/dashboard/packages/installments/view", icon: CreditCard },
 				],
 			},
 			{
@@ -232,6 +234,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Cog,
 				items: [
 					{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
+					{ title: "Google Calendar", url: "/dashboard/settings/google-calendar", icon: Calendar },
 				],
 			},
 			{
@@ -436,7 +439,10 @@ function CollapsibleNavItem({
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { data: session } = authClient.useSession();
-	const { data: userContext } = useUserContext(!!session?.user);
+	const { data: userContext, hasRole } = useUserContext(!!session?.user);
+	const isStaffOrTrainer = hasRole(["trainer", "staff"]);
+	const location = useLocation();
+	const pathname = location.pathname;
 
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === userContext.currentOrganizationId
@@ -495,6 +501,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				{NAV_GROUPS.map((group) => (
 					<NavGroup key={group.label} group={group} />
 				))}
+				{isStaffOrTrainer && (
+					<SidebarGroup className="py-1">
+						<SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-brand-secondary-1 group-data-[collapsible=icon]:hidden">
+							My Work
+						</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/my-services")}
+										tooltip="My Services"
+									>
+										<Link to="/dashboard/my-services/view">
+											<Briefcase className="size-4" />
+											<span>My Services</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 
 			{/* ── Footer ── */}

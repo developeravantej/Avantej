@@ -168,6 +168,8 @@ export default function SetupScreen() {
 				? selectedPkg.pricePerSession * (selectedPkg.sessionCount ?? 1)
 				: null,
 			validityDays: selectedPkg?.validityDays ?? null,
+			availablePaymentPlans: (selectedSvc as any)?.availablePaymentPlans ?? [],
+			installmentIntervalDays: (selectedSvc as any)?.installmentIntervalDays ?? 30,
 		});
 		router.push("./schedule");
 	};

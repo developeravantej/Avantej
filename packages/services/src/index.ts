@@ -91,8 +91,10 @@ export {
   listPackageInstancesForClient,
   getPackageInstanceById,
   createPackageInstance,
+  updatePackageInstance,
   type ListPackageInstancesForClientParams,
   type CreatePackageInstanceParams,
+  type UpdatePackageInstanceParams,
 } from "./package-instance.service";
 
 // Preferred time services
@@ -193,3 +195,51 @@ export * from "./tax-rates.service";
 
 // Analytics services
 export * from "./analytics.service";
+
+// Buffer time services
+export {
+	resolveBufferTime,
+	checkAppointmentBufferConflict,
+	type CheckBufferConflictParams,
+} from "./buffer-time.service";
+
+// Trainer availability services
+export {
+	listTrainerAvailability,
+	upsertTrainerAvailability,
+	deleteTrainerAvailabilitySlot,
+	type AvailabilitySlot,
+} from "./trainer-availability.service";
+
+// Installment service - for installment-based credit unlocking
+export {
+	DEFAULT_GRACE_PERIOD_DAYS,
+	getGracePeriodDaysForPackage,
+	calculateCreditsUnlocked,
+	calculateInstallmentAmounts,
+	calculateSuggestedRefund,
+	createInstallmentSchedule,
+	confirmInstallmentPayment,
+	evaluateAndLockIfOverdue,
+	unlockPackage,
+	processRefund,
+	getInstallmentsByPackageInstance,
+	getAdminInstallmentOverview,
+	getSuggestedRefund,
+	type CreateInstallmentScheduleParams,
+	type ConfirmInstallmentPaymentParams,
+	type AdminInstallmentOverviewParams,
+	type AdminInstallmentOverviewItem,
+	type SuggestedRefundInput,
+	type SuggestedRefundResult,
+} from "./installment.service";
+
+// Organization settings service
+export {
+	getSetting,
+	upsertSetting,
+} from "./organization-settings.service";
+
+// Google Calendar services
+export * from "./google-calendar.service";
+export * from "./google-calendar-sync.service";

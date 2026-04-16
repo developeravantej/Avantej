@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-category-form";
@@ -53,6 +54,43 @@ export default function DataTable<TData, TValue>({
 		globalFilterFn: "includesString",
 		state: { globalFilter },
 	});
+
+	// Fetch real data for edit mode
+	const { data: editCategoryData } = useQuery({
+		queryKey: ["serviceCategory", "edit", editCategoryId, organizationId],
+		queryFn: async () => {
+			if (!editCategoryId || !organizationId) return null;
+			const [category, config] = await Promise.all([
+				client.serviceCategories.getById({ organizationId, id: editCategoryId }),
+				client.serviceCategoryConfig.getByCategoryId({ organizationId, categoryId: editCategoryId }).catch(() => null),
+			]);
+			return { category, config };
+		},
+		enabled: !!editCategoryId && !!organizationId && isEditDialogOpen,
+	});
+
+	const editInitialData = editCategoryData
+		? {
+				id: editCategoryData.category.id,
+				name: editCategoryData.category.name,
+				duration: editCategoryData.config?.defaultDuration ?? 60,
+				maxAttendees: editCategoryData.config?.defaultMaxAttendees ?? undefined,
+				incentive: {
+					type: (editCategoryData.config?.incentiveType as "fixed" | "variable") ?? "fixed",
+					isConditional: editCategoryData.config?.isConditional ?? false,
+					maxStaff: editCategoryData.config?.maxStaff ?? 1,
+					staffPoolPercentage: editCategoryData.config?.staffPoolPercentage ?? 100,
+					paymentStructure: (editCategoryData.config?.paymentStructures as any) ?? {},
+					staffWeightage: (editCategoryData.config?.staffWeightage as any[]) ?? [{ id: 1, position: 1, title: "Head Staff", percentage: 100 }],
+				},
+				rules: {
+					requireAdvanceBooking: editCategoryData.config?.requireAdvanceBooking ?? false,
+					minAdvanceHours: editCategoryData.config?.minAdvanceHours ?? 0,
+					enableCancellationWindow: editCategoryData.config?.enableCancellationWindow ?? false,
+					cancellationCutoffHours: editCategoryData.config?.cancellationCutoffHours ?? 0,
+				},
+			}
+		: undefined;
 
 	const handleEditCategory = useCallback(
 		(categoryId: string) => {
@@ -189,7 +227,7 @@ export default function DataTable<TData, TValue>({
 				}}
 				onSubmit={async () => { onSuccess(); }}
 				mode="edit"
-				initialData={editCategoryId ? { id: editCategoryId, name: "", duration: 60, incentive: { type: "fixed", isConditional: false, maxStaff: 1, staffPoolPercentage: 100, paymentStructure: {}, staffWeightage: [] } } : undefined}
+				initialData={editInitialData}
 			/>
 
 			<ServiceCategoryDetailDialog

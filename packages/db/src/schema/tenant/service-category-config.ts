@@ -36,6 +36,9 @@ export const serviceCategoryConfig = pgTable("service_category_config", {
 	enableCancellationWindow: boolean("enable_cancellation_window").default(false).notNull(),
 	cancellationCutoffHours: integer("cancellation_cutoff_hours"),
 
+	// Buffer time between consecutive bookings (in minutes)
+	bufferTimeMinutes: integer("buffer_time_minutes").default(0).notNull(),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

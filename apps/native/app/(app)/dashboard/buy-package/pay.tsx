@@ -15,7 +15,7 @@ const steps = [
 	{ number: 1, label: "Setup", active: false },
 	{ number: 2, label: "Schedule", active: false },
 	{ number: 3, label: "Info", active: false },
-	{ number: 4, label: "Review", active: false },
+	{ number: 4, label: "Plan", active: false },
 	{ number: 5, label: "Sign", active: false },
 	{ number: 6, label: "Pay", active: true },
 	{ number: 7, label: "Done", active: false },
@@ -26,8 +26,8 @@ export default function PayScreen() {
 	const { state, update } = usePurchaseFlow();
 	const queryClient = useQueryClient();
 
-	const currentStep = 6;
-	const totalSteps = 7;
+	const currentStep = 7;
+	const totalSteps = 8;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -57,7 +57,7 @@ export default function PayScreen() {
 			const validityMs = (state.validityDays ?? 365) * 24 * 60 * 60 * 1000;
 			const expiresAt = new Date(now.getTime() + validityMs).toISOString();
 
-			const instance = await client.packageInstances.create({
+			const instance = await (client.packageInstances.create as any)({
 				organizationId,
 				packageId: state.packageId!,
 				clientId: session?.user?.id ?? "",
@@ -69,12 +69,13 @@ export default function PayScreen() {
 				eSignature: state.signature,
 				termsAgreedAt: state.termsAgreedAt,
 				creditsTotal: state.creditsTotal ?? 0,
-				creditsRemaining: state.creditsTotal ?? 0,
 				creditsUsed: 0,
 				startsAt: now.toISOString(),
 				expiresAt,
 				status: "active",
 				remark: state.remark,
+				paymentPlanType: state.paymentPlanType ?? "full",
+				installmentIntervalDays: state.installmentIntervalDays ?? 30,
 			});
 
 			// Save preferred times if any
@@ -323,6 +324,37 @@ export default function PayScreen() {
 								</View>
 							)}
 						</View>
+
+						{/* Payment Plan Summary */}
+						{state.paymentPlanType && state.paymentPlanType !== "full" && (
+							<View className="mt-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+								<Text
+									className="mb-1 font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									Payment Plan
+								</Text>
+								<Text
+									className="text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									{state.paymentPlanType === "half"
+										? "Half Payment (2\u00d7)"
+										: "Quarterly Payment (4\u00d7)"}
+								</Text>
+								<Text
+									className="mt-1 font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									First installment: $
+									{(
+										subtotal /
+										(state.paymentPlanType === "half" ? 2 : 4)
+									).toFixed(2)}{" "}
+									+ tax
+								</Text>
+							</View>
+						)}
 
 						{/* Price Breakdown */}
 						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">

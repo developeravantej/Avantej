@@ -345,7 +345,6 @@ async function seedBusinessData() {
 					paymentStatus: "paid",
 					paymentMethod: "cash",
 					creditsTotal: 10,
-					creditsRemaining: 10,
 					creditsUsed: 0,
 					startsAt: now,
 					expiresAt,

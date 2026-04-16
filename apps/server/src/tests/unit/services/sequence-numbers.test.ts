@@ -154,57 +154,53 @@ describe("SO — Sales Order number generation", () => {
 });
 
 describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => {
+	function buildCanMocks(total: number, mockOrder: any) {
+		const capturedSetArgs: any[] = [];
+		const cancelledOrder = { ...mockOrder, status: "cancelled" };
+
+		const canFindFirst = mock(() => Promise.resolve(mockOrder));
+		const canSelectWhere = mock(() => Promise.resolve([{ total }]));
+		const canSelectFrom = mock(() => ({ where: canSelectWhere }));
+		const canSelect = mock(() => ({ from: canSelectFrom }));
+		const canReturning = mock(() => Promise.resolve([cancelledOrder]));
+		const canUpdate = mock(() => ({
+			set: mock((setArg: any) => {
+				capturedSetArgs.push(setArg);
+				Object.assign(cancelledOrder, setArg);
+				return {
+					where: mock(() => ({ returning: canReturning })),
+				};
+			}),
+		}));
+
+		const db = {
+			insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })),
+			update: canUpdate,
+			select: canSelect,
+			query: {
+				salesOrders: { findMany: mock(() => Promise.resolve([])), findFirst: canFindFirst },
+			},
+		} as any;
+
+		return { db, capturedSetArgs };
+	}
+
 	test("total=0 → CAN number ends in 0001", async () => {
-		const mockOrder = { id: "so1", customerName: "Alice", customerId: null };
-		const mockCancelledSale = { id: "cs1", cancellationNumber: "CAN-20260227-0001" };
+		const mockOrder = { id: "so1", customerName: "Alice", customerId: null, totalAmount: 500 };
+		const { db, capturedSetArgs } = buildCanMocks(0, mockOrder);
 
-		// getSalesOrderById
-		mockFindFirst.mockResolvedValueOnce(mockOrder);
-		// generateCancellationNumber select
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 100 });
 
-		const txReturningOrder = mock(() => Promise.resolve([{ ...mockOrder, status: "cancelled" }]));
-		const txWhereOrder = mock(() => ({ returning: txReturningOrder }));
-		const txSetOrder = mock(() => ({ where: txWhereOrder }));
-		const txUpdate = mock(() => ({ set: txSetOrder }));
-
-		const txReturningInsert = mock(() => Promise.resolve([mockCancelledSale]));
-		const txValuesInsert = mock(() => ({ returning: txReturningInsert }));
-		const txInsert = mock(() => ({ values: txValuesInsert }));
-
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: txInsert }));
-
-		const result = await cancelSalesOrder(mockTenantDb, "so1", {
-			cancelledBy: "user-1",
-			refundAmount: 100,
-		});
-
-		const insertValuesArg = txValuesInsert.mock.calls[0][0];
-		expect(insertValuesArg.cancellationNumber).toMatch(/^CAN-\d{8}-0001$/);
+		expect(capturedSetArgs[0].cancellationNumber).toMatch(/^CAN-\d{8}-0001$/);
 	});
 
 	test("total=9 → CAN number ends in 0010", async () => {
-		const mockOrder = { id: "so1", customerName: "Alice", customerId: null };
-		const mockCancelledSale = { id: "cs2", cancellationNumber: "CAN-20260227-0010" };
+		const mockOrder = { id: "so1", customerName: "Alice", customerId: null, totalAmount: 500 };
+		const { db, capturedSetArgs } = buildCanMocks(9, mockOrder);
 
-		mockFindFirst.mockResolvedValueOnce(mockOrder);
-		mockSelectWhere.mockResolvedValueOnce([{ total: 9 }]);
+		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 50 });
 
-		const txReturningOrder = mock(() => Promise.resolve([{ ...mockOrder, status: "cancelled" }]));
-		const txWhereOrder = mock(() => ({ returning: txReturningOrder }));
-		const txSetOrder = mock(() => ({ where: txWhereOrder }));
-		const txUpdate = mock(() => ({ set: txSetOrder }));
-
-		const txReturningInsert = mock(() => Promise.resolve([mockCancelledSale]));
-		const txValuesInsert = mock(() => ({ returning: txReturningInsert }));
-		const txInsert = mock(() => ({ values: txValuesInsert }));
-
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: txInsert }));
-
-		await cancelSalesOrder(mockTenantDb, "so1", { cancelledBy: "user-1", refundAmount: 50 });
-
-		const insertValuesArg = txValuesInsert.mock.calls[0][0];
-		expect(insertValuesArg.cancellationNumber).toMatch(/^CAN-\d{8}-0010$/);
+		expect(capturedSetArgs[0].cancellationNumber).toMatch(/^CAN-\d{8}-0010$/);
 	});
 });
 
@@ -274,7 +270,7 @@ describe("SR — Stock Request number generation", () => {
 		items: [] as { productId: string; quantityRequested: number }[],
 	});
 
-	function setupTransactionForStockRequest(numberValue: string) {
+	function buildSrMocks(total: number, numberValue: string) {
 		const fakeHeader = { id: "sr1", requestNumber: numberValue, toBranchId: "br1", status: "pending" };
 		const txReturningHeader = mock(() => Promise.resolve([fakeHeader]));
 		const txValuesHeader = mock(() => ({ returning: txReturningHeader }));
@@ -287,48 +283,45 @@ describe("SR — Stock Request number generation", () => {
 			return insertCallCount === 1 ? { values: txValuesHeader } : { values: txValuesItems };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
-		return { txValuesHeader };
+		const srSelectWhere = mock(() => Promise.resolve([{ total }]));
+		const srSelectFrom = mock(() => ({ where: srSelectWhere }));
+		const srSelect = mock(() => ({ from: srSelectFrom }));
+		const srTransaction = mock(async (fn: any) => fn({ insert: txInsert }));
+
+		const db = {
+			select: srSelect,
+			query: {
+				stockRequests: { findMany: mock(() => Promise.resolve([])), findFirst: mock(() => Promise.resolve(null)) },
+				stockRequestItems: { findMany: mock(() => Promise.resolve([])), findFirst: mock(() => Promise.resolve(null)) },
+			},
+			transaction: srTransaction,
+		} as any;
+
+		return { db, txValuesHeader };
 	}
 
 	test("total=0 → SR number ends in 0001", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		const { txValuesHeader } = setupTransactionForStockRequest("SR-20260227-0001");
-
-		await createStockRequest(mockTenantDb, makeStockRequestParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.requestNumber).toMatch(/^SR-\d{8}-0001$/);
+		const { db, txValuesHeader } = buildSrMocks(0, "SR-20260227-0001");
+		await createStockRequest(db, makeStockRequestParams());
+		expect(txValuesHeader.mock.calls[0][0].requestNumber).toMatch(/^SR-\d{8}-0001$/);
 	});
 
 	test("total=8 → SR number ends in 0009", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 8 }]);
-		const { txValuesHeader } = setupTransactionForStockRequest("SR-20260227-0009");
-
-		await createStockRequest(mockTenantDb, makeStockRequestParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.requestNumber).toMatch(/^SR-\d{8}-0009$/);
+		const { db, txValuesHeader } = buildSrMocks(8, "SR-20260227-0009");
+		await createStockRequest(db, makeStockRequestParams());
+		expect(txValuesHeader.mock.calls[0][0].requestNumber).toMatch(/^SR-\d{8}-0009$/);
 	});
 
 	test("total=9 → SR number ends in 0010", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 9 }]);
-		const { txValuesHeader } = setupTransactionForStockRequest("SR-20260227-0010");
-
-		await createStockRequest(mockTenantDb, makeStockRequestParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.requestNumber).toMatch(/^SR-\d{8}-0010$/);
+		const { db, txValuesHeader } = buildSrMocks(9, "SR-20260227-0010");
+		await createStockRequest(db, makeStockRequestParams());
+		expect(txValuesHeader.mock.calls[0][0].requestNumber).toMatch(/^SR-\d{8}-0010$/);
 	});
 
 	test("total=98 → SR number ends in 0099", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 98 }]);
-		const { txValuesHeader } = setupTransactionForStockRequest("SR-20260227-0099");
-
-		await createStockRequest(mockTenantDb, makeStockRequestParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.requestNumber).toMatch(/^SR-\d{8}-0099$/);
+		const { db, txValuesHeader } = buildSrMocks(98, "SR-20260227-0099");
+		await createStockRequest(db, makeStockRequestParams());
+		expect(txValuesHeader.mock.calls[0][0].requestNumber).toMatch(/^SR-\d{8}-0099$/);
 	});
 });
 
@@ -341,7 +334,7 @@ describe("TO — Transfer Order number generation", () => {
 		items: [] as { productId: string; quantityTransferred: number }[],
 	});
 
-	function setupTransactionForTransferOrder(numberValue: string) {
+	function buildToMocks(total: number, numberValue: string) {
 		const fakeHeader = {
 			id: "to1",
 			transferNumber: numberValue,
@@ -360,47 +353,44 @@ describe("TO — Transfer Order number generation", () => {
 			return insertCallCount === 1 ? { values: txValuesHeader } : { values: txValuesItems };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
-		return { txValuesHeader };
+		const toSelectWhere = mock(() => Promise.resolve([{ total }]));
+		const toSelectFrom = mock(() => ({ where: toSelectWhere }));
+		const toSelect = mock(() => ({ from: toSelectFrom }));
+		const toTransaction = mock(async (fn: any) => fn({ insert: txInsert }));
+
+		const db = {
+			select: toSelect,
+			query: {
+				transferOrders: { findMany: mock(() => Promise.resolve([])), findFirst: mock(() => Promise.resolve(null)) },
+				transferOrderItems: { findMany: mock(() => Promise.resolve([])), findFirst: mock(() => Promise.resolve(null)) },
+			},
+			transaction: toTransaction,
+		} as any;
+
+		return { db, txValuesHeader };
 	}
 
 	test("total=0 → TO number ends in 0001", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		const { txValuesHeader } = setupTransactionForTransferOrder("TO-20260227-0001");
-
-		await createTransferOrder(mockTenantDb, makeTransferOrderParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.transferNumber).toMatch(/^TO-\d{8}-0001$/);
+		const { db, txValuesHeader } = buildToMocks(0, "TO-20260227-0001");
+		await createTransferOrder(db, makeTransferOrderParams());
+		expect(txValuesHeader.mock.calls[0][0].transferNumber).toMatch(/^TO-\d{8}-0001$/);
 	});
 
 	test("total=8 → TO number ends in 0009", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 8 }]);
-		const { txValuesHeader } = setupTransactionForTransferOrder("TO-20260227-0009");
-
-		await createTransferOrder(mockTenantDb, makeTransferOrderParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.transferNumber).toMatch(/^TO-\d{8}-0009$/);
+		const { db, txValuesHeader } = buildToMocks(8, "TO-20260227-0009");
+		await createTransferOrder(db, makeTransferOrderParams());
+		expect(txValuesHeader.mock.calls[0][0].transferNumber).toMatch(/^TO-\d{8}-0009$/);
 	});
 
 	test("total=9 → TO number ends in 0010", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 9 }]);
-		const { txValuesHeader } = setupTransactionForTransferOrder("TO-20260227-0010");
-
-		await createTransferOrder(mockTenantDb, makeTransferOrderParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.transferNumber).toMatch(/^TO-\d{8}-0010$/);
+		const { db, txValuesHeader } = buildToMocks(9, "TO-20260227-0010");
+		await createTransferOrder(db, makeTransferOrderParams());
+		expect(txValuesHeader.mock.calls[0][0].transferNumber).toMatch(/^TO-\d{8}-0010$/);
 	});
 
 	test("total=98 → TO number ends in 0099", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 98 }]);
-		const { txValuesHeader } = setupTransactionForTransferOrder("TO-20260227-0099");
-
-		await createTransferOrder(mockTenantDb, makeTransferOrderParams());
-
-		const headerArg = txValuesHeader.mock.calls[0][0];
-		expect(headerArg.transferNumber).toMatch(/^TO-\d{8}-0099$/);
+		const { db, txValuesHeader } = buildToMocks(98, "TO-20260227-0099");
+		await createTransferOrder(db, makeTransferOrderParams());
+		expect(txValuesHeader.mock.calls[0][0].transferNumber).toMatch(/^TO-\d{8}-0099$/);
 	});
 });

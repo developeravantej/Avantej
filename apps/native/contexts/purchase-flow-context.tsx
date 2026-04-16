@@ -23,6 +23,10 @@ export interface PurchaseFlowState {
 	preferredTimes: Array<{ day: string; time: string }>;
 	// Step 3 - Info
 	remark: string | null;
+	// Step 4 - Plan
+	paymentPlanType: "full" | "half" | "quarterly" | null;
+	availablePaymentPlans: string[];
+	installmentIntervalDays: number;
 	// Step 5 - Sign
 	signature: string | null;
 	termsAgreed: boolean;
@@ -46,6 +50,9 @@ const initialState: PurchaseFlowState = {
 	validityDays: null,
 	preferredTimes: [],
 	remark: null,
+	paymentPlanType: null,
+	availablePaymentPlans: [],
+	installmentIntervalDays: 30,
 	signature: null,
 	termsAgreed: false,
 	termsAgreedAt: null,

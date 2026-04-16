@@ -49,8 +49,8 @@ import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from '
 import { Route as AuthenticatedDashboardLayoutProductsViewRouteImport } from './routes/_authenticated/dashboard/_layout/products/view'
 import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
-import { Route as AuthenticatedDashboardLayoutPackagesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/view'
 import { Route as AuthenticatedDashboardLayoutNotificationsViewRouteImport } from './routes/_authenticated/dashboard/_layout/notifications/view'
+import { Route as AuthenticatedDashboardLayoutMyServicesViewRouteImport } from './routes/_authenticated/dashboard/_layout/my-services/view'
 import { Route as AuthenticatedDashboardLayoutExpensesViewRouteImport } from './routes/_authenticated/dashboard/_layout/expenses/view'
 import { Route as AuthenticatedDashboardLayoutCategoriesViewRouteImport } from './routes/_authenticated/dashboard/_layout/categories/view'
 import { Route as AuthenticatedDashboardLayoutCancelledSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/cancelled-sales/view'
@@ -63,7 +63,9 @@ import { Route as AuthenticatedDashboardLayoutAccessControlUserAssignmentRouteIm
 import { Route as AuthenticatedDashboardLayoutAccessControlRolesRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/roles'
 import { Route as AuthenticatedDashboardLayoutAccessControlPermissionsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/permissions'
 import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/invitations'
+import { Route as AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/settings/payment/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
+import { Route as AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/installments/view'
 import { Route as AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/walk-in/view'
 import { Route as AuthenticatedDashboardLayoutAppointmentClassSlotsViewRouteImport } from './routes/_authenticated/dashboard/_layout/appointment/class-slots/view'
 
@@ -291,16 +293,16 @@ const AuthenticatedDashboardLayoutPaymentViewRoute =
     path: '/payment/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
-const AuthenticatedDashboardLayoutPackagesViewRoute =
-  AuthenticatedDashboardLayoutPackagesViewRouteImport.update({
-    id: '/packages/view',
-    path: '/packages/view',
-    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
 const AuthenticatedDashboardLayoutNotificationsViewRoute =
   AuthenticatedDashboardLayoutNotificationsViewRouteImport.update({
     id: '/notifications/view',
     path: '/notifications/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutMyServicesViewRoute =
+  AuthenticatedDashboardLayoutMyServicesViewRouteImport.update({
+    id: '/my-services/view',
+    path: '/my-services/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutExpensesViewRoute =
@@ -375,10 +377,22 @@ const AuthenticatedDashboardLayoutAccessControlInvitationsRoute =
     path: '/access-control/invitations',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutSettingsPaymentViewRoute =
+  AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport.update({
+    id: '/settings/payment/view',
+    path: '/settings/payment/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPackagesInstancesViewRoute =
   AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport.update({
     id: '/packages/instances/view',
     path: '/packages/instances/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute =
+  AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport.update({
+    id: '/packages/installments/view',
+    path: '/packages/installments/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutCustomersWalkInViewRoute =
@@ -428,8 +442,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
   '/dashboard/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/dashboard/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
+  '/dashboard/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
-  '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
@@ -450,7 +464,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
+  '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/dashboard/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -485,8 +501,8 @@ export interface FileRoutesByTo {
   '/dashboard/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
   '/dashboard/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/dashboard/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
+  '/dashboard/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
-  '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
@@ -507,7 +523,9 @@ export interface FileRoutesByTo {
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
+  '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/dashboard/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -545,8 +563,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/cancelled-sales/view': typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
   '/_authenticated/dashboard/_layout/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/_authenticated/dashboard/_layout/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
+  '/_authenticated/dashboard/_layout/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/_authenticated/dashboard/_layout/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
-  '/_authenticated/dashboard/_layout/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
@@ -567,7 +585,9 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/_authenticated/dashboard/_layout/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/_authenticated/dashboard/_layout/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
+  '/_authenticated/dashboard/_layout/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/_authenticated/dashboard/_layout/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/_authenticated/dashboard/_layout/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -605,8 +625,8 @@ export interface FileRouteTypes {
     | '/dashboard/cancelled-sales/view'
     | '/dashboard/categories/view'
     | '/dashboard/expenses/view'
+    | '/dashboard/my-services/view'
     | '/dashboard/notifications/view'
-    | '/dashboard/packages/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/products/view'
@@ -627,7 +647,9 @@ export interface FileRouteTypes {
     | '/dashboard/user/view'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/walk-in/view'
+    | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
+    | '/dashboard/settings/payment/view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -662,8 +684,8 @@ export interface FileRouteTypes {
     | '/dashboard/cancelled-sales/view'
     | '/dashboard/categories/view'
     | '/dashboard/expenses/view'
+    | '/dashboard/my-services/view'
     | '/dashboard/notifications/view'
-    | '/dashboard/packages/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/products/view'
@@ -684,7 +706,9 @@ export interface FileRouteTypes {
     | '/dashboard/user/view'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/walk-in/view'
+    | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
+    | '/dashboard/settings/payment/view'
   id:
     | '__root__'
     | '/'
@@ -721,8 +745,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/cancelled-sales/view'
     | '/_authenticated/dashboard/_layout/categories/view'
     | '/_authenticated/dashboard/_layout/expenses/view'
+    | '/_authenticated/dashboard/_layout/my-services/view'
     | '/_authenticated/dashboard/_layout/notifications/view'
-    | '/_authenticated/dashboard/_layout/packages/view'
     | '/_authenticated/dashboard/_layout/payment/view'
     | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/products/view'
@@ -743,7 +767,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/user/view'
     | '/_authenticated/dashboard/_layout/appointment/class-slots/view'
     | '/_authenticated/dashboard/_layout/customers/walk-in/view'
+    | '/_authenticated/dashboard/_layout/packages/installments/view'
     | '/_authenticated/dashboard/_layout/packages/instances/view'
+    | '/_authenticated/dashboard/_layout/settings/payment/view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1043,18 +1069,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPaymentViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
-    '/_authenticated/dashboard/_layout/packages/view': {
-      id: '/_authenticated/dashboard/_layout/packages/view'
-      path: '/packages/view'
-      fullPath: '/dashboard/packages/view'
-      preLoaderRoute: typeof AuthenticatedDashboardLayoutPackagesViewRouteImport
-      parentRoute: typeof AuthenticatedDashboardLayoutRoute
-    }
     '/_authenticated/dashboard/_layout/notifications/view': {
       id: '/_authenticated/dashboard/_layout/notifications/view'
       path: '/notifications/view'
       fullPath: '/dashboard/notifications/view'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutNotificationsViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/my-services/view': {
+      id: '/_authenticated/dashboard/_layout/my-services/view'
+      path: '/my-services/view'
+      fullPath: '/dashboard/my-services/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutMyServicesViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/expenses/view': {
@@ -1141,11 +1167,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/settings/payment/view': {
+      id: '/_authenticated/dashboard/_layout/settings/payment/view'
+      path: '/settings/payment/view'
+      fullPath: '/dashboard/settings/payment/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/packages/instances/view': {
       id: '/_authenticated/dashboard/_layout/packages/instances/view'
       path: '/packages/instances/view'
       fullPath: '/dashboard/packages/instances/view'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/packages/installments/view': {
+      id: '/_authenticated/dashboard/_layout/packages/installments/view'
+      path: '/packages/installments/view'
+      fullPath: '/dashboard/packages/installments/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/customers/walk-in/view': {
@@ -1180,8 +1220,8 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutCancelledSalesViewRoute: typeof AuthenticatedDashboardLayoutCancelledSalesViewRoute
   AuthenticatedDashboardLayoutCategoriesViewRoute: typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   AuthenticatedDashboardLayoutExpensesViewRoute: typeof AuthenticatedDashboardLayoutExpensesViewRoute
+  AuthenticatedDashboardLayoutMyServicesViewRoute: typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   AuthenticatedDashboardLayoutNotificationsViewRoute: typeof AuthenticatedDashboardLayoutNotificationsViewRoute
-  AuthenticatedDashboardLayoutPackagesViewRoute: typeof AuthenticatedDashboardLayoutPackagesViewRoute
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
   AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutProductsViewRoute: typeof AuthenticatedDashboardLayoutProductsViewRoute
@@ -1202,7 +1242,9 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutUserViewRoute: typeof AuthenticatedDashboardLayoutUserViewRoute
   AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute: typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   AuthenticatedDashboardLayoutCustomersWalkInViewRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
+  AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   AuthenticatedDashboardLayoutPackagesInstancesViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  AuthenticatedDashboardLayoutSettingsPaymentViewRoute: typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 
 const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRouteChildren =
@@ -1235,10 +1277,10 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutCategoriesViewRoute,
     AuthenticatedDashboardLayoutExpensesViewRoute:
       AuthenticatedDashboardLayoutExpensesViewRoute,
+    AuthenticatedDashboardLayoutMyServicesViewRoute:
+      AuthenticatedDashboardLayoutMyServicesViewRoute,
     AuthenticatedDashboardLayoutNotificationsViewRoute:
       AuthenticatedDashboardLayoutNotificationsViewRoute,
-    AuthenticatedDashboardLayoutPackagesViewRoute:
-      AuthenticatedDashboardLayoutPackagesViewRoute,
     AuthenticatedDashboardLayoutPaymentViewRoute:
       AuthenticatedDashboardLayoutPaymentViewRoute,
     AuthenticatedDashboardLayoutPayoutsViewRoute:
@@ -1279,8 +1321,12 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute,
     AuthenticatedDashboardLayoutCustomersWalkInViewRoute:
       AuthenticatedDashboardLayoutCustomersWalkInViewRoute,
+    AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute:
+      AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute,
     AuthenticatedDashboardLayoutPackagesInstancesViewRoute:
       AuthenticatedDashboardLayoutPackagesInstancesViewRoute,
+    AuthenticatedDashboardLayoutSettingsPaymentViewRoute:
+      AuthenticatedDashboardLayoutSettingsPaymentViewRoute,
   }
 
 const AuthenticatedDashboardLayoutRouteWithChildren =

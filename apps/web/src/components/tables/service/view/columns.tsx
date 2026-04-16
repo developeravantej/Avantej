@@ -72,6 +72,18 @@ export const columns: ColumnDef<any>[] = [
 		enableHiding: false,
 	},
 	{
+		accessorKey: "sessionCount",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Sessions" />
+		),
+		cell: ({ getValue }) => {
+			const count = getValue<number | null>();
+			return count != null ? count : "—";
+		},
+		enableSorting: true,
+		enableHiding: false,
+	},
+	{
 		accessorKey: "schedulingType",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Scheduling" />

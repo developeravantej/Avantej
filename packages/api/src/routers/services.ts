@@ -168,6 +168,9 @@ export const servicesRouter = {
         expirable: z.boolean().optional(),
         expiryDays: z.number().int().min(1).nullable().optional(),
         expiryDate: z.string().datetime().nullable().optional(),
+        availablePaymentPlans: z.array(z.enum(["full", "half", "quarterly"])).optional(),
+        installmentIntervalDays: z.number().int().min(1).optional(),
+        gracePeriodDays: z.number().int().min(0).max(90).nullish(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -239,7 +242,10 @@ export const servicesRouter = {
           expirable: input.expirable,
           expiryDays: input.expiryDays ?? null,
           expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
-        });
+          ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
+          ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
+          ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+        } as Parameters<typeof createService>[1]);
         return created;
       } catch (error) {
         throw new ORPCError("BAD_REQUEST", {
@@ -277,6 +283,9 @@ export const servicesRouter = {
         expirable: z.boolean().optional(),
         expiryDays: z.number().int().min(1).nullable().optional(),
         expiryDate: z.string().datetime().nullable().optional(),
+        availablePaymentPlans: z.array(z.enum(["full", "half", "quarterly"])).optional(),
+        installmentIntervalDays: z.number().int().min(1).optional(),
+        gracePeriodDays: z.number().int().min(0).max(90).nullish(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -366,7 +375,10 @@ export const servicesRouter = {
             expiryDate: input.expiryDate !== undefined
               ? input.expiryDate === null ? null : new Date(input.expiryDate)
               : undefined,
-          }
+            ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
+            ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
+            ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+          } as Parameters<typeof updateService>[2]
         );
         return updated;
       } catch (error) {

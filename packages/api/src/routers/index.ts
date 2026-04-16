@@ -41,6 +41,11 @@ import { walkInCustomersRouter } from "./walk-in-customers";
 import { taxRatesRouter } from "./tax-rates";
 import { analyticsRouter } from "./analytics";
 import { registrationRouter } from "./registration";
+import { trainerAvailabilityRouter } from "./trainer-availability";
+import { serviceMembersRouter } from "./service-members";
+import { installmentsRouter } from "./installments";
+import { organizationSettingsRouter } from "./organization-settings";
+import { googleCalendarRouter } from "./google-calendar";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -93,6 +98,11 @@ export const baseRouter = {
 	taxRates: taxRatesRouter,
 	analytics: analyticsRouter,
 	registration: registrationRouter,
+	trainerAvailability: trainerAvailabilityRouter,
+	serviceMembers: serviceMembersRouter,
+	installments: installmentsRouter,
+	organizationSettings: organizationSettingsRouter,
+	googleCalendar: googleCalendarRouter,
 };
 
 // Auth router type definition for client type inference
@@ -127,6 +137,7 @@ const authRouterType = {
 					updatedAt: Date | null;
 				}>;
 				member: {
+					id: string;
 					role: string;
 					hierarchyScopeId: string;
 					hierarchyScopeName: string;

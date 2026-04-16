@@ -292,6 +292,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
         updatedAt: Date | null;
       }>;
       member: {
+        id: string;
         role: string;
         hierarchyScopeId: string;
         hierarchyScopeName: string;
@@ -323,6 +324,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
         updatedAt: Date | null;
       }>,
       member: null as {
+        id: string;
         role: string;
         hierarchyScopeId: string;
         hierarchyScopeName: string;
@@ -375,6 +377,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
           });
 
           hierarchyData.member = {
+            id: member.id,
             role: member.role,
             hierarchyScopeId: member.hierarchyScopeId,
             hierarchyScopeName: scopeNode?.name || "Unknown",

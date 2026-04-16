@@ -47,6 +47,19 @@ export function ServiceCategoryDetailDialog({
 		createdAt: Date | string;
 		updatedAt: Date | string;
 	} | null>(null);
+	const [config, setConfig] = useState<{
+		defaultDuration: number | null;
+		defaultMaxAttendees: number | null;
+		incentiveType: string | null;
+		isConditional: boolean;
+		maxStaff: number;
+		staffPoolPercentage: number;
+		requireAdvanceBooking: boolean;
+		minAdvanceHours: number | null;
+		enableCancellationWindow: boolean;
+		cancellationCutoffHours: number | null;
+		bufferTimeMinutes: number | null;
+	} | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -58,15 +71,23 @@ export function ServiceCategoryDetailDialog({
 				setIsLoading(true);
 				setError(null);
 				try {
-					const result = await client.serviceCategories.getById({
-						organizationId,
-						id: categoryId,
-					});
-					setCategory(result);
+					const [categoryResult, configResult] = await Promise.all([
+						client.serviceCategories.getById({
+							organizationId,
+							id: categoryId,
+						}),
+						client.serviceCategoryConfig.getByCategoryId({
+							organizationId,
+							categoryId,
+						}).catch(() => null),
+					]);
+					setCategory(categoryResult);
+					setConfig(configResult);
 				} catch (err: unknown) {
 					const message = err instanceof Error ? err.message : "Failed to load category";
 					setError(message);
 					setCategory(null);
+					setConfig(null);
 				} finally {
 					setIsLoading(false);
 				}
@@ -74,6 +95,7 @@ export function ServiceCategoryDetailDialog({
 			fetchCategory();
 		} else {
 			setCategory(null);
+			setConfig(null);
 			setError(null);
 		}
 	}, [isOpen, categoryId, organizationId]);
@@ -191,6 +213,65 @@ export function ServiceCategoryDetailDialog({
 												)}
 											</div>
 										</div>
+										{config && (
+											<>
+												<div className="pt-2 border-t">
+													<p className="text-sm font-semibold text-foreground mb-3">Category Configuration</p>
+													<div className="grid grid-cols-2 gap-4">
+														<div>
+															<label className="text-sm font-medium text-muted-foreground">Default Duration</label>
+															<p className="mt-1 text-sm">{config.defaultDuration ? `${config.defaultDuration} min` : "—"}</p>
+														</div>
+														<div>
+															<label className="text-sm font-medium text-muted-foreground">Max Attendees</label>
+															<p className="mt-1 text-sm">{config.defaultMaxAttendees ?? "—"}</p>
+														</div>
+													</div>
+												</div>
+												<div className="grid grid-cols-2 gap-4">
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Incentive Type</label>
+														<p className="mt-1 text-sm capitalize">{config.incentiveType ?? "—"}</p>
+													</div>
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Conditional</label>
+														<p className="mt-1 text-sm">{config.isConditional ? "Yes" : "No"}</p>
+													</div>
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Max Staff</label>
+														<p className="mt-1 text-sm">{config.maxStaff}</p>
+													</div>
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Staff Pool %</label>
+														<p className="mt-1 text-sm">{config.staffPoolPercentage}%</p>
+													</div>
+												</div>
+												<div className="grid grid-cols-2 gap-4">
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Advance Booking</label>
+														<p className="mt-1 text-sm">
+															{config.requireAdvanceBooking
+																? `Required (${config.minAdvanceHours ?? 0}h ahead)`
+																: "Not required"}
+														</p>
+													</div>
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Cancellation Window</label>
+														<p className="mt-1 text-sm">
+															{config.enableCancellationWindow
+																? `${config.cancellationCutoffHours ?? 0}h before start`
+																: "No window"}
+														</p>
+													</div>
+													<div>
+														<label className="text-sm font-medium text-muted-foreground">Buffer Time</label>
+														<p className="mt-1 text-sm">
+															{config.bufferTimeMinutes ? `${config.bufferTimeMinutes} min` : "None"}
+														</p>
+													</div>
+												</div>
+											</>
+										)}
 										<div className="grid grid-cols-2 gap-4 pt-2 border-t">
 											<div>
 												<label className="text-sm font-medium text-muted-foreground">Created</label>

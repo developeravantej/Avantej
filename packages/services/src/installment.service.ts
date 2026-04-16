@@ -1,0 +1,748 @@
+/**
+ * Installment Service
+ *
+ * Handles installment-based credit unlocking for package instances.
+ * Supports schedule creation, payment confirmation, lock/unlock logic,
+ * and admin overview queries.
+ */
+
+import { eq, and, isNull, asc, isNotNull } from "drizzle-orm";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
+import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Default grace period used when a service has no per-service override. */
+export const DEFAULT_GRACE_PERIOD_DAYS = 7;
+
+// ---------------------------------------------------------------------------
+// Grace period helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the grace period for a given package instance by joining to its service.
+ * Returns the service's gracePeriodDays if set, otherwise DEFAULT_GRACE_PERIOD_DAYS.
+ */
+export async function getGracePeriodDaysForPackage(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+): Promise<number> {
+	const rows = await tenantDb
+		.select({ gracePeriodDays: services.gracePeriodDays })
+		.from(packageInstances)
+		.leftJoin(services, eq(packageInstances.serviceId, services.id))
+		.where(eq(packageInstances.id, packageInstanceId))
+		.limit(1);
+	const gracePeriodDays = rows[0]?.gracePeriodDays;
+	return gracePeriodDays ?? DEFAULT_GRACE_PERIOD_DAYS;
+}
+
+// ---------------------------------------------------------------------------
+// Pure math helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate credits unlocked given how many installments have been paid.
+ */
+export function calculateCreditsUnlocked(
+	creditsTotal: number,
+	installmentsPaid: number,
+	installmentsTotal: number,
+): number {
+	if (installmentsPaid >= installmentsTotal) return creditsTotal;
+	if (installmentsPaid <= 0) return 0;
+	return Math.floor((creditsTotal * installmentsPaid) / installmentsTotal);
+}
+
+/**
+ * Split a total price into installment amounts.
+ * The first installment absorbs any rounding remainder.
+ * Returns an array of length `installmentsTotal`.
+ */
+export function calculateInstallmentAmounts(
+	totalPrice: number,
+	installmentsTotal: number,
+): number[] {
+	const base = Math.floor(totalPrice / installmentsTotal);
+	const remainder = totalPrice - base * installmentsTotal;
+	const amounts: number[] = [];
+	for (let i = 0; i < installmentsTotal; i++) {
+		amounts.push(i === 0 ? base + remainder : base);
+	}
+	return amounts;
+}
+
+export type SuggestedRefundInput = {
+	creditsTotal: number;
+	creditsUnlocked: number;
+	creditsUsed: number;
+	totalPrice: number; // cents
+	paidAmount: number; // sum of paid installment amounts, cents
+	paidTaxAmount: number; // sum of paid installment tax amounts, cents
+};
+
+export type SuggestedRefundResult = {
+	pricePerCredit: number;
+	unusedCredits: number;
+	unusedCreditValue: number;
+	suggestedRefund: number;
+	suggestedRefundTax: number;
+	reasoning: string;
+};
+
+/**
+ * Pure function: calculate a suggested refund amount based on package state.
+ * No DB access. Safe to call multiple times.
+ *
+ * Logic:
+ * - pricePerCredit = floor(totalPrice / creditsTotal)
+ * - unusedCredits = creditsUnlocked - creditsUsed (clamped ≥ 0)
+ * - unusedCreditValue = pricePerCredit × unusedCredits
+ * - suggestedRefund = min(unusedCreditValue, paidAmount) — capped at what was paid
+ * - suggestedRefundTax = proportional share of paidTaxAmount
+ */
+export function calculateSuggestedRefund(input: SuggestedRefundInput): SuggestedRefundResult {
+	const { creditsTotal, creditsUnlocked, creditsUsed, totalPrice, paidAmount, paidTaxAmount } =
+		input;
+
+	if (creditsTotal <= 0) {
+		return {
+			pricePerCredit: 0,
+			unusedCredits: 0,
+			unusedCreditValue: 0,
+			suggestedRefund: 0,
+			suggestedRefundTax: 0,
+			reasoning: "No credits in this package.",
+		};
+	}
+
+	const pricePerCredit = Math.floor(totalPrice / creditsTotal);
+	const unusedCredits = Math.max(0, creditsUnlocked - creditsUsed);
+	const unusedCreditValue = pricePerCredit * unusedCredits;
+	const suggestedRefund = Math.min(unusedCreditValue, paidAmount);
+	const suggestedRefundTax =
+		paidAmount > 0 ? Math.round(paidTaxAmount * (suggestedRefund / paidAmount)) : 0;
+
+	const reasoning =
+		unusedCredits === 0
+			? "All unlocked credits have been used — no refund value."
+			: `${unusedCredits} unused credit${unusedCredits === 1 ? "" : "s"} × RM ${(pricePerCredit / 100).toFixed(2)} = RM ${(unusedCreditValue / 100).toFixed(2)}, capped at amount paid.`;
+
+	return {
+		pricePerCredit,
+		unusedCredits,
+		unusedCreditValue,
+		suggestedRefund,
+		suggestedRefundTax,
+		reasoning,
+	};
+}
+
+// ---------------------------------------------------------------------------
+// DB helpers
+// ---------------------------------------------------------------------------
+
+type LogInstallmentEventParams = {
+	packageInstanceId: string;
+	installmentId?: string | null;
+	eventType: string;
+	actorId?: string | null;
+	amount?: number | null;
+	reason?: string | null;
+	metadata?: string | null;
+};
+
+async function logInstallmentEvent(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: LogInstallmentEventParams,
+): Promise<void> {
+	await tenantDb.insert(installmentEvents).values({
+		packageInstanceId: params.packageInstanceId,
+		installmentId: params.installmentId ?? null,
+		eventType: params.eventType,
+		actorId: params.actorId ?? null,
+		amount: params.amount ?? null,
+		reason: params.reason ?? null,
+		metadata: params.metadata ?? null,
+	});
+}
+
+function addDays(date: Date, days: number): Date {
+	const result = new Date(date);
+	result.setDate(result.getDate() + days);
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// Schedule creation
+// ---------------------------------------------------------------------------
+
+export type CreateInstallmentScheduleParams = {
+	packageInstanceId: string;
+	creditsTotal: number;
+	totalPrice: number;
+	taxAmount: number;
+	paymentPlanType: "full" | "half" | "quarterly";
+	intervalDays: number;
+	purchaseDate: Date;
+};
+
+/**
+ * Create an installment schedule for a package instance.
+ * Also updates nextDueDate and installmentsTotal on the package instance.
+ */
+export async function createInstallmentSchedule(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: CreateInstallmentScheduleParams,
+): Promise<(typeof installments.$inferSelect)[]> {
+	const planToTotal: Record<string, number> = {
+		full: 1,
+		half: 2,
+		quarterly: 4,
+	};
+	const installmentsTotal = planToTotal[params.paymentPlanType] ?? 1;
+	const amounts = calculateInstallmentAmounts(params.totalPrice, installmentsTotal);
+	const baseTaxPerInstallment = Math.floor(params.taxAmount / installmentsTotal);
+	const taxRemainder = params.taxAmount - baseTaxPerInstallment * installmentsTotal;
+
+	const rows: (typeof installments.$inferSelect)[] = [];
+
+	for (let i = 1; i <= installmentsTotal; i++) {
+		const amount = amounts[i - 1] ?? 0;
+		// Last installment absorbs the tax rounding remainder
+		const taxAmount =
+			i === installmentsTotal
+				? baseTaxPerInstallment + taxRemainder
+				: baseTaxPerInstallment;
+		const dueDate = addDays(params.purchaseDate, i * params.intervalDays);
+		const creditsUnlockedByThis =
+			calculateCreditsUnlocked(params.creditsTotal, i, installmentsTotal) -
+			calculateCreditsUnlocked(params.creditsTotal, i - 1, installmentsTotal);
+
+		const [row] = await tenantDb
+			.insert(installments)
+			.values({
+				packageInstanceId: params.packageInstanceId,
+				installmentNumber: i,
+				amount,
+				taxAmount,
+				status: "pending",
+				dueDate,
+				creditsUnlockedByThis,
+			})
+			.returning();
+
+		if (row) rows.push(row);
+	}
+
+	// Update packageInstance with schedule metadata
+	const firstDueDate = rows[0]?.dueDate ?? addDays(params.purchaseDate, params.intervalDays);
+	await tenantDb
+		.update(packageInstances)
+		.set({
+			installmentsTotal,
+			nextDueDate: firstDueDate,
+			updatedAt: new Date(),
+		})
+		.where(eq(packageInstances.id, params.packageInstanceId));
+
+	return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Payment confirmation
+// ---------------------------------------------------------------------------
+
+export type ConfirmInstallmentPaymentParams = {
+	installmentId: string;
+	paymentMethod: "manual_transfer" | "cash";
+	notes?: string;
+	confirmedBy: string;
+	nextIntervalDays?: number;
+};
+
+export async function confirmInstallmentPayment(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: ConfirmInstallmentPaymentParams,
+): Promise<{
+	installment: typeof installments.$inferSelect;
+	packageInstance: typeof packageInstances.$inferSelect;
+}> {
+	// Fetch installment
+	const installment = await tenantDb.query.installments.findFirst({
+		where: eq(installments.id, params.installmentId),
+	});
+	if (!installment) throw new Error("Installment not found");
+	if (installment.status !== "pending" && installment.status !== "overdue") {
+		throw new Error(`Installment is already ${installment.status}`);
+	}
+
+	// Fetch package instance
+	const pkg = await tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, installment.packageInstanceId),
+	});
+	if (!pkg) throw new Error("Package instance not found");
+
+	const now = new Date();
+
+	// Mark installment as paid
+	const [updatedInstallment] = await tenantDb
+		.update(installments)
+		.set({
+			status: "paid",
+			paidAt: now,
+			paymentMethod: params.paymentMethod,
+			confirmedBy: params.confirmedBy,
+			notes: params.notes ?? null,
+			updatedAt: now,
+		})
+		.where(eq(installments.id, params.installmentId))
+		.returning();
+
+	if (!updatedInstallment) throw new Error("Failed to update installment");
+
+	// Recalculate credits
+	const newInstallmentsPaid = pkg.installmentsPaid + 1;
+	const newCreditsUnlocked = calculateCreditsUnlocked(
+		pkg.creditsTotal,
+		newInstallmentsPaid,
+		pkg.installmentsTotal,
+	);
+	// Determine nextDueDate
+	let newNextDueDate: Date | null = null;
+	let newGracePeriodEndsAt: Date | null = null; // clear grace period on payment
+
+	if (newInstallmentsPaid < pkg.installmentsTotal) {
+		if (params.nextIntervalDays !== undefined) {
+			newNextDueDate = addDays(now, params.nextIntervalDays);
+		} else {
+			// Find next pending installment
+			const nextInstallment = await tenantDb.query.installments.findFirst({
+				where: and(
+					eq(installments.packageInstanceId, pkg.id),
+					eq(installments.status, "pending"),
+				),
+				orderBy: [asc(installments.installmentNumber)],
+			});
+			newNextDueDate = nextInstallment?.dueDate ?? null;
+		}
+	}
+
+	// Update package instance
+	const [updatedPkg] = await tenantDb
+		.update(packageInstances)
+		.set({
+			installmentsPaid: newInstallmentsPaid,
+			creditsUnlocked: newCreditsUnlocked,
+			nextDueDate: newNextDueDate,
+			gracePeriodEndsAt: newGracePeriodEndsAt,
+			updatedAt: now,
+		})
+		.where(eq(packageInstances.id, pkg.id))
+		.returning();
+
+	if (!updatedPkg) throw new Error("Failed to update package instance");
+
+	// Log events
+	await logInstallmentEvent(tenantDb, {
+		packageInstanceId: pkg.id,
+		installmentId: params.installmentId,
+		eventType: "payment_received",
+		actorId: params.confirmedBy,
+		amount: installment.amount,
+	});
+
+	await logInstallmentEvent(tenantDb, {
+		packageInstanceId: pkg.id,
+		installmentId: params.installmentId,
+		eventType: "credits_unlocked",
+		actorId: params.confirmedBy,
+		metadata: JSON.stringify({ creditsUnlocked: newCreditsUnlocked }),
+	});
+
+	return { installment: updatedInstallment, packageInstance: updatedPkg };
+}
+
+// ---------------------------------------------------------------------------
+// Lock evaluation
+// ---------------------------------------------------------------------------
+
+/**
+ * Evaluate a package instance and lock it if overdue past the grace period.
+ * Safe to call repeatedly (idempotent).
+ */
+export async function evaluateAndLockIfOverdue(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+): Promise<typeof packageInstances.$inferSelect> {
+	const gracePeriodDays = await getGracePeriodDaysForPackage(tenantDb, packageInstanceId);
+	const pkg = await tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, packageInstanceId),
+	});
+	if (!pkg) throw new Error("Package instance not found");
+
+	// Already locked — nothing to do
+	if (pkg.isLocked) return pkg;
+
+	// Not on installment plan, or fully paid — nothing to do
+	if (pkg.paymentPlanType === null || pkg.installmentsPaid >= pkg.installmentsTotal) return pkg;
+
+	// No due date set — nothing to do
+	if (!pkg.nextDueDate) return pkg;
+
+	const now = new Date();
+
+	if (pkg.nextDueDate < now) {
+		// Mark the next pending installment as overdue
+		const nextPending = await tenantDb.query.installments.findFirst({
+			where: and(
+				eq(installments.packageInstanceId, packageInstanceId),
+				eq(installments.status, "pending"),
+			),
+			orderBy: [asc(installments.installmentNumber)],
+		});
+
+		if (nextPending) {
+			await tenantDb
+				.update(installments)
+				.set({ status: "overdue", updatedAt: now })
+				.where(eq(installments.id, nextPending.id));
+		}
+
+		let updatedPkg = pkg;
+
+		if (!pkg.gracePeriodEndsAt) {
+			// Start grace period
+			const gracePeriodEndsAt = addDays(pkg.nextDueDate, gracePeriodDays);
+			const [updated] = await tenantDb
+				.update(packageInstances)
+				.set({ gracePeriodEndsAt, updatedAt: now })
+				.where(eq(packageInstances.id, packageInstanceId))
+				.returning();
+			if (updated) updatedPkg = updated;
+
+			await logInstallmentEvent(tenantDb, {
+				packageInstanceId,
+				installmentId: nextPending?.id ?? null,
+				eventType: "grace_period_started",
+			});
+		} else if (pkg.gracePeriodEndsAt < now) {
+			// Grace period expired — lock the package
+			const [updated] = await tenantDb
+				.update(packageInstances)
+				.set({
+					isLocked: true,
+					lockedAt: now,
+					lockedReason: "non_payment",
+					updatedAt: now,
+				})
+				.where(eq(packageInstances.id, packageInstanceId))
+				.returning();
+			if (updated) updatedPkg = updated;
+
+			await logInstallmentEvent(tenantDb, {
+				packageInstanceId,
+				installmentId: nextPending?.id ?? null,
+				eventType: "package_locked",
+			});
+		}
+
+		return updatedPkg;
+	}
+
+	return pkg;
+}
+
+// ---------------------------------------------------------------------------
+// Manual override
+// ---------------------------------------------------------------------------
+
+/**
+ * Manually unlock a package instance (admin override).
+ * Does not change creditsUnlocked.
+ */
+export async function unlockPackage(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+	actorId: string,
+	reason: string,
+): Promise<typeof packageInstances.$inferSelect> {
+	const now = new Date();
+	const [updated] = await tenantDb
+		.update(packageInstances)
+		.set({
+			isLocked: false,
+			lockedAt: null,
+			lockedReason: null,
+			updatedAt: now,
+		})
+		.where(eq(packageInstances.id, packageInstanceId))
+		.returning();
+
+	if (!updated) throw new Error("Package instance not found");
+
+	await logInstallmentEvent(tenantDb, {
+		packageInstanceId,
+		eventType: "manual_override_unlock",
+		actorId,
+		reason,
+	});
+
+	return updated;
+}
+
+// ---------------------------------------------------------------------------
+// Refund
+// ---------------------------------------------------------------------------
+
+export async function processRefund(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+	amount: number,
+	actorId: string,
+	reason: string,
+): Promise<void> {
+	await tenantDb
+		.update(packageInstances)
+		.set({
+			paymentStatus: "refunded",
+			status: "cancelled",
+			updatedAt: new Date(),
+		})
+		.where(eq(packageInstances.id, packageInstanceId));
+
+	await logInstallmentEvent(tenantDb, {
+		packageInstanceId,
+		eventType: "manual_refund",
+		actorId,
+		amount,
+		reason,
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Reschedule
+// ---------------------------------------------------------------------------
+
+/**
+ * Reschedule a pending (or overdue) installment to a new due date.
+ * - Throws CONFLICT if the installment is already paid.
+ * - Throws CONFLICT if the package is locked.
+ * - Throws BAD_REQUEST if newDueDate is in the past.
+ * - Updates packageInstances.nextDueDate if this is the next-due installment.
+ * - Logs an installment_rescheduled event.
+ */
+export async function rescheduleInstallment(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	installmentId: string,
+	newDueDate: Date,
+	actorId: string,
+	reason: string,
+): Promise<typeof installments.$inferSelect> {
+	const installment = await tenantDb.query.installments.findFirst({
+		where: eq(installments.id, installmentId),
+	});
+	if (!installment) throw new Error("Installment not found");
+
+	if (installment.status === "paid") {
+		const err = new Error("Cannot reschedule a paid installment");
+		(err as any).code = "CONFLICT";
+		throw err;
+	}
+
+	const pkg = await tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, installment.packageInstanceId),
+	});
+	if (!pkg) throw new Error("Package instance not found");
+
+	if (pkg.isLocked) {
+		const err = new Error("Cannot reschedule an installment for a locked package");
+		(err as any).code = "CONFLICT";
+		throw err;
+	}
+
+	const now = new Date();
+	if (newDueDate <= now) {
+		const err = new Error("New due date must be in the future");
+		(err as any).code = "BAD_REQUEST";
+		throw err;
+	}
+
+	const oldDueDate = installment.dueDate;
+
+	// Update the installment — set to pending (clears overdue status) with new due date
+	const [updated] = await tenantDb
+		.update(installments)
+		.set({
+			dueDate: newDueDate,
+			status: "pending",
+			updatedAt: now,
+		})
+		.where(eq(installments.id, installmentId))
+		.returning();
+
+	if (!updated) throw new Error("Failed to update installment");
+
+	// Find the next pending installment by installment number (lowest not yet paid)
+	const nextPending = await tenantDb.query.installments.findFirst({
+		where: and(
+			eq(installments.packageInstanceId, installment.packageInstanceId),
+			eq(installments.status, "pending"),
+		),
+		orderBy: [asc(installments.installmentNumber)],
+	});
+
+	// If the rescheduled installment is the next-due one, update the package's nextDueDate
+	if (nextPending && nextPending.id === installmentId) {
+		await tenantDb
+			.update(packageInstances)
+			.set({
+				nextDueDate: newDueDate,
+				gracePeriodEndsAt: null,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, installment.packageInstanceId));
+	}
+
+	// Log the reschedule event
+	await logInstallmentEvent(tenantDb, {
+		packageInstanceId: installment.packageInstanceId,
+		installmentId,
+		eventType: "installment_rescheduled",
+		actorId,
+		reason,
+		metadata: JSON.stringify({ oldDueDate: oldDueDate.toISOString(), newDueDate: newDueDate.toISOString() }),
+	});
+
+	return updated;
+}
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Get all installments for a package instance, ordered by installment number.
+ */
+export async function getInstallmentsByPackageInstance(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+): Promise<(typeof installments.$inferSelect)[]> {
+	return tenantDb.query.installments.findMany({
+		where: eq(installments.packageInstanceId, packageInstanceId),
+		orderBy: [asc(installments.installmentNumber)],
+	});
+}
+
+export type AdminInstallmentOverviewParams = {
+	status?: "active" | "overdue" | "locked";
+	limit?: number;
+	offset?: number;
+};
+
+export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect & {
+	serviceName: string | null;
+};
+
+/**
+ * Get a paginated overview of installment-based package instances for admin use.
+ */
+export async function getAdminInstallmentOverview(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: AdminInstallmentOverviewParams = {},
+): Promise<{ items: AdminInstallmentOverviewItem[]; total: number }> {
+	const { status, limit = 50, offset = 0 } = params;
+
+	// Build the filter conditions
+	const conditions = [
+		// Must be on an installment plan
+		isNotNull(packageInstances.paymentPlanType),
+	];
+
+	if (status === "locked") {
+		conditions.push(eq(packageInstances.isLocked, true));
+	} else if (status === "overdue") {
+		conditions.push(eq(packageInstances.isLocked, false));
+		conditions.push(isNotNull(packageInstances.gracePeriodEndsAt));
+	} else if (status === "active") {
+		conditions.push(eq(packageInstances.isLocked, false));
+		conditions.push(isNull(packageInstances.gracePeriodEndsAt));
+	}
+
+	const where = and(...conditions);
+
+	const rows = await tenantDb.query.packageInstances.findMany({
+		where,
+		limit: Math.min(limit, 200),
+		offset,
+		orderBy: [asc(packageInstances.nextDueDate)],
+	});
+
+	// Join with services to get service names
+	const serviceIds = [...new Set(rows.map((r) => r.serviceId))];
+	const serviceRows =
+		serviceIds.length > 0
+			? await tenantDb.query.services.findMany({
+					where: (s, { inArray }) => inArray(s.id, serviceIds),
+				})
+			: [];
+
+	const serviceMap = new Map(serviceRows.map((s) => [s.id, s.name]));
+
+	const items: AdminInstallmentOverviewItem[] = rows.map((row) => ({
+		...row,
+		serviceName: serviceMap.get(row.serviceId) ?? null,
+	}));
+
+	// Count total
+	const allRows = await tenantDb.query.packageInstances.findMany({
+		where,
+		columns: { id: true },
+	});
+	const total = allRows.length;
+
+	return { items, total };
+}
+
+/**
+ * Calculate a suggested refund for a package instance.
+ * Fetches the package state and paid installment totals, then delegates to calculateSuggestedRefund.
+ */
+export async function getSuggestedRefund(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+): Promise<SuggestedRefundResult & SuggestedRefundInput> {
+	const pkg = await tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, packageInstanceId),
+	});
+	if (!pkg) throw new Error("Package instance not found");
+
+	const paidInstallments = await tenantDb.query.installments.findMany({
+		where: and(
+			eq(installments.packageInstanceId, packageInstanceId),
+			eq(installments.status, "paid"),
+		),
+	});
+
+	const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
+	const paidTaxAmount = paidInstallments.reduce((sum, i) => sum + (i.taxAmount ?? 0), 0);
+
+	const input: SuggestedRefundInput = {
+		creditsTotal: pkg.creditsTotal,
+		creditsUnlocked: pkg.creditsUnlocked ?? pkg.creditsTotal, // null = all available
+		creditsUsed: pkg.creditsUsed ?? 0,
+		totalPrice: pkg.totalPrice ?? 0,
+		paidAmount,
+		paidTaxAmount,
+	};
+
+	const result = calculateSuggestedRefund(input);
+
+	return { ...input, ...result };
+}

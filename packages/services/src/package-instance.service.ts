@@ -37,12 +37,29 @@ export type CreatePackageInstanceParams = {
   eSignature?: string | null;
   termsAgreedAt?: Date | null;
   creditsTotal: number;
-  creditsRemaining: number;
   creditsUsed?: number;
   startsAt: Date;
   expiresAt: Date;
   status?: string;
   remark?: string | null;
+  paymentPlanType?: string | null;
+  installmentsTotal?: number;
+  installmentsPaid?: number;
+  creditsUnlocked?: number | null;
+};
+
+export type UpdatePackageInstanceParams = {
+  paymentStatus?: string;
+  paymentMethod?: string | null;
+  creditsUsed?: number;
+  creditsUnlocked?: number | null;
+  installmentsPaid?: number;
+  nextDueDate?: Date | null;
+  gracePeriodEndsAt?: Date | null;
+  isLocked?: boolean;
+  lockedAt?: Date | null;
+  lockedReason?: string | null;
+  status?: string;
 };
 
 /**
@@ -105,17 +122,53 @@ export async function createPackageInstance(
       eSignature: params.eSignature ?? null,
       termsAgreedAt: params.termsAgreedAt ?? null,
       creditsTotal: params.creditsTotal,
-      creditsRemaining: params.creditsRemaining,
       creditsUsed: params.creditsUsed ?? 0,
       startsAt: params.startsAt,
       expiresAt: params.expiresAt,
       status: params.status ?? "active",
       remark: params.remark ?? null,
+      paymentPlanType: params.paymentPlanType ?? null,
+      installmentsTotal: params.installmentsTotal ?? 1,
+      installmentsPaid: params.installmentsPaid ?? 0,
+      creditsUnlocked: params.creditsUnlocked ?? null,
     })
     .returning();
 
   if (!row) {
     throw new Error("Failed to create package instance");
+  }
+  return row;
+}
+
+/**
+ * Update a package instance by ID. Only provided fields are updated.
+ */
+export async function updatePackageInstance(
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  id: string,
+  params: UpdatePackageInstanceParams,
+): Promise<typeof packageInstances.$inferSelect> {
+  const [row] = await tenantDb
+    .update(packageInstances)
+    .set({
+      ...(params.paymentStatus !== undefined && { paymentStatus: params.paymentStatus }),
+      ...(params.paymentMethod !== undefined && { paymentMethod: params.paymentMethod }),
+      ...(params.creditsUsed !== undefined && { creditsUsed: params.creditsUsed }),
+      ...(params.creditsUnlocked !== undefined && { creditsUnlocked: params.creditsUnlocked }),
+      ...(params.installmentsPaid !== undefined && { installmentsPaid: params.installmentsPaid }),
+      ...(params.nextDueDate !== undefined && { nextDueDate: params.nextDueDate }),
+      ...(params.gracePeriodEndsAt !== undefined && { gracePeriodEndsAt: params.gracePeriodEndsAt }),
+      ...(params.isLocked !== undefined && { isLocked: params.isLocked }),
+      ...(params.lockedAt !== undefined && { lockedAt: params.lockedAt }),
+      ...(params.lockedReason !== undefined && { lockedReason: params.lockedReason }),
+      ...(params.status !== undefined && { status: params.status }),
+      updatedAt: new Date(),
+    })
+    .where(eq(packageInstances.id, id))
+    .returning();
+
+  if (!row) {
+    throw new Error("Package instance not found");
   }
   return row;
 }

@@ -7,7 +7,8 @@
  * Replaces the previous package_assignments table with enhanced functionality.
  */
 
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { payments } from "./payments";
 import { services } from "./services";
 
@@ -41,7 +42,9 @@ export const packageInstances = pgTable("package_instances", {
 
 	// Session tracking
 	creditsTotal: integer("credits_total").notNull(),
-	creditsRemaining: integer("credits_remaining").notNull(),
+	creditsRemaining: integer("credits_remaining")
+		.generatedAlwaysAs(sql`COALESCE(credits_unlocked, credits_total) - credits_used`)
+		.notNull(),
 	creditsUsed: integer("credits_used").default(0).notNull(),
 
 	// Validity
@@ -52,6 +55,17 @@ export const packageInstances = pgTable("package_instances", {
 	status: text("status").notNull(), // "active" | "expired" | "exhausted" | "cancelled"
 
 	remark: text("remark"),
+
+	// Installment tracking
+	paymentPlanType: text("payment_plan_type"), // 'full' | 'half' | 'quarterly' | null (null = legacy)
+	installmentsTotal: integer("installments_total").default(1).notNull(),
+	installmentsPaid: integer("installments_paid").default(0).notNull(),
+	creditsUnlocked: integer("credits_unlocked"), // null = all credits available (legacy); integer = installment-controlled
+	nextDueDate: timestamp("next_due_date", { withTimezone: true }),
+	gracePeriodEndsAt: timestamp("grace_period_ends_at", { withTimezone: true }),
+	isLocked: boolean("is_locked").default(false).notNull(),
+	lockedAt: timestamp("locked_at", { withTimezone: true }),
+	lockedReason: text("locked_reason"),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -65,4 +79,6 @@ export const packageInstances = pgTable("package_instances", {
 		.on(table.clientId, table.status),
 	purchaseNumberIdx: index("package_instances_purchase_number_idx").on(table.purchaseNumber),
 	serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
+	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
+	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
 }));

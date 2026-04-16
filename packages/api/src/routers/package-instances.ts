@@ -9,6 +9,7 @@ import {
   listPackageInstancesForClient,
   getPackageInstanceById,
   createPackageInstance,
+  createInstallmentSchedule,
   requirePermission,
 } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -160,12 +161,13 @@ export const packageInstancesRouter = {
         eSignature: z.string().nullable().optional(),
         termsAgreedAt: z.string().datetime().nullable().optional(),
         creditsTotal: z.number().int().min(0),
-        creditsRemaining: z.number().int().min(0),
         creditsUsed: z.number().int().min(0).optional(),
         startsAt: z.string().datetime(),
         expiresAt: z.string().datetime(),
         status: statusSchema.optional(),
         remark: z.string().nullable().optional(),
+        paymentPlanType: z.enum(["full", "half", "quarterly"]).nullable().optional(),
+        installmentIntervalDays: z.number().int().min(1).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -196,6 +198,7 @@ export const packageInstancesRouter = {
       }
 
       try {
+        const isInstallmentPlan = input.paymentPlanType && input.paymentPlanType !== "full";
         const created = await createPackageInstance(context.tenantDb, {
           serviceId: input.serviceId,
           clientId: input.clientId,
@@ -212,13 +215,31 @@ export const packageInstancesRouter = {
             ? new Date(input.termsAgreedAt)
             : null,
           creditsTotal: input.creditsTotal,
-          creditsRemaining: input.creditsRemaining,
           creditsUsed: input.creditsUsed ?? 0,
           startsAt: new Date(input.startsAt),
           expiresAt: new Date(input.expiresAt),
           status: input.status,
           remark: input.remark ?? null,
+          paymentPlanType: input.paymentPlanType ?? null,
+          installmentsTotal: input.paymentPlanType === "half" ? 2 : input.paymentPlanType === "quarterly" ? 4 : 1,
+          installmentsPaid: 0,
+          creditsUnlocked: isInstallmentPlan ? 0 : null,
         });
+
+        // Generate installment schedule if payment plan provided
+        if (isInstallmentPlan) {
+          const intervalDays = input.installmentIntervalDays ?? 30;
+          await createInstallmentSchedule(context.tenantDb, {
+            packageInstanceId: created.id,
+            creditsTotal: created.creditsTotal,
+            totalPrice: created.totalPrice ?? 0,
+            taxAmount: created.taxAmount ?? 0,
+            paymentPlanType: input.paymentPlanType!,
+            intervalDays,
+            purchaseDate: new Date(),
+          });
+        }
+
         return created;
       } catch (error) {
         throw new ORPCError("BAD_REQUEST", {

@@ -14,6 +14,7 @@ import {
   updateAppointment,
   getDescendantNodeIds,
   requirePermission,
+  syncAppointmentToGoogleCalendar,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -38,6 +39,7 @@ export const appointmentsRouter = {
         organizationId: z.string().uuid(),
         branchId: z.string().uuid().optional(),
         serviceId: z.string().uuid().nullable().optional(),
+        trainerId: z.string().uuid().optional(),
         status: statusSchema.optional(),
         startFrom: z.string().datetime().optional(),
         startTo: z.string().datetime().optional(),
@@ -83,6 +85,7 @@ export const appointmentsRouter = {
       const items = await listAppointments(context.tenantDb, {
         branchId: input.branchId,
         serviceId: input.serviceId ?? undefined,
+        trainerId: input.trainerId,
         status: input.status,
         startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
         startTo: input.startTo ? new Date(input.startTo) : undefined,
@@ -283,6 +286,16 @@ export const appointmentsRouter = {
           notes: input.notes ?? null,
           bookingNumber: input.bookingNumber ?? null,
         });
+
+        // Fire-and-forget Google Calendar sync — never blocks the response
+        const gcalConfig = {
+          clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+        };
+        syncAppointmentToGoogleCalendar(context.tenantDb, created, "create", gcalConfig).catch(
+          (err) => console.error("GCal create sync error:", err),
+        );
+
         return created;
       } catch (error) {
         throw new ORPCError("BAD_REQUEST", {
@@ -386,6 +399,17 @@ export const appointmentsRouter = {
           input.id,
           updateParams
         );
+
+        // Fire-and-forget Google Calendar sync — never blocks the response
+        const gcalConfig = {
+          clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+        };
+        const syncAction = input.status === "cancelled" ? "delete" : "update";
+        syncAppointmentToGoogleCalendar(context.tenantDb, updated, syncAction, gcalConfig).catch(
+          (err) => console.error("GCal update sync error:", err),
+        );
+
         return updated;
       } catch (error) {
         throw new ORPCError("BAD_REQUEST", {

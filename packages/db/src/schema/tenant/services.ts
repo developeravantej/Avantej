@@ -75,6 +75,11 @@ export const services = pgTable("services", {
 	expirable: boolean("expirable").default(false).notNull(),
 	expiryDays: integer("expiry_days"),
 	expiryDate: timestamp("expiry_date"),
+
+	// Installment configuration
+	availablePaymentPlans: text("available_payment_plans").array().default([]),
+	installmentIntervalDays: integer("installment_interval_days").default(30),
+	gracePeriodDays: integer("grace_period_days"),
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),
 	branchIdIdx: index("services_branch_idx").on(table.branchId),

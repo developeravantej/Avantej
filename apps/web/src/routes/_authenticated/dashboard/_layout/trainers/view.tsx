@@ -6,6 +6,8 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { TrainerAvailabilityEditor } from "@/components/trainers/trainer-availability-editor";
 import type { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -108,6 +110,10 @@ function TrainersView() {
 	const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [profileSectionOpen, setProfileSectionOpen] = useState(true);
+	const [availabilitySectionOpen, setAvailabilitySectionOpen] = useState(false);
+	const [bufferSectionOpen, setBufferSectionOpen] = useState(false);
+	const [editingBufferServiceId, setEditingBufferServiceId] = useState<string | null>(null); // keyed by serviceId
+	const [bufferInputValue, setBufferInputValue] = useState<string>("");
 
 	// ── Queries ──────────────────────────────────────────────────────────────
 
@@ -162,6 +168,16 @@ function TrainersView() {
 			return map;
 		},
 		enabled: !!organizationId && membersData.length > 0,
+	});
+
+	const { data: trainerServices = [], refetch: refetchTrainerServices } = useQuery({
+		queryKey: ["trainerServices", organizationId, editingMemberId],
+		queryFn: () =>
+			client.serviceMembers.listForMember({
+				organizationId: organizationId!,
+				memberId: editingMemberId!,
+			}),
+		enabled: !!organizationId && !!editingMemberId && bufferSectionOpen,
 	});
 
 	// ── Mutations ────────────────────────────────────────────────────────────
@@ -278,6 +294,29 @@ function TrainersView() {
 		},
 	});
 
+	const updateBufferMutation = useMutation({
+		mutationFn: ({
+			serviceId,
+			bufferTimeMinutes,
+		}: {
+			serviceId: string;
+			bufferTimeMinutes: number | null;
+		}) =>
+			client.serviceMembers.updateBuffer({
+				organizationId: organizationId!,
+				memberId: editingMemberId!,
+				serviceId,
+				bufferTimeMinutes,
+			}),
+		onSuccess: () => {
+			refetchTrainerServices();
+			setEditingBufferServiceId(null);
+			toast.success("Buffer time updated.");
+		},
+		onError: (err) =>
+			toast.error(err instanceof Error ? err.message : "Failed to update buffer."),
+	});
+
 	// ── Sheet helpers ────────────────────────────────────────────────────────
 
 	function openCreate() {
@@ -307,6 +346,9 @@ function TrainersView() {
 		setSheetOpen(false);
 		setEditingMemberId(null);
 		setForm(EMPTY_FORM);
+		setBufferSectionOpen(false);
+		setEditingBufferServiceId(null);
+		setBufferInputValue("");
 	}
 
 	function handleSubmit(e: React.FormEvent) {
@@ -330,7 +372,8 @@ function TrainersView() {
 		createMutation.isPending ||
 		updateProfileMutation.isPending ||
 		suspendMutation.isPending ||
-		reactivateMutation.isPending;
+		reactivateMutation.isPending ||
+		updateBufferMutation.isPending;
 
 	// ── Table data & columns ─────────────────────────────────────────────────
 
@@ -735,6 +778,148 @@ function TrainersView() {
 								</div>
 							</CollapsibleContent>
 						</Collapsible>
+
+						{/* ── Availability (edit only) ─────────────────────────── */}
+						{editingMemberId && (
+							<Collapsible open={availabilitySectionOpen} onOpenChange={setAvailabilitySectionOpen}>
+								<CollapsibleTrigger asChild>
+									<button type="button" className="flex w-full items-center justify-between pt-1">
+										<div className="space-y-0.5 text-left">
+											<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+												Weekly Availability
+											</p>
+											<Separator />
+										</div>
+										<ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200",
+											availabilitySectionOpen && "rotate-180"
+										)} />
+									</button>
+								</CollapsibleTrigger>
+								<CollapsibleContent className="pt-3">
+									<TrainerAvailabilityEditor
+										organizationId={organizationId!}
+										trainerId={editingMemberId}
+										onSaved={() => toast.success("Availability saved")}
+									/>
+								</CollapsibleContent>
+							</Collapsible>
+						)}
+
+						{/* ── Service Buffer Times (edit only) ─────────────────── */}
+						{editingMemberId && (
+							<Collapsible open={bufferSectionOpen} onOpenChange={setBufferSectionOpen}>
+								<CollapsibleTrigger asChild>
+									<button
+										type="button"
+										className="flex w-full items-center justify-between pt-1"
+									>
+										<div className="space-y-0.5 text-left">
+											<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+												Category Buffer Times
+											</p>
+											<Separator />
+										</div>
+										<ChevronDown
+											className={cn(
+												"h-4 w-4 text-muted-foreground transition-transform duration-200",
+												bufferSectionOpen && "rotate-180"
+											)}
+										/>
+									</button>
+								</CollapsibleTrigger>
+								<CollapsibleContent className="pt-3">
+									{trainerServices.length === 0 ? (
+										<p className="text-sm text-muted-foreground py-2">
+											This trainer has no service assignments.
+										</p>
+									) : (
+										<div className="space-y-1">
+											{trainerServices.map((svc) => (
+												<div
+													key={svc.serviceId}
+													className="flex items-center justify-between gap-2 py-2 border-b last:border-0"
+												>
+													<div className="flex-1 min-w-0">
+														<p className="text-sm font-medium truncate">{svc.serviceName}</p>
+														<p className="text-xs text-muted-foreground">
+															{svc.categoryName && <span>{svc.categoryName} · </span>}
+															Category default:{" "}
+															{svc.categoryDefaultBuffer > 0
+																? `${svc.categoryDefaultBuffer} min`
+																: "None"}
+														</p>
+													</div>
+													{editingBufferServiceId === svc.serviceId ? (
+														<div className="flex items-center gap-1.5 shrink-0">
+															<Input
+																type="number"
+																min={0}
+																max={480}
+																className="w-20 h-7 text-sm"
+																placeholder="min"
+																value={bufferInputValue}
+																onChange={(e) => setBufferInputValue(e.target.value)}
+															/>
+															<Button
+																type="button"
+																size="sm"
+																variant="default"
+																className="h-7 px-2 text-xs"
+																onClick={() => {
+																	const parsed = parseInt(bufferInputValue, 10);
+																	const val: number | null =
+																		bufferInputValue === "" || isNaN(parsed)
+																			? null
+																			: parsed;
+																	updateBufferMutation.mutate({
+																		serviceId: svc.serviceId,
+																		bufferTimeMinutes: val,
+																	});
+																}}
+																disabled={updateBufferMutation.isPending}
+															>
+																Save
+															</Button>
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
+																className="h-7 px-2 text-xs"
+																onClick={() => setEditingBufferServiceId(null)}
+															>
+																Cancel
+															</Button>
+														</div>
+													) : (
+														<div className="flex items-center gap-2 shrink-0">
+															<span className="text-sm text-muted-foreground">
+																{svc.bufferTimeMinutes != null
+																	? `${svc.bufferTimeMinutes} min`
+																	: "Using default"}
+															</span>
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
+																className="h-7 px-2"
+																onClick={() => {
+																	setEditingBufferServiceId(svc.serviceId);
+																	setBufferInputValue(
+																		svc.bufferTimeMinutes?.toString() ?? ""
+																	);
+																}}
+															>
+																<Edit className="h-3 w-3" />
+															</Button>
+														</div>
+													)}
+												</div>
+											))}
+										</div>
+									)}
+								</CollapsibleContent>
+							</Collapsible>
+						)}
 
 						{/* ── Footer ───────────────────────────────────────────── */}
 						<SheetFooter className="px-0 pt-4">

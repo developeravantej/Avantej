@@ -6,6 +6,7 @@ import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
+import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
 import { adminRouter } from "@/routers/admin";
@@ -107,6 +108,7 @@ app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 
 // Custom auth routes following OpenAPI contract
 app.route("/auth", authRoutes);
+app.route("/auth/google-calendar", googleCalendarRoutes);
 
 // Organization routes following OpenAPI contract
 app.route("/orgs", organizationRoutes);

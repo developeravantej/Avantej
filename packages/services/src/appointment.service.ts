@@ -11,8 +11,11 @@
  * ```
  */
 
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { resolveBufferTime, checkAppointmentBufferConflict } from "./buffer-time.service";
+import { evaluateAndLockIfOverdue } from "./installment.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -20,6 +23,7 @@ export type ListAppointmentsParams = {
   branchId?: string;
   serviceId?: string | null;
   userId?: string | null;
+  trainerId?: string;
   status?: string;
   startFrom?: Date;
   startTo?: Date;
@@ -106,6 +110,9 @@ export async function listAppointments(
   if (userId !== undefined && userId !== null) {
     conditions.push(eq(appointments.userId, userId));
   }
+  if (params.trainerId) {
+    conditions.push(eq(appointments.trainerId, params.trainerId));
+  }
   if (status) {
     conditions.push(eq(appointments.status, status));
   }
@@ -178,6 +185,43 @@ export async function createAppointment(
 ): Promise<typeof appointments.$inferSelect> {
   const endTime = addMinutes(params.startTime, params.duration);
 
+  // Buffer time enforcement
+  if (params.serviceId && params.trainerId) {
+    const bufferMinutes = await resolveBufferTime(tenantDb, params.serviceId, params.trainerId);
+    if (bufferMinutes > 0) {
+      const { hasConflict } = await checkAppointmentBufferConflict(tenantDb, {
+        trainerId: params.trainerId,
+        startTime: params.startTime,
+        endTime,
+        bufferTimeMinutes: bufferMinutes,
+      });
+      if (hasConflict) {
+        throw new Error(
+          `This time conflicts with another appointment. A ${bufferMinutes}-minute buffer is required between bookings.`
+        );
+      }
+    }
+  }
+
+  // Package installment lock + credit check (lazy evaluation)
+  if (params.packageInstanceId) {
+    // Evaluate overdue → grace → lock before checking state
+    const pkg = await evaluateAndLockIfOverdue(tenantDb, params.packageInstanceId);
+    if (!pkg) throw new Error("Package instance not found");
+    if (pkg.isLocked) {
+      throw new Error("Package is locked due to unpaid installment. Please complete your payment to continue booking.");
+    }
+    if (pkg.status !== "active") {
+      throw new Error("Package is not active");
+    }
+    const creditsRequested = params.creditsUsed ?? 1;
+    if (pkg.creditsRemaining < creditsRequested) {
+      const hasMoreInstallments = pkg.paymentPlanType !== null && pkg.installmentsPaid < pkg.installmentsTotal;
+      const hint = hasMoreInstallments ? " Complete your next installment to unlock more." : "";
+      throw new Error(`Not enough credits. You have ${pkg.creditsRemaining} credits available.${hint}`);
+    }
+  }
+
   const [row] = await tenantDb
     .insert(appointments)
     .values({
@@ -207,6 +251,19 @@ export async function createAppointment(
   if (!row) {
     throw new Error("Failed to create appointment");
   }
+
+  // Decrement credits on the package instance (atomic)
+  if (params.packageInstanceId && row.creditsUsed !== undefined) {
+    const creditsToConsume = params.creditsUsed ?? 1;
+    await tenantDb
+      .update(packageInstances)
+      .set({
+        creditsUsed: sql`credits_used + ${creditsToConsume}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(packageInstances.id, params.packageInstanceId));
+  }
+
   return row;
 }
 
@@ -226,6 +283,27 @@ export async function updateAppointment(
   const startTime = params.startTime ?? existing.startTime;
   const duration = params.duration ?? existing.duration;
   const endTime = params.endTime ?? addMinutes(startTime, duration);
+
+  // Buffer time enforcement when time changes
+  const timeChanged = params.startTime !== undefined || params.duration !== undefined;
+  const trainerId = params.trainerId !== undefined ? params.trainerId : existing.trainerId;
+  if (timeChanged && existing.serviceId && trainerId) {
+    const bufferMinutes = await resolveBufferTime(tenantDb, existing.serviceId, trainerId);
+    if (bufferMinutes > 0) {
+      const { hasConflict } = await checkAppointmentBufferConflict(tenantDb, {
+        trainerId,
+        startTime,
+        endTime,
+        bufferTimeMinutes: bufferMinutes,
+        excludeAppointmentId: id,
+      });
+      if (hasConflict) {
+        throw new Error(
+          `This time conflicts with another appointment. A ${bufferMinutes}-minute buffer is required between bookings.`
+        );
+      }
+    }
+  }
 
   const [row] = await tenantDb
     .update(appointments)

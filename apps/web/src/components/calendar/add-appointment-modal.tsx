@@ -110,6 +110,7 @@ interface AddAppointmentModalProps {
   }) => void;
   teamMembers: TeamMember[];
   selectedDate?: Date;
+  defaultTrainerId?: string | null;
 }
 
 export function AddAppointmentModal({
@@ -118,6 +119,7 @@ export function AddAppointmentModal({
   onSubmit,
   teamMembers,
   selectedDate,
+  defaultTrainerId,
 }: AddAppointmentModalProps) {
   // Helper function to get the week position (e.g., "1st", "2nd", "3rd", "4th", "last")
   const getWeekPosition = (date: Date): string => {
@@ -339,7 +341,7 @@ export function AddAppointmentModal({
     startDate: selectedDate ? new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     startTime: getCurrentTimeRounded(),
     duration: 0,
-    assignedTo: "none",
+    assignedTo: defaultTrainerId ?? "none",
     roomId: "",
     employeeId: "",
     recurrence: "none",
@@ -364,15 +366,17 @@ export function AddAppointmentModal({
     }
   }, [selectedDate]);
 
-  // Default assignment to current user if present in teamMembers
+  // Default assignment to current user if present in teamMembers.
+  // Skip if a defaultTrainerId was provided — that takes precedence over the logged-in user.
   React.useEffect(() => {
+    if (defaultTrainerId) return;
     if (user?.id && Array.isArray(teamMembers) && teamMembers.length && newAppointment.assignedTo === "none") {
       const selfMember = teamMembers.find((m) => m.id === user.id);
       if (selfMember) {
         setNewAppointment((prev) => ({ ...prev, assignedTo: selfMember.id }));
       }
     }
-  }, [user?.id, teamMembers, newAppointment.assignedTo]);
+  }, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setNewAppointment(prev => ({
