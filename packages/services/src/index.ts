@@ -240,6 +240,9 @@ export {
 	upsertSetting,
 } from "./organization-settings.service";
 
+// Installment plan services
+export * from "./installment-plan.service";
+
 // Google Calendar services
 export * from "./google-calendar.service";
 export * from "./google-calendar-sync.service";

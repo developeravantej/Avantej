@@ -21,10 +21,13 @@ import { decrypt } from "@avantej-core/db";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
+	hierarchyNodes,
 	packageInstances,
+	rooms,
 	serviceCategories,
 	services,
 } from "@avantej-core/db/schema/tenant/index";
+import { eq } from "drizzle-orm";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { readFileSync, writeFileSync } from "fs";
@@ -355,6 +358,37 @@ async function seedBusinessData() {
 			if (!created) throw new Error("Failed to create package instance");
 			packageInstance = created;
 			console.log(`   Created: ${packageInstance.id}`);
+		}
+
+		// ================================================================
+		// STEP 7: Seed default rooms (one per branch, idempotent)
+		// ================================================================
+		console.log("\nStep 7: Seeding default rooms per branch...");
+
+		const branches = await tenantDb
+			.select()
+			.from(hierarchyNodes)
+			.where(eq(hierarchyNodes.type, "branch"));
+
+		for (const branch of branches) {
+			const existing = await tenantDb
+				.select()
+				.from(rooms)
+				.where(eq(rooms.branchId, branch.id))
+				.limit(1);
+			if (existing.length > 0) {
+				console.log(`   [skip] Branch "${branch.name}" already has rooms`);
+				continue;
+			}
+
+			await tenantDb.insert(rooms).values({
+				name: `Main Room - ${branch.name}`,
+				type: "training",
+				capacity: 20,
+				branchId: branch.id,
+				isActive: true,
+			});
+			console.log(`   [ok] Created default room for branch "${branch.name}"`);
 		}
 
 		// ================================================================

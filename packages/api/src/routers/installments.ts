@@ -198,6 +198,10 @@ const adminOverview = protectedProcedure
 			status: z.enum(["active", "overdue", "locked"]).optional(),
 			limit: z.number().int().min(1).max(200).optional(),
 			offset: z.number().int().min(0).optional(),
+			search: z.string().optional(),
+			dueBefore: z.string().datetime().optional(),
+			dueAfter: z.string().datetime().optional(),
+			paymentPlanCode: z.string().optional(),
 		})
 	)
 	.handler(async ({ input, context }) => {
@@ -230,6 +234,10 @@ const adminOverview = protectedProcedure
 			status: input.status,
 			limit: input.limit,
 			offset: input.offset,
+			search: input.search,
+			dueBefore: input.dueBefore ? new Date(input.dueBefore) : undefined,
+			dueAfter: input.dueAfter ? new Date(input.dueAfter) : undefined,
+			paymentPlanCode: input.paymentPlanCode,
 		});
 	});
 

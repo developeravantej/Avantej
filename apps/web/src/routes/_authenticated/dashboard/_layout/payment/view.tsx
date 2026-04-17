@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import DataTable from "@/components/tables/payment/view/data-table";
 import { columns, type PaymentRow } from "@/components/tables/payment/view/columns";
+import { CreditCard } from "lucide-react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payment/view"
@@ -61,6 +63,18 @@ function RouteComponent() {
 	}
 
 	return (
-		<DataTable<PaymentRow, unknown> columns={columns} data={data} />
+		<div className="p-6 space-y-6">
+			<div className="flex items-center gap-3">
+				<div className="p-2 rounded-lg bg-primary/10">
+					<CreditCard className="h-6 w-6 text-primary" />
+				</div>
+				<div>
+					<h1 className="text-2xl font-bold font-heading">Payments</h1>
+					<p className="text-brand-secondary-1 text-sm">View and manage invoice payments.</p>
+				</div>
+			</div>
+			<Separator />
+			<DataTable<PaymentRow, unknown> columns={columns} data={data} />
+		</div>
 	);
 }

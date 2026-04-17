@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/appointment/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-17
 
 ---
 
@@ -68,7 +68,7 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 
 **Uses these components:**
 - `AppointmentCalendar` — `apps/web/src/components/calendar/appointment.tsx` — full calendar with month/week views, group-select, add-modal
-- `TrainerSidebar` — `apps/web/src/components/calendar/trainer-sidebar.tsx` — searchable trainer list with debounced filter
+- `TrainerSidebar` — `apps/web/src/components/calendar/trainer-sidebar.tsx` — searchable trainer list with debounced filter; displays `member.displayName ?? member.name ?? member.email ?? "Unknown Trainer"` and filters on `member.name ?? member.email`
 - `AddAppointmentModal` — `apps/web/src/components/calendar/add-appointment-modal.tsx` — modal rendered inside `AppointmentCalendar`
 
 **Uses these hooks:**
@@ -88,7 +88,7 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
 | `appointments` | SELECT / INSERT / UPDATE | `id`, `type`, `startTime`, `endTime`, `duration`, `serviceId`, `branchId`, `status`, `sessionTotal`, `pricePerClient`, `userId`, `trainerId`, `packageInstanceId`, `creditsUsed`, `location`, `bookingNumber`, `classSlotId`, `cancelledAt`, `cancellationReason`, `description`, `imageUrl`, `roomId`, `googleCalendarEventId`, `isRecurring`, `recurringParentId`, `paymentStatus`, `notes`, `createdBy` |
-| `members` | SELECT (TrainerSidebar) | `userId`, `role`, `status`, `displayName` |
+| `members` | SELECT (TrainerSidebar) | `userId`, `role`, `status`, `displayName`, `name`, `email` |
 
 **Key types / Zod schemas:**
 - `ApiAppointment` / `CalendarAppointment` — defined in `apps/web/src/lib/appointment-mapper.ts`
@@ -113,3 +113,18 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 - `handleDateSelect` and `handleAppointmentClick` only fire `toast.info` — no navigation or modal logic in the route itself; the calendar component manages its own modal state.
 - `getAppointmentQueryRange()` determines the fetch window (implementation in `lib/appointment-mapper.ts`).
 - `defaultTrainerId` is passed to `AppointmentCalendar` so the internal team-filter pre-selects the trainer.
+- Trainer sidebar name display fixed (2026-04-16): fallback chain is now `member.displayName ?? member.name ?? member.email ?? "Unknown Trainer"` (previously used `member.userId` as fallback, which showed raw UUIDs). Filter search also uses `member.name ?? member.email` instead of `member.userId`.
+
+---
+
+## 7. Recent Changes (2026-04-17 — Rooms Management)
+
+The `AddAppointmentModal` (single-appointment mode) received three related changes as part of the Rooms Management feature — see `zhub/pages/web-dashboard-rooms-view.md` for the new Rooms page.
+
+- **Area dropdown empty-state link.** When `rooms.length === 0`, the Area field no longer renders an empty `<Select>`. It renders a dashed-border inline hint: "No rooms available. Create one →" where the link is a TanStack `Link` to `/dashboard/rooms/view?returnTo=/dashboard/appointment/view`. Clicking the link calls the modal's `onClose()` first so the appointment modal closes before navigation. This resolves the prior dead-end where fresh tenants could not create an appointment at all.
+- **Employee dropdown is now context-aware.** The Employee `<Select>` is `disabled` until a room is selected, and its placeholder is computed by a new `employeePlaceholder = useMemo(...)` (file `add-appointment-modal.tsx`, ~line 382):
+  - No room selected → "Select an area first"
+  - Room selected, employees list empty → "There are no employees available"
+  - Room selected, employees present → "Select an employee"
+  Note: the underlying query (`client.members.list({ organizationId })`) does not actually filter by room today — the placeholder language was chosen to reflect the state machine, not a room-based filter. See plan §8 Q1.
+- **Multi-appointment mode deferred.** The multi-appointment mode area/employee dropdowns near line 1828 were intentionally not touched. They still show the old always-empty dropdown when no rooms exist. Follow-up: apply the same empty-state link + contextual placeholder treatment there.

@@ -4,26 +4,16 @@
 **File:** `apps/web/src/routes/_authenticated/customers.tsx:1`
 **Platform:** web
 **Auth required:** rbac(user_management:read)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Displays the current user's own customer profile and manages the list of customers (members with `role: "client"`) in the organization, with the ability to add new customers.
-
-**Produces:** Two cards — (1) the logged-in user's own customer profile (phone, address, emergency contact, medical/general notes), (2) a searchable list of all client-role members with email-contact and schedule shortcuts.
-
-**On success:**
-- Profile card shows the user's profile details or a prompt to create one.
-- Customer list shows all matching members with status badge.
-- Adding a customer sends an invite and refreshes the list.
-- Editing profile updates the profile and closes the dialog.
-
-**On failure / error states:**
-- Loading states: "Loading…" / "Loading customers…" text placeholders.
-- No matches: "No customers match your search." / "No customers yet."
-- Mutation errors: `toast.error(message)`.
+**Purpose (user perspective):** Lets a user view and search the customer list (members with role "client"), manage their own customer profile, and add new customers to the organization.
+**Produces:** Three sections: (1) "My profile" card with current user's customer profile, (2) searchable customer grid showing all clients with contact/schedule actions, (3) "Add Customer" dialog, (4) "Edit profile" dialog.
+**On success:** Customer list, hierarchy nodes, and own profile all load. Customers are filterable by name/email.
+**On failure / error states:** Per-section loading states ("Loading customers…", "Loading…"). Empty states for no results / no matches. Toast errors for mutation failures.
 
 ---
 
@@ -32,65 +22,64 @@
 **Execution flow:**
 ```
 CustomersComponent
-  → useUserContext() — get organizationId, memberHierarchyScopeId
+  → useUserContext() → organizationId, memberHierarchyScopeId
   → useQuery(["customer-profile", orgId])
-      → client.customerProfiles.get({ organizationId })
-          → POST /rpc/customerProfiles/get
-  → useQuery: orpc.members.list.queryOptions({ role: "client" })
-      → POST /rpc/members/list
-  → useQuery: orpc.hierarchy.listNodes.queryOptions
-      → POST /rpc/hierarchy/listNodes — for branch selector in add-customer dialog
-  → upsertMutation → client.customerProfiles.upsert(...)
-      → POST /rpc/customerProfiles/upsert
-  → addCustomerMutation → client.members.create({ role: "client", ... })
-      → POST /rpc/members/create
+    → client.customerProfiles.get({ organizationId })
+      → customerProfilesRouter.get
+        → getCustomerProfile(tenantDb, session.user.id)
+          → tenant DB: customer_profiles (by session userId)
+  → useQuery via orpc.members.list.queryOptions({ role: "client" })
+    → memberRouter.list → tenant DB: members + auth.user
+  → useQuery via orpc.hierarchy.listNodes.queryOptions
+    → filtered to type="branch" for branch selector in Add dialog
+  → useMemo: filteredCustomers (client-side text search on name/email)
+  → upsertMutation: client.customerProfiles.upsert(...)
+      → customerProfilesRouter.upsert
+        → upsertCustomerProfile(tenantDb, { userId, ...fields })
+  → addCustomerMutation: client.members.create({ email, role: "client", hierarchyScopeId })
+      → memberRouter.create → createMember(tenantDb, { ... })
 ```
 
 **Inputs:**
-- `searchQuery` — local state string, filters customers by name/email client-side.
-- "Add Customer" dialog: `newEmail` (string), `selectedBranchId` (optional UUID from hierarchy branch nodes).
-- "Edit Profile" dialog: phone, address, emergencyContactName, emergencyContactPhone, medicalNotes, notes.
+- Search: text input (client-side filter on name/email)
+- Profile form: phone, address, emergencyContactName, emergencyContactPhone, medicalNotes, notes
+- Add customer form: email (required), branchId (optional — falls back to `memberHierarchyScopeId`)
 
-**State management:** Local `useState` for dialog open/close, form fields, search query. TanStack Query cache for server data.
+**State management:**
+- TanStack Query: customer profile, members list (role:client), hierarchy nodes
+- Local state: `searchQuery`, 6 profile dialog fields, `newEmail`, `selectedBranchId`, dialog open states
+- `useQueryClient` for cache invalidation
 
-**Outputs:** Profile card, customer list, two Dialog modals (edit profile, add customer).
-
+**Outputs:** Customer profile card; filtered customer grid; success toasts; cache invalidations after mutations
 **Side effects:**
-- `client.members.create` creates a new member record (the user must already have an account).
-- `client.customerProfiles.upsert` creates or updates the current user's profile.
-- Cache invalidation on success: `["customer-profile", orgId]` and `orpc.members.list` query.
-- "Contact" button: `window.location.href = mailto:…`
-- "Schedule" button: navigates to `/dashboard/appointment/view`.
+- Profile upsert: invalidates `["customer-profile", organizationId]`
+- Add customer: invalidates members list query
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `customerProfiles.get` — `POST /rpc/customerProfiles/get` — get current user's profile
-- `customerProfiles.upsert` — `POST /rpc/customerProfiles/upsert` — create/update profile
-- `members.list` (role: "client") — `POST /rpc/members/list` — list customer members
-- `members.create` — `POST /rpc/members/create` — add a new customer by email
-- `hierarchy.listNodes` — `POST /rpc/hierarchy/listNodes` — get branch nodes for selector
+- `customerProfiles.get` — fetch own customer profile
+- `customerProfiles.upsert` — create or update own profile
+- `members.list` (role: "client") — list customers
+- `members.create` — add a new client-role member
+- `hierarchy.listNodes` — populate branch selector
 
-**Uses these components:**
-- `Card`, `CardHeader`, `CardContent`, `CardTitle` — `@/components/ui/card`
-- `Dialog`, `DialogContent`, `DialogHeader`, `DialogFooter` — `@/components/ui/dialog`
-- `Input`, `Label`, `Button`, `Badge`, `Select` — various `@/components/ui/` primitives
-- `Search`, `Plus`, `Users`, `Mail`, `Calendar`, `User` — lucide-react icons
+**Uses these components:** Inline Shadcn UI only (Card, Badge, Dialog, Input, Select, Button) — no dedicated custom components
 
 **Uses these hooks:**
-- `useUserContext` — `@/hooks/useUserContext` — org context, member hierarchy scope
-- `useQuery` (×3) — customer profile, members list, hierarchy nodes
-- `useMutation` (×2) — upsertProfile, addCustomer
-- `useQueryClient` — cache invalidation
-- `useMemo` — client-side search filtering
+- `useUserContext` — org ID and member hierarchy scope
+- `useQuery`, `useMutation`, `useQueryClient`
+- `useNavigate` — navigate to appointment view from customer row
 
 **Navigation: who navigates here:**
-- App sidebar links (not visible in sidebar config — this is the standalone `/customers` route, not the dashboard-nested one)
+- No sidebar link found for this standalone route (sidebar links to `/dashboard/customers/walk-in/view` instead)
+- `requirePermission("user_management:read")` in `beforeLoad` using string form
 
 **Navigation: where it goes:**
-- `/dashboard/appointment/view` — "Schedule" button per customer row
+- "Schedule" button on each customer → `/dashboard/appointment/view`
+- "Contact" button → `mailto:` link (opens email client)
 
 ---
 
@@ -99,42 +88,42 @@ CustomersComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `customer_profiles` | SELECT, INSERT/UPDATE | `phone`, `address`, `emergency_contact_name`, `emergency_contact_phone`, `medical_notes`, `notes` |
-| `members` | SELECT, INSERT | `role = "client"`, `email`, `name`, `status`, `hierarchy_scope_id` |
-| `hierarchy_nodes` | SELECT | `type = "branch"`, `id`, `name` |
+| `customer_profiles` | SELECT, INSERT/UPDATE | `userId`, `phone`, `address`, `emergencyContactName`, `emergencyContactPhone`, `medicalNotes`, `notes` |
+| `members` | SELECT, INSERT | `userId`, `role`, `status`, `hierarchyScopeId` |
+| `user` (auth) | JOIN | `id`, `name`, `email` |
+| `hierarchy_nodes` | SELECT | `id`, `name`, `type` |
 
 **Form fields (Edit Profile dialog):**
 | Field | Type | Validation | Maps to |
 |-------|------|------------|---------|
-| phone | text | optional | `customerProfiles.phone` |
-| address | text | optional | `customerProfiles.address` |
-| emergencyContactName | text | optional | `customerProfiles.emergencyContactName` |
-| emergencyContactPhone | text | optional | `customerProfiles.emergencyContactPhone` |
-| medicalNotes | text | optional | `customerProfiles.medicalNotes` |
-| notes | text | optional | `customerProfiles.notes` |
+| phone | text | optional | `customer_profiles.phone` |
+| address | text | optional | `customer_profiles.address` |
+| emergencyContactName | text | optional | `customer_profiles.emergencyContactName` |
+| emergencyContactPhone | text | optional | `customer_profiles.emergencyContactPhone` |
+| medicalNotes | text | optional | `customer_profiles.medicalNotes` |
+| notes | text | optional | `customer_profiles.notes` |
 
 **Form fields (Add Customer dialog):**
 | Field | Type | Validation | Maps to |
 |-------|------|------------|---------|
 | email | email | required | `members.create.email` |
-| branch | select (UUID) | optional | `members.create.hierarchyScopeId` |
+| branchId | select | optional | `members.create.hierarchyScopeId` |
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
+**Test files:** None found
 **Scenarios covered:** N/A
-**Not tested (risk areas):**
-- `members.create` requires the user's email to already exist in the system — no validation or lookup before submission.
-- Branch selector only shown when `branchNodes.length > 0`; if empty, falls back silently to `memberHierarchyScopeId`.
-- "Contact" button uses `window.location.href` (mailto) — opens system email client, not a tracked action.
+**Not tested (risk areas):** `requirePermission` string vs object form inconsistency; "Add Customer" requires user to pre-exist in the system; branch fallback logic to `memberHierarchyScopeId`
 
 ---
 
 ## 6. Notes
 
-- "My profile" card shows the logged-in staff/admin's own customer profile (via `customerProfiles.get`), not a selected customer's profile. This conflates "my profile as a client" with "customer management" in one page.
-- The route guard uses `requirePermission("user_management:read")` (string form, not object form) — both forms are supported by `route-guards.ts`.
-- This standalone `/customers` route is separate from `/_authenticated/dashboard/_layout/customers/walk-in/view` which handles walk-in (unregistered) customers.
-- Search filtering is entirely client-side — no debounce, no pagination; large customer lists will degrade.
+- The `requirePermission` call in `beforeLoad` uses a string form: `requirePermission("user_management:read")` — the object form `{ resource, action }` is used elsewhere. The stub may only handle one form.
+- Adding a customer via `members.create` requires the user to already have a platform account — there is no invitation email sent from this page.
+- "My profile" shows the **currently logged-in user's** customer profile (scoped by `session.user.id`), not a selected customer's profile.
+- This page is separate from walk-in customers at `/dashboard/customers/walk-in/view`, which handles unregistered customers.
+- Customer search is entirely client-side — no server-side filtering on the members list.
+- This standalone route appears to be an alternate entry point; the primary customers area is in the dashboard layout.

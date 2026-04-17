@@ -5,8 +5,10 @@ import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { DataTable } from "@/components/tables/uom/view/data-table";
 import { columns } from "@/components/tables/uom/view/columns";
+import { Ruler } from "lucide-react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/uom/view",
@@ -128,7 +130,17 @@ function RouteComponent() {
 	}
 
 	return (
-		<>
+		<div className="p-6 space-y-6">
+			<div className="flex items-center gap-3">
+				<div className="p-2 rounded-lg bg-primary/10">
+					<Ruler className="h-6 w-6 text-primary" />
+				</div>
+				<div>
+					<h1 className="text-2xl font-bold font-heading">Units of Measure</h1>
+					<p className="text-brand-secondary-1 text-sm">Manage base units of measure for products.</p>
+				</div>
+			</div>
+			<Separator />
 			{baseUoms.length === 0 && (
 				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
 					<p className="text-lg font-medium">No units of measure defined</p>
@@ -136,19 +148,19 @@ function RouteComponent() {
 				</div>
 			)}
 			<DataTable
-			columns={columns}
-			data={baseUoms}
-			isAddDialogOpen={isAddDialogOpen}
-			onAddDialogOpenChange={setIsAddDialogOpen}
-			editTarget={editTarget}
-			onEditTargetChange={setEditTarget}
-			onCreate={(vars) => createMutation.mutate(vars)}
-			onUpdate={(vars) => updateMutation.mutate(vars)}
-			onDelete={(id) => deleteMutation.mutate(id)}
-			isCreating={createMutation.isPending}
-			isUpdating={updateMutation.isPending}
-			isDeleting={deleteMutation.isPending}
-		/>
-		</>
+				columns={columns}
+				data={baseUoms}
+				isAddDialogOpen={isAddDialogOpen}
+				onAddDialogOpenChange={setIsAddDialogOpen}
+				editTarget={editTarget}
+				onEditTargetChange={setEditTarget}
+				onCreate={(vars) => createMutation.mutate(vars)}
+				onUpdate={(vars) => updateMutation.mutate(vars)}
+				onDelete={(id) => deleteMutation.mutate(id)}
+				isCreating={createMutation.isPending}
+				isUpdating={updateMutation.isPending}
+				isDeleting={deleteMutation.isPending}
+			/>
+		</div>
 	);
 }

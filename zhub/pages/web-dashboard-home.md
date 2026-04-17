@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
@@ -53,7 +53,7 @@ DashboardComponent
 - `GreetingBanner` — `apps/web/src/components/dashboard/greeting-banner.tsx` — time-of-day greeting + notification bell link
 - `QuickActions` — `apps/web/src/components/dashboard/quick-actions.tsx` — shortcut buttons
 - `SectionHeader` — `apps/web/src/components/dashboard/section-header.tsx` — styled section label
-- `QuickInsight` — `apps/web/src/components/dashboard/quick-insight.tsx` — static insight chip
+- `QuickInsight` — `apps/web/src/components/dashboard/quick-insight.tsx` — dynamic KPI-driven insight chip
 - `AppointmentsWidget` — `apps/web/src/components/appointments-widget.tsx` — recent appointments list
 - `AnnouncementsWidget` — `apps/web/src/components/announcements-widget.tsx` — active announcements
 - `PayrollWidget` — `apps/web/src/components/payroll-widget.tsx` — payroll summary
@@ -131,7 +131,7 @@ interface StaffRow {
 
 ## 6. Notes
 
-- `QuickInsight` message is currently hardcoded: `"Most members book 2 workouts per week. Your busiest day is Wednesday."` — not data-driven.
+- `QuickInsight` message is now dynamic and KPI-driven: when `kpiData.totalAppointments > 0`, it shows appointment count + completion rate for the selected period (e.g., "You have 12 appointments this month, with 8 completed -- a 67% completion rate."); when there are no appointments, it shows active member count (e.g., "Your organization has 45 active members. No appointments scheduled for this period."). Only rendered when `kpiData` is available.
 - Staff Performance card shows top 10 entries sorted by `appointmentsCompleted` desc (client-side sort).
 - `formatRM` is a local helper (not from `lib/currency`) — converts integer cents to `RM X,XXX.XX` string.
 - The `RevenuByBranchCard` has a typo in the component name: `RevenuByBranchCard` (missing 'e').

@@ -39,10 +39,13 @@ import { Route as AuthenticatedDashboardLayoutTrainersViewRouteImport } from './
 import { Route as AuthenticatedDashboardLayoutSuppliersViewRouteImport } from './routes/_authenticated/dashboard/_layout/suppliers/view'
 import { Route as AuthenticatedDashboardLayoutStockRequestsViewRouteImport } from './routes/_authenticated/dashboard/_layout/stock-requests/view'
 import { Route as AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport } from './routes/_authenticated/dashboard/_layout/settings/tax-rates'
+import { Route as AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport } from './routes/_authenticated/dashboard/_layout/settings/installment-plans'
+import { Route as AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport } from './routes/_authenticated/dashboard/_layout/settings/google-calendar'
 import { Route as AuthenticatedDashboardLayoutServiceViewRouteImport } from './routes/_authenticated/dashboard/_layout/service/view'
 import { Route as AuthenticatedDashboardLayoutServiceCategoryViewRouteImport } from './routes/_authenticated/dashboard/_layout/service-category/view'
 import { Route as AuthenticatedDashboardLayoutSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/sales/view'
 import { Route as AuthenticatedDashboardLayoutSalesIdRouteImport } from './routes/_authenticated/dashboard/_layout/sales/$id'
+import { Route as AuthenticatedDashboardLayoutRoomsViewRouteImport } from './routes/_authenticated/dashboard/_layout/rooms/view'
 import { Route as AuthenticatedDashboardLayoutRoleViewRouteImport } from './routes/_authenticated/dashboard/_layout/role/view'
 import { Route as AuthenticatedDashboardLayoutPurchaseOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/purchase-orders/view'
 import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/promotions/view'
@@ -63,7 +66,6 @@ import { Route as AuthenticatedDashboardLayoutAccessControlUserAssignmentRouteIm
 import { Route as AuthenticatedDashboardLayoutAccessControlRolesRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/roles'
 import { Route as AuthenticatedDashboardLayoutAccessControlPermissionsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/permissions'
 import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/invitations'
-import { Route as AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/settings/payment/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/installments/view'
 import { Route as AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/walk-in/view'
@@ -233,6 +235,18 @@ const AuthenticatedDashboardLayoutSettingsTaxRatesRoute =
     path: '/settings/tax-rates',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute =
+  AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport.update({
+    id: '/settings/installment-plans',
+    path: '/settings/installment-plans',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute =
+  AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport.update({
+    id: '/settings/google-calendar',
+    path: '/settings/google-calendar',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutServiceViewRoute =
   AuthenticatedDashboardLayoutServiceViewRouteImport.update({
     id: '/service/view',
@@ -255,6 +269,12 @@ const AuthenticatedDashboardLayoutSalesIdRoute =
   AuthenticatedDashboardLayoutSalesIdRouteImport.update({
     id: '/sales/$id',
     path: '/sales/$id',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutRoomsViewRoute =
+  AuthenticatedDashboardLayoutRoomsViewRouteImport.update({
+    id: '/rooms/view',
+    path: '/rooms/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutRoleViewRoute =
@@ -377,12 +397,6 @@ const AuthenticatedDashboardLayoutAccessControlInvitationsRoute =
     path: '/access-control/invitations',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
-const AuthenticatedDashboardLayoutSettingsPaymentViewRoute =
-  AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport.update({
-    id: '/settings/payment/view',
-    path: '/settings/payment/view',
-    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
 const AuthenticatedDashboardLayoutPackagesInstancesViewRoute =
   AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport.update({
     id: '/packages/instances/view',
@@ -450,10 +464,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/dashboard/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/dashboard/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
+  '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
@@ -466,7 +483,6 @@ export interface FileRoutesByFullPath {
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
-  '/dashboard/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -509,10 +525,13 @@ export interface FileRoutesByTo {
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/dashboard/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/dashboard/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
+  '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
@@ -525,7 +544,6 @@ export interface FileRoutesByTo {
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
-  '/dashboard/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -571,10 +589,13 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/_authenticated/dashboard/_layout/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/_authenticated/dashboard/_layout/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
+  '/_authenticated/dashboard/_layout/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/_authenticated/dashboard/_layout/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
   '/_authenticated/dashboard/_layout/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/_authenticated/dashboard/_layout/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/_authenticated/dashboard/_layout/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/_authenticated/dashboard/_layout/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
+  '/_authenticated/dashboard/_layout/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/_authenticated/dashboard/_layout/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/_authenticated/dashboard/_layout/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/_authenticated/dashboard/_layout/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
@@ -587,7 +608,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/_authenticated/dashboard/_layout/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/_authenticated/dashboard/_layout/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
-  '/_authenticated/dashboard/_layout/settings/payment/view': typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -633,10 +653,13 @@ export interface FileRouteTypes {
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
     | '/dashboard/role/view'
+    | '/dashboard/rooms/view'
     | '/dashboard/sales/$id'
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/google-calendar'
+    | '/dashboard/settings/installment-plans'
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
@@ -649,7 +672,6 @@ export interface FileRouteTypes {
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
-    | '/dashboard/settings/payment/view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -692,10 +714,13 @@ export interface FileRouteTypes {
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
     | '/dashboard/role/view'
+    | '/dashboard/rooms/view'
     | '/dashboard/sales/$id'
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/google-calendar'
+    | '/dashboard/settings/installment-plans'
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
@@ -708,7 +733,6 @@ export interface FileRouteTypes {
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
-    | '/dashboard/settings/payment/view'
   id:
     | '__root__'
     | '/'
@@ -753,10 +777,13 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/promotions/view'
     | '/_authenticated/dashboard/_layout/purchase-orders/view'
     | '/_authenticated/dashboard/_layout/role/view'
+    | '/_authenticated/dashboard/_layout/rooms/view'
     | '/_authenticated/dashboard/_layout/sales/$id'
     | '/_authenticated/dashboard/_layout/sales/view'
     | '/_authenticated/dashboard/_layout/service-category/view'
     | '/_authenticated/dashboard/_layout/service/view'
+    | '/_authenticated/dashboard/_layout/settings/google-calendar'
+    | '/_authenticated/dashboard/_layout/settings/installment-plans'
     | '/_authenticated/dashboard/_layout/settings/tax-rates'
     | '/_authenticated/dashboard/_layout/stock-requests/view'
     | '/_authenticated/dashboard/_layout/suppliers/view'
@@ -769,7 +796,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/customers/walk-in/view'
     | '/_authenticated/dashboard/_layout/packages/installments/view'
     | '/_authenticated/dashboard/_layout/packages/instances/view'
-    | '/_authenticated/dashboard/_layout/settings/payment/view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -999,6 +1025,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/settings/installment-plans': {
+      id: '/_authenticated/dashboard/_layout/settings/installment-plans'
+      path: '/settings/installment-plans'
+      fullPath: '/dashboard/settings/installment-plans'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/settings/google-calendar': {
+      id: '/_authenticated/dashboard/_layout/settings/google-calendar'
+      path: '/settings/google-calendar'
+      fullPath: '/dashboard/settings/google-calendar'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/service/view': {
       id: '/_authenticated/dashboard/_layout/service/view'
       path: '/service/view'
@@ -1025,6 +1065,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/$id'
       fullPath: '/dashboard/sales/$id'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutSalesIdRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/rooms/view': {
+      id: '/_authenticated/dashboard/_layout/rooms/view'
+      path: '/rooms/view'
+      fullPath: '/dashboard/rooms/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutRoomsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/role/view': {
@@ -1167,13 +1214,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
-    '/_authenticated/dashboard/_layout/settings/payment/view': {
-      id: '/_authenticated/dashboard/_layout/settings/payment/view'
-      path: '/settings/payment/view'
-      fullPath: '/dashboard/settings/payment/view'
-      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsPaymentViewRouteImport
-      parentRoute: typeof AuthenticatedDashboardLayoutRoute
-    }
     '/_authenticated/dashboard/_layout/packages/instances/view': {
       id: '/_authenticated/dashboard/_layout/packages/instances/view'
       path: '/packages/instances/view'
@@ -1228,10 +1268,13 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPromotionsViewRoute: typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   AuthenticatedDashboardLayoutPurchaseOrdersViewRoute: typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   AuthenticatedDashboardLayoutRoleViewRoute: typeof AuthenticatedDashboardLayoutRoleViewRoute
+  AuthenticatedDashboardLayoutRoomsViewRoute: typeof AuthenticatedDashboardLayoutRoomsViewRoute
   AuthenticatedDashboardLayoutSalesIdRoute: typeof AuthenticatedDashboardLayoutSalesIdRoute
   AuthenticatedDashboardLayoutSalesViewRoute: typeof AuthenticatedDashboardLayoutSalesViewRoute
   AuthenticatedDashboardLayoutServiceCategoryViewRoute: typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   AuthenticatedDashboardLayoutServiceViewRoute: typeof AuthenticatedDashboardLayoutServiceViewRoute
+  AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
+  AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute: typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   AuthenticatedDashboardLayoutSettingsTaxRatesRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   AuthenticatedDashboardLayoutStockRequestsViewRoute: typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   AuthenticatedDashboardLayoutSuppliersViewRoute: typeof AuthenticatedDashboardLayoutSuppliersViewRoute
@@ -1244,7 +1287,6 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutCustomersWalkInViewRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   AuthenticatedDashboardLayoutPackagesInstancesViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
-  AuthenticatedDashboardLayoutSettingsPaymentViewRoute: typeof AuthenticatedDashboardLayoutSettingsPaymentViewRoute
 }
 
 const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRouteChildren =
@@ -1293,6 +1335,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPurchaseOrdersViewRoute,
     AuthenticatedDashboardLayoutRoleViewRoute:
       AuthenticatedDashboardLayoutRoleViewRoute,
+    AuthenticatedDashboardLayoutRoomsViewRoute:
+      AuthenticatedDashboardLayoutRoomsViewRoute,
     AuthenticatedDashboardLayoutSalesIdRoute:
       AuthenticatedDashboardLayoutSalesIdRoute,
     AuthenticatedDashboardLayoutSalesViewRoute:
@@ -1301,6 +1345,10 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutServiceCategoryViewRoute,
     AuthenticatedDashboardLayoutServiceViewRoute:
       AuthenticatedDashboardLayoutServiceViewRoute,
+    AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute:
+      AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute,
+    AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute:
+      AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute,
     AuthenticatedDashboardLayoutSettingsTaxRatesRoute:
       AuthenticatedDashboardLayoutSettingsTaxRatesRoute,
     AuthenticatedDashboardLayoutStockRequestsViewRoute:
@@ -1325,8 +1373,6 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute,
     AuthenticatedDashboardLayoutPackagesInstancesViewRoute:
       AuthenticatedDashboardLayoutPackagesInstancesViewRoute,
-    AuthenticatedDashboardLayoutSettingsPaymentViewRoute:
-      AuthenticatedDashboardLayoutSettingsPaymentViewRoute,
   }
 
 const AuthenticatedDashboardLayoutRouteWithChildren =

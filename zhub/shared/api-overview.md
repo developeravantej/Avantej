@@ -1,6 +1,6 @@
 # API Routers Overview
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 All procedures use **oRPC**. POST to `/rpc/{router}/{procedure}` with body `{"json": {input}}`.
 
@@ -28,7 +28,7 @@ The router is defined in two layers:
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `auth.login` | public | Sign in with email/password. Calls Better-Auth sign-in, copies Set-Cookie to response. Returns user info + organizations list. |
-| `auth.userContext` | protected | Returns full user context: user fields, all orgs with hierarchy nodes + member record + flat permissions array. Used by web on load. |
+| `auth.userContext` | protected | Returns full user context: user fields, all orgs with hierarchy nodes + member record + flat permissions array. Used by web on load. Role-to-permission lookup uses case-insensitive matching (`LOWER(roles.name) = LOWER(member.role)`); warns on missing role or empty permissions for admin roles. |
 | `auth.verifyEmail` | public | Verify email address using a token from the verification link. |
 
 ---
@@ -181,6 +181,7 @@ The router is defined in two layers:
 | `installments.processRefund` | protected | Process a refund for an installment. |
 | `installments.adminOverview` | protected | Get installments overview for admin dashboard. |
 | `installments.getEvents` | protected | Get installment event history. |
+| `installments.suggestRefund` | protected | Calculate suggested refund amount for a package instance. |
 
 ---
 
@@ -511,6 +512,15 @@ The router is defined in two layers:
 |-----------|------|-------------|
 | `analytics.getDashboardKpis` | protected | Get dashboard KPI metrics (appointments, revenue, members). |
 | `analytics.getStaffPerformance` | protected | Get staff performance data. |
+
+---
+
+## Google Calendar (`packages/api/src/routers/google-calendar.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `googleCalendar.status` | protected | Get Google Calendar integration status for the org. |
+| `googleCalendar.disconnect` | protected | Disconnect Google Calendar integration. |
 
 ---
 

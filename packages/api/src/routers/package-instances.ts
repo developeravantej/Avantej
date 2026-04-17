@@ -13,6 +13,7 @@ import {
   requirePermission,
 } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { desc, and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -166,7 +167,7 @@ export const packageInstancesRouter = {
         expiresAt: z.string().datetime(),
         status: statusSchema.optional(),
         remark: z.string().nullable().optional(),
-        paymentPlanType: z.enum(["full", "half", "quarterly"]).nullable().optional(),
+        paymentPlanType: z.string().nullable().optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
       })
     )
@@ -198,7 +199,27 @@ export const packageInstancesRouter = {
       }
 
       try {
-        const isInstallmentPlan = input.paymentPlanType && input.paymentPlanType !== "full";
+        // Resolve installment plan from DB if a plan code is provided
+        let planRow: typeof installmentPlans.$inferSelect | null = null;
+        if (input.paymentPlanType) {
+          planRow = await context.tenantDb.query.installmentPlans.findFirst({
+            where: and(
+              eq(installmentPlans.code, input.paymentPlanType),
+              eq(installmentPlans.isActive, true),
+            ),
+          }) ?? null;
+          if (!planRow) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: `Unknown installment plan: ${input.paymentPlanType}`,
+            });
+          }
+        }
+
+        const resolvedInstallmentsTotal = planRow?.numInstallments ?? 1;
+        const isInstallmentPlan = planRow !== null && planRow.numInstallments > 1;
+        // Interval precedence: explicit input overrides plan default
+        const effectiveIntervalDays = input.installmentIntervalDays ?? planRow?.defaultIntervalDays ?? 30;
+
         const created = await createPackageInstance(context.tenantDb, {
           serviceId: input.serviceId,
           clientId: input.clientId,
@@ -221,27 +242,27 @@ export const packageInstancesRouter = {
           status: input.status,
           remark: input.remark ?? null,
           paymentPlanType: input.paymentPlanType ?? null,
-          installmentsTotal: input.paymentPlanType === "half" ? 2 : input.paymentPlanType === "quarterly" ? 4 : 1,
+          installmentsTotal: resolvedInstallmentsTotal,
           installmentsPaid: 0,
           creditsUnlocked: isInstallmentPlan ? 0 : null,
         });
 
-        // Generate installment schedule if payment plan provided
+        // Generate installment schedule if payment plan is an installment plan (numInstallments > 1)
         if (isInstallmentPlan) {
-          const intervalDays = input.installmentIntervalDays ?? 30;
           await createInstallmentSchedule(context.tenantDb, {
             packageInstanceId: created.id,
             creditsTotal: created.creditsTotal,
             totalPrice: created.totalPrice ?? 0,
             taxAmount: created.taxAmount ?? 0,
-            paymentPlanType: input.paymentPlanType!,
-            intervalDays,
+            installmentsTotal: resolvedInstallmentsTotal,
+            intervalDays: effectiveIntervalDays,
             purchaseDate: new Date(),
           });
         }
 
         return created;
       } catch (error) {
+        if (error instanceof ORPCError) throw error;
         throw new ORPCError("BAD_REQUEST", {
           message:
             error instanceof Error ? error.message : "Failed to create package instance",

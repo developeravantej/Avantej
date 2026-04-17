@@ -46,12 +46,13 @@ InstallmentsViewPage
 
 **Calls these API endpoints:**
 - `installments.adminOverview` — paginated list of package instances with installment plan info (limit 50)
-- `installments.listByPackageInstance` — individual installment records for a selected instance
-- `installments.confirmPayment` — marks an installment as paid, optionally overrides next interval
-- `installments.manualUnlock` — unlocks a locked package instance, requires reason
-- `installments.processRefund` — processes a refund for a package instance (amount in cents)
+- `installments.listByPackageInstance` — individual installment records for a selected instance; also triggers `evaluateAndLockIfOverdue` server-side
+- `installments.confirmPayment` — marks an installment as paid, unlocks credits, optionally overrides next interval
+- `installments.manualUnlock` — unlocks a locked package instance, requires reason; admin-only
+- `installments.processRefund` — processes a refund for a package instance (amount in cents); admin-only
+- `installments.suggestRefund` — calculates suggested refund amount based on credits used vs unlocked; fetched when refund dialog opens
 
-Note: All `installments.*` calls use `(client as any)` cast — the router may not yet be fully typed.
+Note: All `installments.*` calls use `(client as any)` cast — the router is not yet reflected in the generated oRPC client type.
 
 **Uses these components:**
 - `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx`
@@ -104,5 +105,6 @@ function getInstanceStatus(instance): "Active" | "Overdue" | "Locked" {
 
 - The list is paginated at 50 items (`limit: 50, offset: 0`) but has no pagination UI — the first page is always shown.
 - `totalPaidCents` for the refund dialog is computed client-side by summing all paid installment amounts from the secondary query.
-- The refund amount field pre-fills with the total paid amount (converted from cents to RM string).
+- The refund dialog calls `installments.suggestRefund` (enabled when dialog opens + instanceId exists + admin) and auto-populates the refund amount input with the calculated suggested refund value on first open.
+- The refund amount field also pre-fills as a fallback with `totalPaidCents / 100` (client-side sum of paid installments).
 - All `installments.*` API calls use `(client as any)` — the `installments` router is not yet reflected in the generated oRPC client type.

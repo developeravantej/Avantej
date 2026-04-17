@@ -1,14 +1,7 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { formatPrice } from "@/lib/currency";
 import type { ColumnDef } from "@tanstack/react-table";
-
-const formatPrice = (priceCents: number | null | undefined): string => {
-	if (priceCents == null) return "—";
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-	}).format(priceCents / 100);
-};
 
 const formatDate = (date: Date | string | null | undefined): string => {
 	if (!date) return "N/A";
@@ -67,7 +60,10 @@ export const columns: ColumnDef<any>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Price" />
 		),
-		cell: ({ getValue }) => formatPrice(getValue<number>()),
+		cell: ({ getValue }) => {
+			const val = getValue<number>();
+			return val != null ? formatPrice(val, "MYR") : "—";
+		},
 		enableSorting: true,
 		enableHiding: false,
 	},

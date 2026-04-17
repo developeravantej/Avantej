@@ -12,6 +12,7 @@ import {
 	Cog,
 	CreditCard,
 	DollarSign,
+	DoorOpen,
 	Eye,
 	FileChartColumnIncreasing,
 	Home,
@@ -80,10 +81,12 @@ export type SidebarNavItem = {
 	title: string;
 	url: string;
 	icon: React.ComponentType<{ className?: string }>;
+	permission?: string;
 	items?: Array<{
 		title: string;
 		url: string;
 		icon: React.ComponentType<{ className?: string }>;
+		permission?: string;
 	}>;
 };
 
@@ -99,7 +102,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Main",
 		items: [
 			{ title: "Home", url: "/dashboard", icon: Home },
-			{ title: "Trainers", url: "/dashboard/trainers/view", icon: Users },
+			{ title: "Trainers", url: "/dashboard/trainers/view", icon: Users, permission: "user_management:read" },
 		],
 	},
 	{
@@ -111,7 +114,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Store,
 				items: [
 					{ title: "View Branches", url: "/dashboard/branch/view", icon: Eye },
-					{ title: "Create Branch", url: "/dashboard/branch/create", icon: Plus },
+					{ title: "Create Branch", url: "/dashboard/branch/create", icon: Plus, permission: "hierarchy_management:create" },
 				],
 			},
 			{
@@ -128,10 +131,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/appointment/view",
 				icon: Calendar,
 				items: [
-					{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar },
-					{ title: "Class Slots", url: "/dashboard/appointment/class-slots/view", icon: Calendar },
-		{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package },
-					{ title: "Installments", url: "/dashboard/packages/installments/view", icon: CreditCard },
+					{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar, permission: "appointment_management:read" },
+					{ title: "Class Slots", url: "/dashboard/appointment/class-slots/view", icon: Calendar, permission: "appointment_management:read" },
+					{ title: "Rooms", url: "/dashboard/rooms/view", icon: DoorOpen, permission: "appointment_management:read" },
+					{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package, permission: "service_management:read" },
+					{ title: "Installments", url: "/dashboard/packages/installments/view", icon: CreditCard, permission: "service_management:read" },
 				],
 			},
 			{
@@ -139,7 +143,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/customers/walk-in/view",
 				icon: BookUser,
 				items: [
-					{ title: "Walk-in Customers", url: "/dashboard/customers/walk-in/view", icon: BookUser },
+					{ title: "Walk-in Customers", url: "/dashboard/customers/walk-in/view", icon: BookUser, permission: "walk_in_customer_management:read" },
 				],
 			},
 		],
@@ -199,10 +203,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/access-control/user-assignment",
 				icon: Shield,
 				items: [
-					{ title: "Role Management", url: "/dashboard/access-control/roles", icon: Shield },
-					{ title: "Permissions", url: "/dashboard/access-control/permissions", icon: Settings },
-					{ title: "User Assignment", url: "/dashboard/access-control/user-assignment", icon: UserPlus },
-					{ title: "Invitations", url: "/dashboard/access-control/invitations", icon: Mail },
+					{ title: "Role Management", url: "/dashboard/access-control/roles", icon: Shield, permission: "role_management:read" },
+					{ title: "Permissions", url: "/dashboard/access-control/permissions", icon: Settings, permission: "role_management:read" },
+					{ title: "User Assignment", url: "/dashboard/access-control/user-assignment", icon: UserPlus, permission: "user_management:read" },
+					{ title: "Invitations", url: "/dashboard/access-control/invitations", icon: Mail, permission: "user_management:read" },
 				],
 			},
 			{
@@ -234,6 +238,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Cog,
 				items: [
 					{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
+					{ title: "Installment Plans", url: "/dashboard/settings/installment-plans", icon: CreditCard },
 					{ title: "Google Calendar", url: "/dashboard/settings/google-calendar", icon: Calendar },
 				],
 			},
@@ -332,6 +337,27 @@ function SidebarUserFooter() {
 function NavGroup({ group }: { group: SidebarNavGroup }) {
 	const location = useLocation();
 	const pathname = location.pathname;
+	const { hasPermission } = useUserContext();
+
+	// Filter top-level items and their sub-items based on permissions
+	const visibleItems = group.items
+		.filter((item) => {
+			if (!item.permission) return true;
+			return hasPermission(item.permission);
+		})
+		.map((item) => {
+			if (!item.items || item.items.length === 0) return item;
+			const visibleSubItems = item.items.filter((sub) => {
+				if (!sub.permission) return true;
+				return hasPermission(sub.permission);
+			});
+			// If all sub-items are permission-gated and none are visible, hide the parent
+			if (visibleSubItems.length === 0 && item.items.length > 0) return null;
+			return { ...item, items: visibleSubItems };
+		})
+		.filter((item): item is SidebarNavItem => item !== null);
+
+	if (visibleItems.length === 0) return null;
 
 	return (
 		<SidebarGroup className="py-1">
@@ -341,7 +367,7 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 
 			<SidebarGroupContent>
 				<SidebarMenu>
-					{group.items.map((item) => {
+					{visibleItems.map((item) => {
 						if (item.items && item.items.length > 0) {
 							// Collapsible group item
 							const isGroupActive = item.items.some((sub) =>

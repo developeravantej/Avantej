@@ -148,6 +148,22 @@ function RouteComponent() {
     refetchOnMount: true,
   });
 
+  // Fetch members to resolve PIC user IDs to human-readable names
+  const { data: membersData = [] } = useQuery({
+    queryKey: ["members", organizationId],
+    queryFn: () => client.members.list({ organizationId: organizationId! }),
+    enabled: !!organizationId && isAuthenticated,
+  });
+
+  // Build a map from userId -> { name, email } for fast PIC lookup
+  const memberByUserId = useMemo(() => {
+    const map = new Map<string, { name: string; email: string }>();
+    membersData.forEach((m: { userId: string; name?: string; email?: string }) => {
+      map.set(m.userId, { name: m.name || "Unknown", email: m.email || "N/A" });
+    });
+    return map;
+  }, [membersData]);
+
   // Update allHierarchyNodes state when hierarchyNodesData changes
   useEffect(() => {
     if (hierarchyNodesData?.nodes) {
@@ -233,17 +249,10 @@ function RouteComponent() {
           ? nodeMap.get(regionNode.parentId)
           : null;
 
-        // Get PIC info - if picUserId exists, use it; otherwise fallback to current user
-        // Note: In a real implementation, we'd fetch user details from control panel DB
-        // For now, if picUserId exists, we'll show it; otherwise use current user
+        // Get PIC info - resolve picUserId to name/email via the members list
         const picUserId = (branch as any).picUserId;
         const picInfo = picUserId
-          ? {
-              // TODO: Fetch actual user details from control panel DB by picUserId
-              // For now, show the userId
-              name: picUserId || "N/A",
-              email: picUserId || "N/A",
-            }
+          ? memberByUserId.get(picUserId) ?? { name: "Unknown", email: "N/A" }
           : {
               name: currentUser?.name || "N/A",
               email: currentUser?.email || "N/A",
@@ -279,7 +288,7 @@ function RouteComponent() {
         };
       });
     },
-    [organizationId]
+    [organizationId, memberByUserId]
   );
 
   // Use React Query for branch data
@@ -856,74 +865,6 @@ function RouteComponent() {
         </Link>
       </div>
 
-      {process.env.NODE_ENV === "development" && (
-        <div className="p-4 mb-4 space-y-2 text-xs bg-brand-secondary-3 rounded">
-          <div className="flex items-center justify-between">
-            <p>
-              <strong>Debug Info:</strong>
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (organizationId) {
-                  localStorage.removeItem(`org_${organizationId}_hierarchy`);
-                  localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
-                  queryClient.invalidateQueries({
-                    queryKey: ["branches", organizationId],
-                  });
-                  queryClient.invalidateQueries({
-                    queryKey: ["hierarchy-nodes", organizationId],
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["user-context"] });
-                  toast.info("Cache cleared, refreshing...");
-                }
-              }}
-            >
-              Clear Cache & Refresh
-            </Button>
-          </div>
-          <p>Organization ID: {organizationId || "None"}</p>
-          <p>Context user email: {userContext?.user?.email ?? "—"}</p>
-          <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
-          <p>User Context Error: {userContextError ? String(userContextError) : "None"}</p>
-          <p>Branch Data Items: {branchData?.items?.length || 0}</p>
-          <p>Is Loading Branches: {isLoadingBranches ? "Yes" : "No"}</p>
-          <p>Error: {error ? String(error) : "None"}</p>
-          <p>
-            Hierarchy Nodes Query Error:{" "}
-            {hierarchyNodesError ? String(hierarchyNodesError) : "None"}
-          </p>
-          <p>All Hierarchy Nodes: {allHierarchyNodes.length}</p>
-          <p>
-            Hierarchy Nodes Query Data: {hierarchyNodesData?.nodes?.length || 0}
-          </p>
-          {error && (
-            <details className="mt-2">
-              <summary>Error Details</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(error, null, 2)}
-              </pre>
-            </details>
-          )}
-          {branchData?.items && branchData.items.length > 0 && (
-            <details className="mt-2">
-              <summary>First Branch Data</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(branchData.items[0], null, 2)}
-              </pre>
-            </details>
-          )}
-          {hierarchyNodesData?.nodes && hierarchyNodesData.nodes.length > 0 && (
-            <details className="mt-2">
-              <summary>Sample Hierarchy Nodes (first 3)</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(hierarchyNodesData.nodes.slice(0, 3), null, 2)}
-              </pre>
-            </details>
-          )}
-        </div>
-      )}
       
       {/* Empty State */}
       {!isLoadingBranches && branchData?.items?.length === 0 && (

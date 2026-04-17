@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/service/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
@@ -48,7 +48,7 @@ ServiceViewPage
 
 **Inputs:** No URL params or filters — all active services for the org/scope are fetched. Form fields in `ServiceFormDialog`: name, duration, duration unit, expirable, price, sessions, taxable, tax %, category, session count (`sessionCount`), expirable + expiry duration (`expiryDays`), available payment plans (`availablePaymentPlans`: full/half/quarterly), installment interval (`installmentIntervalDays`), scheduling type, session duration, max attendees.
 **State management:** TanStack Query cache; local state in `DataTable` (dialogs, selected IDs, global filter string).
-**Outputs:** Table with columns: Name, Category, Duration, Price (USD — see note), Sessions, Scheduling type badge, Status badge, Created date.
+**Outputs:** Table with columns: Name, Category, Duration, Price (MYR, formatted as "RM X.XX"), Sessions, Scheduling type badge, Status badge, Created date.
 **Side effects:** `queryClient.invalidateQueries(["services", organizationId])` on create/edit/deactivate.
 
 ---
@@ -64,7 +64,7 @@ ServiceViewPage
 
 **Uses these components:**
 - `DataTable` — `apps/web/src/components/tables/service/view/data-table.tsx` — table with embedded add/edit/detail/delete.
-- `columns` — `apps/web/src/components/tables/service/view/columns.tsx` — column definitions: Name, Category, Duration, Price, Sessions, Scheduling, Status, Created. Typed as `ColumnDef<any>`.
+- `columns` — `apps/web/src/components/tables/service/view/columns.tsx` — column definitions: Name, Category, Duration, Price, Sessions, Scheduling, Status, Created. Typed as `ColumnDef<any>`. Imports `formatPrice` from `@/lib/currency`.
 - `ServiceFormDialog` — `apps/web/src/components/forms/service-form.tsx` — create/edit form dialog.
 - `ServiceDetailDialog` — `apps/web/src/components/forms/service-detail-dialog.tsx` — read-only detail sheet.
 
@@ -116,7 +116,7 @@ ServiceViewPage
 
 ## 6. Notes
 
-- The `columns.tsx` file uses a local `formatPrice` that formats in **USD** (not MYR): `new Intl.NumberFormat("en-US", { currency: "USD" })` — this is a bug; prices display as USD symbols even though the platform operates in MYR.
+- ~~USD currency bug~~ **FIXED (2026-04-16):** The local `formatPrice` function (which formatted in USD) was removed from `columns.tsx` and replaced with the shared `formatPrice` from `@/lib/currency`. Prices now display correctly as "RM X.XX" via `formatPrice(val, "MYR")`.
 - Deactivation is implemented as a soft delete via `services.update({ isActive: false })` — there is no dedicated delete endpoint.
 - Duration stored in DB in seconds but `durationUnitType` controls display unit. The edit form converts to minutes for display.
 - `services.create` and `services.update` both accept all package fields (`sessionCount`, `expirable`, `expiryDays`, `expiryDate`, `availablePaymentPlans`, `installmentIntervalDays`). A service with `sessionCount > 0` is treated as a session-based package by the native purchase flow.

@@ -100,9 +100,11 @@ type UpdateProductInput = Partial<CreateProductInput>
 
 ## 5. Tests
 
-**Test files:** `apps/server/src/tests/unit/services/products.test.ts` (service-layer unit tests).
-**Scenarios covered:** `listProducts`, `createProduct`, `updateProduct`, `getProductById` at the service layer.
-**Not tested:** Frontend component (status tabs, empty/error states, create/update mutation flows).
+**Test files:**
+- `apps/web/src/__tests__/routes/products.test.tsx` — frontend component tests
+
+**Scenarios covered:** renders empty state, calls `client.products.list` on mount, product data shown in table, price formatted as MYR currency (cents → RM).
+**Not tested:** Create/update mutation flows, status tab filtering, error state rendering, form validation.
 
 ---
 

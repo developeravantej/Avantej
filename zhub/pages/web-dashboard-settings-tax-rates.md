@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 

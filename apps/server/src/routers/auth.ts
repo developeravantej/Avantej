@@ -23,7 +23,7 @@ import { roles } from "@avantej-core/db/schema/tenant/roles";
 import { getDescendantNodeIds } from "@avantej-core/services";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { ORPCError, os } from "@orpc/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle, type NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import { z } from "zod";
@@ -384,10 +384,14 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
             accessibleNodeIds,
           };
 
-          // Fetch permissions for the member's role
+          // Fetch permissions for the member's role (case-insensitive to handle "Admin" vs "admin")
           const role = await tenantDb.query.roles.findFirst({
-            where: eq(roles.name, member.role),
+            where: sql`LOWER(${roles.name}) = LOWER(${member.role})`,
           });
+
+          if (!role) {
+            console.warn(`[userContext] No role found for member.role="${member.role}" in tenant DB`);
+          }
 
           if (role) {
             // Admin roles (priority >= 100) get all permissions
@@ -398,6 +402,9 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
                   action: permissionsTable.action,
                 })
                 .from(permissionsTable);
+              if (allPerms.length === 0) {
+                console.warn(`[userContext] Admin role "${role.name}" has priority ${role.priority} but permissions table is empty`);
+              }
               memberPermissions = allPerms.map((p) => `${p.resource}:${p.action}`);
             } else {
               // Fetch permissions assigned to this role

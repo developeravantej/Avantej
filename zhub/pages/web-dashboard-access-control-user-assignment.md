@@ -1,29 +1,19 @@
 # Access Control — User Role Assignment
 
-**Route:** `/dashboard/access-control/user-assignment`
+**Route:** `/_authenticated/dashboard/_layout/access-control/user-assignment`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/user-assignment.tsx:1`
 **Platform:** web
-**Auth required:** rbac(user_management:read) + rbac(role_management:read)
-**Last updated:** 2026-04-15
+**Auth required:** rbac(user_management:read, role_management:read) — `requirePermission` in `beforeLoad` is a stub; actual enforcement is server-side.
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Assign system roles to members, change hierarchy scope, activate/deactivate members, and invite new users.
-
-**Produces:** Stats cards (total/active users, users without roles, available roles), a searchable/filterable grid of `UserCard` components, a `RoleAssignmentSheet`, an `InviteUserDialog`, and an "Edit User" dialog that updates role + hierarchy scope.
-
-**On success:**
-- Role update → toast "Successfully updated role for {name}"; member list refreshes.
-- Deactivate/reactivate → toast with status; member list refreshes.
-- Invite → toast "Invitation sent to {email}" (or warning if email failed but record was created).
-
-**On failure / error states:**
-- Loading → full-screen overlay spinner during any mutation.
-- Role update error → destructive toast.
-- Invite with no hierarchy scope → toast "Unable to determine your hierarchy scope."
-- API error → destructive toast.
+**Purpose (user perspective):** Manage all organization members — assign system roles, change hierarchy scope, deactivate/reactivate accounts, and invite new users by email.
+**Produces:** A card grid of member records showing name, email, current role badge, active/inactive status, and relative last-login time.
+**On success:** Role updates, deactivate/reactivate, and invitations each show a sonner toast and re-fetch the members list.
+**On failure / error states:** Full-screen loading overlay while fetching. Toast errors on mutation failure. Empty-state card when no users match filters. Invite blocked with error toast when inviter's `hierarchyScopeId` cannot be resolved from user context.
 
 ---
 
@@ -32,74 +22,68 @@
 **Execution flow:**
 ```
 UserAssignmentPage
-  → useUserContext() → organizationId + inviterHierarchyScopeId
-  → useQuery(client.members.list) → membersApiData
-  → useQuery(client.roles.list) → rolesApiData
-  → useQuery(client.hierarchy.listNodes) → hierarchyNodes (for edit dialog)
-  → UserCard[] (filtered by search/role/status)
+  → useQuery(["members", orgId])     → client.members.list({ organizationId })
+  → useQuery(["roles", orgId])       → client.roles.list({ organizationId })
+  → useQuery(["hierarchy","nodes"])  → client.hierarchy.listNodes({ organizationId })
 
-  Edit Roles → RoleAssignmentSheet:
-    → client.members.updateRole()
-    → invalidate ["members", organizationId]
+  handleSaveUserRoles(newRole)
+    → client.members.updateRole({ organizationId, memberId, newRole })
+        → MembershipService.updateMemberRole (dual-write: tenant + control panel)
 
-  Edit User Details → Dialog:
-    → client.members.updateRole()
-    → client.hierarchy.reassignMember() (if scope changed)
-    → invalidate ["members", organizationId]
+  handleDeactivateUser(userId)
+    → client.members.deactivate(...)   [tenant-only status change]
+    OR client.members.reactivate(...)  [dual-write via MembershipService]
 
-  Deactivate/Reactivate:
-    → client.members.deactivate() or client.members.reactivate()
-    → invalidate ["members", organizationId]
+  handleInviteUser(email, role)
+    → client.invitations.create({ organizationId, email, role, hierarchyScopeId })
+    → client.invitations.sendEmail({ invitation, organizationId, ... })
+        [best-effort: email failure shows warning toast, not error; invite is still created]
 
-  Invite User → InviteUserDialog:
-    → client.invitations.create()
-    → client.invitations.sendEmail()
-    → invalidate ["members", organizationId]
+  handleSaveUserDetails()
+    → client.members.updateRole(...)
+    → client.hierarchy.reassignMember({ organizationId, memberId, newHierarchyScopeId })
+        [only if editHierarchyScopeId is non-empty]
 ```
 
-**Inputs:**
-- Search query (name, email, department)
-- Role filter dropdown (all / no-role / per-role-id)
-- Status filter dropdown (all / active / inactive)
+**Inputs:** No URL or query params. Inviter's `hierarchyScopeId` derived from `userContext.organizations[currentOrg].hierarchy.member.hierarchyScopeId`.
 
 **State management:**
-- `users` — local state populated from `membersApiData` via `useEffect`.
-- `selectedUsers` — Set for bulk selection (UI exists but bulk actions are not wired).
-- `editingUser`, `editingUserDetails`, `showInviteDialog` — controls sheets/dialogs.
+- `users` — local copy of members synced from API via `useEffect` on `membersApiData` (one-tick lag on first render)
+- `selectedUsers` — Set of IDs for bulk-select UI (bulk actions are stubs only)
+- `searchQuery`, `roleFilter`, `statusFilter` — client-side filtering, no server round-trip
+- `editingUser` — opens `RoleAssignmentSheet`
+- `editingUserDetails` — opens "Edit User" Dialog
+- `showInviteDialog` — opens `InviteUserDialog` Sheet
+- `isSaving` — disables all mutation buttons during any in-flight call
 
-**Side effects:**
-- `invitations.sendEmail` triggers transactional email (server-side Resend).
-- All mutations invalidate the `["members", organizationId]` query.
+**Outputs:** Card grid renders with filters and stats. Mutations invalidate `["members", orgId]` on success.
+**Side effects:** Invitation email via server-side Resend; failure is non-blocking.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `members.list` — list members with user details
-- `members.updateRole` — change a member's system role
-- `members.deactivate` — set member status to inactive
-- `members.reactivate` — restore member status to active
-- `hierarchy.listNodes` — fetch hierarchy nodes for scope picker
-- `hierarchy.reassignMember` — change member's hierarchy scope
+- `members.list` — fetch members (cross-DB enriched with name/email from control panel)
+- `members.updateRole` — change system role (dual-write)
+- `members.deactivate` — tenant-only status → inactive
+- `members.reactivate` — restore active (dual-write)
+- `roles.list` — available roles for filter/badges
+- `hierarchy.listNodes` — populate hierarchy scope selector
+- `hierarchy.reassignMember` — move member to different node
 - `invitations.create` — create invitation record
-- `invitations.sendEmail` — send invitation email (server-only)
+- `invitations.sendEmail` — server-side email trigger
 
-**Uses these components:**
-- `UserCard` — inline component — card per member with dropdown actions
-- `RoleAssignmentSheet` — inline component — Sheet for role selection
-- `InviteUserDialog` — inline component — Sheet for email + role invitation
-- Edit User Dialog — inline Dialog with role + hierarchy scope selectors
+**Uses these components:** `UserCard`, `RoleAssignmentSheet`, `InviteUserDialog` (all defined inline in same file). Shadcn/ui: `Card`, `Sheet`, `Dialog`, `Select`, `Checkbox`, `Badge`, `Avatar`, `DropdownMenu`.
 
 **Uses these hooks:**
-- `useUserContext` — resolves `organizationId` and inviter's `hierarchyScopeId`
-- `useIsMobile` — grid column count
+- `useUserContext` — `currentOrganizationId` + inviter's `hierarchyScopeId`
+- `useIsMobile` — Sheet slides from bottom on mobile, right on desktop
+- `useQueryClient` — manual cache invalidation
 
-**Navigation: who navigates here:**
-- App sidebar: "User Assignment" under Access Control section
-- Roles page Quick Start Guide CTA links here
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — People → Access Control → "User Assignment" (sidebar link is permission-gated: requires `user_management:read`; hidden when the user lacks this permission)
 
-**Navigation: where it goes:** Stays on page.
+**Navigation: where it goes:** No outbound navigation.
 
 ---
 
@@ -108,39 +92,44 @@ UserAssignmentPage
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `members` (tenant) | SELECT | `id`, `userId`, `name`, `email`, `status`, `role`, `hierarchyScopeId` |
-| `members` (tenant) | UPDATE | `status`, `role` |
+| `members` (tenant) | SELECT, UPDATE | `id`, `userId`, `role`, `status`, `hierarchyScopeId` |
+| `user` (control panel) | SELECT | `id`, `name`, `email` |
+| `roles` (tenant) | SELECT | `id`, `name`, `priority` |
 | `hierarchy_nodes` (tenant) | SELECT | `id`, `name`, `type`, `depth` |
-| `invitations` (tenant) | INSERT | `email`, `role`, `hierarchyScopeId` |
+| `invitations` (tenant) | INSERT | `email`, `role`, `hierarchyScopeId`, `token`, `status` |
+| `organization_members` (control panel) | UPDATE | `role`, `status` |
 
-**Form fields (Edit User dialog):**
+**Key types:**
+- `UserForAssignment` — `{ id, name, email, roles: string[], isActive, department? }` from `apps/web/src/types/user-assignment.ts`
+- `RoleResponse` — `{ id, name, description?, priority }` from same file
+- `SystemRole` — `"admin" | "trainer" | "staff" | "client"` (inline)
+
+**Form fields:**
 | Field | Type | Validation | Maps to |
 |-------|------|------------|---------|
-| Role | Select (admin/trainer/staff/client) | Required | `members.updateRole` |
-| Hierarchy Scope | Select from hierarchy nodes | Optional | `hierarchy.reassignMember` |
-
-**Form fields (Invite User):**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| Email | Email input | Required, valid email | `invitations.create.email` |
-| Role | Select (admin/trainer/staff/client) | Default: staff | `invitations.create.role` |
+| email | text input | required (toast guard) | `invitations.create.email` |
+| role (invite) | Select SystemRole | default "staff" | `invitations.create.role` |
+| role (edit) | Select SystemRole | default "staff" | `members.updateRole.newRole` |
+| hierarchyScopeId | Select from hierarchy nodes | optional | `hierarchy.reassignMember.newHierarchyScopeId` |
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found.
-
+**Scenarios covered:** N/A
 **Not tested (risk areas):**
-- Bulk actions UI (visible but not wired to any API)
-- Invitation email failure path (warning toast + record still created)
-- `useEffect` resetting `users` state on `membersApiData` change (potential stale render)
+- Two-step invite with email failure fallback
+- Deactivate vs reactivate toggle when `user.isActive` changes between renders
+- Null `inviterHierarchyScopeId` blocking invite silently
+- Bulk action menu items (stubs — no mutations wired)
 
 ---
 
 ## 6. Notes
 
-- Bulk action dropdown items ("Bulk Assign Role", "Deactivate Selected") exist in the UI but are no-ops — no mutation is attached to them.
-- `users` is managed as a local state copy of `membersApiData` via `useEffect` — this means there is a render cycle before the list updates after mutations.
-- The `UserCard.roles` array is always empty (`[]`) because `membersApiData` doesn't return role IDs; user roles are mapped from the string `member.role` field instead. The role badge display logic falls back to the `highestRole` from `userRoles` (derived from `user.roles`) which is always empty — resulting in no role badge shown on cards.
-- Two `requirePermission` guards run in `beforeLoad` sequentially; both are currently stubs.
+- `requirePermission` in `beforeLoad` is a client-side stub and does not block navigation. Real RBAC is enforced in each server procedure.
+- `members.deactivate` (tenant-only) and `members.reactivate` (dual-write) are asymmetric — a bug risk if the two get out of sync.
+- The `users` local state array is populated in a `useEffect`, so stats cards show `0` on the initial render tick before the effect runs.
+- `UserCard` shows "No roles assigned" for every member because `initialUsers` maps all members to `roles: []`. The `roles` array on `UserForAssignment` is never populated from the API (the members endpoint does not return role IDs). This is a known data mismatch.
+- Bulk actions ("Bulk Assign Role", "Deactivate Selected") are UI-only — clicking them does nothing.

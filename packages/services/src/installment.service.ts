@@ -6,7 +6,7 @@
  * and admin overview queries.
  */
 
-import { eq, and, isNull, asc, isNotNull } from "drizzle-orm";
+import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte } from "drizzle-orm";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -188,7 +188,7 @@ export type CreateInstallmentScheduleParams = {
 	creditsTotal: number;
 	totalPrice: number;
 	taxAmount: number;
-	paymentPlanType: "full" | "half" | "quarterly";
+	installmentsTotal: number;
 	intervalDays: number;
 	purchaseDate: Date;
 };
@@ -201,12 +201,7 @@ export async function createInstallmentSchedule(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: CreateInstallmentScheduleParams,
 ): Promise<(typeof installments.$inferSelect)[]> {
-	const planToTotal: Record<string, number> = {
-		full: 1,
-		half: 2,
-		quarterly: 4,
-	};
-	const installmentsTotal = planToTotal[params.paymentPlanType] ?? 1;
+	const installmentsTotal = params.installmentsTotal;
 	const amounts = calculateInstallmentAmounts(params.totalPrice, installmentsTotal);
 	const baseTaxPerInstallment = Math.floor(params.taxAmount / installmentsTotal);
 	const taxRemainder = params.taxAmount - baseTaxPerInstallment * installmentsTotal;
@@ -644,6 +639,10 @@ export type AdminInstallmentOverviewParams = {
 	status?: "active" | "overdue" | "locked";
 	limit?: number;
 	offset?: number;
+	search?: string;
+	dueBefore?: Date;
+	dueAfter?: Date;
+	paymentPlanCode?: string;
 };
 
 export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect & {
@@ -657,7 +656,7 @@ export async function getAdminInstallmentOverview(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: AdminInstallmentOverviewParams = {},
 ): Promise<{ items: AdminInstallmentOverviewItem[]; total: number }> {
-	const { status, limit = 50, offset = 0 } = params;
+	const { status, limit = 50, offset = 0, search, dueBefore, dueAfter, paymentPlanCode } = params;
 
 	// Build the filter conditions
 	const conditions = [
@@ -674,6 +673,20 @@ export async function getAdminInstallmentOverview(
 		conditions.push(eq(packageInstances.isLocked, false));
 		conditions.push(isNull(packageInstances.gracePeriodEndsAt));
 	}
+
+	if (search) {
+		// `or()` is always non-null here because we always pass arguments
+		conditions.push(
+			// biome-ignore lint/style/noNonNullAssertion: or() with explicit args is never undefined
+			or(
+				ilike(packageInstances.clientId, `${search}%`),
+				eq(packageInstances.purchaseNumber, search),
+			)!,
+		);
+	}
+	if (dueBefore) conditions.push(lte(packageInstances.nextDueDate, dueBefore));
+	if (dueAfter) conditions.push(gte(packageInstances.nextDueDate, dueAfter));
+	if (paymentPlanCode) conditions.push(eq(packageInstances.paymentPlanType, paymentPlanCode));
 
 	const where = and(...conditions);
 

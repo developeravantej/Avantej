@@ -97,8 +97,9 @@ export default function DataTable<TData, TValue>({
 							? editServiceData.duration * 60
 							: Math.round(editServiceData.duration / 60),
 					maxAttendees: editServiceData.maxAttendees ?? 1,
-					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as Array<'full' | 'half' | 'quarterly'>,
+					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as string[],
 					installmentIntervalDays: editServiceData.installmentIntervalDays ?? 30,
+					gracePeriodDays: (editServiceData as any).gracePeriodDays ?? null,
 				};
 			})()
 		: undefined;

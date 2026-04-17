@@ -123,4 +123,4 @@ AppointmentViewComponent
 - This route (`/_authenticated/appointment/view`) is distinct from the dashboard-nested route (`/_authenticated/dashboard/_layout/appointment/view`). Both exist; the sidebar links to the dashboard-nested version.
 - `clientName` and `service` in the calendar display truncated UUIDs, not resolved names, because the list endpoint does not join member/service tables. This is a known limitation.
 - `getAppointmentQueryRange()` fetches a ~3-month window to support smooth prev/next month navigation without additional fetches.
-- `beforeLoad` uses `requirePermission` which reads from TanStack Query cache (staleTime 5 min) — a cold navigation always does one API round-trip.
+- `beforeLoad` calls `requirePermission` which fetches the user context and checks `appointment_management:read` permission. Unauthorized users are redirected to `/dashboard?unauthorized=true`.

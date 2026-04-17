@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/inventory-options.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
@@ -27,6 +27,9 @@ RouteComponent
        → useQuery(brands.list)             → client.brands.list({ organizationId })
        → useQuery(productCategories.list)  → client.productCategories.list({ organizationId })
        → useQuery(suppliers.list)          → client.suppliers.list({ organizationId })
+       → useQuery(products.list)           → client.products.list({ organizationId })
+       → useMemo: productCountByBrand (Map<brandId, count>)
+       → useMemo: productCountByCategory (Map<categoryId, count>)
        → Mutations: brands.create/update/delete, productCategories.create/update/delete,
                     suppliers.create/update/deactivate
        → <BrandDataTable>, <CategoryDataTable>, <SupplierDataTable>
@@ -35,7 +38,7 @@ RouteComponent
 **Inputs:** No URL params. All actions are inline within each sub-table.
 **State management:** TanStack Query for fetching; mutations for CUD operations. Each table's open/close state is managed inside its own DataTable component.
 **Outputs:** Renders three data tables; mutations invalidate matching query keys.
-**Side effects:** Cache keys `["brands", orgId]`, `["productCategories", orgId]`, `["suppliers", orgId]` invalidated on success.
+**Side effects:** Cache keys `["brands", orgId]`, `["productCategories", orgId]`, `["suppliers", orgId]` invalidated on success. `isLoading` includes `productsLoading` in addition to the three reference-data queries.
 
 ---
 
@@ -45,6 +48,7 @@ RouteComponent
 - `brands.list` / `brands.create` / `brands.update` / `brands.delete`
 - `productCategories.list` / `productCategories.create` / `productCategories.update` / `productCategories.delete`
 - `suppliers.list` / `suppliers.create` / `suppliers.update` / `suppliers.deactivate`
+- `products.list` — fetches products to compute per-brand and per-category product counts
 
 **Uses these components:**
 - `InventoryOptionsDashboard` — `apps/web/src/components/merge-tables/inventory-options-dashboard.tsx` — all data fetching and mutation logic lives here
@@ -87,6 +91,6 @@ RouteComponent
 ## 6. Notes
 
 - The route file is a thin shell — all logic lives in `InventoryOptionsDashboard`.
-- "Products Assigned" column in brands and categories data is hardcoded to `0` — not computed from real data.
+- ~~Hardcoded product counts~~ **FIXED (2026-04-16):** "Products Assigned" column in brands and categories now uses real data from `client.products.list()`, computed via `useMemo` maps (`productCountByBrand`, `productCountByCategory`).
 - `externalCode` field in categories data is hardcoded to `""`.
 - Supplier deactivate uses soft-delete (`isActive = false`) rather than physical deletion; suppliers do not have a delete endpoint.

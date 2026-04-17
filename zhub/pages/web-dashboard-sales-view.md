@@ -3,21 +3,20 @@
 **Route:** `/dashboard/sales/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (rbac `sales:read` enforced server-side)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
 **Purpose (user perspective):** View a list of all sales orders for the current organization.
-**Produces:** A sortable table of sales orders with date, order number, total (MYR), customer name, and created-by.
-**On success:** Sales order rows appear in the table.
-**On failure / error states:**
-- Loading: centered spinner.
-- API error: destructive message with a "Try Again" button.
-- No organization: query is disabled, table renders empty.
-- Empty result: table renders with no rows.
+
+**Produces:** A sortable data table showing date, sales order number, total amount (MYR), customer name, and created-by for every sales order.
+
+**On success:** Table renders with all visible sales orders, scoped to the user's accessible hierarchy nodes.
+
+**On failure / error states:** Spinner while loading; error card with "Try Again" button on fetch failure; empty table when no orders exist.
 
 ---
 
@@ -26,42 +25,42 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext() → organizationId
-  → useQuery(["salesOrders", organizationId])
-      → client.salesOrders.list({ organizationId })
-        → salesOrdersRouter.list → requirePermission("sales", "read")
-        → listSalesOrders(tenantDb, { accessibleNodeIds, ... })
-      → returns SalesOrder[]
-  → maps to SalesRow[] (date ISO string, salesOrderNumber, totalAmount, customerName, createdBy)
-  → <DataTable columns={columns} data={data} />
+  → useUserContext()                  # reads organizationId
+  → useQuery(["salesOrders", orgId])
+    → client.salesOrders.list({ organizationId })
+      → salesOrdersRouter.list        # rbac: sales:read
+        → listSalesOrders()           # service fn
+          → sales_orders (tenant DB)  # filtered by accessibleNodeIds
 ```
 
-**Inputs:** `organizationId` from user context (no user-facing filters).
-**State management:** TanStack Query cache keyed on `["salesOrders", organizationId]`; `isError`/`refetch` for error recovery.
-**Outputs:** Table with columns: Date, Sales Order (copyable), Total Sales (MYR), Customer Name, Created By (with avatar initials), Actions (View/Edit buttons — currently unimplemented stubs).
-**Side effects:** None — read-only page with no mutations.
+**Inputs:** None (no filters or search on this page currently).
+
+**State management:** Only TanStack Query cache (`salesOrders`, `organizationId`).
+
+**Outputs:** `DataTable<SalesRow>` with columns: date, sales_order (copyable), total_sales, customer_name, created_by (avatar), actions (View/Edit stubs).
+
+**Side effects:** None — read-only page.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `salesOrders.list` — list all sales orders for org; requires `sales:read`. Respects `accessibleNodeIds` for RBAC scoping.
+- `salesOrders.list` — list sales orders filtered by `accessibleNodeIds`
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic table wrapper.
-- `columns` / `SalesRow` — `apps/web/src/components/tables/sales/view/columns.tsx` — column definitions.
-- `Button` — `apps/web/src/components/ui/button.tsx` — "Try Again" on error.
+- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic sortable table
+- `columns` / `SalesRow` — `apps/web/src/components/tables/sales/view/columns.tsx` — column definitions
 
 **Uses these hooks:**
-- `useUserContext` — provides `currentOrganizationId`.
-- `useQuery` (TanStack Query).
+- `useUserContext` — provides `organizationId`
 
 **Navigation: who navigates here:**
-- Sidebar "Sales & Inventory → Sales" link (`apps/web/src/components/app-sidebar.tsx:156`).
-- "Back to Sales Orders" link from `apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx`.
+- `apps/web/src/components/app-sidebar.tsx` — "Sales" link under the Sales nav group
+- `apps/web/src/components/app-sidebar.tsx` — "Reports" link (also points to this route)
 
-**Navigation: where it goes:** Intended to navigate to `/dashboard/sales/$id` from the "View" action button — currently the action only `console.log`s (not yet wired).
+**Navigation: where it goes:**
+- `apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx` — via "View" action button in columns (currently `console.log` stub, not wired to router)
 
 ---
 
@@ -70,14 +69,14 @@ RouteComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `sales_orders` | SELECT | `id`, `salesOrderNumber`, `date`, `totalAmount`, `customerName`, `createdBy`, `status`, `branchId` |
+| `sales_orders` (tenant) | READ | `id`, `salesOrderNumber`, `date`, `totalAmount`, `customerName`, `createdBy`, `status`, `branchId` |
 
 **Key types:**
 ```typescript
 interface SalesRow {
-  date?: string | null;        // ISO string
-  sales_order?: string | null; // salesOrderNumber
-  total_sales?: number;        // integer cents
+  date?: string | null;
+  sales_order?: string | null;    // salesOrderNumber
+  total_sales?: number;           // cents
   customer_name?: string | null;
   created_by?: string | null;
 }
@@ -87,16 +86,17 @@ interface SalesRow {
 
 ## 5. Tests
 
-**Test files:** `apps/server/src/tests/unit/services/sales-order.test.ts` (service-layer unit tests).
-**Scenarios covered:** `listSalesOrders`, `createSalesOrder`, `getSalesOrderById`, `updateSalesOrder`, `cancelSalesOrder` at service layer.
-**Not tested:** Frontend component rendering, error/loading states, table column behavior.
+**Test files:** None found specifically for this route.
+
+**Not tested (risk areas):**
+- "View" and "Edit" action buttons in the columns file use `console.log` — they are not wired to any navigation or mutation.
+- No client-side filtering or pagination — large datasets may be slow.
 
 ---
 
 ## 6. Notes
 
-- The "View" and "Edit" action buttons in the columns file (`apps/web/src/components/tables/sales/view/columns.tsx:143-161`) currently only `console.log` — navigation to `/dashboard/sales/$id` is not wired yet.
-- `listSalesOrders` is scoped by `accessibleNodeIds` so staff see only orders in their hierarchy scope.
-- No filters (status, date range, customer) are exposed in the UI — all orders for the org are fetched.
-- `total_sales` in `SalesRow` holds the raw cents value from the API; `formatPrice(totalSales, "MYR")` is called in the column cell.
-- The same `DataTable` component from `tables/sales/view/data-table.tsx` is reused by payouts, promotions, and purchase-orders pages (these pages pass their own columns and data types).
+- The `list` procedure filters by `context.accessibleNodeIds` so staff members only see orders from their hierarchy scope.
+- `total_sales` is in cents from the API; the `formatPrice(amount, "MYR")` call in the column renderer handles display.
+- The "Actions" column in `columns.tsx` has View/Edit buttons that only `console.log` — they are not functional.
+- Amounts/dates are mapped from API response shapes before passing to `SalesRow` (`.toISOString()` for dates).

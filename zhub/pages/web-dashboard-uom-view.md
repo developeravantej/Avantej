@@ -1,19 +1,19 @@
 # Units of Measure
 
-**Route:** `/dashboard/uom/view`
+**Route:** `/_authenticated/dashboard/_layout/uom/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/uom/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (server requires `inventory:read/create/update/delete`)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets admins define, edit, and delete Units of Measure (UoM) used for product inventory (e.g., Piece, Kilogram).
-**Produces:** A paginated, filterable table of base UoMs with inline dialogs for add, edit, and delete confirmation.
-**On success:** Toast notification and query cache invalidated.
-**On failure / error states:** Spinner while loading; "Select an organization" prompt; error panel with "Try Again" button; toast errors on mutation failure; validation (name required) before create/update.
+**Purpose (user perspective):** Manage base units of measure (e.g., Kilogram, Litre, Each) used to define product quantities and inventory tracking.
+**Produces:** A page with a header (Ruler icon, "Units of Measure" title, "Manage base units of measure for products." subtitle, and Separator), followed by a data table of base UoMs (those without a `baseUomId`) with inline add/edit/delete actions. Content is wrapped in `div.p-6.space-y-6`.
+**On success:** Create/update/delete each invalidate the UoM query and show a sonner toast.
+**On failure / error states:** "Select an organization" prompt if no org. Spinner while loading. Error state with "Try Again" button on fetch failure.
 
 ---
 
@@ -22,81 +22,100 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext() → organizationId
-  → useQuery(["unitsOfMeasure", organizationId])
+  → useUserContext() → currentOrganizationId
+  → useQuery(["unitsOfMeasure", orgId])
       → client.unitsOfMeasure.list({ organizationId })
-  → filter: baseUoms = allUoms.filter(u => !u.baseUomId) [only top-level UoMs shown]
-  → DataTable (uom/view/data-table)
-      → Add dialog → createMutation → client.unitsOfMeasure.create(...)
-      → Edit dialog → updateMutation → client.unitsOfMeasure.update(...)
-      → Delete confirm dialog → deleteMutation → client.unitsOfMeasure.delete(...)
+          → unitsOfMeasureRouter.list
+              → requirePermission(tenantDb, member, "inventory", "read")
+              → listUnitsOfMeasure(tenantDb)
+  → baseUoms = allUoms.filter(u => !u.baseUomId)
+  → DataTable (columns, baseUoms, ...)
+
+  createMutation → client.unitsOfMeasure.create({ organizationId, name, description })
+  updateMutation → client.unitsOfMeasure.update({ organizationId, id, name, description })
+  deleteMutation → client.unitsOfMeasure.delete({ organizationId, id })
+  [all invalidate ["unitsOfMeasure", orgId] on success]
 ```
 
-**Inputs:** No URL params. Create/Edit form fields: name (required), description (optional textarea).
-**State management:** `useState` for `isAddDialogOpen` and `editTarget`. TanStack Query for server state. DataTable manages its own filter/sort/pagination state.
-**Outputs:** Renders table; "Add UoM" button; dialogs for CRUD. Page passes callbacks down; DataTable owns dialog state.
-**Side effects:** All mutations invalidate `["unitsOfMeasure", organizationId]`.
+**Inputs:** No URL/query params. `isAddDialogOpen` and `editTarget` state passed down to `DataTable`.
+
+**State management:**
+- `isAddDialogOpen` — controls add dialog in DataTable
+- `editTarget` — `{ id, name, description }` or null; controls edit dialog
+
+**Outputs:** `DataTable` from `apps/web/src/components/tables/uom/view/data-table.tsx`. Mutations invalidate `["unitsOfMeasure", orgId]`.
+**Side effects:** None beyond DB writes.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `unitsOfMeasure.list` — all UoMs for org
-- `unitsOfMeasure.create` — new base UoM
-- `unitsOfMeasure.update` — rename/re-describe
-- `unitsOfMeasure.delete` — hard delete
+- `unitsOfMeasure.list` — fetch all UoMs (base + conversions)
+- `unitsOfMeasure.create` — create base UoM (no `baseUomId`)
+- `unitsOfMeasure.update` — update name/description
+- `unitsOfMeasure.delete` — delete UoM
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/uom/view/data-table.tsx` — table with embedded add/edit/delete dialogs
-- `columns` — `apps/web/src/components/tables/uom/view/columns.tsx` — column definitions
+- `DataTable` — `apps/web/src/components/tables/uom/view/data-table.tsx`
+- `columns` — `apps/web/src/components/tables/uom/view/columns.tsx`
 
 **Uses these hooks:**
 - `useUserContext` — `currentOrganizationId`
-- `useQuery`, `useMutation`, `useQueryClient`
-- `useState`
+- `useQueryClient` — cache invalidation
 
-**Navigation: who navigates here:**
-- App sidebar → Inventory section → "Unit of Measure" link
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — Sales & Inventory → Inventory → "Unit of Measure"
 
-**Navigation: where it goes:** Stays on this page.
+**Navigation: where it goes:** No outbound navigation.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `units_of_measure` | SELECT | `id`, `name`, `description`, `baseUomId`, `conversionFactor`, `createdAt`, `updatedAt` |
-| `units_of_measure` | INSERT | `organizationId`, `name`, `description` |
-| `units_of_measure` | UPDATE | `name`, `description` |
-| `units_of_measure` | DELETE | `id` |
+| `units_of_measure` (tenant) | SELECT, INSERT, UPDATE, DELETE | `id`, `name`, `description`, `baseUomId`, `conversionFactor` |
 
-**Key types:**
-```ts
-type UomRow = { id: string; name: string; description?: string | null; baseUomId?: string | null; conversionFactor?: string; };
+**Key type (UoM record):**
+```typescript
+{
+  id: string;
+  name: string;
+  description: string | null;
+  baseUomId: string | null;       // null for base UoMs
+  conversionFactor: string | null; // null for base UoMs
+  createdAt: Date;
+  updatedAt: Date;
+}
 ```
+
+**Form fields (Add/Edit dialog in DataTable):**
+| Field | Type | Validation | Maps to |
+|-------|------|------------|---------|
+| name | text | required (min 1) | `unitsOfMeasure.create/update.name` |
+| description | text | optional | `unitsOfMeasure.create/update.description` |
 
 ---
 
 ## 5. Tests
 
 **Test files:** `apps/web/src/__tests__/routes/uom.test.tsx`
-
 **Scenarios covered:**
 - Renders without crashing (empty state, "Add UoM" button visible)
-- `client.unitsOfMeasure.list` called on mount
-- UoM data (name) shown in table when resolved
+- `client.unitsOfMeasure.list` is called on mount
+- Shows UoM name in table when data returned
 
-**Not tested:** Create, edit, delete flows; dialog open/close; validation; error state; filtering; pagination.
+**Not tested (risk areas):**
+- Create/update/delete mutations
+- Error state with "Try Again" button
+- Filtering base UoMs from derived UoMs (this page shows only base UoMs; uom-conversions page shows derived)
 
 ---
 
 ## 6. Notes
 
-- Only base UoMs (where `baseUomId` is null) are displayed in the table. Child UoMs (conversion-based) are filtered out client-side before passing data to the table.
-- Delete is a hard delete (not soft-delete) — the procedure is `client.unitsOfMeasure.delete`.
-- The `DataTable` component fully manages dialog open/close state internally via the `meta` object passed to `useReactTable`; the page only controls `isAddDialogOpen` and `editTarget` which are passed as props.
-- The route component is named `RouteComponent` (generic name) rather than a descriptive name.
+- This page and `uom-conversions/view` share the same query key `["unitsOfMeasure", orgId]` and the same `client.unitsOfMeasure.list` call. They split the same data client-side: base UoMs (`!u.baseUomId`) here, derived UoMs (`u.baseUomId !== null`) on the conversions page. Mutations on either page invalidate the shared cache.
+- Page now includes a styled header with `Ruler` icon from lucide-react, title, subtitle, and a `Separator` before the data table.
+- `conversionFactor` is stored as a `string` (not a number) in the schema to preserve decimal precision.
+- Deleting a base UoM may leave dangling references in conversion UoMs if the server does not enforce a FK cascade — check `units_of_measure` schema for cascade rules.

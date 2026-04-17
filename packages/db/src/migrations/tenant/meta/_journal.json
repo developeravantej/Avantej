@@ -85,6 +85,13 @@
       "when": 1776245811268,
       "tag": "0011_clear_marvex",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776394860441,
+      "tag": "0012_military_captain_marvel",
+      "breakpoints": true
     }
   ]
 }

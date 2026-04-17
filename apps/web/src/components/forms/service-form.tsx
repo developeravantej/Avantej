@@ -1,5 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orpc, client } from '@/utils/orpc';
 import { useUserContext } from '@/hooks/useUserContext';
@@ -19,7 +19,7 @@ interface ServiceFormData {
   schedulingType: 'appointment-based' | 'time-preset';
   sessionDurationMinutes: number;
   maxAttendees: number;
-  availablePaymentPlans: Array<'full' | 'half' | 'quarterly'>;
+  availablePaymentPlans: string[];
   installmentIntervalDays: number;
   gracePeriodDays: number | null;
   timePresetConfig?: {
@@ -45,6 +45,19 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     ...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
     enabled: isOpen && !!organizationId,
   });
+
+  // Fetch active installment plans dynamically
+  const { data: activePlans = [] } = useQuery({
+    queryKey: ["installmentPlans", organizationId, "active"],
+    queryFn: () => client.installmentPlans.list({ organizationId, activeOnly: true }),
+    enabled: isOpen && !!organizationId,
+  });
+
+  // Build a map of code → plan for fast lookup
+  const plansMap = useMemo(
+    () => new Map(activePlans.map((p) => [p.code, p])),
+    [activePlans],
+  );
 
   const toExpiryDays = (duration: number, unit: string): number => {
     if (unit === 'year') return duration * 365;
@@ -73,8 +86,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         expirable: data.expirable,
         expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
         availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
-        installmentIntervalDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.installmentIntervalDays : undefined,
-        gracePeriodDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.gracePeriodDays : null,
+        installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
+        gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -102,8 +115,8 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         expirable: data.expirable,
         expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
         availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
-        installmentIntervalDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.installmentIntervalDays : undefined,
-        gracePeriodDays: data.availablePaymentPlans.some(p => p !== 'full') ? data.gracePeriodDays : null,
+        installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
+        gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -608,29 +621,32 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                   <div className="border-t border-brand-secondary-3 pt-4 mt-4">
                     <h3 className="text-sm font-medium text-brand-primary-1 mb-3">Payment Plans</h3>
                     <div className="space-y-2">
-                      {(['full', 'half', 'quarterly'] as const).map((plan) => (
-                        <div key={plan} className="flex items-center">
+                      {activePlans.map((plan) => (
+                        <div key={plan.code} className="flex items-center">
                           <input
                             type="checkbox"
-                            id={`plan-${plan}`}
-                            checked={formData.availablePaymentPlans.includes(plan)}
+                            id={`plan-${plan.code}`}
+                            checked={formData.availablePaymentPlans.includes(plan.code)}
                             onChange={(e) => {
                               setFormData(prev => ({
                                 ...prev,
                                 availablePaymentPlans: e.target.checked
-                                  ? [...prev.availablePaymentPlans, plan]
-                                  : prev.availablePaymentPlans.filter(p => p !== plan),
+                                  ? [...prev.availablePaymentPlans, plan.code]
+                                  : prev.availablePaymentPlans.filter(p => p !== plan.code),
                               }));
                             }}
                             className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
                           />
-                          <label htmlFor={`plan-${plan}`} className="ml-2 text-sm text-brand-primary-1 capitalize">
-                            {plan === 'full' ? 'Full payment' : plan === 'half' ? 'Half (2 installments)' : 'Quarterly (4 installments)'}
+                          <label htmlFor={`plan-${plan.code}`} className="ml-2 text-sm text-brand-primary-1">
+                            {plan.name}
                           </label>
                         </div>
                       ))}
+                      {activePlans.length === 0 && (
+                        <p className="text-sm text-brand-secondary-1 italic">No payment plans configured. Add plans under Settings &rarr; Installment Plans.</p>
+                      )}
                     </div>
-                    {formData.availablePaymentPlans.some(p => p !== 'full') && (
+                    {formData.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) && (
                       <div className="mt-3">
                         <label htmlFor="installmentIntervalDays" className="block text-sm font-medium text-brand-primary-1">
                           Installment interval (days)
@@ -647,7 +663,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                         />
                       </div>
                     )}
-                    {formData.availablePaymentPlans.some(p => p !== 'full') && (
+                    {formData.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) && (
                       <div className="mt-3">
                         <label htmlFor="gracePeriodDays" className="block text-sm font-medium text-brand-primary-1">
                           Grace period (days)

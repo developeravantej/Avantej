@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/announcements/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated (no explicit `beforeLoad` guard)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 

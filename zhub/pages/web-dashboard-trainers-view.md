@@ -1,19 +1,22 @@
-# Trainers
+# Trainers View
 
 **Route:** `/dashboard/trainers/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated + `user_management:read` permission (checked via `beforeLoad`)
-**Last updated:** 2026-04-15
+**Auth required:** rbac(`user_management:read`) — enforced via `requirePermission` in `beforeLoad`
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets admins manage trainer members — view profiles, add new trainers, edit profile info, manage weekly availability, configure per-category buffer times, and suspend/reactivate accounts.
-**Produces:** A searchable table of trainers with a multi-section slide-in sheet for create/edit.
-**On success:** Toast notification and relevant query cache invalidated.
-**On failure / error states:** Spinner while loading; "Select an organization" prompt; empty state with "Add Trainer" CTA; toast errors.
+**Purpose (user perspective):** Manage trainer members — add new trainers, update their profiles, configure availability, set per-service buffer times, and suspend/reactivate accounts.
+
+**Produces:** A searchable data table of all trainer-role members with profile details merged in; a side Sheet for create/edit with collapsible sections for profile, weekly availability, and buffer times.
+
+**On success:** New trainer created and profile upserted; existing trainer profile saved; status changes applied. All mutations invalidate trainer/trainerProfiles cache and show a success toast.
+
+**On failure / error states:** Spinner while loading; empty state with "Add Trainer" CTA when no results; toast on mutation errors; "Select an organization" guard when no org is set.
 
 ---
 
@@ -22,108 +25,117 @@
 **Execution flow:**
 ```
 TrainersView
-  → requirePermission("user_management:read") [beforeLoad guard]
-  → useUserContext() → organizationId, hierarchy nodes
-  → useDebounce(search, 300) → debouncedSearch
-  → useQuery(["trainers", organizationId])
-      → client.members.list({ organizationId, role: "trainer" })
-  → useQuery(["trainerProfiles", organizationId, memberIds])
-      → Promise.allSettled(client.memberProfiles.get per member) → profilesMap
-  → merge members + profiles → tableData (filtered by debouncedSearch)
-  → columns: displayName, email, specialization, phone, status, actions (Edit / Suspend / Reactivate)
-  → Sheet (create):
-      → client.members.create({ role: "trainer", email, hierarchyScopeId })
-      → client.memberProfiles.upsert(...)
-  → Sheet (edit):
-      → client.memberProfiles.upsert(...)
-      → Collapsible: TrainerAvailabilityEditor
-      → Collapsible: Category Buffer Times
-          → useQuery(["trainerServices", organizationId, memberId]) [only when bufferSectionOpen]
-              → client.serviceMembers.listForMember(...)
-          → updateBufferMutation → client.serviceMembers.updateBuffer(...)
-  → suspendMutation → client.members.suspend
-  → reactivateMutation → client.members.reactivate
+  → useUserContext()                         # reads organizationId + hierarchy nodes
+  → useQuery(["trainers", orgId])
+    → client.members.list({ role: "trainer" })
+      → memberRouter.list                    # rbac: user_management:read
+        → members table (tenant DB)
+  → useQuery(["trainerProfiles", orgId, memberIds])
+    → Promise.allSettled(client.memberProfiles.get() for each trainer)
+      → member_profiles table (tenant DB)
+  → useQuery(["trainerServices", orgId, memberId])   # lazy: only when bufferSectionOpen
+    → client.serviceMembers.listForMember(...)
+  → createMutation
+    → client.members.create(...)             # role="trainer"
+    → client.memberProfiles.upsert(...)
+  → updateProfileMutation → client.memberProfiles.upsert(...)
+  → suspendMutation    → client.members.suspend(...)
+  → reactivateMutation → client.members.reactivate(...)
+  → updateBufferMutation → client.serviceMembers.updateBuffer(...)
 ```
 
-**Inputs:** Search input (debounced 300ms, client-side filter). Create form: email, hierarchyScopeId (from org hierarchy nodes dropdown), displayName, bio, specialization, phoneNumber, certifications (comma-separated). Edit form: all profile fields.
-**State management:** `useState` for search, sheet open/close, editingMemberId, form values, collapsible section states, buffer editing state. TanStack Query for members list, profiles map (parallel fetch), trainer services.
-**Outputs:** Table with search; Sheet with collapsible sections (Account, Profile, Weekly Availability, Category Buffer Times); suspend/reactivate action buttons.
-**Side effects:** Invalidates `["trainers", organizationId]` and `["trainerProfiles", organizationId]` on member or profile mutations.
+**Inputs:**
+- Search field: client-side filter on name, email, displayName, specialization (300 ms debounce)
+- Sheet form: email (create only), hierarchyScopeId (create only), displayName, specialization, phoneNumber, bio, certifications (comma-separated string)
+- Availability editor: delegated to `TrainerAvailabilityEditor`
+- Buffer times: numeric input per service (0–480 min; empty = use category default → stored as `null`)
+
+**State management:**
+- `search` / `debouncedSearch` — client-side filter
+- `sheetOpen`, `editingMemberId`, `form` — Sheet open/close and form values
+- `profileSectionOpen`, `availabilitySectionOpen`, `bufferSectionOpen` — collapsible sections
+- `editingBufferServiceId`, `bufferInputValue` — inline buffer row editor
+
+**Outputs:** DataTable with merged trainer + profile rows; Sheet opens for create or edit.
+
+**Side effects:** `queryClient.invalidateQueries` on trainers and trainerProfiles after any mutation.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `members.list` — fetch trainers (role="trainer")
-- `members.create` — add a new trainer
-- `members.suspend` — suspend trainer account
-- `members.reactivate` — reactivate trainer account
-- `memberProfiles.get` — fetch profile per trainer (parallel)
-- `memberProfiles.upsert` — create or update trainer profile
-- `serviceMembers.listForMember` — list service/category assignments with buffer times
-- `serviceMembers.updateBuffer` — update per-category buffer time override
+- `members.list` — list trainer-role members (rbac: user_management:read)
+- `memberProfiles.get` — per-trainer profile (parallel fetch)
+- `memberProfiles.upsert` — create or update profile
+- `members.create` — add new trainer
+- `members.suspend` / `members.reactivate` — status management
+- `serviceMembers.listForMember` — service assignments (for buffer section)
+- `serviceMembers.updateBuffer` — save per-service buffer time
 
 **Uses these components:**
+- `TrainerAvailabilityEditor` — `apps/web/src/components/trainers/trainer-availability-editor.tsx` — weekly availability CRUD inside the Sheet
 - `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic table
-- `CopyableCell` — `apps/web/src/components/tables/copyable-cell.tsx` — copy email/phone
-- `TrainerAvailabilityEditor` — `apps/web/src/components/trainers/trainer-availability-editor.tsx` — weekly schedule editor
-- `Sheet`, `Collapsible` — `@/components/ui/sheet`, `@/components/ui/collapsible` — slide-in with expandable sections
+- `CopyableCell` — `apps/web/src/components/tables/copyable-cell.tsx` — click-to-copy cells
 
 **Uses these hooks:**
-- `useUserContext` — `currentOrganizationId`, org hierarchy nodes
-- `useDebounce` — `@/hooks/useDebounce` — debounced search
-- `useQuery`, `useMutation`, `useQueryClient`
-- `useState`
+- `useUserContext` — provides `organizationId` and hierarchy nodes (no extra API call needed)
+- `useDebounce` — 300 ms debounce on the search input
 
-**Navigation: who navigates here:**
-- App sidebar → "Trainers" link (`/dashboard/trainers/view`)
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — "Trainers" link in the home nav group
 
-**Navigation: where it goes:** Stays on this page.
+**Navigation: where it goes:** No outbound navigation; all interactions happen in the Sheet.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `members` | SELECT | `id`, `userId`, `role`, `hierarchyScopeId`, `status`, `joinedAt`, `name`, `email` |
-| `members` | INSERT | `organizationId`, `email`, `role="trainer"`, `hierarchyScopeId` |
-| `members` | UPDATE | `status` (suspend/reactivate) |
-| `member_profiles` | SELECT | `memberId`, `displayName`, `bio`, `specialization`, `phoneNumber`, `certifications` |
-| `member_profiles` | UPSERT | all profile fields |
-| `service_members` | SELECT | `memberId`, `categoryId`, `categoryName`, `bufferTimeMinutes`, `categoryDefaultBuffer` |
-| `service_members` | UPDATE | `bufferTimeMinutes` |
+| `members` (tenant) | READ, UPDATE | `id`, `userId`, `role`, `hierarchyScopeId`, `status`, `joinedAt` |
+| `member_profiles` (tenant) | READ, UPSERT | `memberId`, `displayName`, `bio`, `specialization`, `phoneNumber`, `certifications` |
+| `service_members` (tenant) | READ, UPDATE | `memberId`, `serviceId`, `bufferTimeMinutes` |
 
 **Key types:**
-```ts
+```typescript
 type TrainerRow = {
-  id: string; userId: string; hierarchyScopeId: string;
-  status: string; joinedAt: Date | string | null;
-  name: string; email: string;
-  displayName?: string | null; specialization?: string | null;
-  phoneNumber?: string | null; bio?: string | null;
-  certifications?: string[] | null;
-};
+  id: string; userId: string; hierarchyScopeId: string; status: string;
+  joinedAt: Date|string|null; name: string; email: string;
+  displayName?: string|null; specialization?: string|null;
+  phoneNumber?: string|null; bio?: string|null; certifications?: string[]|null;
+}
 ```
+
+**Form fields:**
+| Field | Type | Validation | Maps to |
+|-------|------|------------|---------|
+| email | email input | required on create | `members.create.email` |
+| hierarchyScopeId | select | required on create | `members.create.hierarchyScopeId` |
+| displayName | text | optional | `memberProfiles.upsert.displayName` |
+| specialization | text | optional | `memberProfiles.upsert.specialization` |
+| phoneNumber | tel | optional | `memberProfiles.upsert.phoneNumber` |
+| bio | textarea | optional | `memberProfiles.upsert.bio` |
+| certifications | text (comma-sep) | optional | `memberProfiles.upsert.certifications[]` |
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
+**Test files:** None found for this page or its specific endpoints.
 
-**Not tested:** Any scenario. The route has no dedicated test file.
+**Not tested (risk areas):**
+- Profile fetch silently drops failures (`Promise.allSettled`) — a trainer with no profile record shows all-null fields rather than an error
+- Buffer time saved as empty string maps to `null` (use default) — no explicit validation
+- Hierarchy dropdown with zero nodes (shows disabled placeholder but form still submits)
 
 ---
 
 ## 6. Notes
 
-- `requirePermission("user_management:read")` in `beforeLoad` is a stub per project notes — it does not actually block access currently.
-- Profiles are fetched in parallel via `Promise.allSettled`; failed profile fetches are silently ignored (the trainer row still appears with no profile data).
-- Certifications are stored as an array in the DB but entered as a comma-separated string in the UI.
-- The "Category Buffer Times" section only fetches `serviceMembers.listForMember` when `bufferSectionOpen` is true (lazy load).
-- The "Weekly Availability" section is only shown when editing (not creating) a trainer.
-- Hierarchy nodes for the scope dropdown come from `userContext.organizations[].hierarchy.nodes` — already fetched, no extra API call.
+- `requirePermission` in `beforeLoad` is a stub in `route-guards.ts`; real RBAC is inside the API handler.
+- Profile data is fetched with `Promise.allSettled` so a missing profile record does not block the rest.
+- Certifications stored as `string[]` in DB; UI uses a comma-separated string — conversion happens in mutation helpers.
+- The Availability section only renders when `editingMemberId` is set (edit mode only).
+- Buffer times section is lazy-loaded (gated by `bufferSectionOpen`) to avoid N+1 calls on open.
+- Hierarchy node list is sourced from `userContext.organizations[].hierarchy.nodes` — already in context, no extra API call.

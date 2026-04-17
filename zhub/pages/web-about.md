@@ -1,21 +1,19 @@
-# About
+# About Page
 
 **Route:** `/about`
 **File:** `apps/web/src/routes/about.tsx:1`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Static marketing page presenting Avantej's company story, values, and leadership team.
-
-**Produces:** A read-only informational page with no interactive elements and no API calls.
-
-**On success:** Page renders immediately; no loading or error states.
-**On failure / error states:** None (fully static).
+**Purpose (user perspective):** Public static "About Avantej" page presenting the company story, values, and leadership team.
+**Produces:** Two-section page: (1) hero with company mission statement, (2) "Our Story" text + "Our Values" card (3 values) + leadership team grid (4 placeholder profiles).
+**On success:** Static content renders immediately — no data fetching.
+**On failure / error states:** No error states — purely static render.
 
 ---
 
@@ -23,42 +21,34 @@
 
 **Execution flow:**
 ```
-AboutPage
-  → renders static JSX only
-  → no hooks, no API calls, no side effects
+AboutPage → renders static JSX
 ```
 
-**Inputs:** None.
-
-**State management:** None.
-
-**Outputs:** Two-section layout:
-1. Hero — headline and tagline
-2. "Our Story" + "Our Values" grid; leadership team grid (4 placeholder avatar circles with names/titles)
-
-**Side effects:** None.
+**Inputs:** None
+**State management:** None
+**Outputs:** Static about page
+**Side effects:** None
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None.
+**Calls these API endpoints:** None
 
 **Uses these components:**
-- `lucide-react` `Check` icon only — inline, not a project component
+- `Check` icon from `lucide-react` — used in values list items
 
-**Uses these hooks:** None.
+**Uses these hooks:** None
 
-**Navigation: who navigates here:**
-- No internal `Link` or `navigate` calls to `/about` found in `apps/web/src`. Accessible via direct URL or external links (e.g., footer links on the landing page).
+**Navigation: who navigates here:** Direct URL `/about` — no nav links found pointing here in sidebar or landing page
 
-**Navigation: where it goes:** None (no navigation links inside this page).
+**Navigation: where it goes:** No outbound links on this page
 
 ---
 
 ## 4. Data Shapes
 
-No DB tables touched. No API calls. No form fields.
+No data shapes — fully static content.
 
 ---
 
@@ -66,12 +56,13 @@ No DB tables touched. No API calls. No form fields.
 
 **Test files:** None found
 **Scenarios covered:** N/A
-**Not tested (risk areas):** N/A (static page; rendering regression only risk).
+**Not tested (risk areas):** N/A — static page
 
 ---
 
 ## 6. Notes
 
-- Leadership team members (Sarah Johnson, Michael Chen, Amanda Rodriguez, David Kim) are placeholder copy with grey avatar circles — no real images or data.
-- No navigation links to other pages inside this component.
-- This page is part of the public marketing surface alongside `/features`, `/contact`, and `/demo`.
+- Leadership team profiles (Sarah Johnson, Michael Chen, Amanda Rodriguez, David Kim) use gray placeholder circles — no actual photos.
+- The same names appear in the testimonials section of `index.tsx` as both customers and leadership — clearly placeholder copy.
+- This page is not linked from anywhere visible in the codebase (no sidebar link, not referenced from landing page). Likely a stub for future use.
+- Users must use browser back to leave this page — no navigation links back to landing or login.

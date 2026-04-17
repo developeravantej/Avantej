@@ -1,21 +1,19 @@
 # User Roles View
 
-**Route:** `/dashboard/role/view`
+**Route:** `/_authenticated/dashboard/_layout/role/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/role/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (no explicit `beforeLoad` guard; server requires `user_management:read`)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View all roles configured in the organization — both system roles and custom roles — with their name, description, priority, and ID.
-**Produces:** A sortable table listing all roles ordered by priority (highest first).
-**On success:** Role rows appear in the table.
-**On failure / error states:**
-- No organization: query is disabled (`enabled: !!organizationId`), table renders empty.
-- Loading: centered spinner.
+**Purpose (user perspective):** Read-only list of all roles defined in the organization, ordered by priority.
+**Produces:** A data table of roles with columns for name, description, priority, and system/custom flag.
+**On success:** Table renders with all tenant roles.
+**On failure / error states:** Spinner while loading. TanStack Query default error handling (no explicit error UI in this route).
 
 ---
 
@@ -24,36 +22,34 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext() → organizationId
-  → useQuery via orpc.roles.list.queryOptions({ input: { organizationId } })
-      → rolesRouter.list (packages/api/src/routers/roles.ts)
-        → requirePermission(tenantDb, member, "user_management", "read")
-        → tenantDb.select().from(roles).orderBy(desc(roles.priority))
-      → returns RoleRow[]
-  → <DataTable columns={columns} data={data} />
+  → useUserContext() → currentOrganizationId
+  → useQuery(orpc.roles.list.queryOptions({ input: { organizationId } }))
+      → rolesRouter.list
+          → requirePermission(tenantDb, member, "user_management", "read")
+          → tenantDb.SELECT FROM roles ORDER BY priority DESC
+  → DataTable (columns, data)
 ```
 
-**Inputs:** `organizationId` from user context (no user-facing filters or forms).
-**State management:** TanStack Query cache; no local state.
-**Outputs:** Table with columns: Role Name (badge, "System" badge if `isSystem`), Description, Priority, Created At, ID (copyable, truncated).
-**Side effects:** None — read-only page.
+**Inputs:** No URL/query params.
+**State management:** Only TanStack Query state (no local state).
+**Outputs:** `DataTable` from `apps/web/src/components/tables/role/view/data-table.tsx` with `columns` from `apps/web/src/components/tables/role/view/columns.tsx`.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `roles.list` — list all roles ordered by priority desc; requires `user_management:read`.
+- `roles.list` — fetch all tenant roles ordered by priority descending
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/role/view/data-table.tsx` — generic table wrapper.
-- `columns` — `apps/web/src/components/tables/role/view/columns.tsx` — column definitions with inline `CopyableCell`.
+- `DataTable` — `apps/web/src/components/tables/role/view/data-table.tsx`
+- `columns` — `apps/web/src/components/tables/role/view/columns.tsx`
 
 **Uses these hooks:**
-- `useUserContext` — provides `currentOrganizationId`.
-- `useQuery` (TanStack Query via `orpc.roles.list.queryOptions`).
+- `useUserContext` — supplies `currentOrganizationId`
 
-**Navigation: who navigates here:** Sidebar "People → User → User Roles" link (`apps/web/src/components/app-sidebar.tsx:214`).
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — People → User → "User Roles"
+
 **Navigation: where it goes:** No outbound navigation.
 
 ---
@@ -63,35 +59,28 @@ RouteComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `roles` | SELECT | `id`, `name`, `description`, `isSystem`, `priority`, `createdAt`, `updatedAt` |
+| `roles` (tenant) | SELECT | `id`, `name`, `description`, `priority`, `isSystem`, `createdAt`, `updatedAt` |
 
-**Key types:**
-```typescript
-type RoleRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  isSystem: boolean;
-  priority: number; // 1–99 custom; 100 = admin system role
-  createdAt: Date;
-  updatedAt: Date;
-};
-```
+**Key constraints:**
+- System roles (`isSystem = true`) have `priority = 100` reserved for admin
+- Custom roles must have `priority` 1–99
+- Roles ordered by `priority DESC` (highest priority number first)
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found for this route or component.
+**Test files:** None found.
 **Scenarios covered:** N/A
-**Not tested:** Loading state, empty org state, column rendering.
+**Not tested (risk areas):**
+- No guard against unauthenticated / unauthorized access in `beforeLoad`
+- Empty roles list render
+- System vs custom role distinction in columns
 
 ---
 
 ## 6. Notes
 
-- This page is read-only — there are no create, edit, or delete actions on the UI. Role management (create/update/delete) is handled elsewhere (the router at `packages/api/src/routers/roles.ts` exposes those procedures but this page does not call them).
-- System roles (`isSystem: true`) are shown but cannot be modified or deleted via the API — enforced server-side.
-- Priority 100 is reserved for the admin system role; custom roles must use 1–99.
-- The columns file implements its own inline `CopyableCell` component instead of importing from `@/components/tables/copyable-cell` — minor inconsistency with other pages.
-- Note: "Access Control → Role Management" in the sidebar points to a different route (`/dashboard/access-control/roles`); this page is listed under "User Roles" in the People section.
+- This page uses the `orpc` client's `queryOptions` helper (oRPC-native pattern) rather than the plain `client` import used by most other pages. Both point to the same underlying transport.
+- This page is read-only — create/update/delete of roles is handled in the Access Control → Role Management page (`/dashboard/access-control/roles`).
+- The sidebar links both "User Roles" (this page, `/dashboard/role/view`) and "Role Management" (`/dashboard/access-control/roles`) — these appear to be separate pages with overlapping purpose.

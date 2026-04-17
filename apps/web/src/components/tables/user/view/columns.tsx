@@ -62,7 +62,14 @@ export const columns: ColumnDef<MemberRow>[] = [
     ),
     cell: ({ row }) => {
       const member = row.original;
-      const displayName = member.name || member.email || "Unknown";
+      const nameIsUnknown = !member.name || member.name === "Unknown";
+      const emailIsValid = member.email && member.email !== "No email";
+      // If the API returned "Unknown" for name but we have a real email, show
+      // the email as a fallback so the row is still identifiable.
+      const isFallback = nameIsUnknown && !!emailIsValid;
+      const displayName = isFallback
+        ? (member.email as string)
+        : (member.name || member.email || "Unknown");
       const initials = displayName
         .split(" ")
         .map((n) => n[0])
@@ -75,7 +82,9 @@ export const columns: ColumnDef<MemberRow>[] = [
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{displayName}</span>
+          <span className={isFallback ? "text-muted-foreground text-sm" : "font-medium"}>
+            {displayName}
+          </span>
         </div>
       );
     },

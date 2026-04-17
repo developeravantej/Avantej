@@ -3,20 +3,20 @@
 **Route:** `/dashboard/sales/$id`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (rbac `sales:read` and `payments:read` enforced server-side)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View the full details of a single sales order including order summary and linked invoices.
-**Produces:** A detail page with order header (order number, status, date), an Order Summary card (total, customer name, created by, customer type, notes), and an Invoices card (if any exist).
-**On success:** Order details and invoices render.
-**On failure / error states:**
-- Loading: centered spinner.
-- Order not found or API error: "Back to Sales Orders" button + "Order not found." message.
-- No organization: query is disabled; same not-found path after load.
+**Purpose (user perspective):** View the full details of a single sales order, including order summary and associated invoices.
+
+**Produces:** A detail card with order metadata (number, status, date, total, customer, created-by, notes) plus a list of linked invoices with their amounts and statuses.
+
+**On success:** Renders the order summary card; if invoices exist they appear in a second card below.
+
+**On failure / error states:** Spinner while loading; "Order not found" message with back button on error or missing order.
 
 ---
 
@@ -25,24 +25,27 @@
 **Execution flow:**
 ```
 SalesOrderDetailPage
-  → Route.useParams() → { id }
-  → useUserContext() → organizationId
+  → Route.useParams()                    # extracts id from URL
+  → useUserContext()                     # reads organizationId
   → useQuery(["salesOrders", id])
-      → client.salesOrders.getById({ organizationId, id })
-        → salesOrdersRouter.getById → requirePermission("sales", "read")
-        → getSalesOrderById(tenantDb, id)
+    → client.salesOrders.getById({ organizationId, id })
+      → salesOrdersRouter.getById        # rbac: sales:read
+        → getSalesOrderById()            # service fn
+          → sales_orders (tenant DB)
   → useQuery(["invoices", "by-order", id])
-      → client.invoices.list({ organizationId, salesOrderId: id })
-        → invoicesRouter.list → requirePermission("sales", "read")
-  → renders Card + Invoices Card
+    → client.invoices.list({ organizationId, salesOrderId: id })
+      → invoicesRouter.list              # rbac: payments:read
+        → listInvoices()                 # service fn
+          → invoices (tenant DB)
 ```
 
-**Inputs:** `$id` URL path parameter (sales order UUID).
-**State management:** Two TanStack Query keys; no local state.
-**Outputs:**
-- Order header: `salesOrderNumber`, `status` badge, `date`.
-- Order Summary card (dl grid): `totalAmount` (MYR), `customerName`, `createdBy`, `status`, `customerType`, `notes`.
-- Invoices card: list of `invoiceNumber`, `totalAmount`, `status` badge per invoice.
+**Inputs:**
+- URL param `id` — the sales order UUID
+
+**State management:** TanStack Query cache only.
+
+**Outputs:** Two `Card` components — Order Summary + Invoices (if any).
+
 **Side effects:** None — read-only page.
 
 ---
@@ -50,23 +53,23 @@ SalesOrderDetailPage
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `salesOrders.getById` — fetch single sales order by ID; requires `sales:read`.
-- `invoices.list` — fetch invoices filtered by `salesOrderId`; requires `sales:read`.
+- `salesOrders.getById` — fetch single order by id
+- `invoices.list` — fetch invoices filtered by `salesOrderId`
 
 **Uses these components:**
-- `Card`, `CardContent`, `CardHeader`, `CardTitle` — `apps/web/src/components/ui/card.tsx`.
-- `Badge` — `apps/web/src/components/ui/badge.tsx`.
-- `Button` — `apps/web/src/components/ui/button.tsx`.
-- `Link` — TanStack Router `Link` component.
-- `StatusBadge` — inline helper mapping status strings to badge variants.
+- `Card`, `CardContent`, `CardHeader`, `CardTitle` — `@/components/ui/card`
+- `Badge` — `@/components/ui/badge` — status display via local `StatusBadge`
+- `Button` / `Link` — back navigation button
 
 **Uses these hooks:**
-- `useUserContext` — provides `currentOrganizationId`.
-- `Route.useParams()` — extracts `id` from URL.
-- `useQuery` (two queries).
+- `useUserContext` — provides `organizationId`
 
-**Navigation: who navigates here:** Sales list view actions ("View" button in `apps/web/src/components/tables/sales/view/columns.tsx:143`) — note: the View button currently only `console.log`s and does not navigate; no direct navigation wired yet.
-**Navigation: where it goes:** "Back to Sales Orders" button → `/dashboard/sales/view`.
+**Navigation: who navigates here:**
+- `apps/web/src/components/tables/sales/view/columns.tsx` — "View" action button (currently stubbed with `console.log`, not wired to router)
+- Direct URL: `/dashboard/sales/<uuid>`
+
+**Navigation: where it goes:**
+- `/dashboard/sales/view` — back button (Link component)
 
 ---
 
@@ -75,38 +78,35 @@ SalesOrderDetailPage
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `sales_orders` | SELECT | `id`, `salesOrderNumber`, `date`, `customerName`, `customerId`, `customerType`, `createdBy`, `status`, `totalAmount`, `notes` |
-| `invoices` | SELECT | `id`, `invoiceNumber`, `totalAmount`, `status` |
+| `sales_orders` (tenant) | READ | `id`, `salesOrderNumber`, `date`, `status`, `totalAmount`, `customerName`, `createdBy`, `customerType`, `notes` |
+| `invoices` (tenant) | READ | `id`, `invoiceNumber`, `totalAmount`, `status`, `salesOrderId` |
 
-**Key types:**
+**Key types (from API response):**
 ```typescript
-// Order returned from salesOrders.getById
+// salesOrders.getById returns:
 {
-  id: string; salesOrderNumber: string;
-  date: Date | null; status: string | null;
-  totalAmount: number | null; // cents
-  customerName: string | null; createdBy: string | null;
-  customerType: string | null; notes: string | null;
+  salesOrderNumber: string; status: string; date: Date|null;
+  totalAmount: number; customerName: string|null; createdBy: string|null;
+  customerType: string|null; notes: string|null;
 }
-// Invoice row
-{ id: string; invoiceNumber: string; totalAmount: number | null; status: string | null }
-// StatusBadge variants: confirmed/completed/paid → "default", pending/processing/draft/sent/partially_paid → "secondary",
-//   cancelled/rejected → "destructive", overdue → "destructive", unknown → "outline"
+// invoices.list (filtered) returns array of:
+{ id: string; invoiceNumber: string; totalAmount: number; status: string; }
 ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/server/src/tests/unit/services/sales-order.test.ts` (service-layer unit tests for `getSalesOrderById`, `createSalesOrder`, etc.).
-**Scenarios covered:** Service-layer CRUD at the unit level.
-**Not tested:** Frontend rendering, invoice display, error/not-found UI paths.
+**Test files:** None found for this route.
+
+**Not tested (risk areas):**
+- No navigation wires the "View" action from `sales/view` to this page — it can only be reached by direct URL.
+- `invoices.list` uses `payments:read` permission; if the user lacks it, invoices silently return an empty array (query enabled guard prevents call when orgId missing, but permission error would be unhandled).
 
 ---
 
 ## 6. Notes
 
-- The "View" action in the sales list columns (`apps/web/src/components/tables/sales/view/columns.tsx:143`) currently only `console.log`s the row rather than navigating to this page — navigation to this route is not yet wired to the table.
-- `totalAmount` is in integer cents; `formatPrice(amount, "MYR")` handles display.
-- Both queries are disabled when `organizationId` is null (no org selected) — the page will reach the not-found state.
-- The page max-widths to `max-w-4xl` — it is a detail view, not a full-width list.
+- This page is reachable via direct URL but the list page's action buttons are not yet wired to it — they call `console.log`.
+- `StatusBadge` maps status strings to badge variants locally; the same statuses exist in both sales order and invoice contexts.
+- Both queries use `organizationId` as an enabled guard — if context is not yet loaded, neither query fires.

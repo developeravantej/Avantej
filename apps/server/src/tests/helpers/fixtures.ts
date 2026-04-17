@@ -154,6 +154,28 @@ export function makeTaxRate(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Installment Plan Fixtures
+// ──────────────────────────────────────────────────────────────────────────────
+export function makeInstallmentPlan(
+	overrides: Partial<Record<string, unknown>> = {},
+) {
+	return {
+		id: randomUUID(),
+		code: "full",
+		name: "Full Payment",
+		numInstallments: 1,
+		defaultIntervalDays: 30,
+		description: null,
+		isDefault: true,
+		isActive: true,
+		sortOrder: 0,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+		...overrides,
+	};
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Walk-in Customer Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
 export function makeWalkInCustomer(

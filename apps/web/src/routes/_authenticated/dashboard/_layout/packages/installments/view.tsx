@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -37,7 +37,8 @@ import {
 } from "@/components/ui/dialog";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import { CreditCard } from "lucide-react";
+import { CreditCard, X } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/packages/installments/view",
@@ -110,6 +111,13 @@ function InstallmentsViewPage() {
 		"active" | "overdue" | "locked" | undefined
 	>(undefined);
 
+	// ── Filter state ─────────────────────────────────────────────────────────────
+	const [searchQuery, setSearchQuery] = useState("");
+	const [dueBefore, setDueBefore] = useState<string | undefined>(undefined);
+	const [dueAfter, setDueAfter] = useState<string | undefined>(undefined);
+	const [planCode, setPlanCode] = useState<string | undefined>(undefined);
+	const debouncedSearch = useDebounce(searchQuery, 300);
+
 	// ── Sheet / detail state ─────────────────────────────────────────────────────
 	const [selectedInstance, setSelectedInstance] = useState<any>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -131,8 +139,34 @@ function InstallmentsViewPage() {
 
 	// ── Data queries ─────────────────────────────────────────────────────────────
 
+	const { data: plans } = useQuery({
+		queryKey: ["installment-plans", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return (client as any).installmentPlans.list({
+				organizationId,
+				activeOnly: true,
+			});
+		},
+		enabled: !!organizationId,
+	});
+	const plansMap = useMemo(
+		() => new Map<string, { code: string; name: string; numInstallments: number }>(
+			(plans ?? []).map((p: any) => [p.code as string, p]),
+		),
+		[plans],
+	);
+
 	const { data: overviewData, isLoading } = useQuery({
-		queryKey: ["installments-overview", organizationId, statusFilter],
+		queryKey: [
+			"installments-overview",
+			organizationId,
+			statusFilter,
+			debouncedSearch,
+			dueBefore,
+			dueAfter,
+			planCode,
+		],
 		queryFn: async () => {
 			if (!organizationId) return { items: [], total: 0 };
 			return (client as any).installments.adminOverview({
@@ -140,6 +174,10 @@ function InstallmentsViewPage() {
 				status: statusFilter,
 				limit: 50,
 				offset: 0,
+				search: debouncedSearch || undefined,
+				dueBefore: dueBefore ? new Date(dueBefore).toISOString() : undefined,
+				dueAfter: dueAfter ? new Date(dueAfter).toISOString() : undefined,
+				paymentPlanCode: planCode,
 			});
 		},
 		enabled: !!organizationId,
@@ -320,15 +358,16 @@ function InstallmentsViewPage() {
 		{
 			id: "planType",
 			header: "Plan Type",
-			cell: ({ row }) => (
-				<Badge variant="outline">
-					{row.original.paymentPlanType
-						? String(row.original.paymentPlanType)
-								.replace(/_/g, " ")
-								.replace(/\b\w/g, (c: string) => c.toUpperCase())
-						: "—"}
-				</Badge>
-			),
+			cell: ({ row }) => {
+				const code = row.original.paymentPlanType;
+				const label = code
+					? (plansMap.get(code)?.name ??
+						String(code)
+							.replace(/_/g, " ")
+							.replace(/\b\w/g, (c: string) => c.toUpperCase()))
+					: "—";
+				return <Badge variant="outline">{label}</Badge>;
+			},
 		},
 		{
 			id: "credits",
@@ -423,6 +462,87 @@ function InstallmentsViewPage() {
 						</p>
 					</div>
 				</div>
+			</div>
+
+			{/* Filter row */}
+			<div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+				<div className="flex flex-col gap-1 min-w-[200px] flex-1">
+					<label className="text-xs font-medium text-muted-foreground">
+						Search
+					</label>
+					<Input
+						placeholder="Search client ID or purchase number"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+				</div>
+
+				<div className="flex flex-col gap-1">
+					<label className="text-xs font-medium text-muted-foreground">
+						Due After
+					</label>
+					<Input
+						type="date"
+						value={dueAfter ?? ""}
+						onChange={(e) =>
+							setDueAfter(e.target.value || undefined)
+						}
+						className="w-40"
+					/>
+				</div>
+
+				<div className="flex flex-col gap-1">
+					<label className="text-xs font-medium text-muted-foreground">
+						Due Before
+					</label>
+					<Input
+						type="date"
+						value={dueBefore ?? ""}
+						onChange={(e) =>
+							setDueBefore(e.target.value || undefined)
+						}
+						className="w-40"
+					/>
+				</div>
+
+				<div className="flex flex-col gap-1 min-w-[160px]">
+					<label className="text-xs font-medium text-muted-foreground">
+						Plan
+					</label>
+					<Select
+						value={planCode ?? "__all__"}
+						onValueChange={(v) =>
+							setPlanCode(v === "__all__" ? undefined : v)
+						}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder="All plans" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__all__">All plans</SelectItem>
+							{(plans ?? []).map((p: any) => (
+								<SelectItem key={p.code} value={p.code}>
+									{p.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+
+				<Button
+					variant="ghost"
+					size="sm"
+					className="gap-1.5 self-end"
+					onClick={() => {
+						setSearchQuery("");
+						setDueBefore(undefined);
+						setDueAfter(undefined);
+						setPlanCode(undefined);
+					}}
+				>
+					<X className="h-3.5 w-3.5" />
+					Clear
+				</Button>
 			</div>
 
 			{/* Status filter tabs */}

@@ -1,5 +1,5 @@
 # Avantej — Outstanding Work
-_Branch: `Customer-app` · Last updated: 2026-04-15_
+_Branch: `Customer-app` · Last updated: 2026-04-17_
 
 ---
 
@@ -20,7 +20,7 @@ _Plan: `zplan/15-04_16-00_google-calendar-integration` · Code: DONE_
 - [ ] Run `bun db:push` (or apply migration `0013_google_calendar` to tenant DBs via `runTenantMigrations`)
 
 ### Route Tree Regeneration
-- [ ] Run `bun dev:web` once — TanStack Router's Vite plugin auto-regenerates `routeTree.gen.ts` to register the new `/dashboard/settings/google-calendar` route
+- [x] Run `bun dev:web` once — TanStack Router's Vite plugin auto-regenerates `routeTree.gen.ts` to register the new `/dashboard/settings/google-calendar` route ✅ (verified: 19 refs in `routeTree.gen.ts`)
 
 ### Manual Smoke Test
 - [ ] Settings → Google Calendar → "Connect Google Calendar" → complete OAuth → see "Connected" status
@@ -46,29 +46,19 @@ _Plan: `zplan/15-04_16-00_google-calendar-integration` · Code: DONE_
 _Plan: `zplan/15-04_13-29_remove-packages-page` · Phase 1: ✅ DONE · Phases 2–4: TODO_
 
 ### Phase 2 — Add "Sessions" column to Services table
-- [ ] `apps/web/src/components/tables/service/view/columns.tsx` — add Sessions column after Price:
-  ```typescript
-  {
-    accessorKey: "sessionCount",
-    header: "Sessions",
-    cell: ({ row }) => {
-      const count = row.getValue("sessionCount") as number | null;
-      return count != null ? count : "—";
-    },
-  }
-  ```
+- [x] `apps/web/src/components/tables/service/view/columns.tsx` — Sessions column added ✅ (lines 70-81, using `DataTableColumnHeader`)
 
 ### Phase 3 — Remove Packages page and sidebar entry
-- [ ] `apps/web/src/components/app-sidebar.tsx` — remove `{ title: "Packages", url: "/dashboard/packages/view", icon: Package }` line (and the `Package` import if unused after removal)
-- [ ] Delete `apps/web/src/routes/_authenticated/dashboard/_layout/packages/view.tsx` (already deleted per git status ✅)
-- [ ] Delete `apps/web/src/__tests__/routes/packages.test.tsx` (already deleted per git status ✅)
-- [ ] Run `bun dev:web` to regenerate `routeTree.gen.ts` — verify all `PackagesViewRoute` references gone
+- [x] `apps/web/src/components/app-sidebar.tsx` — Packages top-level entry removed ✅ (note: `Package` icon still imported — used by sub-items like Products, Package Instances)
+- [x] Delete `apps/web/src/routes/_authenticated/dashboard/_layout/packages/view.tsx` ✅
+- [x] Delete `apps/web/src/__tests__/routes/packages.test.tsx` ✅ (file no longer exists)
+- [x] Run `bun dev:web` to regenerate `routeTree.gen.ts` — all `PackagesViewRoute` references gone ✅
 - [ ] Smoke test: `/dashboard/packages/view` → 404, `/dashboard/packages/instances/view` → still works
 
 ### Phase 4 — Update zhub docs
-- [ ] `zhub/index.md` — delete row for `/dashboard/packages/view`
-- [ ] Delete `zhub/pages/web-dashboard-packages-view.md` (if it exists)
-- [ ] `zhub/pages/web-dashboard-service-view.md` — note that session packages are now managed here
+- [x] `zhub/index.md` — row for `/dashboard/packages/view` removed ✅
+- [x] Delete `zhub/pages/web-dashboard-packages-view.md` ✅ (file does not exist)
+- [ ] `zhub/pages/web-dashboard-service-view.md` — note that session packages are now managed here (not yet added)
 
 ---
 
@@ -76,16 +66,12 @@ _Plan: `zplan/15-04_13-29_remove-packages-page` · Phase 1: ✅ DONE · Phases 2
 _Plan: `zplan/12-04_19-30_trainer-availability-calendar` · Status: NOT STARTED_
 
 ### Summary
-Full plan exists. No code implemented yet. New files partially scaffolded:
-- `apps/web/src/components/calendar/trainer-sidebar.tsx` (untracked, may be WIP)
-- `apps/web/src/components/trainers/` dir (untracked)
+Phases 1–3 appear implemented. Phase 4 (native booking integration) not verified.
 
 ### Key phases to implement
-- [ ] **Phase 1** — Backend: `trainerId` filter on `appointments.list` procedure + service
-- [ ] **Phase 2** — Trainers page: availability CRUD UI (weekly schedule per trainer)
-- [ ] **Phase 3** — Appointment view: trainer list sidebar (left) + per-trainer calendar (right)
-  - Admin: trainer picker visible, selects trainer → calendar shows that trainer's appointments
-  - Trainer role: no picker, sees own schedule automatically
+- [x] **Phase 1** — Backend: `trainerId` filter on `appointments.list` procedure + service ✅ (`appointments.ts` lines 42, 88, 215, 279, 315, 385)
+- [x] **Phase 2** — Trainers page: availability CRUD UI (weekly schedule per trainer) ✅ (`TrainerAvailabilityEditor` wired into `trainers/view.tsx`)
+- [x] **Phase 3** — Appointment view: trainer list sidebar + per-trainer calendar ✅ (`TrainerSidebar` imported, `selectedTrainerId` drives list filter)
 - [ ] **Phase 4** — Native app: `trainer_availability` drives booking slot generation (replaces hardcoded 8AM–7PM)
 
 ---
@@ -110,9 +96,9 @@ Schema (`installments`, `installment_events`, updated `package_instances`) is al
 Business logic and UI are not implemented.
 
 ### Phase 1 — Core services & admin configuration
-- [ ] Installment schedule generation service
-- [ ] Admin config: enable half/quarterly payment plans per service (already in service form ✅)
-- [ ] Verify `createAppointment` correctly decrements `creditsRemaining` (pre-existing bug fix — check if already done in `appointment.service.ts`)
+- [x] Installment schedule generation service ✅ (`packages/services/src/installment.service.ts` exists)
+- [x] Admin config: enable half/quarterly payment plans per service (already in service form ✅)
+- [x] Verify `createAppointment` correctly decrements `creditsRemaining` ✅ (`appointment.service.ts` checks lock + credits at lines 206–221, imports `evaluateAndLockIfOverdue`)
 
 ### Phase 2 — Purchase flow with plan selection
 - [ ] Native buy-package flow: show installment plan options, generate schedule on purchase
@@ -133,7 +119,7 @@ Business logic and UI are not implemented.
 ## 6. Miscellaneous
 
 ### routeTree.gen.ts sync
-- [ ] Run `bun dev:web` to regenerate after any route file additions/deletions — the file is currently stale relative to new routes added in this branch
+- [x] Run `bun dev:web` to regenerate after any route file additions/deletions ✅ (Google Calendar + trainer routes now registered, Packages removed)
 
 ### zhub/ hub update
 - [ ] Run `/hub-update` before merging this branch to keep the codebase context hub current
@@ -143,3 +129,30 @@ Business logic and UI are not implemented.
 
 ### DB push for current branch schema
 - [ ] Run `bun db:push` to apply all pending schema changes (buffer time columns, installment columns, google calendar tables) to the dev database
+  - Migration file `0011_clear_marvex.sql` exists but apply state against live DB not verified
+
+---
+
+## Auto-reconcile log — 2026-04-17
+
+**Verified DONE** (code/filesystem evidence):
+- Google Calendar: route tree regenerated (19 refs)
+- Remove Packages: Sessions column, sidebar entry, route file, test file, route tree, zhub entries
+- Trainer Availability: Phases 1–3 (backend filter, editor UI, appointment sidebar)
+- Installment: Phase 1 core services
+
+**Still TODO** (no evidence found):
+- Google Calendar env vars in `apps/server/.env` (no `GOOGLE_*` keys present)
+- Google Calendar unit tests (no test files under `apps/server/src/tests/**/google*`)
+- Trainer reassignment handling (no `previousTrainerId` param in `syncAppointmentToGoogleCalendar`)
+- Buffer Time Phase 4A: `setBufferOverride`/`getBufferOverride` not in `service-members.ts` router
+- Trainer Availability Phase 4 (native)
+- Installment Phases 2–4
+- zhub service-view.md note about session packages
+
+**Unverifiable from filesystem** (left unchecked):
+- Google Cloud Console configuration
+- DB migration actually applied to dev DB
+- Manual smoke tests
+- Biome lint pass
+- `/hub-update` run

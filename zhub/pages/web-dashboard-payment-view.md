@@ -1,19 +1,22 @@
-# Payment
+# Payment View
 
 **Route:** `/dashboard/payment/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (rbac `payments:read` enforced server-side)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Read-only register of all invoices/payments for the organization, showing date, invoice number, linked sales order, payment mode, total paid, customer name, creator, and e-invoice status.
-**Produces:** A TanStack Table of payment/invoice records.
-**On success:** Table populated with invoice data from the API.
-**On failure / error states:** Full-page spinner while loading; error state with message and "Try Again" button on API failure; empty table when no invoices exist.
+**Purpose (user perspective):** View all invoices/payment records for the current organization — a read-only ledger of payments collected.
+
+**Produces:** A page with a header (CreditCard icon, "Payments" title, "View and manage invoice payments." subtitle, and Separator), followed by a sortable data table showing payment date, invoice number, linked sales order, payment mode, total paid (MYR), customer name, created-by, and e-invoice status. Content is wrapped in `div.p-6.space-y-6`.
+
+**On success:** Table renders all invoices for the org.
+
+**On failure / error states:** Spinner while loading; error card with "Try Again" button on fetch failure; empty table when no invoices exist.
 
 ---
 
@@ -22,35 +25,39 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext() → organizationId
-  → useQuery(invoices.list) → client.invoices.list({ organizationId })
-  → maps apiData → PaymentRow[]
-  → renders DataTable<PaymentRow>
+  → useUserContext()                    # reads organizationId
+  → useQuery(["invoices", orgId])
+    → client.invoices.list({ organizationId })
+      → invoicesRouter.list             # rbac: payments:read
+        → listInvoices()                # service fn
+          → invoices (tenant DB)
 ```
 
-**Inputs:** No URL params; no interactive form.
-**State management:** TanStack Query only — no local state beyond the query result.
-**Outputs:** Read-only table display; no mutations.
-**Side effects:** None.
+**Inputs:** None — no filter controls on this page.
+
+**State management:** TanStack Query cache only (`invoices`, `organizationId`).
+
+**Outputs:** `DataTable<PaymentRow>` with columns: date, invoice (copyable), sales_order (copyable), mode (badge), total_paid, customer_name, created_by (avatar), e_invoice_status (badge), actions (View/Edit stubs).
+
+**Side effects:** None — read-only page.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `invoices.list` — returns invoice records for the org; fields: `date`, `invoiceNumber`, `salesOrderId`, `paymentMode`, `totalAmount`, `customerName`, `createdBy`, `eInvoiceStatus`
+- `invoices.list` — fetch all invoices for the organization (no filters passed)
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/payment/view/data-table.tsx`
-- Static columns — `apps/web/src/components/tables/payment/view/columns.tsx` — date, invoice number (copyable), sales order (copyable), mode badge, total paid (MYR), customer name, created-by avatar, e-invoice status badge, View/Edit action buttons (currently `console.log` only)
+- `DataTable` — `apps/web/src/components/tables/payment/view/data-table.tsx` — table wrapper
+- `columns` / `PaymentRow` — `apps/web/src/components/tables/payment/view/columns.tsx` — column defs including `formatEInvoiceStatus` badge
 
 **Uses these hooks:**
-- `useUserContext` — resolves `currentOrganizationId`
+- `useUserContext` — provides `organizationId`
 
-**Navigation: who navigates here:**
-- App sidebar under Sales section → "Payment" link
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — "Payment" link under the Sales nav group
 
-**Navigation: where it goes:** No outbound navigation (View/Edit buttons are not yet wired to routes).
+**Navigation: where it goes:** No outbound navigation (action buttons in columns are stub `console.log` calls).
 
 ---
 
@@ -59,36 +66,39 @@ RouteComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `invoices` (or equivalent) | SELECT | `date`, `invoiceNumber`, `salesOrderId`, `paymentMode`, `totalAmount`, `customerName`, `createdBy`, `eInvoiceStatus` |
+| `invoices` (tenant) | READ | `id`, `invoiceNumber`, `date`, `salesOrderId`, `paymentMode`, `totalAmount`, `customerName`, `createdBy`, `eInvoiceStatus` |
 
-**Key type:**
+**Key types:**
 ```typescript
 interface PaymentRow {
-  date?: string | null;           // ISO string
-  invoice?: string | null;        // invoice number
-  sales_order?: string | null;    // sales order ID
-  mode?: string | null;           // payment mode
-  total_paid?: number;            // cents
+  date?: string | null;
+  invoice?: string | null;          // invoiceNumber
+  sales_order?: string | null;      // salesOrderId
+  mode?: string | null;             // paymentMode
+  total_paid?: number;              // cents
   customer_name?: string | null;
   created_by?: string | null;
   e_invoice_status?: string | null; // "pending" | "generated" | "sent" | "failed" | "cancelled"
 }
 ```
 
-**E-invoice status badge colors:** pending → secondary, generated/sent → default, failed → destructive, cancelled → outline.
-
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
-**Not tested:** Anything — no test coverage for this page.
+**Test files:** `apps/server/src/tests/unit/services/invoice.test.ts` — covers `listInvoices` service logic; no frontend test for this route.
+
+**Not tested (risk areas):**
+- Action buttons (View/Edit) in columns are `console.log` stubs — not functional.
+- `invoices.list` is called without any filters so every invoice is fetched; no pagination.
+- E-invoice status badge covers known statuses; unknown values fall back to `"outline"` variant.
 
 ---
 
 ## 6. Notes
 
-- The "View" and "Edit" action buttons in the columns file are stubs — they only `console.log` the row and do not navigate or open a modal.
-- `total_paid` is stored/displayed in cents; the column uses `formatPrice(amount, "MYR")` from `@/lib/currency`.
-- `date` field is mapped via `item.date.toISOString()` — assumes the API returns a `Date` object; will throw if the field is already a string without null guard.
-- The columns file defines its own `CopyableCell` component inline rather than importing the shared `@/components/tables/copyable-cell.tsx`.
+- Page now includes a styled header with `CreditCard` icon from lucide-react, title, subtitle, and a `Separator` before the data table.
+- This page maps invoice API data to `PaymentRow` shape in the component before passing to DataTable — date gets `.toISOString()`, amount stays in cents for `formatPrice`.
+- `eInvoiceStatus` is an optional field from the API; the column renderer handles `null` as "N/A".
+- The payment permission is `payments:read` (not `sales:read`), matching the invoices router.
+- `invoices.list` also accepts `salesOrderId` for filtering — used by the sales detail page but not by this view.

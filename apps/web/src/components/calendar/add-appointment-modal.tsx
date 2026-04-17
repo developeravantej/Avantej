@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { UserPlus, X, ThumbsDown, Calendar, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { orpc, client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Link } from "@tanstack/react-router";
 
 interface TeamMember {
   id: string;
@@ -377,6 +378,12 @@ export function AddAppointmentModal({
       }
     }
   }, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
+
+  const employeePlaceholder = useMemo(() => {
+    if (!newAppointment.roomId) return "Select an area first";
+    if (employees.length === 0) return "There are no employees available";
+    return "Select an employee";
+  }, [newAppointment.roomId, employees.length]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setNewAppointment(prev => ({
@@ -2246,18 +2253,32 @@ export function AddAppointmentModal({
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
-                                    <Select value={newAppointment.roomId} onValueChange={(value) => handleInputChange('roomId', value)}>
-                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
-                                        <SelectValue placeholder="Please Choose..." />
-                                      </SelectTrigger>
-                                      <SelectContent className="z-[10001]">
-                                        {rooms.map((room) => (
-                                          <SelectItem key={room.id} value={room.id}>
-                                            {room.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                    {rooms.length === 0 ? (
+                                      <div className="border border-dashed border-brand-secondary-3 rounded-md p-3 text-sm text-muted-foreground">
+                                        No rooms available.{" "}
+                                        <Link
+                                          to="/dashboard/rooms/view"
+                                          search={{ returnTo: "/dashboard/appointment/view" }}
+                                          className="text-primary underline font-medium"
+                                          onClick={() => onClose()}
+                                        >
+                                          Create one →
+                                        </Link>
+                                      </div>
+                                    ) : (
+                                      <Select value={newAppointment.roomId} onValueChange={(value) => handleInputChange('roomId', value)}>
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                          <SelectValue placeholder="Please Choose..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[10001]">
+                                          {rooms.map((room) => (
+                                            <SelectItem key={room.id} value={room.id}>
+                                              {room.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                   </div>
                                 
                                   <div className="space-y-2">
@@ -2274,9 +2295,13 @@ export function AddAppointmentModal({
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
-                                    <Select value={newAppointment.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)}>
+                                    <Select
+                                      value={newAppointment.employeeId}
+                                      onValueChange={(value) => handleInputChange('employeeId', value)}
+                                      disabled={!newAppointment.roomId}
+                                    >
                                       <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
-                                        <SelectValue placeholder="There are no employees available" />
+                                        <SelectValue placeholder={employeePlaceholder} />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
                                         {employees.map((employee) => (

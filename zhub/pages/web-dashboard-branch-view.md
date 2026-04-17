@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/branch/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
@@ -35,6 +35,8 @@ RouteComponent
   → useQuery(["branches", orgId])
       → localStorage cache (30s TTL) or client.hierarchy.listNodes()
       → mapBranchesWithHierarchy() — filters type="branch", traverses parent chain
+  → useQuery(["members", orgId]) → client.members.list({ organizationId })
+      → useMemo → memberByUserId Map (userId → { name, email })
   → <DataTable columns data={mappedBranches} />
   → Edit dialog: cascading country→region→area selects from allHierarchyNodes
       → updateMutation → client.hierarchy.updateNode({ nodeId, name, address, picUserId })
@@ -63,6 +65,7 @@ RouteComponent
 
 **Calls these API endpoints:**
 - `client.hierarchy.listNodes` — fetch all hierarchy nodes (used for both branch list and edit dropdowns)
+- `client.members.list` — fetch all members for the org (used to resolve PIC user IDs to names/emails)
 - `client.hierarchy.updateNode` — update branch name/address/picUserId
 - `client.hierarchy.moveNode` — relocate branch under a different area
 
@@ -120,7 +123,6 @@ RouteComponent
 - This page uses `@headlessui/react` `Dialog` (not shadcn `Dialog`) for the edit modal — inconsistent with the rest of the codebase.
 - `organizationId` is UUID-validated with a regex before use; non-UUID values (e.g., mock `"org-1"`) are treated as `null`.
 - The localStorage cache has a 30-second TTL for both the branch query and the edit dropdown query. Cache is keyed to org ID.
-- `mapBranchesWithHierarchy` includes a hardcoded target branch ID check for debugging (`7cce143b-...`) — leftover development artifact.
-- Extensive `console.log`/`console.warn`/`console.error` statements remain in the data-fetch logic.
+- PIC name resolution now uses a `memberByUserId` lookup map (via `useQuery` for `client.members.list` + `useMemo`). The `picInfo` object resolves `picUserId` to `{ name, email }` from the members list instead of displaying the raw UUID. (Fixed 2026-04-16)
+- Debug panel (`process.env.NODE_ENV === "development"` block) has been removed. (Fixed 2026-04-16)
 - No `beforeLoad` permission guard on this route.
-- The file is over 600 lines with significant debug instrumentation that should eventually be cleaned up.

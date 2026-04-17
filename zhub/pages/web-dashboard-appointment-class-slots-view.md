@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/appointment/class-slots/view.tsx:1`
 **Platform:** web
 **Auth required:** rbac(appointment_management:read)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 

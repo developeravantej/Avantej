@@ -357,7 +357,15 @@ function DashboardComponent() {
 				<ActiveMembersCard data={kpiData} />
 			</div>
 
-			<QuickInsight message="Most members book 2 workouts per week. Your busiest day is Wednesday." />
+			{kpiData && (
+				<QuickInsight
+					message={
+						kpiData.totalAppointments > 0
+							? `You have ${kpiData.totalAppointments} appointment${kpiData.totalAppointments !== 1 ? "s" : ""} ${getPeriodLabel(period).toLowerCase()}, with ${kpiData.completedAppointments} completed — a ${kpiData.totalAppointments > 0 ? `${((kpiData.completedAppointments / kpiData.totalAppointments) * 100).toFixed(0)}%` : "0%"} completion rate.`
+							: `Your organization has ${kpiData.activeMembersCount.toLocaleString()} active member${kpiData.activeMembersCount !== 1 ? "s" : ""}. No appointments scheduled for this period.`
+					}
+				/>
+			)}
 
 			<SectionHeader>Analytics</SectionHeader>
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-12">

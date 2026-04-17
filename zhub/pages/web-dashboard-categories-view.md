@@ -1,26 +1,19 @@
 # Product Categories View
 
-**Route:** `/dashboard/categories/view`
+**Route:** `/_authenticated/dashboard/_layout/categories/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/categories/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (server requires `inventory:read/create/update/delete`)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lists all product categories for the organization and allows creating, editing, and deleting categories inline via the data table.
-
-**Produces:** A data table with columns: ID, Name, External Code, Products Assigned (count). Inline add/edit/delete via table actions.
-
-**On success:** Toast confirmation; category list refetches via query invalidation.
-
-**On failure / error states:**
-- No `organizationId`: empty message "Select an organization to view categories."
-- Loading: centered spinner.
-- API error: error message with "Try Again" button.
-- Empty state: "No categories yet" message above the (empty) table.
+**Purpose (user perspective):** Manage product categories used to organize the product catalog (e.g., Clothing, Supplements, Equipment).
+**Produces:** A data table of product categories showing name, external code, and product count, with inline add/edit/delete actions.
+**On success:** Create/update/delete each invalidate the categories query and show a sonner toast.
+**On failure / error states:** "Select an organization" prompt if no org. Spinner while loading. Error state with "Try Again" button on fetch failure. Empty state text when no categories exist.
 
 ---
 
@@ -29,51 +22,50 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext() → organizationId
-  → useQuery(orpc.productCategories.list.key) → client.productCategories.list({ organizationId })
+  → useUserContext() → currentOrganizationId
+  → useQuery([orpc.productCategories.list.key(...)]) → client.productCategories.list({ organizationId })
+      → productCategoriesRouter.list
+          → requirePermission(tenantDb, member, "inventory", "read")
+          → listProductCategories(tenantDb)
   → useQuery(["products", orgId]) → client.products.list({ organizationId })
-  → useMemo → productCountByCategory (Map<categoryId, count>)
-  → tableData: CategoryRow[] = categories mapped with product count
-  → <DataTable columns data onAdd onEdit onDelete isMutating />
-      → onAdd → createMutation → client.productCategories.create
-      → onEdit → updateMutation → client.productCategories.update
-      → onDelete → deleteMutation → client.productCategories.delete
+      [parallel fetch for product counts]
+  → productCountByCategory = useMemo(Map<categoryId, count>)
+  → tableData: CategoryRow[] = categories.map(c => ({ ID, Name, externalCode, "Products Assigned" }))
+  → DataTable (columns, tableData, ...)
+
+  createMutation → client.productCategories.create({ organizationId, name, externalCode?, description? })
+  updateMutation → client.productCategories.update({ organizationId, id, name?, externalCode?, description? })
+  deleteMutation → client.productCategories.delete({ organizationId, id })
+  [all invalidate productCategories.list query on success]
 ```
 
-**Inputs:** No URL/query params; driven by current org.
-
-**State management:** Query key uses oRPC-derived key `orpc.productCategories.list.key(...)`. No local dialog state (managed inside `DataTable`).
-
-**Outputs:** CRUD operations on product categories; query invalidated on each mutation success.
-
-**Side effects:** Query invalidation after create/update/delete.
+**Inputs:** No URL/query params.
+**State management:** Only TanStack Query + mutation state. No local state for dialogs (managed inside DataTable component).
+**Outputs:** `DataTable` from `apps/web/src/components/tables/categories/view/data-table.tsx` with `CategoryRow` shape.
+**Side effects:** None beyond DB writes.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.productCategories.list` — list all categories for the org
-- `client.products.list` — count products per category
-- `client.productCategories.create` — create a new category
-- `client.productCategories.update` — update category name/externalCode/description
-- `client.productCategories.delete` — delete a category
+- `productCategories.list` — fetch all product categories
+- `productCategories.create` — create category
+- `productCategories.update` — update name/externalCode/description
+- `productCategories.delete` — delete category
+- `products.list` — fetch products to compute per-category product counts (read-only, parallel)
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/categories/view/data-table.tsx` — table with add/edit/delete actions
-- `columns` — `apps/web/src/components/tables/categories/view/columns.tsx` — `CategoryRow` column definitions
-- `Button` — shadcn/ui
+- `DataTable` — `apps/web/src/components/tables/categories/view/data-table.tsx`
+- `columns` — `apps/web/src/components/tables/categories/view/columns.tsx` (exports `CategoryRow`)
 
 **Uses these hooks:**
-- `useUserContext` — org context
-- `useQuery` — categories list + products list
-- `useMutation` — create/update/delete
+- `useUserContext` — `currentOrganizationId`
 - `useQueryClient` — cache invalidation
-- `useMemo` — product count aggregation
 
-**Navigation: who navigates here:** `app-sidebar.tsx` — "Categories" link under Inventory/Products section
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — Sales & Inventory → Inventory → "Categories"
 
-**Navigation: where it goes:** Stays on page.
+**Navigation: where it goes:** No outbound navigation.
 
 ---
 
@@ -82,35 +74,48 @@ RouteComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `product_categories` | SELECT | `id`, `name`, `externalCode`, `description` |
-| `product_categories` | INSERT | `name`, `externalCode`, `description`, `organizationId` |
-| `product_categories` | UPDATE | `name`, `externalCode`, `description` |
-| `product_categories` | DELETE | `id` |
-| `products` | SELECT | `id`, `categoryId` (for count) |
+| `product_categories` (tenant) | SELECT, INSERT, UPDATE, DELETE | `id`, `name`, `externalCode`, `description` |
+| `products` (tenant) | SELECT | `id`, `categoryId` (for counts only) |
 
-**`CategoryRow` type:**
-```ts
-{ ID: string; Name: string; externalCode: string; "Products Assigned": number }
+**CategoryRow (table display type):**
+```typescript
+{
+  ID: string;
+  Name: string;
+  externalCode: string;
+  "Products Assigned": number;
+}
 ```
 
-**Create mutation input fields:** `name` (required), `externalCode` (optional), `description` (optional)
+**Form fields (Add/Edit dialog in DataTable):**
+| Field | Type | Validation | Maps to |
+|-------|------|------------|---------|
+| name | text | required (min 1) | `productCategories.create/update.name` |
+| externalCode | text | optional | `productCategories.create/update.externalCode` |
+| description | text | optional | `productCategories.create/update.description` |
 
 ---
 
 ## 5. Tests
 
 **Test files:** `apps/web/src/__tests__/routes/categories.test.tsx`
-
 **Scenarios covered:**
-- Renders without crashing (empty state)
-- (Additional scenarios in test file beyond the visible snippet)
+- Renders without crashing (empty state, "No results." shown)
+- `client.productCategories.list` is called on mount (verifies it uses `productCategories` not `categories`)
+- "Add Category" button is visible
+- Shows category name in table when data returned
 
-**Not tested:** Create/update/delete mutations with UI interaction, error state rendering, product-count aggregation
+**Not tested (risk areas):**
+- Create/update/delete mutations
+- `productCountByCategory` computation and display
+- Error state with "Try Again"
+- `products.list` being called in parallel
 
 ---
 
 ## 6. Notes
 
-- Structurally mirrors `brands/view.tsx` closely — same pattern of list + product count join.
-- Products query uses a plain string key `["products", organizationId]` — shared with `brands/view.tsx`; both queries could race for the same cache slot if rendered simultaneously, but in practice only one page is mounted at a time.
-- No `beforeLoad` permission guard.
+- The API router is `productCategories` (not `categories`) — the test explicitly verifies this naming. The sidebar link says "Categories" but the procedure is `productCategoriesRouter`.
+- This page fetches all products just to compute per-category counts via a client-side `useMemo`. This is a potentially expensive operation if there are many products; there is no server-side aggregation.
+- `invalidate()` uses the oRPC key helper (`orpc.productCategories.list.key(...)`) rather than a plain string array, which is more robust to key shape changes.
+- Deleting a category with assigned products may succeed at the API level if there is no FK constraint enforcing referential integrity — check `product_categories` schema.

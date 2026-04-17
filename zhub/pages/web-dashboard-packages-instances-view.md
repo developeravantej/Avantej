@@ -102,24 +102,20 @@ interface PackageInstanceRow {
 }
 ```
 
-**Create form fields:**
-- `serviceId` — package selector (active packages with sessionCount > 0)
-- `clientId` — UUID text input (required)
-- `source` — "assigned" | "purchased"
-- `creditsTotal` — number (required, min 1); `creditsRemaining` auto-set to same value
-- `startsAt` — date (required, defaults to today)
-- `expiresAt` — date (required, must be after startsAt)
-- `totalPriceRm` — decimal (optional, converted to cents)
-- `paymentStatus` — "pending" | "paid" | "failed" | "refunded"
-- `paymentPlanType` — "full" | "half" | "quarterly"
-- `installmentIntervalDays` — number of days between installments
-- `taxAmount` — integer cents
-- `paymentMethod` — payment method string
-- `eSignature` — client's e-signature string
-- `termsAgreedAt` — datetime the client agreed to terms
-- `purchaseNumber` — human-readable purchase reference string
-- `paymentId` — UUID linking to an external payment record
-- `remark` — textarea (optional)
+**Create form fields (fields visible in the UI):**
+| Field | Type | Validation | Maps to |
+|-------|------|------------|---------|
+| serviceId | Select | required | `serviceId` (active packages with sessionCount > 0) |
+| clientId | text input | required, UUID | `clientId` |
+| source | Select | required | "assigned" \| "purchased" |
+| creditsTotal | number | required, min 1 | `creditsTotal`; `creditsRemaining` auto-set to same value |
+| startsAt | date | required, defaults to today | `startsAt` (set to T00:00:00.000Z) |
+| expiresAt | date | required, after startsAt | `expiresAt` (set to T23:59:59.000Z) |
+| totalPriceRm | number | optional, decimal | converted to cents (`* 100`) → `totalPrice` |
+| paymentStatus | Select | optional | "pending" \| "paid" \| "failed" \| "refunded" |
+| remark | textarea | optional | `remark` |
+
+Note: `paymentPlanType`, `installmentIntervalDays`, `taxAmount`, `paymentMethod`, `eSignature`, `termsAgreedAt`, `purchaseNumber`, and `paymentId` are accepted by the API but are NOT exposed in this form UI. They are used by the native app purchase flow.
 
 ---
 

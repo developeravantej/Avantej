@@ -44,6 +44,7 @@ import { registrationRouter } from "./registration";
 import { trainerAvailabilityRouter } from "./trainer-availability";
 import { serviceMembersRouter } from "./service-members";
 import { installmentsRouter } from "./installments";
+import { installmentPlansRouter } from "./installment-plans";
 import { organizationSettingsRouter } from "./organization-settings";
 import { googleCalendarRouter } from "./google-calendar";
 
@@ -101,6 +102,7 @@ export const baseRouter = {
 	trainerAvailability: trainerAvailabilityRouter,
 	serviceMembers: serviceMembersRouter,
 	installments: installmentsRouter,
+	installmentPlans: installmentPlansRouter,
 	organizationSettings: organizationSettingsRouter,
 	googleCalendar: googleCalendarRouter,
 };

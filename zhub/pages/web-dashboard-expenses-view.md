@@ -3,27 +3,20 @@
 **Route:** `/dashboard/expenses/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/expenses/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (rbac `expense_management:read`; create requires `expense_management:create`; approve/reject/markPaid require `expense_management:update`)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Allows staff to submit expense claims and managers to approve, reject, or mark them as paid. A status-filter tab bar narrows the table to a specific workflow stage.
+**Purpose (user perspective):** Submit expense claims and manage the approval workflow — view, submit, approve, reject, and mark expenses as paid.
 
-**Produces:** A full-page layout with header, status tab filter (All / Pending / Approved / Rejected / Paid), a data table, a create-expense side sheet, a reject-reason dialog, and a mark-paid dialog.
+**Produces:** A filterable data table of expense records with action buttons per-row; a Sheet for submitting new expenses; Dialogs for rejecting (with reason) and marking as paid (with reference).
 
-**On success:**
-- Submit: toast "Expense submitted!" Sheet closes; table refreshes.
-- Approve: toast "Expense approved" Row status updates to Approved.
-- Reject: toast "Expense rejected" Requires a rejection reason. Row status updates to Rejected.
-- Mark Paid: toast "Expense marked as paid" Optional payment reference. Row status updates to Paid.
+**On success:** Submitted expense appears in the list; approved/rejected/paid expenses update their status badge. All mutations invalidate the expenses cache and show a toast.
 
-**On failure / error states:**
-- No `organizationId`: message "Select an organization to view expenses."
-- Loading: centered spinner.
-- Mutation errors: toast with error message.
+**On failure / error states:** Spinner while loading; "Select an organization" guard; toast errors on mutation failures. No dedicated error render state for the list fetch failure.
 
 ---
 
@@ -32,68 +25,67 @@
 **Execution flow:**
 ```
 ExpensesViewPage
-  → useUserContext() → organizationId, hasPermission("expense_management:create/update")
-  → useState(statusFilter) → "pending" | "approved" | "rejected" | "paid" | undefined
+  → useUserContext()                          # reads organizationId + hasPermission()
   → useQuery(["expenses", orgId, statusFilter])
-      → client.expenses.list({ organizationId, status? })
-  → data: ExpenseRow[] (mapped from API, amount in cents)
-  → inline columns (ColumnDef[]) with approve/reject/markPaid actions (canUpdate-gated)
-  → <DataTable columns data /> (from sales/view/data-table)
-
-  → "Submit Expense" button (canCreate-gated) → <Sheet>
-      → handleCreateSubmit() → parseFloat(amountRm) * 100 → cents
-      → createMutation → client.expenses.create({ ..., amount: cents, expenseDate: ISO })
-
-  → Approve button → approveMutation → client.expenses.approve({ id })
-
-  → Reject button → <Dialog> → rejectionReason → rejectMutation → client.expenses.reject({ id, rejectionReason })
-
-  → "Mark Paid" button → <Dialog> → paymentReference? → markPaidMutation → client.expenses.markPaid({ id, paymentReference? })
+    → client.expenses.list({ organizationId, status: statusFilter })
+      → expensesRouter.list                   # rbac: expense_management:read
+        → listExpenses()                      # service fn
+          → expenses (tenant DB)              # filtered by status + accessibleNodeIds
+  → createMutation
+    → client.expenses.create(...)             # rbac: expense_management:create
+      → createExpense()                       # submittedBy = context.member.userId
+        → expenses (tenant DB) INSERT
+  → approveMutation
+    → client.expenses.approve({ organizationId, id })
+      → approveExpense()                      # sets status='approved', approvedBy
+  → rejectMutation
+    → client.expenses.reject({ organizationId, id, rejectionReason })
+      → rejectExpense()                       # sets status='rejected', rejectionReason
+  → markPaidMutation
+    → client.expenses.markPaid({ organizationId, id, paymentReference })
+      → markExpensePaid()                     # sets status='paid', paidBy
 ```
 
 **Inputs:**
-- Status tab filter: client-side state, passed to query as `status` param
-- Sheet form: category (select), description (textarea, required), amount in RM (number input, required), expense date (date, required), receipt URL (url, optional)
-- Reject dialog: rejectionReason (textarea, required)
-- Mark Paid dialog: paymentReference (text, optional)
+- Status filter tabs: All / Pending / Approved / Rejected / Paid (refetches on change)
+- Create Sheet fields: category (select), description (textarea, required), amount in RM (number), expense date (date, required), receipt URL (URL, optional)
+- Reject Dialog: rejectionReason (textarea, required)
+- Mark Paid Dialog: paymentReference (text, optional)
 
 **State management:**
-- `statusFilter` — active tab selection
-- Sheet open/form state: `isCreateOpen`, `formCategory`, `formDescription`, `formAmountRm`, `formDate`, `formReceiptUrl`
-- Reject dialog: `rejectTarget` (expense id | null), `rejectionReason`
-- Mark paid dialog: `paidTarget` (expense id | null), `paymentReference`
+- `statusFilter` — drives query re-fetch on tab change
+- `isCreateOpen` + form fields — Sheet open state and field values
+- `rejectTarget` + `rejectionReason` — reject Dialog state
+- `paidTarget` + `paymentReference` — mark-paid Dialog state
 
-**Outputs:** Expense rows created/status-changed; query invalidated after each mutation.
+**Outputs:** `DataTable<ExpenseRow>` inline columns; Sheet, two Dialogs.
 
-**Side effects:** Query invalidated for `["expenses", organizationId]` after any mutation.
+**Side effects:** `queryClient.invalidateQueries(["expenses", orgId])` after every mutation. `submittedBy` is automatically set to `context.member.userId` server-side.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.expenses.list` — fetch expenses, optionally filtered by status
-- `client.expenses.create` — submit a new expense claim
-- `client.expenses.approve` — approve a pending expense
-- `client.expenses.reject` — reject a pending expense with reason
-- `client.expenses.markPaid` — mark an approved expense as paid
+- `expenses.list` — list with optional status filter and accessibleNodeIds scope
+- `expenses.create` — submit new expense (category, description, amount in cents, expenseDate, receiptUrl)
+- `expenses.approve` — set status to approved
+- `expenses.reject` — set status to rejected with reason
+- `expenses.markPaid` — set status to paid with optional reference
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic table (reused from sales)
-- `CopyableCell` — `apps/web/src/components/tables/copyable-cell.tsx` — submittedBy column
-- `Sheet`, `SheetContent`, `SheetHeader`, etc. — shadcn/ui — create expense form
-- `Dialog`, `DialogContent`, etc. — shadcn/ui — reject + mark-paid confirmation dialogs
-- `Select`, `Input`, `Textarea`, `Button`, `Badge` — shadcn/ui
+- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — reused generic table
+- `CopyableCell` — `apps/web/src/components/tables/copyable-cell.tsx` — for submittedBy column
+- `StatusBadge` (local) — maps `pending|approved|rejected|paid` to badge variants
 
 **Uses these hooks:**
-- `useUserContext` — org context + `hasPermission` for canCreate/canUpdate
-- `useQuery` — expense list
-- `useMutation` (×4) — create, approve, reject, markPaid
-- `useQueryClient` — cache invalidation
+- `useUserContext` — provides `organizationId` and `hasPermission()` for `canCreate` / `canUpdate` guards
 
-**Navigation: who navigates here:** `app-sidebar.tsx` — "Expenses" link under Finance section
+**Navigation: who navigates here:**
+- `apps/web/src/components/app-sidebar.tsx` — "Expenses" link under the Finance nav group
+- `apps/web/src/components/claims-widget.tsx` — links to this page
 
-**Navigation: where it goes:** Stays on page.
+**Navigation: where it goes:** No outbound navigation.
 
 ---
 
@@ -102,59 +94,56 @@ ExpensesViewPage
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `expenses` | SELECT | `id`, `category`, `description`, `amount`, `expense_date`, `submitted_by`, `status`, `branch_id`, `receipt_url`, `rejection_reason`, `approved_by`, `paid_by`, `created_at` |
-| `expenses` | INSERT | `category`, `description`, `amount` (cents), `expense_date`, `receipt_url`, `submitted_by`, `branch_id` |
-| `expenses` | UPDATE | `status → "approved"`, `approved_by`, `approved_at` |
-| `expenses` | UPDATE | `status → "rejected"`, `rejection_reason` |
-| `expenses` | UPDATE | `status → "paid"`, `paid_by`, `paid_at`, `payment_reference` |
+| `expenses` (tenant) | READ, INSERT, UPDATE | `id`, `category`, `description`, `amount`, `expenseDate`, `submittedBy`, `status`, `branchId`, `receiptUrl`, `rejectionReason`, `approvedBy`, `paidBy`, `createdAt` |
 
-**`ExpenseRow` interface:**
-```ts
-{
+**Key types:**
+```typescript
+type ExpenseCategory = "travel" | "equipment" | "supplies" | "training" | "other";
+type ExpenseStatus = "pending" | "approved" | "rejected" | "paid";
+
+interface ExpenseRow {
   id: string; category: ExpenseCategory; description: string;
-  amount: number;          // cents (stored as integer in DB)
-  expenseDate: string;     // formatted via toLocaleDateString()
-  submittedBy: string;     // member userId
+  amount: number;          // cents
+  expenseDate: string;     // formatted with toLocaleDateString()
+  submittedBy: string;
   status: ExpenseStatus;
-  branchId?: string | null; receiptUrl?: string | null;
-  rejectionReason?: string | null; approvedBy?: string | null; paidBy?: string | null;
-  createdAt: string;
+  receiptUrl?: string|null; rejectionReason?: string|null;
+  approvedBy?: string|null; paidBy?: string|null;
 }
 ```
 
-**Category options:** `travel | equipment | supplies | training | other`
-
-**Amount handling:** User enters RM value (decimal); converted to cents via `Math.round(rmValue * 100)` before API call. Displayed via `formatPrice(amount, "MYR")` from `@/lib/currency`.
-
-**Form fields (create sheet):**
+**Form fields (Create Sheet):**
 | Field | Type | Validation | Maps to |
-|-------|------|-----------|---------|
-| category | select | required (default: travel) | `category` |
-| description | textarea | required, non-empty | `description` |
-| amount | number (RM) | > 0, required | `amount` (×100 → cents) |
-| expenseDate | date | required | `expense_date` (ISO UTC) |
-| receiptUrl | url | optional; validated as valid URL | `receipt_url` |
+|-------|------|------------|---------|
+| category | select | required (default: travel) | `expenses.create.category` |
+| description | textarea | min 1 char | `expenses.create.description` |
+| amount | number (RM) | > 0 | `expenses.create.amount` (×100 → cents) |
+| expenseDate | date | required | `expenses.create.expenseDate` (→ ISO datetime) |
+| receiptUrl | url | optional, must be valid URL if provided | `expenses.create.receiptUrl` |
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/web/src/__tests__/routes/expenses.test.tsx`
+**Test files:**
+- `apps/web/src/__tests__/routes/expenses.test.tsx` — frontend tests
+- `apps/server/src/tests/unit/services/expenses.test.ts` — service unit tests
+- `apps/server/src/tests/integration/expenses.integration.test.ts` — integration tests
 
-**Scenarios covered:**
-- Renders without crashing (empty state)
-- Renders page heading ("Expenses") and "Submit Expense" button
-- (Additional scenarios visible in test file)
+**Scenarios covered:** Create, approve, reject, markPaid flows; status filter; permission checks.
 
-**Not tested:** Approve/reject/markPaid mutation flows with UI interaction, status tab filtering, receipt URL validation, `canCreate`/`canUpdate` permission gates
+**Not tested (risk areas):**
+- Receipt URL validation (client-side `new URL()` check) edge cases
+- `amount` field accepts non-integer RM values; conversion uses `Math.round(rmValue * 100)` — floating-point edge cases
+- Date conversion: local date string → `T00:00:00.000Z` may shift date by timezone on the API side
 
 ---
 
 ## 6. Notes
 
-- The "Submit Expense" button is only shown when `hasPermission("expense_management:create")` returns true. Action buttons in the table (Approve, Reject, Mark Paid) are only rendered when `hasPermission("expense_management:update")`.
-- `hasPermission` is called from `useUserContext()` return value — verify this method exists on the hook's return type.
-- Expenses `amount` is stored in integer cents; `currency` column defaults to `"usd"` in the DB schema but the UI always displays as MYR — the currency column may be a schema artifact not used by this UI.
-- The reject dialog requires a non-empty reason; the mark-paid dialog's payment reference is optional.
-- Inline columns are defined within the component (not a separate columns file) — same pattern as the walk-in customers page.
-- No `beforeLoad` permission guard on this route.
+- Amount is stored in integer cents server-side; the UI accepts a decimal RM value and multiplies by 100 before sending.
+- The `submittedBy` field is set server-side from `context.member.userId` — the create input does not accept it from the client.
+- Action buttons in the table are guarded by `canUpdate` (derived from `hasPermission("expense_management:update")`); users without this permission see "—".
+- `canCreate` hides the "Submit Expense" header button for users without `expense_management:create`.
+- The reject mutation requires a non-empty `rejectionReason`; this is validated client-side before calling the API.
+- Claims widget (`apps/web/src/components/claims-widget.tsx`) calls `expenses.list({ status: "pending" })` separately — it is not connected to this page's query cache.

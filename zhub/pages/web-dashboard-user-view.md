@@ -1,25 +1,19 @@
 # Members (User View)
 
-**Route:** `/dashboard/user/view`
+**Route:** `/_authenticated/dashboard/_layout/user/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/user/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** authenticated (no `beforeLoad` guard; server requires `user_management:read`)
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View a list of all members in the current organization, with their role, status, email, join date, and member ID.
-
-**Produces:** A read-only table of organization members with columns: Name (avatar + display name), Email (copyable), Role (badge), Status (active/suspended badge), Joined date, Member ID (copyable, truncated).
-
-**On success:** Table renders with fetched member data.
-
-**On failure / error states:**
-- No `organizationId`: centered placeholder "Select an organization to view members."
-- Loading: centered spinner.
-- No empty-state UI for zero results beyond the table's default "No results." row.
+**Purpose (user perspective):** Read-only listing of all organization members (employees), showing name, email, role, status, and join date.
+**Produces:** A data table of members enriched with user details from the control panel.
+**On success:** Table renders with all visible members (RBAC-scoped: admins see all, staff see only their hierarchy).
+**On failure / error states:** "Select an organization" message if no org is selected. Spinner while loading. TanStack Query error state (no explicit error UI).
 
 ---
 
@@ -28,44 +22,39 @@
 **Execution flow:**
 ```
 UserViewPage
-  → useQuery(["members", orgId])
+  → useUserContext() → currentOrganizationId
+  → useQuery(["members", organizationId])
       → client.members.list({ organizationId })
-          → memberRouter.list (packages/api/src/routers/members.ts)
+          → memberRouter.list
               → requirePermission(tenantDb, member, "user_management", "read")
-              → SELECT FROM members WHERE [role/status/scope filters]
-              → cross-DB enrichment: SELECT id, name, email FROM user (control panel)
-              → returns merged array with name + email from control panel
-  → DataTable renders enriched member rows
+              → [RBAC] admins: all members; staff: members in accessibleNodeIds
+              → tenantDb.SELECT FROM members
+              → controlPanel.SELECT FROM user WHERE id IN (memberUserIds)
+              → returns enriched list with name + email from control panel
+  → DataTable (columns, data)
 ```
 
-**Inputs:** `organizationId` from `useUserContext()` (not a URL param). No filter controls on this page — no search, role filter, or status filter are exposed in the UI.
-
-**State management:** `useQuery` via TanStack Query; cache key `["members", organizationId]`. No local state beyond what TanStack Query manages.
-
-**Outputs:** Read-only table render. No mutations are triggered from this page.
-
-**Side effects:** None.
+**Inputs:** No URL/query params.
+**State management:** Only TanStack Query state; `enabled: !!organizationId`.
+**Outputs:** `DataTable` from `apps/web/src/components/tables/user/view/data-table.tsx`.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `members.list` — fetches all members visible to the calling member (RBAC-scoped)
+- `members.list` — fetch members with cross-DB user enrichment (name, email from control panel)
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/user/view/data-table.tsx` — basic table without sorting, pagination, or filtering controls
-- `columns` — `apps/web/src/components/tables/user/view/columns.tsx` — Name, Email (copyable), Role badge, Status badge, Joined date, Member ID (copyable)
-- `DataTableColumnHeader` — `apps/web/src/components/tables/data-column-header.tsx` — sortable column header (sorting wired in columns but not in DataTable's `useReactTable` config — no sort state)
+- `DataTable` — `apps/web/src/components/tables/user/view/data-table.tsx`
+- `columns` — `apps/web/src/components/tables/user/view/columns.tsx`
 
 **Uses these hooks:**
-- `useUserContext` — resolves `currentOrganizationId`
-- `useQuery` — fetches member list
+- `useUserContext` — `currentOrganizationId`
 
-**Navigation: who navigates here:**
-- App sidebar (`apps/web/src/components/app-sidebar.tsx:211,215`) under the Users/Employees section — link titled "Employees Listing"
+**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — People → User → "Employees Listing"
 
-**Navigation: where it goes:** No outbound navigation from this page.
+**Navigation: where it goes:** No outbound navigation.
 
 ---
 
@@ -74,13 +63,11 @@ UserViewPage
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `members` (tenant DB) | SELECT | `id`, `userId`, `role`, `hierarchyScopeId`, `status`, `joinedAt` |
-| `user` (control panel DB) | SELECT | `id`, `name`, `email` |
+| `members` (tenant) | SELECT | `id`, `userId`, `role`, `status`, `hierarchyScopeId`, `joinedAt` |
+| `user` (control panel) | SELECT | `id`, `name`, `email` |
 
-**Key types:**
-
-`MemberRow` (from `columns.tsx`):
-```ts
+**Returned shape per member:**
+```typescript
 {
   id: string;
   userId: string;
@@ -88,27 +75,26 @@ UserViewPage
   hierarchyScopeId: string;
   status: "active" | "suspended";
   joinedAt: Date | null;
-  name: string | null;
-  email: string | null;
+  name: string;   // from control panel user, "Unknown" if not found
+  email: string;  // from control panel user, "Unknown" if not found
 }
 ```
-
-The API merges `members` (tenant DB) with `user` (control panel DB) via a batch in-memory join on `userId`. Members with no matching control panel user record fall back to `name: "Unknown"` / `email: "Unknown"`.
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found.
-
-**Not tested:** Member list rendering, RBAC scoping (admin vs non-admin visibility), cross-DB enrichment, loading/no-org states.
+**Scenarios covered:** N/A
+**Not tested (risk areas):**
+- RBAC scope filtering for non-admin members
+- No organization selected state
 
 ---
 
 ## 6. Notes
 
-- **RBAC scoping at API layer:** `admin` members see all members in the org. Non-admins see only members whose `hierarchyScopeId` falls within their accessible descendant nodes (`getDescendantNodeIds`). This is invisible to the UI — the page passes no filters.
-- **DataTable is minimal:** The user/view `DataTable` uses only `getCoreRowModel` — no pagination, sorting, or filtering. The `enableSorting: true` flags in `columns.tsx` have no effect because no `getSortedRowModel` is registered in the table config.
-- **Cross-DB join:** The `members.list` handler fetches `name`/`email` from the control panel `user` table. If `controlPanelDb` is unavailable in context, `userMap` remains empty and all rows show `"Unknown"` for name and email.
-- **Route permission config:** `apps/web/src/lib/route-config.ts` declares `user_management.read` as required for `/dashboard/user/view`. The same permission is enforced server-side in `memberRouter.list`.
-- There are no actions (edit, delete, invite) wired on this page — it is purely a read view. Management actions exist in other routes (e.g., `access-control/user-assignment`).
+- This page and `access-control/user-assignment` both call `members.list` with the same query key `["members", organizationId]`. They share the TanStack Query cache, so mutations from the user-assignment page will also refresh this page.
+- The page title says "Members" but the sidebar link says "Employees Listing" — label inconsistency.
+- This is a read-only page; member management (role updates, deactivation, invitations) is done from `access-control/user-assignment`.
+- **Name fallback behavior:** When a member's `name` is "Unknown" but their `email` is valid (not "No email"), the Name column displays the email address instead in `text-muted-foreground text-sm` style. Avatar initials are computed from whichever value is actually displayed (name or email fallback).

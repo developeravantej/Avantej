@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
@@ -39,6 +40,13 @@ export function InventoryOptionsDashboard() {
 	const { data: suppliersRaw = [], isLoading: suppliersLoading } = useQuery({
 		queryKey: ["suppliers", organizationId],
 		queryFn: () => client.suppliers.list({ organizationId: organizationId! }),
+		enabled: !!organizationId,
+	});
+
+	// ---- Products query (for brand/category product counts) ----
+	const { data: productsRaw = [], isLoading: productsLoading } = useQuery({
+		queryKey: ["products", organizationId],
+		queryFn: () => client.products.list({ organizationId: organizationId! }),
 		enabled: !!organizationId,
 	});
 
@@ -198,17 +206,36 @@ export function InventoryOptionsDashboard() {
 		},
 	});
 
+	// ---- Compute product counts per brand / category ----
+	const productCountByBrand = useMemo(() => {
+		const counts = new Map<string, number>();
+		productsRaw.forEach((p) => {
+			if (p.brandId)
+				counts.set(p.brandId, (counts.get(p.brandId) ?? 0) + 1);
+		});
+		return counts;
+	}, [productsRaw]);
+
+	const productCountByCategory = useMemo(() => {
+		const counts = new Map<string, number>();
+		productsRaw.forEach((p) => {
+			if (p.categoryId)
+				counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
+		});
+		return counts;
+	}, [productsRaw]);
+
 	// ---- Transform data ----
 	const brandsData = brandsRaw.map((brand) => ({
 		Name: brand.name,
-		"Products Assigned": 0,
+		"Products Assigned": productCountByBrand.get(brand.id) ?? 0,
 		ID: brand.id,
 	}));
 
 	const categoriesData = categoriesRaw.map((cat) => ({
 		Name: cat.name,
 		externalCode: "",
-		"Products Assigned": 0,
+		"Products Assigned": productCountByCategory.get(cat.id) ?? 0,
 		ID: cat.id,
 	}));
 
@@ -230,7 +257,7 @@ export function InventoryOptionsDashboard() {
 		updatedAt: s.updatedAt ? String(s.updatedAt) : null,
 	}));
 
-	const isLoading = brandsLoading || categoriesLoading || suppliersLoading;
+	const isLoading = brandsLoading || categoriesLoading || suppliersLoading || productsLoading;
 
 	if (!organizationId) {
 		return (

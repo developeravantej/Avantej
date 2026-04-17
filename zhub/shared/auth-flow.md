@@ -1,6 +1,6 @@
 # Auth & Session Flow
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ## Overview
 
@@ -77,7 +77,7 @@ Roles are stored in the tenant `roles` table with a `priority` field:
 | `>= 100` | Admin — all permissions granted unconditionally |
 | `< 100`  | Staff — only permissions explicitly assigned via `role_permissions` table |
 
-The `member.role` field stores the role name (string). The role name is joined to the `roles` table to look up `priority`.
+The `member.role` field stores the role name (string). The role name is joined to the `roles` table to look up `priority` using a **case-insensitive comparison** (`LOWER(roles.name) = LOWER(member.role)`). Previously the lookup was case-sensitive (`eq(roles.name, member.role)`), which meant a case mismatch (e.g. `"Admin"` vs `"admin"`) would silently return no role and therefore empty permissions. If no matching role is found, the server now logs a `console.warn`. A second warning fires when an admin-priority role (>= 100) has an empty permissions table.
 
 ### `accessibleNodeIds`
 

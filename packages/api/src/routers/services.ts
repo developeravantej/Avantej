@@ -13,6 +13,8 @@ import {
   getDescendantNodeIds,
   requirePermission,
 } from "@avantej-core/services";
+import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
+import { and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -168,7 +170,7 @@ export const servicesRouter = {
         expirable: z.boolean().optional(),
         expiryDays: z.number().int().min(1).nullable().optional(),
         expiryDate: z.string().datetime().nullable().optional(),
-        availablePaymentPlans: z.array(z.enum(["full", "half", "quarterly"])).optional(),
+        availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
       })
@@ -213,6 +215,23 @@ export const servicesRouter = {
           throw new ORPCError("FORBIDDEN", {
             message: "User does not have access to this branch",
           });
+        }
+      }
+
+      // Validate each plan code exists and is active
+      if (input.availablePaymentPlans && input.availablePaymentPlans.length > 0) {
+        for (const code of input.availablePaymentPlans) {
+          const plan = await context.tenantDb.query.installmentPlans.findFirst({
+            where: and(
+              eq(installmentPlans.code, code),
+              eq(installmentPlans.isActive, true),
+            ),
+          });
+          if (!plan) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: `Unknown installment plan: ${code}`,
+            });
+          }
         }
       }
 
@@ -283,7 +302,7 @@ export const servicesRouter = {
         expirable: z.boolean().optional(),
         expiryDays: z.number().int().min(1).nullable().optional(),
         expiryDate: z.string().datetime().nullable().optional(),
-        availablePaymentPlans: z.array(z.enum(["full", "half", "quarterly"])).optional(),
+        availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
       })
@@ -341,6 +360,23 @@ export const servicesRouter = {
           throw new ORPCError("FORBIDDEN", {
             message: "User does not have access to target branch",
           });
+        }
+      }
+
+      // Validate each plan code exists and is active
+      if (input.availablePaymentPlans && input.availablePaymentPlans.length > 0) {
+        for (const code of input.availablePaymentPlans) {
+          const plan = await context.tenantDb.query.installmentPlans.findFirst({
+            where: and(
+              eq(installmentPlans.code, code),
+              eq(installmentPlans.isActive, true),
+            ),
+          });
+          if (!plan) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: `Unknown installment plan: ${code}`,
+            });
+          }
         }
       }
 

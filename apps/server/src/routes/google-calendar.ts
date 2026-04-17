@@ -46,10 +46,11 @@ app.get("/callback", async (c) => {
 	const code = c.req.query("code");
 	const stateParam = c.req.query("state");
 	const error = c.req.query("error");
+	const webOrigin = process.env.CORS_ORIGIN ?? "http://localhost:3001";
 
 	if (error || !code || !stateParam) {
 		return c.redirect(
-			"/dashboard/settings/google-calendar?gcal=error&message=auth_denied",
+			`${webOrigin}/dashboard/settings/google-calendar?gcal=error&message=auth_denied`,
 		);
 	}
 
@@ -58,7 +59,7 @@ app.get("/callback", async (c) => {
 		state = JSON.parse(atob(stateParam)) as typeof state;
 	} catch {
 		return c.redirect(
-			"/dashboard/settings/google-calendar?gcal=error&message=invalid_state",
+			`${webOrigin}/dashboard/settings/google-calendar?gcal=error&message=invalid_state`,
 		);
 	}
 
@@ -110,11 +111,11 @@ app.get("/callback", async (c) => {
 				},
 			});
 
-		return c.redirect(`${state.returnUrl}?gcal=connected`);
+		return c.redirect(`${webOrigin}${state.returnUrl}?gcal=connected`);
 	} catch (err) {
 		console.error("Google Calendar OAuth callback error:", err);
 		return c.redirect(
-			`${state.returnUrl}?gcal=error&message=token_exchange_failed`,
+			`${webOrigin}${state.returnUrl}?gcal=error&message=token_exchange_failed`,
 		);
 	}
 });

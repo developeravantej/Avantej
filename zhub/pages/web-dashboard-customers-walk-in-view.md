@@ -3,8 +3,8 @@
 **Route:** `/dashboard/customers/walk-in/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/customers/walk-in/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Auth required:** rbac(`walk_in_customer_management:read`) — enforced in `beforeLoad`
+**Last updated:** 2026-04-16
 
 ---
 

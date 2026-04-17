@@ -64,3 +64,4 @@ export * from "./installment-events";
 export * from "./organization-settings";
 export * from "./google-calendar-connections";
 export * from "./google-calendar-event-mappings";
+export * from "./installment-plans";

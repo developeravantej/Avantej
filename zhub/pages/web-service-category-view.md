@@ -1,25 +1,19 @@
 # Service Category View
 
-**Route:** `/service-category/view`
+**Route:** `/_authenticated/service-category/view`
 **File:** `apps/web/src/routes/_authenticated/service-category/view.tsx:1`
 **Platform:** web
 **Auth required:** rbac(service_management:read)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Browse, search, create, edit, and deactivate service categories for the current organization.
-
-**Produces:** A searchable table of service categories, with inline access to add/edit via modal dialogs and view detail via a detail dialog.
-
-**On success:** Categories load immediately; create/edit/deactivate operations trigger a refetch and a success toast.
-
-**On failure / error states:**
-- No `organizationId` → message "No organization selected."
-- API error → destructive error message rendered above the table.
-- Loading → "Loading..." placeholder inside the table border.
+**Purpose (user perspective):** Displays a searchable table of all service categories in the current organization with full CRUD operations.
+**Produces:** A table with name, status, and action columns for each service category; includes Add, Edit, Detail, and Delete (deactivate) flows via modals.
+**On success:** Categories load from the API and are displayed in a striped table with a global text search filter.
+**On failure / error states:** Loading spinner while fetching. Error message shown inline if API fails. "No organization selected" message if `currentOrganizationId` is null.
 
 ---
 
@@ -28,46 +22,56 @@
 **Execution flow:**
 ```
 ServiceCategoryViewComponent
-  → useUserContext() → organizationId
-  → useQuery(client.serviceCategories.list) → categories[]
-  → DataTable (service-category/view/data-table)
-      → ServiceFormDialog (create)
-      → ServiceFormDialog (edit) + useQuery(getById + getByCategoryId)
-      → ServiceCategoryDetailDialog (read-only detail + deactivate)
+  → useUserContext() → currentOrganizationId
+  → useQuery(["service-categories", orgId])
+    → client.serviceCategories.list({ organizationId, isActive: undefined })
+      → serviceCategoriesRouter.list
+        → requirePermission(tenantDb, member, "service_management", "read")
+        → listServiceCategories(tenantDb, { accessibleNodeIds })
+          → tenant DB: service_categories table
+  → <DataTable> (apps/web/src/components/tables/service-category/view/data-table.tsx)
+    → On row click: <ServiceCategoryDetailDialog>
+    → "Add" button: <ServiceFormDialog mode="create">
+    → Edit action: useQuery(["serviceCategory", "edit", id]) →
+        client.serviceCategories.getById + client.serviceCategoryConfig.getByCategoryId
+      → <ServiceFormDialog mode="edit" initialData={...}>
+    → Delete action: client.serviceCategories.update({ isActive: false }) (soft-delete)
 ```
 
-**Inputs:** None from URL; `organizationId` from user context.
+**Inputs:** None (no URL params or query params)
+**State management:**
+- TanStack Query: `["service-categories", organizationId]` (30s stale time)
+- DataTable local state: `globalFilter`, `isAddDialogOpen`, `isEditDialogOpen`, `isDetailDialogOpen`, `selectedCategoryId`, `editCategoryId`
+- Edit data fetched on demand: `["serviceCategory", "edit", id, orgId]`
 
-**State management:** TanStack Query (`queryKey: ["service-categories", organizationId]`, `staleTime: 30s`). Edit/detail dialogs managed by `DataTable` internal state.
-
-**Outputs:** Renders `DataTable` with `columns` from `service-category/view/columns.tsx`.
-
-**Side effects:** Deactivate calls `client.serviceCategories.update({ isActive: false })` then calls `onSuccess` (refetch).
+**Outputs:** Rendered table; create/edit/deactivate mutations via child dialogs calling `onSuccess()` which triggers `refetch()`
+**Side effects:** `client.serviceCategories.update` (soft-delete) on delete action; toast notifications for success/failure
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `serviceCategories.list` — fetch all categories (with optional `isActive` filter)
-- `serviceCategories.getById` — load category for edit mode
-- `serviceCategoryConfig.getByCategoryId` — load booking/commission config for edit
-- `serviceCategories.update` — soft-delete (deactivate) a category
+- `serviceCategories.list` — fetch all categories for org
+- `serviceCategories.getById` — fetch single category for edit pre-fill
+- `serviceCategoryConfig.getByCategoryId` — fetch config (duration, incentives, booking rules) for edit pre-fill
+- `serviceCategories.update` — soft-delete (isActive: false)
+- `serviceCategories.create` / `serviceCategories.update` — via ServiceFormDialog
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/service-category/view/data-table.tsx` — table shell, dialogs, search
-- `ServiceFormDialog` — `apps/web/src/components/forms/service-category-form.tsx` — create/edit form
-- `ServiceCategoryDetailDialog` — `apps/web/src/components/forms/service-category-detail-dialog.tsx` — read-only detail + deactivate
+- `DataTable` — `apps/web/src/components/tables/service-category/view/data-table.tsx` — table shell with search, Add button, row click handlers
+- `ServiceFormDialog` — `apps/web/src/components/forms/service-category-form.tsx` — create/edit modal
+- `ServiceCategoryDetailDialog` — `apps/web/src/components/forms/service-category-detail-dialog.tsx` — detail view with edit/delete triggers
 
 **Uses these hooks:**
-- `useUserContext` — resolves current `organizationId`
+- `useUserContext` — retrieves `currentOrganizationId`
 - `useQuery` (TanStack Query) — data fetching
 
 **Navigation: who navigates here:**
-- App sidebar link: "Service Categories" → `/service-category/view` (under Services section)
-- Dashboard service-category route inside `_layout` (`apps/web/src/routes/_authenticated/dashboard/_layout/service-category/view.tsx`) appears to be a duplicate/alias route
+- App sidebar: "Service Categories" under Services group → `/dashboard/service-category/view` (note: sidebar points to the `/dashboard/...` twin, not this standalone route)
+- `requirePermission` guard in `beforeLoad` redirects to `/dashboard` if permission absent (stub — no real client enforcement)
 
-**Navigation: where it goes:** Stays on same page; dialogs are in-place.
+**Navigation: where it goes:** Stays on page; all interactions open dialogs in-place
 
 ---
 
@@ -76,30 +80,26 @@ ServiceCategoryViewComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `service_categories` | SELECT | `id`, `name`, `isActive`, `organizationId` |
-| `service_category_config` | SELECT | `categoryId`, `defaultDuration`, `defaultMaxAttendees`, `incentiveType`, `isConditional`, `maxStaff`, `staffPoolPercentage`, `requireAdvanceBooking`, `minAdvanceHours`, `cancellationCutoffHours`, `bufferTimeMinutes` |
-| `service_categories` | UPDATE | `isActive = false` |
+| `service_categories` | SELECT, UPDATE | `id`, `name`, `isActive`, `branchId` |
+| `service_category_config` | SELECT | `categoryId`, `defaultDuration`, `defaultMaxAttendees`, `incentiveType`, `paymentStructures`, `staffWeightage`, `requireAdvanceBooking`, `cancellationCutoffHours` |
 
 **Key types / Zod schemas:**
-- `serviceCategories.list` input: `{ organizationId: uuid, isActive?: boolean }`
-- `serviceCategoryConfig.getByCategoryId` input: `{ organizationId: uuid, categoryId: uuid }`
+- `serviceCategories.list` input: `{ organizationId: uuid, branchId?: uuid|null, isActive?: boolean }`
+- `serviceCategories.update` input for deactivate: `{ organizationId: uuid, id: uuid, isActive: false }`
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found specifically for this route.
-
-**Not tested (risk areas):**
-- Edit flow requiring two parallel API calls (category + config)
-- Deactivate confirmation/error handling
-- Empty state when no categories exist
+**Test files:** None found
+**Scenarios covered:** N/A
+**Not tested (risk areas):** RBAC redirect in `beforeLoad` (stub); soft-delete cascade effect on services; edit pre-fill when config is missing (caught with `.catch(() => null)`)
 
 ---
 
 ## 6. Notes
 
-- The route also exists at `apps/web/src/routes/_authenticated/dashboard/_layout/service-category/view.tsx` — that duplicate path is listed in `routeTree.gen.ts`; both appear to render identical logic.
-- `requirePermission` in `beforeLoad` is currently a stub (`route-guards.ts`) and does not actually block navigation.
-- The `isActive: undefined` passed to `list` means no filter — all categories (active and inactive) are returned.
-- Deactivation is soft-delete only; categories cannot be hard-deleted from the UI.
+- `requirePermission` in `beforeLoad` is a stub — it does NOT enforce anything client-side; actual enforcement happens server-side in each procedure.
+- "Delete" is a soft-delete (sets `isActive: false`) not a hard delete.
+- There are duplicate route trees: `/_authenticated/service-category/view` and `/_authenticated/dashboard/_layout/service-category/view`. The sidebar links to the dashboard version. This standalone version is an alternative entry point.
+- Edit pre-fill fetches both category and config in parallel; config failure is silently swallowed via `.catch(() => null)`.

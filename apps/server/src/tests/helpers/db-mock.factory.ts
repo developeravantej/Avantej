@@ -98,6 +98,7 @@ export function createMockTenantDb() {
 			promotionUsages: createQueryTable(),
 			walkInCustomers: createQueryTable(),
 			taxRates: createQueryTable(),
+			installmentPlans: createQueryTable(),
 			members: createQueryTable(),
 			hierarchyNodes: createQueryTable(),
 			salesOrders: createQueryTable(),
