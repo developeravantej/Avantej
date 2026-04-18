@@ -1,14 +1,14 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-04-18 20:15
+**Last run:** 2026-04-18 20:30 (post-patch)
 **Sessions audited:** 1
-**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
+**Clean:** 1 · **Needs attention:** 0 · **Critical:** 0
 
 ## Sessions
 
 | Status | Session | Summary | Report |
 |--------|---------|---------|--------|
-| 🟡 needs-attention | `04-18_15-17_tracking-pages-plan` | 8/8 sections, 3 broken refs, not executed | [report](04-18_15-17_tracking-pages-plan/audit/report.md) |
+| 🟢 clean | `04-18_15-17_tracking-pages-plan` | 8/8 sections, 0 broken refs (patched), not executed | [report](04-18_15-17_tracking-pages-plan/audit/report.md) |
 
 ## How to act on this
 

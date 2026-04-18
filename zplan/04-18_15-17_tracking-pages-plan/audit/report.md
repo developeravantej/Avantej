@@ -1,8 +1,19 @@
 # Audit: 04-18_15-17_tracking-pages-plan
 
 **Audited:** 2026-04-18 20:15
+**Re-audited after patch:** 2026-04-18 20:30
 **Plan corpus:** `plan.md` + 7 sub-plans (`01-customer-directory.md` … `07-attendance.md`) + `impact-analysis.md` + `open-questions.md`
-**Status:** needs-attention
+**Status:** clean (post-patch) — was needs-attention
+
+## Patches applied (2026-04-18 20:30)
+
+All three substantive broken refs fixed in-place:
+
+1. **`controlPanelDb` access pattern** — added canonical `getControlPanelDb(context)` helper to `plan.md §4.10`; replaced `context.controlPanelDb` at 7 call sites across 01/02/03/04/05/06. The only remaining matches of the string are the §4.10/§4.11 warning notes themselves.
+2. **`service.credits` / `service.durationDays`** — `plan.md §4.11` now defines the explicit `services → package_instances` field mapping (`sessionCount → creditsTotal`, `expiryDays → expiresAt`). §04 step 13 was rewritten: upfront validation (13a) plus corrected insert (13b).
+3. **Permission seed shape** — `plan.md §4.2` now clarifies that the `permissions` table *does* support `description`, so the plan's extended shape is valid; added guidance to backfill existing rows for UI consistency.
+
+Re-verification grep (`context\.controlPanelDb|\.credits\b|durationDays`) returns only the two warning-note hits in `plan.md`, as expected.
 
 ## Scorecard
 
