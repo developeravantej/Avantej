@@ -377,7 +377,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                 <Dialog.Title
                   as="h1"
                   className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
@@ -686,7 +686,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                           className="mt-1 block w-40 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           onWheel={(e) => e.currentTarget.blur()}
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-brand-secondary-1">
                           How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
                         </p>
                       </div>
@@ -833,7 +833,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-between space-x-3">
+                  <div className="mt-6 flex justify-end space-x-3">
                     <button
                       type="button"
                       onClick={onClose}
@@ -844,7 +844,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (mode === 'create' ? 'Adding...' : 'Saving...') : (mode === 'create' ? 'Add Service' : 'Save Changes')}
                     </button>

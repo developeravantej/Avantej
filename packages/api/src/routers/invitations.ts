@@ -522,7 +522,6 @@ export const invitationRouter = {
         tenantDb: context.tenantDb,
         status: input.status,
         email: input.email,
-        invitedBy: context.member.userId, // Optionally filter by inviter
       });
 
       return {

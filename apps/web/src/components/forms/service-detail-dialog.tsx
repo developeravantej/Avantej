@@ -146,9 +146,12 @@ export function ServiceDetailDialog({
 							leaveFrom="opacity-100 scale-100"
 							leaveTo="opacity-0 scale-95"
 						>
-							<Dialog.Panel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+							<Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
 								<div className="flex items-center justify-between mb-6">
-									<Dialog.Title className="text-lg font-semibold">
+									<Dialog.Title
+										as="h1"
+										className="text-lg font-medium leading-6 text-brand-primary-1"
+									>
 										Service Details
 									</Dialog.Title>
 									{service && (
@@ -184,13 +187,13 @@ export function ServiceDetailDialog({
 
 								{isLoading && (
 									<div className="flex items-center justify-center py-12">
-										<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-										<span className="ml-3 text-muted-foreground">Loading...</span>
+										<Loader2 className="h-8 w-8 animate-spin text-brand-secondary-1" />
+										<span className="ml-3 text-brand-secondary-1">Loading...</span>
 									</div>
 								)}
 
 								{error && (
-									<div className="mb-4 p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+									<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
 										{error}
 									</div>
 								)}
@@ -198,76 +201,84 @@ export function ServiceDetailDialog({
 								{service && !isLoading && (
 									<div className="space-y-4">
 										<div>
-											<label className="text-sm font-medium text-muted-foreground">Name</label>
-											<p className="mt-1 text-sm font-medium">{service.name}</p>
+											<label className="block text-sm font-medium text-brand-primary-1">Name</label>
+											<p className="mt-1 text-sm text-brand-secondary-1">{service.name}</p>
 										</div>
 										{service.description && (
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Description</label>
-												<p className="mt-1 text-sm">{service.description}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Description</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{service.description}</p>
 											</div>
 										)}
-										<div>
-											<label className="text-sm font-medium text-muted-foreground">Duration</label>
-											<p className="mt-1 text-sm">
-												{formatDuration(service.duration, service.durationUnitType)}
-											</p>
+										<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
+											<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Scheduling</h5>
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Duration</label>
+													<p className="mt-1 text-sm text-brand-secondary-1">
+														{formatDuration(service.duration, service.durationUnitType)}
+													</p>
+												</div>
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Max attendees</label>
+													<p className="mt-1 text-sm text-brand-secondary-1">{service.maxAttendees}</p>
+												</div>
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Scheduling type</label>
+													<div className="mt-1">
+														<Badge variant="outline">
+															{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
+														</Badge>
+													</div>
+												</div>
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Type</label>
+													<div className="mt-1">
+														<Badge variant="outline" className="capitalize">
+															{service.type ?? "—"}
+														</Badge>
+													</div>
+												</div>
+											</div>
 										</div>
-										<div>
-											<label className="text-sm font-medium text-muted-foreground">Max attendees</label>
-											<p className="mt-1 text-sm">{service.maxAttendees}</p>
-										</div>
-										<div>
-											<label className="text-sm font-medium text-muted-foreground">Price</label>
-											<p className="mt-1 text-sm">{formatPrice(service.price)}</p>
+										<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
+											<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Pricing &amp; Tax</h5>
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Price</label>
+													<p className="mt-1 text-sm text-brand-secondary-1">{formatPrice(service.price)}</p>
+												</div>
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Taxable</label>
+													<p className="mt-1 text-sm text-brand-secondary-1">
+														{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
+													</p>
+												</div>
+											</div>
 										</div>
 										<div className="grid grid-cols-2 gap-4">
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Scheduling</label>
-												<div className="mt-1">
-													<Badge variant="outline">
-														{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
-													</Badge>
+												<label className="block text-sm font-medium text-brand-primary-1">Sessions</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{service.sessionCount ?? "—"}</p>
+											</div>
+											{service.expirable && (
+												<div>
+													<label className="block text-sm font-medium text-brand-primary-1">Expiry</label>
+													<p className="mt-1 text-sm text-brand-secondary-1">
+														{service.expiryDays ? `${service.expiryDays} days` : "—"}
+													</p>
 												</div>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-muted-foreground">Type</label>
-												<div className="mt-1">
-													<Badge variant="outline" className="capitalize">
-														{service.type ?? "—"}
-													</Badge>
-												</div>
-											</div>
+											)}
 										</div>
-										<div className="grid grid-cols-2 gap-4">
-											<div>
-												<label className="text-sm font-medium text-muted-foreground">Taxable</label>
-												<p className="mt-1 text-sm">
-													{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
-												</p>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-muted-foreground">Sessions</label>
-												<p className="mt-1 text-sm">{service.sessionCount ?? "—"}</p>
-											</div>
-										</div>
-										{service.expirable && (
-											<div>
-												<label className="text-sm font-medium text-muted-foreground">Expiry</label>
-												<p className="mt-1 text-sm">
-													{service.expiryDays ? `${service.expiryDays} days` : "—"}
-												</p>
-											</div>
-										)}
 										{service.location && (
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Location</label>
-												<p className="mt-1 text-sm">{service.location}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Location</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{service.location}</p>
 											</div>
 										)}
 										{service.features && service.features.length > 0 && (
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Features</label>
+												<label className="block text-sm font-medium text-brand-primary-1">Features</label>
 												<div className="mt-1 flex flex-wrap gap-1">
 													{service.features.map((f, i) => (
 														<Badge key={i} variant="secondary">{f}</Badge>
@@ -277,7 +288,7 @@ export function ServiceDetailDialog({
 										)}
 										<div className="grid grid-cols-2 gap-4">
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Status</label>
+												<label className="block text-sm font-medium text-brand-primary-1">Status</label>
 												<div className="mt-1">
 													{service.isActive ? (
 														<Badge variant="default">Active</Badge>
@@ -288,30 +299,34 @@ export function ServiceDetailDialog({
 											</div>
 											{service.isRecommended && (
 												<div>
-													<label className="text-sm font-medium text-muted-foreground">Recommended</label>
+													<label className="block text-sm font-medium text-brand-primary-1">Recommended</label>
 													<div className="mt-1">
 														<Badge variant="default">Yes</Badge>
 													</div>
 												</div>
 											)}
 										</div>
-										<div className="grid grid-cols-2 gap-4 pt-2 border-t">
+										<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4 mt-4">
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Created</label>
-												<p className="mt-1 text-sm">{formatDate(service.createdAt)}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Created</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(service.createdAt)}</p>
 											</div>
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Updated</label>
-												<p className="mt-1 text-sm">{formatDate(service.updatedAt)}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Updated</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(service.updatedAt)}</p>
 											</div>
 										</div>
 									</div>
 								)}
 
-								<div className="mt-6 flex justify-end">
-									<Button type="button" variant="outline" onClick={onClose}>
+								<div className="mt-6 flex justify-end space-x-3">
+									<button
+										type="button"
+										onClick={onClose}
+										className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+									>
 										Close
-									</Button>
+									</button>
 								</div>
 
 								<Transition appear show={showDeleteConfirm} as={Fragment}>
@@ -338,29 +353,34 @@ export function ServiceDetailDialog({
 													leaveFrom="opacity-100 scale-100"
 													leaveTo="opacity-0 scale-95"
 												>
-													<Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-														<Dialog.Title className="text-lg font-medium mb-4">
+													<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+														<Dialog.Title
+															as="h1"
+															className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
+														>
 															Deactivate service
 														</Dialog.Title>
-														<p className="text-sm text-muted-foreground mb-6">
+														<p className="text-sm text-brand-secondary-1 mb-6">
 															Deactivate &quot;{service?.name}&quot;? It will be hidden from active lists. You can reactivate it later by editing.
 														</p>
-														<div className="flex justify-end gap-3">
-															<Button
-																variant="outline"
+														<div className="mt-6 flex justify-end space-x-3">
+															<button
+																type="button"
 																onClick={() => setShowDeleteConfirm(false)}
 																disabled={isDeleting}
+																className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
 															>
 																Cancel
-															</Button>
-															<Button
-																variant="destructive"
+															</button>
+															<button
+																type="button"
 																onClick={handleDelete}
 																disabled={isDeleting}
+																className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 															>
 																{isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 																Deactivate
-															</Button>
+															</button>
 														</div>
 													</Dialog.Panel>
 												</Transition.Child>

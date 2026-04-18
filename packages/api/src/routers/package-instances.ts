@@ -220,6 +220,15 @@ export const packageInstancesRouter = {
         // Interval precedence: explicit input overrides plan default
         const effectiveIntervalDays = input.installmentIntervalDays ?? planRow?.defaultIntervalDays ?? 30;
 
+        // Apply installment plan price premium. Callers send the BASE/list price;
+        // server scales by (10000 + price_premium_bps) / 10000 when a plan with a
+        // non-zero premium is selected. See zplan/17-04_14-00_installment-premium/plan.md §4.3.
+        const basePrice = input.totalPrice ?? null;
+        const adjustedTotalPrice =
+          basePrice != null && planRow && planRow.pricePremiumBps > 0
+            ? Math.round((basePrice * (10000 + planRow.pricePremiumBps)) / 10000)
+            : basePrice;
+
         const created = await createPackageInstance(context.tenantDb, {
           serviceId: input.serviceId,
           clientId: input.clientId,
@@ -227,7 +236,7 @@ export const packageInstancesRouter = {
           assignedBy: input.assignedBy ?? null,
           purchaseNumber: input.purchaseNumber ?? null,
           paymentId: input.paymentId ?? null,
-          totalPrice: input.totalPrice ?? null,
+          totalPrice: adjustedTotalPrice,
           taxAmount: input.taxAmount ?? 0,
           paymentStatus: input.paymentStatus ?? "pending",
           paymentMethod: input.paymentMethod ?? null,
@@ -247,6 +256,7 @@ export const packageInstancesRouter = {
           creditsUnlocked: isInstallmentPlan ? 0 : null,
         });
 
+        // Installment schedule uses created.totalPrice which already includes any plan price premium
         // Generate installment schedule if payment plan is an installment plan (numInstallments > 1)
         if (isInstallmentPlan) {
           await createInstallmentSchedule(context.tenantDb, {

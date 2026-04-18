@@ -140,9 +140,12 @@ export function ServiceCategoryDetailDialog({
 							leaveFrom="opacity-100 scale-100"
 							leaveTo="opacity-0 scale-95"
 						>
-							<Dialog.Panel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+							<Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
 								<div className="flex items-center justify-between mb-6">
-									<Dialog.Title className="text-lg font-semibold">
+									<Dialog.Title
+										as="h1"
+										className="text-lg font-medium leading-6 text-brand-primary-1"
+									>
 										Service Category Details
 									</Dialog.Title>
 									{category && (
@@ -178,13 +181,13 @@ export function ServiceCategoryDetailDialog({
 
 								{isLoading && (
 									<div className="flex items-center justify-center py-12">
-										<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-										<span className="ml-3 text-muted-foreground">Loading...</span>
+										<Loader2 className="h-8 w-8 animate-spin text-brand-secondary-1" />
+										<span className="ml-3 text-brand-secondary-1">Loading...</span>
 									</div>
 								)}
 
 								{error && (
-									<div className="mb-4 p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+									<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
 										{error}
 									</div>
 								)}
@@ -192,19 +195,19 @@ export function ServiceCategoryDetailDialog({
 								{category && !isLoading && (
 									<div className="space-y-4">
 										<div>
-											<label className="text-sm font-medium text-muted-foreground">Name</label>
-											<p className="mt-1 text-sm font-medium">{category.name}</p>
+											<label className="block text-sm font-medium text-brand-primary-1">Name</label>
+											<p className="mt-1 text-sm text-brand-secondary-1">{category.name}</p>
 										</div>
 										<div>
-											<label className="text-sm font-medium text-muted-foreground">Description</label>
-											<p className="mt-1 text-sm">{category.description ?? "—"}</p>
+											<label className="block text-sm font-medium text-brand-primary-1">Description</label>
+											<p className="mt-1 text-sm text-brand-secondary-1">{category.description ?? "—"}</p>
 										</div>
 										<div>
-											<label className="text-sm font-medium text-muted-foreground">Display order</label>
-											<p className="mt-1 text-sm">{category.displayOrder}</p>
+											<label className="block text-sm font-medium text-brand-primary-1">Display order</label>
+											<p className="mt-1 text-sm text-brand-secondary-1">{category.displayOrder}</p>
 										</div>
 										<div>
-											<label className="text-sm font-medium text-muted-foreground">Status</label>
+											<label className="block text-sm font-medium text-brand-primary-1">Status</label>
 											<div className="mt-1">
 												{category.isActive ? (
 													<Badge variant="default">Active</Badge>
@@ -215,80 +218,90 @@ export function ServiceCategoryDetailDialog({
 										</div>
 										{config && (
 											<>
-												<div className="pt-2 border-t">
-													<p className="text-sm font-semibold text-foreground mb-3">Category Configuration</p>
+												<div className="border-t border-brand-secondary-3 pt-4 mt-4">
+													<h3 className="text-lg font-medium text-brand-primary-1 mb-4">Category Configuration</h3>
+													<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
+														<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Timing</h5>
+														<div className="grid grid-cols-2 gap-4">
+															<div>
+																<label className="block text-sm font-medium text-brand-primary-1">Default Duration</label>
+																<p className="mt-1 text-sm text-brand-secondary-1">{config.defaultDuration ? `${config.defaultDuration} min` : "—"}</p>
+															</div>
+															<div>
+																<label className="block text-sm font-medium text-brand-primary-1">Max Attendees</label>
+																<p className="mt-1 text-sm text-brand-secondary-1">{config.defaultMaxAttendees ?? "—"}</p>
+															</div>
+														</div>
+													</div>
+												</div>
+												<div className="grid grid-cols-2 gap-4">
+													<div>
+														<label className="block text-sm font-medium text-brand-primary-1">Incentive Type</label>
+														<p className="mt-1 text-sm text-brand-secondary-1 capitalize">{config.incentiveType ?? "—"}</p>
+													</div>
+													<div>
+														<label className="block text-sm font-medium text-brand-primary-1">Conditional</label>
+														<p className="mt-1 text-sm text-brand-secondary-1">{config.isConditional ? "Yes" : "No"}</p>
+													</div>
+													<div>
+														<label className="block text-sm font-medium text-brand-primary-1">Max Staff</label>
+														<p className="mt-1 text-sm text-brand-secondary-1">{config.maxStaff}</p>
+													</div>
+													<div>
+														<label className="block text-sm font-medium text-brand-primary-1">Staff Pool %</label>
+														<p className="mt-1 text-sm text-brand-secondary-1">{config.staffPoolPercentage}%</p>
+													</div>
+												</div>
+												<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
+													<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Booking &amp; Cancellation Rules</h5>
 													<div className="grid grid-cols-2 gap-4">
 														<div>
-															<label className="text-sm font-medium text-muted-foreground">Default Duration</label>
-															<p className="mt-1 text-sm">{config.defaultDuration ? `${config.defaultDuration} min` : "—"}</p>
+															<label className="block text-sm font-medium text-brand-primary-1">Advance Booking</label>
+															<p className="mt-1 text-sm text-brand-secondary-1">
+																{config.requireAdvanceBooking
+																	? `Required (${config.minAdvanceHours ?? 0}h ahead)`
+																	: "Not required"}
+															</p>
 														</div>
 														<div>
-															<label className="text-sm font-medium text-muted-foreground">Max Attendees</label>
-															<p className="mt-1 text-sm">{config.defaultMaxAttendees ?? "—"}</p>
+															<label className="block text-sm font-medium text-brand-primary-1">Cancellation Window</label>
+															<p className="mt-1 text-sm text-brand-secondary-1">
+																{config.enableCancellationWindow
+																	? `${config.cancellationCutoffHours ?? 0}h before start`
+																	: "No window"}
+															</p>
 														</div>
-													</div>
-												</div>
-												<div className="grid grid-cols-2 gap-4">
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Incentive Type</label>
-														<p className="mt-1 text-sm capitalize">{config.incentiveType ?? "—"}</p>
-													</div>
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Conditional</label>
-														<p className="mt-1 text-sm">{config.isConditional ? "Yes" : "No"}</p>
-													</div>
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Max Staff</label>
-														<p className="mt-1 text-sm">{config.maxStaff}</p>
-													</div>
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Staff Pool %</label>
-														<p className="mt-1 text-sm">{config.staffPoolPercentage}%</p>
-													</div>
-												</div>
-												<div className="grid grid-cols-2 gap-4">
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Advance Booking</label>
-														<p className="mt-1 text-sm">
-															{config.requireAdvanceBooking
-																? `Required (${config.minAdvanceHours ?? 0}h ahead)`
-																: "Not required"}
-														</p>
-													</div>
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Cancellation Window</label>
-														<p className="mt-1 text-sm">
-															{config.enableCancellationWindow
-																? `${config.cancellationCutoffHours ?? 0}h before start`
-																: "No window"}
-														</p>
-													</div>
-													<div>
-														<label className="text-sm font-medium text-muted-foreground">Buffer Time</label>
-														<p className="mt-1 text-sm">
-															{config.bufferTimeMinutes ? `${config.bufferTimeMinutes} min` : "None"}
-														</p>
+														<div>
+															<label className="block text-sm font-medium text-brand-primary-1">Buffer Time</label>
+															<p className="mt-1 text-sm text-brand-secondary-1">
+																{config.bufferTimeMinutes ? `${config.bufferTimeMinutes} min` : "None"}
+															</p>
+														</div>
 													</div>
 												</div>
 											</>
 										)}
-										<div className="grid grid-cols-2 gap-4 pt-2 border-t">
+										<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4 mt-4">
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Created</label>
-												<p className="mt-1 text-sm">{formatDate(category.createdAt)}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Created</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(category.createdAt)}</p>
 											</div>
 											<div>
-												<label className="text-sm font-medium text-muted-foreground">Updated</label>
-												<p className="mt-1 text-sm">{formatDate(category.updatedAt)}</p>
+												<label className="block text-sm font-medium text-brand-primary-1">Updated</label>
+												<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(category.updatedAt)}</p>
 											</div>
 										</div>
 									</div>
 								)}
 
-								<div className="mt-6 flex justify-end">
-									<Button type="button" variant="outline" onClick={onClose}>
+								<div className="mt-6 flex justify-end space-x-3">
+									<button
+										type="button"
+										onClick={onClose}
+										className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+									>
 										Close
-									</Button>
+									</button>
 								</div>
 
 								{/* Deactivate confirmation */}
@@ -316,29 +329,34 @@ export function ServiceCategoryDetailDialog({
 													leaveFrom="opacity-100 scale-100"
 													leaveTo="opacity-0 scale-95"
 												>
-													<Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-														<Dialog.Title className="text-lg font-medium mb-4">
+													<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+														<Dialog.Title
+															as="h1"
+															className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
+														>
 															Deactivate category
 														</Dialog.Title>
-														<p className="text-sm text-muted-foreground mb-6">
+														<p className="text-sm text-brand-secondary-1 mb-6">
 															Deactivate &quot;{category?.name}&quot;? It will be hidden from active lists. You can reactivate it later by editing.
 														</p>
-														<div className="flex justify-end gap-3">
-															<Button
-																variant="outline"
+														<div className="mt-6 flex justify-end space-x-3">
+															<button
+																type="button"
 																onClick={() => setShowDeleteConfirm(false)}
 																disabled={isDeleting}
+																className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
 															>
 																Cancel
-															</Button>
-															<Button
-																variant="destructive"
+															</button>
+															<button
+																type="button"
 																onClick={handleDelete}
 																disabled={isDeleting}
+																className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 															>
 																{isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 																Deactivate
-															</Button>
+															</button>
 														</div>
 													</Dialog.Panel>
 												</Transition.Child>

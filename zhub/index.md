@@ -1,13 +1,13 @@
 # Project Hub Index — Avantej
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 
 Covers all pages in `apps/web` (TanStack Router) and all screens in `apps/native` (Expo Router).
 Each page doc traces the full stack: route → components → hooks → API → service → DB.
 
 **Shared context:**
 - [Auth & Session Flow](shared/auth-flow.md) — Cookie config, RBAC model, context pipeline, gotchas
-- [API Routers Overview](shared/api-overview.md) — ~175 procedures across 45 routers with auth levels
+- [API Routers Overview](shared/api-overview.md) — ~182 procedures across 46 routers with auth levels
 
 ---
 
@@ -36,7 +36,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | [Service Category View](pages/web-service-category-view.md) | `/service-category/view` | Legacy route; duplicate of dashboard version |
 | [User View](pages/web-user-view.md) | `/user/view` | Read-only member list (legacy route, duplicate of dashboard) |
 | [Customers](pages/web-customers.md) | `/customers` | Own profile + client member list; `requirePermission` string/object mismatch |
-| [GoHighLevel Integration](pages/web-go-highlevel-integration.md) | `/go-highlevel-integration` | CRM sync diagnostic; raw fetch (not oRPC); no RBAC guard; self-described as demo |
+| [GoHighLevel Integration](pages/web-go-highlevel-integration.md) | `/go-highlevel-integration` | CRM sync diagnostic; raw fetch (not oRPC); **platform-admin only** as of 2026-04-17; self-described as demo |
 
 ---
 
@@ -70,7 +70,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 |------|-------|---------|
 | [User Management](pages/web-dashboard-user-view.md) | `/dashboard/user/view` | Read-only member list; cross-DB name join |
 | [Trainers](pages/web-dashboard-trainers-view.md) | `/dashboard/trainers/view` | Parallel profile fetches + availability editor + buffer times |
-| [Access Control – Invitations](pages/web-dashboard-access-control-invitations.md) | `/dashboard/access-control/invitations` | Send/resend/revoke; list scoped to current member's invites only |
+| [Access Control – Invitations](pages/web-dashboard-access-control-invitations.md) | `/dashboard/access-control/invitations` | Send/resend/revoke; list is org-wide for any caller with `user_management:read` (fixed 2026-04-17) |
 | [Access Control – Permissions](pages/web-dashboard-access-control-permissions.md) | `/dashboard/access-control/permissions` | Read-only resource/action permission matrix |
 | [Access Control – Roles](pages/web-dashboard-access-control-roles.md) | `/dashboard/access-control/roles` | Roles CRUD with wizard — **wizard permissions not carried into RoleEditor** |
 | [Access Control – User Assignment](pages/web-dashboard-access-control-user-assignment.md) | `/dashboard/access-control/user-assignment` | Assign roles — **role badges never render; bulk actions are no-ops** |
@@ -84,7 +84,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | [Service Category](pages/web-dashboard-service-category-view.md) | `/dashboard/service-category/view` | Service category CRUD; DataTable self-fetches edit data |
 | [My Services](pages/web-dashboard-my-services-view.md) | `/dashboard/my-services/view` | Staff buffer-time overrides per **service** (not category — prior docs were wrong) |
 | [Package Instances](pages/web-dashboard-packages-instances-view.md) | `/dashboard/packages/instances/view` | Package instance management; create form exposes 9 of 15 API fields |
-| [Package Installments](pages/web-dashboard-packages-installments-view.md) | `/dashboard/packages/installments/view` | Installment management; all calls cast as `any`; suggestRefund opens on refund dialog |
+| [Package Installments](pages/web-dashboard-packages-installments-view.md) | `/dashboard/packages/installments/view` | Installment management; search + date-range + plan-code filters; Plan Type label via `plansMap`; `installments.*` calls cast as `any`; suggestRefund opens on refund dialog |
 
 ### Customers
 
@@ -131,6 +131,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 |------|-------|---------|
 | [Google Calendar](pages/web-dashboard-settings-google-calendar.md) | `/dashboard/settings/google-calendar` | OAuth flow; syncScope derived from member role; token revocation is best-effort |
 | [Tax Rates](pages/web-dashboard-settings-tax-rates.md) | `/dashboard/settings/tax-rates` | Tax rate CRUD; rates in basis points; 8 test scenarios |
+| [Installment Plans](pages/web-dashboard-settings-installment-plans.md) | `/dashboard/settings/installment-plans` | Admin-configurable installment plans; replaces hardcoded `full\|half\|quarterly`; seed rows + `code` immutable + deactivate warns on service references |
 
 ---
 

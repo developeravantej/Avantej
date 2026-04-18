@@ -3,8 +3,8 @@
 **Route:** `/_authenticated/go-highlevel-integration`
 **File:** `apps/web/src/routes/_authenticated/go-highlevel-integration.tsx:1`
 **Platform:** web
-**Auth required:** authenticated (no RBAC permission check)
-**Last updated:** 2026-04-16
+**Auth required:** authenticated + **platform admin only** (`requireSystemAdmin` beforeLoad + in-component gate, both added 2026-04-17)
+**Last updated:** 2026-04-17
 
 ---
 
@@ -21,7 +21,15 @@
 
 **Execution flow:**
 ```
-GoHighLevelIntegrationPage
+Route.beforeLoad
+  → requireSystemAdmin("/dashboard")
+    → reads user context from TanStack Query cache (fetches once if cold)
+    → redirects to /dashboard?unauthorized=true when !ctx.isSystemAdmin
+
+GoHighLevelIntegrationPage (renders only if beforeLoad passed)
+  → useIsSystemAdmin() { isSystemAdmin, loading: adminLoading }
+    → adminLoading  → return null
+    → !isSystemAdmin → render "Access Denied" Card (defense in depth)
   → useEffect on mount: refresh()
     → GET /webhooks/gohighlevel/locations (credentials: include)
     → if selectedLocationId: loadLocationData(locationId)
@@ -61,7 +69,12 @@ GoHighLevelIntegrationPage
 
 **Uses these components:** Shadcn UI primitives only (`Card`, `CardHeader`, `CardContent`, `CardTitle`, `Button`) — no custom components
 
-**Uses these hooks:** None (all state is local `useState` / `useEffect`)
+**Uses these hooks:**
+- `useIsSystemAdmin` — `apps/web/src/hooks/usePermissions.ts` — in-component gate (returns `{ isSystemAdmin, loading }`)
+- Otherwise all state is local `useState` / `useEffect`
+
+**Uses these guards:**
+- `requireSystemAdmin` from `@/lib/route-guards` — route-level `beforeLoad` gate
 
 **Navigation: who navigates here:**
 - App sidebar: "GHL Integration" (last item in nav) → `/go-highlevel-integration`
@@ -97,5 +110,5 @@ GhlContactLink { id, ghlContactId, userId, customerProfileId, syncStatus, lastSy
 - Uses direct `fetch()` calls with `credentials: "include"` — does NOT go through the oRPC client. Server URL from `VITE_SERVER_URL` env (defaults to `http://localhost:3000`).
 - `extractParsedFieldsPreview` handles Thailand-specific custom field names (e.g., `select_main_branch_assigned_in_contract_for_service_thailand`) — this integration is primarily used for Thai operations.
 - Described in its subtitle as "Demo sync flow" — likely an internal diagnostic/tooling page rather than a production feature.
-- No RBAC guard on `beforeLoad` — any authenticated user can access regardless of role.
-- No `beforeLoad` permissions at all — route is open to all authenticated users.
+- **Platform-admin-only** as of 2026-04-17 (Ticket A of the dashboard-completeness plan). `beforeLoad: requireSystemAdmin("/dashboard")` blocks non-admins before render; in-component `useIsSystemAdmin` check renders an Access Denied Card as defense in depth. Non-admins land on `/dashboard?unauthorized=true`.
+- Backend `/webhooks/gohighlevel/*` endpoints are NOT protected by this frontend guard — they accept raw `fetch` calls. Backend auth on those endpoints is tracked as a follow-up (see `zplan/17-04_10-18_dashboard-completeness/00-overview.md` residual gaps).

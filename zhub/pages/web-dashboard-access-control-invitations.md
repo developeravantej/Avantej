@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/invitations.tsx:1`
 **Platform:** web
 **Auth required:** rbac(user_management:read) — stub in `beforeLoad`; enforced server-side.
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-17
 
 ---
 
@@ -116,13 +116,14 @@ Note: the API does not return an "expired" status — `InvitationsPage` derives 
 **Not tested (risk areas):**
 - Resend with email send failure (entire mutation throws; no graceful degradation)
 - Status filter "expired" — server does not filter by "expired"; client-side derivation may be inconsistent with server data
-- `invitations.list` returns only invitations created by the current member (`invitedBy: context.member.userId`) — users cannot see invitations created by others
+
+**Integration test added 2026-04-17:** `apps/server/src/tests/integration/invitations-scope.test.ts` — 4 cases covering org-wide visibility for permitted callers, service-layer `invitedBy` filter still works when set explicitly, empty-email-filter guard, and permission rejection for staff without `user_management:read`.
 
 ---
 
 ## 6. Notes
 
-- `invitationRouter.list` filters by `invitedBy: context.member.userId` — admins do NOT see invitations created by other admins. This is likely unintentional for an admin-facing page.
+- **Invitation scope fix 2026-04-17** (Ticket B of the dashboard-completeness plan): `invitationRouter.list` no longer filters by `invitedBy: context.member.userId`. Any caller who passes the `requirePermission("user_management", "read")` gate sees all org-wide invitations. If you later need a "my invitations" view for non-admins, add a separate `listMine` procedure that does not require `user_management:read` and filters by `invitedBy` explicitly.
 - The "expired" status filter on the frontend sends `status: undefined` to the server (since the enum does not include "expired"), so all invitations are fetched and then filtered client-side.
 - `invitations.revoke` sets status to "declined" (reuses the decline status for admin revocations).
 - The route file itself (`invitations.tsx`) is thin — all logic lives in `InvitationsPage` component.

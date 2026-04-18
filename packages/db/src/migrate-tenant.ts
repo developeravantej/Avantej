@@ -1851,6 +1851,10 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 `;
 
+const MIGRATION_0018_INSTALLMENT_PLAN_PREMIUM = `
+ALTER TABLE "installment_plans" ADD COLUMN "price_premium_bps" integer DEFAULT 0 NOT NULL;
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -1927,6 +1931,10 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0017_installment_plans",
     sql: MIGRATION_0017_INSTALLMENT_PLANS,
+  },
+  {
+    hash: "0018_installment_plan_premium",
+    sql: MIGRATION_0018_INSTALLMENT_PLAN_PREMIUM,
   },
 ] as const;
 

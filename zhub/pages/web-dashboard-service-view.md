@@ -46,7 +46,7 @@ ServiceViewPage
           [servicesRouter.update → requirePermission("service_management", "update")]
 ```
 
-**Inputs:** No URL params or filters — all active services for the org/scope are fetched. Form fields in `ServiceFormDialog`: name, duration, duration unit, expirable, price, sessions, taxable, tax %, category, session count (`sessionCount`), expirable + expiry duration (`expiryDays`), available payment plans (`availablePaymentPlans`: full/half/quarterly), installment interval (`installmentIntervalDays`), scheduling type, session duration, max attendees.
+**Inputs:** No URL params or filters — all active services for the org/scope are fetched. Form fields in `ServiceFormDialog`: name, duration, duration unit, expirable, price, sessions, taxable, tax %, category, session count (`sessionCount`), expirable + expiry duration (`expiryDays`), available payment plans (`availablePaymentPlans`: `string[]` of codes fetched dynamically via `client.installmentPlans.list({ activeOnly: true })` — no longer hardcoded to full/half/quarterly; `isInstallmentSelected` derived from `plansMap.get(code)?.numInstallments > 1`), installment interval (`installmentIntervalDays`), scheduling type, session duration, max attendees.
 **State management:** TanStack Query cache; local state in `DataTable` (dialogs, selected IDs, global filter string).
 **Outputs:** Table with columns: Name, Category, Duration, Price (MYR, formatted as "RM X.XX"), Sessions, Scheduling type badge, Status badge, Created date.
 **Side effects:** `queryClient.invalidateQueries(["services", organizationId])` on create/edit/deactivate.

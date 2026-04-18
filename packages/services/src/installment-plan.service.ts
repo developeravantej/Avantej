@@ -13,6 +13,7 @@ export type CreateInstallmentPlanParams = {
 	description?: string;
 	isDefault?: boolean;
 	sortOrder?: number;
+	pricePremiumBps?: number;
 };
 
 export type UpdateInstallmentPlanParams = {
@@ -21,6 +22,7 @@ export type UpdateInstallmentPlanParams = {
 	defaultIntervalDays?: number;
 	description?: string;
 	sortOrder?: number;
+	pricePremiumBps?: number;
 };
 
 export async function listInstallmentPlans(
@@ -65,6 +67,9 @@ export async function createInstallmentPlan(
 	if (data.numInstallments < 1) {
 		throw new Error("numInstallments must be >= 1");
 	}
+	if (data.pricePremiumBps !== undefined && (data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)) {
+		throw new Error("pricePremiumBps must be between 0 and 10000");
+	}
 
 	return tenantDb.transaction(async (tx) => {
 		// If this plan is being set as default, clear all existing defaults first
@@ -86,6 +91,7 @@ export async function createInstallmentPlan(
 				isDefault: data.isDefault ?? false,
 				isActive: true,
 				sortOrder: data.sortOrder ?? 0,
+				pricePremiumBps: data.pricePremiumBps ?? 0,
 			})
 			.returning();
 
@@ -105,6 +111,9 @@ export async function updateInstallmentPlan(
 	if (data.numInstallments !== undefined && data.numInstallments < 1) {
 		throw new Error("numInstallments must be >= 1");
 	}
+	if (data.pricePremiumBps !== undefined && (data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)) {
+		throw new Error("pricePremiumBps must be between 0 and 10000");
+	}
 
 	const [row] = await tenantDb
 		.update(installmentPlans)
@@ -120,6 +129,7 @@ export async function updateInstallmentPlan(
 				description: data.description,
 			}),
 			...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+			...(data.pricePremiumBps !== undefined && { pricePremiumBps: data.pricePremiumBps }),
 			updatedAt: new Date(),
 		})
 		.where(eq(installmentPlans.id, id))

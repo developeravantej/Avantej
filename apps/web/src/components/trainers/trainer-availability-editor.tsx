@@ -154,7 +154,7 @@ export function TrainerAvailabilityEditor({
 
 	if (isLoading) {
 		return (
-			<div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+			<div className="flex items-center gap-2 py-4 text-sm text-brand-secondary-1">
 				<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
 				Loading availability...
 			</div>
@@ -171,14 +171,14 @@ export function TrainerAvailabilityEditor({
 					.filter(({ shift }) => shift.dayOfWeek === day);
 
 				return (
-					<div key={day} className="space-y-2">
+					<div key={day} className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2">
 						<div className="flex items-center justify-between">
-							<span className="text-sm font-semibold">{DAY_LABELS[day]}</span>
+							<span className="text-sm font-medium text-brand-primary-1">{DAY_LABELS[day]}</span>
 							<Button
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+								className="h-7 px-2 text-xs text-brand-secondary-1 hover:text-brand-primary-1"
 								onClick={() => addShift(day)}
 							>
 								<Plus className="h-3 w-3 mr-1" />
@@ -187,7 +187,7 @@ export function TrainerAvailabilityEditor({
 						</div>
 
 						{dayShifts.length === 0 ? (
-							<p className="text-xs text-muted-foreground pl-1">No shifts</p>
+							<p className="text-xs text-brand-secondary-1 pl-1">No shifts — day off</p>
 						) : (
 							<div className="space-y-1.5 pl-1">
 								{dayShifts.map(({ shift, originalIndex }) => (
@@ -200,7 +200,7 @@ export function TrainerAvailabilityEditor({
 											value={shift.startTime}
 											onValueChange={(v) => updateShift(originalIndex, "startTime", v)}
 										>
-											<SelectTrigger className="h-8 w-28 text-xs">
+											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -212,14 +212,14 @@ export function TrainerAvailabilityEditor({
 											</SelectContent>
 										</Select>
 
-										<span className="text-xs text-muted-foreground">to</span>
+										<span className="text-xs text-brand-secondary-1">to</span>
 
 										{/* End time */}
 										<Select
 											value={shift.endTime}
 											onValueChange={(v) => updateShift(originalIndex, "endTime", v)}
 										>
-											<SelectTrigger className="h-8 w-28 text-xs">
+											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -236,7 +236,7 @@ export function TrainerAvailabilityEditor({
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+											className="h-7 w-7 p-0 text-brand-secondary-1 hover:text-red-600"
 											onClick={() => removeShift(originalIndex)}
 											aria-label={`Remove ${DAY_LABELS[day]} shift`}
 										>
@@ -246,24 +246,21 @@ export function TrainerAvailabilityEditor({
 								))}
 							</div>
 						)}
-
-						<Separator />
 					</div>
 				);
 			})}
 
 			{/* Save button */}
-			<div className="pt-2">
-				<Button
+			<div className="mt-6 flex justify-end">
+				<button
 					type="button"
-					size="sm"
 					onClick={() => saveMutation.mutate()}
 					disabled={saveMutation.isPending}
-					className="w-full"
+					className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					<Save className="h-4 w-4 mr-2" />
 					{saveMutation.isPending ? "Saving..." : "Save Availability"}
-				</Button>
+				</button>
 			</div>
 		</div>
 	);

@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Select,
@@ -25,7 +24,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 	SheetDescription,
-	SheetFooter,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, Tag } from "lucide-react";
@@ -464,11 +462,11 @@ function TaxRatesPage() {
 			{/* Page header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Tag className="h-6 w-6 text-primary" />
+					<div className="p-2 rounded-lg bg-brand-primary-1/10">
+						<Tag className="h-6 w-6 text-brand-primary-1" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading">Tax Configuration</h1>
+						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">Tax Configuration</h1>
 						<p className="text-brand-secondary-1 text-sm">
 							Manage tax rates applied to sales orders and invoices.
 						</p>
@@ -524,24 +522,24 @@ function TaxRatesPage() {
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+				<SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white">
 					<SheetHeader>
-						<SheetTitle>
+						<SheetTitle className="text-lg font-medium leading-6 text-brand-primary-1">
 							{editingId ? "Edit Tax Rate" : "Add Tax Rate"}
 						</SheetTitle>
-						<SheetDescription>
+						<SheetDescription className="text-sm text-brand-secondary-1">
 							{editingId
 								? "Update the details for this tax rate."
 								: "Define a new tax rate to apply on sales."}
 						</SheetDescription>
 					</SheetHeader>
 
-					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-2">
+					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Name */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tr-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
+						<div>
+							<label htmlFor="tr-name" className="block text-sm font-medium text-brand-primary-1">
+								Name *
+							</label>
 							<Input
 								id="tr-name"
 								placeholder="e.g. Sales and Service Tax 8%"
@@ -550,14 +548,15 @@ function TaxRatesPage() {
 									setForm((f) => ({ ...f, name: e.target.value }))
 								}
 								required
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
 						</div>
 
 						{/* Code */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tr-code">
-								Code <span className="text-destructive">*</span>
-							</Label>
+						<div>
+							<label htmlFor="tr-code" className="block text-sm font-medium text-brand-primary-1">
+								Code *
+							</label>
 							<Input
 								id="tr-code"
 								placeholder="e.g. SST_8"
@@ -568,20 +567,20 @@ function TaxRatesPage() {
 										code: e.target.value.toUpperCase(),
 									}))
 								}
-								className="font-mono uppercase"
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm font-mono uppercase"
 								required
 							/>
-							<p className="text-xs text-muted-foreground">
+							<p className="text-xs text-brand-secondary-1 mt-1">
 								Short identifier. Will be stored in uppercase.
 							</p>
 						</div>
 
 						{/* Rate */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tr-rate">
-								Rate (%) <span className="text-destructive">*</span>
-							</Label>
-							<div className="relative">
+						<div>
+							<label htmlFor="tr-rate" className="block text-sm font-medium text-brand-primary-1">
+								Rate (%) *
+							</label>
+							<div className="relative mt-1">
 								<Input
 									id="tr-rate"
 									type="number"
@@ -592,15 +591,15 @@ function TaxRatesPage() {
 									onChange={(e) =>
 										setForm((f) => ({ ...f, ratePercent: e.target.value }))
 									}
-									className="pr-8"
+									className="block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm pr-8"
 									required
 								/>
-								<span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">
+								<span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-secondary-1 text-sm pointer-events-none">
 									%
 								</span>
 							</div>
 							{form.ratePercent && !Number.isNaN(parseFloat(form.ratePercent)) && (
-								<p className="text-xs text-muted-foreground">
+								<p className="text-xs text-brand-secondary-1 mt-1">
 									Stored as{" "}
 									<span className="font-mono">
 										{Math.round(parseFloat(form.ratePercent) * 100)}
@@ -611,15 +610,17 @@ function TaxRatesPage() {
 						</div>
 
 						{/* Category */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tr-category">Category</Label>
+						<div>
+							<label htmlFor="tr-category" className="block text-sm font-medium text-brand-primary-1">
+								Category
+							</label>
 							<Select
 								value={form.category}
 								onValueChange={(v) =>
 									setForm((f) => ({ ...f, category: v as TaxCategory }))
 								}
 							>
-								<SelectTrigger id="tr-category">
+								<SelectTrigger id="tr-category" className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -635,11 +636,11 @@ function TaxRatesPage() {
 						</div>
 
 						{/* Date range */}
-						<div className="grid grid-cols-2 gap-3">
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="tr-from">
-									Effective From <span className="text-destructive">*</span>
-								</Label>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<label htmlFor="tr-from" className="block text-sm font-medium text-brand-primary-1">
+									Effective From *
+								</label>
 								<Input
 									id="tr-from"
 									type="date"
@@ -651,10 +652,13 @@ function TaxRatesPage() {
 										}))
 									}
 									required
+									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 								/>
 							</div>
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="tr-until">Effective Until</Label>
+							<div>
+								<label htmlFor="tr-until" className="block text-sm font-medium text-brand-primary-1">
+									Effective Until
+								</label>
 								<Input
 									id="tr-until"
 									type="date"
@@ -666,13 +670,16 @@ function TaxRatesPage() {
 										}))
 									}
 									min={form.effectiveFrom || undefined}
+									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 								/>
 							</div>
 						</div>
 
 						{/* Description */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tr-description">Description</Label>
+						<div>
+							<label htmlFor="tr-description" className="block text-sm font-medium text-brand-primary-1">
+								Description
+							</label>
 							<Textarea
 								id="tr-description"
 								placeholder="Optional notes about this tax rate"
@@ -681,6 +688,7 @@ function TaxRatesPage() {
 								onChange={(e) =>
 									setForm((f) => ({ ...f, description: e.target.value }))
 								}
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
 						</div>
 
@@ -697,35 +705,36 @@ function TaxRatesPage() {
 										}))
 									}
 								/>
-								<Label
+								<label
 									htmlFor="tr-default"
-									className="cursor-pointer font-normal"
+									className="cursor-pointer text-sm text-brand-primary-1"
 								>
 									Set as default tax rate
-								</Label>
+								</label>
 							</div>
 						)}
 
-						<SheetFooter className="px-0 pt-2">
-							<Button
+						<div className="mt-6 flex justify-end space-x-3">
+							<button
 								type="button"
-								variant="outline"
 								onClick={closeSheet}
 								disabled={createMutation.isPending || updateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
 							>
 								Cancel
-							</Button>
-							<Button
+							</button>
+							<button
 								type="submit"
 								disabled={createMutation.isPending || updateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"
 									: editingId
 									? "Save Changes"
 									: "Add Tax Rate"}
-							</Button>
-						</SheetFooter>
+							</button>
+						</div>
 					</form>
 				</SheetContent>
 			</Sheet>

@@ -5,14 +5,14 @@
 **Platform:** web
 **Auth required:** authenticated
 **Permission guard:** `service_management:read` (via `requirePermission` in `beforeLoad`)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-18
 
 ---
 
 ## 1. What It Does
 
 **Purpose (user perspective):** Admin view to see all package assignments and purchases across clients, with the ability to manually assign a package to a client.
-**Produces:** Filterable table (All / Active / Expired / Exhausted / Cancelled tabs) showing package name, client ID, source (assigned/purchased), credits used/remaining, total price, validity dates, and status. A "New Package" sheet allows manual assignment.
+**Produces:** Filterable table (All / Active / Expired / Exhausted / Cancelled tabs) showing package name, client ID, source (assigned/purchased), credits used/remaining, total price, validity dates, and status. A "New Package" sheet allows manual assignment — includes an installment-plan selector with a live price-breakdown line when a plan with a premium is picked.
 **On success:** Assignment creates a new instance; table refreshes; success toast.
 **On failure / error states:** Full-page spinner while loading; validation toasts on form errors; "Select an organization" guard.
 
@@ -28,13 +28,17 @@ PackageInstancesViewPage
   → useQuery(packageInstances.listAll) → client.packageInstances.listAll({ organizationId, status })
   → useQuery(services.list, isActive: true) — only when createOpen=true, filters sessionCount > 0
   → useQuery(services.list) — always-on, for service name lookup in table
+  → useQuery(installmentPlans.list, activeOnly: true) — only when createOpen=true, populates plan select
   → useMemo → serviceNameById map (serviceId → name)
   → renders DataTable with status filter tabs
   → "Assign Package" button → setCreateOpen(true) → Sheet with form
+  → form has paymentPlanType select; when a multi-installment plan is picked AND totalPriceRm > 0,
+    a breakdown line renders under the price input:
+      "Base RM X + N% premium = RM Y → K × RM Z every D days"
   → handleCreateSubmit → useMutation(packageInstances.create)
-     • when paymentPlanType is "half" or "quarterly", createPackageInstance also calls
-       createInstallmentSchedule internally via the router to generate the installment
-       payment schedule
+     • sends BASE totalPrice + paymentPlanType code; server scales by plan.pricePremiumBps
+     • when plan has numInstallments > 1, router also calls createInstallmentSchedule
+       to generate the installment payment schedule (uses the scaled total)
 ```
 
 **Inputs:** No URL params. Status filter and form state are local.
@@ -53,6 +57,7 @@ PackageInstancesViewPage
 - `packageInstances.getActiveForClient` — returns most recent active instance for session user; used by native app dashboard
 - `packageInstances.getById` — get single instance; accessible by owning client or staff with `service_management:read`
 - `services.list` (twice) — once for the create-form selector (active packages only, on demand), once always-on for name resolution in the table
+- `installmentPlans.list` (activeOnly: true) — populates the plan select in the create form (on demand, when sheet is open)
 
 **Uses these components:**
 - `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx`
@@ -111,11 +116,12 @@ interface PackageInstanceRow {
 | creditsTotal | number | required, min 1 | `creditsTotal`; `creditsRemaining` auto-set to same value |
 | startsAt | date | required, defaults to today | `startsAt` (set to T00:00:00.000Z) |
 | expiresAt | date | required, after startsAt | `expiresAt` (set to T23:59:59.000Z) |
-| totalPriceRm | number | optional, decimal | converted to cents (`* 100`) → `totalPrice` |
+| totalPriceRm | number | optional, decimal | converted to cents (`* 100`) → `totalPrice` (BASE; server applies premium) |
+| paymentPlanType | Select | optional; uses `"__none__"` sentinel for full-payment | plan `code` (e.g. `half`); omitted when `__none__` |
 | paymentStatus | Select | optional | "pending" \| "paid" \| "failed" \| "refunded" |
 | remark | textarea | optional | `remark` |
 
-Note: `paymentPlanType`, `installmentIntervalDays`, `taxAmount`, `paymentMethod`, `eSignature`, `termsAgreedAt`, `purchaseNumber`, and `paymentId` are accepted by the API but are NOT exposed in this form UI. They are used by the native app purchase flow.
+Note: `installmentIntervalDays`, `taxAmount`, `paymentMethod`, `eSignature`, `termsAgreedAt`, `purchaseNumber`, and `paymentId` are accepted by the API but are NOT exposed in this form UI. They are used by the native app purchase flow.
 
 ---
 
@@ -132,3 +138,4 @@ Note: `paymentPlanType`, `installmentIntervalDays`, `taxAmount`, `paymentMethod`
 - The packages selector in the create form is only fetched (`enabled: !!organizationId && createOpen`) when the sheet is open — avoids an extra network call on page load.
 - `totalPrice` is stored as integer cents; the form accepts decimal RM input and multiplies by 100 (rounded).
 - When `paymentPlanType` is 'half' or 'quarterly', `creditsRemaining` on the created instance is forced to `0` regardless of input — credits are unlocked incrementally as installments are confirmed.
+- **Installment premium** (added 2026-04-18): the form sends the BASE `totalPrice`; the server's `packageInstances.create` handler scales it by `(10000 + plan.pricePremiumBps) / 10000` when the selected plan has a non-zero premium. The breakdown line mirrors the server math for transparency, but the submitted value is always the unscaled base — the server is authoritative. The installment schedule splits the scaled total via `calculateInstallmentAmounts` (first installment absorbs any rounding remainder).

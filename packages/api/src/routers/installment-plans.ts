@@ -146,6 +146,7 @@ export const installmentPlansRouter = {
 				description: z.string().optional(),
 				isDefault: z.boolean().optional(),
 				sortOrder: z.number().int().optional(),
+				pricePremiumBps: z.number().int().min(0).max(10000).optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -185,8 +186,15 @@ export const installmentPlansRouter = {
 					description: input.description,
 					isDefault: input.isDefault,
 					sortOrder: input.sortOrder,
+					pricePremiumBps: input.pricePremiumBps,
 				});
 			} catch (error) {
+				if (
+					error instanceof Error &&
+					error.message.includes("pricePremiumBps must be between")
+				) {
+					throw new ORPCError("BAD_REQUEST", { message: error.message });
+				}
 				if (
 					error instanceof Error &&
 					error.message.includes("numInstallments must be >= 1")
@@ -207,6 +215,7 @@ export const installmentPlansRouter = {
 				defaultIntervalDays: z.number().int().min(1).optional(),
 				description: z.string().optional(),
 				sortOrder: z.number().int().optional(),
+				pricePremiumBps: z.number().int().min(0).max(10000).optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -244,6 +253,7 @@ export const installmentPlansRouter = {
 					defaultIntervalDays: input.defaultIntervalDays,
 					description: input.description,
 					sortOrder: input.sortOrder,
+					pricePremiumBps: input.pricePremiumBps,
 				});
 
 				if (!result) {
@@ -254,6 +264,12 @@ export const installmentPlansRouter = {
 				return result;
 			} catch (error) {
 				if (error instanceof ORPCError) throw error;
+				if (
+					error instanceof Error &&
+					error.message.includes("pricePremiumBps must be between")
+				) {
+					throw new ORPCError("BAD_REQUEST", { message: error.message });
+				}
 				if (
 					error instanceof Error &&
 					error.message.includes("numInstallments must be >= 1")

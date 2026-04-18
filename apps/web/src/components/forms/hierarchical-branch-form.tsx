@@ -486,19 +486,19 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <div
                 className={`flex items-center space-x-2 ${
                   currentStep === step.number
-                    ? "text-blue-600"
+                    ? "text-brand-primary-1"
                     : step.completed
-                      ? "text-green-600"
+                      ? "text-brand-primary-1"
                       : "text-brand-secondary-1"
                 }`}
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-full ${
                     currentStep === step.number
-                      ? "border-blue-600 bg-blue-50"
+                      ? "bg-black text-white"
                       : step.completed
-                        ? "border-green-600 bg-green-50"
-                        : "border-brand-secondary-3 bg-brand-secondary-3/50"
+                        ? "bg-brand-primary-1 text-white"
+                        : "bg-brand-secondary-3 text-brand-secondary-1"
                   }`}
                 >
                   <step.icon className="h-5 w-5" />
@@ -507,9 +507,9 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <span
                 className={`mt-2 font-medium text-sm ${
                   currentStep === step.number
-                    ? "text-blue-600"
+                    ? "text-brand-primary-1"
                     : step.completed
-                      ? "text-green-600"
+                      ? "text-brand-primary-1"
                       : "text-brand-secondary-1"
                 }`}
               >
@@ -520,7 +520,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               <div className="flex-1 mx-4 flex items-center">
                 <div
                   className={`flex-1 h-0.5 ${
-                    step.completed ? "bg-green-600" : "bg-brand-secondary-2"
+                    step.completed ? "bg-brand-primary-1" : "border-t border-brand-secondary-3"
                   }`}
                 />
               </div>
@@ -532,13 +532,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   };
 
   const renderStep1 = () => (
-    <Card>
+    <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <Globe className="h-5 w-5" />
           <span>Step 1: Select or Create Country</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-brand-secondary-1">
           Choose an existing country or create a new one
         </CardDescription>
       </CardHeader>
@@ -546,11 +546,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         {createCountry ? (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="country_name">Country Name</Label>
+              <Label htmlFor="country_name" className="block text-sm font-medium text-brand-primary-1">Country Name</Label>
               <Input
                 id="country_name"
                 {...register("country_name")}
                 placeholder="Enter country name"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.country_name && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -559,12 +560,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               )}
             </div>
             <div>
-              <Label htmlFor="country_code">Country Code</Label>
+              <Label htmlFor="country_code" className="block text-sm font-medium text-brand-primary-1">Country Code</Label>
               <Input
                 id="country_code"
                 {...register("country_code")}
                 maxLength={10}
                 placeholder="Enter country code (e.g., MY)"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.country_code && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -574,7 +576,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             </div>
             <div className="flex space-x-2">
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCreateCountry(false)}
                 type="button"
                 variant="outline"
@@ -582,7 +584,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(2)}
                 type="button"
               >
@@ -593,12 +595,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="country-select">Select Country</Label>
+              <Label htmlFor="country-select" className="block text-sm font-medium text-brand-primary-1">Select Country</Label>
               <Select
                 onValueChange={handleCountrySelect}
                 disabled={countries.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
                   <SelectValue
                     placeholder={
                       countries.length === 0
@@ -609,7 +611,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {countries.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-brand-secondary-1">
                       No countries available
                     </div>
                   ) : (
@@ -622,13 +624,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectContent>
               </Select>
               {countries.length === 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-brand-secondary-1">
                   Please create a new country to continue
                 </p>
               )}
             </div>
             <Button
-              className="w-full"
+              className="w-full inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
               onClick={() => setCreateCountry(true)}
               type="button"
               variant="outline"
@@ -643,13 +645,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   );
 
   const renderStep2 = () => (
-    <Card>
+    <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <MapIcon className="h-5 w-5" />
           <span>Step 2: Select or Create Region</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-brand-secondary-1">
           Choose an existing region or create a new one
           {userOrganization && (
             <Badge className="ml-2" variant="secondary">
@@ -662,11 +664,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         {createRegion ? (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="region_name">Region Name</Label>
+              <Label htmlFor="region_name" className="block text-sm font-medium text-brand-primary-1">Region Name</Label>
               <Input
                 id="region_name"
                 {...register("region_name")}
                 placeholder="Enter region name"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.region_name && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -675,12 +678,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               )}
             </div>
             <div>
-              <Label htmlFor="region_code">Region Code</Label>
+              <Label htmlFor="region_code" className="block text-sm font-medium text-brand-primary-1">Region Code</Label>
               <Input
                 id="region_code"
                 {...register("region_code")}
                 maxLength={50}
                 placeholder="Enter region code"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.region_code && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -690,7 +694,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             </div>
             <div className="flex space-x-2">
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCreateRegion(false)}
                 type="button"
                 variant="outline"
@@ -698,7 +702,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(3)}
                 type="button"
               >
@@ -709,12 +713,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="region-select">Select Region</Label>
+              <Label htmlFor="region-select" className="block text-sm font-medium text-brand-primary-1">Select Region</Label>
               <Select
                 onValueChange={handleRegionSelect}
                 disabled={regions.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
                   <SelectValue
                     placeholder={
                       regions.length === 0
@@ -725,7 +729,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {regions.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-brand-secondary-1">
                       No regions available
                     </div>
                   ) : (
@@ -738,13 +742,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectContent>
               </Select>
               {regions.length === 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-brand-secondary-1">
                   Please create a new region to continue
                 </p>
               )}
             </div>
             <Button
-              className="w-full"
+              className="w-full inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
               onClick={() => setCreateRegion(true)}
               type="button"
               variant="outline"
@@ -759,13 +763,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   );
 
   const renderStep3 = () => (
-    <Card>
+    <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <MapPin className="h-5 w-5" />
           <span>Step 3: Select or Create Area</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-brand-secondary-1">
           Choose an existing area or create a new one
           {selectedRegion && (
             <Badge className="ml-2" variant="secondary">
@@ -778,11 +782,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         {createArea ? (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="area_name">Area Name</Label>
+              <Label htmlFor="area_name" className="block text-sm font-medium text-brand-primary-1">Area Name</Label>
               <Input
                 id="area_name"
                 {...register("area_name")}
                 placeholder="Enter area name"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.area_name && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -791,12 +796,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               )}
             </div>
             <div>
-              <Label htmlFor="area_code">Area Code</Label>
+              <Label htmlFor="area_code" className="block text-sm font-medium text-brand-primary-1">Area Code</Label>
               <Input
                 id="area_code"
                 {...register("area_code")}
                 maxLength={50}
                 placeholder="Enter area code"
+                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
               {errors.area_code && (
                 <p className="mt-1 text-red-500 text-sm">
@@ -806,7 +812,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             </div>
             <div className="flex space-x-2">
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCreateArea(false)}
                 type="button"
                 variant="outline"
@@ -814,7 +820,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(4)}
                 type="button"
               >
@@ -825,12 +831,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="area-select">Select Area</Label>
+              <Label htmlFor="area-select" className="block text-sm font-medium text-brand-primary-1">Select Area</Label>
               <Select
                 onValueChange={handleAreaSelect}
                 disabled={areas.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
                   <SelectValue
                     placeholder={
                       areas.length === 0
@@ -841,7 +847,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {areas.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-brand-secondary-1">
                       No areas available
                     </div>
                   ) : (
@@ -854,13 +860,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </SelectContent>
               </Select>
               {areas.length === 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-brand-secondary-1">
                   Please create a new area to continue
                 </p>
               )}
             </div>
             <Button
-              className="w-full"
+              className="w-full inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
               onClick={() => setCreateArea(true)}
               type="button"
               variant="outline"
@@ -875,13 +881,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   );
 
   const renderStep4 = () => (
-    <Card>
+    <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <Target className="h-5 w-5" />
           <span>Step 4: Create Branch</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-brand-secondary-1">
           Enter branch details to complete the creation
           {selectedArea && (
             <Badge className="ml-2" variant="secondary">
@@ -893,11 +899,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       <CardContent>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="branch_name">Branch Name</Label>
+            <Label htmlFor="branch_name" className="block text-sm font-medium text-brand-primary-1">Branch Name</Label>
             <Input
               id="branch_name"
               {...register("branch_name")}
               placeholder="Enter branch name"
+              className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
             />
             {errors.branch_name && (
               <p className="mt-1 text-red-500 text-sm">
@@ -906,12 +913,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             )}
           </div>
           <div>
-            <Label htmlFor="branch_code">Branch Code</Label>
+            <Label htmlFor="branch_code" className="block text-sm font-medium text-brand-primary-1">Branch Code</Label>
             <Input
               id="branch_code"
               {...register("branch_code")}
               maxLength={50}
               placeholder="Enter branch code"
+              className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
             />
             {errors.branch_code && (
               <p className="mt-1 text-red-500 text-sm">
@@ -920,9 +928,9 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             )}
           </div>
           <div>
-            <Label htmlFor="branch_type">Branch Type</Label>
+            <Label htmlFor="branch_type" className="block text-sm font-medium text-brand-primary-1">Branch Type</Label>
             <Select onValueChange={(value) => setValue("branch_type", value)}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
                 <SelectValue placeholder="Select branch type" />
               </SelectTrigger>
               <SelectContent>
@@ -938,7 +946,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   );
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-4xl p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-brand-primary-1">Create Branch</h1>
+        <p className="text-sm text-brand-secondary-1 mt-1">Set up a new branch by selecting its location in the hierarchy.</p>
+      </div>
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
         {renderStepHeader()}
 
@@ -948,15 +960,20 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         {currentStep === 4 && renderStep4()}
 
         {currentStep === 4 && (
-          <div className="flex justify-between">
+          <div className="flex justify-between mt-6">
             <Button
               onClick={() => setCurrentStep(3)}
               type="button"
               variant="outline"
+              className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
             >
               Back
             </Button>
-            <Button disabled={isLoading} type="submit">
+            <Button
+              disabled={isLoading}
+              type="submit"
+              className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {isLoading ? "Creating..." : "Create Branch"}
             </Button>
           </div>

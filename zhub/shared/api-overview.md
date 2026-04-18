@@ -1,6 +1,6 @@
 # API Routers Overview
 
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-17
 
 All procedures use **oRPC**. POST to `/rpc/{router}/{procedure}` with body `{"json": {input}}`.
 
@@ -166,7 +166,7 @@ The router is defined in two layers:
 | `packageInstances.listForClient` | protected | List package instances for a specific client. |
 | `packageInstances.getActiveForClient` | protected | Get the active package instance for the current user/client. |
 | `packageInstances.getById` | protected | Get package instance by ID. |
-| `packageInstances.create` | protected | Create a package instance (assign a package to a client). |
+| `packageInstances.create` | protected | Create a package instance (assign a package to a client). If `paymentPlanType` resolves to a plan with `pricePremiumBps > 0`, scales the incoming `totalPrice` by `(10000 + bps) / 10000` before insert; installment schedule (when `numInstallments > 1`) splits the scaled total. |
 | `packageInstances.listAll` | protected | List all package instances for the org. |
 
 ---
@@ -179,9 +179,27 @@ The router is defined in two layers:
 | `installments.listByPackageInstance` | protected | List installments for a package instance. |
 | `installments.manualUnlock` | protected | Admin: manually unlock an installment. |
 | `installments.processRefund` | protected | Process a refund for an installment. |
-| `installments.adminOverview` | protected | Get installments overview for admin dashboard. |
+| `installments.adminOverview` | protected | Get installments overview for admin dashboard. Accepts filters: `status`, `search` (clientId prefix OR exact purchaseNumber), `dueBefore` / `dueAfter` (ISO datetime), `paymentPlanCode`. |
 | `installments.getEvents` | protected | Get installment event history. |
 | `installments.suggestRefund` | protected | Calculate suggested refund amount for a package instance. |
+
+---
+
+## Installment Plans (`packages/api/src/routers/installment-plans.ts`)
+
+Tenant-configurable installment plan definitions. Replaces the hardcoded `full | half | quarterly` enum.
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `installmentPlans.list` | protected | List plans for the tenant. `activeOnly?: boolean` filters by `isActive = true`. Ordered by `sortOrder` asc, then `code`. |
+| `installmentPlans.getById` | protected | Get a plan by UUID. |
+| `installmentPlans.getByCode` | protected | Get a plan by its `code` (used by native app for code→numInstallments resolution). Returns `null` if not found. |
+| `installmentPlans.create` | protected | Create a plan. Rejects `numInstallments < 1`, `pricePremiumBps` outside `[0, 10000]`, or duplicate `code` (BAD_REQUEST). `isDefault=true` clears other defaults in a single transaction. |
+| `installmentPlans.update` | protected | Update `name / numInstallments / defaultIntervalDays / pricePremiumBps / description / isActive / sortOrder`. `code` is immutable — attempts are silently ignored. `pricePremiumBps` same range check as create. |
+| `installmentPlans.setDefault` | protected | Mark a plan as default; clears other defaults in a single transaction. |
+| `installmentPlans.deactivate` | protected | Set `isActive = false`. Silently clears `isDefault` if it was set. Referenced by `services.availablePaymentPlans` arrays and historical `package_instances.paymentPlanType` — both render by raw-code fallback for orphan codes. |
+
+All procedures use `service_management` as the permission resource (list/getById/getByCode → read; create/update/setDefault → update; deactivate → delete).
 
 ---
 

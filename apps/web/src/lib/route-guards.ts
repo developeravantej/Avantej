@@ -67,7 +67,7 @@ function getMemberRole(ctx: UserContextResponse): string | null {
 function redirectUnauthorized(redirectTo: string = "/dashboard"): never {
 	throw redirect({
 		to: redirectTo,
-		search: { unauthorized: "true" } as Record<string, string>,
+		search: { unauthorized: true } as Record<string, unknown>,
 		throw: true,
 	});
 }

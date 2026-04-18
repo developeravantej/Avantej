@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
@@ -26,7 +25,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 	SheetDescription,
-	SheetFooter,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, CreditCard } from "lucide-react";
@@ -45,6 +43,7 @@ type InstallmentPlanRow = {
 	name: string;
 	numInstallments: number;
 	defaultIntervalDays: number;
+	pricePremiumBps: number;
 	description: string | null;
 	isDefault: boolean;
 	isActive: boolean;
@@ -57,6 +56,7 @@ type FormState = {
 	name: string;
 	numInstallments: string; // string for controlled input; parsed to int on submit
 	defaultIntervalDays: string; // string for controlled input
+	pricePremiumPct: string;
 	description: string;
 	isDefault: boolean;
 };
@@ -68,6 +68,7 @@ const EMPTY_FORM: FormState = {
 	name: "",
 	numInstallments: "1",
 	defaultIntervalDays: "30",
+	pricePremiumPct: "0",
 	description: "",
 	isDefault: false,
 };
@@ -112,6 +113,7 @@ function InstallmentPlansPage() {
 				name: values.name,
 				numInstallments: parseInt(values.numInstallments, 10),
 				defaultIntervalDays: parseInt(values.defaultIntervalDays, 10),
+				pricePremiumBps: Math.round(parseFloat(values.pricePremiumPct || "0") * 100),
 				description: values.description || undefined,
 				isDefault: values.isDefault,
 			});
@@ -135,6 +137,7 @@ function InstallmentPlansPage() {
 				name: values.name,
 				numInstallments: parseInt(values.numInstallments, 10),
 				defaultIntervalDays: parseInt(values.defaultIntervalDays, 10),
+				pricePremiumBps: Math.round(parseFloat(values.pricePremiumPct || "0") * 100),
 				description: values.description || undefined,
 			});
 		},
@@ -200,6 +203,7 @@ function InstallmentPlansPage() {
 			name: row.name,
 			numInstallments: String(row.numInstallments),
 			defaultIntervalDays: String(row.defaultIntervalDays),
+			pricePremiumPct: String((row.pricePremiumBps ?? 0) / 100),
 			description: row.description ?? "",
 			isDefault: row.isDefault,
 		});
@@ -231,6 +235,11 @@ function InstallmentPlansPage() {
 		const defaultIntervalDays = parseInt(form.defaultIntervalDays, 10);
 		if (Number.isNaN(defaultIntervalDays) || defaultIntervalDays < 1) {
 			toast.error("Default interval days must be at least 1.");
+			return;
+		}
+		const pricePremiumPct = parseFloat(form.pricePremiumPct || "0");
+		if (Number.isNaN(pricePremiumPct) || pricePremiumPct < 0 || pricePremiumPct > 100) {
+			toast.error("Premium must be between 0 and 100%.");
 			return;
 		}
 
@@ -278,6 +287,7 @@ function InstallmentPlansPage() {
 			name: item.name,
 			numInstallments: item.numInstallments,
 			defaultIntervalDays: item.defaultIntervalDays,
+			pricePremiumBps: item.pricePremiumBps ?? 0,
 			description: item.description ?? null,
 			isDefault: item.isDefault ?? false,
 			isActive: item.isActive ?? true,
@@ -317,6 +327,18 @@ function InstallmentPlansPage() {
 			cell: ({ row }) => (
 				<span className="tabular-nums">{row.original.defaultIntervalDays}</span>
 			),
+		},
+		{
+			accessorKey: "pricePremiumBps",
+			header: "Premium",
+			cell: ({ row }) => {
+				const bps = row.original.pricePremiumBps;
+				return (
+					<span className="tabular-nums">
+						{bps === 0 ? "—" : `${(bps / 100).toFixed(2)}%`}
+					</span>
+				);
+			},
 		},
 		{
 			accessorKey: "isDefault",
@@ -415,11 +437,11 @@ function InstallmentPlansPage() {
 			{/* Page header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<CreditCard className="h-6 w-6 text-primary" />
+					<div className="p-2 rounded-lg bg-brand-primary-1/10">
+						<CreditCard className="h-6 w-6 text-brand-primary-1" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading">Installment Plans</h1>
+						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">Installment Plans</h1>
 						<p className="text-brand-secondary-1 text-sm">
 							Configure payment plan options available to customers on package services.
 						</p>
@@ -475,24 +497,24 @@ function InstallmentPlansPage() {
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+				<SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white">
 					<SheetHeader>
-						<SheetTitle>
+						<SheetTitle className="text-lg font-medium leading-6 text-brand-primary-1">
 							{editingId ? "Edit Installment Plan" : "Add Installment Plan"}
 						</SheetTitle>
-						<SheetDescription>
+						<SheetDescription className="text-sm text-brand-secondary-1">
 							{editingId
 								? "Update the details for this installment plan. The plan code cannot be changed."
 								: "Define a new installment plan to offer on package services."}
 						</SheetDescription>
 					</SheetHeader>
 
-					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-2">
+					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Code — disabled on edit */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ip-code">
-								Code {!editingId && <span className="text-destructive">*</span>}
-							</Label>
+						<div>
+							<label htmlFor="ip-code" className="block text-sm font-medium text-brand-primary-1">
+								Code {!editingId && "*"}
+							</label>
 							<Input
 								id="ip-code"
 								placeholder="e.g. monthly_6"
@@ -500,11 +522,11 @@ function InstallmentPlansPage() {
 								onChange={(e) =>
 									setForm((f) => ({ ...f, code: e.target.value }))
 								}
-								className="font-mono"
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm font-mono"
 								required={!editingId}
 								disabled={!!editingId}
 							/>
-							<p className="text-xs text-muted-foreground">
+							<p className="text-xs text-brand-secondary-1 mt-1">
 								{editingId
 									? "Code cannot be changed after creation."
 									: "Short identifier used internally (e.g. monthly_6). Cannot be changed later."}
@@ -512,10 +534,10 @@ function InstallmentPlansPage() {
 						</div>
 
 						{/* Name */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ip-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
+						<div>
+							<label htmlFor="ip-name" className="block text-sm font-medium text-brand-primary-1">
+								Name *
+							</label>
 							<Input
 								id="ip-name"
 								placeholder="e.g. Monthly (6 payments)"
@@ -524,56 +546,81 @@ function InstallmentPlansPage() {
 									setForm((f) => ({ ...f, name: e.target.value }))
 								}
 								required
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
 						</div>
 
-						{/* Number of installments */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ip-num-installments">
-								Number of Installments <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="ip-num-installments"
-								type="number"
-								min="1"
-								step="1"
-								placeholder="e.g. 6"
-								value={form.numInstallments}
-								onChange={(e) =>
-									setForm((f) => ({ ...f, numInstallments: e.target.value }))
-								}
-								required
-							/>
-							<p className="text-xs text-muted-foreground">
-								Use 1 for a full single payment plan.
-							</p>
+						{/* Number of installments + Default interval days — two col */}
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<label htmlFor="ip-num-installments" className="block text-sm font-medium text-brand-primary-1">
+									Installments *
+								</label>
+								<Input
+									id="ip-num-installments"
+									type="number"
+									min="1"
+									step="1"
+									placeholder="e.g. 6"
+									value={form.numInstallments}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, numInstallments: e.target.value }))
+									}
+									required
+									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								/>
+								<p className="text-xs text-brand-secondary-1 mt-1">Use 1 for a full single payment.</p>
+							</div>
+
+							<div>
+								<label htmlFor="ip-interval-days" className="block text-sm font-medium text-brand-primary-1">
+									Interval (days) *
+								</label>
+								<Input
+									id="ip-interval-days"
+									type="number"
+									min="1"
+									step="1"
+									placeholder="e.g. 30"
+									value={form.defaultIntervalDays}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, defaultIntervalDays: e.target.value }))
+									}
+									required
+									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								/>
+								<p className="text-xs text-brand-secondary-1 mt-1">Services can override this.</p>
+							</div>
 						</div>
 
-						{/* Default interval days */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ip-interval-days">
-								Default Interval (days) <span className="text-destructive">*</span>
-							</Label>
+						{/* Price Premium */}
+						<div>
+							<label htmlFor="ip-premium" className="block text-sm font-medium text-brand-primary-1">
+								Price Premium (%)
+							</label>
 							<Input
-								id="ip-interval-days"
+								id="ip-premium"
 								type="number"
-								min="1"
-								step="1"
-								placeholder="e.g. 30"
-								value={form.defaultIntervalDays}
+								min="0"
+								max="100"
+								step="0.01"
+								placeholder="0"
+								value={form.pricePremiumPct}
 								onChange={(e) =>
-									setForm((f) => ({ ...f, defaultIntervalDays: e.target.value }))
+									setForm((f) => ({ ...f, pricePremiumPct: e.target.value }))
 								}
-								required
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
-							<p className="text-xs text-muted-foreground">
-								Days between each installment payment. Services can override this.
+							<p className="text-xs text-brand-secondary-1 mt-1">
+								Markup added to the base price when this plan is selected. 0 = no premium.
 							</p>
 						</div>
 
 						{/* Description */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ip-description">Description</Label>
+						<div>
+							<label htmlFor="ip-description" className="block text-sm font-medium text-brand-primary-1">
+								Description
+							</label>
 							<Textarea
 								id="ip-description"
 								placeholder="Optional notes about this plan"
@@ -582,6 +629,7 @@ function InstallmentPlansPage() {
 								onChange={(e) =>
 									setForm((f) => ({ ...f, description: e.target.value }))
 								}
+								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
 						</div>
 
@@ -598,35 +646,36 @@ function InstallmentPlansPage() {
 										}))
 									}
 								/>
-								<Label
+								<label
 									htmlFor="ip-default"
-									className="cursor-pointer font-normal"
+									className="cursor-pointer text-sm text-brand-primary-1"
 								>
 									Set as default plan
-								</Label>
+								</label>
 							</div>
 						)}
 
-						<SheetFooter className="px-0 pt-2">
-							<Button
+						<div className="mt-6 flex justify-end space-x-3">
+							<button
 								type="button"
-								variant="outline"
 								onClick={closeSheet}
 								disabled={createMutation.isPending || updateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
 							>
 								Cancel
-							</Button>
-							<Button
+							</button>
+							<button
 								type="submit"
 								disabled={createMutation.isPending || updateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"
 									: editingId
 									? "Save Changes"
 									: "Add Plan"}
-							</Button>
-						</SheetFooter>
+							</button>
+						</div>
 					</form>
 				</SheetContent>
 			</Sheet>
@@ -642,48 +691,52 @@ function InstallmentPlansPage() {
 					}
 				}}
 			>
-				<DialogContent>
+				<DialogContent className="sm:max-w-2xl rounded-2xl bg-white p-6">
 					<DialogHeader>
-						<DialogTitle>Deactivate Installment Plan</DialogTitle>
-						<DialogDescription>
+						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1 mb-4">Deactivate Installment Plan</DialogTitle>
+						<DialogDescription className="text-sm text-brand-secondary-1">
 							Are you sure you want to deactivate{" "}
 							<strong>{deactivateTarget?.name}</strong>?
 						</DialogDescription>
 					</DialogHeader>
 
 					{deactivateWarning && (
-						<div className="rounded-md bg-orange-50 border border-orange-200 px-4 py-3 text-sm text-orange-800">
+						<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
 							{deactivateWarning}
 						</div>
 					)}
 
-					<p className="text-sm text-muted-foreground">
+					<p className="text-sm text-brand-secondary-1">
 						Inactive plans are hidden from the service form. Existing installment schedules are not affected.
 					</p>
 
 					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setDeactivateDialogOpen(false);
-								setDeactivateTarget(null);
-								setDeactivateWarning(null);
-							}}
-							disabled={deactivateMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (deactivateTarget) {
-									deactivateMutation.mutate(deactivateTarget.id);
-								}
-							}}
-							disabled={deactivateMutation.isPending}
-						>
-							{deactivateMutation.isPending ? "Deactivating…" : "Deactivate"}
-						</Button>
+						<div className="mt-6 flex justify-end space-x-3">
+							<button
+								type="button"
+								onClick={() => {
+									setDeactivateDialogOpen(false);
+									setDeactivateTarget(null);
+									setDeactivateWarning(null);
+								}}
+								disabled={deactivateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									if (deactivateTarget) {
+										deactivateMutation.mutate(deactivateTarget.id);
+									}
+								}}
+								disabled={deactivateMutation.isPending}
+								className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{deactivateMutation.isPending ? "Deactivating…" : "Deactivate"}
+							</button>
+						</div>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

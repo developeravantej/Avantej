@@ -72,6 +72,7 @@ interface CreateInstanceFormState {
 	startsAt: string;
 	expiresAt: string;
 	paymentStatus: PaymentStatus;
+	paymentPlanType: string;
 	remark: string;
 }
 
@@ -86,6 +87,7 @@ const EMPTY_FORM: CreateInstanceFormState = {
 	startsAt: today,
 	expiresAt: "",
 	paymentStatus: "pending",
+	paymentPlanType: "",
 	remark: "",
 };
 
@@ -139,6 +141,16 @@ function PackageInstancesViewPage() {
 			if (!organizationId) return [];
 			const services = await client.services.list({ organizationId, isActive: true });
 			return services.filter((s) => s.sessionCount != null && s.sessionCount > 0);
+		},
+		enabled: !!organizationId && createOpen,
+	});
+
+	// Active installment plans for the create form
+	const { data: planList = [] } = useQuery({
+		queryKey: ["installmentPlans-active", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.installmentPlans.list({ organizationId, activeOnly: true });
 		},
 		enabled: !!organizationId && createOpen,
 	});
@@ -203,6 +215,7 @@ function PackageInstancesViewPage() {
 			expiresAt: new Date(`${form.expiresAt}T23:59:59.000Z`).toISOString(),
 			totalPrice: totalPriceCents,
 			paymentStatus: form.paymentStatus,
+			paymentPlanType: form.paymentPlanType || undefined,
 			remark: form.remark.trim() || undefined,
 		});
 	}
@@ -223,6 +236,21 @@ function PackageInstancesViewPage() {
 		paymentStatus: item.paymentStatus as PaymentStatus,
 		createdAt: item.createdAt ? String(item.createdAt) : null,
 	}));
+
+	// Installment plan price breakdown helpers
+	const selectedPlan = planList.find((p) => p.code === form.paymentPlanType);
+	const baseRm = parseFloat(form.totalPriceRm || "0");
+	const premiumPct = (selectedPlan?.pricePremiumBps ?? 0) / 100;
+	const adjustedRm = Number.isFinite(baseRm) ? baseRm * (1 + premiumPct / 100) : 0;
+	const perInstallmentRm =
+		selectedPlan && selectedPlan.numInstallments > 0
+			? adjustedRm / selectedPlan.numInstallments
+			: 0;
+	const showBreakdown =
+		!!selectedPlan &&
+		selectedPlan.numInstallments > 1 &&
+		Number.isFinite(baseRm) &&
+		baseRm > 0;
 
 	const STATUS_TABS = [
 		{ value: undefined, label: "All" },
@@ -442,6 +470,35 @@ function PackageInstancesViewPage() {
 							</Select>
 						</div>
 
+						{/* Installment plan */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="inst-plan">Installment Plan</Label>
+							<Select
+								value={form.paymentPlanType || "__none__"}
+								onValueChange={(v) =>
+									setForm((f) => ({ ...f, paymentPlanType: v === "__none__" ? "" : v }))
+								}
+							>
+								<SelectTrigger id="inst-plan">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__none__">Full payment (no installments)</SelectItem>
+									{planList.map((plan) => (
+										<SelectItem key={plan.id} value={plan.code}>
+											{plan.name}
+											{plan.pricePremiumBps > 0
+												? ` (+${(plan.pricePremiumBps / 100).toFixed(1)}%)`
+												: ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<p className="text-xs text-muted-foreground">
+								Optional — choose a plan to split the total into installments.
+							</p>
+						</div>
+
 						{/* Credits total */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="inst-credits">
@@ -498,6 +555,16 @@ function PackageInstancesViewPage() {
 									value={form.totalPriceRm}
 									onChange={(e) => setForm((f) => ({ ...f, totalPriceRm: e.target.value }))}
 								/>
+								{showBreakdown && (
+									<p className="text-xs text-muted-foreground leading-snug">
+										Base RM {baseRm.toFixed(2)}
+										{premiumPct > 0 &&
+											` + ${premiumPct.toFixed(1)}% premium = RM ${adjustedRm.toFixed(2)}`}
+										{" → "}
+										{selectedPlan!.numInstallments} × RM {perInstallmentRm.toFixed(2)} every{" "}
+										{selectedPlan!.defaultIntervalDays} days
+									</p>
+								)}
 							</div>
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="inst-payment-status">Payment Status</Label>

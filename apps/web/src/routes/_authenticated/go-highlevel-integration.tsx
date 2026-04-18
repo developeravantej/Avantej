@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { requireSystemAdmin } from "@/lib/route-guards";
+import { useIsSystemAdmin } from "@/hooks/usePermissions";
 
 type GhlLocation = {
 	locationId: string;
@@ -38,10 +40,14 @@ type GhlContactLink = {
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
 
 export const Route = createFileRoute("/_authenticated/go-highlevel-integration")({
+	beforeLoad: async () => {
+		await requireSystemAdmin("/dashboard");
+	},
 	component: GoHighLevelIntegrationPage,
 });
 
 function GoHighLevelIntegrationPage() {
+	const { isSystemAdmin, loading: adminLoading } = useIsSystemAdmin();
 	const [locations, setLocations] = useState<GhlLocation[]>([]);
 	const [selectedLocationId, setSelectedLocationId] = useState("");
 	const [events, setEvents] = useState<GhlSyncEvent[]>([]);
@@ -50,6 +56,18 @@ function GoHighLevelIntegrationPage() {
 	const [error, setError] = useState("");
 	const [newLocationId, setNewLocationId] = useState("");
 	const [newSecret, setNewSecret] = useState("");
+
+	if (adminLoading) return null;
+	if (!isSystemAdmin) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle>Access Denied</CardTitle>
+				</CardHeader>
+				<CardContent>You don&apos;t have permission to view this page.</CardContent>
+			</Card>
+		);
+	}
 
 	const formatPayload = (payload: Record<string, unknown> | null) => {
 		if (!payload) {

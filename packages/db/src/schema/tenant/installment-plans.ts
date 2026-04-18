@@ -47,6 +47,10 @@ export const installmentPlans = pgTable(
 		// Callers may override per-service via services.installmentIntervalDays.
 		defaultIntervalDays: integer("default_interval_days").notNull().default(30),
 
+		// Price premium applied when this plan is selected, in basis points.
+		// 0 = no markup (default). 1000 = 10%. Max 10000 (100%). Enforced in service + router.
+		pricePremiumBps: integer("price_premium_bps").notNull().default(0),
+
 		// Optional description shown to customers / admins
 		description: text("description"),
 
