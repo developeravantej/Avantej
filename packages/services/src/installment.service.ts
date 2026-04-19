@@ -13,6 +13,7 @@ import { packageInstances } from "@avantej-core/db/schema/tenant/package-instanc
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -461,35 +462,54 @@ export async function evaluateAndLockIfOverdue(
 /**
  * Manually unlock a package instance (admin override).
  * Does not change creditsUnlocked.
+ * Audit row is written inside the same transaction as the unlock.
  */
 export async function unlockPackage(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	packageInstanceId: string,
 	actorId: string,
 	reason: string,
+	actor: { userId: string; memberId: string; role: string },
 ): Promise<typeof packageInstances.$inferSelect> {
-	const now = new Date();
-	const [updated] = await tenantDb
-		.update(packageInstances)
-		.set({
-			isLocked: false,
-			lockedAt: null,
-			lockedReason: null,
-			updatedAt: now,
-		})
-		.where(eq(packageInstances.id, packageInstanceId))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		const now = new Date();
+		const [updated] = await tx
+			.update(packageInstances)
+			.set({
+				isLocked: false,
+				lockedAt: null,
+				lockedReason: null,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, packageInstanceId))
+			.returning();
 
-	if (!updated) throw new Error("Package instance not found");
+		if (!updated) throw new Error("Package instance not found");
 
-	await logInstallmentEvent(tenantDb, {
-		packageInstanceId,
-		eventType: "manual_override_unlock",
-		actorId,
-		reason,
+		// Log the installment event (uses tx for consistency)
+		await tx.insert(installmentEvents).values({
+			packageInstanceId,
+			installmentId: null,
+			eventType: "manual_override_unlock",
+			actorId,
+			amount: null,
+			reason,
+			metadata: null,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "package.unlock",
+			entityType: "package_instance",
+			entityId: packageInstanceId,
+			summary: `Admin unlocked package ${packageInstanceId}: ${reason}`,
+			changes: { reason },
+		});
+
+		return updated;
 	});
-
-	return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -502,22 +522,39 @@ export async function processRefund(
 	amount: number,
 	actorId: string,
 	reason: string,
+	actor: { userId: string; memberId: string; role: string },
 ): Promise<void> {
-	await tenantDb
-		.update(packageInstances)
-		.set({
-			paymentStatus: "refunded",
-			status: "cancelled",
-			updatedAt: new Date(),
-		})
-		.where(eq(packageInstances.id, packageInstanceId));
+	await tenantDb.transaction(async (tx) => {
+		await tx
+			.update(packageInstances)
+			.set({
+				paymentStatus: "refunded",
+				status: "cancelled",
+				updatedAt: new Date(),
+			})
+			.where(eq(packageInstances.id, packageInstanceId));
 
-	await logInstallmentEvent(tenantDb, {
-		packageInstanceId,
-		eventType: "manual_refund",
-		actorId,
-		amount,
-		reason,
+		// Log the installment event (uses tx for consistency)
+		await tx.insert(installmentEvents).values({
+			packageInstanceId,
+			installmentId: null,
+			eventType: "manual_refund",
+			actorId,
+			amount,
+			reason,
+			metadata: null,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "package.refund",
+			entityType: "package_instance",
+			entityId: packageInstanceId,
+			summary: `Admin processed refund for package ${packageInstanceId}: ${reason}`,
+			changes: { refundAmount: amount, reason },
+		});
 	});
 }
 

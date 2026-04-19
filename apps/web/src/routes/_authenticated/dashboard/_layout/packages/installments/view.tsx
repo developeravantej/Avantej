@@ -1,18 +1,24 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { requirePermission } from "@/lib/route-guards";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { CreditCard, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { formatPrice } from "@/lib/currency";
-import { Button } from "@/components/ui/button";
+import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
+import { CopyableCell } from "@/components/tables/copyable-cell";
+import DataTable from "@/components/tables/sales/view/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -20,25 +26,20 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
 	Sheet,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
-	SheetDescription,
 } from "@/components/ui/sheet";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
-import DataTable from "@/components/tables/sales/view/data-table";
-import { CopyableCell } from "@/components/tables/copyable-cell";
-import { CreditCard, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUserContext } from "@/hooks/useUserContext";
+import { formatPrice } from "@/lib/currency";
+import { requirePermission } from "@/lib/route-guards";
+import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/packages/installments/view",
@@ -73,13 +74,13 @@ function StatusBadge({ instance }: { instance: any }) {
 	}
 	if (status === "Overdue") {
 		return (
-			<Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100">
+			<Badge className="border-yellow-200 bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
 				Overdue
 			</Badge>
 		);
 	}
 	return (
-		<Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+		<Badge className="border-green-200 bg-green-100 text-green-800 hover:bg-green-100">
 			Active
 		</Badge>
 	);
@@ -88,7 +89,7 @@ function StatusBadge({ instance }: { instance: any }) {
 function InstallmentStatusBadge({ status }: { status: string }) {
 	if (status === "paid") {
 		return (
-			<Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+			<Badge className="border-green-200 bg-green-100 text-green-800 hover:bg-green-100">
 				Paid
 			</Badge>
 		);
@@ -134,8 +135,6 @@ function InstallmentsViewPage() {
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
 	const [unlockReason, setUnlockReason] = useState("");
-	const [refundAmount, setRefundAmount] = useState("");
-	const [refundReason, setRefundReason] = useState("");
 
 	// ── Data queries ─────────────────────────────────────────────────────────────
 
@@ -151,9 +150,10 @@ function InstallmentsViewPage() {
 		enabled: !!organizationId,
 	});
 	const plansMap = useMemo(
-		() => new Map<string, { code: string; name: string; numInstallments: number }>(
-			(plans ?? []).map((p: any) => [p.code as string, p]),
-		),
+		() =>
+			new Map<string, { code: string; name: string; numInstallments: number }>(
+				(plans ?? []).map((p: any) => [p.code as string, p]),
+			),
 		[plans],
 	);
 
@@ -209,18 +209,13 @@ function InstallmentsViewPage() {
 				organizationId: userContext?.currentOrganizationId ?? "",
 				packageInstanceId: selectedInstance?.id ?? "",
 			}),
-		enabled: showRefundDialog && !!selectedInstance?.id && !!userContext?.currentOrganizationId,
+		enabled:
+			showRefundDialog &&
+			!!selectedInstance?.id &&
+			!!userContext?.currentOrganizationId,
 	});
 
-	// Auto-populate refund amount from suggestion when dialog opens
-	useEffect(() => {
-		if (suggestRefundQuery.data && showRefundDialog && refundAmount === "") {
-			const suggested = (suggestRefundQuery.data as any).suggestedRefund;
-			if (suggested > 0) {
-				setRefundAmount((suggested / 100).toFixed(2));
-			}
-		}
-	}, [suggestRefundQuery.data, showRefundDialog]);
+	// Note: refund amount is now managed by RequestRefundDialog via suggestedAmountCents prop
 
 	// ── Mutations ────────────────────────────────────────────────────────────────
 
@@ -283,30 +278,11 @@ function InstallmentsViewPage() {
 			toast.error(err.message ?? "Failed to unlock package."),
 	});
 
-	const processRefundMutation = useMutation({
-		mutationFn: (vars: {
-			packageInstanceId: string;
-			amount: number;
-			reason: string;
-		}) =>
-			(client as any).installments.processRefund({
-				organizationId,
-				packageInstanceId: vars.packageInstanceId,
-				amount: vars.amount,
-				reason: vars.reason,
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["installments-overview", organizationId],
-			});
-			toast.success("Refund processed successfully.");
-			setShowRefundDialog(false);
-			setRefundAmount("");
-			setRefundReason("");
-		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to process refund."),
-	});
+	/**
+	 * Note: installments.processRefund is deprecated in favour of the new refunds
+	 * workflow (request → approve → process). The UI now opens RequestRefundDialog
+	 * which calls refunds.request to create a Pending row for review.
+	 */
 
 	// ── Form reset helpers ────────────────────────────────────────────────────────
 
@@ -329,9 +305,12 @@ function InstallmentsViewPage() {
 		setConfirmInstallment(null);
 		resetConfirmForm();
 		setUnlockReason("");
-		setRefundAmount("");
-		setRefundReason("");
 	}
+
+	// Handler: open the request-refund dialog when user clicks "Request Refund" in the sheet
+	const handleOpenRefundDialog = useCallback(() => {
+		setShowRefundDialog(true);
+	}, []);
 
 	// ── Status filter tabs ────────────────────────────────────────────────────────
 
@@ -373,7 +352,7 @@ function InstallmentsViewPage() {
 			id: "credits",
 			header: "Credits",
 			cell: ({ row }) => (
-				<span className="tabular-nums text-sm">
+				<span className="text-sm tabular-nums">
 					{row.original.creditsUnlocked ?? 0} unlocked /{" "}
 					{row.original.creditsTotal ?? 0} total
 				</span>
@@ -383,7 +362,7 @@ function InstallmentsViewPage() {
 			id: "progress",
 			header: "Progress",
 			cell: ({ row }) => (
-				<span className="tabular-nums text-sm">
+				<span className="text-sm tabular-nums">
 					{row.original.installmentsPaid ?? 0} of{" "}
 					{row.original.installmentsTotal ?? 0}
 				</span>
@@ -421,7 +400,7 @@ function InstallmentsViewPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
 				Select an organization to view installment packages.
 			</div>
 		);
@@ -429,8 +408,8 @@ function InstallmentsViewPage() {
 
 	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
+			<div className="flex min-h-96 items-center justify-center">
+				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
 					<span className="sr-only">Loading…</span>
 				</div>
 			</div>
@@ -446,7 +425,7 @@ function InstallmentsViewPage() {
 	// ── Render ────────────────────────────────────────────────────────────────────
 
 	return (
-		<div className="p-6 space-y-6">
+		<div className="space-y-6 p-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
@@ -454,10 +433,10 @@ function InstallmentsViewPage() {
 						<CreditCard className="h-5 w-5 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading">
+						<h1 className="font-bold font-heading text-2xl">
 							Installment Packages
 						</h1>
-						<p className="text-sm text-muted-foreground">
+						<p className="text-muted-foreground text-sm">
 							Manage installment payment plans for package instances.
 						</p>
 					</div>
@@ -466,8 +445,8 @@ function InstallmentsViewPage() {
 
 			{/* Filter row */}
 			<div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
-				<div className="flex flex-col gap-1 min-w-[200px] flex-1">
-					<label className="text-xs font-medium text-muted-foreground">
+				<div className="flex min-w-[200px] flex-1 flex-col gap-1">
+					<label className="font-medium text-muted-foreground text-xs">
 						Search
 					</label>
 					<Input
@@ -478,42 +457,36 @@ function InstallmentsViewPage() {
 				</div>
 
 				<div className="flex flex-col gap-1">
-					<label className="text-xs font-medium text-muted-foreground">
+					<label className="font-medium text-muted-foreground text-xs">
 						Due After
 					</label>
 					<Input
 						type="date"
 						value={dueAfter ?? ""}
-						onChange={(e) =>
-							setDueAfter(e.target.value || undefined)
-						}
+						onChange={(e) => setDueAfter(e.target.value || undefined)}
 						className="w-40"
 					/>
 				</div>
 
 				<div className="flex flex-col gap-1">
-					<label className="text-xs font-medium text-muted-foreground">
+					<label className="font-medium text-muted-foreground text-xs">
 						Due Before
 					</label>
 					<Input
 						type="date"
 						value={dueBefore ?? ""}
-						onChange={(e) =>
-							setDueBefore(e.target.value || undefined)
-						}
+						onChange={(e) => setDueBefore(e.target.value || undefined)}
 						className="w-40"
 					/>
 				</div>
 
-				<div className="flex flex-col gap-1 min-w-[160px]">
-					<label className="text-xs font-medium text-muted-foreground">
+				<div className="flex min-w-[160px] flex-col gap-1">
+					<label className="font-medium text-muted-foreground text-xs">
 						Plan
 					</label>
 					<Select
 						value={planCode ?? "__all__"}
-						onValueChange={(v) =>
-							setPlanCode(v === "__all__" ? undefined : v)
-						}
+						onValueChange={(v) => setPlanCode(v === "__all__" ? undefined : v)}
 					>
 						<SelectTrigger>
 							<SelectValue placeholder="All plans" />
@@ -554,10 +527,10 @@ function InstallmentsViewPage() {
 							key={tab.label}
 							type="button"
 							onClick={() => setStatusFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+							className={`border-b-2 px-4 py-2 font-medium text-sm transition-colors ${
 								isActive
 									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
+									: "border-transparent text-muted-foreground hover:border-muted hover:text-foreground"
 							}`}
 						>
 							{tab.label}
@@ -567,10 +540,7 @@ function InstallmentsViewPage() {
 			</div>
 
 			{/* Table */}
-			<DataTable<any, unknown>
-				columns={columns}
-				data={instances}
-			/>
+			<DataTable<any, unknown> columns={columns} data={instances} />
 
 			{/* ── Detail Sheet ─────────────────────────────────────────────────────── */}
 			<Sheet
@@ -579,7 +549,7 @@ function InstallmentsViewPage() {
 					if (!open) closeSheet();
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+				<SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
 					<SheetHeader>
 						<SheetTitle>Installment Package Detail</SheetTitle>
 						<SheetDescription>
@@ -590,14 +560,14 @@ function InstallmentsViewPage() {
 					{selectedInstance && (
 						<div className="flex flex-col gap-6 px-1 py-4">
 							{/* Package summary */}
-							<div className="rounded-lg border p-4 space-y-3">
-								<h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+							<div className="space-y-3 rounded-lg border p-4">
+								<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
 									Package Info
 								</h3>
 								<div className="grid grid-cols-2 gap-3 text-sm">
 									<div>
 										<span className="text-muted-foreground">Plan Type</span>
-										<p className="font-medium mt-0.5">
+										<p className="mt-0.5 font-medium">
 											{selectedInstance.paymentPlanType
 												? String(selectedInstance.paymentPlanType)
 														.replace(/_/g, " ")
@@ -613,7 +583,7 @@ function InstallmentsViewPage() {
 									</div>
 									<div>
 										<span className="text-muted-foreground">Credits</span>
-										<p className="font-medium mt-0.5">
+										<p className="mt-0.5 font-medium">
 											{selectedInstance.creditsUnlocked ?? 0} unlocked,{" "}
 											{selectedInstance.creditsUsed ?? 0} used,{" "}
 											{selectedInstance.creditsRemaining ?? 0} available
@@ -621,7 +591,7 @@ function InstallmentsViewPage() {
 									</div>
 									<div>
 										<span className="text-muted-foreground">Progress</span>
-										<p className="font-medium mt-0.5">
+										<p className="mt-0.5 font-medium">
 											{selectedInstance.installmentsPaid ?? 0} of{" "}
 											{selectedInstance.installmentsTotal ?? 0} paid
 										</p>
@@ -629,7 +599,7 @@ function InstallmentsViewPage() {
 									{selectedInstance.nextDueDate && (
 										<div>
 											<span className="text-muted-foreground">Next Due</span>
-											<p className="font-medium mt-0.5">
+											<p className="mt-0.5 font-medium">
 												{formatDate(selectedInstance.nextDueDate)}
 											</p>
 										</div>
@@ -637,7 +607,7 @@ function InstallmentsViewPage() {
 									{selectedInstance.isLocked && (
 										<div className="col-span-2">
 											<span className="text-muted-foreground">Lock Reason</span>
-											<p className="font-medium mt-0.5 text-destructive">
+											<p className="mt-0.5 font-medium text-destructive">
 												{selectedInstance.lockedReason ?? "—"}
 											</p>
 										</div>
@@ -647,15 +617,15 @@ function InstallmentsViewPage() {
 
 							{/* Installment timeline */}
 							<div className="space-y-3">
-								<h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+								<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
 									Installments
 								</h3>
 								{installments.length === 0 ? (
-									<p className="text-sm text-muted-foreground">
+									<p className="text-muted-foreground text-sm">
 										No installments found.
 									</p>
 								) : (
-									<div className="rounded-lg border overflow-hidden">
+									<div className="overflow-hidden rounded-lg border">
 										<table className="w-full text-sm">
 											<thead className="bg-muted/50">
 												<tr>
@@ -682,7 +652,7 @@ function InstallmentsViewPage() {
 											<tbody className="divide-y">
 												{installments.map((inst: any) => (
 													<tr key={inst.id} className="hover:bg-muted/30">
-														<td className="px-3 py-2 tabular-nums font-medium">
+														<td className="px-3 py-2 font-medium tabular-nums">
 															{inst.installmentNumber}
 														</td>
 														<td className="px-3 py-2 tabular-nums">
@@ -699,19 +669,15 @@ function InstallmentsViewPage() {
 														</td>
 														<td className="px-3 py-2">
 															{inst.status === "paid" ? (
-																<span className="text-green-700 text-xs font-medium">
+																<span className="font-medium text-green-700 text-xs">
 																	Paid ✓{" "}
-																	{inst.paidAt
-																		? formatDate(inst.paidAt)
-																		: ""}
+																	{inst.paidAt ? formatDate(inst.paidAt) : ""}
 																</span>
 															) : (
 																<Button
 																	size="sm"
 																	variant="outline"
-																	onClick={() =>
-																		setConfirmInstallment(inst)
-																	}
+																	onClick={() => setConfirmInstallment(inst)}
 																>
 																	Confirm Payment
 																</Button>
@@ -739,17 +705,10 @@ function InstallmentsViewPage() {
 								)}
 								<Button
 									variant="outline"
-									className="text-destructive border-destructive/40 hover:bg-destructive/5"
-									onClick={() => {
-										setRefundAmount(
-											totalPaidCents > 0
-												? (totalPaidCents / 100).toFixed(2)
-												: ""
-										);
-										setShowRefundDialog(true);
-									}}
+									className="border-destructive/40 text-destructive hover:bg-destructive/5"
+									onClick={handleOpenRefundDialog}
 								>
-									Process Refund
+									Request Refund
 								</Button>
 							</div>
 						</div>
@@ -843,7 +802,7 @@ function InstallmentsViewPage() {
 							onClick={() => {
 								if (!confirmInstallment) return;
 								const intervalDays = nextIntervalDays
-									? parseInt(nextIntervalDays, 10) || undefined
+									? Number.parseInt(nextIntervalDays, 10) || undefined
 									: undefined;
 								confirmPaymentMutation.mutate({
 									installmentId: confirmInstallment.id,
@@ -919,142 +878,26 @@ function InstallmentsViewPage() {
 							}}
 							disabled={manualUnlockMutation.isPending}
 						>
-							{manualUnlockMutation.isPending
-								? "Unlocking…"
-								: "Unlock Package"}
+							{manualUnlockMutation.isPending ? "Unlocking…" : "Unlock Package"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* ── Refund Dialog ────────────────────────────────────────────────────── */}
-			<Dialog
-				open={showRefundDialog}
-				onOpenChange={(open) => {
-					if (!open) {
-						setShowRefundDialog(false);
-						setRefundAmount("");
-						setRefundReason("");
+			{/* ── Request Refund Dialog (replaces deprecated installments.processRefund UI) ── */}
+			{organizationId && selectedInstance && (
+				<RequestRefundDialog
+					open={showRefundDialog}
+					onOpenChange={setShowRefundDialog}
+					organizationId={organizationId}
+					packageInstanceId={selectedInstance.id}
+					suggestedAmountCents={
+						suggestRefundQuery.data
+							? (suggestRefundQuery.data as any).suggestedRefund
+							: undefined
 					}
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Process Refund</DialogTitle>
-						<DialogDescription>
-							Enter the amount to refund and provide a reason.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-4 py-2">
-						{/* Suggested refund breakdown */}
-						{suggestRefundQuery.isLoading && (
-							<div className="text-sm text-muted-foreground">
-								Calculating suggested refund…
-							</div>
-						)}
-						{suggestRefundQuery.data &&
-							(() => {
-								const s = suggestRefundQuery.data as any;
-								return (
-									<div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Customer paid</span>
-											<span>{formatPrice(s.paidAmount / 100, "MYR")}</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Credits used</span>
-											<span>
-												{s.creditsUsed} of {s.creditsUnlocked} unlocked
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Unused value</span>
-											<span>{formatPrice(s.unusedCreditValue / 100, "MYR")}</span>
-										</div>
-										<div className="flex justify-between font-medium">
-											<span>Suggested refund</span>
-											<span>{formatPrice(s.suggestedRefund / 100, "MYR")}</span>
-										</div>
-										<p className="text-xs text-muted-foreground pt-1">
-											{s.reasoning}
-										</p>
-									</div>
-								);
-							})()}
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="refund-amount">
-								Refund Amount (RM){" "}
-								<span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="refund-amount"
-								type="number"
-								min="0.01"
-								step="0.01"
-								placeholder="0.00"
-								value={refundAmount}
-								onChange={(e) => setRefundAmount(e.target.value)}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="refund-reason">
-								Reason <span className="text-destructive">*</span>
-							</Label>
-							<Textarea
-								id="refund-reason"
-								placeholder="Provide a reason for the refund…"
-								rows={3}
-								value={refundReason}
-								onChange={(e) => setRefundReason(e.target.value)}
-							/>
-						</div>
-					</div>
-
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setShowRefundDialog(false);
-								setRefundAmount("");
-								setRefundReason("");
-							}}
-							disabled={processRefundMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (!refundAmount || !refundReason.trim()) {
-									toast.error("Amount and reason are required.");
-									return;
-								}
-								const amountCents = Math.round(
-									parseFloat(refundAmount) * 100
-								);
-								if (!Number.isFinite(amountCents) || amountCents <= 0) {
-									toast.error("Please enter a valid refund amount.");
-									return;
-								}
-								if (!selectedInstance) return;
-								processRefundMutation.mutate({
-									packageInstanceId: selectedInstance.id,
-									amount: amountCents,
-									reason: refundReason.trim(),
-								});
-							}}
-							disabled={processRefundMutation.isPending}
-						>
-							{processRefundMutation.isPending
-								? "Processing…"
-								: "Confirm Refund"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				/>
+			)}
 		</div>
 	);
 }

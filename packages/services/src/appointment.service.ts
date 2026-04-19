@@ -14,8 +14,12 @@
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { resolveBufferTime, checkAppointmentBufferConflict } from "./buffer-time.service";
 import { evaluateAndLockIfOverdue } from "./installment.service";
+// TODO (Open Question 6, Phase 6): When serviceCommissionConfig is added to the schema,
+// import createCommissionSplitsForAppointment from "./commission-splits.service" and call it
+// inside the completion hook below (see "Commission auto-creation on appointment completion").
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -73,6 +77,12 @@ export type UpdateAppointmentParams = {
   cancellationReason?: string | null;
   description?: string | null;
   imageUrl?: string | null;
+  /**
+   * Actor performing the update. Required for audit logging and commission creation.
+   * When status transitions to 'completed', commission splits are auto-created if
+   * service commission config exists (currently dormant — see NOTE in commission-splits.service.ts).
+   */
+  actor?: { userId: string; memberId: string; role: string };
 };
 
 function addMinutes(date: Date, minutes: number): Date {
@@ -329,5 +339,41 @@ export async function updateAppointment(
   if (!row) {
     throw new Error("Appointment not found");
   }
+
+  // ---------------------------------------------------------------------------
+  // Commission auto-creation on appointment completion (Phase 6 — P6 scaffold)
+  //
+  // IMPORTANT (Open Question 6): The schema does NOT yet have a serviceCommissionConfig
+  // table or a services.commissionPercentage column. Until that config is added,
+  // commission creation for appointments is a no-op (logged below). This hook is
+  // scaffolded so the creation path is wired and ready.
+  //
+  // When commission config is available, implement:
+  //   1. Fetch config: const cfg = await tenantDb.query.serviceCommissionConfig.findFirst(...)
+  //   2. Fetch assigned staff: appointmentStaff rows for this appointment
+  //   3. Build splits array from config percentages
+  //   4. Call createCommissionSplitsForAppointment(tenantDb, { appointmentId, splits, actor })
+  //
+  // For now: if transitioning to 'completed' AND actor is provided, log the no-op.
+  // ---------------------------------------------------------------------------
+  if (params.status === "completed" && existing.status !== "completed" && params.actor) {
+    // Check if any staff are assigned — if commission config existed, we'd use these
+    const assignedStaff = await tenantDb
+      .select({ staffId: appointmentStaff.staffId })
+      .from(appointmentStaff)
+      .where(eq(appointmentStaff.appointmentId, id));
+
+    if (assignedStaff.length > 0) {
+      // NOTE: No service commission config table exists in schema (Open Question 6).
+      // Commission creation is dormant. Assigned staff count is logged for visibility.
+      // Remove this branch and implement splits once serviceCommissionConfig is available.
+      console.warn(
+        `[commission] Appointment ${id} completed with ${assignedStaff.length} staff assigned. ` +
+        "Commission auto-creation skipped: no serviceCommissionConfig in schema. " +
+        "See packages/services/src/commission-splits.service.ts NOTE and execute/log.md.",
+      );
+    }
+  }
+
   return row;
 }

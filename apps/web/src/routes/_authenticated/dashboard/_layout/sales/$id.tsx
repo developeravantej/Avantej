@@ -1,13 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
-import { formatPrice } from "@/lib/currency";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, Printer } from "lucide-react";
+import { useState } from "react";
+import type { ReceiptData } from "@/components/pos/receipt-view";
+import { ReceiptView } from "@/components/pos/receipt-view";
+import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useUserContext } from "@/hooks/useUserContext";
+import { formatPrice } from "@/lib/currency";
+import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/$id",
@@ -41,8 +45,11 @@ function StatusBadge({ status }: { status?: string | null }) {
 
 function SalesOrderDetailPage() {
 	const { id } = Route.useParams();
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const [printDialogOpen, setPrintDialogOpen] = useState(false);
+	const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+	const canRequestRefund = hasPermission("refund_management:create");
 
 	const {
 		data: order,
@@ -66,10 +73,23 @@ function SalesOrderDetailPage() {
 		enabled: !!organizationId,
 	});
 
+	// Receipt data — loaded on demand when dialog opens; graceful fallback if pos.getReceiptData not yet mounted.
+	const { data: receiptDataRaw } = useQuery({
+		queryKey: ["pos-receipt", organizationId, id],
+		queryFn: async () => {
+			if (!organizationId) return null;
+			return client.pos.getReceiptData({
+				organizationId,
+				salesOrderId: id,
+			});
+		},
+		enabled: !!organizationId && printDialogOpen,
+	});
+
 	if (orderLoading) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
+			<div className="flex min-h-96 items-center justify-center">
+				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
 					<span className="sr-only">Loading...</span>
 				</div>
 			</div>
@@ -78,10 +98,10 @@ function SalesOrderDetailPage() {
 
 	if (orderError || !order) {
 		return (
-			<div className="p-6 max-w-4xl mx-auto">
+			<div className="mx-auto max-w-4xl p-6">
 				<Link to="/dashboard/sales/view">
 					<Button variant="ghost" size="sm" className="mb-4">
-						<ArrowLeft className="h-4 w-4 mr-2" /> Back to Sales Orders
+						<ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales Orders
 					</Button>
 				</Link>
 				<p className="text-muted-foreground">Order not found.</p>
@@ -90,19 +110,19 @@ function SalesOrderDetailPage() {
 	}
 
 	return (
-		<div className="p-6 max-w-4xl mx-auto">
+		<div className="mx-auto max-w-4xl p-6">
 			<Link to="/dashboard/sales/view">
 				<Button variant="ghost" size="sm" className="mb-4">
-					<ArrowLeft className="h-4 w-4 mr-2" /> Back to Sales Orders
+					<ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales Orders
 				</Button>
 			</Link>
 
-			<div className="flex items-start justify-between mb-6">
+			<div className="mb-6 flex items-start justify-between">
 				<div>
-					<h1 className="text-2xl font-bold font-heading">
+					<h1 className="font-bold font-heading text-2xl">
 						Sales Order #{order.salesOrderNumber}
 					</h1>
-					<div className="flex items-center gap-3 mt-1">
+					<div className="mt-1 flex items-center gap-3">
 						<StatusBadge status={order.status} />
 						<span className="text-muted-foreground">
 							{order.date
@@ -110,6 +130,25 @@ function SalesOrderDetailPage() {
 								: "\u2014"}
 						</span>
 					</div>
+				</div>
+				<div className="flex gap-2">
+					{canRequestRefund && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setRefundDialogOpen(true)}
+						>
+							Request Refund
+						</Button>
+					)}
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setPrintDialogOpen(true)}
+					>
+						<Printer className="mr-2 h-4 w-4" />
+						Print Receipt
+					</Button>
 				</div>
 			</div>
 
@@ -120,32 +159,41 @@ function SalesOrderDetailPage() {
 				<CardContent>
 					<dl className="grid grid-cols-2 gap-4">
 						<div>
-							<dt className="text-sm text-muted-foreground">Total Amount</dt>
+							<dt className="text-muted-foreground text-sm">Total Amount</dt>
 							<dd className="font-medium">
 								{formatPrice(order.totalAmount ?? 0, "MYR")}
 							</dd>
 						</div>
 						<div>
-							<dt className="text-sm text-muted-foreground">Customer</dt>
+							<dt className="text-muted-foreground text-sm">Customer</dt>
 							<dd className="font-medium">{order.customerName ?? "\u2014"}</dd>
 						</div>
 						<div>
-							<dt className="text-sm text-muted-foreground">Created By</dt>
+							<dt className="text-muted-foreground text-sm">Created By</dt>
 							<dd className="font-medium">{order.createdBy ?? "\u2014"}</dd>
 						</div>
 						<div>
-							<dt className="text-sm text-muted-foreground">Status</dt>
+							<dt className="text-muted-foreground text-sm">Status</dt>
 							<dd>
 								<StatusBadge status={order.status} />
 							</dd>
 						</div>
 						<div>
-							<dt className="text-sm text-muted-foreground">Customer Type</dt>
+							<dt className="text-muted-foreground text-sm">Customer Type</dt>
 							<dd className="font-medium">{order.customerType ?? "\u2014"}</dd>
 						</div>
+						{/* Legacy refund indicator (§5.13): sales cancelled before refunds ledger was introduced */}
+						{(order as any).cancelledAmount > 0 && (
+							<div className="col-span-2">
+								<dt className="text-muted-foreground text-sm">Legacy Refund</dt>
+								<dd className="font-medium text-amber-700">
+									Already refunded (legacy): {formatPrice((order as any).cancelledAmount, "MYR")}
+								</dd>
+							</div>
+						)}
 						{order.notes && (
 							<div className="col-span-2">
-								<dt className="text-sm text-muted-foreground">Notes</dt>
+								<dt className="text-muted-foreground text-sm">Notes</dt>
 								<dd className="font-medium">{order.notes}</dd>
 							</div>
 						)}
@@ -163,11 +211,9 @@ function SalesOrderDetailPage() {
 							{invoices.map((inv) => (
 								<div
 									key={inv.id}
-									className="flex items-center justify-between p-3 border rounded"
+									className="flex items-center justify-between rounded border p-3"
 								>
-									<span className="font-mono text-sm">
-										{inv.invoiceNumber}
-									</span>
+									<span className="font-mono text-sm">{inv.invoiceNumber}</span>
 									<span className="text-sm">
 										{formatPrice(inv.totalAmount ?? 0, "MYR")}
 									</span>
@@ -178,6 +224,73 @@ function SalesOrderDetailPage() {
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Request Refund dialog */}
+			{organizationId && canRequestRefund && (
+				<RequestRefundDialog
+					open={refundDialogOpen}
+					onOpenChange={setRefundDialogOpen}
+					organizationId={organizationId}
+					salesOrderId={id}
+					customerName={order?.customerName ?? undefined}
+					suggestedAmountCents={order?.totalAmount ?? undefined}
+				/>
+			)}
+
+			{/* Print Receipt dialog */}
+			<Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+				<DialogContent className="sm:max-w-md">
+					<ReceiptView
+						data={
+							receiptDataRaw != null
+								? (receiptDataRaw as ReceiptData)
+								: buildReceiptData(order, invoices)
+						}
+					/>
+					<div className="mt-4 flex justify-end gap-2 print:hidden">
+						<Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+							Close
+						</Button>
+						<Button onClick={() => window.print()}>
+							<Printer className="mr-2 h-4 w-4" />
+							Print
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
+}
+
+// ─── Receipt data builder (from existing sales order data) ─────────────────────
+
+function buildReceiptData(
+	order: {
+		salesOrderNumber: string;
+		date?: Date | null;
+		customerName?: string | null;
+		customerType?: string | null;
+		totalAmount?: number | null;
+		notes?: string | null;
+	},
+	invoices: Array<{
+		invoiceNumber: string;
+		totalAmount?: number | null;
+	}>,
+): ReceiptData {
+	const firstInvoice = invoices[0];
+	return {
+		salesOrderNumber: order.salesOrderNumber,
+		invoiceNumber: firstInvoice?.invoiceNumber ?? "—",
+		date: order.date ?? new Date(),
+		customerName: order.customerName ?? "—",
+		customerType: (order.customerType as "member" | "walk_in") ?? "member",
+		// Items not available from this endpoint — show total only
+		items: [],
+		subtotalCents: order.totalAmount ?? 0,
+		discountCents: 0,
+		taxCents: 0,
+		totalCents: order.totalAmount ?? 0,
+		paymentMethod: "cash",
+	};
 }

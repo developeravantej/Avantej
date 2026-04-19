@@ -287,9 +287,16 @@ body {
 	scrollbar-width: thin;
 	scrollbar-color: var(--color-brand-secondary-2) transparent;
 }
-.scrollbar-warm::-webkit-scrollbar { width: 3px; }
-.scrollbar-warm::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-warm::-webkit-scrollbar-thumb { background: var(--color-brand-secondary-2); border-radius: 9999px; }
+.scrollbar-warm::-webkit-scrollbar {
+	width: 3px;
+}
+.scrollbar-warm::-webkit-scrollbar-track {
+	background: transparent;
+}
+.scrollbar-warm::-webkit-scrollbar-thumb {
+	background: var(--color-brand-secondary-2);
+	border-radius: 9999px;
+}
 
 /* Base styles for text elements */
 h1,
@@ -313,4 +320,20 @@ h4 {
 p {
 	font-family: var(--font-paragraph);
 	color: var(--color-text-secondary);
+}
+
+/* ── Receipt print styles ─────────────────────────────────────────────────── */
+/* When window.print() is called, hide everything except the .receipt-view div */
+@media print {
+	body * {
+		visibility: hidden;
+	}
+	.receipt-view,
+	.receipt-view * {
+		visibility: visible;
+	}
+	.receipt-view {
+		position: absolute;
+		inset: 0;
+	}
 }

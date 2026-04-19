@@ -5,6 +5,8 @@ import { makeMember } from "../../helpers/fixtures";
 // deactivateMember is NOT in the index.ts exports — import directly from service file
 import { deactivateMember } from "@avantej-core/services/member.service";
 
+const MOCK_ACTOR = { userId: "u1", memberId: "m1", role: "admin" };
+
 let mockDb: ReturnType<typeof createMockTenantDb>;
 
 beforeEach(() => {
@@ -19,18 +21,22 @@ describe("deactivateMember", () => {
 
 		mockDb.query.members.findFirst.mockResolvedValueOnce(member);
 
-		const setChain = {
-			where: mock(() => ({
-				returning: mock(() => Promise.resolve([deactivated])),
-			})),
-		};
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([deactivated])),
+				})),
+			};
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
 
-		const result = await deactivateMember(mockDb, member.id);
+		const result = await deactivateMember(mockDb, member.id, MOCK_ACTOR);
 
 		expect(result.status).toBe("inactive");
 		expect(result.status).not.toBe("suspended");
-		expect(mockDb.update).toHaveBeenCalledTimes(1);
 	});
 
 	test("does NOT call control panel DB (tenant-only operation)", async () => {
@@ -39,26 +45,30 @@ describe("deactivateMember", () => {
 
 		mockDb.query.members.findFirst.mockResolvedValueOnce(member);
 
-		const setChain = {
-			where: mock(() => ({
-				returning: mock(() => Promise.resolve([deactivated])),
-			})),
-		};
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([deactivated])),
+				})),
+			};
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
 
-		await deactivateMember(mockDb, member.id);
+		await deactivateMember(mockDb, member.id, MOCK_ACTOR);
 
-		// Only tenantDb methods should be called
+		// Only tenantDb methods should be called — findFirst for existence check + transaction
 		expect(mockDb.query.members.findFirst).toHaveBeenCalledTimes(1);
-		expect(mockDb.update).toHaveBeenCalledTimes(1);
-		// The function only takes tenantDb — no controlPanelDb parameter
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 	});
 
 	test("throws when member not found", async () => {
 		mockDb.query.members.findFirst.mockResolvedValueOnce(undefined);
 
 		await expect(
-			deactivateMember(mockDb, "nonexistent-id"),
+			deactivateMember(mockDb, "nonexistent-id", MOCK_ACTOR),
 		).rejects.toThrow("Member not found: nonexistent-id");
 	});
 
@@ -68,14 +78,19 @@ describe("deactivateMember", () => {
 
 		mockDb.query.members.findFirst.mockResolvedValueOnce(member);
 
-		const setChain = {
-			where: mock(() => ({
-				returning: mock(() => Promise.resolve([deactivated])),
-			})),
-		};
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([deactivated])),
+				})),
+			};
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
 
-		const result = await deactivateMember(mockDb, member.id);
+		const result = await deactivateMember(mockDb, member.id, MOCK_ACTOR);
 
 		expect(result.status).toBe("inactive");
 	});
@@ -87,14 +102,19 @@ describe("deactivateMember", () => {
 
 		mockDb.query.members.findFirst.mockResolvedValueOnce(member);
 
-		const setChain = {
-			where: mock(() => ({
-				returning: mock(() => Promise.resolve([deactivated])),
-			})),
-		};
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([deactivated])),
+				})),
+			};
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
 
-		const result = await deactivateMember(mockDb, member.id);
+		const result = await deactivateMember(mockDb, member.id, MOCK_ACTOR);
 
 		expect(result.status).toBe("inactive");
 	});

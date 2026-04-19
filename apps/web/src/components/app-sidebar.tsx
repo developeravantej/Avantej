@@ -1,6 +1,8 @@
 "use client";
 
+import { Link, useLocation } from "@tanstack/react-router";
 import {
+	BadgeCheck,
 	BadgeDollarSign,
 	Bell,
 	BookUser,
@@ -9,6 +11,7 @@ import {
 	Calendar,
 	ChevronDown,
 	ChevronRight,
+	ClipboardCheck,
 	Cog,
 	CreditCard,
 	DollarSign,
@@ -25,12 +28,15 @@ import {
 	Percent,
 	Plus,
 	Receipt,
+	ScrollText,
 	Search,
 	Settings,
 	Shield,
 	ShoppingCart,
 	Store,
 	Tag,
+	TrendingUp,
+	Undo2,
 	User,
 	UserPlus,
 	Users,
@@ -39,7 +45,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -69,11 +75,10 @@ import {
 	SidebarRail,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth-client";
-import { useUserContext } from "@/hooks/useUserContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserContext } from "@/hooks/useUserContext";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,7 +107,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Main",
 		items: [
 			{ title: "Home", url: "/dashboard", icon: Home },
-			{ title: "Trainers", url: "/dashboard/trainers/view", icon: Users, permission: "user_management:read" },
+			{
+				title: "Trainers",
+				url: "/dashboard/trainers/view",
+				icon: Users,
+				permission: "user_management:read",
+			},
 		],
 	},
 	{
@@ -114,7 +124,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Store,
 				items: [
 					{ title: "View Branches", url: "/dashboard/branch/view", icon: Eye },
-					{ title: "Create Branch", url: "/dashboard/branch/create", icon: Plus, permission: "hierarchy_management:create" },
+					{
+						title: "Create Branch",
+						url: "/dashboard/branch/create",
+						icon: Plus,
+						permission: "hierarchy_management:create",
+					},
 				],
 			},
 			{
@@ -122,8 +137,16 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/service/view",
 				icon: PackageSearch,
 				items: [
-					{ title: "Service Categories", url: "/dashboard/service-category/view", icon: Tag },
-					{ title: "View Services", url: "/dashboard/service/view", icon: PackageSearch },
+					{
+						title: "Service Categories",
+						url: "/dashboard/service-category/view",
+						icon: Tag,
+					},
+					{
+						title: "View Services",
+						url: "/dashboard/service/view",
+						icon: PackageSearch,
+					},
 				],
 			},
 			{
@@ -131,19 +154,61 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/appointment/view",
 				icon: Calendar,
 				items: [
-					{ title: "Appointments", url: "/dashboard/appointment/view", icon: Calendar, permission: "appointment_management:read" },
-					{ title: "Class Slots", url: "/dashboard/appointment/class-slots/view", icon: Calendar, permission: "appointment_management:read" },
-					{ title: "Rooms", url: "/dashboard/rooms/view", icon: DoorOpen, permission: "appointment_management:read" },
-					{ title: "Package Instances", url: "/dashboard/packages/instances/view", icon: Package, permission: "service_management:read" },
-					{ title: "Installments", url: "/dashboard/packages/installments/view", icon: CreditCard, permission: "service_management:read" },
+					{
+						title: "Appointments",
+						url: "/dashboard/appointment/view",
+						icon: Calendar,
+						permission: "appointment_management:read",
+					},
+					{
+						title: "Class Slots",
+						url: "/dashboard/appointment/class-slots/view",
+						icon: Calendar,
+						permission: "appointment_management:read",
+					},
+					{
+						title: "Rooms",
+						url: "/dashboard/rooms/view",
+						icon: DoorOpen,
+						permission: "appointment_management:read",
+					},
+					{
+						title: "Package Instances",
+						url: "/dashboard/packages/instances/view",
+						icon: Package,
+						permission: "service_management:read",
+					},
+					{
+						title: "Installments",
+						url: "/dashboard/packages/installments/view",
+						icon: CreditCard,
+						permission: "service_management:read",
+					},
+					{
+						title: "Memberships",
+						url: "/dashboard/memberships/view",
+						icon: BadgeCheck,
+						permission: "service_management:read",
+					},
 				],
 			},
 			{
 				title: "Customers",
-				url: "/dashboard/customers/walk-in/view",
+				url: "/dashboard/customers/view",
 				icon: BookUser,
 				items: [
-					{ title: "Walk-in Customers", url: "/dashboard/customers/walk-in/view", icon: BookUser, permission: "walk_in_customer_management:read" },
+					{
+						title: "Registered",
+						url: "/dashboard/customers/view",
+						icon: Users,
+						permission: "customer_management:read",
+					},
+					{
+						title: "Walk-in Customers",
+						url: "/dashboard/customers/walk-in/view",
+						icon: BookUser,
+						permission: "walk_in_customer_management:read",
+					},
 				],
 			},
 		],
@@ -156,11 +221,31 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/sales/view",
 				icon: BadgeDollarSign,
 				items: [
-					{ title: "Sales", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-					{ title: "Payment", url: "/dashboard/payment/view", icon: DollarSign },
-					{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: BadgeDollarSign },
-					{ title: "Promotions", url: "/dashboard/promotions/view", icon: Percent },
-					{ title: "Purchase Orders", url: "/dashboard/purchase-orders/view", icon: ShoppingCart },
+					{
+						title: "Sales",
+						url: "/dashboard/sales/view",
+						icon: BadgeDollarSign,
+					},
+					{
+						title: "Payment",
+						url: "/dashboard/payment/view",
+						icon: DollarSign,
+					},
+					{
+						title: "Cancelled Sales",
+						url: "/dashboard/cancelled-sales/view",
+						icon: BadgeDollarSign,
+					},
+					{
+						title: "Promotions",
+						url: "/dashboard/promotions/view",
+						icon: Percent,
+					},
+					{
+						title: "Purchase Orders",
+						url: "/dashboard/purchase-orders/view",
+						icon: ShoppingCart,
+					},
 				],
 			},
 			{
@@ -169,14 +254,34 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Warehouse,
 				items: [
 					{ title: "Products", url: "/dashboard/products/view", icon: Package },
-					{ title: "Inventory Options", url: "/dashboard/inventory-options", icon: Warehouse },
+					{
+						title: "Inventory Options",
+						url: "/dashboard/inventory-options",
+						icon: Warehouse,
+					},
 					{ title: "Brands", url: "/dashboard/brands/view", icon: Tag },
 					{ title: "Categories", url: "/dashboard/categories/view", icon: Tag },
 					{ title: "Suppliers", url: "/dashboard/suppliers/view", icon: Store },
-					{ title: "Unit of Measure", url: "/dashboard/uom/view", icon: Package },
-					{ title: "UoM Conversions", url: "/dashboard/uom-conversions/view", icon: Package },
-					{ title: "Stock Requests", url: "/dashboard/stock-requests/view", icon: ShoppingCart },
-					{ title: "Transfer Orders", url: "/dashboard/transfer-orders/view", icon: ShoppingCart },
+					{
+						title: "Unit of Measure",
+						url: "/dashboard/uom/view",
+						icon: Package,
+					},
+					{
+						title: "UoM Conversions",
+						url: "/dashboard/uom-conversions/view",
+						icon: Package,
+					},
+					{
+						title: "Stock Requests",
+						url: "/dashboard/stock-requests/view",
+						icon: ShoppingCart,
+					},
+					{
+						title: "Transfer Orders",
+						url: "/dashboard/transfer-orders/view",
+						icon: ShoppingCart,
+					},
 				],
 			},
 		],
@@ -190,8 +295,41 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Wallet,
 				items: [
 					{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
-					{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
+					{
+						title: "Payouts",
+						url: "/dashboard/payouts/view",
+						icon: DollarSign,
+					},
+					{
+						title: "Refunds",
+						url: "/dashboard/refunds/view",
+						icon: Undo2,
+						permission: "refund_management:read",
+					},
+					{
+						title: "Commissions",
+						url: "/dashboard/commissions/view",
+						icon: TrendingUp,
+						permission: "commission_management:read",
+					},
 				],
+			},
+		],
+	},
+	{
+		label: "Operations",
+		items: [
+			{
+				title: "Attendance",
+				url: "/dashboard/attendance/view",
+				icon: ClipboardCheck,
+				permission: "attendance_management:read",
+			},
+			{
+				title: "Audit Log",
+				url: "/dashboard/audit/view",
+				icon: ScrollText,
+				permission: "audit_log:read",
 			},
 		],
 	},
@@ -203,10 +341,30 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/access-control/user-assignment",
 				icon: Shield,
 				items: [
-					{ title: "Role Management", url: "/dashboard/access-control/roles", icon: Shield, permission: "role_management:read" },
-					{ title: "Permissions", url: "/dashboard/access-control/permissions", icon: Settings, permission: "role_management:read" },
-					{ title: "User Assignment", url: "/dashboard/access-control/user-assignment", icon: UserPlus, permission: "user_management:read" },
-					{ title: "Invitations", url: "/dashboard/access-control/invitations", icon: Mail, permission: "user_management:read" },
+					{
+						title: "Role Management",
+						url: "/dashboard/access-control/roles",
+						icon: Shield,
+						permission: "role_management:read",
+					},
+					{
+						title: "Permissions",
+						url: "/dashboard/access-control/permissions",
+						icon: Settings,
+						permission: "role_management:read",
+					},
+					{
+						title: "User Assignment",
+						url: "/dashboard/access-control/user-assignment",
+						icon: UserPlus,
+						permission: "user_management:read",
+					},
+					{
+						title: "Invitations",
+						url: "/dashboard/access-control/invitations",
+						icon: Mail,
+						permission: "user_management:read",
+					},
 				],
 			},
 			{
@@ -215,7 +373,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Users,
 				items: [
 					{ title: "User Roles", url: "/dashboard/role/view", icon: Shield },
-					{ title: "Employees Listing", url: "/dashboard/user/view", icon: Users },
+					{
+						title: "Employees Listing",
+						url: "/dashboard/user/view",
+						icon: Users,
+					},
 				],
 			},
 			{
@@ -223,8 +385,16 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/announcements/view",
 				icon: Megaphone,
 				items: [
-					{ title: "Announcements", url: "/dashboard/announcements/view", icon: Megaphone },
-					{ title: "Notifications", url: "/dashboard/notifications/view", icon: Bell },
+					{
+						title: "Announcements",
+						url: "/dashboard/announcements/view",
+						icon: Megaphone,
+					},
+					{
+						title: "Notifications",
+						url: "/dashboard/notifications/view",
+						icon: Bell,
+					},
 				],
 			},
 		],
@@ -237,9 +407,21 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/settings/tax-rates",
 				icon: Cog,
 				items: [
-					{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
-					{ title: "Installment Plans", url: "/dashboard/settings/installment-plans", icon: CreditCard },
-					{ title: "Google Calendar", url: "/dashboard/settings/google-calendar", icon: Calendar },
+					{
+						title: "Tax Rates",
+						url: "/dashboard/settings/tax-rates",
+						icon: Tag,
+					},
+					{
+						title: "Installment Plans",
+						url: "/dashboard/settings/installment-plans",
+						icon: CreditCard,
+					},
+					{
+						title: "Google Calendar",
+						url: "/dashboard/settings/google-calendar",
+						icon: Calendar,
+					},
 				],
 			},
 			{
@@ -296,7 +478,7 @@ function SidebarUserFooter() {
 						<span className="truncate font-medium text-sm leading-tight">
 							{displayName}
 						</span>
-						<span className="truncate text-xs leading-tight text-sidebar-foreground/60">
+						<span className="truncate text-sidebar-foreground/60 text-xs leading-tight">
 							{email}
 						</span>
 					</span>
@@ -313,7 +495,10 @@ function SidebarUserFooter() {
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
-					<Link to="/dashboard/settings/tax-rates" className="flex items-center gap-2">
+					<Link
+						to="/dashboard/settings/tax-rates"
+						className="flex items-center gap-2"
+					>
 						<Settings className="size-4" />
 						<span>Settings</span>
 					</Link>
@@ -361,7 +546,7 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 
 	return (
 		<SidebarGroup className="py-1">
-			<SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-brand-secondary-1 group-data-[collapsible=icon]:hidden">
+			<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 				{group.label}
 			</SidebarGroupLabel>
 
@@ -371,7 +556,7 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 						if (item.items && item.items.length > 0) {
 							// Collapsible group item
 							const isGroupActive = item.items.some((sub) =>
-								pathname.startsWith(sub.url)
+								pathname.startsWith(sub.url),
 							);
 
 							return (
@@ -424,7 +609,11 @@ function CollapsibleNavItem({
 	const [open, setOpen] = useState(isGroupActive);
 
 	return (
-		<Collapsible open={open} onOpenChange={setOpen} className="group/collapsible">
+		<Collapsible
+			open={open}
+			onOpenChange={setOpen}
+			className="group/collapsible"
+		>
 			<SidebarMenuItem>
 				<CollapsibleTrigger asChild>
 					<SidebarMenuButton isActive={isGroupActive} tooltip={item.title}>
@@ -433,7 +622,7 @@ function CollapsibleNavItem({
 						<ChevronDown
 							className={cn(
 								"ml-auto size-4 shrink-0 transition-transform duration-200",
-								open && "rotate-180"
+								open && "rotate-180",
 							)}
 						/>
 					</SidebarMenuButton>
@@ -471,7 +660,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const pathname = location.pathname;
 
 	const currentOrg = userContext?.organizations.find(
-		(o) => o.id === userContext.currentOrganizationId
+		(o) => o.id === userContext.currentOrganizationId,
 	);
 
 	return (
@@ -500,7 +689,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				{currentOrg && (
 					<div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:hidden">
 						<Building2 className="size-4 shrink-0 text-brand-secondary-1" />
-						<span className="truncate text-sm text-brand-secondary-1">
+						<span className="truncate text-brand-secondary-1 text-sm">
 							{currentOrg.name}
 						</span>
 					</div>
@@ -508,7 +697,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 				{/* Search bar */}
 				<div className="relative px-2 group-data-[collapsible=icon]:hidden">
-					<Search className="absolute top-1/2 left-5 size-4 -translate-y-1/2 text-brand-secondary-1 pointer-events-none" />
+					<Search className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-brand-secondary-1" />
 					<input
 						type="text"
 						placeholder="Power Search..."
@@ -516,20 +705,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 							"w-full rounded-xl border border-brand-secondary-3 bg-card py-2 pr-3 pl-9 text-sm",
 							"placeholder:text-brand-secondary-1",
 							"focus:outline-none focus:ring-2 focus:ring-brand-primary-1/20",
-							"transition-colors"
+							"transition-colors",
 						)}
 					/>
 				</div>
 			</SidebarHeader>
 
 			{/* ── Content ── */}
-			<SidebarContent className="[&::-webkit-scrollbar]:hidden overflow-y-auto">
+			<SidebarContent className="overflow-y-auto [&::-webkit-scrollbar]:hidden">
 				{NAV_GROUPS.map((group) => (
 					<NavGroup key={group.label} group={group} />
 				))}
 				{isStaffOrTrainer && (
 					<SidebarGroup className="py-1">
-						<SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-brand-secondary-1 group-data-[collapsible=icon]:hidden">
+						<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 							My Work
 						</SidebarGroupLabel>
 						<SidebarGroupContent>
@@ -553,9 +742,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarContent>
 
 			{/* ── Footer ── */}
-			<SidebarFooter>
-				{session?.user && <SidebarUserFooter />}
-			</SidebarFooter>
+			<SidebarFooter>{session?.user && <SidebarUserFooter />}</SidebarFooter>
 
 			<SidebarRail />
 		</Sidebar>

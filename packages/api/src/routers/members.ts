@@ -17,6 +17,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@avantej-core/services";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { deactivateMember } from "@avantej-core/services/member.service";
+import { writeAudit } from "@avantej-core/services/audit-log.service";
 
 export const memberRouter = {
   /**
@@ -472,7 +473,9 @@ export const memberRouter = {
         });
       }
 
-      // Update role using MembershipService
+      const previousRole = member.role;
+
+      // Update role using MembershipService (dual-writes controlPanel + tenant)
       const membershipService = new MembershipService(controlPanelDb);
       await membershipService.updateMemberRole({
         userId: member.userId,
@@ -484,6 +487,22 @@ export const memberRouter = {
       // Get updated member
       const updatedMember = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
+      });
+
+      // DEVIATION from §4.8: MembershipService does a dual-write (controlPanel + tenant)
+      // and does not expose a tx hook. Audit is written after the fact on a separate query.
+      // Rare orphan window: if process dies between role update and this write, the audit
+      // row is missing but the role change succeeded.
+      await writeAudit(context.tenantDb, {
+        actorUserId: context.session!.user.id,
+        actorMemberId: context.member.id,
+        actorRole: context.member.role,
+        action: "member.role_change",
+        entityType: "member",
+        entityId: input.memberId,
+        branchId: member.hierarchyScopeId,
+        summary: `Changed member role from "${previousRole}" to "${input.newRole}"`,
+        changes: { from: previousRole, to: input.newRole },
       });
 
       return {
@@ -582,7 +601,7 @@ export const memberRouter = {
         });
       }
 
-      // Suspend member using MembershipService
+      // Suspend member using MembershipService (dual-writes controlPanel + tenant)
       const membershipService = new MembershipService(controlPanelDb);
       await membershipService.suspendMember({
         userId: member.userId,
@@ -593,6 +612,20 @@ export const memberRouter = {
       // Get updated member
       const updatedMember = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
+      });
+
+      // DEVIATION from §4.8: MembershipService does a dual-write and does not expose a tx hook.
+      // Audit is written after the fact. Rare orphan window if process dies between writes.
+      await writeAudit(context.tenantDb, {
+        actorUserId: context.session!.user.id,
+        actorMemberId: context.member.id,
+        actorRole: context.member.role,
+        action: "member.suspend",
+        entityType: "member",
+        entityId: input.memberId,
+        branchId: member.hierarchyScopeId,
+        summary: `Suspended member ${input.memberId}`,
+        changes: { statusBefore: member.status, statusAfter: "suspended" },
       });
 
       return {
@@ -691,7 +724,7 @@ export const memberRouter = {
         });
       }
 
-      // Reactivate member using MembershipService
+      // Reactivate member using MembershipService (dual-writes controlPanel + tenant)
       const membershipService = new MembershipService(controlPanelDb);
       await membershipService.reactivateMember({
         userId: member.userId,
@@ -702,6 +735,20 @@ export const memberRouter = {
       // Get updated member
       const updatedMember = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
+      });
+
+      // DEVIATION from §4.8: MembershipService does a dual-write and does not expose a tx hook.
+      // Audit is written after the fact. Rare orphan window if process dies between writes.
+      await writeAudit(context.tenantDb, {
+        actorUserId: context.session!.user.id,
+        actorMemberId: context.member.id,
+        actorRole: context.member.role,
+        action: "member.reactivate",
+        entityType: "member",
+        entityId: input.memberId,
+        branchId: member.hierarchyScopeId,
+        summary: `Reactivated member ${input.memberId}`,
+        changes: { statusBefore: member.status, statusAfter: "active" },
       });
 
       return {
@@ -870,8 +917,14 @@ export const memberRouter = {
         });
       }
 
+      const actor = {
+        userId: context.session!.user.id,
+        memberId: context.member.id,
+        role: context.member.role,
+      };
+
       try {
-        return await deactivateMember(context.tenantDb, input.memberId);
+        return await deactivateMember(context.tenantDb, input.memberId, actor);
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
           throw new ORPCError("NOT_FOUND", { message: error.message });

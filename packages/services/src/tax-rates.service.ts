@@ -2,6 +2,7 @@ import { eq, and, desc, asc } from "drizzle-orm";
 import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -124,8 +125,15 @@ export async function updateTaxRate(
 export async function setDefaultTaxRate(
 	tenantDb: TenantDb,
 	id: string,
+	actor: { userId: string; memberId: string; role: string },
 ): Promise<typeof taxRates.$inferSelect> {
 	return tenantDb.transaction(async (tx) => {
+		// Find the current default before clearing it
+		const previousDefault = await tx.query.taxRates.findFirst({
+			where: and(eq(taxRates.isDefault, true)),
+			columns: { id: true },
+		});
+
 		await tx
 			.update(taxRates)
 			.set({ isDefault: false })
@@ -140,6 +148,18 @@ export async function setDefaultTaxRate(
 		if (!row) {
 			throw new Error("Tax rate not found");
 		}
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "tax.set_default",
+			entityType: "tax_rate",
+			entityId: id,
+			summary: `Set default tax rate to "${row.name}" (${row.code})`,
+			changes: { previousId: previousDefault?.id ?? null, newId: id },
+		});
+
 		return row;
 	});
 }

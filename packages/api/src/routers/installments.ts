@@ -144,11 +144,18 @@ const manualUnlock = protectedProcedure
 			});
 		}
 
+		const actor = {
+			userId: context.session!.user.id,
+			memberId: context.member.id,
+			role: context.member.role,
+		};
+
 		return unlockPackage(
 			context.tenantDb,
 			input.packageInstanceId,
 			context.member.userId,
-			input.reason
+			input.reason,
+			actor,
 		);
 	});
 
@@ -180,12 +187,19 @@ const processRefundProcedure = protectedProcedure
 			});
 		}
 
+		const actor = {
+			userId: context.session!.user.id,
+			memberId: context.member.id,
+			role: context.member.role,
+		};
+
 		await processRefund(
 			context.tenantDb,
 			input.packageInstanceId,
 			input.amount,
 			context.member.userId,
-			input.reason
+			input.reason,
+			actor,
 		);
 
 		return { success: true };

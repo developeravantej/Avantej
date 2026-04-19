@@ -292,7 +292,13 @@ export const taxRatesRouter = {
 				});
 			}
 
-			return setDefaultTaxRate(context.tenantDb, input.id);
+			const actor = {
+				userId: context.session!.user.id,
+				memberId: context.member.id,
+				role: context.member.role,
+			};
+
+			return setDefaultTaxRate(context.tenantDb, input.id, actor);
 		}),
 
 	deactivate: protectedProcedure

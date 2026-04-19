@@ -214,10 +214,16 @@ export const salesOrdersRouter = {
 				});
 			}
 
+			const actor = {
+				userId: context.session!.user.id,
+				memberId: context.member.id,
+				role: context.member.role,
+			};
+
 			return cancelSalesOrder(context.tenantDb, input.id, {
 				cancelledBy: input.cancelledBy,
 				reason: input.reason,
 				refundAmount: input.refundAmount,
-			});
+			}, actor);
 		}),
 };

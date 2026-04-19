@@ -214,6 +214,12 @@ export const promotionsRouter = {
 				});
 			}
 
+			const actor = {
+				userId: context.session!.user.id,
+				memberId: context.member.id,
+				role: context.member.role,
+			};
+
 			return createPromotion(context.tenantDb, {
 				code: input.code,
 				name: input.name,
@@ -228,7 +234,7 @@ export const promotionsRouter = {
 				validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
 				branchId: input.branchId,
 				createdBy: context.member.userId,
-			});
+			}, actor);
 		}),
 
 	update: protectedProcedure
@@ -321,6 +327,12 @@ export const promotionsRouter = {
 				});
 			}
 
-			return deactivatePromotion(context.tenantDb, input.id);
+			const actor = {
+				userId: context.session!.user.id,
+				memberId: context.member.id,
+				role: context.member.role,
+			};
+
+			return deactivatePromotion(context.tenantDb, input.id, actor);
 		}),
 };

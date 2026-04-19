@@ -11,10 +11,15 @@
  * ```
  */
 
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { user } from "@avantej-core/db/schema/auth";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
+type TenantDb = NeonDatabase<typeof tenantSchema>;
 
 export type ListPackageInstancesForClientParams = {
   clientId: string;
@@ -138,6 +143,224 @@ export async function createPackageInstance(
     throw new Error("Failed to create package instance");
   }
   return row;
+}
+
+// ----------------------------------------------------------------
+// listMemberships — retention operator view
+// ----------------------------------------------------------------
+
+export type MembershipFilter =
+	| "active"
+	| "expiring_7d"
+	| "expiring_30d"
+	| "expired"
+	| "frozen"
+	| "all";
+
+export interface MembershipRow {
+	packageInstanceId: string;
+	memberId: string; // members.id (for drawer drill-in)
+	clientId: string; // members.userId
+	clientName: string; // resolved cross-DB
+	serviceId: string;
+	serviceName: string;
+	startsAt: Date;
+	expiresAt: Date;
+	status: string; // package_instances.status
+	isLocked: boolean;
+	lockedReason: string | null;
+	creditsTotal: number;
+	creditsRemaining: number; // generated col on table
+	daysUntilExpiry: number | null; // null if expiresAt is null
+	outstandingBalanceCents: number;
+}
+
+/**
+ * List package instances for the retention / membership view.
+ *
+ * RBAC: scoped via `members.hierarchyScopeId` filtered through `accessibleNodeIds`.
+ * Cross-DB enrichment: clientName batch-fetched from the control panel `user` table.
+ *
+ * Filter semantics:
+ *   active       — status='active' AND expiresAt > NOW()
+ *   expiring_7d  — status='active' AND expiresAt BETWEEN NOW() AND NOW() + 7 days
+ *   expiring_30d — status='active' AND expiresAt BETWEEN NOW() AND NOW() + 30 days
+ *   expired      — status='expired' OR expiresAt < NOW()
+ *   frozen       — isLocked = TRUE (may overlap with active)
+ *   all          — no additional predicate
+ */
+export async function listMemberships(
+	controlPanelDb: ControlPanelDb,
+	tenantDb: TenantDb,
+	params: {
+		filter: MembershipFilter;
+		branchId?: string;
+		serviceCategoryId?: string;
+		accessibleNodeIds: string[];
+		limit?: number;
+		offset?: number;
+	},
+): Promise<{ rows: MembershipRow[]; total: number }> {
+	const {
+		filter,
+		branchId,
+		serviceCategoryId,
+		accessibleNodeIds,
+		limit = 100,
+		offset = 0,
+	} = params;
+
+	if (accessibleNodeIds.length === 0) {
+		return { rows: [], total: 0 };
+	}
+
+	// Build the accessible-node array literal (same pattern as customer-directory.service.ts:106)
+	const nodeArrayLiteral = sql.raw(
+		`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+	);
+
+	// Build per-filter predicate
+	const filterPredicate = (() => {
+		switch (filter) {
+			case "active":
+				return sql`pi.status = 'active' AND pi.expires_at > NOW()`;
+			case "expiring_7d":
+				return sql`pi.status = 'active' AND pi.expires_at BETWEEN NOW() AND NOW() + INTERVAL '7 days'`;
+			case "expiring_30d":
+				return sql`pi.status = 'active' AND pi.expires_at BETWEEN NOW() AND NOW() + INTERVAL '30 days'`;
+			case "expired":
+				return sql`(pi.status = 'expired' OR pi.expires_at < NOW())`;
+			case "frozen":
+				return sql`pi.is_locked = TRUE`;
+			case "all":
+			default:
+				return sql`TRUE`;
+		}
+	})();
+
+	// Optional branch filter
+	const branchPredicate = branchId
+		? sql`AND m.hierarchy_scope_id = ${branchId}::uuid`
+		: sql``;
+
+	// Optional service category filter
+	const categoryPredicate = serviceCategoryId
+		? sql`AND s.category_id = ${serviceCategoryId}::uuid`
+		: sql``;
+
+	// ----------------------------------------------------------------
+	// Step 1: fetch aggregated rows from tenant DB
+	// ----------------------------------------------------------------
+	const aggregationQuery = sql`
+		SELECT
+			pi.id                                                            AS package_instance_id,
+			m.id                                                             AS member_id,
+			pi.client_id                                                     AS client_id,
+			pi.service_id                                                    AS service_id,
+			pi.starts_at                                                     AS starts_at,
+			pi.expires_at                                                    AS expires_at,
+			pi.status                                                        AS status,
+			pi.is_locked                                                     AS is_locked,
+			pi.locked_reason                                                 AS locked_reason,
+			pi.credits_total                                                 AS credits_total,
+			pi.credits_remaining                                             AS credits_remaining,
+			CASE
+				WHEN pi.expires_at IS NULL THEN NULL
+				ELSE EXTRACT(DAY FROM (pi.expires_at - NOW()))::int
+			END                                                              AS days_until_expiry,
+			s.name                                                           AS service_name,
+			COALESCE(
+				SUM(i.amount + COALESCE(i.tax_amount, 0))
+				FILTER (WHERE i.status IN ('pending', 'overdue')), 0
+			)::INTEGER                                                       AS outstanding_balance_cents,
+			m.hierarchy_scope_id                                             AS hierarchy_scope_id
+		FROM package_instances pi
+		JOIN services s ON s.id = pi.service_id
+		JOIN members m ON m.user_id = pi.client_id AND m.role = 'client'
+		LEFT JOIN installments i ON i.package_instance_id = pi.id
+		WHERE m.hierarchy_scope_id = ANY(${nodeArrayLiteral})
+			${branchPredicate}
+			${categoryPredicate}
+			AND (${filterPredicate})
+		GROUP BY pi.id, m.id, s.name, s.category_id, m.hierarchy_scope_id
+		ORDER BY pi.expires_at ASC NULLS LAST
+		LIMIT ${limit} OFFSET ${offset}
+	`;
+
+	const countQuery = sql`
+		SELECT CAST(COUNT(*) AS INTEGER) AS total
+		FROM package_instances pi
+		JOIN services s ON s.id = pi.service_id
+		JOIN members m ON m.user_id = pi.client_id AND m.role = 'client'
+		WHERE m.hierarchy_scope_id = ANY(${nodeArrayLiteral})
+			${branchPredicate}
+			${categoryPredicate}
+			AND (${filterPredicate})
+	`;
+
+	const [aggregationResult, countResult] = await Promise.all([
+		tenantDb.execute(aggregationQuery),
+		tenantDb.execute(countQuery),
+	]);
+
+	type TenantRow = {
+		package_instance_id: string;
+		member_id: string;
+		client_id: string;
+		service_id: string;
+		starts_at: Date;
+		expires_at: Date;
+		status: string;
+		is_locked: boolean;
+		locked_reason: string | null;
+		credits_total: number;
+		credits_remaining: number;
+		days_until_expiry: number | null;
+		service_name: string;
+		outstanding_balance_cents: number;
+		hierarchy_scope_id: string;
+	};
+
+	const tenantRows = aggregationResult.rows as TenantRow[];
+	const total = (countResult.rows[0] as { total: number })?.total ?? 0;
+
+	if (tenantRows.length === 0) {
+		return { rows: [], total };
+	}
+
+	// ----------------------------------------------------------------
+	// Step 2: cross-DB batch lookup for clientName
+	// ----------------------------------------------------------------
+	const clientIds = [...new Set(tenantRows.map((r) => r.client_id))];
+	const userRows = await controlPanelDb
+		.select({ id: user.id, name: user.name })
+		.from(user)
+		.where(inArray(user.id, clientIds));
+
+	const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+
+	// ----------------------------------------------------------------
+	// Step 3: merge
+	// ----------------------------------------------------------------
+	const rows: MembershipRow[] = tenantRows.map((r) => ({
+		packageInstanceId: r.package_instance_id,
+		memberId: r.member_id,
+		clientId: r.client_id,
+		clientName: userMap.get(r.client_id) ?? "Unknown",
+		serviceId: r.service_id,
+		serviceName: r.service_name,
+		startsAt: r.starts_at,
+		expiresAt: r.expires_at,
+		status: r.status,
+		isLocked: r.is_locked,
+		lockedReason: r.locked_reason,
+		creditsTotal: r.credits_total,
+		creditsRemaining: r.credits_remaining,
+		daysUntilExpiry: r.days_until_expiry,
+		outstandingBalanceCents: r.outstanding_balance_cents,
+	}));
+
+	return { rows, total };
 }
 
 /**

@@ -1,31 +1,31 @@
 /**
  * RBAC Seed Data
- * 
+ *
  * Seeds default roles, permissions, and role-permission mappings for a tenant database.
  * Called automatically when a new tenant database is created.
- * 
+ *
  * Usage:
  * ```typescript
  * import { seedRBACData } from "@avantej-core/db/seed-rbac";
- * 
+ *
  * await seedRBACData(tenantDb);
  * ```
  */
 
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { permissions, rolePermissions, roles } from "./schema/tenant";
 import type * as tenantSchema from "./schema/tenant-schema";
-import { roles, permissions, rolePermissions } from "./schema/tenant";
 
 /**
  * Seed RBAC data (roles, permissions, role-permission mappings)
- * 
+ *
  * Creates default system roles and permissions, then maps permissions to roles.
  * Idempotent - can be called multiple times safely.
- * 
+ *
  * @param tenantDb - Drizzle client for tenant database
  */
 export async function seedRBACData(
-	tenantDb: NeonDatabase<typeof tenantSchema>
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<void> {
 	// Default roles
 	const defaultRoles = [
@@ -73,6 +73,39 @@ export async function seedRBACData(
 		{ resource: "appointment_management", action: "read" },
 		{ resource: "appointment_management", action: "update" },
 		{ resource: "appointment_management", action: "delete" },
+		// Customer directory (tracking-pages P1)
+		{ resource: "customer_management", action: "read" },
+		{ resource: "customer_management", action: "update" },
+		// Walk-in customer management (prior phase — admin grant was missing)
+		{ resource: "walk_in_customer_management", action: "create" },
+		{ resource: "walk_in_customer_management", action: "read" },
+		{ resource: "walk_in_customer_management", action: "update" },
+		{ resource: "walk_in_customer_management", action: "delete" },
+		// Audit log (tracking-pages P3)
+		{ resource: "audit_log", action: "read" },
+		// Attendance management (tracking-pages P7)
+		{ resource: "attendance_management", action: "read" },
+		{ resource: "attendance_management", action: "create" },
+		{ resource: "attendance_management", action: "delete" },
+		// POS / Record Sale (tracking-pages P4)
+		// pos:create is the orchestrator gate — grants access to the recordSale endpoint.
+		// sales:create and payments:create are the underlying resource permissions.
+		// All three added here (canonical seed) so admin gets them via the "*" mapping.
+		{ resource: "pos", action: "create" },
+		{ resource: "sales", action: "create" },
+		{ resource: "payments", action: "create" },
+		// Refunds Ledger (tracking-pages P5)
+		{ resource: "refund_management", action: "read" },
+		{ resource: "refund_management", action: "create" },
+		{ resource: "refund_management", action: "approve" },
+		{ resource: "refund_management", action: "process" },
+		// Commissions Ledger (tracking-pages P6)
+		// commission_management was in the Resource union but had no seeded actions.
+		// These four actions are now seeded here (canonical) so admin gets them via "*".
+		{ resource: "commission_management", action: "read" },
+		{ resource: "commission_management", action: "update" },
+		{ resource: "commission_management", action: "approve" },
+		{ resource: "commission_management", action: "process" },
 	];
 
 	// Insert roles (skip if exists)
@@ -83,10 +116,7 @@ export async function seedRBACData(
 		});
 
 		if (!existing) {
-			const [role] = await tenantDb
-				.insert(roles)
-				.values(roleData)
-				.returning();
+			const [role] = await tenantDb.insert(roles).values(roleData).returning();
 			if (role) roleMap.set(role.name, role.id);
 		} else {
 			roleMap.set(existing.name, existing.id);
@@ -101,7 +131,7 @@ export async function seedRBACData(
 			where: (permissions, { eq, and }) =>
 				and(
 					eq(permissions.resource, permData.resource),
-					eq(permissions.action, permData.action)
+					eq(permissions.action, permData.action),
 				),
 		});
 
@@ -172,5 +202,3 @@ export async function seedRBACData(
 		}
 	}
 }
-
-

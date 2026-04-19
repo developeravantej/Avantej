@@ -12,12 +12,14 @@ import {
   createInstallmentSchedule,
   requirePermission,
 } from "@avantej-core/services";
+import { listMemberships } from "@avantej-core/services/package-instance.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { desc, and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { getControlPanelDb } from "../lib/context-helpers";
 
 const sourceSchema = z.enum(["assigned", "purchased"]);
 const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded"]);
@@ -278,6 +280,75 @@ export const packageInstancesRouter = {
             error instanceof Error ? error.message : "Failed to create package instance",
         });
       }
+    }),
+
+  /**
+   * List memberships (package_instances) for the retention / membership view.
+   *
+   * Filter values:
+   *   active       — status='active' AND expiresAt > NOW()
+   *   expiring_7d  — status='active' AND expiresAt within 7 days
+   *   expiring_30d — status='active' AND expiresAt within 30 days
+   *   expired      — status='expired' OR expiresAt < NOW()
+   *   frozen       — isLocked = TRUE
+   *   all          — no additional predicate
+   *
+   * Requires: service_management:read permission.
+   * RBAC: results scoped to caller's accessibleNodeIds via members.hierarchyScopeId.
+   */
+  listMemberships: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        filter: z
+          .enum(["active", "expiring_7d", "expiring_30d", "expired", "frozen", "all"])
+          .default("active"),
+        branchId: z.string().uuid().optional(),
+        serviceCategoryId: z.string().uuid().optional(),
+        limit: z.number().int().min(1).max(200).default(100),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Member context required",
+        });
+      }
+
+      await requirePermission(
+        context.tenantDb,
+        context.member,
+        "service_management",
+        "read",
+      );
+
+      // Pre-check: if caller supplied a branchId, it must be within their accessible scope
+      if (
+        input.branchId &&
+        !(context.accessibleNodeIds ?? []).includes(input.branchId)
+      ) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Requested branch is outside your accessible scope",
+        });
+      }
+
+      const controlPanelDb = getControlPanelDb(context);
+
+      return listMemberships(controlPanelDb, context.tenantDb, {
+        filter: input.filter,
+        branchId: input.branchId,
+        serviceCategoryId: input.serviceCategoryId,
+        accessibleNodeIds: context.accessibleNodeIds ?? [],
+        limit: input.limit,
+        offset: input.offset,
+      });
     }),
 
   /**

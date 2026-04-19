@@ -2,6 +2,7 @@ import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 export type CreateSalesOrderParams = {
 	date: Date;
@@ -164,7 +165,8 @@ export async function updateSalesOrder(
 export async function cancelSalesOrder(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { cancelledBy: string; reason?: string; refundAmount: number }
+	params: { cancelledBy: string; reason?: string; refundAmount: number },
+	actor: { userId: string; memberId: string; role: string },
 ): Promise<typeof salesOrders.$inferSelect> {
 	const existing = await getSalesOrderById(tenantDb, id);
 	if (!existing) {
@@ -180,23 +182,37 @@ export async function cancelSalesOrder(
 	const now = new Date();
 	const cancellationNumber = await generateCancellationNumber(tenantDb, now);
 
-	const [updatedOrder] = await tenantDb
-		.update(salesOrders)
-		.set({
-			status: "cancelled",
-			cancellationNumber,
-			cancellationDate: now,
-			cancellationReason: params.reason ?? null,
-			cancelledBy: params.cancelledBy,
-			cancelledAmount: params.refundAmount,
-			updatedAt: now,
-		})
-		.where(eq(salesOrders.id, id))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		const [updatedOrder] = await tx
+			.update(salesOrders)
+			.set({
+				status: "cancelled",
+				cancellationNumber,
+				cancellationDate: now,
+				cancellationReason: params.reason ?? null,
+				cancelledBy: params.cancelledBy,
+				cancelledAmount: params.refundAmount,
+				updatedAt: now,
+			})
+			.where(eq(salesOrders.id, id))
+			.returning();
 
-	if (!updatedOrder) {
-		throw new Error("Failed to cancel sales order");
-	}
+		if (!updatedOrder) {
+			throw new Error("Failed to cancel sales order");
+		}
 
-	return updatedOrder;
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "sale.cancel",
+			entityType: "sales_order",
+			entityId: id,
+			branchId: existing.branchId,
+			summary: `Cancelled sales order ${existing.salesOrderNumber ?? id}`,
+			changes: { refundAmount: params.refundAmount, reason: params.reason ?? null },
+		});
+
+		return updatedOrder;
+	});
 }

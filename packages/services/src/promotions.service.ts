@@ -5,6 +5,7 @@ import {
 } from "@avantej-core/db/schema/tenant/promotions";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -189,34 +190,50 @@ export async function applyPromotion(
 export async function createPromotion(
 	tenantDb: TenantDb,
 	data: CreatePromotionParams,
+	actor: { userId: string; memberId: string; role: string },
 ) {
-	const [row] = await tenantDb
-		.insert(promotions)
-		.values({
-			code: data.code,
-			name: data.name,
-			description: data.description ?? null,
-			type: data.type,
-			value: data.value,
-			minimumOrderAmount: data.minimumOrderAmount ?? 0,
-			maximumDiscount: data.maximumDiscount ?? null,
-			usageLimit: data.usageLimit ?? null,
-			usageCount: 0,
-			perCustomerLimit: data.perCustomerLimit ?? 1,
-			validFrom: data.validFrom,
-			validUntil: data.validUntil ?? null,
-			isActive: data.isActive ?? true,
-			branchId: data.branchId ?? null,
-			applicableProductIds: data.applicableProductIds ?? null,
-			applicableServiceIds: data.applicableServiceIds ?? null,
-			createdBy: data.createdBy,
-		})
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		const [row] = await tx
+			.insert(promotions)
+			.values({
+				code: data.code,
+				name: data.name,
+				description: data.description ?? null,
+				type: data.type,
+				value: data.value,
+				minimumOrderAmount: data.minimumOrderAmount ?? 0,
+				maximumDiscount: data.maximumDiscount ?? null,
+				usageLimit: data.usageLimit ?? null,
+				usageCount: 0,
+				perCustomerLimit: data.perCustomerLimit ?? 1,
+				validFrom: data.validFrom,
+				validUntil: data.validUntil ?? null,
+				isActive: data.isActive ?? true,
+				branchId: data.branchId ?? null,
+				applicableProductIds: data.applicableProductIds ?? null,
+				applicableServiceIds: data.applicableServiceIds ?? null,
+				createdBy: data.createdBy,
+			})
+			.returning();
 
-	if (!row) {
-		throw new Error("Failed to create promotion");
-	}
-	return row;
+		if (!row) {
+			throw new Error("Failed to create promotion");
+		}
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "promotion.create",
+			entityType: "promotion",
+			entityId: row.id,
+			branchId: data.branchId,
+			summary: `Created promotion "${data.name}" (code: ${data.code})`,
+			changes: { code: data.code, name: data.name, type: data.type, value: data.value },
+		});
+
+		return row;
+	});
 }
 
 export async function updatePromotion(
@@ -263,18 +280,37 @@ export async function updatePromotion(
 	return row;
 }
 
-export async function deactivatePromotion(tenantDb: TenantDb, id: string) {
-	const [row] = await tenantDb
-		.update(promotions)
-		.set({
-			isActive: false,
-			updatedAt: new Date(),
-		})
-		.where(eq(promotions.id, id))
-		.returning();
+export async function deactivatePromotion(
+	tenantDb: TenantDb,
+	id: string,
+	actor: { userId: string; memberId: string; role: string },
+) {
+	return tenantDb.transaction(async (tx) => {
+		const [row] = await tx
+			.update(promotions)
+			.set({
+				isActive: false,
+				updatedAt: new Date(),
+			})
+			.where(eq(promotions.id, id))
+			.returning();
 
-	if (!row) {
-		throw new Error("Promotion not found");
-	}
-	return row;
+		if (!row) {
+			throw new Error("Promotion not found");
+		}
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "promotion.deactivate",
+			entityType: "promotion",
+			entityId: id,
+			branchId: row.branchId ?? undefined,
+			summary: `Deactivated promotion "${row.name}" (code: ${row.code})`,
+			changes: { code: row.code, name: row.name },
+		});
+
+		return row;
+	});
 }

@@ -1855,6 +1855,151 @@ const MIGRATION_0018_INSTALLMENT_PLAN_PREMIUM = `
 ALTER TABLE "installment_plans" ADD COLUMN "price_premium_bps" integer DEFAULT 0 NOT NULL;
 `;
 
+const MIGRATION_0019_AUDIT_LOGS = `
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_user_id text NOT NULL,
+  actor_member_id uuid,
+  actor_role text,
+  action text NOT NULL,
+  entity_type text NOT NULL,
+  entity_id text,
+  branch_id uuid,
+  summary text NOT NULL,
+  changes jsonb,
+  ip_address text,
+  user_agent text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS audit_logs_actor_idx ON audit_logs(actor_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS audit_logs_entity_idx ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS audit_logs_branch_idx ON audit_logs(branch_id);
+CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC);
+`;
+
+const MIGRATION_0022_CHECK_INS = `
+CREATE TABLE IF NOT EXISTS check_ins (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_type text NOT NULL CHECK (client_type IN ('member','walk_in')),
+  client_id text NOT NULL,
+  branch_id uuid NOT NULL REFERENCES hierarchy_nodes(id) ON DELETE RESTRICT,
+  appointment_client_id uuid REFERENCES appointment_clients(id) ON DELETE SET NULL,
+  source text NOT NULL CHECK (source IN ('booking','drop_in')),
+  outcome text NOT NULL DEFAULT 'attended' CHECK (outcome IN ('attended','no_show','late_cancel')),
+  package_instance_id uuid,
+  credits_consumed integer NOT NULL DEFAULT 0,
+  notes text,
+  checked_in_by text NOT NULL,
+  checked_in_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS check_ins_client_idx ON check_ins(client_type, client_id, checked_in_at DESC);
+CREATE INDEX IF NOT EXISTS check_ins_branch_idx ON check_ins(branch_id, checked_in_at DESC);
+CREATE INDEX IF NOT EXISTS check_ins_appt_client_idx ON check_ins(appointment_client_id);
+CREATE INDEX IF NOT EXISTS check_ins_checked_in_at_idx ON check_ins(checked_in_at DESC);
+`;
+
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0023_refunds
+ * Creates refunds table for unified refund ledger (tracking-pages P5).
+ *
+ * NOTE: Plan §5.2 reserved slot "0020"; actual hash is "0023_refunds" because
+ * migrations 0019–0022 were applied in prior phases of this plan. Using sequential
+ * numbering to keep the TENANT_MIGRATIONS array ordered by application date.
+ */
+const MIGRATION_0023_REFUNDS = `
+CREATE TABLE IF NOT EXISTS refunds (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  refund_number text NOT NULL UNIQUE,
+  status text NOT NULL DEFAULT 'pending',
+  sales_order_id uuid REFERENCES sales_orders(id) ON DELETE RESTRICT,
+  payment_id uuid REFERENCES payments(id) ON DELETE RESTRICT,
+  package_instance_id uuid REFERENCES package_instances(id) ON DELETE RESTRICT,
+  amount_cents integer NOT NULL,
+  tax_amount_cents integer NOT NULL DEFAULT 0,
+  reason text NOT NULL,
+  notes text,
+  requested_by text NOT NULL,
+  requested_at timestamptz NOT NULL DEFAULT now(),
+  reviewed_by text,
+  reviewed_at timestamptz,
+  review_notes text,
+  processed_by text,
+  processed_at timestamptz,
+  refund_method text,
+  refund_reference text,
+  branch_id uuid REFERENCES hierarchy_nodes(id) ON DELETE RESTRICT,
+  customer_id text NOT NULL,
+  customer_name text NOT NULL,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT refunds_must_target_one CHECK (
+    sales_order_id IS NOT NULL OR payment_id IS NOT NULL OR package_instance_id IS NOT NULL
+  )
+);
+CREATE INDEX IF NOT EXISTS refunds_number_idx ON refunds(refund_number);
+CREATE INDEX IF NOT EXISTS refunds_status_idx ON refunds(status);
+CREATE INDEX IF NOT EXISTS refunds_sales_order_idx ON refunds(sales_order_id);
+CREATE INDEX IF NOT EXISTS refunds_payment_idx ON refunds(payment_id);
+CREATE INDEX IF NOT EXISTS refunds_package_instance_idx ON refunds(package_instance_id);
+CREATE INDEX IF NOT EXISTS refunds_branch_idx ON refunds(branch_id);
+CREATE INDEX IF NOT EXISTS refunds_customer_idx ON refunds(customer_id);
+CREATE INDEX IF NOT EXISTS refunds_requested_at_idx ON refunds(requested_at DESC);
+`;
+
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0024_commission_splits_status
+ * Alters commission_splits to add status workflow, nullable appointmentId,
+ * salesOrderId, approval/payment columns, payoutId linkage, and re-indexes.
+ *
+ * DEVIATION FROM PLAN: Plan §6.1 named this "0021_commission_splits_status".
+ * Actual slot is 0024 because migrations 0020–0023 were applied in prior phases.
+ *
+ * SAFETY NOTE: Existing rows (if any) already have appointment_id NOT NULL.
+ * After ALTER makes appointment_id nullable and adds sales_order_id as NULL,
+ * every existing row satisfies CHECK (appointment_id IS NOT NULL AND sales_order_id IS NULL).
+ * No data migration needed. "status" gets DEFAULT 'pending' for existing rows.
+ *
+ * The old unique index commission_splits_unique_idx is dropped and replaced
+ * with two partial unique indexes for the two target shapes.
+ */
+const MIGRATION_0024_COMMISSION_SPLITS_STATUS = `
+ALTER TABLE commission_splits
+  ALTER COLUMN appointment_id DROP NOT NULL,
+  ADD COLUMN IF NOT EXISTS sales_order_id uuid REFERENCES sales_orders(id) ON DELETE RESTRICT,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS approved_by text,
+  ADD COLUMN IF NOT EXISTS approved_at timestamptz,
+  ADD COLUMN IF NOT EXISTS paid_by text,
+  ADD COLUMN IF NOT EXISTS paid_at timestamptz,
+  ADD COLUMN IF NOT EXISTS payout_id uuid REFERENCES payouts(id) ON DELETE SET NULL;
+
+DROP INDEX IF EXISTS commission_splits_unique_idx;
+
+CREATE UNIQUE INDEX IF NOT EXISTS commission_splits_appt_staff_unique
+  ON commission_splits(appointment_id, staff_id)
+  WHERE appointment_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS commission_splits_so_staff_unique
+  ON commission_splits(sales_order_id, staff_id)
+  WHERE sales_order_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS commission_splits_status_idx ON commission_splits(status);
+CREATE INDEX IF NOT EXISTS commission_splits_payout_idx ON commission_splits(payout_id);
+CREATE INDEX IF NOT EXISTS commission_splits_sales_order_idx ON commission_splits(sales_order_id);
+
+ALTER TABLE commission_splits
+  ADD CONSTRAINT commission_splits_must_target_one
+  CHECK (
+    (appointment_id IS NOT NULL AND sales_order_id IS NULL)
+    OR (sales_order_id IS NOT NULL AND appointment_id IS NULL)
+  );
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -1935,6 +2080,22 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0018_installment_plan_premium",
     sql: MIGRATION_0018_INSTALLMENT_PLAN_PREMIUM,
+  },
+  {
+    hash: "0019_audit_logs",
+    sql: MIGRATION_0019_AUDIT_LOGS,
+  },
+  {
+    hash: "0022_check_ins",
+    sql: MIGRATION_0022_CHECK_INS,
+  },
+  {
+    hash: "0023_refunds",
+    sql: MIGRATION_0023_REFUNDS,
+  },
+  {
+    hash: "0024_commission_splits_status",
+    sql: MIGRATION_0024_COMMISSION_SPLITS_STATUS,
   },
 ] as const;
 

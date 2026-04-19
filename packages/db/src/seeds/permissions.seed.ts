@@ -1,6 +1,6 @@
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { permissions } from "@avantej-core/db/schema/tenant/permissions";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 const SEED_PERMISSIONS = [
 	// users
@@ -65,10 +65,56 @@ const SEED_PERMISSIONS = [
 	{ resource: "role_management", action: "read" },
 	{ resource: "role_management", action: "update" },
 	{ resource: "role_management", action: "delete" },
+	// Note: customer_management is registered in seed-rbac.ts (canonical admin-grant file).
+	// pos — POS orchestrator gate (tracking-pages P4); also in seed-rbac.ts for admin grant.
+	{ resource: "pos", action: "create" },
+	// refund_management (tracking-pages P5); also in seed-rbac.ts for admin grant.
+	{
+		resource: "refund_management",
+		action: "read",
+		description: "View refunds",
+	},
+	{
+		resource: "refund_management",
+		action: "create",
+		description: "Request refunds",
+	},
+	{
+		resource: "refund_management",
+		action: "approve",
+		description: "Approve or reject pending refunds",
+	},
+	{
+		resource: "refund_management",
+		action: "process",
+		description:
+			"Mark approved refunds as processed (write to payments/sales_orders)",
+	},
+	// commission_management (tracking-pages P6); also in seed-rbac.ts for admin grant.
+	{
+		resource: "commission_management",
+		action: "read",
+		description: "View commission ledger",
+	},
+	{
+		resource: "commission_management",
+		action: "update",
+		description: "Edit commission split notes",
+	},
+	{
+		resource: "commission_management",
+		action: "approve",
+		description: "Approve or void commission splits",
+	},
+	{
+		resource: "commission_management",
+		action: "process",
+		description: "Mark commission splits as paid",
+	},
 ];
 
 export async function seedPermissions(
-	tenantDb: NeonDatabase<typeof tenantSchema>
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<void> {
 	await tenantDb
 		.insert(permissions)

@@ -1,52 +1,57 @@
-import { protectedProcedure, publicProcedure } from "../index";
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
-import { hierarchyRouter } from "./hierarchy";
-import { invitationRouter } from "./invitations";
-import { memberRouter } from "./members";
+import { protectedProcedure, publicProcedure } from "../index";
+import { analyticsRouter } from "./analytics";
+import { announcementsRouter } from "./announcements";
 import { appointmentsRouter } from "./appointments";
+import { auditLogsRouter } from "./audit-logs";
+import { brandsRouter } from "./brands";
+import { cancelledSalesRouter } from "./cancelled-sales";
+import { checkInsRouter } from "./check-ins";
+import { classSlotsRouter } from "./class-slots";
+import { commissionSplitsRouter } from "./commission-splits";
+import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
+import { expensesRouter } from "./expenses";
+import { googleCalendarRouter } from "./google-calendar";
+import { hierarchyRouter } from "./hierarchy";
+import { installmentPlansRouter } from "./installment-plans";
+import { installmentsRouter } from "./installments";
+import { invitationRouter } from "./invitations";
+import { invoicesRouter } from "./invoices";
+import { memberProfilesRouter } from "./member-profiles";
+import { memberRouter } from "./members";
 import { notificationPreferencesRouter } from "./notification-preferences";
 import { notificationsRouter } from "./notifications";
+import { organizationSettingsRouter } from "./organization-settings";
 import { packageInstancesRouter } from "./package-instances";
-import { preferredTimesRouter } from "./preferred-times";
-import { serviceCategoriesRouter } from "./service-categories";
-import { servicesRouter } from "./services";
-import { userActivityLogRouter } from "./user-activity-log";
-import { rolesRouter } from "./roles";
-import { permissionsRouter } from "./permissions";
-import { rolePermissionsRouter } from "./role-permissions";
-import { serviceCategoryConfigRouter } from "./service-category-config";
 import { payoutsRouter } from "./payouts";
+import { permissionsRouter } from "./permissions";
+import { posRouter } from "./pos";
+import { preferredTimesRouter } from "./preferred-times";
+import { productCategoriesRouter } from "./product-categories";
+import { productsRouter } from "./products";
+import { promotionsRouter } from "./promotions";
+import { purchaseOrdersRouter } from "./purchase-orders";
+import { refundsRouter } from "./refunds";
+import { registrationRouter } from "./registration";
+import { rolePermissionsRouter } from "./role-permissions";
+import { rolesRouter } from "./roles";
 import { roomsRouter } from "./rooms";
 import { salesOrdersRouter } from "./sales-orders";
-import { invoicesRouter } from "./invoices";
-import { cancelledSalesRouter } from "./cancelled-sales";
-import { brandsRouter } from "./brands";
-import { productCategoriesRouter } from "./product-categories";
-import { suppliersRouter } from "./suppliers";
-import { unitsOfMeasureRouter } from "./units-of-measure";
-import { productsRouter } from "./products";
-import { stockRequestsRouter } from "./stock-requests";
-import { transferOrdersRouter } from "./transfer-orders";
-import { expensesRouter } from "./expenses";
-import { announcementsRouter } from "./announcements";
-import { classSlotsRouter } from "./class-slots";
-import { memberProfilesRouter } from "./member-profiles";
-import { waitlistRouter } from "./waitlist";
-import { commissionSplitsRouter } from "./commission-splits";
-import { purchaseOrdersRouter } from "./purchase-orders";
-import { promotionsRouter } from "./promotions";
-import { walkInCustomersRouter } from "./walk-in-customers";
-import { taxRatesRouter } from "./tax-rates";
-import { analyticsRouter } from "./analytics";
-import { registrationRouter } from "./registration";
-import { trainerAvailabilityRouter } from "./trainer-availability";
+import { serviceCategoriesRouter } from "./service-categories";
+import { serviceCategoryConfigRouter } from "./service-category-config";
 import { serviceMembersRouter } from "./service-members";
-import { installmentsRouter } from "./installments";
-import { installmentPlansRouter } from "./installment-plans";
-import { organizationSettingsRouter } from "./organization-settings";
-import { googleCalendarRouter } from "./google-calendar";
+import { servicesRouter } from "./services";
+import { stockRequestsRouter } from "./stock-requests";
+import { suppliersRouter } from "./suppliers";
+import { taxRatesRouter } from "./tax-rates";
+import { trainerAvailabilityRouter } from "./trainer-availability";
+import { transferOrdersRouter } from "./transfer-orders";
+import { unitsOfMeasureRouter } from "./units-of-measure";
+import { userActivityLogRouter } from "./user-activity-log";
+import { waitlistRouter } from "./waitlist";
+import { walkInCustomersRouter } from "./walk-in-customers";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -105,6 +110,11 @@ export const baseRouter = {
 	installmentPlans: installmentPlansRouter,
 	organizationSettings: organizationSettingsRouter,
 	googleCalendar: googleCalendarRouter,
+	customerDirectory: customerDirectoryRouter,
+	auditLogs: auditLogsRouter,
+	checkIns: checkInsRouter,
+	pos: posRouter,
+	refunds: refundsRouter,
 };
 
 // Auth router type definition for client type inference
@@ -113,44 +123,68 @@ export const baseRouter = {
 const authRouterType = {
 	login: publicProcedure
 		.input(z.object({ email: z.string(), password: z.string() }))
-		.handler((): {
-			accessToken: string;
-			refreshToken: string;
-			user: { id: string; email: string; name: string; firstName: string; lastName: string; emailVerified: boolean; createdAt: Date };
-			organizations: Array<{ id: string; name: string; slug: string; role: string }>;
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
-	userContext: protectedProcedure.handler((): {
-		user: { id: string; email: string; name: string; firstName: string; lastName: string; emailVerified: boolean };
-		organizations: Array<{
-			id: string;
-			name: string;
-			slug: string;
-			role: string;
-			hierarchy: {
-				nodes: Array<{
+		.handler(
+			(): {
+				accessToken: string;
+				refreshToken: string;
+				user: {
+					id: string;
+					email: string;
+					name: string;
+					firstName: string;
+					lastName: string;
+					emailVerified: boolean;
+					createdAt: Date;
+				};
+				organizations: Array<{
 					id: string;
 					name: string;
-					type: string;
-					depth: number;
-					parentId: string | null;
-					createdAt: Date | null;
-					updatedAt: Date | null;
-				}>;
-				member: {
-					id: string;
+					slug: string;
 					role: string;
-					hierarchyScopeId: string;
-					hierarchyScopeName: string;
-					accessibleNodeIds: string[];
-				} | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	userContext: protectedProcedure.handler(
+		(): {
+			user: {
+				id: string;
+				email: string;
+				name: string;
+				firstName: string;
+				lastName: string;
+				emailVerified: boolean;
 			};
-		}>;
-		currentOrganizationId: string | null;
-	} => {
-		throw new Error("Not implemented - this is only for type inference");
-	}),
+			organizations: Array<{
+				id: string;
+				name: string;
+				slug: string;
+				role: string;
+				hierarchy: {
+					nodes: Array<{
+						id: string;
+						name: string;
+						type: string;
+						depth: number;
+						parentId: string | null;
+						createdAt: Date | null;
+						updatedAt: Date | null;
+					}>;
+					member: {
+						id: string;
+						role: string;
+						hierarchyScopeId: string;
+						hierarchyScopeName: string;
+						accessibleNodeIds: string[];
+					} | null;
+				};
+			}>;
+			currentOrganizationId: string | null;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
 	verifyEmail: publicProcedure
 		.input(z.object({ token: z.string() }))
 		.handler((): { message: string } => {
@@ -172,7 +206,7 @@ const serverInvitationRouterType = {
 				organizationId: z.string().uuid(),
 				organizationName: z.string().optional(),
 				inviterName: z.string().optional(),
-			})
+			}),
 		)
 		.handler((): { success: boolean; message: string } => {
 			throw new Error("Not implemented - this is only for type inference");
@@ -189,10 +223,35 @@ const adminRouterType = {
 				search: z.string().optional(),
 				page: z.number().int().min(1).default(1),
 				limit: z.number().int().min(1).max(100).default(50),
-			})
+			}),
 		)
-		.handler((): {
-			data: Array<{
+		.handler(
+			(): {
+				data: Array<{
+					id: string;
+					name: string;
+					slug: string;
+					status: "active" | "suspended";
+					neonBranchId: string;
+					subscriptionId: string;
+					subscriptionTier: "starter" | "professional" | "enterprise";
+					memberCount: number;
+					createdAt: Date;
+				}>;
+				pagination: {
+					currentPage: number;
+					totalPages: number;
+					pageSize: number;
+					totalItems: number;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getTenant: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler(
+			(): {
 				id: string;
 				name: string;
 				slug: string;
@@ -202,85 +261,70 @@ const adminRouterType = {
 				subscriptionTier: "starter" | "professional" | "enterprise";
 				memberCount: number;
 				createdAt: Date;
-			}>;
-			pagination: {
-				currentPage: number;
-				totalPages: number;
-				pageSize: number;
-				totalItems: number;
-			};
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
-	getTenant: protectedProcedure
-		.input(z.object({ id: z.string().uuid() }))
-		.handler((): {
-			id: string;
-			name: string;
-			slug: string;
-			status: "active" | "suspended";
-			neonBranchId: string;
-			subscriptionId: string;
-			subscriptionTier: "starter" | "professional" | "enterprise";
-			memberCount: number;
-			createdAt: Date;
-			ownerUserId?: string;
-			ownerEmail?: string;
-			hierarchyNodeCount: number;
-			subscription?: {
-				stripeSubscriptionId: string;
-				stripeCustomerId: string;
-				tier: string;
-				organizationCountLimit: number;
-				status: string;
-			};
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+				ownerUserId?: string;
+				ownerEmail?: string;
+				hierarchyNodeCount: number;
+				subscription?: {
+					stripeSubscriptionId: string;
+					stripeCustomerId: string;
+					tier: string;
+					organizationCountLimit: number;
+					status: string;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	suspendTenant: protectedProcedure
 		.input(z.object({ id: z.string().uuid(), reason: z.string() }))
-		.handler((): {
-			id: string;
-			name: string;
-			slug: string;
-			status: "active" | "suspended";
-			neonBranchId: string;
-			subscriptionId: string;
-			subscriptionTier: "starter" | "professional" | "enterprise";
-			memberCount: number;
-			createdAt: Date;
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+		.handler(
+			(): {
+				id: string;
+				name: string;
+				slug: string;
+				status: "active" | "suspended";
+				neonBranchId: string;
+				subscriptionId: string;
+				subscriptionTier: "starter" | "professional" | "enterprise";
+				memberCount: number;
+				createdAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	unsuspendTenant: protectedProcedure
 		.input(z.object({ id: z.string().uuid() }))
-		.handler((): {
-			id: string;
-			name: string;
-			slug: string;
-			status: "active" | "suspended";
-			neonBranchId: string;
-			subscriptionId: string;
-			subscriptionTier: "starter" | "professional" | "enterprise";
-			memberCount: number;
-			createdAt: Date;
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+		.handler(
+			(): {
+				id: string;
+				name: string;
+				slug: string;
+				status: "active" | "suspended";
+				neonBranchId: string;
+				subscriptionId: string;
+				subscriptionTier: "starter" | "professional" | "enterprise";
+				memberCount: number;
+				createdAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	startImpersonation: protectedProcedure
 		.input(
 			z.object({
 				userId: z.string().uuid(),
 				organizationId: z.string().uuid().optional(),
-			})
+			}),
 		)
-		.handler((): {
-			impersonationToken: string;
-			sessionId: string;
-			expiresAt: Date;
-		} => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+		.handler(
+			(): {
+				impersonationToken: string;
+				sessionId: string;
+				expiresAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	exitImpersonation: protectedProcedure
 		.input(z.object({ sessionId: z.string().uuid() }))
 		.handler((): { success: boolean } => {
@@ -305,29 +349,33 @@ const adminRouterType = {
 				endDate: z.string().datetime().optional(),
 				page: z.number().int().min(1).default(1),
 				limit: z.number().int().min(1).max(200).default(50),
-			})
+			}),
 		)
-		.handler((): {
-			data: Array<never>;
-			pagination: {
-				currentPage: number;
-				totalPages: number;
-				pageSize: number;
-				totalItems: number;
-			};
+		.handler(
+			(): {
+				data: Array<never>;
+				pagination: {
+					currentPage: number;
+					totalPages: number;
+					pageSize: number;
+					totalItems: number;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getStats: protectedProcedure.handler(
+		(): {
+			totalOrganizations: number;
+			activeOrganizations: number;
+			suspendedOrganizations: number;
+			totalUsers: number;
+			totalMembers: number;
+			activeSubscriptions: number;
 		} => {
 			throw new Error("Not implemented - this is only for type inference");
-		}),
-	getStats: protectedProcedure.handler((): {
-		totalOrganizations: number;
-		activeOrganizations: number;
-		suspendedOrganizations: number;
-		totalUsers: number;
-		totalMembers: number;
-		activeSubscriptions: number;
-	} => {
-		throw new Error("Not implemented - this is only for type inference");
-	}),
+		},
+	),
 };
 
 // Full appRouter with auth and server-specific procedures for type inference on the client
