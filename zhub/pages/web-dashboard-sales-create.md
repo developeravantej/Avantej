@@ -3,8 +3,8 @@
 **Route:** `/dashboard/sales/create`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx:1`
 **Platform:** web
-**Auth required:** authenticated + `pos:create`
-**Last updated:** 2026-04-19
+**Auth required:** authenticated + `pos_management:create`
+**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
 
 ---
 
@@ -23,7 +23,7 @@
 **Layout:** Two-column on desktop. Left: stepped form (`<Accordion>` defaultValue="customer"). Right: persistent `CartSummary` panel.
 
 **Steps (single page, accordion-style wizard):**
-1. **Customer** — Combobox via `pos.searchCustomers`. Buttons: Member | Walk-in | "+ Create New Walk-in Customer".
+1. **Customer** — Toggle: **Member** | **Walk-in**. Member mode: Combobox via `pos.searchCustomers`. Walk-in mode: `<Select>` from `walkInCustomers.list`; "+ Create New Walk-in Customer" opens inline creation.
 2. **Items** — Service / Package / Custom line-items. Rows with qty + unit price + total + trash.
 3. **Promotion** (optional) — Code input + Apply via `promotions.validate`.
 4. **Tax** — Default rate auto-loaded from `taxRates.getDefault`; dropdown of active rates to override.
@@ -47,8 +47,9 @@ RouteComponent → onSubmit
         10. INSERT payment_items (line + tax + discount)
         11. If promo: applyPromotion (inc usageCount)
         12. INSERT invoices (status='paid', amountPaid=total)
-        13. If package: INSERT package_instances + createInstallmentSchedule + mark 1st paid
-        14. writeAudit('sale.create')
+        13. If package: INSERT package_instances (accepts walkInCustomerId XOR clientId) + createInstallmentSchedule + mark 1st paid
+        14. createCommissionSplitsForPos per service/package line item (non-fatal)
+        15. writeAudit('sale.create')
 ```
 
 ---
@@ -84,7 +85,9 @@ RouteComponent → onSubmit
 | `installments` | INSERT schedule + 1st marked paid (if installment plan) |
 | `audit_logs` | INSERT (`sale.create`) |
 
-**Walk-in + package:** REJECTED with `BAD_REQUEST` — walk-ins have no control-panel userId.
+**Walk-in customers:** supported via `walkInCustomerId` on `package_instances` (XOR constraint with `clientId` — exactly one must be set). Walk-in + package is now valid as of migration 0027.
+
+**POS validation (Stream D):** `unitPriceCents >= 0 && quantity >= 1` required; `discountCents` may not exceed `subtotalCents`.
 
 ---
 

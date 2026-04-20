@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/view.tsx:1`
 **Platform:** web
 **Auth required:** rbac(`user_management:read`) — enforced via `requirePermission` in `beforeLoad`
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20 (Pipeline Audit C.2)
 
 ---
 
@@ -42,6 +42,8 @@ TrainersView
   → suspendMutation    → client.members.suspend(...)
   → reactivateMutation → client.members.reactivate(...)
   → updateBufferMutation → client.serviceMembers.updateBuffer(...)
+  → useQuery(["commissionLedger", orgId, staffId])  # lazy: only when commissionsSectionOpen
+    → client.commissionSplits.listLedger({ organizationId, staffId: editingTrainerUserId, limit: 20, offset: 0 })
 ```
 
 **Inputs:**
@@ -55,6 +57,7 @@ TrainersView
 - `sheetOpen`, `editingMemberId`, `form` — Sheet open/close and form values
 - `profileSectionOpen`, `availabilitySectionOpen`, `bufferSectionOpen` — collapsible sections
 - `editingBufferServiceId`, `bufferInputValue` — inline buffer row editor
+- `commissionsSectionOpen` — lazy-load gate for the Commissions section
 
 **Outputs:** DataTable with merged trainer + profile rows; Sheet opens for create or edit.
 
@@ -72,6 +75,7 @@ TrainersView
 - `members.suspend` / `members.reactivate` — status management
 - `serviceMembers.listForMember` — service assignments (for buffer section)
 - `serviceMembers.updateBuffer` — save per-service buffer time
+- `commissionSplits.listLedger` — lazy-loaded when Commissions section is opened; fetches trainer's commission history (Date, Source, Amount, Status); status badges: pending=yellow, approved=blue, paid=green, void=gray
 
 **Uses these components:**
 - `TrainerAvailabilityEditor` — `apps/web/src/components/trainers/trainer-availability-editor.tsx` — weekly availability CRUD inside the Sheet
@@ -138,4 +142,5 @@ type TrainerRow = {
 - Certifications stored as `string[]` in DB; UI uses a comma-separated string — conversion happens in mutation helpers.
 - The Availability section only renders when `editingMemberId` is set (edit mode only).
 - Buffer times section is lazy-loaded (gated by `bufferSectionOpen`) to avoid N+1 calls on open.
+- **COMMISSIONS section** (added 2026-04-20): read-only collapsible inside the edit Sheet alongside PROFILE / WEEKLY AVAILABILITY / SERVICES. Lazy-loads `commissionSplits.listLedger({ staffId: editingTrainerUserId })` when first opened. Shows last 20 splits; no pagination currently.
 - Hierarchy node list is sourced from `userContext.organizations[].hierarchy.nodes` — already in context, no extra API call.

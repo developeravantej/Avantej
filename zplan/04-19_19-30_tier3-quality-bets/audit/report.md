@@ -1,138 +1,92 @@
-# Audit Report — 04-19_19-30_tier3-quality-bets
+# Audit: 04-19_19-30_tier3-quality-bets
 
-**Audited:** 2026-04-20  
-**Plan status:** Pre-execution (no execute/chrome-test/research/prompts artifacts found)
+**Audited:** 2026-04-20 (fourth pass)
+**Plan file:** plan/plan.md
+**Status:** needs-attention
 
----
+> **Note:** Three prior audit passes were completed on 2026-04-20 (11:46 and 16:40). This report is updated after the fourth pass which fixed the `useBlocker` deprecated API in §3.7.
 
-## Step 2 — Structural Completeness
+## Scorecard
+| Check | Result |
+|-------|--------|
+| Structural completeness | 8/8 sections present |
+| Broken references | 0 (all prior broken refs fixed in applied.md) |
+| Missing impact | 0 (offender list expanded; branch conflict noted) |
+| Unresolved questions | 1 (Q2: Sentry DSN provisioning — no owner designated) |
+| Execution state | not started |
 
-**Score: 8/8** — all required sections are present with substantive content.
+## Findings
 
-| # | Section | Status |
-|---|---------|--------|
-| 1 | Overview | Present — describes all 6 problem areas with specifics (82 toast files, 51 routes, 8 key patterns, etc.) |
-| 2 | Result (Before/After) | Present — comprehensive table per feature area |
-| 3 | Technical Architecture | Present — 10 subsections (3.1–3.10) with code samples |
-| 4 | User Journeys (with "Where it lives") | Present — 11 journeys (4.1–4.11) with old/new narrative |
-| 5 | Phased Implementation | Present — 7 phases each delivering ≥1 journey |
-| 6 | Impact & Breakage Analysis | Present — 4 risk areas with mitigations |
-| 7 | Cross-Cutting Concerns | Present — env vars table, multi-phase file table, Turborepo pipeline note |
-| 8 | Open Questions / Risks | Present — 7 questions (Q1–Q7) |
+### Structural gaps
 
-**Thin areas:**
-- Section 4 (User Journeys): "Where it lives" is implicit in journey descriptions but never stated as an explicit sub-header. Minor.
-- Section 6 does not list importers of the modified shared files — only risk categories. See Step 4.
+None. All 8 required sections are present with substantive content:
+1. Overview — identifies 6 problem areas with specifics (82 toast files, 51 routes, 8 key patterns, etc.)
+2. Result (Before/After) — comprehensive table per feature area
+3. Technical Architecture — 10 subsections (3.1–3.10) with code samples
+4. User Journeys — 11 journeys (4.1–4.11) with old/new narrative
+5. Phased Implementation — 7 phases, each delivering ≥1 journey
+6. Impact & Breakage Analysis — 4 risk areas with mitigations
+7. Cross-Cutting Concerns — env vars table, multi-phase file table, Turborepo pipeline note
+8. Open Questions / Risks — 7 questions (Q1–Q7) with recommendations
 
----
+Minor: Section 4 journeys state location implicitly (by file path) rather than a dedicated "Where it lives" sub-header.
 
-## Step 3 — Codebase Alignment (Broken References)
+### Broken references (plan → codebase)
 
-### File Paths
+None remaining. All passes combined:
+- `orpc.attendance.*` → `orpc.checkIns.*` (pass 1)
+- `orpc.attendance.todayBookings.key()` → `orpc.checkIns.listTodaysBookings.key()` (pass 1)
+- `orpc.commissions.*` → `orpc.commissionSplits.*` (pass 1)
+- `Sentry.reactRouterV6BrowserTracingIntegration` → `Sentry.browserTracingIntegration()` (pass 1)
+- `orpc.customers.*.key()` → `orpc.customerDirectory.*.key()` (pass 3)
+- `useBlocker({ blockerFn, condition })` (deprecated) → `useBlocker({ shouldBlockFn, enableBeforeUnload, disabled })` (pass 4)
 
-All existing source files referenced in the plan exist. All plan-created files (sentry.ts, toast.ts, date.ts, DashboardErrorBoundary.tsx, skeletons/index.tsx, MfaSetupDialog.tsx, useUnsavedGuard.ts, mfa-setup.tsx, mfa-verify.tsx, loading.tsx) are correctly absent — they are to be created by the plan.
+Files to be created by the plan (correctly absent — not broken refs):
+- `apps/web/src/lib/sentry.ts`, `toast.ts`, `date.ts`
+- `apps/web/src/hooks/useUnsavedGuard.ts`
+- `apps/web/src/components/error-boundaries/DashboardErrorBoundary.tsx`
+- `apps/web/src/components/skeletons/index.tsx`
+- `apps/web/src/components/auth/MfaSetupDialog.tsx`
+- `apps/web/src/routes/_authenticated/mfa-setup.tsx`, `mfa-verify.tsx`
 
-### BROKEN — oRPC Key Names in §3.6 Table
+### Missing impact
 
-The plan's invalidateQueries fix table uses wrong router key names. Actual keys in `packages/api/src/routers/index.ts`:
+None remaining. Prior audit expanded §3.6 offender table from 5 to 9 rows, adding:
+- `components/customers/customer-detail-sheet.tsx` (2 raw-key calls)
+- `components/forms/hierarchical-branch-form.tsx` (`["user-context"]`)
+- `components/merge-tables/unit-of-measure-dashboard.tsx` (6 raw-key calls)
+- Expanded `inventory-options-dashboard.tsx` suppliers call sites
 
-| Plan says | Actual oRPC key | Note |
-|-----------|----------------|------|
-| `orpc.attendance.list.key()` | `orpc.checkIns.list.key()` | Router registered as `checkIns` |
-| `orpc.attendance.todayBookings.key()` | `orpc.checkIns.listTodaysBookings.key()` | Procedure name also differs |
-| `orpc.commissions.list.key()` | `orpc.commissionSplits.list.key()` or `orpc.commissionSplits.listLedger.key()` | Router registered as `commissionSplits` |
+Branch conflict risk for `apps/web/src/lib/auth-client.ts` (already modified on `Customer-app`) noted in §6.
 
-Using the plan's names will silently fail to invalidate anything.
+### Unresolved questions
 
-### BROKEN — Sentry Router Integration
+1. **Q2: Sentry DSN provisioning** (plan §8) — "designate who creates the Sentry project and provisions the DSN before phase 3.1 begins." No owner is named in the plan or any artifact. Coordination dependency that will block Phase 3.1 if not resolved before execution.
 
-Plan §3.2 shows `Sentry.reactRouterV6BrowserTracingIntegration` as primary example. TanStack Router is not React Router v6; this integration hooks into React Router's `useLocation`/`useNavigationType` and will not instrument TanStack Router navigation. The plan acknowledges this as an approximation but the code sample is still misleading.
+No other blocking questions. Q1, Q3–Q7 have explicit recommendations or clear deferrals.
 
-**Recommended fix in plan:** Replace with `Sentry.browserTracingIntegration()` as the default; note that TanStack Router has no first-party Sentry integration.
+### Execution & verification gaps
 
-### Packages Not Yet Installed (expected — plan requires installing)
+- No `execute/log.md` → plan has not been executed
+- No `chrome-test/plan.md` or `chrome-test/results.md` → no browser verification planned or run
+- No `research/brief.md` → no prior research artifact (Q5 and Q6 say "verify before implementing" for better-auth twoFactor and useBlocker API, but no formal research was done)
+- No `prompts/` folder → no agent handoff prompts generated
 
-- `@sentry/react` — not in node_modules
-- `rollup-plugin-visualizer` — not installed
-- `size-limit` / `@size-limit/preset-app` — not installed
+**Status: pre-execution.** Plan is written and codebase-aligned; implementation has not begun.
 
-These are correctly described as installation steps in the plan, not pre-existing.
+### Additional observations (informational)
 
----
+- **Timezone scope**: §3.7.2 lists ~13 files with `en-US`/no-timezone formatting. Plan correctly instructs re-grep before starting. List verified accurate as of 2026-04-20.
+- **Route count**: Plan states "51-dashboard-page route tree" — confirmed accurate.
+- `check-ins-log.tsx` mentioned in §3.7.2 exists at `apps/web/src/components/attendance/check-ins-log.tsx` — not a broken ref (path format issue in initial check was false alarm).
 
-## Step 4 — Impact Coverage Gaps
+## Priority Actions
 
-### MISSING IMPACT: Incomplete `invalidateQueries` Offender List (§3.6)
+1. **Designate Sentry DSN owner** — Q2 in §8 names this as a pre-Phase-3.1 blocker. Assign someone to create the Sentry project and store DSN in CF Pages env vars before `/execute`.
+2. **Run pre-flight greps** from `applied.md`: timezone file list refresh, `unitsOfMeasure` + `customers` procedure name verification, `auth-client.ts` diff inspection before Phase 3.6.
+3. **Verify `better-auth` twoFactor plugin** against installed version before Phase 3.6 (Q5). (Note: Q6 `useBlocker` API has been pre-verified and fixed in the fourth audit pass.)
+5. Run `/execute` or generate `prompts/` handoffs to begin implementation.
 
-The plan's table lists 6 files but the codebase has raw-string invalidations in additional unlisted files:
+## Status rationale
 
-| File | Raw key found | Plan mentions? |
-|------|--------------|----------------|
-| `components/customers/customer-detail-sheet.tsx` | 2 raw-key calls | NO |
-| `components/forms/hierarchical-branch-form.tsx` | `["user-context"]` | NO |
-| `components/merge-tables/inventory-options-dashboard.tsx` | `["suppliers", organizationId]` (3 calls) + more | Partially (only `["brands"]` listed) |
-| `components/merge-tables/unit-of-measure-dashboard.tsx` | multiple raw-key calls | NO |
-| `components/invitations/invitations-page.tsx` | `["invitations", organizationId]` (3 calls) | Listed but key pattern not shown |
-
-Phase 3.3 task 3.3.2 says "fix the offenders listed in §3.6" — implementors following the table will miss at least 6 additional files/sites.
-
-### MISSING IMPACT: `auth-client.ts` Already Modified
-
-Section 6 does not flag that `apps/web/src/lib/auth-client.ts` (currently modified on the branch per git status) also needs the `twoFactorClient` plugin for Phase 3.6 (step 3.6.3). This creates a potential conflict or omission if the branch modification and the MFA change are not coordinated.
-
-### Other Modified Files
-
-- `__root.tsx`, `_layout.tsx`, `vite.config.ts`, `main.tsx` — no additional manual importers; auto-consumed by routeTree or build system. Coverage OK.
-- `bulk-action-bar.tsx`, `drop-in-form.tsx`, `today-bookings.tsx` — used directly in route pages, no wrappers. Coverage OK.
-
----
-
-## Step 5 — Execution & Verification State
-
-Session folder (`zplan/04-19_19-30_tier3-quality-bets/`) contains only `plan/plan.md`, `META.md`, and `audit/`.
-
-| Artifact | Status |
-|----------|--------|
-| `execute/log.md` | MISSING — no execution started |
-| `chrome-test/plan.md` | MISSING |
-| `chrome-test/results.md` | MISSING |
-| `research/brief.md` | MISSING |
-| `prompts/` | MISSING |
-
-**Status: Pre-execution.** Plan written; implementation not yet begun. This is expected.
-
----
-
-## Step 6 — Unresolved Questions
-
-No `TBD`, `???`, `decide later`, or `unresolved` markers in the plan. All 7 open questions in Section 8 have explicit recommendations or deferred-to-implementation notes. One `TODO` reference (§3.3, PostHog comment) is an intentional code placeholder, not a planning gap.
-
-**No blocking unresolved questions.**
-
----
-
-## Step 7 — Issues Summary
-
-### HIGH — Wrong oRPC Key Names
-`orpc.attendance.*` and `orpc.commissions.*` do not exist. Correct keys: `orpc.checkIns.*` and `orpc.commissionSplits.*`. Will produce silently broken invalidation if followed literally.
-
-### MEDIUM — Incomplete Offender List
-§3.6 table understates raw-string `invalidateQueries` scope by at least 6 additional files/call sites not mentioned.
-
-### MEDIUM — Sentry Integration Mismatch
-`reactRouterV6BrowserTracingIntegration` will not instrument TanStack Router. Plan acknowledges this but the primary code sample uses it.
-
-### LOW — `auth-client.ts` Conflict Risk
-Currently modified on branch; Phase 3.6 step 3.6.3 also modifies it. Not flagged in Section 6 impact analysis.
-
-### INFORMATIONAL — Timezone Scope Wider Than Estimated
-Plan identifies 3 files for timezone fixes. Audit finds `en-US` without timezone in at least 10 additional files: `calendar/appointment.tsx` (4 occurrences), `dialogs/supplier-details-dialog.tsx`, `forms/service-category-detail-dialog.tsx`, `forms/service-detail-dialog.tsx`, table column formatters in `cancelled-sales`, `package-instances`, `packages`, `payment`, `payouts`, `role`, `sales` columns, and `invitations/invitation-list.tsx`.
-
-### INFORMATIONAL — Route Count Accurate
-Plan states "51-dashboard-page route tree." Audit confirms exactly 51 `.tsx` files under `_layout/`. Accurate.
-
----
-
-## Verdict
-
-**needs-attention — 8/8 sections, 2 broken refs (oRPC key names, Sentry integration pattern), pre-execution**
+**needs-attention**: 8/8 sections, 0 broken refs, but plan is pre-execution and Q2 (Sentry DSN owner) is an unresolved coordination dependency blocking Phase 3.1.

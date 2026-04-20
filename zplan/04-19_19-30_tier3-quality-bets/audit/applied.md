@@ -57,3 +57,106 @@ The plan is now codebase-aligned and ready for `/execute`. Recommended pre-fligh
 2. Verify exact procedure names for `unitsOfMeasure` and `customers` routers when fixing those offenders (the §3.6 table notes "verify exact procedure name").
 3. Inspect the current diff on `apps/web/src/lib/auth-client.ts` before Phase 3.6 to coordinate with the in-progress branch edits.
 4. Decide who provisions the Sentry DSN (Open Question Q2) before Phase 3.1 begins.
+
+---
+
+## Second Audit Pass — 2026-04-20 (post-apply state)
+
+**Report:** `audit/report.md` (audited 2026-04-20 16:40 — this is the second audit)
+**Plan mtime at time of this pass:** 2026-04-20 (after first apply — report is fresh, no staleness warning)
+
+### Summary
+
+| Category | Count |
+|----------|-------|
+| Broken references fixed (auto-fix) | 0 (none remaining) |
+| Missing callers added (auto-fix) | 0 (none remaining) |
+| Sections stubbed (structural gap) | 0 (all 8 sections present) |
+| TODOs injected (unresolved question) | 1 |
+| Deferred (execution/process gaps) | 4 |
+
+### Changes
+
+**1. TODO injected — Q2 Sentry DSN owner (§8)**
+- Finding: Q2 names "designate who creates the Sentry project" but no owner is assigned; this is a pre-Phase-3.1 coordination blocker per the audit.
+- Action: Injected `<!-- TODO (audit): No owner designated... -->` comment above Q2 body, and added `**Owner: _(unassigned — must be filled before /execute)_**` line after the existing text.
+- File edited: `plan/plan.md` §8 Q2.
+
+### Deferred
+
+| Finding | Reason deferred |
+|---------|----------------|
+| No `execute/log.md` — plan not yet executed | Process gap. Run `/execute` to begin. |
+| No `chrome-test/plan.md` or results | Process gap. Run `/chrome-plan` then `/chrome-run` after execution. |
+| No `research/brief.md` for Q5 (better-auth twoFactor) and Q6 (useBlocker API) | Process gap. Plan already says "verify before implementing". Check node_modules before Phase 3.6. |
+| No `prompts/` handoff folder | Process gap. Run `/orchestrator` to generate handoff prompts if needed. |
+
+### Next Steps (updated)
+
+1. **Assign Q2 owner** — fill `**Owner:**` in plan §8 Q2 before running `/execute`. Phase 3.1 cannot start without the Sentry DSN in CF Pages env vars.
+2. Run pre-flight greps: timezone file list refresh, `unitsOfMeasure` + `customers` procedure name verification, `auth-client.ts` diff inspection before Phase 3.6.
+3. Verify `useBlocker` API against `@tanstack/react-router` v1.114.25 before writing `useUnsavedGuard` (Q6).
+4. Verify `better-auth` twoFactor plugin against installed version before Phase 3.6 (Q5).
+5. Run `/execute` or generate `prompts/` handoffs to begin implementation.
+
+---
+
+## Third Audit Pass — 2026-04-20 (re-audit findings)
+
+**Findings source:** re-audit (two specific findings supplied by orchestrator)
+**Plan mtime at time of this pass:** 2026-04-20 (after second apply)
+
+### Summary
+
+| Category | Count |
+|----------|-------|
+| Broken references fixed (auto-fix) | 1 |
+| TODOs injected | 0 (already present from second pass) |
+| Deferred | 0 |
+
+### Changes
+
+**1. Broken ref fixed — §3.6 offender table `orpc.customers.*`**
+- Finding: The `customer-detail-sheet.tsx` row in §3.6 referenced `orpc.customers.*.key()`. No router named `customers` exists in the codebase.
+- Verification: Grepped `packages/api/src/routers/index.ts` — confirmed routers are `customerDirectory` (line 115) and `customerProfiles` (line 79). Grepped `apps/web/src/components/customers/customer-detail-sheet.tsx` lines 264–269 — both raw-key calls use `"customerDirectory"` as the root string key.
+- Action: Replaced the vague `orpc.customers.*.key()` hint with `orpc.customerDirectory.*.key()`, documented both raw keys that appear in the source, and noted that `orpc.customerProfiles.*.key()` should be used if any call targets a member profile. Added instruction to verify exact procedure names in `customer-directory.ts` before fixing.
+- File edited: `plan/plan.md` §3.6 table row for `customer-detail-sheet.tsx`.
+
+**2. TODO for Q2 Sentry DSN owner**
+- Finding: Report asked to inject `<!-- TODO (audit): assign Sentry project owner before Phase 3.1 -->` next to Q2 if not already present.
+- Verification: Grepped `plan/plan.md` for `TODO.*audit.*Sentry` — comment already exists at line 683 from the second audit pass.
+- Action: No change needed. 0 TODOs injected.
+
+---
+
+## Fourth Audit Pass — 2026-04-20 (this pass)
+
+**Findings source:** fresh re-audit against installed node_modules
+**Plan mtime at time of this pass:** 2026-04-20 (after third apply)
+
+### Summary
+
+| Category | Count |
+|----------|-------|
+| Broken references fixed (auto-fix) | 1 |
+| TODOs injected | 0 |
+| Deferred | 0 |
+
+### Changes
+
+**1. Broken ref fixed — §3.7 `useBlocker` deprecated API**
+- Finding: The `useUnsavedGuard` code sample in §3.7 used `useBlocker({ blockerFn, condition })` which is `@deprecated` in the installed `@tanstack/react-router` v1.114.25. Verified against `node_modules/@tanstack/react-router/dist/esm/useBlocker.d.ts` — the non-deprecated overload uses `{ shouldBlockFn, enableBeforeUnload, disabled }`. Additionally, `enableBeforeUnload` handles `beforeunload` internally, making the separate `useEffect` in the original sample unnecessary.
+- Action: Replaced the `useUnsavedGuard` implementation in §3.7 with the modern API (`shouldBlockFn`, `enableBeforeUnload`, `disabled`). Removed the now-redundant `useEffect`/`beforeunload` block. Added an API note below the code sample documenting the deprecation and the `enableBeforeUnload` built-in.
+- File edited: `plan/plan.md` §3.7 code sample.
+- File edited: `audit/report.md` — updated broken-refs list, priority actions (Q6 now pre-verified), pass date.
+
+### Deferred
+
+None.
+
+### Next Steps (updated)
+
+1. **Assign Q2 owner** — fill `**Owner:**` in plan §8 Q2 before running `/execute`. Phase 3.1 cannot start without the Sentry DSN in CF Pages env vars.
+2. Run pre-flight greps: timezone file list refresh, `unitsOfMeasure` procedure name verification, `auth-client.ts` diff inspection before Phase 3.6.
+3. Verify `better-auth` twoFactor plugin against installed version before Phase 3.6 (Q5). (Q6 `useBlocker` is now pre-verified — no action needed at implementation time.)
+4. Run `/execute` or generate `prompts/` handoffs to begin implementation.

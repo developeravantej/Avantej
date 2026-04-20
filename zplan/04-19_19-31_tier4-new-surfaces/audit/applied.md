@@ -1,45 +1,58 @@
-# Audit Apply: 04-19_19-31_tier4-new-surfaces
+# Audit Applied: 04-19_19-31_tier4-new-surfaces
 
-**Applied:** 2026-04-20
-**Source report:** audit/report.md (audited 2026-04-20)
-**Plan file:** plan/plan.md
-**Freshness:** ok
+**Applied:** 2026-04-20 (second pass)
+**Source report:** audit/report.md
+**Plan modified:** plan/plan.md
+
+---
 
 ## Summary
-| Category | Count |
-|----------|-------|
-| Broken refs auto-fixed | 1 (3 occurrences updated) |
-| Broken refs left as TODO/blocker | 2 |
-| Prerequisites added | 1 |
-| Notes added | 2 |
-| Deferred (process gaps) | 4 |
 
-## Changes
+| Finding | Count | Action |
+|---------|-------|--------|
+| Broken ref fixed (listForClient → listAll) | 3 occurrences | Auto-fixed |
+| date-fns inconsistency fixed | 2 occurrences | Auto-fixed |
+| TODOs injected | 0 (new ones) | Prior pass already covered all BLOCKED items |
+| Deferred | 0 | — |
 
-### Auto-fixes
-- `customerDirectory.getById` field name mismatch: changed `id` → `memberId` at three plan locations:
-  - Line 281 (component pseudocode in §3G)
-  - Line 306 (API calls list in §3G)
-  - Line 635 (Phase 4F task 4F.2)
+---
 
-### TODOs/Blockers injected
-- Phase 4E heading: `<!-- TODO (audit): BLOCKED — package_instances has no staffId column. Backend prereq: add staffId filter to installments.adminOverview (per Q4) before this phase. -->`
-- Phase 4F heading: `<!-- TODO (audit): BLOCKED — appointments.list has no clientId/userId param. Backend prereq: add clientId filter to appointments router input schema. -->`
+## Changes Applied
 
-### Prerequisites added
-- Phase 4G: `**Prerequisite:** Run \`bun add cmdk\` in apps/web before starting this phase (audit verified: not currently installed).`
+### Finding 1 — `packageInstances.listForClient` → `listAll` (3 refs fixed)
 
-### Notes added
-- Phase 4D: `**Note:** Use \`Intl.RelativeTimeFormat\` for relative time display (audit verified: date-fns not installed in apps/web).`
-- Phase 4G task 4G.6 (sales search): inline `<!-- audit: confirmed Q8 fallback (client-side filter over cached list) is the only viable path; salesOrders.list has no search param. -->`
+Confirmed by reading `packages/api/src/routers/package-instances.ts`:
+- `listForClient` input: `{ organizationId, status?, source?, limit? }` — no `clientId`
+- `listAll` input: `{ organizationId, clientId?, status?, source?, limit? }` — has `clientId`
 
-### Deferred
-- No execute/log.md → run `/execute` after backend prereqs done
-- No chrome-test/ → run `/chrome-plan` after execution
-- No research/brief.md
-- No prompts/
+The plan used `listForClient` with `clientId` in 3 places for the Customer 360 Packages tab. All fixed to `listAll`.
 
-## Next steps
-1. Resolve backend prereqs (staffId filter on installments.adminOverview, clientId filter on appointments.list) before Phase 4E/4F
-2. Run `bun add cmdk` in apps/web
-3. Re-run /audit to verify
+| Location | Old | New |
+|----------|-----|-----|
+| §3G component tree (line 293) | `listForClient({ organizationId, clientId: id })` | `listAll({ organizationId, clientId: id })` |
+| §3G API calls list (line 308) | `listForClient({ organizationId, clientId })` | `listAll({ organizationId, clientId })` with inline audit note |
+| Phase 4F task 4F.6 (line 643) | `listForClient({ organizationId, clientId: params.id })` | `listAll({ organizationId, clientId: params.id })` |
+
+### Finding 2 — date-fns inconsistency (2 fixes)
+
+`date-fns` is confirmed NOT installed in `apps/web`. Phase 4D header already noted this, but task 4D.1 and §7 still said "check if installed."
+
+| Location | Old | New |
+|----------|-----|-----|
+| Phase 4D task 4D.1 | "use `formatDistanceToNow` from `date-fns` (check if installed; if not, use `Intl.RelativeTimeFormat`...)" | "use `Intl.RelativeTimeFormat` (date-fns is NOT installed in apps/web — confirmed by audit)" |
+| §7 Cross-Cutting Concerns | "check if `date-fns` is in `apps/web/package.json` before adding" | "`date-fns` is NOT installed in `apps/web` (confirmed by audit; do not add unless deliberately chosen as new dep)" |
+
+---
+
+## Already-Handled Findings (not duplicated from prior pass)
+
+- `command.tsx` / `cmdk` absent — expected-absent; BLOCKED prereq already annotated
+- `appointments.list` clientId — BLOCKED TODO already in §3G, Phase 4F, and Q4/Q8
+- `packageInstances.listAll staffId` — Phase 4E BLOCKED in execution table; Q4 TODO injected
+- `app-layout.tsx` missing from impact — note added to §6 in prior pass
+
+---
+
+## Deferred
+
+None.

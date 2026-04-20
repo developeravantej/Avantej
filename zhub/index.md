@@ -1,6 +1,6 @@
 # Project Hub Index — Avantej
 
-Last updated: 2026-04-20
+Last updated: 2026-04-20 (Pipeline Audit B/C/D)
 
 Covers all pages in `apps/web` (TanStack Router) and all screens in `apps/native` (Expo Router).
 Each page doc traces the full stack: route → components → hooks → API → service → DB.
@@ -69,7 +69,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | Page | Route | Purpose |
 |------|-------|---------|
 | [User Management](pages/web-dashboard-user-view.md) | `/dashboard/user/view` | Read-only member list; cross-DB name join |
-| [Trainers](pages/web-dashboard-trainers-view.md) | `/dashboard/trainers/view` | Parallel profile fetches + availability editor + buffer times |
+| [Trainers](pages/web-dashboard-trainers-view.md) | `/dashboard/trainers/view` | Parallel profile fetches + availability editor + buffer times + Commissions section (lazy-loads listLedger) |
 | [Access Control – Invitations](pages/web-dashboard-access-control-invitations.md) | `/dashboard/access-control/invitations` | Send/resend/revoke; list is org-wide for any caller with `user_management:read` (fixed 2026-04-17) |
 | [Access Control – Permissions](pages/web-dashboard-access-control-permissions.md) | `/dashboard/access-control/permissions` | Read-only resource/action permission matrix |
 | [Access Control – Roles](pages/web-dashboard-access-control-roles.md) | `/dashboard/access-control/roles` | Roles CRUD with wizard — **wizard permissions not carried into RoleEditor** |
@@ -80,7 +80,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 
 | Page | Route | Purpose |
 |------|-------|---------|
-| [Service](pages/web-dashboard-service-view.md) | `/dashboard/service/view` | Service CRUD — **price formatted as USD (bug)** |
+| [Service](pages/web-dashboard-service-view.md) | `/dashboard/service/view` | Service CRUD with Commission % field (basis points); price formatted as MYR (fixed 2026-04-16) |
 | [Service Category](pages/web-dashboard-service-category-view.md) | `/dashboard/service-category/view` | Service category CRUD; DataTable self-fetches edit data |
 | [My Services](pages/web-dashboard-my-services-view.md) | `/dashboard/my-services/view` | Staff buffer-time overrides per **service** (not category — prior docs were wrong) |
 | [Package Instances](pages/web-dashboard-packages-instances-view.md) | `/dashboard/packages/instances/view` | Package instance management; create form exposes 9 of 15 API fields |
@@ -99,10 +99,10 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | Page | Route | Purpose |
 |------|-------|---------|
 | [Sales View](pages/web-dashboard-sales-view.md) | `/dashboard/sales/view` | Read-only sales list + "+ New Sale" button → POS; View/Edit buttons still console.log stubs |
-| [Sales Create (POS)](pages/web-dashboard-sales-create.md) | `/dashboard/sales/create` | Atomic POS flow: customer → items → promo → tax → payment → installment → invoice → audit, all in one tenantDb transaction |
+| [Sales Create (POS)](pages/web-dashboard-sales-create.md) | `/dashboard/sales/create` | Atomic POS flow with Member/Walk-in toggle; commission splits per line item (non-fatal); validation guards |
 | [Sales Detail](pages/web-dashboard-sales-detail.md) | `/dashboard/sales/$id` | Single order detail + invoices + "Print Receipt" + "Request Refund" buttons |
 | [Refunds Ledger](pages/web-dashboard-refunds-view.md) | `/dashboard/refunds/view` | Unified refund workflow (request → approve → process); atomic tx writes to payments + sales_orders + package_instances |
-| [Commissions Ledger](pages/web-dashboard-commissions-view.md) | `/dashboard/commissions/view` | Status workflow (pending → approved → paid); bulk actions; KPI strip. **Empty until commissionPercentage config added** |
+| [Commissions Ledger](pages/web-dashboard-commissions-view.md) | `/dashboard/commissions/view` | Status workflow (pending → approved → paid); bulk actions; KPI strip. Auto-populated from appointment completions + POS sales |
 | [My Commissions](pages/web-dashboard-commissions-my.md) | `/dashboard/commissions/my` | Per-staff own commissions; no permission gate |
 | [Cancelled Sales](pages/web-dashboard-cancelled-sales-view.md) | `/dashboard/cancelled-sales/view` | Read-only cancelled list; errors silently return `[]` |
 | [Payment](pages/web-dashboard-payment-view.md) | `/dashboard/payment/view` | Read-only invoice ledger; View/Edit are stubs |

@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/commissions/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated + `commission_management:read`
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
 
 ---
 
@@ -49,9 +49,9 @@ Bulk actions:
 **Components:**
 - `BulkActionBar`, `MarkPaidDialog` — `apps/web/src/components/commissions/`
 
-**Write-side triggers (currently NO-OP — see Notes):**
-- `appointment.service.ts:updateAppointment` — scaffold to create splits on status='completed'
-- `pos.service.ts:recordPosSale` — scaffold to create split for salesperson
+**Write-side triggers (now active):**
+- `appointment.service.ts:updateAppointment` — creates splits when status→'completed' and `services.commissionPercentage > 0`; non-fatal
+- `pos.service.ts:recordPosSale` — creates splits per service/package line item via `createCommissionSplitsForPos`; non-fatal
 
 **Navigation: incoming:** Sidebar under Sales & Finance > Commissions.
 
@@ -78,7 +78,7 @@ None yet. Chrome-verified: KPI strip RM 0.00 × 3, 5 tabs, filters render, empty
 
 ## 6. Notes
 
-- **Empty state by design.** Commission auto-create hooks are **scaffolded no-ops** until schema adds `services.commissionPercentage` or `serviceCommissionConfig` table (Open Question 6). Both hooks log `console.warn` + TODO. Ledger displays 0 rows until config source exists.
+- **Commission infrastructure now active.** Two creation paths: (1) appointment completion (`appointment.service.ts:updateAppointment` when status→'completed'); (2) POS sale (`pos.service.ts:recordPosSale` per service/package line item). Config source is `services.commissionPercentage` (integer basis points, added in migration 0027). Both triggers are non-fatal — parent operation succeeds even if commission creation fails. Splits only appear when `commissionPercentage > 0` on the service.
 - `listCommissionLedger` does in-memory RBAC (not SQL WHERE) — Drizzle LEFT JOIN on nullable FKs without raw SQL is messy; tenant scale makes it fine.
 - `createCommissionSplit` is idempotent via `onConflictDoNothing()` + follow-up `findFirst` on duplicate.
 - Audit action `commission.mark_paid` (underscore, not camelCase).

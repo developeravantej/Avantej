@@ -1,6 +1,6 @@
 # API Routers Overview
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
 
 All procedures use **oRPC**. POST to `/rpc/{router}/{procedure}` with body `{"json": {input}}`.
 
@@ -88,8 +88,8 @@ The router is defined in two layers:
 |-----------|------|-------------|
 | `services.list` | protected | List services with optional filters. |
 | `services.getById` | protected | Get service by ID. |
-| `services.create` | protected | Create a new service. |
-| `services.update` | protected | Update a service. |
+| `services.create` | protected | Create a new service. Accepts `commissionPercentage` (integer basis points, e.g. 500 = 5%); default 0. |
+| `services.update` | protected | Update a service. Accepts `commissionPercentage`; used by appointment and POS commission triggers. |
 
 ---
 
@@ -128,11 +128,11 @@ The router is defined in two layers:
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `appointments.list` | protected | List appointments with filters (date range, status, member, etc.). Response enriched with `serviceName`, `trainerName`, `clientName` via 3 parallel batch joins (tenant `services`, `member_profiles`, control-panel `user`). Falls back to truncated UUID if record not found. |
+| `appointments.list` | protected | List appointments with filters (date range, status, member, etc.). RBAC filter uses SQL `inArray(branchId, accessibleNodeIds)` (not JS post-filter). Response enriched with `serviceName`, `trainerName`, `clientName` via 3 parallel batch joins. Falls back to truncated UUID if record not found. |
 | `appointments.listForUser` | protected | List appointments for the currently authenticated user/customer. |
 | `appointments.getById` | protected | Get appointment by ID. |
 | `appointments.create` | protected | Create an appointment. |
-| `appointments.update` | protected | Update an appointment. |
+| `appointments.update` | protected | Update an appointment. Enforces status machine transitions (`assertValidTransition`); restores package credits on cancellation (FOR UPDATE); creates commission splits on completion (non-fatal). |
 
 ---
 
@@ -166,7 +166,7 @@ The router is defined in two layers:
 | `packageInstances.listForClient` | protected | List package instances for a specific client. |
 | `packageInstances.getActiveForClient` | protected | Get the active package instance for the current user/client. |
 | `packageInstances.getById` | protected | Get package instance by ID. |
-| `packageInstances.create` | protected | Create a package instance (assign a package to a client). If `paymentPlanType` resolves to a plan with `pricePremiumBps > 0`, scales the incoming `totalPrice` by `(10000 + bps) / 10000` before insert; installment schedule (when `numInstallments > 1`) splits the scaled total. |
+| `packageInstances.create` | protected | Create a package instance. Accepts `walkInCustomerId` XOR `clientId` (walk-in customer support; migration 0027). If `paymentPlanType` resolves to a plan with `pricePremiumBps > 0`, scales `totalPrice` by `(10000 + bps) / 10000`; installment schedule splits the scaled total when `numInstallments > 1`. |
 | `packageInstances.listAll` | protected | List all package instances for the org. |
 
 ---
@@ -427,7 +427,7 @@ All procedures use `service_management` as the permission resource (list/getById
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `pos.recordSale` | protected (`pos:create` + branch scope) | Atomic tenantDb transaction: sales_orders + items + payments (`currency='myr'`) + payment_items + invoice + optional package_instance + installments + audit row. |
+| `pos.recordSale` | protected (`pos_management:create` + branch scope) | Atomic tenantDb transaction: sales_orders + items + payments (`currency='myr'`) + payment_items + invoice + optional package_instance (accepts `walkInCustomerId`) + installments + commission splits per line item (non-fatal) + audit row. Validates: `unitPriceCents >= 0`, `quantity >= 1`, `discountCents <= subtotalCents`. |
 | `pos.searchCustomers` | protected (`pos:create`) | Cross-DB member search + walk_in_customers ILIKE; up to 10 results; RBAC-filtered. |
 | `pos.getReceiptData` | protected (`pos:create`) | Joined sale + items + payment + invoice + optional package + installments + customer name; for Print Receipt. |
 

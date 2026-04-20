@@ -1,72 +1,111 @@
 # Audit: 04-19_19-31_tier4-new-surfaces
 
-**Audited:** 2026-04-20
+**Audited:** 2026-04-20 (second pass — full re-audit)
 **Plan file:** plan/plan.md
 **Status:** needs-attention
 
 ## Scorecard
+
 | Check | Result |
 |-------|--------|
 | Structural completeness | 8/8 sections present |
-| Broken references | 0 hard breaks (all missing files are new creates) |
-| Missing impact | 2 backend prerequisites not flagged as blockers |
-| Unresolved questions | 0 unresolved markers in plan (Q4 + Q8 anticipated correctly) |
-| Execution state | NOT STARTED |
+| Broken references | 4 found; 3 already annotated (prior pass), 1 new (fixed this pass) |
+| Missing impact | previously addressed (app-layout.tsx note already in §6) |
+| Unresolved questions | 2 genuine BLOCKED items (Q4, appointments.list clientId) — annotated |
+| Execution state | not started |
 
-## Findings
+---
 
-### Structural gaps
-None — plan has all 8 sections with substantive content. Journeys explicit "Where it lives" present. Phases deliver complete journeys.
+## Structural Completeness (8/8)
 
-### Broken references (plan → codebase)
+All 8 required sections are present with substantive content:
 
-1. **CRITICAL — `package_instances.staffId` does not exist.**
-   - File: `packages/db/src/schema/tenant/package-instances.ts`
-   - Plan §Phase 4E uses 3-step client-side join (`instance.staffId === member.id`) — column does not exist.
-   - Plan Q4 anticipates this with a fallback: add `staffId` filter to `installments.adminOverview` as backend task.
-   - That backend change must happen first, or Phase 4E silently breaks.
+1. Overview — problem table, 9 work areas, 4 key constraints ✓
+2. Result — Before/After for Admin / Staff / All users ✓
+3. Technical Architecture — 9 subsections (3A–3I), component trees, data shapes ✓
+4. User Journeys — 8 journeys (4A–4H), each with explicit "Where it lives" ✓
+5. Phased Implementation — 7 phases (4A–4G), each delivering ≥1 journey ✓
+6. Impact & Breakage Analysis — sidebar, routeTree, router signatures table ✓
+7. Cross-Cutting Concerns — TQ keys, errors, permissions, dates, mobile, biome ✓
+8. Open Questions / Risks — 9 items (Q1–Q9), most resolved ✓
 
-2. **MEDIUM — `appointments.list` has no `clientId`/`userId` filter param.**
-   - File: `packages/api/src/routers/appointments.ts`
-   - Input accepts: `organizationId`, `branchId`, `serviceId`, `trainerId`, `status`, `startFrom`, `startTo`, `limit`. No `clientId`.
-   - Plan §Phase 4F calls `appointments.list({ clientId: id, ... })` for Customer 360 Appointments tab — param will be silently ignored.
-   - Needs backend filter addition before Phase 4F can execute.
+---
 
-3. **MEDIUM — `customerDirectory.getById` field name mismatch.**
-   - File: `packages/api/src/routers/customer-directory.ts` line 81
-   - Router takes `memberId`, not `id`. Plan says `{ organizationId, id: params.id }`.
-   - Auto-fix: change to `{ organizationId, memberId: params.id }`.
+## Broken References
 
-4. **MEDIUM — `salesOrders.list` has no `search` param.**
-   - File: `packages/api/src/routers/sales-orders.ts`
-   - No `search` field in input schema. Plan's Q8 fallback (client-side filter over cached list) is the correct path — confirm Q8 is the chosen approach.
+### Previously annotated (prior audit pass — not re-flagged)
 
-### Missing impact
-- Phase 4E and Phase 4F both depend on backend changes not enumerated in the plan's Impact section. These should be flagged as blockers.
+- `apps/web/src/components/ui/command.tsx` — expected-absent (pre-install prereq). Annotated with TODO + Q9 RESOLVED. Phase 4G calls `bunx shadcn add command` as a required step.
+- `cmdk` package — expected-absent (pre-install prereq). Same annotation.
+- `appointments.list({ clientId })` — no `clientId` param in actual router. All call sites in §3G and Phase 4F have BLOCKED TODO markers from prior pass.
 
-### Unresolved questions
-None remaining as `TBD`/`TODO`/`???` in plan. Q4 and Q8 both have anticipated fallbacks.
+### New finding (this pass — fixed)
 
-### Execution & verification gaps
-- No `execute/log.md` → plan hasn't been executed
-- No `chrome-test/` → no browser verification plan
-- No `research/brief.md`
-- No `prompts/` populated
+**`packageInstances.listForClient({ organizationId, clientId })`** — the actual `listForClient` procedure does NOT accept a `clientId` parameter. Its schema is `{ organizationId, status?, source?, limit? }`. The plan used this procedure in 3 places expecting to filter by client. The correct procedure is `packageInstances.listAll`, which accepts `{ organizationId, clientId?, status?, source?, limit? }`.
 
-### Pre-implementation steps
-- `cmdk` not installed in `apps/web` (`node_modules/cmdk` absent, not in `apps/web/package.json`). Run `bun add cmdk` before Phase 4G.
-- `date-fns` not installed — implement `Intl.RelativeTimeFormat` fallback directly in Phase 4D.
+Occurrences fixed (all 3):
+- §3G component tree: `client.packageInstances.listForClient(...)` → `listAll(...)`
+- §3G API calls list: same
+- Phase 4F task 4F.6: same
 
-### Verified correct
-- All 12 API routers referenced in the plan exist with expected procedures.
-- Trainer role string `"trainer"` correct (`hasRole(["trainer", "staff"])` in `app-sidebar.tsx` line 659).
-- `useDebounce` hook exists at `apps/web/src/hooks/useDebounce.ts`.
+### Non-issues (expected-absent new files)
 
-## Priority Actions
-1. Add backend changes (Phase 0) before Phases 4E/4F: `staffId` filter on `installments.adminOverview` and `clientId` filter on `appointments.list`.
-2. Auto-fix `customerDirectory.getById` param name (`id` → `memberId`).
-3. Add `bun add cmdk` step to Phase 4G prerequisites.
-4. Use `Intl.RelativeTimeFormat` instead of `date-fns` in Phase 4D.
+All files the plan says it will CREATE are absent — correct:
+`settings/organization.tsx`, `settings/notifications.tsx`, `customers/$id.tsx`,
+`class-slots/waitlist-panel.tsx`, `dashboard/recent-activity-widget.tsx`,
+`dashboard/onboarding-checklist.tsx`, `installments/coach-installments-tab.tsx`,
+`global-search/command-palette.tsx`
 
-## Status rationale
-- needs-attention: 2 critical backend dependencies that plan doesn't enumerate as blockers, plus 1 field-name mismatch that will fail at runtime.
+---
+
+## date-fns Inconsistency (fixed this pass)
+
+Phase 4D header correctly states "audit verified: date-fns not installed in apps/web", but:
+- Task 4D.1 still said "use `formatDistanceToNow` from `date-fns` (check if installed...)" — misleading
+- §7 Cross-Cutting Concerns still said "check if `date-fns` is in `apps/web/package.json`"
+
+Both fixed to state definitively: `date-fns` is NOT installed; use `Intl.RelativeTimeFormat`.
+
+---
+
+## Unresolved Questions / Open Risks
+
+These remain genuinely open — annotated in §8 and phase headers:
+
+- **Phase 4E [BLOCKED]** — `package_instances` has no `staffId` column. Decision between (a) backend prereq or (b) different filter not yet made. TODO injected in Phase 4E and Q4 by prior pass.
+- **Phase 4F [partial BLOCKED]** — `appointments.list` has no `clientId` param. Appointments tab cannot be built; remaining tabs can proceed. In execution table.
+- **Q7** — org `createdAt` not in userContext shape. Decision: omit 30-day guard. Resolved in plan.
+
+---
+
+## Execution State
+
+- No `execute/log.md` → plan not started
+- No `chrome-test/` → no browser verification planned
+- No `research/` → no formal research brief
+- No `prompts/` → no agent handoff prompts
+
+---
+
+## Symbol / Procedure Verification Summary
+
+| Procedure | Status |
+|-----------|--------|
+| `organizationSettings.get / upsert` | ✓ exists |
+| `notificationPreferences.get / update` | ✓ exists |
+| `waitlist.list / add / remove / promote` | ✓ exists |
+| `userActivityLog.list` (organizationId, limit) | ✓ exists |
+| `serviceMembers.listMine` | ✓ exists |
+| `packageInstances.listAll` (clientId param) | ✓ exists — was wrongly called listForClient |
+| `packageInstances.listForClient` (no clientId) | ✓ exists — does NOT take clientId |
+| `installments.adminOverview / listByPackageInstance` | ✓ exists |
+| `customerDirectory.list` (search param) | ✓ exists |
+| `customerDirectory.getById` | ✓ exists |
+| `preferredTimes.list / upsert` | ✓ exists |
+| `appointments.list` (no clientId param) | ✓ confirmed — clientId ABSENT |
+| `salesOrders.list` (no search param) | ✓ confirmed — search ABSENT |
+| `hierarchy.listNodes` | ✓ exists |
+| `hasRole(["trainer"])` | ✓ in useUserContext |
+| `useDebounce` | ✓ at `@/hooks/useDebounce` |
+| `CustomerDetailSheet` | ✓ at `components/customers/customer-detail-sheet.tsx` |
+| `invoices.list` (referenced in 4F.7 as fallback) | ✓ router exists |

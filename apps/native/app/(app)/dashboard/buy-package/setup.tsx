@@ -124,25 +124,21 @@ export default function SetupScreen() {
 		enabled: !!selectedCategoryId,
 	});
 
-	// Fetch packages matching the selected service's appointment type
 	const selectedService = services?.find((s: any) => s.id === selectedServiceId);
-	// Map service type to package appointmentType format (underscore -> hyphen)
-	const serviceType = selectedService?.type as string | undefined;
-	const packageAppointmentType =
-		serviceType === "semi_private" ? "semi-private" : serviceType;
+	const serviceType = selectedService?.type as "private" | "semi_private" | undefined;
 
-	const { data: availablePackages, isLoading: packagesLoading } = useQuery({
-		...orpc.packages.list.queryOptions({
-			input: {
-				organizationId,
-				appointmentType: packageAppointmentType as
-					| "private"
-					| "semi-private"
-					| "both",
-			},
+	const { data: allServices, isLoading: packagesLoading } = useQuery({
+		...orpc.services.list.queryOptions({
+			input: { organizationId },
 		}),
-		enabled: !!packageAppointmentType,
+		enabled: !!selectedServiceId,
 	});
+
+	// Services with sessionCount are packages; filter to those compatible with the selected service type
+	const availablePackages = allServices?.filter((s: any) =>
+		s.sessionCount != null &&
+		(!serviceType || s.type === serviceType || s.type === "both"),
+	);
 
 	const handleContinue = () => {
 		const selectedCat = categories?.find(
@@ -164,10 +160,8 @@ export default function SetupScreen() {
 			packageId: selectedPackageId,
 			packageName: selectedPkg?.name ?? null,
 			creditsTotal: selectedPkg?.sessionCount ?? null,
-			price: selectedPkg?.pricePerSession
-				? selectedPkg.pricePerSession * (selectedPkg.sessionCount ?? 1)
-				: null,
-			validityDays: selectedPkg?.validityDays ?? null,
+			price: selectedPkg?.price ?? null,
+			validityDays: selectedPkg?.expiryDays ?? null,
 			availablePaymentPlans: (selectedSvc as any)?.availablePaymentPlans ?? [],
 			installmentIntervalDays: (selectedSvc as any)?.installmentIntervalDays ?? 30,
 		});
@@ -474,9 +468,7 @@ export default function SetupScreen() {
 								</View>
 							) : (
 								(availablePackages as any[] ?? []).map((pkg: any) => {
-									const totalPrice = pkg.pricePerSession
-										? pkg.pricePerSession * (pkg.sessionCount ?? 1)
-										: 0;
+									const totalPrice = pkg.price ?? 0;
 
 									return (
 										<TouchableOpacity
@@ -526,12 +518,12 @@ export default function SetupScreen() {
 												>
 													${totalPrice.toFixed(2)}
 												</Text>
-												{pkg.validityDays && (
+												{pkg.expiryDays && (
 													<Text
 														className="text-xs"
 														style={{ color: colors.secondary[1] }}
 													>
-														Valid for {pkg.validityDays} days
+														Valid for {pkg.expiryDays} days
 													</Text>
 												)}
 											</View>

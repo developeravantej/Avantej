@@ -1,122 +1,156 @@
 # Audit: 04-19_19-29_tier2-structural-cleanup
 
-**Audited:** 2026-04-20 13:00
+**Audited:** 2026-04-20 (pass 5 — fresh re-audit after pass 4 apply)
 **Plan file:** plan/plan.md
 **Status:** needs-attention
+
+---
 
 ## Scorecard
 
 | Check | Result |
 |-------|--------|
-| Structural completeness | 8/8 sections present |
-| Broken references | 3 new-file paths (expected pre-execution); 0 broken existing refs |
-| Missing impact | 2 gaps (1 critical: D.1 localStorage; 1 minor: announcements test) |
-| Unresolved questions | 6 in §8 — all explicitly deferred, none forgotten; 1 is now answerable |
-| Execution state | not started (no execute/log.md, no chrome-test/) |
+| Structural completeness | 8/8 |
+| Broken references (existing files) | 0 |
+| New files (expected absent pre-execution) | 4 |
+| Broken type references (file vs. folder) | 1 (Untitled — see §2, fixed this pass) |
+| Missing impact callers | 0 critical |
+| Unresolved questions | 4 active (§8.4 closed; §8.5 is A.2 blocker) |
+| Execution state | not started |
 
 ---
 
 ## Findings
 
-### Structural gaps
+### 1. Structural completeness — 8/8
 
-All 8 required sections are present with substantive content. No gaps.
+All 8 required sections present with substantive content:
 
-- §1 Overview — problem, goals, success criteria, scope-out ✓
-- §2 Result — Before/After tables for three user roles ✓
-- §3 Technical Architecture — 15 sub-sections, one per fix ✓
-- §4 User Journeys — 11 journeys, all with explicit "Where it lives" ✓
-- §5 Phased Implementation — 4 phases (A–D), each delivers ≥1 journey ✓
-- §6 Impact & Breakage Analysis — callers listed per change ✓
-- §7 Cross-Cutting Concerns — error handling, testing, migration, rollback ✓
-- §8 Open Questions / Risks — 6 items, all substantive ✓
-
----
-
-### Broken references (plan → codebase)
-
-These are files the plan will **create** — they are correctly missing pre-execution:
-
-- `packages/db/src/migrations/tenant/0008_expenses_currency_myr.sql` — task A.1 creates it
-- `apps/web/src/components/ui/branch-combobox.tsx` — task B.1 creates it
-- `apps/web/src/components/ui/pagination-bar.tsx` — task B.5 creates it
-- `apps/web/src/components/ui/error-state.tsx` — §7 says to create in Phase A
-- `apps/web/src/routes/_authenticated/role/view.tsx` — plan §3.13 correctly notes to confirm first; confirmed MISSING, no deletion needed
-
-All other 32 file paths resolve to existing files. All symbols checked (`getUnreadCount`, `listNodes`, `requirePermission`, `useUserContext`, `listLedger`, `commissionSplits`, `installmentPlans`, `adminOverview`) confirmed present in codebase.
+| Section | Status |
+|---------|--------|
+| §1 Overview | PRESENT |
+| §2 Result (Before/After) | PRESENT — 3 user-role tables |
+| §3 Technical Architecture | PRESENT — 14 sub-sections with code samples |
+| §4 User Journeys | PRESENT — 11 journeys each with "Where it lives" |
+| §5 Phased Implementation | PRESENT — 4 phases A-D, each delivers >=1 journey |
+| §6 Impact & Breakage | PRESENT — callers listed per change with grep commands |
+| §7 Cross-Cutting Concerns | PRESENT — error handling, testing, migration, rollback |
+| §8 Open Questions | PRESENT — 5 items (§8.4 resolved in-plan) |
 
 ---
 
-### Missing impact
+### 2. Broken references
 
-#### CRITICAL — D.1 localStorage security hardening
+#### Files the plan will CREATE (expected absent — not broken)
 
-**Plan claim (§6 D.1):** "Only `useUserContext.ts` reads these keys. No other component reads them directly. Safe to remove."
+| File | Created by |
+|------|-----------|
+| packages/db/src/migrations/tenant/0008_expenses_currency_myr.sql | Task A.1 |
+| apps/web/src/components/ui/branch-combobox.tsx | Task B.1 |
+| apps/web/src/components/ui/pagination-bar.tsx | Task B.5 |
+| apps/web/src/components/ui/error-state.tsx | §7 Phase A |
 
-**Reality — 4 additional files read/write these keys, not listed in the plan:**
+#### Existing files — 0 broken
 
-| File | Usage |
-|------|-------|
-| `apps/web/src/components/sign-in-form.tsx` | **Writes** both `user_organizations` and `org_${org.id}_hierarchy` on every sign-in |
-| `apps/web/src/hooks/useAuth.ts` | Removes both keys on sign-out and org-switch (lines 147, 151, 159, 162) |
-| `apps/web/src/components/forms/hierarchical-branch-form.tsx` | Removes `org_${organizationId}_hierarchy` after branch mutations (line 391) |
-| `apps/web/src/routes/_authenticated/dashboard/_layout/branch/view.tsx` | Reads and invalidates `org_${organizationId}_hierarchy` (lines 118, 135, 323) |
+All 30 existing-file paths verified on disk. Key symbols confirmed present:
 
-**Risk:** If D.1 only touches `useUserContext.ts`, `sign-in-form.tsx` will still write the sensitive keys on every sign-in — making the security hardening completely ineffective. The `branch/view.tsx` page reads a key from localStorage that will no longer be written, causing a silent cache miss pattern.
+- `getUnreadCount`: packages/api/src/routers/notifications.ts:50
+- `listNodes`: packages/api/src/routers/hierarchy.ts:188
+- `requirePermission`: apps/web/src/lib/route-guards.ts:85
+- `installments` + `installmentPlans`: packages/api/src/routers/index.ts:111-112
+- `payouts.list`: packages/api/src/routers/payouts.ts:22 — flat array, no offset (before-state)
+- `expenses.currency`: packages/db/src/schema/tenant/expenses.ts:21 default "usd" (before-state)
+- announcements `targetAudience`: announcements.ts:93 forwarded at :125 — backend complete as plan notes
+- `getMyCommissions`: packages/api/src/routers/commission-splits.ts — present
+- `docs/TENANT_MIGRATION_WORKFLOW.md` — present
+- `packages/db/src/migrate-tenant.ts` — present
+- `zplan/AUDIT.md` — present
+- `apps/server/src/tests/unit/services/announcements.test.ts` — present
+- `apps/web/src/components/payroll-widget.tsx` — present (confirmed: uses `data.map()` directly; will break post B.6 without update)
 
-**Required additions to D.1 task list:**
-- `apps/web/src/components/sign-in-form.tsx` — remove writes of `user_organizations` and `org_*_hierarchy`
-- `apps/web/src/hooks/useAuth.ts` — remove removals of now-nonexistent keys (or keep as harmless cleanup)
-- `apps/web/src/components/forms/hierarchical-branch-form.tsx` — remove `localStorage.removeItem` of hierarchy key
-- `apps/web/src/routes/_authenticated/dashboard/_layout/branch/view.tsx` — remove localStorage reads/invalidations of hierarchy key
+#### `role/view.tsx` — confirmed non-existent (expected per §8.4 resolution)
 
-#### MINOR — Announcements service test
+`apps/web/src/routes/_authenticated/role/view.tsx` does not exist on disk — matches plan's §8.4 RESOLVED note. No action needed.
 
-Plan modifies `packages/services/src/announcements.service.ts` (task A.2 — adds `targetAudience` param to `listAnnouncements`). `apps/server/src/tests/unit/services/announcements.test.ts` imports this function directly and will need updating. Not listed in the plan's impact section.
+#### D.5 — `apps/server/src/Untitled` is a file, not a folder (minor factual error — fixed this pass)
 
-#### NOTE — Inline BranchCombobox already exists in 3 additional files
+The plan's §3.13 (line 346) and Task D.5 referred to `apps/server/src/Untitled/` with a trailing slash, implying a directory. On disk it is a **plain text file** (junk notes/chat transcript). §1 Overview correctly said `apps/server/src/Untitled` with no slash.
+- **Auto-fix applied (pass 5):** Removed the trailing slash from §3.13 and Task D.5. `rm apps/server/src/Untitled` is the correct deletion command.
 
-The plan (§3.2) says to create a shared `branch-combobox.tsx` and wire it into 3 pages. However, `rooms/view.tsx` (line 523), `stock-requests/view.tsx` (line 437), and `transfer-orders/view.tsx` (line 450) each already have their own local inline `BranchCombobox` definitions. The plan should explicitly decide whether to refactor those pages to use the new shared component, or leave them as known tech debt. Currently unscoped.
+#### D.6 cross-reference — fixed by pass 4
 
----
-
-### Unresolved questions
-
-All 6 items in §8 are explicitly deferred or awaiting PM input — none are accidentally forgotten:
-
-1. **§8.1 File Upload** — deferred to Tier 3; decision needed on R2 vs third-party
-2. **§8.2 Cold Load UX** — acceptable trade-off documented; no action
-3. **§8.3 Payouts total count** — deferred to Tier 3 pending PM request
-4. **§8.4 Role View legacy route** — **now answerable:** `_authenticated/role/view.tsx` confirmed non-existent. This question can be closed; no deletion needed
-5. **§8.5 Commission empty state link** — verify `commissionPercentage` is exposed in service edit form before pointing users there
-6. **§8.6 Announcements audience semantics** — PM confirmation needed before implementing A.2
+`zplan/Semi-done_04-19_16-40_impersonation/` path in D.6 was corrected in pass 4. Confirmed correct in current plan.md.
 
 ---
 
-### Execution & verification gaps
+### 3. Missing impact callers — 0 critical
+
+All 5 files touching `user_organizations` / `org_*_hierarchy` confirmed and listed in §3.7 + D.1:
+- `useUserContext.ts` — writes both keys
+- `sign-in-form.tsx` — writes both keys on every sign-in
+- `useAuth.ts` — removes keys on sign-out/org-switch
+- `hierarchical-branch-form.tsx` — removes hierarchy key after branch mutations
+- `branch/view.tsx` — reads/writes both `_hierarchy` and `_hierarchy_timestamp`
+
+`payroll-widget.tsx:16` uses `data.map()` directly — will break post B.6. Listed at Task B.6 and §6. No gap.
+
+`apps/server/src/tests/unit/services/announcements.test.ts` listed at Task A.2. No gap.
+
+---
+
+### 4. Unresolved questions
+
+| # | Question | Status |
+|---|----------|--------|
+| §8.1 | File upload story (R2 vs third-party) | Deferred to Tier 3 |
+| §8.2 | Cold load UX after localStorage removal | Acceptable trade-off; no action needed |
+| §8.3 | Payouts total count display | Deferred to Tier 3 |
+| §8.4 | Role view legacy route | RESOLVED in-plan |
+| §8.5 | Announcements audience filter semantics | ACTIVE BLOCKER for A.2 — PM sign-off needed |
+
+§8.5 blocks A.2 only. Phases A.1, A.3-A.5, B, C, D can proceed immediately.
+
+---
+
+### 5. Execution and verification gaps
 
 - No `execute/log.md` — plan has not been executed
-- No `execute/` folder — `/execute` or `/execute-pro` not yet run
 - No `chrome-test/` folder — browser verification not planned or run
 - No `prompts/` folder — no handoff prompts generated
-- `audit/applied.md` present — a prior audit-apply pass ran on 2026-04-20 and made 4 corrections (B.6 caller added, A.2/A.3 prose corrected, D.4 trimmed). This report is a fresh independent audit.
+- `audit/applied.md` present — five cumulative apply passes (passes 1–5)
+
+---
+
+### 6. Implementation state (codebase snapshot, 2026-04-20)
+
+No tasks have been executed — codebase is in the before-state throughout:
+
+| Task | Current codebase state |
+|------|----------------------|
+| A.1 expenses currency | `expenses.currency` defaults to "usd" |
+| A.4 commissions gate | `commissions/my.tsx` has no `beforeLoad` |
+| A.5 customers permission | `customers.tsx` still uses `requirePermission("user_management:read")` |
+| B.6 payouts pagination | `payouts.ts` has no `offset` param; returns flat array |
+| D.1 localStorage hardening | `useUserContext.ts` + `sign-in-form.tsx` still write both sensitive keys |
+| D.2 legacy route deletion | All 4 legacy routes still exist on disk |
+| D.4 root junk cleanup | 3 .md files still at repo root (plan correctly scoped to these 3) |
+| D.5 Untitled cleanup | `apps/server/src/Untitled` file still exists |
+| D.6 AUDIT.md entry | `Semi-done_` folder absent from AUDIT.md (path in plan.md now correct) |
 
 ---
 
 ## Priority Actions
 
-1. **Fix D.1 impact analysis (CRITICAL):** Add `sign-in-form.tsx`, `useAuth.ts`, `hierarchical-branch-form.tsx`, and `branch/view.tsx` to the D.1 task list and files-affected section. Without touching `sign-in-form.tsx`, the localStorage hardening delivers zero security benefit — the keys are re-written on every sign-in.
+1. **Get PM sign-off on §8.5 before starting A.2** — all other phases unblocked immediately.
 
-2. **Close §8.4:** `_authenticated/role/view.tsx` is confirmed non-existent. Remove the open question; strike the role/view deletion bullet from D.2.
+2. **Fix the `_hierarchy_timestamp` cleanup filter before executing D.1** — the TODO (audit) comment in the D.1 useUserContext.ts snippet marks the specific filter line. Also ensure `useAuth.ts` sign-out removes timestamp keys (TODO comment present there too).
 
-3. **Scope BranchCombobox refactor:** Decide whether B.1 also refactors `stock-requests/view.tsx` and `transfer-orders/view.tsx` (which have identical inline implementations). If yes, add to B-phase tasks. If no, add a note.
+3. **Run `/execute` or `/execute-pro`** — Phases A (A.1, A.3, A.4, A.5), B, C, D are unblocked. A.2 waits on §8.5.
 
-4. **Get PM sign-off on §8.6 before executing A.2** — the audience filter semantics determine whether server-side filtering is additive or a behavior change.
-
-5. **Run `/execute` or `/execute-pro`** to begin implementation, then `/chrome-run` against §1 success criteria.
+4. **After execution, run `/chrome-run`** against §1 success criteria.
 
 ---
 
 ## Status rationale
 
-**needs-attention**: The D.1 localStorage impact gap is material — the hardening is non-functional without `sign-in-form.tsx`. One open question (§8.4 role/view) is now answerable. Otherwise the plan is high quality: 8/8 sections, well-specified journeys, appropriate phasing. Zero broken existing-file refs.
+**needs-attention**: 8/8 structurally complete, 0 broken refs to existing files. One minor factual error fixed this pass (Untitled is a file not a folder — trailing slash removed in §3.13 and D.5). Prior passes fixed critical D.1 impact gaps. Two pre-execution items remain: (a) `_hierarchy_timestamp` cleanup gap in D.1 snippet (TODO comment visible to executor); (b) PM sign-off needed for §8.5 (A.2 only). Plan not yet executed.

@@ -57,9 +57,9 @@ export default function PayScreen() {
 			const validityMs = (state.validityDays ?? 365) * 24 * 60 * 60 * 1000;
 			const expiresAt = new Date(now.getTime() + validityMs).toISOString();
 
-			const instance = await (client.packageInstances.create as any)({
+			const instance = await client.packageInstances.create({
 				organizationId,
-				packageId: state.packageId!,
+				serviceId: state.packageId!,
 				clientId: session?.user?.id ?? "",
 				source: "purchased",
 				totalPrice: total,
