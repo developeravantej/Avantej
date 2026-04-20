@@ -11,17 +11,28 @@
  * ```
  */
 
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { resolveBufferTime, checkAppointmentBufferConflict } from "./buffer-time.service";
-import { evaluateAndLockIfOverdue } from "./installment.service";
-// TODO (Open Question 6, Phase 6): When serviceCommissionConfig is added to the schema,
-// import createCommissionSplitsForAppointment from "./commission-splits.service" and call it
-// inside the completion hook below (see "Commission auto-creation on appointment completion").
+import { evaluateAndExpireIfOverdue, evaluateAndLockIfOverdue } from "./installment.service";
+import { assertValidTransition } from "./utils/appointment-status-machine";
+import { createCommissionSplitsForAppointment } from "./commission-splits.service";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { writeAudit } from "./audit-log.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
+
+// Lock acquisition order for all transaction paths in this service:
+//   1. sales_orders   (never acquired here — belongs to pos/refunds)
+//   2. package_instances  ← acquired here via FOR UPDATE after evaluateAndLockIfOverdue
+//   3. appointments   (not locked — appointments are the output of createAppointment)
+//   4. commission_splits  (never acquired here — belongs to commission-splits service)
+// Always acquire in this order when multiple tables are locked in one transaction.
 
 export type ListAppointmentsParams = {
   branchId?: string;
@@ -132,18 +143,23 @@ export async function listAppointments(
   if (startTo) {
     conditions.push(lte(appointments.startTime, startTo));
   }
+  // D.3.1 — SQL-side RBAC filter: push the accessible-nodes check into the WHERE clause
+  // so the DB never returns rows the caller cannot access.
+  // When accessibleNodeIds is undefined the caller is an admin who sees all nodes — skip filter.
+  // When provided but empty, return nothing (sql`1=0`).
+  if (accessibleNodeIds !== undefined) {
+    if (accessibleNodeIds.length > 0) {
+      conditions.push(inArray(appointments.branchId, accessibleNodeIds));
+    } else {
+      conditions.push(sql`1=0`);
+    }
+  }
 
-  const rows = await tenantDb.query.appointments.findMany({
+  return tenantDb.query.appointments.findMany({
     where: conditions.length > 0 ? and(...conditions) : undefined,
     orderBy: [appointments.startTime],
     limit: Math.min(limit, 500),
   });
-
-  if (accessibleNodeIds && accessibleNodeIds.length > 0) {
-    return rows.filter((row) => accessibleNodeIds.includes(row.branchId));
-  }
-
-  return rows;
 }
 
 /**
@@ -193,9 +209,17 @@ export async function createAppointment(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   params: CreateAppointmentParams
 ): Promise<typeof appointments.$inferSelect> {
+  // A.1.1 — Input validation
+  if (params.packageInstanceId) {
+    const creditsUsed = params.creditsUsed ?? 1;
+    if (!Number.isInteger(creditsUsed) || creditsUsed < 1) {
+      throw new Error("creditsUsed must be a positive integer");
+    }
+  }
+
   const endTime = addMinutes(params.startTime, params.duration);
 
-  // Buffer time enforcement
+  // Buffer time enforcement — stays outside the transaction (read-only)
   if (params.serviceId && params.trainerId) {
     const bufferMinutes = await resolveBufferTime(tenantDb, params.serviceId, params.trainerId);
     if (bufferMinutes > 0) {
@@ -213,68 +237,105 @@ export async function createAppointment(
     }
   }
 
-  // Package installment lock + credit check (lazy evaluation)
-  if (params.packageInstanceId) {
-    // Evaluate overdue → grace → lock before checking state
-    const pkg = await evaluateAndLockIfOverdue(tenantDb, params.packageInstanceId);
-    if (!pkg) throw new Error("Package instance not found");
-    if (pkg.isLocked) {
-      throw new Error("Package is locked due to unpaid installment. Please complete your payment to continue booking.");
+  // A.1.2–A.1.6 — Transactional: lock, ownership check, credit deduction, insert
+  try {
+    return await tenantDb.transaction(async (tx: TenantTx) => {
+      if (params.packageInstanceId) {
+        // A.1.2 — Evaluate expiry first, then overdue → grace → lock (pass tx, not tenantDb)
+        await evaluateAndExpireIfOverdue(tx as unknown as TenantDb, params.packageInstanceId);
+        await evaluateAndLockIfOverdue(tx as unknown as NeonDatabase<typeof tenantSchema>, params.packageInstanceId);
+
+        // A.1.3 — Second locked read of the package row (FOR UPDATE)
+        const [lockedPkg] = await tx
+          .select()
+          .from(packageInstances)
+          .where(eq(packageInstances.id, params.packageInstanceId))
+          .for("update");
+        if (!lockedPkg) throw new Error("Package instance not found");
+
+        // A.1.4 — Ownership check (Gap #10)
+        if (params.userId && lockedPkg.clientId !== params.userId) {
+          throw new Error("Not authorized");
+        }
+
+        // A.1.5 — Re-check status and credits on locked row
+        if (lockedPkg.isLocked) {
+          throw new Error("Package is locked due to unpaid installment. Please complete your payment to continue booking.");
+        }
+        if (lockedPkg.status !== "active") {
+          throw new Error("Package is not active");
+        }
+        const creditsRequested = params.creditsUsed ?? 1;
+        const creditsRemaining = lockedPkg.creditsTotal - lockedPkg.creditsUsed;
+        if (creditsRemaining < creditsRequested) {
+          throw new Error(`Not enough credits. You have ${creditsRemaining} credits available.`);
+        }
+      }
+
+      // A.1.6 — Insert appointment inside transaction
+      const [row] = await tx
+        .insert(appointments)
+        .values({
+          type: params.type,
+          startTime: params.startTime,
+          duration: params.duration,
+          endTime,
+          serviceId: params.serviceId ?? null,
+          branchId: params.branchId,
+          status: params.status ?? "pending",
+          sessionTotal: params.sessionTotal,
+          pricePerClient: params.pricePerClient,
+          createdBy: params.createdBy,
+          userId: params.userId ?? null,
+          trainerId: params.trainerId ?? null,
+          packageInstanceId: params.packageInstanceId ?? null,
+          creditsUsed: params.creditsUsed ?? 1,
+          location: params.location ?? null,
+          classSlotId: params.classSlotId ?? null,
+          description: params.description ?? null,
+          imageUrl: params.imageUrl ?? null,
+          notes: params.notes ?? null,
+          bookingNumber: params.bookingNumber ?? null,
+        })
+        .returning();
+
+      if (!row) {
+        throw new Error("Failed to create appointment");
+      }
+
+      // Decrement credits on the package instance (inside transaction)
+      if (params.packageInstanceId && row.creditsUsed !== undefined) {
+        const creditsToConsume = params.creditsUsed ?? 1;
+        await tx
+          .update(packageInstances)
+          .set({
+            creditsUsed: sql`credits_used + ${creditsToConsume}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(packageInstances.id, params.packageInstanceId));
+      }
+
+      // D.2.1 — Audit appointment creation
+      await writeAudit(tx, {
+        actorUserId: params.createdBy,
+        action: "appointment.created",
+        entityType: "appointment",
+        entityId: row.id,
+        summary: `Appointment ${row.id} created (status: ${row.status})`,
+        changes: {
+          packageInstanceId: params.packageInstanceId ?? null,
+          creditsUsed: params.creditsUsed ?? 1,
+        },
+      });
+
+      return row;
+    });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23P01") {
+      throw new Error("Trainer is already booked during this time");
     }
-    if (pkg.status !== "active") {
-      throw new Error("Package is not active");
-    }
-    const creditsRequested = params.creditsUsed ?? 1;
-    if (pkg.creditsRemaining < creditsRequested) {
-      const hasMoreInstallments = pkg.paymentPlanType !== null && pkg.installmentsPaid < pkg.installmentsTotal;
-      const hint = hasMoreInstallments ? " Complete your next installment to unlock more." : "";
-      throw new Error(`Not enough credits. You have ${pkg.creditsRemaining} credits available.${hint}`);
-    }
+    throw err;
   }
-
-  const [row] = await tenantDb
-    .insert(appointments)
-    .values({
-      type: params.type,
-      startTime: params.startTime,
-      duration: params.duration,
-      endTime,
-      serviceId: params.serviceId ?? null,
-      branchId: params.branchId,
-      status: params.status ?? "pending",
-      sessionTotal: params.sessionTotal,
-      pricePerClient: params.pricePerClient,
-      createdBy: params.createdBy,
-      userId: params.userId ?? null,
-      trainerId: params.trainerId ?? null,
-      packageInstanceId: params.packageInstanceId ?? null,
-      creditsUsed: params.creditsUsed ?? 1,
-      location: params.location ?? null,
-      classSlotId: params.classSlotId ?? null,
-      description: params.description ?? null,
-      imageUrl: params.imageUrl ?? null,
-      notes: params.notes ?? null,
-      bookingNumber: params.bookingNumber ?? null,
-    })
-    .returning();
-
-  if (!row) {
-    throw new Error("Failed to create appointment");
-  }
-
-  // Decrement credits on the package instance (atomic)
-  if (params.packageInstanceId && row.creditsUsed !== undefined) {
-    const creditsToConsume = params.creditsUsed ?? 1;
-    await tenantDb
-      .update(packageInstances)
-      .set({
-        creditsUsed: sql`credits_used + ${creditsToConsume}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(packageInstances.id, params.packageInstanceId));
-  }
-
-  return row;
 }
 
 /**
@@ -285,20 +346,21 @@ export async function updateAppointment(
   id: string,
   params: UpdateAppointmentParams
 ): Promise<typeof appointments.$inferSelect> {
-  const existing = await getAppointmentById(tenantDb, id);
-  if (!existing) {
+  // Pre-fetch for buffer-time enforcement (read-only, stays outside tx)
+  const existingForBuffer = await getAppointmentById(tenantDb, id);
+  if (!existingForBuffer) {
     throw new Error("Appointment not found");
   }
 
-  const startTime = params.startTime ?? existing.startTime;
-  const duration = params.duration ?? existing.duration;
+  const startTime = params.startTime ?? existingForBuffer.startTime;
+  const duration = params.duration ?? existingForBuffer.duration;
   const endTime = params.endTime ?? addMinutes(startTime, duration);
 
-  // Buffer time enforcement when time changes
+  // Buffer time enforcement when time changes (read-only, outside transaction)
   const timeChanged = params.startTime !== undefined || params.duration !== undefined;
-  const trainerId = params.trainerId !== undefined ? params.trainerId : existing.trainerId;
-  if (timeChanged && existing.serviceId && trainerId) {
-    const bufferMinutes = await resolveBufferTime(tenantDb, existing.serviceId, trainerId);
+  const trainerId = params.trainerId !== undefined ? params.trainerId : existingForBuffer.trainerId;
+  if (timeChanged && existingForBuffer.serviceId && trainerId) {
+    const bufferMinutes = await resolveBufferTime(tenantDb, existingForBuffer.serviceId, trainerId);
     if (bufferMinutes > 0) {
       const { hasConflict } = await checkAppointmentBufferConflict(tenantDb, {
         trainerId,
@@ -315,64 +377,168 @@ export async function updateAppointment(
     }
   }
 
-  const [row] = await tenantDb
-    .update(appointments)
-    .set({
-      ...(params.status !== undefined && { status: params.status }),
-      ...(params.startTime !== undefined && { startTime: params.startTime }),
-      ...(params.duration !== undefined && { duration: params.duration }),
-      endTime,
-      ...(params.trainerId !== undefined && { trainerId: params.trainerId }),
-      ...(params.location !== undefined && { location: params.location }),
-      ...(params.notes !== undefined && { notes: params.notes }),
-      ...(params.cancelledAt !== undefined && { cancelledAt: params.cancelledAt }),
-      ...(params.cancellationReason !== undefined && {
-        cancellationReason: params.cancellationReason,
-      }),
-      ...(params.description !== undefined && { description: params.description }),
-      ...(params.imageUrl !== undefined && { imageUrl: params.imageUrl }),
-      updatedAt: new Date(),
-    })
-    .where(eq(appointments.id, id))
-    .returning();
+  let row: typeof appointments.$inferSelect | undefined;
+
+  try {
+    row = await tenantDb.transaction(async (tx: TenantTx) => {
+      // B.1.2 — Re-fetch inside the transaction for an authoritative view
+      // Plain SELECT (no FOR UPDATE): the appointment row itself is not a contended resource;
+      // the package_instances row is locked below if credits need restoring.
+      const [existing] = await tx
+        .select()
+        .from(appointments)
+        .where(eq(appointments.id, id));
+      if (!existing) {
+        throw new Error("Appointment not found");
+      }
+
+      // B.1.3 — Status machine check
+      if (params.status !== undefined) {
+        assertValidTransition(existing.status, params.status);
+      }
+
+      // B.1.4 — Cancellation credit restore
+      if (
+        params.status === "cancelled" &&
+        existing.status !== "cancelled" &&
+        existing.packageInstanceId &&
+        (existing.creditsUsed ?? 0) > 0
+      ) {
+        const creditsToRestore = existing.creditsUsed as number; // narrowed by guard above
+
+        // Lock the package row
+        const [pkg] = await tx
+          .select()
+          .from(packageInstances)
+          .where(eq(packageInstances.id, existing.packageInstanceId))
+          .for("update");
+
+        if (pkg && (pkg.status === "active" || pkg.status === "exhausted")) {
+          await tx
+            .update(packageInstances)
+            .set({
+              creditsUsed: sql`GREATEST(credits_used - ${creditsToRestore}, 0)`,
+              ...(pkg.status === "exhausted" && { status: "active" }),
+              updatedAt: new Date(),
+            })
+            .where(eq(packageInstances.id, existing.packageInstanceId));
+        } else {
+          // Package not found or in terminal status — skip restore
+          console.warn(
+            `[credit-restore] Skipping credit restore for appointment ${id}: ` +
+              `package ${existing.packageInstanceId} status=${pkg?.status ?? "not found"}`,
+          );
+        }
+      }
+
+      // B.1.5 — Perform the UPDATE
+      const [updated] = await tx
+        .update(appointments)
+        .set({
+          ...(params.status !== undefined && { status: params.status }),
+          ...(params.startTime !== undefined && { startTime: params.startTime }),
+          ...(params.duration !== undefined && { duration: params.duration }),
+          endTime,
+          ...(params.trainerId !== undefined && { trainerId: params.trainerId }),
+          ...(params.location !== undefined && { location: params.location }),
+          ...(params.notes !== undefined && { notes: params.notes }),
+          ...(params.cancelledAt !== undefined && { cancelledAt: params.cancelledAt }),
+          ...(params.cancellationReason !== undefined && {
+            cancellationReason: params.cancellationReason,
+          }),
+          ...(params.description !== undefined && { description: params.description }),
+          ...(params.imageUrl !== undefined && { imageUrl: params.imageUrl }),
+          updatedAt: new Date(),
+        })
+        .where(eq(appointments.id, id))
+        .returning();
+
+      if (!updated) {
+        throw new Error("Appointment not found");
+      }
+
+      // ---------------------------------------------------------------------------
+      // Commission auto-creation on appointment completion
+      // Triggered when status transitions to 'completed'. Non-fatal: appointment
+      // succeeds even if commission creation fails.
+      // ---------------------------------------------------------------------------
+      if (params.status === "completed" && existing.status !== "completed" && params.actor) {
+        try {
+          // Fetch commission percentage from the service record
+          const serviceId = existing.serviceId;
+          let commissionBasisPoints = 0;
+
+          if (serviceId) {
+            const [svc] = await tx
+              .select({ commissionPercentage: services.commissionPercentage })
+              .from(services)
+              .where(eq(services.id, serviceId))
+              .limit(1);
+            commissionBasisPoints = svc?.commissionPercentage ?? 0;
+          }
+
+          if (commissionBasisPoints > 0) {
+            // Fetch assigned staff for this appointment
+            const assignedStaff = await tx
+              .select({ staffId: appointmentStaff.staffId })
+              .from(appointmentStaff)
+              .where(eq(appointmentStaff.appointmentId, id));
+
+            if (assignedStaff.length > 0) {
+              // Each staff member receives an equal share of the total commission.
+              // splitPercentage per staff = commissionBasisPoints / 100 / staffCount
+              // sessionTotal is already stored in cents (integer)
+              const sessionTotalCents = existing.sessionTotal ?? 0;
+              const splitPercentage = (commissionBasisPoints / 100) / assignedStaff.length;
+
+              await createCommissionSplitsForAppointment(
+                tx as unknown as TenantDb,
+                {
+                  appointmentId: id,
+                  splits: assignedStaff.map((s) => ({
+                    staffId: s.staffId,
+                    splitPercentage,
+                    sessionTotalCents,
+                  })),
+                  actor: params.actor,
+                },
+              );
+            }
+          }
+        } catch (commissionErr) {
+          console.warn(
+            `[commission] Failed to create splits for appointment ${id}:`,
+            commissionErr,
+          );
+          // Non-fatal: appointment update has already succeeded
+        }
+      }
+
+      // D.2.2 — Audit status changes
+      if (params.status !== undefined && params.actor) {
+        await writeAudit(tx, {
+          actorUserId: params.actor.userId,
+          actorMemberId: params.actor.memberId,
+          actorRole: params.actor.role,
+          action: "appointment.status_changed",
+          entityType: "appointment",
+          entityId: id,
+          summary: `Appointment ${id} status changed from '${existing.status}' to '${params.status}'`,
+          changes: { from: existing.status, to: params.status },
+        });
+      }
+
+      return updated;
+    });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23P01") {
+      throw new Error("Trainer is already booked during this time");
+    }
+    throw err;
+  }
 
   if (!row) {
     throw new Error("Appointment not found");
-  }
-
-  // ---------------------------------------------------------------------------
-  // Commission auto-creation on appointment completion (Phase 6 — P6 scaffold)
-  //
-  // IMPORTANT (Open Question 6): The schema does NOT yet have a serviceCommissionConfig
-  // table or a services.commissionPercentage column. Until that config is added,
-  // commission creation for appointments is a no-op (logged below). This hook is
-  // scaffolded so the creation path is wired and ready.
-  //
-  // When commission config is available, implement:
-  //   1. Fetch config: const cfg = await tenantDb.query.serviceCommissionConfig.findFirst(...)
-  //   2. Fetch assigned staff: appointmentStaff rows for this appointment
-  //   3. Build splits array from config percentages
-  //   4. Call createCommissionSplitsForAppointment(tenantDb, { appointmentId, splits, actor })
-  //
-  // For now: if transitioning to 'completed' AND actor is provided, log the no-op.
-  // ---------------------------------------------------------------------------
-  if (params.status === "completed" && existing.status !== "completed" && params.actor) {
-    // Check if any staff are assigned — if commission config existed, we'd use these
-    const assignedStaff = await tenantDb
-      .select({ staffId: appointmentStaff.staffId })
-      .from(appointmentStaff)
-      .where(eq(appointmentStaff.appointmentId, id));
-
-    if (assignedStaff.length > 0) {
-      // NOTE: No service commission config table exists in schema (Open Question 6).
-      // Commission creation is dormant. Assigned staff count is logged for visibility.
-      // Remove this branch and implement splits once serviceCommissionConfig is available.
-      console.warn(
-        `[commission] Appointment ${id} completed with ${assignedStaff.length} staff assigned. ` +
-        "Commission auto-creation skipped: no serviceCommissionConfig in schema. " +
-        "See packages/services/src/commission-splits.service.ts NOTE and execute/log.md.",
-      );
-    }
   }
 
   return row;

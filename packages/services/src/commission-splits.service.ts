@@ -287,6 +287,53 @@ export async function createCommissionSplitsForAppointment(
 	return results;
 }
 
+export interface CreateSplitsForPosParams {
+	salesOrderId: string;
+	serviceId: string;
+	serviceName: string;
+	amountCents: number; // line-item amount (after discount, before tax)
+	serviceCommissionBasisPoints: number; // e.g. 1000 = 10%
+	staffIds: string[]; // members.userId (cross-DB), NOT tenant member PK
+	actor: { userId: string; memberId: string; role: string };
+}
+
+/**
+ * Create commission splits for a POS sale line item.
+ *
+ * Total commission = amountCents × serviceCommissionBasisPoints / 10000.
+ * Split evenly across all staffIds (floor division; remainder is lost).
+ * Idempotent via createCommissionSplit's onConflictDoNothing.
+ */
+export async function createCommissionSplitsForPos(
+	db: TenantDb | TenantTx,
+	params: CreateSplitsForPosParams,
+): Promise<void> {
+	if (params.staffIds.length === 0 || params.serviceCommissionBasisPoints <= 0) return;
+
+	const totalCommission = Math.floor(
+		(params.amountCents * params.serviceCommissionBasisPoints) / 10000,
+	);
+	if (totalCommission <= 0) return;
+
+	const perStaff = Math.floor(totalCommission / params.staffIds.length);
+	if (perStaff <= 0) return;
+
+	const splitPercentage = params.serviceCommissionBasisPoints / 100 / params.staffIds.length;
+
+	await Promise.all(
+		params.staffIds.map((staffId) =>
+			createCommissionSplit(db, {
+				salesOrderId: params.salesOrderId,
+				staffId,
+				splitPercentage,
+				calculatedAmountCents: perStaff,
+				notes: `POS commission for service "${params.serviceName}"`,
+				actor: params.actor,
+			}),
+		),
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Lifecycle transitions
 // ---------------------------------------------------------------------------
@@ -303,45 +350,48 @@ export async function approveCommissionSplits(
 ): Promise<CommissionSplit[]> {
 	if (ids.length === 0) return [];
 
-	const existing = await tenantDb
-		.select()
-		.from(commissionSplits)
-		.where(inArray(commissionSplits.id, ids));
+	return tenantDb.transaction(async (tx) => {
+		const existing = await tx
+			.select()
+			.from(commissionSplits)
+			.where(inArray(commissionSplits.id, ids))
+			.for("update");
 
-	const nonPending = existing.filter((r) => r.status !== "pending");
-	if (nonPending.length > 0) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Cannot approve: ${nonPending.length} split(s) are not in 'pending' status (ids: ${nonPending.map((r) => r.id).join(", ")})`,
-		});
-	}
+		const nonPending = existing.filter((r) => r.status !== "pending");
+		if (nonPending.length > 0) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot approve: ${nonPending.length} split(s) are not in 'pending' status (ids: ${nonPending.map((r) => r.id).join(", ")})`,
+			});
+		}
 
-	const now = new Date();
-	const updated = await tenantDb
-		.update(commissionSplits)
-		.set({
-			status: "approved",
-			approvedBy: actor.userId,
-			approvedAt: now,
-			updatedAt: now,
-		})
-		.where(inArray(commissionSplits.id, ids))
-		.returning();
+		const now = new Date();
+		const updated = await tx
+			.update(commissionSplits)
+			.set({
+				status: "approved",
+				approvedBy: actor.userId,
+				approvedAt: now,
+				updatedAt: now,
+			})
+			.where(inArray(commissionSplits.id, ids))
+			.returning();
 
-	// Audit per row inside the same connection
-	for (const row of updated) {
-		await writeAudit(tenantDb, {
-			actorUserId: actor.userId,
-			actorMemberId: actor.memberId,
-			actorRole: actor.role,
-			action: "commission.approve",
-			entityType: "commission_split",
-			entityId: row.id,
-			summary: `Commission split approved for staff ${row.staffId} — ${row.calculatedAmount} cents`,
-			changes: { previousStatus: "pending", newStatus: "approved" },
-		});
-	}
+		// Audit per row inside the same transaction
+		for (const row of updated) {
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.approve",
+				entityType: "commission_split",
+				entityId: row.id,
+				summary: `Commission split approved for staff ${row.staffId} — ${row.calculatedAmount} cents`,
+				changes: { previousStatus: "pending", newStatus: "approved" },
+			});
+		}
 
-	return updated;
+		return updated;
+	});
 }
 
 export interface MarkPaidParams {
@@ -361,49 +411,52 @@ export async function markCommissionSplitsPaid(
 ): Promise<CommissionSplit[]> {
 	if (ids.length === 0) return [];
 
-	const existing = await tenantDb
-		.select()
-		.from(commissionSplits)
-		.where(inArray(commissionSplits.id, ids));
+	return tenantDb.transaction(async (tx) => {
+		const existing = await tx
+			.select()
+			.from(commissionSplits)
+			.where(inArray(commissionSplits.id, ids))
+			.for("update");
 
-	const nonApproved = existing.filter((r) => r.status !== "approved");
-	if (nonApproved.length > 0) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Cannot mark paid: ${nonApproved.length} split(s) are not in 'approved' status (ids: ${nonApproved.map((r) => r.id).join(", ")})`,
-		});
-	}
+		const nonApproved = existing.filter((r) => r.status !== "approved");
+		if (nonApproved.length > 0) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot mark paid: ${nonApproved.length} split(s) are not in 'approved' status (ids: ${nonApproved.map((r) => r.id).join(", ")})`,
+			});
+		}
 
-	const now = new Date();
-	const updated = await tenantDb
-		.update(commissionSplits)
-		.set({
-			status: "paid",
-			paidBy: params.actor.userId,
-			paidAt: now,
-			...(params.payoutId !== undefined && { payoutId: params.payoutId }),
-			updatedAt: now,
-		})
-		.where(inArray(commissionSplits.id, ids))
-		.returning();
+		const now = new Date();
+		const updated = await tx
+			.update(commissionSplits)
+			.set({
+				status: "paid",
+				paidBy: params.actor.userId,
+				paidAt: now,
+				...(params.payoutId !== undefined && { payoutId: params.payoutId }),
+				updatedAt: now,
+			})
+			.where(inArray(commissionSplits.id, ids))
+			.returning();
 
-	for (const row of updated) {
-		await writeAudit(tenantDb, {
-			actorUserId: params.actor.userId,
-			actorMemberId: params.actor.memberId,
-			actorRole: params.actor.role,
-			action: "commission.mark_paid",
-			entityType: "commission_split",
-			entityId: row.id,
-			summary: `Commission split marked paid for staff ${row.staffId} — ${row.calculatedAmount} cents`,
-			changes: {
-				previousStatus: "approved",
-				newStatus: "paid",
-				payoutId: params.payoutId ?? null,
-			},
-		});
-	}
+		for (const row of updated) {
+			await writeAudit(tx, {
+				actorUserId: params.actor.userId,
+				actorMemberId: params.actor.memberId,
+				actorRole: params.actor.role,
+				action: "commission.mark_paid",
+				entityType: "commission_split",
+				entityId: row.id,
+				summary: `Commission split marked paid for staff ${row.staffId} — ${row.calculatedAmount} cents`,
+				changes: {
+					previousStatus: "approved",
+					newStatus: "paid",
+					payoutId: params.payoutId ?? null,
+				},
+			});
+		}
 
-	return updated;
+		return updated;
+	});
 }
 
 /**
@@ -416,52 +469,56 @@ export async function voidCommissionSplit(
 	reason: string,
 	actor: { userId: string; memberId: string; role: string },
 ): Promise<CommissionSplit> {
-	const existing = await tenantDb.query.commissionSplits.findFirst({
-		where: eq(commissionSplits.id, id),
-	});
+	return tenantDb.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, id))
+			.for("update");
 
-	if (!existing) {
-		throw new ORPCError("NOT_FOUND", {
-			message: `Commission split not found: ${id}`,
+		if (!existing) {
+			throw new ORPCError("NOT_FOUND", {
+				message: `Commission split not found: ${id}`,
+			});
+		}
+
+		if (!["pending", "approved"].includes(existing.status)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot void commission split with status '${existing.status}'`,
+			});
+		}
+
+		const now = new Date();
+		const previousStatus = existing.status;
+		const updatedNotes = existing.notes
+			? `${existing.notes}\nVoid reason: ${reason}`
+			: `Void reason: ${reason}`;
+
+		const [updated] = await tx
+			.update(commissionSplits)
+			.set({
+				status: "void",
+				notes: updatedNotes,
+				updatedAt: now,
+			})
+			.where(eq(commissionSplits.id, id))
+			.returning();
+
+		if (!updated) throw new Error("voidCommissionSplit: update returned no row");
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "commission.void",
+			entityType: "commission_split",
+			entityId: id,
+			summary: `Commission split voided for staff ${existing.staffId} — reason: ${reason}`,
+			changes: { previousStatus, newStatus: "void", reason },
 		});
-	}
 
-	if (existing.status === "void") {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Commission split ${id} is already void`,
-		});
-	}
-
-	const now = new Date();
-	const previousStatus = existing.status;
-	const updatedNotes = existing.notes
-		? `${existing.notes}\nVoid reason: ${reason}`
-		: `Void reason: ${reason}`;
-
-	const [updated] = await tenantDb
-		.update(commissionSplits)
-		.set({
-			status: "void",
-			notes: updatedNotes,
-			updatedAt: now,
-		})
-		.where(eq(commissionSplits.id, id))
-		.returning();
-
-	if (!updated) throw new Error("voidCommissionSplit: update returned no row");
-
-	await writeAudit(tenantDb, {
-		actorUserId: actor.userId,
-		actorMemberId: actor.memberId,
-		actorRole: actor.role,
-		action: "commission.void",
-		entityType: "commission_split",
-		entityId: id,
-		summary: `Commission split voided for staff ${existing.staffId} — reason: ${reason}`,
-		changes: { previousStatus, newStatus: "void", reason },
+		return updated;
 	});
-
-	return updated;
 }
 
 // ---------------------------------------------------------------------------

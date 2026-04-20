@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/appointment/view.tsx:1`
 **Platform:** web
 **Auth required:** rbac(appointment_management:read)
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-20
 
 ---
 
@@ -79,7 +79,10 @@ AppointmentViewComponent
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `appointments` | SELECT | `branch_id`, `start_time`, `end_time`, `status`, `user_id`, `trainer_id`, `service_id` |
+| `appointments` (tenant) | SELECT | `branch_id`, `start_time`, `end_time`, `status`, `user_id`, `trainer_id`, `service_id` |
+| `services` (tenant) | SELECT (batch) | `id`, `name` — enriched as `serviceName` |
+| `member_profiles` (tenant) | SELECT (batch) | `memberId`, `displayName` — enriched as `trainerName` |
+| `user` (control panel) | SELECT (batch) | `id`, `name` — enriched as `clientName` |
 
 **Key types:**
 ```typescript
@@ -98,9 +101,9 @@ AppointmentViewComponent
   start: Date;
   end: Date;
   status: "confirmed" | "pending" | "cancelled";
-  clientName: string;    // partial userId (8 chars) — no name lookup
-  service: string;       // partial serviceId (8 chars) — no name lookup
-  assignedTo?: { id: string; name: string };
+  clientName: string;    // resolved from control-panel user.name; falls back to "Client (uuid…)"
+  service: string;       // resolved from services.name; falls back to "Service (uuid…)"
+  assignedTo?: { id: string; name: string };  // name from member_profiles.displayName
 }
 ```
 
@@ -111,7 +114,7 @@ AppointmentViewComponent
 **Test files:** None found for this route.
 **Scenarios covered:** N/A
 **Not tested (risk areas):**
-- `mapApiAppointmentToCalendar` mapping — `clientName` and `service` use truncated IDs not resolved names (no lookup).
+- `mapApiAppointmentToCalendar` mapping — enriched name fallback path (deleted users → UUID slice).
 - Permission redirect in `beforeLoad` — `requirePermission` is a real guard that reads from query cache.
 - Empty appointments state in the calendar UI.
 - Appointments spanning month boundaries.
@@ -121,6 +124,6 @@ AppointmentViewComponent
 ## 6. Notes
 
 - This route (`/_authenticated/appointment/view`) is distinct from the dashboard-nested route (`/_authenticated/dashboard/_layout/appointment/view`). Both exist; the sidebar links to the dashboard-nested version.
-- `clientName` and `service` in the calendar display truncated UUIDs, not resolved names, because the list endpoint does not join member/service tables. This is a known limitation.
+- `clientName`, `service`, and trainer name are now resolved from real names: `appointments.list` performs three parallel batch queries (services, member_profiles, control-panel users) and returns enriched `serviceName`, `trainerName`, `clientName`. The mapper uses these fields with UUID-slice fallbacks if not found (e.g. deleted user).
 - `getAppointmentQueryRange()` fetches a ~3-month window to support smooth prev/next month navigation without additional fetches.
 - `beforeLoad` calls `requirePermission` which fetches the user context and checks `appointment_management:read` permission. Unauthorized users are redirected to `/dashboard?unauthorized=true`.

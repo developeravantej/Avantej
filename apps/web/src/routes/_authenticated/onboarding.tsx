@@ -13,9 +13,7 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/ui/form";
-import { toast } from "sonner";
-import { useState, useEffect } from "react";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useState } from "react";
 
 const onboardingSearchSchema = z.object({
   user_id: z.string().optional(),
@@ -34,13 +32,9 @@ const formSchema = z.object({
 });
 
 function RouteComponent() {
-  const { isLoading: authLoading, checkAuth } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [nameToCheck, setNameToCheck] = useState("");
-  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
-  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const debouncedName = useDebounce(nameToCheck, 500);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,81 +43,12 @@ function RouteComponent() {
     },
   });
 
-  // TODO: Replace with actual API call when backend endpoint is ready
-  // Should call: client.organizations.checkNameAvailability({ name })
-  useEffect(() => {
-    if (!debouncedName || debouncedName.length < 2) {
-      setIsCheckingAvailability(false);
-      setIsAvailable(null);
-      form.clearErrors("name");
-      return;
-    }
-
-    let cancelled = false;
-    setIsCheckingAvailability(true);
-
-    // Mock availability check — replace with real API
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      const available = !debouncedName.toLowerCase().startsWith("test");
-      setIsAvailable(available);
-      setIsCheckingAvailability(false);
-
-      if (!available) {
-        form.setError("name", {
-          type: "availability",
-          message: "This organization name is already taken",
-        });
-      } else {
-        form.clearErrors("name");
-      }
-    }, 500);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [debouncedName, form]);
-
-  // TODO: Replace with actual API call when backend endpoint is ready
-  // Should call: client.organizations.create({ name, slug })
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (isAvailable === false) {
-      form.setError("name", {
-        type: "availability",
-        message: "This organization name is not available",
-      });
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      // Mock organization creation — replace with real API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      toast.success("Organization created successfully!");
-      await checkAuth();
-      navigate({ to: "/dashboard" });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to create organization. Please try again.";
-      toast.error(message);
-    } finally {
-      setIsCreating(false);
-    }
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    sessionStorage.setItem("pendingOrgName", values.name);
+    navigate({ to: "/subscribe" as string });
   }
 
-  // Watch the name field to check availability
-  const watchedName = form.watch("name");
-
-  // Update the name to check when form value changes
-  useEffect(() => {
-    if (watchedName !== nameToCheck) {
-      setNameToCheck(watchedName);
-    }
-  }, [watchedName, nameToCheck]);
-
-  // Show loading while auth is checking
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -133,17 +58,6 @@ function RouteComponent() {
       </div>
     );
   }
-
-  // Get availability status for display
-  const getNameAvailabilityStatus = () => {
-    if (!watchedName || watchedName.length === 0) return null;
-    if (isCheckingAvailability) return "checking";
-    if (isAvailable === true) return "available";
-    if (isAvailable === false) return "unavailable";
-    return null;
-  };
-
-  const availabilityStatus = getNameAvailabilityStatus();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -170,35 +84,15 @@ function RouteComponent() {
                     <FormItem>
                       <FormLabel>Organization Name</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            placeholder="Enter your organization name"
-                            {...field}
-                          />
-                          {availabilityStatus === "checking" && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                              <div className="animate-spin h-4 w-4 border-2 border-current border-r-transparent rounded-full" />
-                            </div>
-                          )}
-                          {availabilityStatus === "available" &&
-                            !form.formState.errors.name && (
-                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
-                                ✓
-                              </div>
-                            )}
-                          {(availabilityStatus === "unavailable" ||
-                            form.formState.errors.name) && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500">
-                              ✗
-                            </div>
-                          )}
-                        </div>
+                        <Input
+                          placeholder="Enter your organization name"
+                          {...field}
+                        />
                       </FormControl>
-                      {availabilityStatus === "available" && (
-                        <div className="text-green-700 text-sm font-light">
-                          This organization name is available
-                        </div>
-                      )}
+                      <div className="text-sm text-gray-500 font-light">
+                        Your organization name will be confirmed when you
+                        complete your subscription.
+                      </div>
                       {form.formState.errors.name && (
                         <div className="text-red-500 text-sm font-light">
                           {form.formState.errors.name.message}
@@ -211,20 +105,15 @@ function RouteComponent() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={
-                    isCreating ||
-                    availabilityStatus === "unavailable" ||
-                    availabilityStatus === "checking" ||
-                    !!form.formState.errors.name
-                  }
+                  disabled={isSubmitting || !!form.formState.errors.name}
                 >
-                  {isCreating ? (
+                  {isSubmitting ? (
                     <>
                       <div className="animate-spin h-4 w-4 border-2 border-current border-r-transparent rounded-full mr-2" />
-                      Creating Organization...
+                      Redirecting...
                     </>
                   ) : (
-                    "Create Organization"
+                    "Proceed to Subscription"
                   )}
                 </Button>
               </form>
@@ -232,8 +121,8 @@ function RouteComponent() {
 
             <div className="mt-6 text-center text-sm text-gray-500">
               <p>
-                This will complete your account setup and take you to your
-                dashboard.
+                Next, you'll choose a subscription plan to activate your
+                organization.
               </p>
             </div>
           </CardContent>

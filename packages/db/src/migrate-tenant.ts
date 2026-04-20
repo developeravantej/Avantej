@@ -2000,6 +2000,75 @@ ALTER TABLE commission_splits
   );
 `;
 
+/**
+ * Tenant migration SQL (embedded for Cloudflare Workers compatibility)
+ * Migration: 0025_member_sessions
+ * Creates member_sessions audit table for tenant-admin impersonation.
+ *
+ * Generated SQL file: packages/db/src/migrations/tenant/0013_dashing_venus.sql
+ * Uses IF NOT EXISTS guards for idempotency.
+ */
+const MIGRATION_0025_MEMBER_SESSIONS = `
+CREATE TABLE IF NOT EXISTS member_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  impersonated_member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  admin_user_id text NOT NULL,
+  impersonated_user_id text NOT NULL,
+  session_token text NOT NULL UNIQUE,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS member_sessions_admin_idx ON member_sessions(admin_member_id);
+CREATE INDEX IF NOT EXISTS member_sessions_active_idx ON member_sessions(ended_at) WHERE ended_at IS NULL;
+`;
+
+const MIGRATION_0026_PIPELINE_AUDIT = `
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'appointments_trainer_no_overlap'
+  ) THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_trainer_no_overlap
+      EXCLUDE USING GIST (
+        trainer_id WITH =,
+        tsrange(start_time, end_time, '[)') WITH &&
+      )
+      WHERE (status NOT IN ('cancelled', 'no-show') AND trainer_id IS NOT NULL);
+  END IF;
+END $$;
+--> statement-breakpoint
+CREATE SEQUENCE IF NOT EXISTS tenant_sales_order_seq START 1 INCREMENT 1;
+--> statement-breakpoint
+CREATE SEQUENCE IF NOT EXISTS tenant_payment_seq START 1 INCREMENT 1;
+--> statement-breakpoint
+CREATE SEQUENCE IF NOT EXISTS tenant_invoice_seq START 1 INCREMENT 1;
+`;
+
+const MIGRATION_0027_WALKIN_COMMISSION = `
+-- Walk-in customer support for package_instances
+ALTER TABLE package_instances ADD COLUMN IF NOT EXISTS walk_in_customer_id UUID REFERENCES walk_in_customers(id);
+--> statement-breakpoint
+ALTER TABLE package_instances ALTER COLUMN client_id DROP NOT NULL;
+--> statement-breakpoint
+ALTER TABLE package_instances ADD CONSTRAINT pkg_owner_xor CHECK (
+  (client_id IS NULL) <> (walk_in_customer_id IS NULL)
+) NOT VALID;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS pkg_instances_walk_in_idx ON package_instances(walk_in_customer_id);
+--> statement-breakpoint
+-- Walk-in customer linkage on appointment_clients
+ALTER TABLE appointment_clients ADD COLUMN IF NOT EXISTS client_type TEXT NOT NULL DEFAULT 'member';
+--> statement-breakpoint
+ALTER TABLE appointment_clients ADD COLUMN IF NOT EXISTS walk_in_customer_id UUID REFERENCES walk_in_customers(id);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS appt_clients_walk_in_idx ON appointment_clients(walk_in_customer_id);
+--> statement-breakpoint
+-- Commission percentage on services (basis points, e.g. 1000 = 10%)
+ALTER TABLE services ADD COLUMN IF NOT EXISTS commission_percentage INTEGER NOT NULL DEFAULT 0;
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -2096,6 +2165,18 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0024_commission_splits_status",
     sql: MIGRATION_0024_COMMISSION_SPLITS_STATUS,
+  },
+  {
+    hash: "0025_member_sessions",
+    sql: MIGRATION_0025_MEMBER_SESSIONS,
+  },
+  {
+    hash: "0026_pipeline_audit",
+    sql: MIGRATION_0026_PIPELINE_AUDIT,
+  },
+  {
+    hash: "0027_walkin_commission",
+    sql: MIGRATION_0027_WALKIN_COMMISSION,
   },
 ] as const;
 

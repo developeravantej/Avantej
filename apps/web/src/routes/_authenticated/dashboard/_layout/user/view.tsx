@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/user/view/data-table";
-import { columns } from "@/components/tables/user/view/columns";
+import { createColumns } from "@/components/tables/user/view/columns";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/user/view",
@@ -12,8 +12,17 @@ export const Route = createFileRoute(
 });
 
 function UserViewPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasRole } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+
+	// Determine if the caller is a tenant admin — controls "Login as" button visibility
+	const callerIsAdmin = hasRole(["admin"]);
+
+	// Build columns once per render — callerIsAdmin and organizationId drive the factory
+	const columns = createColumns({
+		callerIsAdmin,
+		organizationId: organizationId ?? "",
+	});
 
 	const { data: members = [], isLoading } = useQuery({
 		queryKey: ["members", organizationId],

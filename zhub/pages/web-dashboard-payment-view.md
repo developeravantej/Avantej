@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated (rbac `payments:read` enforced server-side)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20
 
 ---
 
@@ -57,7 +57,7 @@ RouteComponent
 
 **Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — "Payment" link under the Sales nav group
 
-**Navigation: where it goes:** No outbound navigation (action buttons in columns are stub `console.log` calls).
+**Navigation: where it goes:** `/dashboard/sales/$id` — via "View" action button in columns (now wired via `useNavigate`; uses `row.original.sales_order` as the ID param). "Edit" button removed.
 
 ---
 
@@ -89,7 +89,7 @@ interface PaymentRow {
 **Test files:** `apps/server/src/tests/unit/services/invoice.test.ts` — covers `listInvoices` service logic; no frontend test for this route.
 
 **Not tested (risk areas):**
-- Action buttons (View/Edit) in columns are `console.log` stubs — not functional.
+- "View" action in columns navigates to `/dashboard/sales/$id` using `row.original.sales_order` as the ID param. "Edit" button was removed.
 - `invoices.list` is called without any filters so every invoice is fetched; no pagination.
 - E-invoice status badge covers known statuses; unknown values fall back to `"outline"` variant.
 

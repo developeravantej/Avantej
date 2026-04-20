@@ -217,7 +217,7 @@ function RoleManagementPage() {
   const loading = rolesLoading;
   const error: string | null = null;
 
-  const { addPermission, removePermission } = useRoles(organizationId ?? "");
+  const { createRole, addPermission, removePermission } = useRoles(organizationId ?? "");
 
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -284,10 +284,40 @@ function RoleManagementPage() {
     // No-op: duplication is not a supported API operation
   };
 
-  const handleSaveRole = (_roleData: any, _permissions: Role["permissions"]) => {
+  const handleSaveRole = async (
+    roleData: { name: string; description?: string; priority: number },
+    rolePerms: Role["permissions"],
+  ) => {
+    if (!organizationId) {
+      toast.error("No organization selected.");
+      return;
+    }
+    try {
+      const newRole = await createRole.mutateAsync({
+        name: roleData.name,
+        description: roleData.description,
+        priority: roleData.priority,
+      });
+
+      for (const perm of rolePerms) {
+        const matched = permissionsData.find(
+          (p) => p.resource === perm.resourceId && p.action === perm.actionId,
+        );
+        if (!matched) continue;
+        await addPermission.mutateAsync({
+          roleId: newRole.id,
+          permissionId: matched.id,
+        });
+      }
+
+      toast.success("Role created.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save role";
+      toast.error(msg);
+      return;
+    }
     setEditingRole(null);
     setIsCreating(false);
-    toast.success("Role saved.");
   };
 
   const handlePermissionChange = async (
@@ -435,6 +465,20 @@ function RoleManagementPage() {
                 <RoleEditor
                   role={editingRole || undefined}
                   resources={resources}
+                  initialPermissions={
+                    isCreating
+                      ? Object.entries(wizardPermissions)
+                          .filter(([, enabled]) => enabled)
+                          .map(([key]) => {
+                            const [resourceId, actionId] = key.split(":");
+                            return {
+                              resourceId,
+                              actionId,
+                              scope: "own" as const,
+                            };
+                          })
+                      : undefined
+                  }
                   onSave={handleSaveRole}
                   onCancel={() => {
                     setIsCreating(false);

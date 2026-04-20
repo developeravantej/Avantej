@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/roles.tsx:1`
 **Platform:** web
 **Auth required:** rbac(role_management:read)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20
 
 ---
 
@@ -41,12 +41,15 @@ RoleManagementPage
   → useMemo: group permissions → PermissionResource[]
   → useMemo: map roles → Role[]
   → useMemo: count members per role → userCounts{}
-  → useRoles(organizationId) → { addPermission, removePermission }
+  → useRoles(organizationId) → { createRole, addPermission, removePermission }
   
   Cards: RoleCard[] with onEdit → RoleEditor Sheet
   Matrix: EnhancedPermissionMatrix → handlePermissionChange
     → addPermission.mutateAsync / removePermission.mutateAsync
   Wizard: 3-step UI → opens RoleEditor Sheet on save
+    → handleSaveRole(roleData, permissions):
+        → createRole.mutateAsync({ name, description, priority })
+        → for each permission: addPermission.mutateAsync({ roleId, permissionId })
 ```
 
 **Inputs:** Search query (client filter), view mode tab selection.
@@ -71,7 +74,8 @@ RoleManagementPage
 - `members.list` — fetch members to compute per-role user counts
 - `rolePermissions.add` — assign a permission to a role (via `useRoles`)
 - `rolePermissions.remove` — remove a permission from a role (via `useRoles`)
-- `roles.create`, `roles.update`, `roles.delete` — available via `useRoles` but delegated to `RoleEditor`
+- `roles.create` — called by `handleSaveRole` via `createRole.mutateAsync` when wizard/editor saves
+- `roles.update`, `roles.delete` — available via `useRoles` but not wired to UI actions
 
 **Uses these components:**
 - `RoleCard` — `apps/web/src/components/access-control/permission-cards/RoleCard.tsx` — card per role
@@ -126,6 +130,6 @@ type PermissionResource = { id: string; name: string; icon; actions: { id; name;
 
 - `handleDeleteRole` and `handleDuplicateRole` are intentionally stubbed (no-op) — deletion must go through `useRoles.deleteRole` which is wired but not exposed in the UI.
 - Member-to-role count matching is done by comparing role name strings case-insensitively, because `members.list` returns a `role` string field, not a role ID.
-- The wizard step 3 "Save Role" button resets wizard state and opens `RoleEditor` — the wizard-selected permissions are **not** automatically applied; it only pre-selects the template.
+- The wizard step 3 "Save Role" button calls `handleSaveRole`, which now actually creates the role via `createRole.mutateAsync` and loops through each permission to call `addPermission.mutateAsync`. Previously this was a no-op toast stub.
 - `ROLE_TEMPLATES` are UI-only presets; selecting one does not pre-populate permissions in the RoleEditor.
 - `requirePermission` in `beforeLoad` is currently a stub.

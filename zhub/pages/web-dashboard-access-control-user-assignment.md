@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/user-assignment.tsx:1`
 **Platform:** web
 **Auth required:** rbac(user_management:read, role_management:read) — `requirePermission` in `beforeLoad` is a stub; actual enforcement is server-side.
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20
 
 ---
 
@@ -131,5 +131,5 @@ UserAssignmentPage
 - `requirePermission` in `beforeLoad` is a client-side stub and does not block navigation. Real RBAC is enforced in each server procedure.
 - `members.deactivate` (tenant-only) and `members.reactivate` (dual-write) are asymmetric — a bug risk if the two get out of sync.
 - The `users` local state array is populated in a `useEffect`, so stats cards show `0` on the initial render tick before the effect runs.
-- `UserCard` shows "No roles assigned" for every member because `initialUsers` maps all members to `roles: []`. The `roles` array on `UserForAssignment` is never populated from the API (the members endpoint does not return role IDs). This is a known data mismatch.
-- Bulk actions ("Bulk Assign Role", "Deactivate Selected") are UI-only — clicking them does nothing.
+- `roles` array on `UserForAssignment` is now populated: filtered from `rolesApiData` by case-insensitive name match against `member.role`. Still relies on name-string matching rather than role IDs, so it breaks if role names diverge.
+- Bulk action menu items ("Bulk Assign Role", "Bulk Remove Role", "Deactivate Selected") are now `disabled` with `title="Bulk actions coming soon"` — they visibly indicate incomplete state rather than silently doing nothing.

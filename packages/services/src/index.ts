@@ -278,3 +278,5 @@ export {
 export * from "./waitlist.service";
 // Walk-in customer services
 export * from "./walk-in-customers.service";
+// Tenant admin services
+export * from "./tenant-admin.service";

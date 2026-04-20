@@ -11,13 +11,15 @@ import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle
 import { sql } from "drizzle-orm";
 import { payments } from "./payments";
 import { services } from "./services";
+import { walkInCustomers } from "./walk-in-customers";
 
 export const packageInstances = pgTable("package_instances", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	serviceId: uuid("service_id")
 		.notNull()
 		.references(() => services.id, { onDelete: "restrict" }),
-	clientId: text("client_id").notNull(),
+	clientId: text("client_id"),
+	walkInCustomerId: uuid("walk_in_customer_id").references(() => walkInCustomers.id, { onDelete: "restrict" }),
 
 	// Source tracking
 	source: text("source").notNull(), // "assigned" | "purchased"
@@ -81,4 +83,5 @@ export const packageInstances = pgTable("package_instances", {
 	serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
 	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
 	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
+	walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(table.walkInCustomerId),
 }));

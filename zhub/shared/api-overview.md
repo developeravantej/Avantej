@@ -1,6 +1,6 @@
 # API Routers Overview
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-04-19
 
 All procedures use **oRPC**. POST to `/rpc/{router}/{procedure}` with body `{"json": {input}}`.
 
@@ -128,7 +128,7 @@ The router is defined in two layers:
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `appointments.list` | protected | List appointments with filters (date range, status, member, etc.). |
+| `appointments.list` | protected | List appointments with filters (date range, status, member, etc.). Response enriched with `serviceName`, `trainerName`, `clientName` via 3 parallel batch joins (tenant `services`, `member_profiles`, control-panel `user`). Falls back to truncated UUID if record not found. |
 | `appointments.listForUser` | protected | List appointments for the currently authenticated user/customer. |
 | `appointments.getById` | protected | Get appointment by ID. |
 | `appointments.create` | protected | Create an appointment. |
@@ -399,6 +399,77 @@ All procedures use `service_management` as the permission resource (list/getById
 | `commissionSplits.list` | protected | List commission split records with filters. |
 | `commissionSplits.getByAppointment` | protected | Get commission splits for a specific appointment. |
 | `commissionSplits.getMyCommissions` | protected | Get commission records for the current authenticated member. |
+| `commissionSplits.listLedger` | protected (`commission_management:read`) | Enriched ledger with totals (pending/approved/paid). New in P6. |
+| `commissionSplits.approve` | protected (`commission_management:approve`) | Bulk approve pending splits. |
+| `commissionSplits.markPaid` | protected (`commission_management:process`) | Bulk mark approved splits as paid with payout method/reference/payoutId. |
+| `commissionSplits.void` | protected (`commission_management:approve`) | Void a single split from any status with a required reason. |
+
+---
+
+## Customer Directory (`packages/api/src/routers/customer-directory.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `customerDirectory.list` | protected (`customer_management:read`) | Paginated registered-customer list with LTV, outstanding, active package count, last visit; server-side search + branch filter. |
+| `customerDirectory.getById` | protected (`customer_management:read` + hierarchy scope check) | Full detail for drawer: member + user + profile + packages + recent payments + stats. |
+
+---
+
+## Audit Logs (`packages/api/src/routers/audit-logs.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `auditLogs.list` | protected (`audit_log:read`) | Filtered + paginated audit trail; cross-DB actor name enrichment. Filters: actor, action, entityType, date range. |
+
+---
+
+## POS (`packages/api/src/routers/pos.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `pos.recordSale` | protected (`pos:create` + branch scope) | Atomic tenantDb transaction: sales_orders + items + payments (`currency='myr'`) + payment_items + invoice + optional package_instance + installments + audit row. |
+| `pos.searchCustomers` | protected (`pos:create`) | Cross-DB member search + walk_in_customers ILIKE; up to 10 results; RBAC-filtered. |
+| `pos.getReceiptData` | protected (`pos:create`) | Joined sale + items + payment + invoice + optional package + installments + customer name; for Print Receipt. |
+
+---
+
+## Refunds (`packages/api/src/routers/refunds.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `refunds.list` | protected (`refund_management:read`) | Paginated + cross-DB enriched ledger; filter by status, target, customer, branch, date. |
+| `refunds.getById` | protected (`refund_management:read`) | Single refund with full metadata. |
+| `refunds.request` | protected (`refund_management:create`) | Create pending refund; at least one of salesOrderId/paymentId/packageInstanceId; caps amount at remaining refundable; audit `sale.refund.request`. |
+| `refunds.approve` | protected (`refund_management:approve`) | Move status pending → approved; audit `sale.refund.approve`. |
+| `refunds.reject` | protected (`refund_management:approve`) | Move status pending → rejected (notes required); audit `sale.refund.reject`. |
+| `refunds.process` | protected (`refund_management:process`) | Atomic: update refund + sales_orders.cancelledAmount + payments.refundAmount + package_instances.paymentStatus; SELECT FOR UPDATE locks; audit `sale.refund.process`. |
+
+---
+
+## Check-ins (`packages/api/src/routers/check-ins.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `checkIns.recordCheckIn` | protected (`attendance_management:create` + branch scope) | Insert check-in; 30-min anti-duplicate for drop-ins without appointmentClientId; reverts to `ALREADY_CHECKED_IN` error with `minutesAgo`; audit `checkin.create`. |
+| `checkIns.listTodaysBookings` | protected (`attendance_management:read` + branch scope) | Today's appointments for a branch with check-in status annotations. |
+| `checkIns.list` | protected (`attendance_management:read`) | Filtered check-in log with cross-DB name enrichment; date filter accepts both naive `YYYY-MM-DDTHH:mm:ss` and strict ISO. |
+| `checkIns.deleteCheckIn` | protected (`attendance_management:delete`) | Revert attendance: delete row + uncheck appointment_clients.attended + restore package credit; audit `checkin.delete`. |
+
+---
+
+## Customer Profiles (`packages/api/src/routers/customer-profiles.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `customerProfiles.upsertForCustomer` | protected (`customer_management:update` + scope check) | Admin-scoped profile upsert from CustomerDetailSheet drawer. New in P1. |
+
+---
+
+## Package Instances — new procedure
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `packageInstances.listMemberships` | protected (`customer_management:read`) | Filter switch (active / expiring_7d / expiring_30d / expired / frozen / all). New in P2. |
 
 ---
 

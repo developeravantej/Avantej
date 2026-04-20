@@ -15,6 +15,7 @@
 import { pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
 import { packageInstances } from "./package-instances";
+import { walkInCustomers } from "./walk-in-customers";
 
 export const appointmentClients = pgTable("appointment_clients", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -28,6 +29,8 @@ export const appointmentClients = pgTable("appointment_clients", {
 	pricePaid: integer("price_paid").notNull(), // Price this client paid (in cents)
 	attended: boolean("attended"), // null = not yet occurred, true/false after completion
 	notes: text("notes"),
+	clientType: text("client_type").notNull().default("member"),
+	walkInCustomerId: uuid("walk_in_customer_id").references(() => walkInCustomers.id, { onDelete: "restrict" }),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
 	appointmentClientUniqueIdx: uniqueIndex("appointment_clients_unique_idx").on(
@@ -37,4 +40,5 @@ export const appointmentClients = pgTable("appointment_clients", {
 	appointmentIdIdx: index("appointment_clients_appointment_idx").on(table.appointmentId),
 	clientIdIdx: index("appointment_clients_client_idx").on(table.clientId),
 	packageInstanceIdIdx: index("appointment_clients_package_instance_idx").on(table.packageInstanceId),
+	walkInCustomerIdIdx: index("appt_clients_walk_in_idx").on(table.walkInCustomerId),
 }));

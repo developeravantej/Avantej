@@ -13,6 +13,7 @@
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
 import { refunds } from "@avantej-core/db/schema/tenant/refunds";
@@ -24,6 +25,7 @@ import {
 	eq,
 	gte,
 	inArray,
+	isNotNull,
 	isNull,
 	lte,
 	or,
@@ -182,14 +184,15 @@ async function computeRemainingBySalesOrder(
 			message: `Sales order ${salesOrderId} not found`,
 		};
 
-	// Sum approved+processed refunds already recorded against this order
+	// Sum pending/processing/approved/processed refunds already recorded against this order
+	// V4: include pending+processing so in-flight refunds count toward the cap
 	const existingResult = await (tx as TenantDb)
 		.select({ total: sum(refunds.amountCents) })
 		.from(refunds)
 		.where(
 			and(
 				eq(refunds.salesOrderId, salesOrderId),
-				inArray(refunds.status, ["approved", "processed"]),
+				inArray(refunds.status, ["pending", "approved", "processed"]),
 			),
 		);
 	const existingRefundsCents = Number(existingResult[0]?.total ?? 0);
@@ -225,7 +228,7 @@ async function computeRemainingByPayment(
 		.where(
 			and(
 				eq(refunds.paymentId, paymentId),
-				inArray(refunds.status, ["approved", "processed"]),
+				inArray(refunds.status, ["pending", "approved", "processed"]),
 			),
 		);
 	const existingRefundsCents = Number(existingResult[0]?.total ?? 0);
@@ -266,14 +269,15 @@ async function computeRemainingByPackageInstance(
 		);
 	const legacyManualRefundCents = Number(legacyResult[0]?.total ?? 0);
 
-	// Existing approved/processed refunds in the new refunds table
+	// Existing pending/processing/approved/processed refunds in the new refunds table
+	// V4: include pending+processing so in-flight refunds count toward the cap
 	const existingResult = await (tx as TenantDb)
 		.select({ total: sum(refunds.amountCents) })
 		.from(refunds)
 		.where(
 			and(
 				eq(refunds.packageInstanceId, packageInstanceId),
-				inArray(refunds.status, ["approved", "processed"]),
+				inArray(refunds.status, ["pending", "approved", "processed"]),
 			),
 		);
 	const existingRefundsCents = Number(existingResult[0]?.total ?? 0);
@@ -361,8 +365,8 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Package instance ${input.packageInstanceId} not found`,
 				};
-			customerId = customerId ?? instance.clientId;
-			customerName = customerName ?? instance.clientId; // no name on package_instances; use ID as fallback
+			customerId = customerId ?? instance.clientId ?? undefined;
+			customerName = customerName ?? instance.clientId ?? undefined; // no name on package_instances; use ID as fallback
 		}
 
 		if (!customerId || !customerName) {
@@ -671,6 +675,10 @@ export async function processRefund(
 				.for("update");
 
 			if (order) {
+				if (order.status === "cancelled") {
+					throw { code: "BAD_REQUEST", message: "Sale is already fully refunded" };
+				}
+
 				const newCancelledAmount =
 					(order.cancelledAmount ?? 0) + existing.amountCents;
 				cumulativeRefundCents = newCancelledAmount;
@@ -696,6 +704,45 @@ export async function processRefund(
 						updatedAt: now,
 					})
 					.where(eq(salesOrders.id, existing.salesOrderId));
+
+				// Full refund → cancel associated package instances
+				// Find package instances via: salesOrder → invoices → payments → packageInstances
+				if (newStatus === "cancelled") {
+					const invoiceRows = await tx
+						.select({ paymentId: invoices.paymentId })
+						.from(invoices)
+						.where(
+							and(
+								eq(invoices.salesOrderId, existing.salesOrderId),
+								isNotNull(invoices.paymentId),
+							),
+						);
+
+					const paymentIds = invoiceRows
+						.map((r) => r.paymentId)
+						.filter((id): id is string => id !== null);
+
+					if (paymentIds.length > 0) {
+						const pkgRows = await tx
+							.select({ id: packageInstances.id })
+							.from(packageInstances)
+							.where(
+								and(
+									inArray(packageInstances.paymentId, paymentIds),
+									isNotNull(packageInstances.paymentId),
+								),
+							);
+
+						const pkgIds = pkgRows.map((r) => r.id);
+
+						if (pkgIds.length > 0) {
+							await tx
+								.update(packageInstances)
+								.set({ status: "cancelled", updatedAt: now })
+								.where(inArray(packageInstances.id, pkgIds));
+						}
+					}
+				}
 			}
 		}
 
@@ -849,6 +896,7 @@ export async function listRefunds(
 
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
+	// D.3.3 — Use SELECT COUNT(*) instead of fetching full rows to count
 	const [rows, countResult] = await Promise.all([
 		tenantDb.query.refunds.findMany({
 			where,
@@ -856,10 +904,10 @@ export async function listRefunds(
 			limit: Math.min(limit, 200),
 			offset,
 		}),
-		tenantDb.query.refunds.findMany({ where, columns: { id: true } }),
+		tenantDb.select({ total: count() }).from(refunds).where(where),
 	]);
 
-	const total = countResult.length;
+	const total = countResult[0]?.total ?? 0;
 
 	// Collect all user IDs to look up names
 	const userIds = new Set<string>();

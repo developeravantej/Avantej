@@ -33,6 +33,7 @@ function RouteComponent() {
 	});
 
 	const data: SalesRow[] = apiData.map((item) => ({
+		id: item.id,
 		date: item.date ? item.date.toISOString() : null,
 		sales_order: item.salesOrderNumber,
 		total_sales: item.totalAmount,

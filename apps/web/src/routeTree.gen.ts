@@ -52,6 +52,8 @@ import { Route as AuthenticatedDashboardLayoutRefundsViewRouteImport } from './r
 import { Route as AuthenticatedDashboardLayoutPurchaseOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/purchase-orders/view'
 import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/promotions/view'
 import { Route as AuthenticatedDashboardLayoutProductsViewRouteImport } from './routes/_authenticated/dashboard/_layout/products/view'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/users'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
 import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
 import { Route as AuthenticatedDashboardLayoutNotificationsViewRouteImport } from './routes/_authenticated/dashboard/_layout/notifications/view'
@@ -321,6 +323,18 @@ const AuthenticatedDashboardLayoutProductsViewRoute =
     path: '/products/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminUsersRoute =
+  AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport.update({
+    id: '/platform-admin/users',
+    path: '/platform-admin/users',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminAdminsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport.update({
+    id: '/platform-admin/admins',
+    path: '/platform-admin/admins',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPayoutsViewRoute =
   AuthenticatedDashboardLayoutPayoutsViewRouteImport.update({
     id: '/payouts/view',
@@ -522,6 +536,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
+  '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -591,6 +607,8 @@ export interface FileRoutesByTo {
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
+  '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -663,6 +681,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
+  '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
   '/_authenticated/dashboard/_layout/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/_authenticated/dashboard/_layout/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/_authenticated/dashboard/_layout/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -735,6 +755,8 @@ export interface FileRouteTypes {
     | '/dashboard/notifications/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
+    | '/dashboard/platform-admin/admins'
+    | '/dashboard/platform-admin/users'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -804,6 +826,8 @@ export interface FileRouteTypes {
     | '/dashboard/notifications/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
+    | '/dashboard/platform-admin/admins'
+    | '/dashboard/platform-admin/users'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -875,6 +899,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/notifications/view'
     | '/_authenticated/dashboard/_layout/payment/view'
     | '/_authenticated/dashboard/_layout/payouts/view'
+    | '/_authenticated/dashboard/_layout/platform-admin/admins'
+    | '/_authenticated/dashboard/_layout/platform-admin/users'
     | '/_authenticated/dashboard/_layout/products/view'
     | '/_authenticated/dashboard/_layout/promotions/view'
     | '/_authenticated/dashboard/_layout/purchase-orders/view'
@@ -1220,6 +1246,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutProductsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/users': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/users'
+      path: '/platform-admin/users'
+      fullPath: '/dashboard/platform-admin/users'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/admins': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/admins'
+      path: '/platform-admin/admins'
+      fullPath: '/dashboard/platform-admin/admins'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/payouts/view': {
       id: '/_authenticated/dashboard/_layout/payouts/view'
       path: '/payouts/view'
@@ -1430,6 +1470,8 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutNotificationsViewRoute: typeof AuthenticatedDashboardLayoutNotificationsViewRoute
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
   AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
+  AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  AuthenticatedDashboardLayoutPlatformAdminUsersRoute: typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
   AuthenticatedDashboardLayoutProductsViewRoute: typeof AuthenticatedDashboardLayoutProductsViewRoute
   AuthenticatedDashboardLayoutPromotionsViewRoute: typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   AuthenticatedDashboardLayoutPurchaseOrdersViewRoute: typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -1507,6 +1549,10 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPaymentViewRoute,
     AuthenticatedDashboardLayoutPayoutsViewRoute:
       AuthenticatedDashboardLayoutPayoutsViewRoute,
+    AuthenticatedDashboardLayoutPlatformAdminAdminsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminAdminsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminUsersRoute:
+      AuthenticatedDashboardLayoutPlatformAdminUsersRoute,
     AuthenticatedDashboardLayoutProductsViewRoute:
       AuthenticatedDashboardLayoutProductsViewRoute,
     AuthenticatedDashboardLayoutPromotionsViewRoute:

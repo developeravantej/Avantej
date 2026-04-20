@@ -22,6 +22,9 @@
  * "checkin.delete"           — Attendance check-in deleted
  * "package.unlock"           — Package instance manually unlocked (admin override)
  * "package.refund"           — Package instance refunded / cancelled
+ * "appointment.created"      — Appointment record inserted
+ * "appointment.status_changed" — Appointment status transition (e.g. pending → confirmed → completed → cancelled)
+ * "installment.paid"         — Installment payment confirmed by admin
  * "promotion.create"         — Promotion created
  * "promotion.deactivate"     — Promotion deactivated
  * "tax.set_default"          — Default tax rate changed

@@ -37,6 +37,7 @@ export const session = pgTable("session", {
 	updatedAt: timestamp("updated_at").notNull(),
 	ipAddress: text("ip_address"),
 	userAgent: text("user_agent"),
+	impersonatedBy: text("impersonated_by"), // nullable — set by Better-Auth admin plugin during impersonation
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),

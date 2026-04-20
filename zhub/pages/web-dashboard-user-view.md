@@ -3,8 +3,8 @@
 **Route:** `/_authenticated/dashboard/_layout/user/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/user/view.tsx:1`
 **Platform:** web
-**Auth required:** authenticated (no `beforeLoad` guard; server requires `user_management:read`)
-**Last updated:** 2026-04-16
+**Auth required:** authenticated (no `beforeLoad` guard; server requires `user_management:read`; admin callers get extra actions column)
+**Last updated:** 2026-04-20
 
 ---
 
@@ -22,7 +22,11 @@
 **Execution flow:**
 ```
 UserViewPage
-  → useUserContext() → currentOrganizationId
+  → useUserContext() → currentOrganizationId, hasRole
+  → callerIsAdmin = hasRole(["admin"])
+  → columns = createColumns({ callerIsAdmin, organizationId })
+      → baseColumns always present
+      → if callerIsAdmin: append actions column with <MemberActionsCell>
   → useQuery(["members", organizationId])
       → client.members.list({ organizationId })
           → memberRouter.list
@@ -47,7 +51,8 @@ UserViewPage
 
 **Uses these components:**
 - `DataTable` — `apps/web/src/components/tables/user/view/data-table.tsx`
-- `columns` — `apps/web/src/components/tables/user/view/columns.tsx`
+- `createColumns` factory — `apps/web/src/components/tables/user/view/columns.tsx` — produces column defs; appends `MemberActionsCell` actions column when `callerIsAdmin=true`
+- `MemberActionsCell` — `apps/web/src/components/tables/user/view/actions-cell.tsx` — "Login as" (impersonation) action; only renders for admin callers targeting staff-role rows
 
 **Uses these hooks:**
 - `useUserContext` — `currentOrganizationId`

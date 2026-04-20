@@ -10,6 +10,7 @@ import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
 import { adminRouter } from "@/routers/admin";
+import { tenantAdminRouter } from "@/routers/tenant-admin";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -35,6 +36,7 @@ const appRouter = {
 		...serverInvitationRouter,
 	},
 	admin: adminRouter,
+	tenantAdmin: tenantAdminRouter,
 };
 
 const app = new Hono();
@@ -153,6 +155,24 @@ app.use("/rpc/*", async (c, next) => {
   });
 
   if (rpcResult.matched) {
+    // Re-attach any Set-Cookie headers stored by impersonation procedures.
+    // oRPC builds its own Response object and doesn't inherit Hono context headers,
+    // so impersonation handlers stash cookies via c.set("__impersonationSetCookie__", string[])
+    // and we merge them here before returning to the browser.
+    const impersonationCookies = c.get("__impersonationSetCookie__");
+    if (impersonationCookies && impersonationCookies.length > 0) {
+      const merged = new Headers(rpcResult.response.headers);
+      for (const cookie of impersonationCookies) {
+        merged.append("Set-Cookie", cookie);
+      }
+      // Build a new Response (not c.newResponse) to preserve status + merged headers
+      const mergedResponse = new Response(rpcResult.response.body, {
+        status: rpcResult.response.status,
+        statusText: rpcResult.response.statusText,
+        headers: merged,
+      });
+      return mergedResponse;
+    }
     return c.newResponse(rpcResult.response.body, rpcResult.response);
   }
 

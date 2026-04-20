@@ -152,7 +152,8 @@ export const packageInstancesRouter = {
       z.object({
         organizationId: z.string().uuid(),
         serviceId: z.string().uuid(),
-        clientId: z.string(),
+        clientId: z.string().optional(),
+        walkInCustomerId: z.string().uuid().optional(),
         source: sourceSchema,
         assignedBy: z.string().nullable().optional(),
         purchaseNumber: z.string().nullable().optional(),
@@ -231,9 +232,15 @@ export const packageInstancesRouter = {
             ? Math.round((basePrice * (10000 + planRow.pricePremiumBps)) / 10000)
             : basePrice;
 
+        // Build XOR owner — exactly one of clientId / walkInCustomerId must be provided
+        const ownerField: { clientId: string } | { walkInCustomerId: string } =
+          input.walkInCustomerId
+            ? { walkInCustomerId: input.walkInCustomerId }
+            : { clientId: input.clientId! };
+
         const created = await createPackageInstance(context.tenantDb, {
           serviceId: input.serviceId,
-          clientId: input.clientId,
+          ...ownerField,
           source: input.source,
           assignedBy: input.assignedBy ?? null,
           purchaseNumber: input.purchaseNumber ?? null,

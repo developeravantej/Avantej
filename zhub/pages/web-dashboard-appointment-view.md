@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/appointment/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-17
+**Last updated:** 2026-04-20
 
 ---
 
@@ -88,11 +88,16 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
 | `appointments` | SELECT / INSERT / UPDATE | `id`, `type`, `startTime`, `endTime`, `duration`, `serviceId`, `branchId`, `status`, `sessionTotal`, `pricePerClient`, `userId`, `trainerId`, `packageInstanceId`, `creditsUsed`, `location`, `bookingNumber`, `classSlotId`, `cancelledAt`, `cancellationReason`, `description`, `imageUrl`, `roomId`, `googleCalendarEventId`, `isRecurring`, `recurringParentId`, `paymentStatus`, `notes`, `createdBy` |
+| `services` (tenant) | SELECT (batch join) | `id`, `name` — resolved for `serviceName` on each appointment |
+| `member_profiles` (tenant) | SELECT (batch join) | `memberId`, `displayName` — resolved for `trainerName` on each appointment |
+| `user` (control panel) | SELECT (batch join) | `id`, `name` — resolved for `clientName` on each appointment |
 | `members` | SELECT (TrainerSidebar) | `userId`, `role`, `status`, `displayName`, `name`, `email` |
 
 **Key types / Zod schemas:**
 - `ApiAppointment` / `CalendarAppointment` — defined in `apps/web/src/lib/appointment-mapper.ts`
+- `ApiAppointment` includes optional enriched fields: `serviceName?`, `trainerName?`, `clientName?`
 - Status mapping: `pending→pending`, `confirmed/completed→confirmed`, `cancelled/no-show→cancelled`
+- Enrichment: `appointments.list` does 3 parallel batch queries (services, member_profiles, control-panel users) and merges names; falls back to truncated UUID if not found (e.g. deleted user)
 
 **Permission required:** `appointment_management:read` (enforced in `beforeLoad` via `requirePermission`)
 

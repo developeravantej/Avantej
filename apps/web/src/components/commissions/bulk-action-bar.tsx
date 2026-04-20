@@ -165,7 +165,7 @@ export function BulkActionBar({
 	// ── Approve mutation ───────────────────────────────────────────────────────
 	const approveMutation = useMutation({
 		mutationFn: () =>
-			(client as any).commissionSplits.approve({
+			client.commissionSplits.approve({
 				organizationId,
 				ids: selectedIds,
 			}),
@@ -184,7 +184,7 @@ export function BulkActionBar({
 		mutationFn: async (reason: string) => {
 			// Backend void operates on one id at a time per plan §6.4
 			for (const id of selectedIds) {
-				await (client as any).commissionSplits.void({
+				await client.commissionSplits.void({
 					organizationId,
 					id,
 					reason,

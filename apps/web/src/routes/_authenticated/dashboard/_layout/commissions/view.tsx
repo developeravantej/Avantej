@@ -327,7 +327,7 @@ function CommissionsLedgerPage() {
 		if (!voidRowId || !organizationId) return;
 		setVoidingId(voidRowId);
 		try {
-			await (client as any).commissionSplits.void({
+			await client.commissionSplits.void({
 				organizationId,
 				id: voidRowId,
 				reason,
@@ -358,7 +358,7 @@ function CommissionsLedgerPage() {
 		],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0, totals: { pending: 0, approved: 0, paid: 0 } };
-			return (client as any).commissionSplits.listLedger({
+			return client.commissionSplits.listLedger({
 				organizationId,
 				status: activeTab === "all" ? "all" : activeTab,
 				staffId: staffId || undefined,

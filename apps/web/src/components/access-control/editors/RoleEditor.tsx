@@ -28,6 +28,7 @@ type RoleFormData = z.infer<typeof roleFormSchema>;
 interface RoleEditorProps {
   role?: Role;
   resources: PermissionResource[];
+  initialPermissions?: Role['permissions'];
   onSave?: (roleData: RoleFormData, permissions: Role['permissions']) => void;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -73,13 +74,16 @@ const MOCK_RESOURCES: PermissionResource[] = [
 export function RoleEditor({
   role,
   resources = MOCK_RESOURCES,
+  initialPermissions,
   onSave,
   onCancel,
   isLoading = false,
   className,
 }: RoleEditorProps) {
   const isMobile = useIsMobile();
-  const [permissions, setPermissions] = useState<Role['permissions']>(role?.permissions || []);
+  const [permissions, setPermissions] = useState<Role['permissions']>(
+    role?.permissions ?? initialPermissions ?? [],
+  );
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['users']));
 
   const form = useForm<RoleFormData>({

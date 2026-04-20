@@ -18,7 +18,7 @@ export default defineConfig({
 		{
 			name: "chromium",
 			use: { ...devices["Desktop Chrome"] },
-			testMatch: /fixes-verification\.spec\.ts/,
+			testMatch: /\.(smoke|fixes-verification)\.spec\.ts/,
 		},
 	],
 });

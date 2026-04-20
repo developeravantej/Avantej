@@ -1,13 +1,13 @@
 # Project Hub Index — Avantej
 
-Last updated: 2026-04-18
+Last updated: 2026-04-20
 
 Covers all pages in `apps/web` (TanStack Router) and all screens in `apps/native` (Expo Router).
 Each page doc traces the full stack: route → components → hooks → API → service → DB.
 
 **Shared context:**
 - [Auth & Session Flow](shared/auth-flow.md) — Cookie config, RBAC model, context pipeline, gotchas
-- [API Routers Overview](shared/api-overview.md) — ~182 procedures across 46 routers with auth levels
+- [API Routers Overview](shared/api-overview.md) — ~210 procedures across 52 routers with auth levels
 
 ---
 
@@ -40,7 +40,7 @@ Each page doc traces the full stack: route → components → hooks → API → 
 
 ---
 
-## Web — Dashboard Pages (43)
+## Web — Dashboard Pages (51)
 
 ### Home & Navigation
 
@@ -84,20 +84,26 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | [Service Category](pages/web-dashboard-service-category-view.md) | `/dashboard/service-category/view` | Service category CRUD; DataTable self-fetches edit data |
 | [My Services](pages/web-dashboard-my-services-view.md) | `/dashboard/my-services/view` | Staff buffer-time overrides per **service** (not category — prior docs were wrong) |
 | [Package Instances](pages/web-dashboard-packages-instances-view.md) | `/dashboard/packages/instances/view` | Package instance management; create form exposes 9 of 15 API fields |
-| [Package Installments](pages/web-dashboard-packages-installments-view.md) | `/dashboard/packages/installments/view` | Installment management; search + date-range + plan-code filters; Plan Type label via `plansMap`; `installments.*` calls cast as `any`; suggestRefund opens on refund dialog |
+| [Package Installments](pages/web-dashboard-packages-installments-view.md) | `/dashboard/packages/installments/view` | Installment management; search + date-range + plan-code filters; Plan Type label via `plansMap`; `installments.*` calls cast as `any`; refund flow rewired through P5 `RequestRefundDialog` |
+| [Active Memberships](pages/web-dashboard-memberships-view.md) | `/dashboard/memberships/view` | Filter tabs (Active / Expiring 7d/30d / Frozen / Expired); row click opens P1 CustomerDetailSheet drawer |
 
 ### Customers
 
 | Page | Route | Purpose |
 |------|-------|---------|
+| [Customer Directory](pages/web-dashboard-customers-view.md) | `/dashboard/customers/view` | Registered customers with LTV, outstanding, active packages; drawer with profile edit + packages + payments + stats |
 | [Walk-in Customers](pages/web-dashboard-customers-walk-in-view.md) | `/dashboard/customers/walk-in/view` | Full CRUD for unregistered customers; branch is raw UUID input |
 
 ### Sales & Finance
 
 | Page | Route | Purpose |
 |------|-------|---------|
-| [Sales View](pages/web-dashboard-sales-view.md) | `/dashboard/sales/view` | Read-only sales list — **View/Edit buttons are console.log stubs** |
-| [Sales Detail](pages/web-dashboard-sales-detail.md) | `/dashboard/sales/$id` | Single order detail + invoices — only reachable by direct URL |
+| [Sales View](pages/web-dashboard-sales-view.md) | `/dashboard/sales/view` | Read-only sales list + "+ New Sale" button → POS; View/Edit buttons still console.log stubs |
+| [Sales Create (POS)](pages/web-dashboard-sales-create.md) | `/dashboard/sales/create` | Atomic POS flow: customer → items → promo → tax → payment → installment → invoice → audit, all in one tenantDb transaction |
+| [Sales Detail](pages/web-dashboard-sales-detail.md) | `/dashboard/sales/$id` | Single order detail + invoices + "Print Receipt" + "Request Refund" buttons |
+| [Refunds Ledger](pages/web-dashboard-refunds-view.md) | `/dashboard/refunds/view` | Unified refund workflow (request → approve → process); atomic tx writes to payments + sales_orders + package_instances |
+| [Commissions Ledger](pages/web-dashboard-commissions-view.md) | `/dashboard/commissions/view` | Status workflow (pending → approved → paid); bulk actions; KPI strip. **Empty until commissionPercentage config added** |
+| [My Commissions](pages/web-dashboard-commissions-my.md) | `/dashboard/commissions/my` | Per-staff own commissions; no permission gate |
 | [Cancelled Sales](pages/web-dashboard-cancelled-sales-view.md) | `/dashboard/cancelled-sales/view` | Read-only cancelled list; errors silently return `[]` |
 | [Payment](pages/web-dashboard-payment-view.md) | `/dashboard/payment/view` | Read-only invoice ledger; View/Edit are stubs |
 | [Payouts](pages/web-dashboard-payouts-view.md) | `/dashboard/payouts/view` | Cross-DB enrichment; hard 50-record limit, no pagination |
@@ -117,6 +123,13 @@ Each page doc traces the full stack: route → components → hooks → API → 
 | [Transfer Orders](pages/web-dashboard-transfer-orders-view.md) | `/dashboard/transfer-orders/view` | Pending → in_transit → completed lifecycle |
 | [Units of Measure](pages/web-dashboard-uom-view.md) | `/dashboard/uom/view` | Base UoM CRUD; hard delete; shared cache with conversions page |
 | [UoM Conversions](pages/web-dashboard-uom-conversions-view.md) | `/dashboard/uom-conversions/view` | Conversion factor CRUD; deleting base UoM with children fails at DB |
+
+### Operations
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| [Attendance / Check-ins](pages/web-dashboard-attendance-view.md) | `/dashboard/attendance/view` | Today's bookings + drop-in check-in + log; polymorphic clientType (member / walk_in); 30-min anti-duplicate window |
+| [Audit Log](pages/web-dashboard-audit-view.md) | `/dashboard/audit/view` | Cross-phase audit trail (sale/refund/checkin/commission/member actions); JSON delta expand |
 
 ### Comms & Notifications
 

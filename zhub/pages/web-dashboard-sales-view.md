@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated (rbac `sales:read` enforced server-side)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20
 
 ---
 
@@ -12,7 +12,7 @@
 
 **Purpose (user perspective):** View a list of all sales orders for the current organization.
 
-**Produces:** A sortable data table showing date, sales order number, total amount (MYR), customer name, and created-by for every sales order.
+**Produces:** A sortable data table showing date, sales order number, total amount (MYR), customer name, and created-by for every sales order, plus a "New Sale" button in the header.
 
 **On success:** Table renders with all visible sales orders, scoped to the user's accessible hierarchy nodes.
 
@@ -60,7 +60,8 @@ RouteComponent
 - `apps/web/src/components/app-sidebar.tsx` — "Reports" link (also points to this route)
 
 **Navigation: where it goes:**
-- `apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx` — via "View" action button in columns (currently `console.log` stub, not wired to router)
+- `/dashboard/sales/$id` — via "View" action button in columns (now wired via `useNavigate`; uses `row.original.id`)
+- `/dashboard/sales/create` — via "New Sale" button in page header (`<Link to="/dashboard/sales/create">`)
 
 ---
 
@@ -98,5 +99,5 @@ interface SalesRow {
 
 - The `list` procedure filters by `context.accessibleNodeIds` so staff members only see orders from their hierarchy scope.
 - `total_sales` is in cents from the API; the `formatPrice(amount, "MYR")` call in the column renderer handles display.
-- The "Actions" column in `columns.tsx` has View/Edit buttons that only `console.log` — they are not functional.
+- The "Actions" column in `columns.tsx` has a single "View" button that navigates to `/dashboard/sales/$id` using `row.original.id`. The "Edit" button was removed. `SalesRow` now includes `id: string` to support this navigation.
 - Amounts/dates are mapped from API response shapes before passing to `SalesRow` (`.toISOString()` for dates).

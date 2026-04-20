@@ -11,6 +11,7 @@ import { PromoStep } from "@/components/pos/promo-step";
 import type {
 	AppliedPromo,
 	CartItem,
+	CustomerType,
 	PaymentMethod,
 	SelectedCustomer,
 	TaxRateOption,
@@ -80,9 +81,38 @@ function PosCreatePage() {
 	// ── Accordion state ────────────────────────────────────────────────────────
 	const [accordionValue, setAccordionValue] = useState<string>("customer");
 
+	// ── Customer type toggle ───────────────────────────────────────────────────
+	const [customerTypeMode, setCustomerTypeMode] =
+		useState<CustomerType>("member");
+
 	// ── Customer ───────────────────────────────────────────────────────────────
 	const [selectedCustomer, setSelectedCustomer] =
 		useState<SelectedCustomer | null>(null);
+
+	// ── Walk-in customers list (loaded when walk-in mode is active) ────────────
+	const walkInCustomersQuery = useQuery({
+		queryKey: ["walkInCustomers-pos", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return (client as any).walkInCustomers.list({
+				organizationId,
+				isActive: true,
+				limit: 100,
+			}) as Promise<
+				Array<{
+					id: string;
+					name: string;
+					phone: string | null;
+					email?: string | null;
+					branchId?: string | null;
+				}>
+			>;
+		},
+		enabled: !!organizationId && customerTypeMode === "walk_in",
+	});
+
+	// ── Walk-in mode: selected walk-in customer id ─────────────────────────────
+	const [selectedWalkInId, setSelectedWalkInId] = useState<string | null>(null);
 
 	// ── Items ──────────────────────────────────────────────────────────────────
 	const [items, setItems] = useState<CartItem[]>([]);
@@ -97,7 +127,17 @@ function PosCreatePage() {
 	);
 	const defaultBranchId =
 		currentOrg?.hierarchy?.member?.hierarchyScopeId ?? null;
-	const resolvedBranchId = selectedCustomer?.branchId ?? defaultBranchId;
+
+	// For walk-in mode, resolve branchId from the selected walk-in record
+	const selectedWalkIn =
+		customerTypeMode === "walk_in" && selectedWalkInId
+			? (walkInCustomersQuery.data ?? []).find((c) => c.id === selectedWalkInId)
+			: null;
+
+	const resolvedBranchId =
+		customerTypeMode === "member"
+			? (selectedCustomer?.branchId ?? defaultBranchId)
+			: (selectedWalkIn?.branchId ?? defaultBranchId);
 
 	// ── Promo ──────────────────────────────────────────────────────────────────
 	const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
@@ -167,7 +207,10 @@ function PosCreatePage() {
 	);
 
 	// ── Submit readiness ───────────────────────────────────────────────────────
-	const hasCustomer = selectedCustomer !== null;
+	const hasCustomer =
+		customerTypeMode === "member"
+			? selectedCustomer !== null
+			: selectedWalkInId !== null;
 	const hasItems = items.length > 0;
 	const hasPaymentMethod = paymentMethod !== null;
 	const cashOk =
@@ -185,6 +228,18 @@ function PosCreatePage() {
 		}
 		prevSubtotalRef.current = subtotalCents;
 	}, [subtotalCents, appliedPromo]);
+
+	// ── Handlers: customer type mode ──────────────────────────────────────────
+
+	function handleCustomerTypeModeChange(mode: CustomerType) {
+		if (mode === customerTypeMode) return;
+		// Switching modes resets both customer selections and clears the cart
+		setCustomerTypeMode(mode);
+		setSelectedCustomer(null);
+		setSelectedWalkInId(null);
+		setItems([]);
+		setAppliedPromo(null);
+	}
 
 	// ── Handlers: customer ─────────────────────────────────────────────────────
 
@@ -261,14 +316,31 @@ function PosCreatePage() {
 
 	const submitMutation = useMutation({
 		mutationFn: async () => {
-			if (
-				!organizationId ||
-				!selectedCustomer ||
-				!paymentMethod ||
-				!selectedTaxRateId
-			) {
+			if (!organizationId || !paymentMethod || !selectedTaxRateId) {
 				throw new Error("Missing required sale information.");
 			}
+
+			// Resolve customer details based on mode
+			let customerType: "member" | "walk_in";
+			let customerId: string;
+			let customerName: string;
+
+			if (customerTypeMode === "member") {
+				if (!selectedCustomer) {
+					throw new Error("Please select a member.");
+				}
+				customerType = "member";
+				customerId = selectedCustomer.id;
+				customerName = selectedCustomer.name;
+			} else {
+				if (!selectedWalkInId || !selectedWalkIn) {
+					throw new Error("Please select a walk-in customer.");
+				}
+				customerType = "walk_in";
+				customerId = selectedWalkIn.id;
+				customerName = selectedWalkIn.name;
+			}
+
 			if (!resolvedBranchId) {
 				throw new Error(
 					"Branch could not be determined. Please select a customer.",
@@ -277,9 +349,9 @@ function PosCreatePage() {
 
 			return client.pos.recordSale({
 				organizationId,
-				customerType: selectedCustomer.type,
-				customerId: selectedCustomer.id,
-				customerName: selectedCustomer.name,
+				customerType,
+				customerId,
+				customerName,
 				branchId: resolvedBranchId,
 				items: items.map((item) => ({
 					type: item.type,
@@ -378,21 +450,98 @@ function PosCreatePage() {
 										1
 									</span>
 									Customer
-									{selectedCustomer && (
+									{customerTypeMode === "member" && selectedCustomer && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
 											— {selectedCustomer.name}
+										</span>
+									)}
+									{customerTypeMode === "walk_in" && selectedWalkIn && (
+										<span className="ml-1 font-normal text-muted-foreground text-sm">
+											— {selectedWalkIn.name}
 										</span>
 									)}
 								</span>
 							</AccordionTrigger>
 							<AccordionContent className="pt-3 pb-5">
-								<CustomerStep
-									organizationId={organizationId}
-									branchId={resolvedBranchId}
-									selected={selectedCustomer}
-									onSelect={handleCustomerSelect}
-									onClear={handleCustomerClear}
-								/>
+								<div className="space-y-4">
+									{/* Customer type toggle */}
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											size="sm"
+											variant={
+												customerTypeMode === "member" ? "default" : "outline"
+											}
+											onClick={() => handleCustomerTypeModeChange("member")}
+											className="min-w-24"
+										>
+											Member
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant={
+												customerTypeMode === "walk_in" ? "default" : "outline"
+											}
+											onClick={() => handleCustomerTypeModeChange("walk_in")}
+											className="min-w-24"
+										>
+											Walk-in
+										</Button>
+									</div>
+
+									{/* Member search */}
+									{customerTypeMode === "member" && (
+										<CustomerStep
+											organizationId={organizationId}
+											branchId={resolvedBranchId}
+											selected={selectedCustomer}
+											onSelect={handleCustomerSelect}
+											onClear={handleCustomerClear}
+										/>
+									)}
+
+									{/* Walk-in customer picker */}
+									{customerTypeMode === "walk_in" && (
+										<div className="space-y-1.5">
+											<Label htmlFor="walk-in-customer">Walk-in customer</Label>
+											<Select
+												value={selectedWalkInId ?? ""}
+												onValueChange={(v) => {
+													setSelectedWalkInId(v || null);
+													// Advance to items when a walk-in is selected
+													if (v) setAccordionValue("items");
+												}}
+											>
+												<SelectTrigger
+													id="walk-in-customer"
+													className="w-full max-w-sm"
+												>
+													<SelectValue placeholder="Select a walk-in customer..." />
+												</SelectTrigger>
+												<SelectContent>
+													{walkInCustomersQuery.isLoading && (
+														<SelectItem value="_loading" disabled>
+															Loading...
+														</SelectItem>
+													)}
+													{!walkInCustomersQuery.isLoading &&
+														(walkInCustomersQuery.data ?? []).length === 0 && (
+															<SelectItem value="_empty" disabled>
+																No walk-in customers — add one first.
+															</SelectItem>
+														)}
+													{(walkInCustomersQuery.data ?? []).map((c) => (
+														<SelectItem key={c.id} value={c.id}>
+															{c.name}
+															{c.phone ? ` · ${c.phone}` : ""}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									)}
+								</div>
 							</AccordionContent>
 						</AccordionItem>
 
@@ -412,14 +561,14 @@ function PosCreatePage() {
 								</span>
 							</AccordionTrigger>
 							<AccordionContent className="pt-3 pb-5">
-								{!selectedCustomer ? (
+								{!hasCustomer ? (
 									<p className="text-muted-foreground text-sm">
 										Select a customer first before adding items.
 									</p>
 								) : (
 									<ItemsStep
 										organizationId={organizationId}
-										isWalkIn={selectedCustomer.type === "walk_in"}
+										isWalkIn={customerTypeMode === "walk_in"}
 										items={items}
 										onAddItem={handleAddItem}
 										onUpdateItem={handleUpdateItem}
@@ -448,14 +597,18 @@ function PosCreatePage() {
 								</span>
 							</AccordionTrigger>
 							<AccordionContent className="pt-3 pb-5">
-								{!selectedCustomer ? (
+								{!hasCustomer ? (
 									<p className="text-muted-foreground text-sm">
 										Select a customer first to apply a promo code.
 									</p>
 								) : (
 									<PromoStep
 										organizationId={organizationId}
-										customerId={selectedCustomer.id}
+										customerId={
+											customerTypeMode === "member"
+												? (selectedCustomer?.id ?? "")
+												: (selectedWalkInId ?? "")
+										}
 										branchId={resolvedBranchId}
 										items={items}
 										applied={appliedPromo}

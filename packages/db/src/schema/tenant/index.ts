@@ -30,6 +30,7 @@ export * from "./invoices";
 export * from "./member-category-buffer-overrides";
 export * from "./member-profiles";
 export * from "./member-service-buffer-overrides";
+export * from "./member-sessions";
 export * from "./members";
 export * from "./notification-preferences";
 export * from "./notifications";

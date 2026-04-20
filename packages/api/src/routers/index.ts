@@ -216,6 +216,117 @@ const serverInvitationRouterType = {
 // Admin router type definition for client type inference
 // The actual implementation is in apps/server/src/routers/admin.ts
 const adminRouterType = {
+	// ── New Phase 2 procedures ─────────────────────────────────────────────────
+
+	/** Returns platform admin status for the current caller. Safe for any authenticated user. */
+	me: protectedProcedure.handler(
+		(): { isPlatformAdmin: false; role: null } | { isPlatformAdmin: true; role: "super_admin" | "support" | "billing" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+
+	/** Paginated, searchable user list — any platform admin role. */
+	listUsers: protectedProcedure
+		.input(
+			z.object({
+				search: z.string().optional(),
+				page: z.number().int().min(1).default(1),
+				limit: z.number().int().min(1).max(100).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				data: Array<{
+					id: string;
+					email: string;
+					firstName: string;
+					lastName: string;
+					name: string;
+					lastLoginAt: Date | null;
+					isPlatformAdmin: boolean;
+					platformAdminRole: string | null;
+				}>;
+				pagination: {
+					currentPage: number;
+					totalPages: number;
+					pageSize: number;
+					totalItems: number;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	/** List all platform_admins rows — super_admin only. */
+	listAdmins: protectedProcedure.handler(
+		(): Array<{
+			userId: string;
+			email: string | null;
+			name: string | null;
+			role: "super_admin" | "support" | "billing";
+			grantedAt: Date;
+			grantedByEmail: string | null;
+		}> => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+
+	/** Start impersonating a user — super_admin / support only. */
+	impersonateUser: protectedProcedure
+		.input(z.object({ userId: z.string() }))
+		.handler(
+			(): {
+				success: true;
+				redirectTo: string;
+				impersonatedUserId: string;
+				organizationId: string | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	/** Stop an active impersonation session. Callable while impersonating. */
+	stopImpersonating: protectedProcedure.handler(
+		(): { success: true; redirectTo: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+
+	/** Return impersonation status for the current session. */
+	getImpersonationStatus: protectedProcedure.handler(
+		():
+			| { isImpersonating: false }
+			| {
+					isImpersonating: true;
+					type: "platform" | "tenant";
+					adminUser: { id: string; email: string | null; name: string | null };
+					impersonatedUser: { id: string; email: string; name: string };
+			  } => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+
+	/** Grant platform admin role to a user — super_admin only. */
+	grantPlatformAdmin: protectedProcedure
+		.input(
+			z.object({
+				userId: z.string(),
+				role: z.enum(["super_admin", "support", "billing"]),
+			}),
+		)
+		.handler((): { success: true; role: "super_admin" | "support" | "billing" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	/** Revoke platform admin role — super_admin only. Cannot revoke own role. */
+	revokePlatformAdmin: protectedProcedure
+		.input(z.object({ userId: z.string() }))
+		.handler((): { success: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	// ── Existing procedures (unchanged) ────────────────────────────────────────
+
 	listTenants: protectedProcedure
 		.input(
 			z.object({
@@ -309,27 +420,6 @@ const adminRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
-	startImpersonation: protectedProcedure
-		.input(
-			z.object({
-				userId: z.string().uuid(),
-				organizationId: z.string().uuid().optional(),
-			}),
-		)
-		.handler(
-			(): {
-				impersonationToken: string;
-				sessionId: string;
-				expiresAt: Date;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
-	exitImpersonation: protectedProcedure
-		.input(z.object({ sessionId: z.string().uuid() }))
-		.handler((): { success: boolean } => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
 	getAuditLogs: protectedProcedure
 		.input(
 			z.object({
@@ -378,6 +468,31 @@ const adminRouterType = {
 	),
 };
 
+// Tenant admin router type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/tenant-admin.ts
+// (server-only: imports getBetterAuth which is not available in packages/api).
+const tenantAdminRouterType = {
+	/** Impersonate a staff member in the caller's own organization. */
+	impersonateMember: protectedProcedure
+		.input(z.object({ targetMemberId: z.string().uuid(), organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				success: true;
+				redirectTo: string;
+				impersonatedUserId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	/** Stop an active tenant-admin impersonation session. */
+	stopImpersonating: protectedProcedure.handler(
+		(): { success: true; redirectTo: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -388,6 +503,7 @@ export const appRouter = {
 		...serverInvitationRouterType,
 	},
 	admin: adminRouterType,
+	tenantAdmin: tenantAdminRouterType,
 };
 
 export type AppRouter = typeof appRouter;

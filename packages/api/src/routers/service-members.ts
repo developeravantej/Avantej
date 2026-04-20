@@ -202,6 +202,102 @@ export const serviceMembersRouter = {
 		}),
 
 	/**
+	 * Admin: assign a member to a service.
+	 * Requires user_management:update or service_management:update.
+	 */
+	assign: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN");
+			}
+
+			let hasPermission = false;
+			for (const resource of ["user_management", "service_management"] as const) {
+				try {
+					await requirePermission(context.tenantDb, context.member, resource, "update");
+					hasPermission = true;
+					break;
+				} catch { /* try next */ }
+			}
+			if (!hasPermission) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires user_management or service_management update permission.",
+				});
+			}
+
+			await context.tenantDb
+				.insert(serviceMembers)
+				.values({
+					memberId: input.memberId,
+					serviceId: input.serviceId,
+					isPrimary: false,
+				})
+				.onConflictDoNothing();
+
+			return { success: true };
+		}),
+
+	/**
+	 * Admin: remove a member from a service, also clears their buffer override.
+	 * Requires user_management:update or service_management:update.
+	 */
+	remove: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN");
+			}
+
+			let hasPermission = false;
+			for (const resource of ["user_management", "service_management"] as const) {
+				try {
+					await requirePermission(context.tenantDb, context.member, resource, "update");
+					hasPermission = true;
+					break;
+				} catch { /* try next */ }
+			}
+			if (!hasPermission) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires user_management or service_management update permission.",
+				});
+			}
+
+			await context.tenantDb.transaction(async (tx) => {
+				await tx
+					.delete(serviceMembers)
+					.where(
+						and(
+							eq(serviceMembers.memberId, input.memberId),
+							eq(serviceMembers.serviceId, input.serviceId)
+						)
+					);
+				await tx
+					.delete(memberServiceBufferOverrides)
+					.where(
+						and(
+							eq(memberServiceBufferOverrides.memberId, input.memberId),
+							eq(memberServiceBufferOverrides.serviceId, input.serviceId)
+						)
+					);
+			});
+
+			return { success: true };
+		}),
+
+	/**
 	 * Admin: set or clear a buffer override for a specific member's service.
 	 * Requires user_management:update or service_management:update.
 	 */

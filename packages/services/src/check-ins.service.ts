@@ -276,21 +276,36 @@ export async function recordCheckIn(
 	// Step 3: transactional write
 	const inserted = await tenantDb.transaction(async (tx: TenantTx) => {
 		// 3a. Insert check_in row
-		const rows = await tx
-			.insert(checkIns)
-			.values({
-				clientType: input.clientType,
-				clientId: input.clientId,
-				branchId: input.branchId,
-				appointmentClientId: input.appointmentClientId ?? null,
-				source: input.source,
-				outcome,
-				packageInstanceId: input.packageInstanceId ?? null,
-				creditsConsumed: input.creditsConsumed ?? 0,
-				notes: input.notes ?? null,
-				checkedInBy: input.actor.userId,
-			})
-			.returning();
+		let rows: (typeof checkIns.$inferSelect)[];
+		try {
+			rows = await tx
+				.insert(checkIns)
+				.values({
+					clientType: input.clientType,
+					clientId: input.clientId,
+					branchId: input.branchId,
+					appointmentClientId: input.appointmentClientId ?? null,
+					source: input.source,
+					outcome,
+					packageInstanceId: input.packageInstanceId ?? null,
+					creditsConsumed: input.creditsConsumed ?? 0,
+					notes: input.notes ?? null,
+					checkedInBy: input.actor.userId,
+				})
+				.returning();
+		} catch (err: unknown) {
+			if (
+				err &&
+				typeof err === "object" &&
+				"code" in err &&
+				(err as { code: string }).code === "23505"
+			) {
+				throw Object.assign(new Error("Already checked in today"), {
+					code: "ALREADY_CHECKED_IN",
+				});
+			}
+			throw err;
+		}
 
 		const row = rows[0];
 		if (!row) throw new Error("Insert did not return a row");
@@ -561,18 +576,21 @@ export async function deleteCheckIn(
 	id: string,
 	actor: { userId: string; memberId: string; role: string },
 ): Promise<void> {
-	// Read the row first (outside tx — read-only)
-	const existing = await tenantDb.query.checkIns.findFirst({
-		where: eq(checkIns.id, id),
-	});
-
-	if (!existing) {
-		throw Object.assign(new Error(`Check-in ${id} not found`), {
-			code: "NOT_FOUND",
-		});
-	}
-
 	await tenantDb.transaction(async (tx: TenantTx) => {
+		// Lock the row first to prevent concurrent deletes from both passing the
+		// existence check and double-decrementing credits (Gap #18)
+		const [existing] = await tx
+			.select()
+			.from(checkIns)
+			.where(eq(checkIns.id, id))
+			.for("update");
+
+		if (!existing) {
+			throw Object.assign(new Error(`Check-in ${id} not found`), {
+				code: "NOT_FOUND",
+			});
+		}
+
 		// 1. Revert appointment_clients.attended → NULL
 		if (existing.appointmentClientId) {
 			await tx

@@ -297,6 +297,7 @@ export function PermissionGroupCollapsible({
               <div className="flex items-center gap-2">
                 {showBulkActions && onBulkChange && (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={(e) => {

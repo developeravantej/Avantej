@@ -78,11 +78,9 @@ export function MarkPaidDialog({
 
 	const mutation = useMutation({
 		mutationFn: (values: MarkPaidFormValues) =>
-			(client as any).commissionSplits.markPaid({
+			client.commissionSplits.markPaid({
 				organizationId,
 				ids: selectedIds,
-				payoutMethod: values.payoutMethod,
-				payoutReference: values.payoutReference || undefined,
 				payoutId: values.payoutId || undefined,
 			}),
 		onSuccess: () => {

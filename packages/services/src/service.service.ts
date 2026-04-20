@@ -50,6 +50,7 @@ export type CreateServiceParams = {
   expirable?: boolean;
   expiryDays?: number | null;
   expiryDate?: Date | null;
+  commissionPercentage?: number; // basis points, e.g. 1000 = 10%
 };
 
 export type UpdateServiceParams = Partial<CreateServiceParams>;
@@ -149,6 +150,7 @@ export async function createService(
       expirable: params.expirable ?? false,
       expiryDays: params.expiryDays ?? null,
       expiryDate: params.expiryDate ?? null,
+      commissionPercentage: params.commissionPercentage ?? 0,
     })
     .returning();
 
@@ -203,6 +205,7 @@ export async function updateService(
       ...(params.expirable !== undefined && { expirable: params.expirable }),
       ...(params.expiryDays !== undefined && { expiryDays: params.expiryDays }),
       ...(params.expiryDate !== undefined && { expiryDate: params.expiryDate }),
+      ...(params.commissionPercentage !== undefined && { commissionPercentage: params.commissionPercentage }),
       updatedAt: new Date(),
     })
     .where(eq(services.id, id))

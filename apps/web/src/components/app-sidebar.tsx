@@ -76,6 +76,7 @@ import {
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { usePlatformAdminRole } from "@/hooks/usePlatformAdminRole";
 import { useUserContext } from "@/hooks/useUserContext";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -426,7 +427,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			},
 			{
 				title: "Reports",
-				url: "/dashboard/sales/view",
+				url: "/dashboard",
 				icon: FileChartColumnIncreasing,
 			},
 			{ title: "GHL Integration", url: "/go-highlevel-integration", icon: Map },
@@ -489,7 +490,7 @@ function SidebarUserFooter() {
 
 			<DropdownMenuContent side="top" align="start" className="w-56">
 				<DropdownMenuItem asChild>
-					<Link to="/dashboard" className="flex items-center gap-2">
+					<Link to="/customers" className="flex items-center gap-2">
 						<User className="size-4" />
 						<span>Profile</span>
 					</Link>
@@ -656,6 +657,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { data: session } = authClient.useSession();
 	const { data: userContext, hasRole } = useUserContext(!!session?.user);
 	const isStaffOrTrainer = hasRole(["trainer", "staff"]);
+	const { isPlatformAdmin, role } = usePlatformAdminRole();
 	const location = useLocation();
 	const pathname = location.pathname;
 
@@ -735,6 +737,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										</Link>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
+				{isPlatformAdmin && (
+					<SidebarGroup className="py-1">
+						<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+							Platform Admin
+						</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/users")}
+										tooltip="Users"
+									>
+										{/* @ts-expect-error -- route registers in routeTree.gen.ts after next bun dev */}
+										<Link to={"/dashboard/platform-admin/users" as string}>
+											<Users className="size-4" />
+											<span>Users</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								{role === "super_admin" && (
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											asChild
+											isActive={pathname.startsWith("/dashboard/platform-admin/admins")}
+											tooltip="Admins"
+										>
+											{/* @ts-expect-error -- route registers in routeTree.gen.ts after next bun dev (Phase 5) */}
+											<Link to={"/dashboard/platform-admin/admins" as string}>
+												<Shield className="size-4" />
+												<span>Admins</span>
+											</Link>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								)}
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>

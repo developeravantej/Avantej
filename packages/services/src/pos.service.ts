@@ -9,7 +9,7 @@
  * Also provides `searchPosCustomers` for the customer-lookup combobox.
  */
 
-import { eq, and, sql, count, ilike, or } from "drizzle-orm";
+import { eq, and, sql, ilike, or } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
@@ -30,8 +30,7 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
 import { calculateInstallmentAmounts, calculateCreditsUnlocked } from "./installment.service";
-// TODO (Open Question 6, Phase 6): When services.commissionPercentage is added, uncomment:
-// import { createCommissionSplit } from "./commission-splits.service";
+import { createCommissionSplitsForPos } from "./commission-splits.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 // Drizzle transaction type — structurally compatible with TenantDb for inserts/selects
@@ -138,41 +137,31 @@ function addDays(date: Date, days: number): Date {
 }
 
 // ---------------------------------------------------------------------------
-// Number generators (within tx — count() under same-tx serialization is safe
-// for tenant-scale concurrency; see plan.md §4.10 risk note)
+// Number generators — use atomic PostgreSQL sequences to eliminate the
+// count()+1 race condition when parallel inserts run in the same millisecond.
+// Sequences are created by migration 0026 on every tenant DB.
+// Format: SO-YYYYMMDD-000001 (6-digit global sequence, not daily-reset)
 // ---------------------------------------------------------------------------
 
 async function generateSalesOrderNumber(tx: TenantTx, date: Date): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const prefix = `SO-${datePart}-`;
-	const result = await tx
-		.select({ total: count() })
-		.from(salesOrders)
-		.where(sql`${salesOrders.salesOrderNumber} LIKE ${`${prefix}%`}`);
-	const seq = (result[0]?.total ?? 0) + 1;
-	return `${prefix}${String(seq).padStart(4, "0")}`;
+	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_sales_order_seq') AS seq`);
+	const seq = Number((result.rows[0] as { seq: string | number }).seq);
+	return `SO-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
 async function generatePaymentNumber(tx: TenantTx, date: Date): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const prefix = `PAY-${datePart}-`;
-	const result = await tx
-		.select({ total: count() })
-		.from(payments)
-		.where(sql`${payments.paymentNumber} LIKE ${`${prefix}%`}`);
-	const seq = (result[0]?.total ?? 0) + 1;
-	return `${prefix}${String(seq).padStart(4, "0")}`;
+	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_payment_seq') AS seq`);
+	const seq = Number((result.rows[0] as { seq: string | number }).seq);
+	return `PAY-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
 async function generateInvoiceNumber(tx: TenantTx, date: Date): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const prefix = `INV-${datePart}-`;
-	const result = await tx
-		.select({ total: count() })
-		.from(invoices)
-		.where(sql`${invoices.invoiceNumber} LIKE ${`${prefix}%`}`);
-	const seq = (result[0]?.total ?? 0) + 1;
-	return `${prefix}${String(seq).padStart(4, "0")}`;
+	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_invoice_seq') AS seq`);
+	const seq = Number((result.rows[0] as { seq: string | number }).seq);
+	return `INV-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,16 +189,6 @@ export async function recordPosSale(
 	const packageServiceMap = new Map<string, typeof services.$inferSelect>();
 
 	if (packageItems.length > 0) {
-		// Walk-in + package combo: rejected in v1
-		// package_instances.clientId requires a control-panel user.id;
-		// walk-ins have no user record in the control panel DB.
-		if (input.customerType === "walk_in") {
-			throw new ORPCError("BAD_REQUEST", {
-				message:
-					"Walk-in customers cannot purchase packages in v1. Please register the customer as a member first.",
-			});
-		}
-
 		for (const item of packageItems) {
 			if (!item.refId) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -308,7 +287,16 @@ export async function recordPosSale(
 			}
 		}
 
-		// Step 3: Compute subtotal
+		// Step 3: Validate line items and compute subtotal
+		// D.1.1: Reject items with negative price or zero/negative quantity
+		for (const item of input.items) {
+			if (item.unitPriceCents < 0 || item.quantity < 1) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Item price must be non-negative and quantity must be at least 1",
+				});
+			}
+		}
+
 		let subtotalCents = 0;
 		for (const item of input.items) {
 			subtotalCents += item.unitPriceCents * item.quantity;
@@ -340,6 +328,13 @@ export async function recordPosSale(
 			promotionId = promotion.id;
 		}
 
+		// D.1.2: Discount must not exceed subtotal
+		if (discountCents > subtotalCents) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Discount cannot exceed subtotal",
+			});
+		}
+
 		// Step 5: Compute tax
 		const taxRate = await tx.query.taxRates.findFirst({
 			where: eq(taxRates.id, input.taxRateId),
@@ -350,7 +345,7 @@ export async function recordPosSale(
 			});
 		}
 
-		const taxBase = subtotalCents - discountCents;
+		const taxBase = Math.max(0, subtotalCents - discountCents);
 		const taxCents = Math.floor((taxBase * taxRate.rateInBasisPoints) / 10000);
 		const totalCents = taxBase + taxCents;
 
@@ -543,7 +538,8 @@ export async function recordPosSale(
 					.insert(packageInstances)
 					.values({
 						serviceId: item.refId!,
-						clientId: input.customerId, // member.userId — walk_in rejected upstream
+						clientId: input.customerType === "member" ? input.customerId : null,
+						walkInCustomerId: input.customerType === "walk_in" ? input.customerId : null,
 						source: "purchased",
 						paymentId: payment.id,
 						totalPrice: itemTotal,
@@ -649,42 +645,39 @@ export async function recordPosSale(
 		});
 
 		// Step 15: Commission splits (if salesperson provided)
-		// NOTE (Open Question 6): serviceCommissionConfig / services.commissionPercentage do not
-		// exist in the current schema. Commission creation is scaffolded here and will silently
-		// no-op until commission config is added. The salesperson field is preserved in the input
-		// contract so the frontend can send it today. When commissionPercentage is available on
-		// services, implement the lookup and call createCommissionSplit per eligible line item.
+		// For each service/package line item, look up commission config and create splits.
+		// Non-fatal: POS sale succeeds even if commission creation fails.
 		if (input.salesperson) {
 			const serviceItems = input.items.filter(
 				(i) => (i.type === "service" || i.type === "package") && i.refId,
 			);
 
 			for (const item of serviceItems) {
-				// Look up commission percentage from services record (if field exists)
-				const svc = await tx.query.services.findFirst({
-					where: eq(services.id, item.refId!),
-					columns: { id: true, name: true },
-				});
+				try {
+					const svc = await tx.query.services.findFirst({
+						where: eq(services.id, item.refId!),
+						columns: { id: true, name: true, commissionPercentage: true },
+					});
 
-				// TODO: when services.commissionPercentage is added, replace the block below:
-				// const pct = svc?.commissionPercentage ?? null;
-				// if (pct && pct > 0) {
-				//   const lineTotal = item.unitPriceCents * item.quantity;
-				//   await createCommissionSplit(tx, {
-				//     salesOrderId: salesOrder.id,
-				//     staffId: input.salesperson,
-				//     splitPercentage: pct,
-				//     calculatedAmountCents: Math.floor((lineTotal * pct) / 100),
-				//     actor: input.actor,
-				//   });
-				// }
+					if (!svc || (svc.commissionPercentage ?? 0) <= 0) continue;
 
-				if (svc) {
-					// No commission config exists yet — log for observability, continue
-					console.info(
-						`[commission] POS sale ${salesOrderNumber}: salesperson ${input.salesperson} set for ` +
-						`service "${svc.name}" but no commission config exists. No split created.`,
+					const lineAmountCents = item.unitPriceCents * item.quantity;
+
+					await createCommissionSplitsForPos(tx as unknown as TenantDb, {
+						salesOrderId: salesOrder.id,
+						serviceId: svc.id,
+						serviceName: svc.name,
+						amountCents: lineAmountCents,
+						serviceCommissionBasisPoints: svc.commissionPercentage,
+						staffIds: [input.salesperson],
+						actor: input.actor,
+					});
+				} catch (commissionErr) {
+					console.warn(
+						`[commission] POS sale ${salesOrderNumber}: failed to create commission split for item "${item.description}":`,
+						commissionErr,
 					);
+					// Non-fatal: continue processing other items
 				}
 			}
 		}

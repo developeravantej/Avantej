@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/currency";
+import { useNavigate } from "@tanstack/react-router";
 
 export interface PaymentRow {
 	date?: string | null;
@@ -211,25 +212,20 @@ export const columns: ColumnDef<PaymentRow>[] = [
 			<DataTableColumnHeader column={column} title="Action" />
 		),
 		cell: ({ row }) => {
+			const navigate = useNavigate();
 			return (
 				<div className="flex items-center gap-2">
 					<button
 						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
 						type="button"
-						onClick={() => {
-							console.log("View payment:", row.original);
-						}}
+						onClick={() =>
+							navigate({
+								to: "/dashboard/sales/$id",
+								params: { id: row.original.sales_order ?? "" },
+							})
+						}
 					>
 						View
-					</button>
-					<button
-						className="text-green-600 hover:text-green-800 text-sm font-medium"
-						type="button"
-						onClick={() => {
-							console.log("Edit payment:", row.original);
-						}}
-					>
-						Edit
 					</button>
 				</div>
 			);

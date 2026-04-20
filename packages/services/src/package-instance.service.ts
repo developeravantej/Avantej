@@ -28,9 +28,12 @@ export type ListPackageInstancesForClientParams = {
   limit?: number;
 };
 
-export type CreatePackageInstanceParams = {
+type ClientOwner =
+	| { clientId: string; walkInCustomerId?: never }
+	| { clientId?: never; walkInCustomerId: string };
+
+export type CreatePackageInstanceParams = ClientOwner & {
   serviceId: string;
-  clientId: string;
   source: "assigned" | "purchased";
   assignedBy?: string | null;
   purchaseNumber?: string | null;
@@ -115,7 +118,8 @@ export async function createPackageInstance(
     .insert(packageInstances)
     .values({
       serviceId: params.serviceId,
-      clientId: params.clientId,
+      clientId: params.clientId ?? null,
+      walkInCustomerId: params.walkInCustomerId ?? null,
       source: params.source,
       assignedBy: params.assignedBy ?? null,
       purchaseNumber: params.purchaseNumber ?? null,

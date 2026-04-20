@@ -34,15 +34,17 @@ function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	// Role detection — uses hierarchy.member.id and .role
+	// Role detection — normalise to lowercase to guard against DB casing variance
 	const currentOrg = userContext?.organizations.find((o) => o.id === organizationId);
-	const memberRole = currentOrg?.hierarchy?.member?.role;
+	const memberRole = currentOrg?.hierarchy?.member?.role?.toLowerCase();
 	const memberId = currentOrg?.hierarchy?.member?.id;
 	const isTrainer = memberRole === "trainer";
+	// Only admin/staff may browse all trainers; trainers and clients cannot
+	const canViewAllTrainers = memberRole === "admin" || memberRole === "staff";
 
-	// For admins: selected from sidebar. For trainers: locked to self.
+	// For admin/staff: selected from sidebar. For trainers: locked to self.
 	const [sidebarSelectedId, setSidebarSelectedId] = useState<string | null>(null);
-	const selectedTrainerId = isTrainer ? (memberId ?? null) : sidebarSelectedId;
+	const selectedTrainerId = canViewAllTrainers ? sidebarSelectedId : (memberId ?? null);
 
 	const { startFrom, startTo } = getAppointmentQueryRange();
 
@@ -115,8 +117,8 @@ function RouteComponent() {
 			</div>
 
 			<div className="flex gap-4">
-				{/* Sidebar — hidden for trainers */}
-				{!isTrainer && (
+				{/* Sidebar — only admin/staff can browse all trainers */}
+				{canViewAllTrainers && (
 					<div className="w-64 shrink-0">
 						<TrainerSidebar
 							organizationId={organizationId}

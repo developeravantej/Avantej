@@ -100,6 +100,7 @@ export default function DataTable<TData, TValue>({
 					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as string[],
 					installmentIntervalDays: editServiceData.installmentIntervalDays ?? 30,
 					gracePeriodDays: (editServiceData as any).gracePeriodDays ?? null,
+					commissionPercentage: ((editServiceData.commissionPercentage ?? 0) / 100), // basis points → display %
 				};
 			})()
 		: undefined;

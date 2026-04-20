@@ -19,6 +19,11 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { inArray } from "drizzle-orm";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
+import { user as cpUsers } from "@avantej-core/db/schema/auth";
+import { getControlPanelDb } from "../lib/context-helpers";
 
 const appointmentTypeSchema = z.enum(["private", "semi-private"]);
 const statusSchema = z.enum([
@@ -93,7 +98,35 @@ export const appointmentsRouter = {
         limit: input.limit,
       });
 
-      return items;
+      if (items.length === 0) return items.map((r) => ({ ...r, serviceName: null, trainerName: null, clientName: null }));
+
+      // Batch-resolve names in parallel
+      const serviceIds = [...new Set(items.map((r) => r.serviceId).filter(Boolean) as string[])];
+      const trainerIds = [...new Set(items.map((r) => r.trainerId).filter(Boolean) as string[])];
+      const userIds = [...new Set(items.map((r) => r.userId).filter(Boolean) as string[])];
+
+      const [serviceRows, profileRows, userRows] = await Promise.all([
+        serviceIds.length > 0
+          ? context.tenantDb.select({ id: services.id, name: services.name }).from(services).where(inArray(services.id, serviceIds))
+          : [],
+        trainerIds.length > 0
+          ? context.tenantDb.select({ memberId: memberProfiles.memberId, displayName: memberProfiles.displayName }).from(memberProfiles).where(inArray(memberProfiles.memberId, trainerIds))
+          : [],
+        userIds.length > 0
+          ? (() => { try { const cpDb = getControlPanelDb(context); return cpDb.select({ id: cpUsers.id, name: cpUsers.name }).from(cpUsers).where(inArray(cpUsers.id, userIds)); } catch { return Promise.resolve([]); } })()
+          : [],
+      ]);
+
+      const serviceMap = new Map((serviceRows as { id: string; name: string }[]).map((s) => [s.id, s.name]));
+      const profileMap = new Map((profileRows as { memberId: string; displayName: string | null }[]).map((p) => [p.memberId, p.displayName]));
+      const userMap = new Map((userRows as { id: string; name: string }[]).map((u) => [u.id, u.name]));
+
+      return items.map((r) => ({
+        ...r,
+        serviceName: r.serviceId ? (serviceMap.get(r.serviceId) ?? null) : null,
+        trainerName: r.trainerId ? (profileMap.get(r.trainerId) ?? null) : null,
+        clientName: r.userId ? (userMap.get(r.userId) ?? null) : null,
+      }));
     }),
 
   /**

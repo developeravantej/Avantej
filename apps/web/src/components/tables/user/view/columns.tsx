@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
+import { MemberActionsCell } from "./actions-cell";
 
 // Helper component for copyable cells
 interface CopyableCellProps {
@@ -54,7 +55,25 @@ type MemberRow = {
   email: string | null;
 };
 
-export const columns: ColumnDef<MemberRow>[] = [
+export type { MemberRow };
+
+interface CreateColumnsOptions {
+	callerIsAdmin: boolean;
+	organizationId: string;
+}
+
+/**
+ * Factory that produces column definitions for the member table.
+ *
+ * When callerIsAdmin is true and organizationId is provided, a "Login as"
+ * action column is appended that lets the caller impersonate staff rows.
+ * The action is hidden at the cell level for non-staff targets so no
+ * separate per-row permission check is needed.
+ */
+export function createColumns(options: CreateColumnsOptions): ColumnDef<MemberRow>[] {
+	const { callerIsAdmin, organizationId } = options;
+
+	const baseColumns: ColumnDef<MemberRow>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -181,4 +200,36 @@ export const columns: ColumnDef<MemberRow>[] = [
     enableSorting: false,
     enableHiding: true,
   },
-];
+	];
+
+	// Only append the actions column when the caller could be an admin —
+	// the cell itself also guards on callerIsAdmin + member.role === 'staff'
+	// so this is a belt-and-suspenders optimization.
+	if (!callerIsAdmin) {
+		return baseColumns;
+	}
+
+	return [
+		...baseColumns,
+		{
+			id: "actions",
+			header: "",
+			cell: ({ row }) => (
+				<MemberActionsCell
+					member={row.original}
+					callerIsAdmin={callerIsAdmin}
+					organizationId={organizationId}
+				/>
+			),
+			enableSorting: false,
+			enableHiding: false,
+		},
+	];
+}
+
+/**
+ * Default columns with no admin actions — used as a backwards-compat export
+ * for any route that imports `columns` directly without admin context.
+ * "Login as" will never render because callerIsAdmin is false.
+ */
+export const columns = createColumns({ callerIsAdmin: false, organizationId: "" });

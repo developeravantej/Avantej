@@ -517,7 +517,11 @@ function UserAssignmentPage() {
     id: m.id,
     name: m.name,
     email: m.email,
-    roles: [],
+    roles: rolesApiData
+      ? (rolesApiData as RoleApiItem[])
+          .filter((r) => r.name.toLowerCase() === (m.role ?? "").toLowerCase())
+          .map((r) => r.id)
+      : [],
     isActive: m.status === "active",
   }));
 
@@ -836,10 +840,18 @@ function UserAssignmentPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem>Bulk Assign Role</DropdownMenuItem>
-                    <DropdownMenuItem>Bulk Remove Role</DropdownMenuItem>
+                    <DropdownMenuItem disabled title="Bulk actions coming soon">
+                      Bulk Assign Role
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled title="Bulk actions coming soon">
+                      Bulk Remove Role
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem
+                      disabled
+                      title="Bulk actions coming soon"
+                      className="text-destructive"
+                    >
                       Deactivate Selected
                     </DropdownMenuItem>
                   </DropdownMenuContent>

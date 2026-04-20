@@ -13,6 +13,10 @@ export interface ApiAppointment {
 	serviceId?: string | null;
 	description?: string | null;
 	branchId?: string | null;
+	// Enriched by API
+	serviceName?: string | null;
+	trainerName?: string | null;
+	clientName?: string | null;
 }
 
 export interface CalendarAppointment {
@@ -50,10 +54,10 @@ export function mapApiAppointmentToCalendar(api: ApiAppointment): CalendarAppoin
 		start,
 		end,
 		status,
-		clientName: api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—",
-		service: api.serviceId ? `Service (${api.serviceId.slice(0, 8)}…)` : "—",
+		clientName: api.clientName ?? (api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—"),
+		service: api.serviceName ?? (api.serviceId ? `Service (${api.serviceId.slice(0, 8)}…)` : "—"),
 		assignedTo: api.trainerId
-			? { id: api.trainerId, name: api.trainerId.slice(0, 8) + "…" }
+			? { id: api.trainerId, name: api.trainerName ?? api.trainerId.slice(0, 8) + "…" }
 			: undefined,
 	};
 }

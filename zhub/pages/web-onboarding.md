@@ -4,16 +4,16 @@
 **File:** `apps/web/src/routes/_authenticated/onboarding.tsx:1`
 **Platform:** web
 **Auth required:** authenticated (no RBAC check, but requires session)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-20
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** First-time setup page where a newly authenticated user creates their organization to complete account setup.
-**Produces:** A centered card with a single "Organization Name" input field with live availability checking, and a "Create Organization" submit button.
-**On success:** (Currently mocked) Shows success toast, calls `checkAuth()`, then navigates to `/dashboard`.
-**On failure / error states:** Auth loading spinner while `useAuth` resolves. Inline availability checking spinner. Red "✗" with error message if name is taken. Submit button disabled while checking, creating, or if name unavailable.
+**Purpose (user perspective):** First-time setup page where a newly authenticated user enters an organization name before proceeding to choose a subscription plan.
+**Produces:** A centered card with a single "Organization Name" input field and a "Proceed to Subscription" submit button.
+**On success:** Stores the entered name in `sessionStorage` under `"pendingOrgName"`, then navigates to `/subscribe`.
+**On failure / error states:** Auth loading spinner while `useAuth` resolves. Submit button disabled while submitting or if validation fails.
 
 ---
 
@@ -22,16 +22,11 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useAuth() → { isLoading, checkAuth }
+  → useAuth() → { isLoading }
   → react-hook-form with zodResolver(formSchema: name min 1 max 255)
-  → useDebounce(watchedName, 500ms)
-  → useEffect on debouncedName:
-      → MOCK: setTimeout 500ms sets isAvailable = !name.startsWith("test")
-      → TODO: replace with client.organizations.checkNameAvailability({ name })
   → onSubmit(values):
-      → MOCK: await setTimeout(1000ms)
-      → TODO: replace with client.organizations.create({ name, slug })
-      → toast.success → checkAuth() → navigate("/dashboard")
+      → sessionStorage.setItem("pendingOrgName", values.name)
+      → navigate({ to: "/subscribe" })
 ```
 
 **Inputs:**
@@ -40,20 +35,16 @@ RouteComponent
 
 **State management:**
 - react-hook-form with zodResolver
-- Local state: `nameToCheck`, `isCheckingAvailability`, `isAvailable`, `isCreating`
-- `useDebounce` (500ms) to throttle availability checks
+- Local state: `isSubmitting` — disables button and shows "Redirecting..." spinner during navigation
 
-**Outputs:** Toast success on organization creation; navigates to `/dashboard`
-**Side effects:** `checkAuth()` called after creation to refresh auth context with new organization
+**Outputs:** Navigates to `/subscribe` — org name is passed via `sessionStorage`, not URL params.
+**Side effects:** `sessionStorage.setItem("pendingOrgName", ...)` — `/subscribe` page reads this to pre-populate the org name in the subscription flow.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None currently — both availability check and creation are mocked with `setTimeout`
-**Planned endpoints (per TODO comments in source):**
-- `client.organizations.checkNameAvailability({ name })` — not yet implemented
-- `client.organizations.create({ name, slug })` — not yet implemented
+**Calls these API endpoints:** None — no server calls on this page.
 
 **Uses these components:**
 - `Card`, `CardContent`, `CardHeader`, `CardTitle` — Shadcn card layout
@@ -61,8 +52,7 @@ RouteComponent
 - `Input`, `Button` — Shadcn UI
 
 **Uses these hooks:**
-- `useAuth` — `apps/web/src/hooks/useAuth.ts` — provides `isLoading` and `checkAuth`
-- `useDebounce` — `apps/web/src/hooks/useDebounce.ts` — 500ms debounce
+- `useAuth` — `apps/web/src/hooks/useAuth.ts` — provides `isLoading`
 - `useNavigate` — TanStack Router navigation
 - `useForm` (react-hook-form) with `zodResolver`
 
@@ -72,18 +62,23 @@ RouteComponent
 - `user_id` search param suggests the auth flow can pass a user ID here
 
 **Navigation: where it goes:**
-- `/dashboard` after successful organization creation
+- `/subscribe` — after name is entered and submitted
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** None (all mocked)
+**DB tables touched:** None
+
+**sessionStorage written:**
+| Key | Value |
+|-----|-------|
+| `"pendingOrgName"` | Organization name string entered by the user |
 
 **Form fields:**
 | Field | Type | Validation | Maps to |
 |-------|------|------------|---------|
-| name | text | min 1, max 255 + availability | `organizations.name` (planned) |
+| name | text | min 1, max 255 | `sessionStorage["pendingOrgName"]` |
 
 **Search params schema:**
 ```typescript
@@ -96,14 +91,15 @@ RouteComponent
 
 **Test files:** None found
 **Scenarios covered:** N/A
-**Not tested (risk areas):** Everything — entire form submission is a mock with no real API integration
+**Not tested (risk areas):**
+- sessionStorage availability (private browsing)
+- `/subscribe` page correctly reading `"pendingOrgName"` on load
 
 ---
 
 ## 6. Notes
 
-- **This page is incomplete / placeholder.** Both the availability check and organization creation are mocked. Two explicit TODO comments mark what needs replacing.
-- The mock availability rule ("names starting with 'test' are taken") is a development artifact and must be removed before production.
+- **Significantly simplified from earlier version.** Previous version had a debounced organization name availability check (mock using `setTimeout`) and called `checkAuth()` + navigated to `/dashboard` on creation. Now it just captures the name and hands off to `/subscribe` via sessionStorage.
+- No API call is made on this page — organization creation is deferred to the subscription flow.
 - `user_id` search param is declared and validated but never read in the current implementation.
 - The background gradient (`from-blue-50 to-indigo-100`) deviates from the app's usual white theme — this is the only page with this styling.
-- `useAuth().checkAuth()` is called after creation to refresh the auth context — correct pattern to update `userContext` with the new organization membership.
