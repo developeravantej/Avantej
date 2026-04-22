@@ -1,7 +1,8 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
+import { Copy, Eye } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -94,6 +95,26 @@ const formatEInvoiceStatus = (
 	);
 };
 
+function PaymentActionCell({ row }: { row: import("@tanstack/react-table").Row<PaymentRow> }) {
+	const navigate = useNavigate();
+	return (
+		<div className="flex items-center gap-2">
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={() =>
+					navigate({
+						to: "/dashboard/sales/$id",
+						params: { id: row.original.sales_order ?? "" },
+					})
+				}
+			>
+				<Eye className="h-4 w-4 mr-1" /> View
+			</Button>
+		</div>
+	);
+}
+
 export const columns: ColumnDef<PaymentRow>[] = [
 	{
 		accessorKey: "date",
@@ -143,8 +164,14 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const mode = getValue<string>();
+			const modeStyles: Record<string, string> = {
+				cash: "bg-green-100 text-green-700 border-green-200",
+				card: "bg-blue-100 text-blue-700 border-blue-200",
+				online: "bg-purple-100 text-purple-700 border-purple-200",
+				transfer: "bg-orange-100 text-orange-700 border-orange-200",
+			};
 			return mode ? (
-				<Badge variant="outline" className="text-xs">
+				<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
 					{mode}
 				</Badge>
 			) : (
@@ -211,25 +238,7 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => {
-			const navigate = useNavigate();
-			return (
-				<div className="flex items-center gap-2">
-					<button
-						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-						type="button"
-						onClick={() =>
-							navigate({
-								to: "/dashboard/sales/$id",
-								params: { id: row.original.sales_order ?? "" },
-							})
-						}
-					>
-						View
-					</button>
-				</div>
-			);
-		},
+		cell: ({ row }) => <PaymentActionCell row={row} />,
 		enableSorting: false,
 		enableHiding: false,
 	},

@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { AppointmentsWidget } from "@/components/appointments-widget";
 import { AnnouncementsWidget } from "@/components/announcements-widget";
 import { PayrollWidget } from "@/components/payroll-widget";
@@ -9,13 +9,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
+import { formatPrice } from "@/lib/currency";
 import { GreetingBanner } from "@/components/dashboard/greeting-banner";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { QuickInsight } from "@/components/dashboard/quick-insight";
+import { ExpiringMembershipsWidget } from "@/components/dashboard/expiring-memberships-widget";
+
+const dashboardSearchSchema = z.object({
+	period: z
+		.enum(["today", "this_week", "this_month", "this_year"])
+		.default("this_month"),
+});
 
 export const Route = createFileRoute("/_authenticated/dashboard/_layout/")({
 	component: DashboardComponent,
+	validateSearch: dashboardSearchSchema,
 });
 
 type Period = "today" | "this_week" | "this_month" | "this_year";
@@ -26,13 +35,6 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 	{ value: "this_month", label: "This Month" },
 	{ value: "this_year", label: "This Year" },
 ];
-
-function formatRM(cents: number): string {
-	return `RM ${(cents / 100).toLocaleString("en-MY", {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	})}`;
-}
 
 function getPeriodLabel(period: Period): string {
 	return PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? "This Month";
@@ -85,7 +87,7 @@ function SalesCard({ data, period }: { data: KpiData | undefined; period: Period
 							Sales Overview
 						</p>
 						<div className="font-heading text-4xl font-bold text-brand-primary-1">
-							{formatRM(data.totalSales)}
+							{formatPrice(data.totalSales, "MYR")}
 						</div>
 						<p className="text-sm text-brand-secondary-1">
 							{data.salesOrderCount} {data.salesOrderCount === 1 ? "order" : "orders"}
@@ -175,7 +177,7 @@ function ActiveMembersCard({ data }: { data: KpiData | undefined }) {
 
 // ---- Revenue by Branch ----
 
-function RevenuByBranchCard({ data, isLoading }: { data: KpiData | undefined; isLoading: boolean }) {
+function RevenueByBranchCard({ data, isLoading }: { data: KpiData | undefined; isLoading: boolean }) {
 	return (
 		<Card className="h-full">
 			<CardContent className="pt-6">
@@ -209,7 +211,7 @@ function RevenuByBranchCard({ data, isLoading }: { data: KpiData | undefined; is
 										{branch.branchName ?? "Unknown"}
 									</span>
 									<span className="text-right tabular-nums text-brand-primary-1">
-										{formatRM(branch.totalRevenue)}
+										{formatPrice(branch.totalRevenue, "MYR")}
 									</span>
 									<span className="text-right tabular-nums text-brand-secondary-1">
 										{branch.orderCount}
@@ -281,7 +283,7 @@ function StaffPerformanceCard({
 											{staff.appointmentsCompleted}
 										</span>
 										<span className="text-right tabular-nums text-brand-secondary-1">
-											{formatRM(staff.totalCommission)}
+											{formatPrice(staff.totalCommission, "MYR")}
 										</span>
 									</div>
 								))}
@@ -296,7 +298,12 @@ function StaffPerformanceCard({
 // ---- Main Component ----
 
 function DashboardComponent() {
-	const [period, setPeriod] = useState<Period>("this_month");
+	const { period } = Route.useSearch();
+	const navigate = useNavigate({ from: Route.fullPath });
+
+	function setPeriod(next: Period) {
+		navigate({ search: (prev) => ({ ...prev, period: next }) });
+	}
 
 	const { data: userCtx } = useUserContext();
 	const organizationId = userCtx?.currentOrganizationId ?? "";
@@ -317,8 +324,7 @@ function DashboardComponent() {
 		queryFn: () =>
 			client.analytics.getStaffPerformance({
 				organizationId,
-				// getStaffPerformance only accepts week/month/year — map "today" to "this_week"
-				period: period === "today" ? "this_week" : (period as "this_week" | "this_month" | "this_year"),
+				period,
 			}),
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
@@ -352,9 +358,25 @@ function DashboardComponent() {
 
 			<SectionHeader>Overview</SectionHeader>
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				<SalesCard data={kpiData} period={period} />
-				<AppointmentsKpiCard data={kpiData} />
-				<ActiveMembersCard data={kpiData} />
+				<Link
+					to="/dashboard/sales/view"
+					search={{ period, from: "", to: "", status: "", branchId: "", page: 1 }}
+					className="transition-transform hover:-translate-y-0.5"
+				>
+					<SalesCard data={kpiData} period={period} />
+				</Link>
+				<Link
+					to="/dashboard/appointment/view"
+					className="transition-transform hover:-translate-y-0.5"
+				>
+					<AppointmentsKpiCard data={kpiData} />
+				</Link>
+				<Link
+					to="/dashboard/memberships/view"
+					className="transition-transform hover:-translate-y-0.5"
+				>
+					<ActiveMembersCard data={kpiData} />
+				</Link>
 			</div>
 
 			{kpiData && (
@@ -370,7 +392,7 @@ function DashboardComponent() {
 			<SectionHeader>Analytics</SectionHeader>
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 				<div className="lg:col-span-8">
-					<RevenuByBranchCard data={kpiData} isLoading={kpisQuery.isLoading} />
+					<RevenueByBranchCard data={kpiData} isLoading={kpisQuery.isLoading} />
 				</div>
 				<div className="lg:col-span-4">
 					<StaffPerformanceCard data={staffData} isLoading={staffQuery.isLoading} />
@@ -382,7 +404,10 @@ function DashboardComponent() {
 				<div className="lg:col-span-4">
 					<AppointmentsWidget />
 				</div>
-				<div className="lg:col-span-8">
+				<div className="lg:col-span-4">
+					<ExpiringMembershipsWidget />
+				</div>
+				<div className="lg:col-span-4">
 					<AnnouncementsWidget />
 				</div>
 			</div>

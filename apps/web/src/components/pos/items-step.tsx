@@ -12,12 +12,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { client } from "@/utils/orpc";
 import type { CartItem, LineItemType } from "./types";
 
@@ -39,14 +33,10 @@ interface ServiceOption {
 	id: string;
 	name: string;
 	price: number | null; // cents
-	sessionCount: number | null;
-	expirable: boolean;
-	expiryDays: number | null;
 }
 
 interface ItemsStepProps {
 	organizationId: string;
-	isWalkIn: boolean;
 	items: CartItem[];
 	onAddItem: (item: CartItem) => void;
 	onUpdateItem: (id: string, patch: Partial<CartItem>) => void;
@@ -58,24 +48,14 @@ interface ItemsStepProps {
 interface RowProps {
 	item: CartItem;
 	services: ServiceOption[];
-	isWalkIn: boolean;
 	onUpdate: (patch: Partial<CartItem>) => void;
 	onRemove: () => void;
 }
 
-function ItemRow({ item, services, isWalkIn, onUpdate, onRemove }: RowProps) {
+function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
 	const priceRm = (item.unitPriceCents / 100).toFixed(2);
 
-	// For service/package items, the user picks from the combobox
-	const isLookup = item.type === "service" || item.type === "package";
-
-	// Filter available services for package type — must have sessionCount + expirable
-	const availableServices =
-		item.type === "package"
-			? services.filter(
-					(s) => s.sessionCount != null && s.expirable && s.expiryDays != null,
-				)
-			: services;
+	const isLookup = item.type === "service";
 
 	function handleServiceSelect(serviceId: string) {
 		const svc = services.find((s) => s.id === serviceId);
@@ -87,63 +67,39 @@ function ItemRow({ item, services, isWalkIn, onUpdate, onRemove }: RowProps) {
 		});
 	}
 
-	const packageBlocked = item.type === "package" && isWalkIn;
-
 	return (
 		<div className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3">
 			{/* Type badge */}
 			<div className="col-span-12 sm:col-span-2">
 				<span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
-					{item.type === "service"
-						? "Service"
-						: item.type === "package"
-							? "Package"
-							: "Custom"}
+					{item.type === "service" ? "Service" : "Custom"}
 				</span>
 			</div>
 
 			{/* Description / combobox */}
 			<div className="col-span-12 sm:col-span-4">
 				{isLookup ? (
-					<TooltipProvider>
-						<Tooltip open={packageBlocked || undefined}>
-							<TooltipTrigger asChild>
-								<div
-									className={
-										packageBlocked ? "cursor-not-allowed opacity-50" : ""
-									}
-								>
-									<Select
-										value={item.refId ?? ""}
-										onValueChange={handleServiceSelect}
-										disabled={packageBlocked}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select service..." />
-										</SelectTrigger>
-										<SelectContent>
-											{availableServices.length === 0 ? (
-												<div className="px-2 py-3 text-center text-muted-foreground text-sm">
-													No sellable packages available
-												</div>
-											) : (
-												availableServices.map((svc) => (
-													<SelectItem key={svc.id} value={svc.id}>
-														{svc.name}
-													</SelectItem>
-												))
-											)}
-										</SelectContent>
-									</Select>
+					<Select
+						value={item.refId ?? ""}
+						onValueChange={handleServiceSelect}
+					>
+						<SelectTrigger className="w-full">
+							<SelectValue placeholder="Select service..." />
+						</SelectTrigger>
+						<SelectContent>
+							{services.length === 0 ? (
+								<div className="px-2 py-3 text-center text-muted-foreground text-sm">
+									No services available
 								</div>
-							</TooltipTrigger>
-							{packageBlocked && (
-								<TooltipContent>
-									<p>Register customer as a member first to sell packages</p>
-								</TooltipContent>
+							) : (
+								services.map((svc) => (
+									<SelectItem key={svc.id} value={svc.id}>
+										{svc.name}
+									</SelectItem>
+								))
 							)}
-						</Tooltip>
-					</TooltipProvider>
+						</SelectContent>
+					</Select>
 				) : (
 					<Input
 						placeholder="Description"
@@ -220,7 +176,6 @@ function ItemRow({ item, services, isWalkIn, onUpdate, onRemove }: RowProps) {
 
 export function ItemsStep({
 	organizationId,
-	isWalkIn,
 	items,
 	onAddItem,
 	onUpdateItem,
@@ -240,15 +195,6 @@ export function ItemsStep({
 		id: s.id,
 		name: s.name,
 		price: typeof s.price === "number" ? s.price : null,
-		sessionCount:
-			"sessionCount" in s && typeof s.sessionCount === "number"
-				? s.sessionCount
-				: null,
-		expirable: "expirable" in s ? Boolean(s.expirable) : false,
-		expiryDays:
-			"expiryDays" in s && typeof s.expiryDays === "number"
-				? s.expiryDays
-				: null,
 	}));
 
 	function addItem(type: LineItemType) {
@@ -281,7 +227,6 @@ export function ItemsStep({
 							key={item.id}
 							item={item}
 							services={services}
-							isWalkIn={isWalkIn}
 							onUpdate={(patch) => onUpdateItem(item.id, patch)}
 							onRemove={() => onRemoveItem(item.id)}
 						/>
@@ -304,29 +249,6 @@ export function ItemsStep({
 						<Plus className="mr-1 h-3.5 w-3.5" />
 						Service
 					</Button>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => addItem("package")}
-										disabled={isWalkIn}
-									>
-										<Plus className="mr-1 h-3.5 w-3.5" />
-										Package
-									</Button>
-								</span>
-							</TooltipTrigger>
-							{isWalkIn && (
-								<TooltipContent>
-									<p>Register customer as a member first to sell packages</p>
-								</TooltipContent>
-							)}
-						</Tooltip>
-					</TooltipProvider>
 					<Button
 						type="button"
 						variant="outline"
@@ -341,8 +263,7 @@ export function ItemsStep({
 
 			{items.length === 0 && (
 				<p className="py-4 text-center text-muted-foreground text-sm">
-					No items added. Use the buttons above to add a service, package, or
-					custom line item.
+					No items added. Use the buttons above to add a service or custom line item.
 				</p>
 			)}
 		</div>

@@ -365,7 +365,6 @@ function AuditLogPage() {
 		],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
-			// @ts-expect-error — auditLogs router merges from backend agent before release
 			return client.auditLogs.list({
 				organizationId,
 				actorUserId: actorUserId || undefined,

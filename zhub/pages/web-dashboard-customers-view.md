@@ -4,13 +4,13 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/customers/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated + `customer_management:read`
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-21
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Registered-customer list with lifetime value, active package count, outstanding balance, and last-visit date. Row click opens a drawer with profile edit + packages + recent payments + stats.
+**Purpose (user perspective):** Registered-customer list with lifetime value, active package count, outstanding balance, and last-visit date. Row click opens a drawer with profile edit + packages + recent payments + stats. The page renders `RegisteredCustomersPage` directly — no tabs, no Walk-in tab.
 
 **Produces:** Paginated `DataTable` (8 columns: Name w/ avatar, Phone, Email, Active Pkgs, LTV, Outstanding, Last Visit, Joined) + server-side search (debounced 300ms) + branch combobox filter (RBAC-scoped to `accessibleNodeIds`).
 
@@ -80,6 +80,7 @@ None yet. Chrome-verified pages render + API wires via search.
 
 - Uses raw `sql` template for `COUNT(...) FILTER (WHERE ...)` — Drizzle query builder doesn't express it cleanly.
 - `accessibleNodeIds` inlined as UUID literal array to work around Neon WebSocket driver array-param quirk.
-- Form in drawer uses `useState` (not react-hook-form) — simple form, matches sibling walk-in page pattern.
+- Form in drawer uses `useState` (not react-hook-form) — simple form.
 - `formatPrice(cents, "MYR")` used directly — the helper already divides by 100.
 - Shipped in tracking-pages plan phase 1 (2026-04-18).
+- **Walk-in tab removed (2026-04-21):** The page previously used `ConsolidatedTabs` with a Registered and Walk-in tab. The Walk-in tab and all associated tab logic (`validateSearch`, `ConsolidatedTabs`) were removed. The route now renders `<RegisteredCustomersPage />` directly with no tab wrapper.

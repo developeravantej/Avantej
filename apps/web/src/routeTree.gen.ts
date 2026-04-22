@@ -36,9 +36,12 @@ import { Route as AuthenticatedDashboardLayoutUomViewRouteImport } from './route
 import { Route as AuthenticatedDashboardLayoutUomConversionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom-conversions/view'
 import { Route as AuthenticatedDashboardLayoutTransferOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/transfer-orders/view'
 import { Route as AuthenticatedDashboardLayoutTrainersViewRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/view'
+import { Route as AuthenticatedDashboardLayoutTrainersTiersRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/tiers'
 import { Route as AuthenticatedDashboardLayoutSuppliersViewRouteImport } from './routes/_authenticated/dashboard/_layout/suppliers/view'
 import { Route as AuthenticatedDashboardLayoutStockRequestsViewRouteImport } from './routes/_authenticated/dashboard/_layout/stock-requests/view'
 import { Route as AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport } from './routes/_authenticated/dashboard/_layout/settings/tax-rates'
+import { Route as AuthenticatedDashboardLayoutSettingsOrganizationRouteImport } from './routes/_authenticated/dashboard/_layout/settings/organization'
+import { Route as AuthenticatedDashboardLayoutSettingsNotificationsRouteImport } from './routes/_authenticated/dashboard/_layout/settings/notifications'
 import { Route as AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport } from './routes/_authenticated/dashboard/_layout/settings/installment-plans'
 import { Route as AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport } from './routes/_authenticated/dashboard/_layout/settings/google-calendar'
 import { Route as AuthenticatedDashboardLayoutServiceViewRouteImport } from './routes/_authenticated/dashboard/_layout/service/view'
@@ -56,11 +59,13 @@ import { Route as AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport } fr
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
 import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
+import { Route as AuthenticatedDashboardLayoutPackagesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/view'
 import { Route as AuthenticatedDashboardLayoutNotificationsViewRouteImport } from './routes/_authenticated/dashboard/_layout/notifications/view'
 import { Route as AuthenticatedDashboardLayoutMyServicesViewRouteImport } from './routes/_authenticated/dashboard/_layout/my-services/view'
 import { Route as AuthenticatedDashboardLayoutMembershipsViewRouteImport } from './routes/_authenticated/dashboard/_layout/memberships/view'
 import { Route as AuthenticatedDashboardLayoutExpensesViewRouteImport } from './routes/_authenticated/dashboard/_layout/expenses/view'
 import { Route as AuthenticatedDashboardLayoutCustomersViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/view'
+import { Route as AuthenticatedDashboardLayoutCustomersIdRouteImport } from './routes/_authenticated/dashboard/_layout/customers/$id'
 import { Route as AuthenticatedDashboardLayoutCommissionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/commissions/view'
 import { Route as AuthenticatedDashboardLayoutCommissionsMyRouteImport } from './routes/_authenticated/dashboard/_layout/commissions/my'
 import { Route as AuthenticatedDashboardLayoutCategoriesViewRouteImport } from './routes/_authenticated/dashboard/_layout/categories/view'
@@ -227,6 +232,12 @@ const AuthenticatedDashboardLayoutTrainersViewRoute =
     path: '/trainers/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutTrainersTiersRoute =
+  AuthenticatedDashboardLayoutTrainersTiersRouteImport.update({
+    id: '/trainers/tiers',
+    path: '/trainers/tiers',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutSuppliersViewRoute =
   AuthenticatedDashboardLayoutSuppliersViewRouteImport.update({
     id: '/suppliers/view',
@@ -243,6 +254,18 @@ const AuthenticatedDashboardLayoutSettingsTaxRatesRoute =
   AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport.update({
     id: '/settings/tax-rates',
     path: '/settings/tax-rates',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutSettingsOrganizationRoute =
+  AuthenticatedDashboardLayoutSettingsOrganizationRouteImport.update({
+    id: '/settings/organization',
+    path: '/settings/organization',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutSettingsNotificationsRoute =
+  AuthenticatedDashboardLayoutSettingsNotificationsRouteImport.update({
+    id: '/settings/notifications',
+    path: '/settings/notifications',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute =
@@ -347,6 +370,12 @@ const AuthenticatedDashboardLayoutPaymentViewRoute =
     path: '/payment/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPackagesViewRoute =
+  AuthenticatedDashboardLayoutPackagesViewRouteImport.update({
+    id: '/packages/view',
+    path: '/packages/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutNotificationsViewRoute =
   AuthenticatedDashboardLayoutNotificationsViewRouteImport.update({
     id: '/notifications/view',
@@ -375,6 +404,12 @@ const AuthenticatedDashboardLayoutCustomersViewRoute =
   AuthenticatedDashboardLayoutCustomersViewRouteImport.update({
     id: '/customers/view',
     path: '/customers/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutCustomersIdRoute =
+  AuthenticatedDashboardLayoutCustomersIdRouteImport.update({
+    id: '/customers/$id',
+    path: '/customers/$id',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutCommissionsViewRoute =
@@ -529,11 +564,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/dashboard/commissions/my': typeof AuthenticatedDashboardLayoutCommissionsMyRoute
   '/dashboard/commissions/view': typeof AuthenticatedDashboardLayoutCommissionsViewRoute
+  '/dashboard/customers/$id': typeof AuthenticatedDashboardLayoutCustomersIdRoute
   '/dashboard/customers/view': typeof AuthenticatedDashboardLayoutCustomersViewRoute
   '/dashboard/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
   '/dashboard/memberships/view': typeof AuthenticatedDashboardLayoutMembershipsViewRoute
   '/dashboard/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
+  '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
@@ -551,9 +588,12 @@ export interface FileRoutesByFullPath {
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
+  '/dashboard/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
+  '/dashboard/settings/organization': typeof AuthenticatedDashboardLayoutSettingsOrganizationRoute
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
@@ -600,11 +640,13 @@ export interface FileRoutesByTo {
   '/dashboard/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/dashboard/commissions/my': typeof AuthenticatedDashboardLayoutCommissionsMyRoute
   '/dashboard/commissions/view': typeof AuthenticatedDashboardLayoutCommissionsViewRoute
+  '/dashboard/customers/$id': typeof AuthenticatedDashboardLayoutCustomersIdRoute
   '/dashboard/customers/view': typeof AuthenticatedDashboardLayoutCustomersViewRoute
   '/dashboard/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
   '/dashboard/memberships/view': typeof AuthenticatedDashboardLayoutMembershipsViewRoute
   '/dashboard/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/dashboard/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
+  '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
@@ -622,9 +664,12 @@ export interface FileRoutesByTo {
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
+  '/dashboard/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
+  '/dashboard/settings/organization': typeof AuthenticatedDashboardLayoutSettingsOrganizationRoute
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
@@ -674,11 +719,13 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/categories/view': typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   '/_authenticated/dashboard/_layout/commissions/my': typeof AuthenticatedDashboardLayoutCommissionsMyRoute
   '/_authenticated/dashboard/_layout/commissions/view': typeof AuthenticatedDashboardLayoutCommissionsViewRoute
+  '/_authenticated/dashboard/_layout/customers/$id': typeof AuthenticatedDashboardLayoutCustomersIdRoute
   '/_authenticated/dashboard/_layout/customers/view': typeof AuthenticatedDashboardLayoutCustomersViewRoute
   '/_authenticated/dashboard/_layout/expenses/view': typeof AuthenticatedDashboardLayoutExpensesViewRoute
   '/_authenticated/dashboard/_layout/memberships/view': typeof AuthenticatedDashboardLayoutMembershipsViewRoute
   '/_authenticated/dashboard/_layout/my-services/view': typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   '/_authenticated/dashboard/_layout/notifications/view': typeof AuthenticatedDashboardLayoutNotificationsViewRoute
+  '/_authenticated/dashboard/_layout/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
@@ -696,9 +743,12 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
   '/_authenticated/dashboard/_layout/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/_authenticated/dashboard/_layout/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
+  '/_authenticated/dashboard/_layout/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
+  '/_authenticated/dashboard/_layout/settings/organization': typeof AuthenticatedDashboardLayoutSettingsOrganizationRoute
   '/_authenticated/dashboard/_layout/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/_authenticated/dashboard/_layout/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/_authenticated/dashboard/_layout/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/_authenticated/dashboard/_layout/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/_authenticated/dashboard/_layout/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/_authenticated/dashboard/_layout/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   '/_authenticated/dashboard/_layout/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
@@ -748,11 +798,13 @@ export interface FileRouteTypes {
     | '/dashboard/categories/view'
     | '/dashboard/commissions/my'
     | '/dashboard/commissions/view'
+    | '/dashboard/customers/$id'
     | '/dashboard/customers/view'
     | '/dashboard/expenses/view'
     | '/dashboard/memberships/view'
     | '/dashboard/my-services/view'
     | '/dashboard/notifications/view'
+    | '/dashboard/packages/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
@@ -770,9 +822,12 @@ export interface FileRouteTypes {
     | '/dashboard/service/view'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
+    | '/dashboard/settings/notifications'
+    | '/dashboard/settings/organization'
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/tiers'
     | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
     | '/dashboard/uom-conversions/view'
@@ -819,11 +874,13 @@ export interface FileRouteTypes {
     | '/dashboard/categories/view'
     | '/dashboard/commissions/my'
     | '/dashboard/commissions/view'
+    | '/dashboard/customers/$id'
     | '/dashboard/customers/view'
     | '/dashboard/expenses/view'
     | '/dashboard/memberships/view'
     | '/dashboard/my-services/view'
     | '/dashboard/notifications/view'
+    | '/dashboard/packages/view'
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
@@ -841,9 +898,12 @@ export interface FileRouteTypes {
     | '/dashboard/service/view'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
+    | '/dashboard/settings/notifications'
+    | '/dashboard/settings/organization'
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/tiers'
     | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
     | '/dashboard/uom-conversions/view'
@@ -892,11 +952,13 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/categories/view'
     | '/_authenticated/dashboard/_layout/commissions/my'
     | '/_authenticated/dashboard/_layout/commissions/view'
+    | '/_authenticated/dashboard/_layout/customers/$id'
     | '/_authenticated/dashboard/_layout/customers/view'
     | '/_authenticated/dashboard/_layout/expenses/view'
     | '/_authenticated/dashboard/_layout/memberships/view'
     | '/_authenticated/dashboard/_layout/my-services/view'
     | '/_authenticated/dashboard/_layout/notifications/view'
+    | '/_authenticated/dashboard/_layout/packages/view'
     | '/_authenticated/dashboard/_layout/payment/view'
     | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/platform-admin/admins'
@@ -914,9 +976,12 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/service/view'
     | '/_authenticated/dashboard/_layout/settings/google-calendar'
     | '/_authenticated/dashboard/_layout/settings/installment-plans'
+    | '/_authenticated/dashboard/_layout/settings/notifications'
+    | '/_authenticated/dashboard/_layout/settings/organization'
     | '/_authenticated/dashboard/_layout/settings/tax-rates'
     | '/_authenticated/dashboard/_layout/stock-requests/view'
     | '/_authenticated/dashboard/_layout/suppliers/view'
+    | '/_authenticated/dashboard/_layout/trainers/tiers'
     | '/_authenticated/dashboard/_layout/trainers/view'
     | '/_authenticated/dashboard/_layout/transfer-orders/view'
     | '/_authenticated/dashboard/_layout/uom-conversions/view'
@@ -1134,6 +1199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutTrainersViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/trainers/tiers': {
+      id: '/_authenticated/dashboard/_layout/trainers/tiers'
+      path: '/trainers/tiers'
+      fullPath: '/dashboard/trainers/tiers'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutTrainersTiersRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/suppliers/view': {
       id: '/_authenticated/dashboard/_layout/suppliers/view'
       path: '/suppliers/view'
@@ -1153,6 +1225,20 @@ declare module '@tanstack/react-router' {
       path: '/settings/tax-rates'
       fullPath: '/dashboard/settings/tax-rates'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/settings/organization': {
+      id: '/_authenticated/dashboard/_layout/settings/organization'
+      path: '/settings/organization'
+      fullPath: '/dashboard/settings/organization'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsOrganizationRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/settings/notifications': {
+      id: '/_authenticated/dashboard/_layout/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/dashboard/settings/notifications'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsNotificationsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/settings/installment-plans': {
@@ -1274,6 +1360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPaymentViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/packages/view': {
+      id: '/_authenticated/dashboard/_layout/packages/view'
+      path: '/packages/view'
+      fullPath: '/dashboard/packages/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPackagesViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/notifications/view': {
       id: '/_authenticated/dashboard/_layout/notifications/view'
       path: '/notifications/view'
@@ -1307,6 +1400,13 @@ declare module '@tanstack/react-router' {
       path: '/customers/view'
       fullPath: '/dashboard/customers/view'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutCustomersViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/customers/$id': {
+      id: '/_authenticated/dashboard/_layout/customers/$id'
+      path: '/customers/$id'
+      fullPath: '/dashboard/customers/$id'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutCustomersIdRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/commissions/view': {
@@ -1463,11 +1563,13 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutCategoriesViewRoute: typeof AuthenticatedDashboardLayoutCategoriesViewRoute
   AuthenticatedDashboardLayoutCommissionsMyRoute: typeof AuthenticatedDashboardLayoutCommissionsMyRoute
   AuthenticatedDashboardLayoutCommissionsViewRoute: typeof AuthenticatedDashboardLayoutCommissionsViewRoute
+  AuthenticatedDashboardLayoutCustomersIdRoute: typeof AuthenticatedDashboardLayoutCustomersIdRoute
   AuthenticatedDashboardLayoutCustomersViewRoute: typeof AuthenticatedDashboardLayoutCustomersViewRoute
   AuthenticatedDashboardLayoutExpensesViewRoute: typeof AuthenticatedDashboardLayoutExpensesViewRoute
   AuthenticatedDashboardLayoutMembershipsViewRoute: typeof AuthenticatedDashboardLayoutMembershipsViewRoute
   AuthenticatedDashboardLayoutMyServicesViewRoute: typeof AuthenticatedDashboardLayoutMyServicesViewRoute
   AuthenticatedDashboardLayoutNotificationsViewRoute: typeof AuthenticatedDashboardLayoutNotificationsViewRoute
+  AuthenticatedDashboardLayoutPackagesViewRoute: typeof AuthenticatedDashboardLayoutPackagesViewRoute
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
   AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
@@ -1485,9 +1587,12 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutServiceViewRoute: typeof AuthenticatedDashboardLayoutServiceViewRoute
   AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute: typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
+  AuthenticatedDashboardLayoutSettingsNotificationsRoute: typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
+  AuthenticatedDashboardLayoutSettingsOrganizationRoute: typeof AuthenticatedDashboardLayoutSettingsOrganizationRoute
   AuthenticatedDashboardLayoutSettingsTaxRatesRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   AuthenticatedDashboardLayoutStockRequestsViewRoute: typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   AuthenticatedDashboardLayoutSuppliersViewRoute: typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  AuthenticatedDashboardLayoutTrainersTiersRoute: typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   AuthenticatedDashboardLayoutTrainersViewRoute: typeof AuthenticatedDashboardLayoutTrainersViewRoute
   AuthenticatedDashboardLayoutTransferOrdersViewRoute: typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
   AuthenticatedDashboardLayoutUomConversionsViewRoute: typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
@@ -1535,6 +1640,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutCommissionsMyRoute,
     AuthenticatedDashboardLayoutCommissionsViewRoute:
       AuthenticatedDashboardLayoutCommissionsViewRoute,
+    AuthenticatedDashboardLayoutCustomersIdRoute:
+      AuthenticatedDashboardLayoutCustomersIdRoute,
     AuthenticatedDashboardLayoutCustomersViewRoute:
       AuthenticatedDashboardLayoutCustomersViewRoute,
     AuthenticatedDashboardLayoutExpensesViewRoute:
@@ -1545,6 +1652,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutMyServicesViewRoute,
     AuthenticatedDashboardLayoutNotificationsViewRoute:
       AuthenticatedDashboardLayoutNotificationsViewRoute,
+    AuthenticatedDashboardLayoutPackagesViewRoute:
+      AuthenticatedDashboardLayoutPackagesViewRoute,
     AuthenticatedDashboardLayoutPaymentViewRoute:
       AuthenticatedDashboardLayoutPaymentViewRoute,
     AuthenticatedDashboardLayoutPayoutsViewRoute:
@@ -1579,12 +1688,18 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute,
     AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute:
       AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute,
+    AuthenticatedDashboardLayoutSettingsNotificationsRoute:
+      AuthenticatedDashboardLayoutSettingsNotificationsRoute,
+    AuthenticatedDashboardLayoutSettingsOrganizationRoute:
+      AuthenticatedDashboardLayoutSettingsOrganizationRoute,
     AuthenticatedDashboardLayoutSettingsTaxRatesRoute:
       AuthenticatedDashboardLayoutSettingsTaxRatesRoute,
     AuthenticatedDashboardLayoutStockRequestsViewRoute:
       AuthenticatedDashboardLayoutStockRequestsViewRoute,
     AuthenticatedDashboardLayoutSuppliersViewRoute:
       AuthenticatedDashboardLayoutSuppliersViewRoute,
+    AuthenticatedDashboardLayoutTrainersTiersRoute:
+      AuthenticatedDashboardLayoutTrainersTiersRoute,
     AuthenticatedDashboardLayoutTrainersViewRoute:
       AuthenticatedDashboardLayoutTrainersViewRoute,
     AuthenticatedDashboardLayoutTransferOrdersViewRoute:

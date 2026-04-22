@@ -93,7 +93,6 @@ export function MemberSelector({
           onChange(newValue === "clear" ? "" : newValue);
         }}
         disabled={disabled || isLoading}
-        onOpenChange={setIsOpen}
       >
         <SelectTrigger>
           <SelectValue placeholder={placeholder}>

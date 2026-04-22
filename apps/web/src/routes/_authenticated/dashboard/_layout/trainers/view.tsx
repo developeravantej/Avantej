@@ -8,9 +8,6 @@ import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { TrainerAvailabilityEditor } from "@/components/trainers/trainer-availability-editor";
-import type { ColumnDef } from "@tanstack/react-table";
-import DataTable from "@/components/tables/sales/view/data-table";
-import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,9 +28,16 @@ import {
 	SheetDescription,
 	SheetFooter,
 } from "@/components/ui/sheet";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, Plus, Search, Edit, ChevronDown } from "lucide-react";
+import { Users, Plus, Search, Edit, ChevronDown, Mail, Phone, Award } from "lucide-react";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -60,6 +64,7 @@ type TrainerRow = {
 	joinedAt: Date | string | null;
 	name: string;
 	email: string;
+	trainerTierId?: string | null;
 	// Profile fields (may be undefined if profile not yet fetched)
 	displayName?: string | null;
 	specialization?: string | null;
@@ -90,6 +95,16 @@ const EMPTY_FORM: FormState = {
 	certifications: "",
 };
 
+function getInitials(name: string) {
+	return name
+		.split(" ")
+		.map((p) => p[0])
+		.filter(Boolean)
+		.slice(0, 2)
+		.join("")
+		.toUpperCase();
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 function TrainersView() {
@@ -117,6 +132,7 @@ function TrainersView() {
 	const [commissionsSectionOpen, setCommissionsSectionOpen] = useState(false);
 	const [editingBufferServiceId, setEditingBufferServiceId] = useState<string | null>(null); // keyed by serviceId
 	const [bufferInputValue, setBufferInputValue] = useState<string>("");
+	const [selectedTrainer, setSelectedTrainer] = useState<TrainerRow | null>(null);
 
 	// ── Queries ──────────────────────────────────────────────────────────────
 
@@ -129,6 +145,7 @@ function TrainersView() {
 		joinedAt: Date | string | null;
 		name: string;
 		email: string;
+		trainerTierId?: string | null;
 	};
 
 	const { data: membersData = [] as MemberListItem[], isLoading } = useQuery({
@@ -171,6 +188,13 @@ function TrainersView() {
 			return map;
 		},
 		enabled: !!organizationId && membersData.length > 0,
+	});
+
+	const { data: trainerTiers = [] } = useQuery({
+		queryKey: ["trainerTiers", organizationId, "active"],
+		queryFn: () =>
+			client.trainerTiers.list({ organizationId: organizationId!, includeInactive: false }),
+		enabled: !!organizationId,
 	});
 
 	const { data: trainerServices = [] } = useQuery({
@@ -393,6 +417,16 @@ function TrainersView() {
 			toast.error(err instanceof Error ? err.message : "Failed to remove service."),
 	});
 
+	const assignTierMutation = useMutation({
+		mutationFn: ({ memberId, tierId }: { memberId: string; tierId: string | null }) =>
+			client.trainerTiers.assignToMember({ organizationId: organizationId!, memberId, tierId }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["trainers", organizationId] });
+			toast.success("Tier assigned");
+		},
+		onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to assign tier"),
+	});
+
 	// ── Sheet helpers ────────────────────────────────────────────────────────
 
 	function openCreate() {
@@ -452,7 +486,8 @@ function TrainersView() {
 		reactivateMutation.isPending ||
 		updateBufferMutation.isPending ||
 		assignMutation.isPending ||
-		removeMutation.isPending;
+		removeMutation.isPending ||
+		assignTierMutation.isPending;
 
 	// ── Table data & columns ─────────────────────────────────────────────────
 
@@ -468,6 +503,7 @@ function TrainersView() {
 				joinedAt: m.joinedAt,
 				name: m.name,
 				email: m.email,
+				trainerTierId: m.trainerTierId ?? null,
 				displayName: profile?.displayName ?? null,
 				specialization: profile?.specialization ?? null,
 				phoneNumber: profile?.phoneNumber ?? null,
@@ -485,109 +521,6 @@ function TrainersView() {
 				(row.specialization?.toLowerCase().includes(q) ?? false)
 			);
 		});
-
-	const columns: ColumnDef<TrainerRow>[] = [
-		{
-			accessorKey: "displayName",
-			header: "Name",
-			cell: ({ row }) => {
-				const display = row.original.displayName || row.original.name;
-				return (
-					<div>
-						<span className="font-medium">{display}</span>
-						{row.original.displayName && row.original.displayName !== row.original.name && (
-							<p className="text-xs text-muted-foreground">{row.original.name}</p>
-						)}
-					</div>
-				);
-			},
-		},
-		{
-			accessorKey: "email",
-			header: "Email",
-			cell: ({ row }) => <CopyableCell value={row.original.email} />,
-		},
-		{
-			accessorKey: "specialization",
-			header: "Specialization",
-			cell: ({ row }) => (
-				<span className="text-sm">
-					{row.original.specialization ?? (
-						<span className="text-muted-foreground">—</span>
-					)}
-				</span>
-			),
-		},
-		{
-			accessorKey: "phoneNumber",
-			header: "Phone",
-			cell: ({ row }) => <CopyableCell value={row.original.phoneNumber} />,
-		},
-		{
-			accessorKey: "status",
-			header: "Status",
-			cell: ({ row }) => {
-				const status = row.original.status;
-				if (status === "active") {
-					return <Badge variant="default">Active</Badge>;
-				}
-				if (status === "suspended") {
-					return <Badge variant="destructive">Suspended</Badge>;
-				}
-				return (
-					<Badge variant="outline" className="capitalize">
-						{status}
-					</Badge>
-				);
-			},
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			enableSorting: false,
-			enableHiding: false,
-			cell: ({ row }) => {
-				const trainer = row.original;
-				const isActive = trainer.status === "active";
-				const isSuspended = trainer.status === "suspended";
-				return (
-					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => openEdit(trainer)}
-							disabled={isMutating}
-						>
-							<Edit className="h-4 w-4 mr-1" />
-							Edit
-						</Button>
-						{isActive && (
-							<Button
-								variant="ghost"
-								size="sm"
-								className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-								onClick={() => suspendMutation.mutate(trainer.id)}
-								disabled={isMutating}
-							>
-								Suspend
-							</Button>
-						)}
-						{isSuspended && (
-							<Button
-								variant="ghost"
-								size="sm"
-								className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-								onClick={() => reactivateMutation.mutate(trainer.id)}
-								disabled={isMutating}
-							>
-								Reactivate
-							</Button>
-						)}
-					</div>
-				);
-			},
-		},
-	];
 
 	// ── Guard: no org selected ───────────────────────────────────────────────
 
@@ -665,8 +598,196 @@ function TrainersView() {
 					)}
 				</div>
 			) : (
-				<DataTable<TrainerRow, unknown> columns={columns} data={tableData} />
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+					{tableData.map((trainer) => {
+						const initials = getInitials(trainer.displayName ?? trainer.name);
+						const isActive = trainer.status === "active";
+						const isSuspended = trainer.status === "suspended";
+						return (
+							<div
+								key={trainer.id}
+								role="button"
+								tabIndex={0}
+								onClick={() => setSelectedTrainer(trainer)}
+								onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedTrainer(trainer); }}
+								className="flex flex-col rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
+							>
+								<div className="flex items-start gap-3 px-4 pt-4 pb-3">
+									<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold">
+										{initials}
+									</div>
+									<div className="flex-1 min-w-0">
+										<p className="text-sm font-semibold text-gray-900 truncate">
+											{trainer.displayName ?? trainer.name}
+										</p>
+										{trainer.specialization ? (
+											<p className="text-xs text-muted-foreground truncate mt-0.5">{trainer.specialization}</p>
+										) : (
+											<p className="text-xs text-gray-300 truncate mt-0.5">No specialization</p>
+										)}
+										<p className="text-xs text-gray-400 truncate mt-0.5">{trainer.email}</p>
+									</div>
+									<Badge
+										variant={isActive ? "default" : "destructive"}
+										className="shrink-0 self-start text-xs"
+									>
+										{isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
+									</Badge>
+								</div>
+								<div className={cn("h-0.5 w-full shrink-0", isActive ? "bg-emerald-400" : "bg-rose-400")} />
+								{/* Tier selector */}
+								<div
+									className="px-4 py-2 border-t border-gray-50"
+									onClick={(e) => e.stopPropagation()}
+									onKeyDown={(e) => e.stopPropagation()}
+								>
+									<select
+										className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-700"
+										value={trainer.trainerTierId ?? ""}
+										disabled={assignTierMutation.isPending}
+										onChange={(e) => {
+											const tierId = e.target.value || null;
+											assignTierMutation.mutate({ memberId: trainer.id, tierId });
+										}}
+									>
+										<option value="">No tier</option>
+										{(trainerTiers as any[]).map((tier) => (
+											<option key={tier.id} value={tier.id}>
+												{tier.name}
+											</option>
+										))}
+									</select>
+								</div>
+							</div>
+						);
+					})}
+				</div>
 			)}
+			{/* —— Trainer Detail Dialog —— */}
+			<Dialog open={selectedTrainer !== null} onOpenChange={(open) => { if (!open) setSelectedTrainer(null); }}>
+				<DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl gap-0">
+					{selectedTrainer && (() => {
+						const trainer = selectedTrainer;
+						const initials = getInitials(trainer.displayName ?? trainer.name);
+						const isActive = trainer.status === "active";
+						const isSuspended = trainer.status === "suspended";
+						return (
+							<>
+								{/* Header */}
+								<div className="px-6 pt-6 pb-5 border-b border-gray-100">
+									<div className="flex items-start gap-4">
+										<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 text-xl font-bold">
+											{initials}
+										</div>
+										<div className="flex-1 min-w-0 pt-1">
+											<DialogHeader className="p-0 space-y-0">
+												<DialogTitle className="text-base font-bold text-gray-900">
+													{trainer.displayName ?? trainer.name}
+												</DialogTitle>
+												{trainer.specialization && (
+													<DialogDescription className="text-xs text-muted-foreground mt-0.5">
+														{trainer.specialization}
+													</DialogDescription>
+												)}
+											</DialogHeader>
+											<div className="mt-2">
+												<Badge variant={isActive ? "default" : "destructive"} className="text-xs">
+													{isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
+												</Badge>
+											</div>
+										</div>
+									</div>
+								</div>
+
+								{/* Detail rows */}
+								<div className="px-5 py-4 space-y-1 bg-white">
+									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+											<Mail className="h-3.5 w-3.5 text-gray-500" />
+										</div>
+										<div className="flex-1 min-w-0">
+											<p className="text-[11px] text-gray-400 font-medium">Email</p>
+											<p className="text-sm text-gray-800 font-medium">{trainer.email}</p>
+										</div>
+									</div>
+									{trainer.phoneNumber && (
+										<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+												<Phone className="h-3.5 w-3.5 text-gray-500" />
+											</div>
+											<div className="flex-1 min-w-0">
+												<p className="text-[11px] text-gray-400 font-medium">Phone</p>
+												<p className="text-sm text-gray-800 font-medium">{trainer.phoneNumber}</p>
+											</div>
+										</div>
+									)}
+									{trainer.bio && (
+										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+												<Users className="h-3.5 w-3.5 text-gray-500" />
+											</div>
+											<div className="flex-1 min-w-0">
+												<p className="text-[11px] text-gray-400 font-medium">Bio</p>
+												<p className="text-sm text-gray-700 leading-relaxed">{trainer.bio}</p>
+											</div>
+										</div>
+									)}
+									{trainer.certifications && trainer.certifications.length > 0 && (
+										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+												<Award className="h-3.5 w-3.5 text-gray-500" />
+											</div>
+											<div className="flex-1 min-w-0">
+												<p className="text-[11px] text-gray-400 font-medium">Certifications</p>
+												<div className="flex flex-wrap gap-1.5 mt-1">
+													{trainer.certifications.map((cert) => (
+														<span key={cert} className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700 font-medium">
+															{cert}
+														</span>
+													))}
+												</div>
+											</div>
+										</div>
+									)}
+								</div>
+
+								{/* Footer actions */}
+								<div className="px-5 pb-5 pt-0 bg-white flex flex-col gap-2">
+									<button
+										type="button"
+										onClick={() => { setSelectedTrainer(null); openEdit(trainer); }}
+										className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+									>
+										<Edit className="h-3.5 w-3.5" />
+										Edit Profile
+									</button>
+									{isActive && (
+										<button
+											type="button"
+											onClick={() => { setSelectedTrainer(null); suspendMutation.mutate(trainer.id); }}
+											disabled={isMutating}
+											className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+										>
+											Suspend
+										</button>
+									)}
+									{isSuspended && (
+										<button
+											type="button"
+											onClick={() => { setSelectedTrainer(null); reactivateMutation.mutate(trainer.id); }}
+											disabled={isMutating}
+											className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+										>
+											Reactivate
+										</button>
+									)}
+								</div>
+							</>
+						);
+					})()}
+				</DialogContent>
+			</Dialog>
+
 
 			{/* Create / Edit Sheet */}
 			<Sheet
@@ -742,10 +863,11 @@ function TrainersView() {
 											) : (
 												hierarchyNodes.map((node) => (
 													<SelectItem key={node.id} value={node.id}>
-														{"  ".repeat(node.depth)}
-														{node.name}
-														<span className="ml-1 text-xs text-muted-foreground capitalize">
-															({node.type})
+														<span style={{ paddingLeft: `${node.depth * 12}px` }}>
+															{node.name}
+															<span className="ml-1 text-xs text-muted-foreground capitalize">
+																({node.type})
+															</span>
 														</span>
 													</SelectItem>
 												))

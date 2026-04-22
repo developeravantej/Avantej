@@ -29,8 +29,8 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 
   return (
     <div
-      className="cursor-pointer flex items-center group"
-      onClick={() => onCopy(value!)}
+      className={`flex items-center group ${value ? "cursor-pointer" : "cursor-default opacity-50"}`}
+      onClick={() => { if (value) onCopy(value); }}
     >
       <Badge
         variant="outline"
@@ -77,7 +77,7 @@ export function createColumns(options: CreateColumnsOptions): ColumnDef<MemberRo
   {
     accessorKey: "name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="" />
+      <DataTableColumnHeader column={column} title="Name" />
     ),
     cell: ({ row }) => {
       const member = row.original;

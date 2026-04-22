@@ -13,9 +13,12 @@ import {
 	deleteCheckIn,
 	listCheckIns,
 	listTodaysBookings,
+	recordBulkCheckIn,
 	recordCheckIn,
 } from "@avantej-core/services/check-ins.service";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { ORPCError } from "@orpc/server";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -28,18 +31,29 @@ export const checkInsRouter = {
 	 */
 	recordCheckIn: protectedProcedure
 		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				clientType: z.enum(["member", "walk_in"]),
-				clientId: z.string().min(1),
-				branchId: z.string().uuid(),
-				appointmentClientId: z.string().uuid().optional(),
-				source: z.enum(["booking", "drop_in"]),
-				outcome: z.enum(["attended", "no_show", "late_cancel"]).optional(),
-				packageInstanceId: z.string().uuid().optional(),
-				creditsConsumed: z.number().int().min(0).default(0),
-				notes: z.string().max(1000).optional(),
-			}),
+			z
+				.object({
+					organizationId: z.string().uuid(),
+					clientType: z.enum(["member", "walk_in"]),
+					clientId: z.string().uuid().optional(),
+					clientDisplayName: z.string().trim().max(120).optional(),
+					branchId: z.string().uuid(),
+					appointmentClientId: z.string().uuid().optional(),
+					source: z.enum(["booking", "drop_in"]),
+					outcome: z.enum(["attended", "no_show", "late_cancel"]).optional(),
+					packageInstanceId: z.string().uuid().optional(),
+					creditsConsumed: z.number().int().min(0).default(0),
+					notes: z.string().max(1000).optional(),
+				})
+				.superRefine((data, ctx) => {
+					if (data.clientType === "member" && !data.clientId) {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: "clientId is required for member check-ins",
+							path: ["clientId"],
+						});
+					}
+				}),
 		)
 		.handler(async ({ context, input }) => {
 			if (!context.tenantDb) {
@@ -71,6 +85,7 @@ export const checkInsRouter = {
 				return await recordCheckIn(context.tenantDb, {
 					clientType: input.clientType,
 					clientId: input.clientId,
+					clientDisplayName: input.clientDisplayName,
 					branchId: input.branchId,
 					appointmentClientId: input.appointmentClientId,
 					source: input.source,
@@ -204,6 +219,100 @@ export const checkInsRouter = {
 				limit: input.limit,
 				offset: input.offset,
 			});
+		}),
+
+	/**
+	 * Record check-ins for multiple bookings in a single call.
+	 * Processes up to 100 bookings; already-checked-in bookings are skipped (not errored).
+	 */
+	recordBulkCheckIn: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid(),
+				bookingIds: z.array(z.string().uuid()).min(1).max(100),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"create",
+			);
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(input.branchId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Branch is outside your accessible scope",
+				});
+			}
+			return recordBulkCheckIn(context.tenantDb, {
+				bookingIds: input.bookingIds,
+				branchId: input.branchId,
+				actor: {
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				},
+			});
+		}),
+
+	/**
+	 * Get the earliest-expiring active package instance for a given member (clientId).
+	 * Returns null when no active package with credits remaining exists.
+	 */
+	getActivePackageForMember: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				clientId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"read",
+			);
+
+			const rows = await context.tenantDb
+				.select({
+					id: packageInstances.id,
+					creditsRemaining: packageInstances.creditsRemaining,
+				})
+				.from(packageInstances)
+				.where(
+					and(
+						eq(packageInstances.clientId, input.clientId),
+						eq(packageInstances.status, "active"),
+						sql`${packageInstances.creditsRemaining} > 0`,
+					),
+				)
+				.orderBy(packageInstances.expiresAt)
+				.limit(1);
+
+			if (rows.length === 0) return null;
+			return {
+				packageInstanceId: rows[0]!.id,
+				creditsRemaining: rows[0]!.creditsRemaining,
+			};
 		}),
 
 	/**

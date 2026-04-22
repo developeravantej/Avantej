@@ -63,7 +63,7 @@ const getStaffPerformanceHandler = protectedProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
-			period: z.enum(["this_week", "this_month", "this_year"]),
+			period: z.enum(["today", "this_week", "this_month", "this_year"]),
 			branchId: z.string().uuid().optional(),
 		}),
 	)

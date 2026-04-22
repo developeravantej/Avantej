@@ -6,6 +6,11 @@
  */
 
 export * from "./announcements";
+export * from "./category-commission-configs";
+export * from "./commission-coach-slots";
+export * from "./commission-condition-rates";
+export * from "./commission-conditions";
+export * from "./commission-tier-rates";
 export * from "./appointment-clients";
 export * from "./appointment-staff";
 export * from "./appointments";
@@ -63,6 +68,7 @@ export * from "./stock-requests";
 export * from "./suppliers";
 export * from "./tax-rates";
 export * from "./trainer-availability";
+export * from "./trainer-tiers";
 export * from "./transfer-order-items";
 export * from "./transfer-orders";
 export * from "./units-of-measure";

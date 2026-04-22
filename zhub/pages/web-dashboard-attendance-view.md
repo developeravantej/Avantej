@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/attendance/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated + `attendance_management:read`
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-21
 
 ---
 
@@ -14,7 +14,7 @@
 
 **Produces:** Two-column layout.
 - **Left:** "Today's Bookings" — grouped by class slot / 1:1 appointment with Check-in / No-show buttons per booking.
-- **Right:** "Drop-in Check-in" form — Combobox: existing member | walk-in. Submit → no-appointment check_in row.
+- **Right:** "Drop-in Check-in" form — Combobox: existing member | walk-in. Walk-in mode shows an optional "Display Name" text field (no UUID picker). Submit → no-appointment check_in row.
 - **Bottom:** "Today's Check-ins" log (filterable by branch). Delete button reverts attendance.
 
 **On success:** Toast on check-in; duplicate-guard shows "Already checked in N minutes ago" if drop-in within 30 min window.
@@ -31,9 +31,11 @@ Today's bookings:
       → appointment_clients + appointments + check_ins annotations
 
 Drop-in check-in:
-  → client.checkIns.recordCheckIn({ clientType, clientId, branchId, source: 'drop_in', ... })
+  → client.checkIns.recordCheckIn({ clientType, clientId?, clientDisplayName?, branchId, source: 'drop_in', ... })
     → recordCheckIn()               # rbac: attendance_management:create + branch scope
-      → Anti-duplicate: 30 min window for drop-ins without appointmentClientId
+      → walk-in: clientId omitted; server synthesizes crypto.randomUUID() per check-in
+      → clientDisplayName (optional, max 120 chars) persisted if provided (trimmed, null if blank)
+      → Anti-duplicate 30-min window effectively a no-op for walk-ins (each gets a unique UUID)
       → INSERT check_ins
       → UPDATE appointment_clients.attended (if bookingId)
       → Consume package credits (if packageInstanceId + creditsConsumed > 0)
@@ -63,9 +65,10 @@ Delete:
 
 ## 4. Data Shapes
 
-**Key table:** `check_ins` (migration 0022)
+**Key table:** `check_ins` (migration 0022; `clientDisplayName` added in migration 0028)
 - `clientType`: `"member"` | `"walk_in"` (polymorphic)
-- `clientId`: text (member.userId OR walk_in_customers.id)
+- `clientId`: text — for members: `member.userId`; for walk-ins: server-synthesized `crypto.randomUUID()` (NOT a `walk_in_customers.id`)
+- `clientDisplayName`: text (nullable) — optional display name stored for walk-in check-ins
 - `source`: `"booking"` | `"drop_in"`
 - `outcome`: `"attended"` | `"no_show"` | `"late_cancel"`
 - `appointmentClientId` (nullable, if from booking)
@@ -75,10 +78,11 @@ Delete:
 - `checkedInBy` (members.userId) + `checkedInAt`
 
 **Client name resolution chain:**
-1. `user.name` (control panel) via cross-DB
-2. `user.email` if no name
-3. `walk_in_customers.name` (for walk-in type)
-4. "Unknown client" fallback
+1. `user.name` (control panel) via cross-DB — for members
+2. `user.email` if no name — for members
+3. `clientDisplayName` stored on the check-in row — for walk-ins (preferred)
+4. Legacy `walk_in_customers.name` lookup — for walk-ins (fallback if no `clientDisplayName`)
+5. `"Walk-in"` final fallback (not `"Unknown client"`)
 
 ---
 

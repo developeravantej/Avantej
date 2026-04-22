@@ -22,6 +22,8 @@ export const salesOrdersRouter = {
 				customerId: z.string().optional(),
 				from: z.string().datetime().optional(),
 				to: z.string().datetime().optional(),
+				limit: z.number().int().min(1).max(200).default(50),
+				offset: z.number().int().min(0).default(0),
 			})
 		)
 		.handler(async ({ input, context }) => {
@@ -52,6 +54,8 @@ export const salesOrdersRouter = {
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,
 				accessibleNodeIds: context.accessibleNodeIds,
+				limit: input.limit,
+				offset: input.offset,
 			});
 		}),
 

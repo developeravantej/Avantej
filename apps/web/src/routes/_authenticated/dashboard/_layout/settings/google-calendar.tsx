@@ -47,30 +47,42 @@ function formatRelativeTime(isoString: string | null): string {
 }
 
 function GoogleCalendarPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, isLoading: isUserContextLoading } =
+		useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? "";
 	const { gcal, message } = Route.useSearch();
+	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 
-	// Show toast on redirect back from OAuth
+	// Fix 1 + 4: Show toast on redirect back from OAuth, then clear the params
+	// so remounts don't re-fire the toast.
 	useEffect(() => {
+		if (!gcal) return;
+
 		if (gcal === "connected") {
 			toast.success("Google Calendar connected successfully");
 		} else if (gcal === "error") {
-			const errorMsg =
-				message === "auth_denied"
-					? "Authorization was denied"
-					: message === "invalid_state"
-						? "Invalid OAuth state — please try again"
-						: "Failed to connect Google Calendar";
-			toast.error(errorMsg);
+			if (message === "auth_denied") {
+				toast.error("Authorization was denied");
+			} else if (message === "invalid_state") {
+				toast.error("Invalid OAuth state — please try again");
+			} else if (message === "token_exchange_failed") {
+				// Fix 4: explicit branch for token exchange failures
+				toast.error("Connection failed — please try again.");
+			} else {
+				toast.error("Failed to connect Google Calendar");
+			}
 		}
-	}, [gcal, message]);
+
+		// Fix 1: Remove ?gcal= params so this toast doesn't re-fire on remount
+		navigate({ search: {}, replace: true });
+	}, [gcal, message, navigate]);
 
 	const {
 		data: status,
 		isLoading,
 		isError,
+		refetch,
 	} = useQuery({
 		queryKey: ["googleCalendar", "status", organizationId],
 		queryFn: () => client.googleCalendar.status({ organizationId }),
@@ -90,6 +102,7 @@ function GoogleCalendarPage() {
 		},
 	});
 
+	// Fix 2: Disable Connect when organizationId is not yet resolved
 	const handleConnect = () => {
 		const params = new URLSearchParams({
 			organizationId,
@@ -133,10 +146,15 @@ function GoogleCalendarPage() {
 
 			{isError && (
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent className="pt-6 flex items-center gap-4">
 						<p className="text-muted-foreground text-sm">
-							Failed to load connection status. Please refresh.
+							Failed to load connection status. Please try again.
 						</p>
+						{/* Fix 3: Retry button so the user doesn't have to reload the page */}
+						<Button variant="outline" size="sm" onClick={() => refetch()}>
+							<RefreshCw className="size-3.5 mr-1.5" />
+							Retry
+						</Button>
 					</CardContent>
 				</Card>
 			)}
@@ -212,9 +230,16 @@ function GoogleCalendarPage() {
 										</span>
 									</div>
 
-									<Button onClick={handleConnect} className="mt-2">
+									{/* Fix 2: Disable when organizationId is empty (context still loading) */}
+									<Button
+										onClick={handleConnect}
+										disabled={!organizationId || isUserContextLoading}
+										className="mt-2"
+									>
 										<Calendar className="size-4 mr-2" />
-										Connect Google Calendar
+										{isUserContextLoading
+											? "Loading…"
+											: "Connect Google Calendar"}
 									</Button>
 								</>
 							)}
@@ -227,7 +252,8 @@ function GoogleCalendarPage() {
 							<AlertDescription>
 								<span className="font-medium">Last sync failed: </span>
 								{status.lastSyncError}
-								{status.lastSyncError.includes("revoked") && (
+								{/* Fix 5: Show Reconnect for any sync error, not just "revoked" */}
+								{status.lastSyncError && (
 									<Button
 										variant="link"
 										className="ml-2 h-auto p-0 text-destructive underline"

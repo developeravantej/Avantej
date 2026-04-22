@@ -69,6 +69,9 @@ export const packageInstances = pgTable("package_instances", {
 	lockedAt: timestamp("locked_at", { withTimezone: true }),
 	lockedReason: text("locked_reason"),
 
+	// When true, payment confirmations use max(current, formula) rather than overwriting
+	creditsAdminOverride: boolean("credits_admin_override").default(false).notNull(),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

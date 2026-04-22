@@ -6,8 +6,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table"; // Standard Shadcn table components
-
+} from "@/components/ui/table";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -17,16 +16,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Search } from "lucide-react";
+import { PaginationBar } from "@/components/ui/pagination-bar";
+
+const PAGE_SIZE = 50;
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 	onServiceAdd?: (data: unknown) => Promise<void>;
+	// Pagination
+	total?: number;
+	page?: number; // 1-indexed
+	onPageChange?: (page: number) => void;
+	isLoading?: boolean;
 }
 
 export default function DataTable<TData, TValue>({
 	columns,
 	data,
+	total,
+	page,
+	onPageChange,
+	isLoading,
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 
@@ -42,57 +53,57 @@ export default function DataTable<TData, TValue>({
 		},
 	});
 
+	const showPagination = onPageChange !== undefined && total !== undefined && page !== undefined;
+
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between gap-2">
-				<div className="relative w-72">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<div className="flex h-full flex-col">
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
-						placeholder="Search all columns..."
+						placeholder="Search..."
 						value={globalFilter ?? ""}
 						onChange={(event) => setGlobalFilter(event.target.value)}
-						className="pl-8"
+						className="pl-9"
 					/>
 				</div>
 			</div>
-			<div className="rounded-md border shadow-sm">
+			<div className="flex-1 overflow-y-auto">
 				<Table>
-					<TableHeader>
+					<TableHeader className="sticky top-0 z-10 bg-white">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow
 								key={headerGroup.id}
-								className="border-b bg-muted/50 hover:bg-muted/60"
+								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 							>
-								{headerGroup.headers.map((header) => {
-									return (
-										<TableHead
-											key={header.id}
-											className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
-										>
-											{header.isPlaceholder
-												? null
-												: flexRender(
-														header.column.columnDef.header,
-														header.getContext(),
-													)}
-										</TableHead>
-									);
-								})}
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+									>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
+									</TableHead>
+								))}
 							</TableRow>
 						))}
 					</TableHeader>
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row, index) => (
+							table.getRowModel().rows.map((row) => (
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
-									className={`border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+									className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
 								>
 									{row.getVisibleCells().map((cell) => (
 										<TableCell
 											key={cell.id}
-											className="px-4 py-3 text-sm whitespace-nowrap"
+											className="whitespace-nowrap px-6 py-4 text-sm"
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
@@ -106,15 +117,33 @@ export default function DataTable<TData, TValue>({
 							<TableRow>
 								<TableCell
 									colSpan={columns.length}
-									className="h-24 text-center"
+									className="py-16 text-center text-sm text-muted-foreground"
 								>
-									No results.
+									No results found.
 								</TableCell>
 							</TableRow>
 						)}
 					</TableBody>
 				</Table>
 			</div>
+			{showPagination && (
+				<div className="shrink-0 border-t border-border/40 px-6 py-3">
+					<div className="flex items-center justify-between">
+						<span className="text-sm text-muted-foreground">
+							{total === 0
+								? "No results"
+								: `Showing ${Math.min((page - 1) * PAGE_SIZE + 1, total)}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
+						</span>
+						<PaginationBar
+							page={page - 1}
+							hasMore={page * PAGE_SIZE < total}
+							onPrev={() => onPageChange(page - 1)}
+							onNext={() => onPageChange(page + 1)}
+							isLoading={isLoading}
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

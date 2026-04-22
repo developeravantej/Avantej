@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/commissions/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated + `commission_management:read`
-**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
+**Last updated:** 2026-04-22 (Pipeline Audit B/C/D)
 
 ---
 
@@ -43,15 +43,17 @@ Bulk actions:
 
 **API endpoints:**
 - `commissionSplits.listLedger` — new in P6
-- `commissionSplits.approve`, `commissionSplits.markPaid`, `commissionSplits.void`
+- `commissionSplits.approve`, `commissionSplits.markPaid`
+- `commissionSplits.void` — void a single split from any status with a required reason; requires `commission_management:update`
+- `commissionSplits.createManualAdjustment` — create manual bonus/clawback; requires `commission_payout:create`
 - `commissionSplits.getMyCommissions` — reused by `commissions/my`
 
 **Components:**
 - `BulkActionBar`, `MarkPaidDialog` — `apps/web/src/components/commissions/`
 
 **Write-side triggers (now active):**
-- `appointment.service.ts:updateAppointment` — creates splits when status→'completed' and `services.commissionPercentage > 0`; non-fatal
-- `pos.service.ts:recordPosSale` — creates splits per service/package line item via `createCommissionSplitsForPos`; non-fatal
+- `appointment.service.ts:updateAppointment` — calls `calculateCommissionForAppointment` on status→'completed'; non-fatal
+- `pos.service.ts:recordPosSale` — calls `calculateCommissionForPos` per service/package line item; non-fatal
 
 **Navigation: incoming:** Sidebar under Sales & Finance > Commissions.
 
@@ -78,7 +80,8 @@ None yet. Chrome-verified: KPI strip RM 0.00 × 3, 5 tabs, filters render, empty
 
 ## 6. Notes
 
-- **Commission infrastructure now active.** Two creation paths: (1) appointment completion (`appointment.service.ts:updateAppointment` when status→'completed'); (2) POS sale (`pos.service.ts:recordPosSale` per service/package line item). Config source is `services.commissionPercentage` (integer basis points, added in migration 0027). Both triggers are non-fatal — parent operation succeeds even if commission creation fails. Splits only appear when `commissionPercentage > 0` on the service.
+- **Commission infrastructure now active.** Two creation paths: (1) appointment completion; (2) POS sale. Config source is `categoryCommissionConfigs` → coach slots + tier rates/conditions per service category. Both triggers are non-fatal — parent operation succeeds even if commission creation fails. Unclaimed slot weightage from absent coaches redistributes evenly to present coaches (not retained by company).
+- **Manual adjustments (`splitType=manual`):** Land at `status=pending` and require explicit approval via `commissionSplits.approve` before they can be marked paid. Auto-created splits (`splitType=automatic`) from the commission calculator engine skip the pending stage.
 - `listCommissionLedger` does in-memory RBAC (not SQL WHERE) — Drizzle LEFT JOIN on nullable FKs without raw SQL is messy; tenant scale makes it fine.
 - `createCommissionSplit` is idempotent via `onConflictDoNothing()` + follow-up `findFirst` on duplicate.
 - Audit action `commission.mark_paid` (underscore, not camelCase).

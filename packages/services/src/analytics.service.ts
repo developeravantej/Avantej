@@ -37,7 +37,7 @@ export interface DashboardKpisResult {
 }
 
 export interface StaffPerformanceParams {
-	period: "this_week" | "this_month" | "this_year";
+	period: "today" | "this_week" | "this_month" | "this_year";
 	branchId?: string;
 	accessibleNodeIds: string[];
 }

@@ -81,8 +81,6 @@ export const services = pgTable("services", {
 	installmentIntervalDays: integer("installment_interval_days").default(30),
 	gracePeriodDays: integer("grace_period_days"),
 
-	// Commission configuration (basis points, e.g. 1000 = 10%)
-	commissionPercentage: integer("commission_percentage").notNull().default(0),
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),
 	branchIdIdx: index("services_branch_idx").on(table.branchId),

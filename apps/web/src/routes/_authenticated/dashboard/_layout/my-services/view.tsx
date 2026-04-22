@@ -54,7 +54,7 @@ function MyServicesView() {
 
 	// ── Query ────────────────────────────────────────────────────────────────
 
-	const { data: myServices = [], isLoading } = useQuery({
+	const { data: myServices = [], isLoading, isError } = useQuery({
 		queryKey: ["myServices", organizationId],
 		queryFn: () =>
 			client.serviceMembers.listMine({ organizationId }),
@@ -102,9 +102,16 @@ function MyServicesView() {
 
 	function handleSave() {
 		if (!selectedService) return;
-		const bufferTimeMinutes =
-			bufferInput.trim() === "" ? null : parseInt(bufferInput, 10);
-		saveMutation.mutate({ serviceId: selectedService.serviceId, bufferTimeMinutes });
+		if (bufferInput.trim() === "") {
+			saveMutation.mutate({ serviceId: selectedService.serviceId, bufferTimeMinutes: null });
+			return;
+		}
+		const parsed = parseInt(bufferInput, 10);
+		if (isNaN(parsed)) {
+			toast.error("Please enter a valid number for buffer time.");
+			return;
+		}
+		saveMutation.mutate({ serviceId: selectedService.serviceId, bufferTimeMinutes: parsed });
 	}
 
 	function handleClearOverride() {
@@ -168,7 +175,7 @@ function MyServicesView() {
 					onClick={() => openEdit(row.original)}
 					disabled={saveMutation.isPending}
 				>
-					<Edit className="h-4 w-4 mr-1" />
+					<Edit className="h-4 w-4 mr-1" aria-hidden="true" />
 					Edit
 				</Button>
 			),
@@ -193,6 +200,19 @@ function MyServicesView() {
 				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
 					<span className="sr-only">Loading...</span>
 				</div>
+			</div>
+		);
+	}
+
+	// ── Guard: error ─────────────────────────────────────────────────────────
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-96 gap-3 text-destructive">
+				<p className="font-medium">Failed to load your services.</p>
+				<p className="text-sm text-muted-foreground">
+					Please refresh the page or try again later.
+				</p>
 			</div>
 		);
 	}
@@ -282,6 +302,7 @@ function MyServicesView() {
 								id="buffer-input"
 								type="number"
 								min={0}
+								step={1}
 								placeholder="Leave blank to use category default"
 								value={bufferInput}
 								onChange={(e) => setBufferInput(e.target.value)}

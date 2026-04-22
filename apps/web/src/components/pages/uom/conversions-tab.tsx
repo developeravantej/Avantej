@@ -1,0 +1,165 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import DataTable from "@/components/tables/uom-conversions/view/data-table";
+import { columns } from "@/components/tables/uom-conversions/view/columns";
+
+export function UomConversionsTabPage() {
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
+	const queryClient = useQueryClient();
+
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+	const [editTarget, setEditTarget] = useState<{
+		id: string;
+		name: string;
+		description: string;
+		baseUomId: string;
+		conversionFactor: string;
+	} | null>(null);
+
+	const { data: allUoms = [], isLoading, isError, error, refetch } = useQuery({
+		queryKey: ["unitsOfMeasure", organizationId],
+		queryFn: () =>
+			client.unitsOfMeasure.list({ organizationId: organizationId! }),
+		enabled: !!organizationId,
+	});
+
+	// Derived UOMs (have a baseUomId) are treated as conversions
+	const conversions = allUoms.filter((u) => u.baseUomId !== null);
+	// Base UOMs for the name lookup map and selector
+	const baseUoms = allUoms.filter((u) => !u.baseUomId);
+	const uomMap = Object.fromEntries(allUoms.map((u) => [u.id, u.name]));
+
+	const createMutation = useMutation({
+		mutationFn: (vars: {
+			name: string;
+			description?: string;
+			baseUomId: string;
+			conversionFactor: string;
+		}) =>
+			client.unitsOfMeasure.create({
+				organizationId: organizationId!,
+				name: vars.name,
+				description: vars.description,
+				baseUomId: vars.baseUomId,
+				conversionFactor: vars.conversionFactor,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("Conversion created");
+			setIsAddDialogOpen(false);
+		},
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to create conversion: ${message}`);
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: (vars: {
+			id: string;
+			name?: string;
+			description?: string;
+			baseUomId?: string;
+			conversionFactor?: string;
+		}) =>
+			client.unitsOfMeasure.update({
+				organizationId: organizationId!,
+				...vars,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("Conversion updated");
+			setEditTarget(null);
+		},
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to update conversion: ${message}`);
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) =>
+			client.unitsOfMeasure.delete({
+				organizationId: organizationId!,
+				id,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["unitsOfMeasure", organizationId],
+			});
+			toast.success("Conversion deleted");
+		},
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : "An unexpected error occurred";
+			toast.error(`Failed to delete conversion: ${message}`);
+		},
+	});
+
+	if (!organizationId) {
+		return (
+			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+				Select an organization to view UoM conversions.
+			</div>
+		);
+	}
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center min-h-96">
+				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
+					<span className="sr-only">Loading...</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12">
+				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error instanceof Error ? error.message : "An unexpected error occurred"}
+				</p>
+				<Button variant="outline" onClick={() => refetch()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
+	return (
+		<>
+			{conversions.length === 0 && (
+				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+					<p className="text-lg font-medium">No UOM conversions defined</p>
+					<p className="text-sm">Add a conversion.</p>
+				</div>
+			)}
+			<DataTable
+				columns={columns}
+				data={conversions}
+				uomMap={uomMap}
+				baseUoms={baseUoms}
+				isAddDialogOpen={isAddDialogOpen}
+				onAddDialogOpenChange={setIsAddDialogOpen}
+				editTarget={editTarget}
+				onEditTargetChange={setEditTarget}
+				onCreate={(vars) => createMutation.mutate(vars)}
+				onUpdate={(vars) => updateMutation.mutate(vars)}
+				onDelete={(id) => deleteMutation.mutate(id)}
+				isCreating={createMutation.isPending}
+				isUpdating={updateMutation.isPending}
+				isDeleting={deleteMutation.isPending}
+			/>
+		</>
+	);
+}

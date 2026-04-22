@@ -37,6 +37,13 @@ export {
 	checkAppointmentBufferConflict,
 	resolveBufferTime,
 } from "./buffer-time.service";
+// Category commission services
+export {
+	deleteCategoryCommissionConfig,
+	getCategoryCommissionConfig,
+	type getCategoryCommissionConfigResult,
+	upsertCategoryCommissionConfig,
+} from "./category-commission.service";
 // Check-ins (attendance) services
 export {
 	type CheckIn,
@@ -52,24 +59,37 @@ export {
 } from "./check-ins.service";
 // Class slot services
 export * from "./class-slots.service";
+// Commission calculator services
+export {
+	calculateCommissionForAppointment,
+	calculateCommissionForPos,
+} from "./commission-calculator.service";
 // Commission split services
 export {
 	approveCommissionSplits,
-	type CommissionLedgerRow,
 	type CommissionLedgerResult,
+	type CommissionLedgerRow,
 	type CommissionSplit,
+	type CreateManualAdjustmentParams,
 	type CreateSplitParams,
-	type CreateSplitsForAppointmentParams,
 	createCommissionSplit,
-	createCommissionSplitsForAppointment,
+	createManualAdjustment,
 	getCommissionsByAppointment,
 	getMyCommissions,
+	type LiabilitySummaryParams,
+	type LiabilitySummaryResult,
+	type LiabilitySummaryTrainer,
+	liabilitySummary,
 	type ListCommissionLedgerParams,
 	listCommissionLedger,
 	listCommissionSplits,
+	type MarkPaidBatchParams,
+	type MarkPaidBatchResult,
+	markPaidBatch,
 	type MarkPaidParams,
 	markCommissionSplitsPaid,
 	voidCommissionSplit,
+	voidCommissionSplitsForSalesOrder,
 } from "./commission-splits.service";
 // Customer directory services
 export {
@@ -126,6 +146,8 @@ export {
 	getGracePeriodDaysForPackage,
 	getInstallmentsByPackageInstance,
 	getSuggestedRefund,
+	adjustCredits,
+	type AdjustCreditsParams,
 	processRefund,
 	type SuggestedRefundInput,
 	type SuggestedRefundResult,
@@ -145,6 +167,8 @@ export {
 } from "./invitation.service";
 // Invoice services
 export * from "./invoice.service";
+// Memberships service - expiring memberships widget and related queries
+export * from "./memberships.service";
 // Member services - for member management
 export {
 	bulkUpdateMemberHierarchyScope,
@@ -258,6 +282,8 @@ export * from "./stock-requests.service";
 export * from "./suppliers.service";
 // Tax rate services
 export * from "./tax-rates.service";
+// Tenant admin services
+export * from "./tenant-admin.service";
 // Trainer availability services
 export {
 	type AvailabilitySlot,
@@ -265,6 +291,19 @@ export {
 	listTrainerAvailability,
 	upsertTrainerAvailability,
 } from "./trainer-availability.service";
+// Trainer tier services
+export {
+	assignTierToMember,
+	type CreateTrainerTierResult,
+	createTrainerTier,
+	deactivateTrainerTier,
+	getConfigsMissingRateForTier,
+	listTrainerTiers,
+	type MissingRateCategory,
+	type ReactivateTrainerTierResult,
+	reactivateTrainerTier,
+	updateTrainerTier,
+} from "./trainer-tier.service";
 // Transfer order services
 export * from "./transfer-orders.service";
 // Unit of measure services
@@ -276,7 +315,3 @@ export {
 } from "./user-activity-log.service";
 // Waitlist services
 export * from "./waitlist.service";
-// Walk-in customer services
-export * from "./walk-in-customers.service";
-// Tenant admin services
-export * from "./tenant-admin.service";

@@ -115,7 +115,7 @@ export function AppointmentCalendar({
 	});
 
 	const createMutation = useMutation({
-		mutationFn: (params: { start: Date; duration: number; notes?: string }) =>
+		mutationFn: (params: { start: Date; duration: number; notes?: string; userId?: string | null; staffAssignments?: { staffId: string; slotIndex: number }[] }) =>
 			client.appointments.create({
 				organizationId,
 				type: "private",
@@ -125,6 +125,8 @@ export function AppointmentCalendar({
 				sessionTotal: 1,
 				pricePerClient: 0,
 				notes: params.notes ?? null,
+				userId: params.userId ?? null,
+				staffAssignments: params.staffAssignments ?? undefined,
 			}),
 		onSuccess: () => {
 			toast.success("Appointment created");
@@ -226,7 +228,13 @@ export function AppointmentCalendar({
 	const handleSubmitAppointment = (appointment: any) => {
 		if (!organizationId) { toast.error("No organization selected."); return; }
 		if (!branchId) { toast.error("Your account is not scoped to a branch. Please contact your administrator."); return; }
-		createMutation.mutate({ start: new Date(appointment.start), duration: appointment.duration, notes: appointment.remarks });
+		createMutation.mutate({
+			start: new Date(appointment.start),
+			duration: appointment.duration,
+			notes: appointment.remarks,
+			userId: appointment.client?.userId ?? null,
+			staffAssignments: appointment.staffAssignments ?? undefined,
+		});
 	};
 
 	const handleAppointmentClick = (appointment: Appointment) => {

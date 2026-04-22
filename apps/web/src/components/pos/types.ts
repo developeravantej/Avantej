@@ -33,6 +33,14 @@ export interface AppliedPromo {
 	description: string;
 }
 
+export type TrainerAssignment = {
+	staffId: string; // members.userId
+	staffName: string; // display name
+	slotIndex: number;
+};
+
+export type ItemTrainerAssignments = Record<number, TrainerAssignment[]>;
+
 export type PaymentMethod = "cash" | "card" | "bank_transfer";
 
 export interface TaxRateOption {

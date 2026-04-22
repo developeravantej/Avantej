@@ -1,8 +1,9 @@
 /**
  * Service Category Config Router
  *
- * API endpoints for managing booking rules and commission configuration
- * per service category. 1:1 relationship with service_categories.
+ * API endpoints for managing booking rules per service category.
+ * 1:1 relationship with service_categories.
+ * Commission configuration has moved to category-commission router.
  * Uses INSERT ... ON CONFLICT (category_id) DO UPDATE for upsert behavior.
  */
 
@@ -27,23 +28,6 @@ export const serviceCategoryConfigRouter = {
 				// Default values for services in this category
 				defaultDuration: z.number().int().min(1).nullable().optional(),
 				defaultMaxAttendees: z.number().int().min(0).nullable().optional(),
-				// Commission/incentive config
-				incentiveType: z.string().nullable().optional(),
-				isConditional: z.boolean().optional(),
-				maxStaff: z.number().int().min(1).optional(),
-				staffPoolPercentage: z.number().int().min(0).max(100).optional(),
-				staffWeightage: z
-					.array(
-						z.object({
-							position: z.number().int(),
-							percentage: z.number(),
-							title: z.string().optional(),
-						})
-					)
-					.nullable()
-					.optional(),
-				paymentStructures: z.record(z.string(), z.unknown()).nullable().optional(),
-				threshold: z.number().int().nullable().optional(),
 				// Booking rules
 				requireAdvanceBooking: z.boolean().optional(),
 				minAdvanceHours: z.number().int().min(0).nullable().optional(),
@@ -94,13 +78,6 @@ export const serviceCategoryConfigRouter = {
 				categoryId: input.categoryId,
 				defaultDuration: input.defaultDuration ?? null,
 				defaultMaxAttendees: input.defaultMaxAttendees ?? null,
-				incentiveType: input.incentiveType ?? null,
-				isConditional: input.isConditional ?? false,
-				maxStaff: input.maxStaff ?? 1,
-				staffPoolPercentage: input.staffPoolPercentage ?? 100,
-				staffWeightage: input.staffWeightage ?? null,
-				paymentStructures: input.paymentStructures ?? null,
-				threshold: input.threshold ?? null,
 				requireAdvanceBooking: input.requireAdvanceBooking ?? false,
 				minAdvanceHours: input.minAdvanceHours ?? null,
 				enableCancellationWindow: input.enableCancellationWindow ?? false,
@@ -117,13 +94,6 @@ export const serviceCategoryConfigRouter = {
 					set: {
 						defaultDuration: values.defaultDuration,
 						defaultMaxAttendees: values.defaultMaxAttendees,
-						incentiveType: values.incentiveType,
-						isConditional: values.isConditional,
-						maxStaff: values.maxStaff,
-						staffPoolPercentage: values.staffPoolPercentage,
-						staffWeightage: values.staffWeightage,
-						paymentStructures: values.paymentStructures,
-						threshold: values.threshold,
 						requireAdvanceBooking: values.requireAdvanceBooking,
 						minAdvanceHours: values.minAdvanceHours,
 						enableCancellationWindow: values.enableCancellationWindow,

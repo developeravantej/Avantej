@@ -106,6 +106,20 @@ export async function seedRBACData(
 		{ resource: "commission_management", action: "update" },
 		{ resource: "commission_management", action: "approve" },
 		{ resource: "commission_management", action: "process" },
+		// Trainer tier management
+		{ resource: "trainer_tier_management", action: "read" },
+		{ resource: "trainer_tier_management", action: "create" },
+		{ resource: "trainer_tier_management", action: "update" },
+		{ resource: "trainer_tier_management", action: "delete" },
+		// Category commission management
+		{ resource: "category_commission_management", action: "read" },
+		{ resource: "category_commission_management", action: "create" },
+		{ resource: "category_commission_management", action: "update" },
+		{ resource: "category_commission_management", action: "delete" },
+		// Commission payout (finance-gated — granted to admin; restrict to owner-level in prod)
+		{ resource: "commission_payout", action: "read" },
+		{ resource: "commission_payout", action: "create" },
+		{ resource: "commission_payout", action: "update" },
 	];
 
 	// Insert roles (skip if exists)

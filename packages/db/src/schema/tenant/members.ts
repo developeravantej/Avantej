@@ -20,6 +20,7 @@
 
 import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
+import { trainerTiers } from "./trainer-tiers";
 
 export const members = pgTable("members", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -30,6 +31,7 @@ export const members = pgTable("members", {
 		.references(() => hierarchyNodes.id, { onDelete: "restrict" }),
 	status: text("status").notNull(), // active, suspended
 	joinedAt: timestamp("joined_at").defaultNow().notNull(),
+	trainerTierId: uuid("trainer_tier_id").references(() => trainerTiers.id, { onDelete: "set null" }),
 }, (table) => ({
 	// Unique constraint: one membership per user in this tenant
 	userIdUniqueIdx: uniqueIndex("members_user_idx").on(table.userId),
@@ -37,5 +39,6 @@ export const members = pgTable("members", {
 	hierarchyScopeIdIdx: index("members_hierarchy_idx").on(table.hierarchyScopeId),
 	roleIdx: index("members_role_idx").on(table.role),
 	statusIdx: index("members_status_idx").on(table.status),
+	trainerTierIdx: index("members_trainer_tier_idx").on(table.trainerTierId),
 }));
 

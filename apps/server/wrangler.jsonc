@@ -1,7 +1,9 @@
 {
 	"name": "avantej-core-server",
+	"account_id": "72d7c14adb24ffc0b9fc1770c607bf65",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-06-15",
+	"workers_dev": true,
 	"compatibility_flags": ["nodejs_compat"],
 	"vars": {
 		"NODE_ENV": "production"

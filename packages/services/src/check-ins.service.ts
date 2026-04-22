@@ -18,6 +18,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { checkIns } from "@avantej-core/db/schema/tenant/check-ins";
+import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -47,7 +48,8 @@ type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
 export interface CheckInInput {
 	clientType: "member" | "walk_in";
-	clientId: string;
+	clientId?: string; // required for members; omitted/ignored for walk-ins (service synthesizes UUID)
+	clientDisplayName?: string; // optional; persisted for walk-ins only
 	branchId: string;
 	appointmentClientId?: string; // set when source='booking'
 	source: "booking" | "drop_in";
@@ -73,6 +75,10 @@ export interface TodaysBookingRow {
 	clientName: string; // resolved — never raw UUID
 	attendanceStatus: "pending" | "checked_in" | "no_show";
 	checkInId: string | null;
+	// Phase 2 additions: capacity, credits, active package
+	capacity: number | null;              // from class_slots; null for 1:1 appointments
+	creditsRemaining: number | null;      // null for walk-ins or no-active-package
+	activePackageInstanceId: string | null;
 }
 
 export interface CheckInRowEnriched extends CheckIn {
@@ -111,6 +117,7 @@ export async function resolveClientDisplayName(
 	tenantDb: TenantDb,
 	clientType: string,
 	clientId: string,
+	clientDisplayName?: string | null,
 ): Promise<string> {
 	if (clientType === "member") {
 		try {
@@ -124,6 +131,9 @@ export async function resolveClientDisplayName(
 			// best-effort
 		}
 	} else if (clientType === "walk_in") {
+		// Prefer stored display name (new anonymous walk-ins)
+		if (clientDisplayName) return clientDisplayName;
+		// Legacy: try walk_in_customers table for old records
 		try {
 			const walkInRow = await tenantDb.query.walkInCustomers.findFirst({
 				where: eq(walkInCustomers.id, clientId),
@@ -134,7 +144,7 @@ export async function resolveClientDisplayName(
 			// best-effort
 		}
 	}
-	return "Unknown client";
+	return "Walk-in"; // better fallback for anonymous walk-ins
 }
 
 /**
@@ -147,8 +157,16 @@ async function batchResolveDisplayNames(
 	controlPanelDb: ControlPanelDb,
 	tenantDb: TenantDb,
 	pairs: Array<{ clientType: string; clientId: string }>,
+	displayNameOverrides?: Map<string, string>,
 ): Promise<Map<string, string>> {
 	const nameMap = new Map<string, string>();
+
+	// Seed map with any provided overrides (stored clientDisplayName values)
+	if (displayNameOverrides) {
+		for (const [key, val] of displayNameOverrides) {
+			if (val) nameMap.set(key, val);
+		}
+	}
 
 	const memberIds = [
 		...new Set(
@@ -156,9 +174,16 @@ async function batchResolveDisplayNames(
 		),
 	];
 
+	// Only query walk-in IDs not already resolved via overrides
 	const walkInIds = [
 		...new Set(
-			pairs.filter((p) => p.clientType === "walk_in").map((p) => p.clientId),
+			pairs
+				.filter(
+					(p) =>
+						p.clientType === "walk_in" &&
+						!nameMap.has(`walk_in:${p.clientId}`),
+				)
+				.map((p) => p.clientId),
 		),
 	];
 
@@ -179,7 +204,7 @@ async function batchResolveDisplayNames(
 		}
 	}
 
-	// Batch walk-in lookup (tenant)
+	// Batch walk-in lookup (tenant) — legacy records without clientDisplayName
 	if (walkInIds.length > 0) {
 		try {
 			const walkInRows = await tenantDb
@@ -192,6 +217,14 @@ async function batchResolveDisplayNames(
 			}
 		} catch {
 			// best-effort
+		}
+	}
+
+	// Fill any remaining unresolved keys with appropriate fallbacks
+	for (const p of pairs) {
+		const key = `${p.clientType}:${p.clientId}`;
+		if (!nameMap.has(key)) {
+			nameMap.set(key, p.clientType === "walk_in" ? "Walk-in" : "Unknown client");
 		}
 	}
 
@@ -220,24 +253,22 @@ export async function recordCheckIn(
 ): Promise<CheckIn> {
 	const outcome = input.outcome ?? "attended";
 
-	// Step 1: validate clientId exists
+	// Step 1: validate clientId exists (members only; walk-ins are anonymous)
 	if (input.clientType === "member") {
 		const memberRow = await tenantDb.query.members.findFirst({
-			where: eq(members.userId, input.clientId),
+			where: eq(members.userId, input.clientId ?? ""),
 			columns: { id: true },
 		});
 		if (!memberRow) {
 			throw new Error(`Member with userId ${input.clientId} not found`);
 		}
-	} else {
-		const walkInRow = await tenantDb.query.walkInCustomers.findFirst({
-			where: eq(walkInCustomers.id, input.clientId),
-			columns: { id: true },
-		});
-		if (!walkInRow) {
-			throw new Error(`Walk-in customer with id ${input.clientId} not found`);
-		}
 	}
+
+	// For walk-ins: synthesize a unique clientId per check-in (anonymous — no DB record)
+	const resolvedClientId =
+		input.clientType === "walk_in"
+			? crypto.randomUUID()
+			: (input.clientId ?? "");
 
 	// Step 2: anti-duplicate — only for drop-ins, only when outcome='attended'
 	// §7.12: booking check-ins always allowed; duplicate check only when appointmentClientId IS NULL
@@ -247,7 +278,7 @@ export async function recordCheckIn(
 		const existing = await tenantDb.query.checkIns.findFirst({
 			where: and(
 				eq(checkIns.clientType, input.clientType),
-				eq(checkIns.clientId, input.clientId),
+				eq(checkIns.clientId, resolvedClientId),
 				eq(checkIns.branchId, input.branchId),
 				gte(checkIns.checkedInAt, thirtyMinutesAgo),
 				eq(checkIns.outcome, "attended"),
@@ -282,7 +313,7 @@ export async function recordCheckIn(
 				.insert(checkIns)
 				.values({
 					clientType: input.clientType,
-					clientId: input.clientId,
+					clientId: resolvedClientId,
 					branchId: input.branchId,
 					appointmentClientId: input.appointmentClientId ?? null,
 					source: input.source,
@@ -291,6 +322,10 @@ export async function recordCheckIn(
 					creditsConsumed: input.creditsConsumed ?? 0,
 					notes: input.notes ?? null,
 					checkedInBy: input.actor.userId,
+					clientDisplayName:
+						input.clientType === "walk_in"
+							? (input.clientDisplayName?.trim() || null)
+							: null,
 				})
 				.returning();
 		} catch (err: unknown) {
@@ -344,7 +379,7 @@ export async function recordCheckIn(
 			summary: `Check-in recorded: ${input.clientType} ${input.source} — ${outcome}`,
 			changes: {
 				clientType: input.clientType,
-				clientId: input.clientId,
+				clientId: resolvedClientId,
 				source: input.source,
 				outcome,
 				creditsConsumed: input.creditsConsumed ?? 0,
@@ -401,6 +436,7 @@ export async function listTodaysBookings(
 			endTime: appointments.endTime,
 			classSlotId: appointments.classSlotId,
 			serviceName: services.name,
+			capacity: classSlots.capacity,
 		})
 		.from(appointmentClients)
 		.innerJoin(
@@ -408,6 +444,7 @@ export async function listTodaysBookings(
 			eq(appointmentClients.appointmentId, appointments.id),
 		)
 		.leftJoin(services, eq(appointments.serviceId, services.id))
+		.leftJoin(classSlots, eq(appointments.classSlotId, classSlots.id))
 		.where(
 			and(
 				eq(appointments.branchId, branchId),
@@ -417,6 +454,38 @@ export async function listTodaysBookings(
 		);
 
 	if (rows.length === 0) return [];
+
+	// Batch-resolve active package instances for all member clientIds
+	const memberClientIds = [...new Set(rows.map((r) => r.clientId))];
+	const activePackages = memberClientIds.length > 0
+		? await tenantDb
+			.select({
+				clientId: packageInstances.clientId,
+				id: packageInstances.id,
+				creditsRemaining: packageInstances.creditsRemaining,
+				expiresAt: packageInstances.expiresAt,
+			})
+			.from(packageInstances)
+			.where(
+				and(
+					inArray(packageInstances.clientId, memberClientIds),
+					eq(packageInstances.status, "active"),
+					sql`${packageInstances.creditsRemaining} > 0`,
+				),
+			)
+			.orderBy(packageInstances.expiresAt)
+		: [];
+
+	// Pick earliest-expiring package per clientId (already ordered by expiresAt)
+	const packageByClient = new Map<string, { id: string; creditsRemaining: number }>();
+	for (const pkg of activePackages) {
+		if (pkg.clientId && !packageByClient.has(pkg.clientId)) {
+			packageByClient.set(pkg.clientId, {
+				id: pkg.id,
+				creditsRemaining: pkg.creditsRemaining,
+			});
+		}
+	}
 
 	// Fetch existing check-ins for these appointmentClientIds (already-checked-in annotation)
 	const apptClientIds = rows.map((r) => r.appointmentClientId);
@@ -470,8 +539,140 @@ export async function listTodaysBookings(
 			clientName: nameMap.get(`member:${r.clientId}`) ?? "Unknown client",
 			attendanceStatus,
 			checkInId: existingCheckIn?.id ?? null,
+			capacity: r.capacity ?? null,
+			creditsRemaining: packageByClient.get(r.clientId)?.creditsRemaining ?? null,
+			activePackageInstanceId: packageByClient.get(r.clientId)?.id ?? null,
 		};
 	});
+}
+
+// -------------------------------------------------------------------------
+// recordBulkCheckIn
+// -------------------------------------------------------------------------
+
+export interface BulkCheckInResult {
+	bookingId: string;
+	status: "ok" | "already_checked_in" | "error";
+	checkInId?: string;
+	error?: string;
+}
+
+/**
+ * Record check-ins for multiple bookings in a single call.
+ *
+ * Processes up to 100 bookings per call. Each booking is handled
+ * independently (one recordCheckIn call per booking) so that a failure
+ * on one booking does not roll back successful ones.
+ *
+ * RBAC: caller must supply branchId; all bookings in the batch must belong
+ * to that branch (enforced per-booking via the pre-fetched booking map).
+ */
+export async function recordBulkCheckIn(
+	tenantDb: TenantDb,
+	params: {
+		bookingIds: string[];
+		branchId: string;
+		actor: { userId: string; memberId: string; role: string };
+	},
+): Promise<{
+	results: BulkCheckInResult[];
+	totalChecked: number;
+	totalSkipped: number;
+	totalError: number;
+}> {
+	const { bookingIds, branchId, actor } = params;
+
+	if (bookingIds.length === 0) {
+		return { results: [], totalChecked: 0, totalSkipped: 0, totalError: 0 };
+	}
+	if (bookingIds.length > 100) {
+		throw new Error("Bulk check-in limited to 100 bookings at a time");
+	}
+
+	const results: BulkCheckInResult[] = [];
+	let totalChecked = 0;
+	let totalSkipped = 0;
+	let totalError = 0;
+
+	// Fetch all bookings in one query — need clientId and branch validation
+	const bookings = await tenantDb
+		.select({
+			id: appointmentClients.id,
+			clientId: appointmentClients.clientId,
+			appointmentId: appointmentClients.appointmentId,
+			branchId: appointments.branchId,
+		})
+		.from(appointmentClients)
+		.innerJoin(appointments, eq(appointmentClients.appointmentId, appointments.id))
+		.where(inArray(appointmentClients.id, bookingIds));
+
+	const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+
+	// Check existing check-ins in one query (skip-already-checked-in logic)
+	const existingCheckIns = await tenantDb
+		.select({
+			appointmentClientId: checkIns.appointmentClientId,
+			id: checkIns.id,
+		})
+		.from(checkIns)
+		.where(inArray(checkIns.appointmentClientId, bookingIds));
+	const alreadyCheckedIn = new Set(
+		existingCheckIns
+			.filter((c) => c.appointmentClientId)
+			.map((c) => c.appointmentClientId as string),
+	);
+
+	for (const bookingId of bookingIds) {
+		const booking = bookingMap.get(bookingId);
+		if (!booking) {
+			results.push({ bookingId, status: "error", error: "Booking not found" });
+			totalError++;
+			continue;
+		}
+		if (booking.branchId !== branchId) {
+			results.push({
+				bookingId,
+				status: "error",
+				error: "Booking is not in this branch",
+			});
+			totalError++;
+			continue;
+		}
+		if (alreadyCheckedIn.has(bookingId)) {
+			results.push({ bookingId, status: "already_checked_in" });
+			totalSkipped++;
+			continue;
+		}
+
+		try {
+			const checkIn = await recordCheckIn(tenantDb, {
+				clientType: "member",
+				clientId: booking.clientId,
+				branchId,
+				appointmentClientId: bookingId,
+				source: "booking",
+				outcome: "attended",
+				actor,
+			});
+			results.push({ bookingId, status: "ok", checkInId: checkIn.id });
+			totalChecked++;
+		} catch (err) {
+			const e = err as { code?: string; message?: string };
+			if (e?.code === "ALREADY_CHECKED_IN") {
+				results.push({ bookingId, status: "already_checked_in" });
+				totalSkipped++;
+			} else {
+				results.push({
+					bookingId,
+					status: "error",
+					error: e?.message ?? "Unknown error",
+				});
+				totalError++;
+			}
+		}
+	}
+
+	return { results, totalChecked, totalSkipped, totalError };
 }
 
 // -------------------------------------------------------------------------
@@ -542,10 +743,20 @@ export async function listCheckIns(
 		clientType: r.clientType,
 		clientId: r.clientId,
 	}));
+
+	// Build display-name overrides from stored clientDisplayName (walk-ins only)
+	const overrides = new Map<string, string>();
+	for (const row of rawRows) {
+		if (row.clientType === "walk_in" && row.clientDisplayName) {
+			overrides.set(`walk_in:${row.clientId}`, row.clientDisplayName);
+		}
+	}
+
 	const nameMap = await batchResolveDisplayNames(
 		controlPanelDb,
 		tenantDb,
 		pairs,
+		overrides,
 	);
 
 	const enriched: CheckInRowEnriched[] = rawRows.map((row) => ({

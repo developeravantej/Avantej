@@ -4,11 +4,10 @@ import { useState, useMemo, useRef } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { DoorOpen, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	Sheet,
 	SheetContent,
@@ -184,16 +183,12 @@ function RoomsViewPage() {
 		mutationFn: (id: string) =>
 			client.rooms.update({ organizationId: organizationId!, id, isActive: false }),
 		onSuccess: () => invalidateRooms(),
-		onError: (err: unknown) =>
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate room"),
 	});
 
 	const reactivateMutation = useMutation({
 		mutationFn: (id: string) =>
 			client.rooms.update({ organizationId: organizationId!, id, isActive: true }),
 		onSuccess: () => invalidateRooms(),
-		onError: (err: unknown) =>
-			toast.error(err instanceof Error ? err.message : "Failed to reactivate room"),
 	});
 
 	// ---- Sheet helpers ----
@@ -223,171 +218,113 @@ function RoomsViewPage() {
 
 	function handleSubmit() {
 		const name = form.name.trim();
-		if (!name) {
-			toast.error("Name is required");
-			return;
-		}
-		if (!form.type) {
-			toast.error("Type is required");
-			return;
-		}
+		if (!name) { toast.error("Name is required"); return; }
+		if (!form.type) { toast.error("Type is required"); return; }
 		const capacity = parseInt(form.capacity, 10);
-		if (Number.isNaN(capacity) || capacity < 1) {
-			toast.error("Capacity must be at least 1");
-			return;
-		}
-		if (!form.branchId) {
-			toast.error("Branch is required");
-			return;
-		}
+		if (Number.isNaN(capacity) || capacity < 1) { toast.error("Capacity must be at least 1"); return; }
+		if (!form.branchId) { toast.error("Branch is required"); return; }
 
 		if (editingRoom) {
 			updateMutation.mutate({
 				id: editingRoom.id,
-				data: {
-					name,
-					type: form.type as RoomType,
-					capacity,
-					branchId: form.branchId,
-					isActive: form.isActive,
-				},
+				data: { name, type: form.type as RoomType, capacity, branchId: form.branchId, isActive: form.isActive },
 			});
 		} else {
-			createMutation.mutate({
-				name,
-				type: form.type as RoomType,
-				capacity,
-				branchId: form.branchId,
-			});
+			createMutation.mutate({ name, type: form.type as RoomType, capacity, branchId: form.branchId });
 		}
 	}
 
 	const isBusy = createMutation.isPending || updateMutation.isPending;
-
-	// ---- Guard ----
-	if (!organizationId) {
-		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to view rooms.
-			</div>
-		);
-	}
-
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (isError) {
-		return (
-			<div className="flex flex-col items-center justify-center py-12">
-				<p className="text-lg font-medium text-destructive">Failed to load data</p>
-				<p className="text-sm text-muted-foreground mb-4">
-					{error instanceof Error ? error.message : "An unexpected error occurred"}
-				</p>
-				<Button variant="outline" onClick={() => refetch()}>
-					Try Again
-				</Button>
-			</div>
-		);
-	}
+	const roomCount = isLoading ? null : tableData.length;
 
 	return (
-		<div className="p-6 space-y-6">
-			{/* returnTo banner */}
-			{returnTo && (
-				<Alert className="bg-yellow-50 border-yellow-300">
-					<AlertDescription>
-						Creating a room to complete an appointment?{" "}
-						<Link
-							to={returnTo}
-							className="underline font-medium"
-						>
-							Back to appointment &rarr;
-						</Link>
-					</AlertDescription>
-				</Alert>
-			)}
-
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-						<DoorOpen className="h-5 w-5 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-2xl font-bold font-heading">Rooms</h1>
-						<p className="text-sm text-muted-foreground">
-							Manage rooms available for appointments
-						</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-2">
-					<Badge variant="outline">{tableData.length} room(s)</Badge>
-					{canCreate && (
-						<Button onClick={openCreate} className="gap-2">
-							<Plus className="h-4 w-4" />
-							Create Room
-						</Button>
-					)}
-				</div>
-			</div>
-
-			{/* Status tabs */}
-			<div className="flex items-center gap-1 border-b">
-				{ACTIVE_TABS.map((tab) => {
-					const isSelected = activeFilter === tab.value;
-					return (
-						<button
-							key={tab.label}
-							type="button"
-							onClick={() => setActiveFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-								isSelected
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
-							}`}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Empty state */}
-			{tableData.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No rooms found</p>
-					<p className="text-sm">
-						{activeFilter === true
-							? "No active rooms. Create one to get started."
-							: activeFilter === false
-								? "No inactive rooms."
-								: "No rooms created yet."}
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div>
+					<h1 className="text-xl font-semibold">Rooms</h1>
+					<p className="mt-0.5 text-sm text-muted-foreground">
+						{roomCount !== null ? `${roomCount} room${roomCount !== 1 ? "s" : ""}` : "Loading..."}
 					</p>
 				</div>
+				{canCreate && (
+					<Button size="sm" onClick={openCreate}>
+						<Plus className="mr-2 h-4 w-4" />
+						Create Room
+					</Button>
+				)}
+			</div>
+
+			{/* returnTo banner */}
+			{returnTo && (
+				<div className="shrink-0 px-6 pb-2">
+					<Alert className="bg-yellow-50 border-yellow-300">
+						<AlertDescription>
+							Creating a room to complete an appointment?{" "}
+							<Link to={returnTo} className="underline font-medium">
+								Back to appointment &rarr;
+							</Link>
+						</AlertDescription>
+					</Alert>
+				</div>
 			)}
 
-			{/* Table */}
-			{tableData.length > 0 && (
-				<DataTable
-					data={tableData}
-					onEdit={canUpdate ? openEdit : () => {}}
-					onDeactivate={async (id) => {
-						await deactivateMutation.mutateAsync(id);
-					}}
-					onReactivate={async (id) => {
-						await reactivateMutation.mutateAsync(id);
-					}}
-					isDeactivating={deactivateMutation.isPending}
-					isReactivating={reactivateMutation.isPending}
-				/>
-			)}
+			{/* Filter tabs */}
+			<div className="shrink-0 border-b border-border/40 px-6">
+				<div className="flex h-10 items-end gap-0">
+					{ACTIVE_TABS.map((tab) => {
+						const isSelected = activeFilter === tab.value;
+						return (
+							<button
+								key={tab.label}
+								type="button"
+								onClick={() => setActiveFilter(tab.value)}
+								className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
+									isSelected
+										? "border-foreground text-foreground"
+										: "border-transparent text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								{tab.label}
+							</button>
+						);
+					})}
+				</div>
+			</div>
+
+			{/* Content */}
+			<div className="min-h-0 flex-1 overflow-hidden">
+				{!organizationId ? (
+					<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+						Select an organization to view rooms.
+					</div>
+				) : isLoading ? (
+					<div className="flex min-h-96 items-center justify-center">
+						<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
+							<span className="sr-only">Loading...</span>
+						</div>
+					</div>
+				) : isError ? (
+					<div className="flex flex-col items-center justify-center py-12">
+						<p className="font-medium text-destructive text-lg">Failed to load data</p>
+						<p className="mb-4 text-muted-foreground text-sm">
+							{error instanceof Error ? error.message : "An unexpected error occurred"}
+						</p>
+						<Button variant="outline" onClick={() => refetch()}>
+							Try Again
+						</Button>
+					</div>
+				) : (
+					<DataTable
+						data={tableData}
+						onEdit={canUpdate ? openEdit : () => {}}
+						onDeactivate={async (id) => { await deactivateMutation.mutateAsync(id); }}
+						onReactivate={async (id) => { await reactivateMutation.mutateAsync(id); }}
+						isDeactivating={deactivateMutation.isPending}
+						isReactivating={reactivateMutation.isPending}
+					/>
+				)}
+			</div>
 
 			{/* Create / Edit Sheet */}
 			<Sheet open={isSheetOpen} onOpenChange={(open) => { if (!open) closeSheet(); }}>
@@ -402,7 +339,6 @@ function RoomsViewPage() {
 					</SheetHeader>
 
 					<div className="flex flex-col gap-4 px-4 py-2">
-						{/* Name */}
 						<div className="flex flex-col gap-1.5">
 							<label htmlFor="room-name" className="text-sm font-medium">
 								Name <span className="text-destructive">*</span>
@@ -415,7 +351,6 @@ function RoomsViewPage() {
 							/>
 						</div>
 
-						{/* Type */}
 						<div className="flex flex-col gap-1.5">
 							<label className="text-sm font-medium">
 								Type <span className="text-destructive">*</span>
@@ -439,7 +374,6 @@ function RoomsViewPage() {
 							</Select>
 						</div>
 
-						{/* Capacity */}
 						<div className="flex flex-col gap-1.5">
 							<label htmlFor="room-capacity" className="text-sm font-medium">
 								Capacity <span className="text-destructive">*</span>
@@ -454,7 +388,6 @@ function RoomsViewPage() {
 							/>
 						</div>
 
-						{/* Branch combobox */}
 						<div className="flex flex-col gap-1.5">
 							<label className="text-sm font-medium">
 								Branch <span className="text-destructive">*</span>
@@ -473,7 +406,6 @@ function RoomsViewPage() {
 							)}
 						</div>
 
-						{/* Active toggle (edit only) */}
 						{editingRoom && (
 							<div className="flex items-center gap-3">
 								<input
@@ -498,12 +430,8 @@ function RoomsViewPage() {
 						</Button>
 						<Button onClick={handleSubmit} disabled={isBusy}>
 							{isBusy
-								? editingRoom
-									? "Saving..."
-									: "Creating..."
-								: editingRoom
-									? "Save Changes"
-									: "Create Room"}
+								? editingRoom ? "Saving..." : "Creating..."
+								: editingRoom ? "Save Changes" : "Create Room"}
 						</Button>
 					</SheetFooter>
 				</SheetContent>

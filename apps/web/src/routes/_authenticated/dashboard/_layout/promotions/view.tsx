@@ -386,6 +386,10 @@ function PromotionsViewPage() {
 			toast.error("Please enter a valid value.");
 			return;
 		}
+		if (createForm.type === "percentage" && rawValue > 100) {
+			toast.error("Percentage discount cannot exceed 100%");
+			return;
+		}
 		if (!createForm.validFrom) {
 			toast.error("Valid From date is required.");
 			return;
@@ -511,14 +515,6 @@ function PromotionsViewPage() {
 					New Promotion
 				</Button>
 			</div>
-
-			{/* Empty state */}
-			{data.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No promotions created yet</p>
-					<p className="text-sm">Create a promotion to get started.</p>
-				</div>
-			)}
 
 			{/* Table */}
 			<DataTable<PromotionRow, unknown> columns={columns} data={data} />
@@ -786,7 +782,11 @@ function PromotionsViewPage() {
 					<DialogHeader>
 						<DialogTitle>Confirm Deactivate</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to deactivate this promotion?
+							Are you sure you want to deactivate{" "}
+							<span className="font-medium text-foreground">
+								{data.find((p) => p.id === deactivateTarget)?.name ?? "this promotion"}
+							</span>
+							? It will no longer be usable by customers.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

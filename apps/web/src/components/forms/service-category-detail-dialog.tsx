@@ -50,10 +50,6 @@ export function ServiceCategoryDetailDialog({
 	const [config, setConfig] = useState<{
 		defaultDuration: number | null;
 		defaultMaxAttendees: number | null;
-		incentiveType: string | null;
-		isConditional: boolean;
-		maxStaff: number;
-		staffPoolPercentage: number;
 		requireAdvanceBooking: boolean;
 		minAdvanceHours: number | null;
 		enableCancellationWindow: boolean;
@@ -232,24 +228,6 @@ export function ServiceCategoryDetailDialog({
 																<p className="mt-1 text-sm text-brand-secondary-1">{config.defaultMaxAttendees ?? "—"}</p>
 															</div>
 														</div>
-													</div>
-												</div>
-												<div className="grid grid-cols-2 gap-4">
-													<div>
-														<label className="block text-sm font-medium text-brand-primary-1">Incentive Type</label>
-														<p className="mt-1 text-sm text-brand-secondary-1 capitalize">{config.incentiveType ?? "—"}</p>
-													</div>
-													<div>
-														<label className="block text-sm font-medium text-brand-primary-1">Conditional</label>
-														<p className="mt-1 text-sm text-brand-secondary-1">{config.isConditional ? "Yes" : "No"}</p>
-													</div>
-													<div>
-														<label className="block text-sm font-medium text-brand-primary-1">Max Staff</label>
-														<p className="mt-1 text-sm text-brand-secondary-1">{config.maxStaff}</p>
-													</div>
-													<div>
-														<label className="block text-sm font-medium text-brand-primary-1">Staff Pool %</label>
-														<p className="mt-1 text-sm text-brand-secondary-1">{config.staffPoolPercentage}%</p>
 													</div>
 												</div>
 												<div className="bg-white border border-brand-secondary-3 rounded-md p-4">

@@ -14,13 +14,14 @@
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
+import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { resolveBufferTime, checkAppointmentBufferConflict } from "./buffer-time.service";
 import { evaluateAndExpireIfOverdue, evaluateAndLockIfOverdue } from "./installment.service";
 import { assertValidTransition } from "./utils/appointment-status-machine";
-import { createCommissionSplitsForAppointment } from "./commission-splits.service";
-import { services } from "@avantej-core/db/schema/tenant/services";
 import { writeAudit } from "./audit-log.service";
+import { calculateCommissionForAppointment } from "./commission-calculator.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -74,6 +75,7 @@ export type CreateAppointmentParams = {
   imageUrl?: string | null;
   notes?: string | null;
   bookingNumber?: string | null;
+  staffAssignments?: { staffId: string; slotIndex: number }[];
 };
 
 export type UpdateAppointmentParams = {
@@ -328,6 +330,22 @@ export async function createAppointment(
         },
       });
 
+      // A.1.7 — Insert appointment_staff rows
+      const staffAssignmentsToInsert = params.staffAssignments?.length
+        ? params.staffAssignments
+        : params.trainerId
+          ? [{ staffId: params.trainerId, slotIndex: 0 }]
+          : [];
+      if (staffAssignmentsToInsert.length > 0) {
+        await tx.insert(appointmentStaff).values(
+          staffAssignmentsToInsert.map((a) => ({
+            appointmentId: row.id,
+            staffId: a.staffId,
+            slotIndex: a.slotIndex,
+          }))
+        );
+      }
+
       return row;
     });
   } catch (err: unknown) {
@@ -457,60 +475,27 @@ export async function updateAppointment(
         throw new Error("Appointment not found");
       }
 
-      // ---------------------------------------------------------------------------
-      // Commission auto-creation on appointment completion
-      // Triggered when status transitions to 'completed'. Non-fatal: appointment
-      // succeeds even if commission creation fails.
-      // ---------------------------------------------------------------------------
-      if (params.status === "completed" && existing.status !== "completed" && params.actor) {
-        try {
-          // Fetch commission percentage from the service record
-          const serviceId = existing.serviceId;
-          let commissionBasisPoints = 0;
-
-          if (serviceId) {
-            const [svc] = await tx
-              .select({ commissionPercentage: services.commissionPercentage })
-              .from(services)
-              .where(eq(services.id, serviceId))
-              .limit(1);
-            commissionBasisPoints = svc?.commissionPercentage ?? 0;
+      // Commission: create splits when appointment completes
+      if (params.status === "completed" && existing.status !== "completed" && existing.serviceId) {
+        // P6: double-commission guard — if this appointment is linked to a POS sale
+        // that already has commission splits, skip.
+        if (updated.salesOrderId) {
+          const existingPosSplits = await tx
+            .select({ id: commissionSplits.id })
+            .from(commissionSplits)
+            .where(eq(commissionSplits.salesOrderId, updated.salesOrderId))
+            .limit(1);
+          if (existingPosSplits.length > 0) {
+            console.info(JSON.stringify({
+              event: "commission_skipped_already_commissioned_at_pos",
+              appointmentId: id,
+              salesOrderId: updated.salesOrderId,
+            }));
+          } else {
+            await runAppointmentCommission(tx, id, updated, params.actor);
           }
-
-          if (commissionBasisPoints > 0) {
-            // Fetch assigned staff for this appointment
-            const assignedStaff = await tx
-              .select({ staffId: appointmentStaff.staffId })
-              .from(appointmentStaff)
-              .where(eq(appointmentStaff.appointmentId, id));
-
-            if (assignedStaff.length > 0) {
-              // Each staff member receives an equal share of the total commission.
-              // splitPercentage per staff = commissionBasisPoints / 100 / staffCount
-              // sessionTotal is already stored in cents (integer)
-              const sessionTotalCents = existing.sessionTotal ?? 0;
-              const splitPercentage = (commissionBasisPoints / 100) / assignedStaff.length;
-
-              await createCommissionSplitsForAppointment(
-                tx as unknown as TenantDb,
-                {
-                  appointmentId: id,
-                  splits: assignedStaff.map((s) => ({
-                    staffId: s.staffId,
-                    splitPercentage,
-                    sessionTotalCents,
-                  })),
-                  actor: params.actor,
-                },
-              );
-            }
-          }
-        } catch (commissionErr) {
-          console.warn(
-            `[commission] Failed to create splits for appointment ${id}:`,
-            commissionErr,
-          );
-          // Non-fatal: appointment update has already succeeded
+        } else {
+          await runAppointmentCommission(tx, id, updated, params.actor);
         }
       }
 
@@ -542,4 +527,59 @@ export async function updateAppointment(
   }
 
   return row;
+}
+
+// ---------------------------------------------------------------------------
+// Private helper: run commission calculation for a completed appointment
+// ---------------------------------------------------------------------------
+
+async function runAppointmentCommission(
+  tx: TenantTx,
+  appointmentId: string,
+  appointment: typeof appointments.$inferSelect,
+  actor?: { userId: string; memberId: string; role: string },
+): Promise<void> {
+  if (!actor || !appointment.serviceId) return;
+
+  // Count attended clients
+  const attendeeRows = await (tx as unknown as TenantDb)
+    .select({ id: appointmentClients.id })
+    .from(appointmentClients)
+    .where(
+      and(
+        eq(appointmentClients.appointmentId, appointmentId),
+        eq(appointmentClients.attended, true),
+      ),
+    );
+  const attendeeCount = attendeeRows.length;
+
+  // Load staff assignments ordered by slotIndex
+  const staffRows = await (tx as unknown as TenantDb)
+    .select({
+      staffId: appointmentStaff.staffId,
+      slotIndex: appointmentStaff.slotIndex,
+    })
+    .from(appointmentStaff)
+    .where(eq(appointmentStaff.appointmentId, appointmentId));
+
+  const staffAssignments = staffRows
+    .filter((r) => r.slotIndex !== null)
+    .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
+    .map((r) => ({ staffId: r.staffId, slotIndex: r.slotIndex! }));
+
+  let effectiveAssignments = staffAssignments;
+  if (effectiveAssignments.length === 0 && appointment.trainerId) {
+    effectiveAssignments = [{ staffId: appointment.trainerId, slotIndex: 0 }];
+  }
+  if (effectiveAssignments.length === 0) return;
+
+  await calculateCommissionForAppointment(tx as unknown as TenantDb, {
+    appointmentId,
+    serviceId: appointment.serviceId,
+    sessionTotalCents: appointment.pricePerClient,
+    attendeeCount,
+    staffAssignments: effectiveAssignments,
+    earnedAt: new Date(), // completion time
+    actor,
+  });
 }

@@ -81,7 +81,11 @@ ServiceCategoryViewComponent
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
 | `service_categories` | SELECT, UPDATE | `id`, `name`, `isActive`, `branchId` |
-| `service_category_config` | SELECT | `categoryId`, `defaultDuration`, `defaultMaxAttendees`, `incentiveType`, `paymentStructures`, `staffWeightage`, `requireAdvanceBooking`, `cancellationCutoffHours` |
+| `service_category_config` | SELECT | `categoryId`, `defaultDuration`, `defaultMaxAttendees`, `requireAdvanceBooking`, `cancellationCutoffHours` |
+| `category_commission_configs` | SELECT (via Commission Config sheet) | `id`, `categoryId`, `paymentType`, `isConditional`, `isActive` |
+| `commission_coach_slots` | SELECT/INSERT/UPDATE (via Commission Config sheet) | `slotIndex`, `weightageBasisPoints` |
+| `commission_tier_rates` | SELECT/INSERT/UPDATE | `trainerTierId`, `amount` |
+| `commission_conditions` + `commission_condition_rates` | SELECT/INSERT/UPDATE | conditional config rows |
 
 **Key types / Zod schemas:**
 - `serviceCategories.list` input: `{ organizationId: uuid, branchId?: uuid|null, isActive?: boolean }`

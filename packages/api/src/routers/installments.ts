@@ -6,6 +6,7 @@
  */
 
 import {
+	adjustCredits,
 	confirmInstallmentPayment,
 	getInstallmentsByPackageInstance,
 	unlockPackage,
@@ -20,6 +21,7 @@ import { ORPCError } from "@orpc/server";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { getControlPanelDb } from "../lib/context-helpers";
 
 const confirmPayment = protectedProcedure
 	.input(
@@ -244,6 +246,8 @@ const adminOverview = protectedProcedure
 			});
 		}
 
+		const controlPanelDb = getControlPanelDb(context);
+
 		return getAdminInstallmentOverview(context.tenantDb, {
 			status: input.status,
 			limit: input.limit,
@@ -252,7 +256,7 @@ const adminOverview = protectedProcedure
 			dueBefore: input.dueBefore ? new Date(input.dueBefore) : undefined,
 			dueAfter: input.dueAfter ? new Date(input.dueAfter) : undefined,
 			paymentPlanCode: input.paymentPlanCode,
-		});
+		}, controlPanelDb);
 	});
 
 const getEvents = protectedProcedure
@@ -323,7 +327,56 @@ const suggestRefund = protectedProcedure
 		return getSuggestedRefund(context.tenantDb, input.packageInstanceId);
 	});
 
+const adjustCreditsProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			packageInstanceId: z.string().uuid(),
+			creditsUnlocked: z.number().int().min(0).optional(),
+			creditsUsed: z.number().int().min(0).optional(),
+			reason: z.string().min(1),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available. Ensure organization context is set.",
+			});
+		}
+
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+		}
+
+		if (context.member.role !== "admin") {
+			throw new ORPCError("FORBIDDEN", { message: "Admin role required" });
+		}
+
+		const actor = {
+			userId: context.session!.user.id,
+			memberId: context.member.id,
+			role: context.member.role,
+		};
+
+		try {
+			return await adjustCredits(context.tenantDb, input.packageInstanceId, {
+				creditsUnlocked: input.creditsUnlocked,
+				creditsUsed: input.creditsUsed,
+				reason: input.reason,
+				actorId: context.member.userId,
+				actor,
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			const code = (err as { code?: string }).code;
+			throw new ORPCError(code === "BAD_REQUEST" ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR", {
+				message: err instanceof Error ? err.message : "Failed to adjust credits",
+			});
+		}
+	});
+
 export const installmentsRouter = {
+	adjustCredits: adjustCreditsProcedure,
 	confirmPayment,
 	listByPackageInstance,
 	manualUnlock,

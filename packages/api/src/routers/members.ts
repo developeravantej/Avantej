@@ -133,6 +133,7 @@ export const memberRouter = {
           hierarchyScopeId: m.hierarchyScopeId,
           status: m.status,
           joinedAt: m.joinedAt,
+          trainerTierId: m.trainerTierId,
           name: userDetails?.name ?? "Unknown",
           email: userDetails?.email ?? "Unknown",
         };

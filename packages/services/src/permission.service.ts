@@ -47,6 +47,9 @@ export type Resource =
 	// Finance & HR
 	| "expense_management"
 	| "commission_management"
+	| "trainer_tier_management"
+	| "category_commission_management"
+	| "commission_payout"
 	// Communication
 	| "announcement_management"
 	// Customers

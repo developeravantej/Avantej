@@ -35,10 +35,11 @@ export async function createContext({ context }: CreateContextOptions) {
   if (tenantDb && !member && session?.user && organizationId) {
     try {
       // Get member record
-      member = await tenantDb.query.members.findFirst({
+      const foundMember = await tenantDb.query.members.findFirst({
         where: eq(members.userId, session.user.id),
       });
-      
+      if (foundMember) member = foundMember;
+
       if (member) {
         console.log(`[createContext] Found member: ${member.id}, hierarchyScopeId: ${member.hierarchyScopeId}, role: ${member.role}`);
         

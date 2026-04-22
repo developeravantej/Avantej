@@ -56,7 +56,7 @@ export const posRouter = {
 				// Promo
 				promotionCode: z.string().optional(),
 				// Tax
-				taxRateId: z.string().uuid(),
+				taxRateId: z.string().uuid().optional(),
 				// Payment
 				paymentMethod: z.enum(["cash", "card", "bank_transfer"]),
 				paymentReference: z.string().optional(),
@@ -65,6 +65,11 @@ export const posRouter = {
 				installmentPlanCode: z.string().optional(),
 				// Notes
 				notes: z.string().optional(),
+				// Commission: per-item trainer assignments
+				itemTrainerAssignments: z.record(z.string(), z.array(z.object({
+					staffId: z.string().uuid(),
+					slotIndex: z.number().int().min(0),
+				}))).optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -109,6 +114,11 @@ export const posRouter = {
 				amountTenderedCents: input.amountTenderedCents,
 				installmentPlanCode: input.installmentPlanCode,
 				notes: input.notes,
+				itemTrainerAssignments: input.itemTrainerAssignments
+					? Object.fromEntries(
+							Object.entries(input.itemTrainerAssignments).map(([k, v]) => [parseInt(k, 10), v]),
+						)
+					: undefined,
 				actor: {
 					userId: context.session.user.id,
 					memberId: context.member.id,
@@ -125,7 +135,7 @@ export const posRouter = {
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
-				query: z.string().min(2),
+				query: z.string(),
 				branchId: z.string().uuid().optional(),
 			}),
 		)

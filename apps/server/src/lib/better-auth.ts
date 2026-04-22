@@ -375,21 +375,9 @@ function createBetterAuth(c?: Context) {
   });
 }
 
-/**
- * Better-Auth instance with Organization and Admin plugins
- *
- * @deprecated Use getBetterAuth(c) in request handlers for Cloudflare Workers compatibility.
- * This singleton instance uses a singleton pool that cannot be shared across requests.
- * Only use this in test environments or scripts outside request handlers.
- *
- * Configuration:
- * - Database: Uses control panel database via Drizzle adapter
- * - Email/Password: Enabled with email verification required
- * - Session: 15-minute expiry, updates every 5 minutes
- * - Organization Plugin: Enables multi-tenant organization management
- * - Admin Plugin: Enables platform administration features
- */
-export const auth = createBetterAuth();
+// Lazy singleton — not initialized at module load time to avoid throwing during
+// Cloudflare Workers script validation when DATABASE_URL is unavailable.
+let _authInstance: ReturnType<typeof createBetterAuth> | null = null;
 
 /**
  * Get request-scoped Better-Auth instance
@@ -401,11 +389,24 @@ export const auth = createBetterAuth();
  * @returns Better-Auth instance configured with request-scoped database
  */
 export function getBetterAuth(c?: Context) {
-  // If context is provided, create request-scoped instance
   if (c) {
     return createBetterAuth(c);
   }
-
-  // Fall back to singleton instance (for non-request contexts)
-  return auth;
+  if (!_authInstance) {
+    _authInstance = createBetterAuth();
+  }
+  return _authInstance;
 }
+
+/**
+ * Better-Auth instance with Organization and Admin plugins
+ *
+ * @deprecated Use getBetterAuth(c) in request handlers for Cloudflare Workers compatibility.
+ * This singleton instance uses a singleton pool that cannot be shared across requests.
+ * Only use this in test environments or scripts outside request handlers.
+ */
+export const auth = new Proxy({} as ReturnType<typeof createBetterAuth>, {
+  get(_target, prop: string | symbol) {
+    return (getBetterAuth() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});

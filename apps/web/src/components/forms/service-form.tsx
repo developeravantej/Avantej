@@ -22,8 +22,6 @@ interface ServiceFormData {
   availablePaymentPlans: string[];
   installmentIntervalDays: number;
   gracePeriodDays: number | null;
-  /** Commission percentage in display units (e.g. 10 = 10%). Stored as basis points (×100). */
-  commissionPercentage: number;
   timePresetConfig?: {
     recurringDays: string[];
     timeSlotsPerDay: { [day: string]: string[] };
@@ -74,7 +72,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         organizationId,
         name: data.name,
         categoryId: data.category_id || null,
-        duration: data.sessionDurationMinutes * 60, // minutes → seconds
+        duration: data.sessionDurationMinutes,
         durationUnitType: "minutes",
         maxAttendees: data.maxAttendees ?? 1,
         attendanceThreshold: null,
@@ -90,7 +88,6 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
         installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
         gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
-        commissionPercentage: Math.round(data.commissionPercentage * 100), // display % → basis points
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -107,7 +104,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         id: initialData!.id.toString(),
         name: data.name,
         categoryId: data.category_id || null,
-        duration: data.sessionDurationMinutes * 60, // minutes → seconds
+        duration: data.sessionDurationMinutes,
         durationUnitType: "minutes",
         maxAttendees: data.maxAttendees ?? 1,
         price: data.price ? Math.round(data.price * 100) : null, // dollars → cents
@@ -120,7 +117,6 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
         installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
         gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
-        commissionPercentage: Math.round(data.commissionPercentage * 100), // display % → basis points
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.services.list.key() });
@@ -146,7 +142,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
     availablePaymentPlans: [],
     installmentIntervalDays: 30,
     gracePeriodDays: null,
-    commissionPercentage: 0,
+
     timePresetConfig: {
       recurringDays: [],
       timeSlotsPerDay: {}
@@ -174,7 +170,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         availablePaymentPlans: initialData.availablePaymentPlans ?? [],
         installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
         gracePeriodDays: (initialData as any).gracePeriodDays ?? null,
-        commissionPercentage: initialData.commissionPercentage ?? 0,
+    
         timePresetConfig: initialData.timePresetConfig || {
           recurringDays: [],
           timeSlotsPerDay: {}
@@ -197,7 +193,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
         availablePaymentPlans: [],
         installmentIntervalDays: 30,
         gracePeriodDays: null,
-        commissionPercentage: 0,
+    
         timePresetConfig: {
           recurringDays: [],
           timeSlotsPerDay: {}
@@ -562,33 +558,11 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label htmlFor="commissionPercentage" className="block text-sm font-medium text-brand-primary-1">
-                        Commission %
-                      </label>
-                      <input
-                        type="number"
-                        name="commissionPercentage"
-                        id="commissionPercentage"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.commissionPercentage}
-                        onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                      <p className="mt-1 text-xs text-brand-secondary-1">
-                        Percentage of the sale amount paid as staff commission. 0 = no commission.
-                      </p>
-                    </div>
-                  </div>
 
                   <div>
                      <div className="mt-2 flex items-center">
                        <span className="text-sm font-medium text-brand-primary-1">
-                         Credit per Session: ${formData.sessions > 0 ? calculateCreditPerSession().toFixed(2) : '0.00'}
+                         Credit per Session: RM {formData.sessions > 0 ? calculateCreditPerSession().toFixed(2) : '0.00'}
                        </span>
                      </div>
                      
@@ -597,7 +571,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                          <div className="text-sm text-brand-secondary-1">
                            <div className="flex justify-between">
                              <span>Total Price:</span>
-                             <span>${formData.price.toFixed(2)}</span>
+                             <span>RM {formData.price.toFixed(2)}</span>
                            </div>
                            <div className="flex justify-between">
                              <span>Number of Sessions:</span>
@@ -605,7 +579,7 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                            </div>
                            <div className="flex justify-between font-medium border-t pt-1 mt-1">
                              <span>Credit per Session:</span>
-                             <span>${calculateCreditPerSession().toFixed(2)}</span>
+                             <span>RM {calculateCreditPerSession().toFixed(2)}</span>
                            </div>
                          </div>
                        </div>
@@ -632,15 +606,15 @@ export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode
                            <div className="text-sm text-brand-secondary-1">
                              <div className="flex justify-between">
                                <span>Base Price:</span>
-                               <span>${formData.price.toFixed(2)}</span>
+                               <span>RM {formData.price.toFixed(2)}</span>
                              </div>
                              <div className="flex justify-between">
                                <span>Tax ({formData.tax_percentage}%):</span>
-                               <span>${calculateTaxAmount().toFixed(2)}</span>
+                               <span>RM {calculateTaxAmount().toFixed(2)}</span>
                              </div>
                              <div className="flex justify-between font-medium border-t pt-1 mt-1">
                                <span>Total:</span>
-                               <span>${calculateTotalWithTax().toFixed(2)}</span>
+                               <span>RM {calculateTotalWithTax().toFixed(2)}</span>
                              </div>
                            </div>
                          </div>

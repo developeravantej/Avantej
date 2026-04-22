@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/service/view.tsx:1`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-20 (Pipeline Audit C.2)
+**Last updated:** 2026-04-22 (Pipeline Audit C.2)
 
 ---
 
@@ -85,7 +85,7 @@ ServiceViewPage
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `services` | SELECT / INSERT / UPDATE | `id`, `name`, `categoryId`, `duration`, `durationUnitType`, `maxAttendees`, `attendanceThreshold`, `branchId`, `isActive`, `title`, `description`, `imageUrl`, `type`, `price`, `priceUnit`, `taxable`, `taxPercentage`, `isRecommended`, `location`, `features`, `schedulingType`, `sessionCount`, `expirable`, `expiryDays`, `expiryDate`, `availablePaymentPlans`, `installmentIntervalDays`, **`commissionPercentage`** |
+| `services` | SELECT / INSERT / UPDATE | `id`, `name`, `categoryId`, `duration`, `durationUnitType`, `maxAttendees`, `attendanceThreshold`, `branchId`, `isActive`, `title`, `description`, `imageUrl`, `type`, `price`, `priceUnit`, `taxable`, `taxPercentage`, `isRecommended`, `location`, `features`, `schedulingType`, `sessionCount`, `expirable`, `expiryDays`, `expiryDate`, `availablePaymentPlans`, `installmentIntervalDays` |
 | `service_categories` | SELECT | `id`, `name` |
 | `hierarchy_nodes` | SELECT (via getDescendantNodeIds) | `id`, `parentId` |
 
@@ -116,7 +116,7 @@ ServiceViewPage
 
 ## 6. Notes
 
-- **Commission % field (2026-04-20):** Service create/edit form includes a numeric "Commission %" input. Stored as `commissionPercentage INTEGER NOT NULL DEFAULT 0` in basis points (display `5%` → stored `500`). Conversion: `Math.round(displayValue * 100)`. Used by `createCommissionSplitsForAppointment` and `createCommissionSplitsForPos` to determine per-split amount.
+- **Commission % field removed (2026-04-22):** Services no longer have a `commissionPercentage` field on the service form or in the API. Commission is now configured per service category via `categoryCommission.upsert`. The `commissionPercentage` column was removed from the database schema.
 - ~~USD currency bug~~ **FIXED (2026-04-16):** The local `formatPrice` function (which formatted in USD) was removed from `columns.tsx` and replaced with the shared `formatPrice` from `@/lib/currency`. Prices now display correctly as "RM X.XX" via `formatPrice(val, "MYR")`.
 - Deactivation is implemented as a soft delete via `services.update({ isActive: false })` — there is no dedicated delete endpoint.
 - Duration stored in DB in seconds but `durationUnitType` controls display unit. The edit form converts to minutes for display.

@@ -7,8 +7,10 @@ import {
 	cancelSalesOrder,
 } from "@avantej-core/services";
 
+// Mock actor used for cancelSalesOrder calls
+const MOCK_ACTOR = { userId: "user-1", memberId: "member-1", role: "admin" };
+
 // Shared mocks
-const mockFindMany = mock(() => Promise.resolve([]));
 const mockFindFirst = mock(() => Promise.resolve(null));
 const mockReturning = mock(() => Promise.resolve([]));
 const mockValues = mock(() => ({ returning: mockReturning }));
@@ -19,25 +21,53 @@ const mockUpdate = mock(() => ({
 	})),
 }));
 
-// select chain for count queries: select({total}).from(table).where(...) → [{total: N}]
+// select().from().where() chain — used by:
+//   - generateSalesOrderNumber (count query)
+//   - generateCancellationNumber (count query)
+//   - listSalesOrders (count query + row query)
+//
+// The row query also chains .orderBy().limit().offset() — each returns the same mock
+// so we can resolve the full chain.
+
+const mockOffset = mock(() => Promise.resolve([]));
+const mockLimit = mock(() => ({ offset: mockOffset }));
+const mockOrderBy = mock(() => ({ limit: mockLimit }));
+// where() is used both as terminal (count queries resolve immediately) and as
+// the start of orderBy chain. We give it a dual-return: the Promise also has
+// .orderBy on it so the chain works. We handle this via mockImplementation per test.
 const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+// We override mockSelectWhere behaviour per test to return either:
+//   - [{total: N}] for count queries
+//   - An object with .orderBy for row queries
+// Since listSalesOrders runs both in Promise.all, we use mockImplementation
+// to return different things per call within a test.
+
+// transaction mock: calls the callback with a tx that mirrors the top-level db mock
+const mockTransaction = mock(async (cb: (tx: any) => Promise<any>) => {
+	const tx = {
+		update: mockUpdate,
+		select: mockSelect,
+		insert: mockInsert,
+	};
+	return cb(tx);
+});
 
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
 	select: mockSelect,
+	transaction: mockTransaction,
 	query: {
 		salesOrders: {
-			findMany: mockFindMany,
 			findFirst: mockFindFirst,
 		},
 	},
 } as any;
 
 beforeEach(() => {
-	mockFindMany.mockClear();
 	mockFindFirst.mockClear();
 	mockReturning.mockClear();
 	mockValues.mockClear();
@@ -46,64 +76,144 @@ beforeEach(() => {
 	mockSelectWhere.mockClear();
 	mockSelectFrom.mockClear();
 	mockSelect.mockClear();
+	mockOffset.mockClear();
+	mockLimit.mockClear();
+	mockOrderBy.mockClear();
+	mockTransaction.mockClear();
 });
+
+// Helper: set up the mock chain for listSalesOrders which calls
+// Promise.all([countQuery, rowQuery]).
+// countQuery: select({total}).from(t).where(...) → [{total}]
+// rowQuery:   select().from(t).where(...).orderBy(...).limit(...).offset(...) → rows
+//
+// mockSelectWhere is called once per query. We use consecutive implementations:
+// first call = count query (terminal Promise), second call = row query (returns orderBy chain).
+function setupListMock(total: number, rows: any[]) {
+	// First call to where() → count result
+	mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total }]));
+	// Second call to where() → orderBy chain
+	mockSelectWhere.mockImplementationOnce(() => ({
+		orderBy: mock(() => ({
+			limit: mock(() => ({
+				offset: mock(() => Promise.resolve(rows)),
+			})),
+		})),
+	}));
+}
 
 describe("listSalesOrders", () => {
 	test("returns all orders with no filters", async () => {
 		const fakeOrders = [
 			{ id: "so1", salesOrderNumber: "SO-20260227-0001", branchId: "br1" },
 		];
-		mockFindMany.mockResolvedValueOnce(fakeOrders);
+		setupListMock(1, fakeOrders);
 
 		const result = await listSalesOrders(mockTenantDb);
 
-		expect(result).toEqual(fakeOrders);
-		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
-		expect(callArg.where).toBeUndefined();
+		expect(result.rows).toEqual(fakeOrders);
+		expect(result.total).toBe(1);
 	});
 
 	test("applies status filter", async () => {
-		mockFindMany.mockResolvedValueOnce([]);
+		setupListMock(0, []);
 
-		await listSalesOrders(mockTenantDb, { status: "confirmed" });
+		const result = await listSalesOrders(mockTenantDb, { status: "confirmed" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
-		expect(callArg.where).toBeDefined();
+		expect(result.rows).toEqual([]);
+		expect(result.total).toBe(0);
+		// where() was called twice (count + rows)
+		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
 	});
 
 	test("applies customerId filter", async () => {
-		mockFindMany.mockResolvedValueOnce([]);
+		setupListMock(0, []);
 
-		await listSalesOrders(mockTenantDb, { customerId: "cust-1" });
+		const result = await listSalesOrders(mockTenantDb, { customerId: "cust-1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
-		expect(callArg.where).toBeDefined();
+		expect(result.rows).toEqual([]);
+		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
 	});
 
 	test("applies date range filters", async () => {
-		mockFindMany.mockResolvedValueOnce([]);
+		setupListMock(0, []);
 
 		const from = new Date("2026-01-01");
 		const to = new Date("2026-01-31");
-		await listSalesOrders(mockTenantDb, { from, to });
+		const result = await listSalesOrders(mockTenantDb, { from, to });
 
-		const callArg = mockFindMany.mock.calls[0][0];
-		expect(callArg.where).toBeDefined();
+		expect(result.rows).toEqual([]);
+		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
 	});
 
-	test("post-filters by accessibleNodeIds", async () => {
-		const allOrders = [
+	test("returns empty result immediately when accessibleNodeIds is empty (no DB call)", async () => {
+		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: [] });
+
+		expect(result).toEqual({ rows: [], total: 0 });
+		// No DB queries should have been made
+		expect(mockSelect).not.toHaveBeenCalled();
+	});
+
+	test("throws FORBIDDEN when branchId is not in accessibleNodeIds", async () => {
+		await expect(
+			listSalesOrders(mockTenantDb, {
+				accessibleNodeIds: ["br1"],
+				branchId: "br2",
+			})
+		).rejects.toThrow("FORBIDDEN: branch not in accessible scope");
+
+		expect(mockSelect).not.toHaveBeenCalled();
+	});
+
+	test("filters SQL-side when accessibleNodeIds is non-empty", async () => {
+		const fakeOrders = [
 			{ id: "so1", branchId: "br1" },
-			{ id: "so2", branchId: "br2" },
 			{ id: "so3", branchId: "br3" },
 		];
-		mockFindMany.mockResolvedValueOnce(allOrders);
+		setupListMock(2, fakeOrders);
 
 		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
 
-		expect(result).toHaveLength(2);
-		expect(result.map((o) => o.id)).toEqual(["so1", "so3"]);
+		expect(result.rows).toHaveLength(2);
+		expect(result.total).toBe(2);
+		// Both count and row queries went through the DB (inArray pushed into WHERE)
+		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
+	});
+
+	test("pagination: limit and offset are passed through", async () => {
+		// Capture offset mock to verify it was called
+		const fakeRows = [{ id: "so2", branchId: "br1" }];
+		const mockOffsetCapture = mock(() => Promise.resolve(fakeRows));
+		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
+		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
+
+		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 10 }]));
+		mockSelectWhere.mockImplementationOnce(() => ({
+			orderBy: mockOrderByCapture,
+		}));
+
+		const result = await listSalesOrders(mockTenantDb, { limit: 2, offset: 4 });
+
+		expect(result.total).toBe(10);
+		expect(result.rows).toEqual(fakeRows);
+		expect(mockLimitCapture).toHaveBeenCalledWith(2);
+		expect(mockOffsetCapture).toHaveBeenCalledWith(4);
+	});
+
+	test("defaults limit=50 offset=0 when not provided", async () => {
+		const mockOffsetCapture = mock(() => Promise.resolve([]));
+		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
+		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
+
+		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 0 }]));
+		mockSelectWhere.mockImplementationOnce(() => ({
+			orderBy: mockOrderByCapture,
+		}));
+
+		await listSalesOrders(mockTenantDb);
+
+		expect(mockLimitCapture).toHaveBeenCalledWith(50);
+		expect(mockOffsetCapture).toHaveBeenCalledWith(0);
 	});
 });
 
@@ -223,7 +333,7 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(undefined);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "nonexistent", { cancelledBy: "user-1", refundAmount: 100 })
+			cancelSalesOrder(mockTenantDb, "nonexistent", { cancelledBy: "user-1", refundAmount: 100 }, MOCK_ACTOR)
 		).rejects.toThrow("Sales order not found");
 	});
 
@@ -253,15 +363,16 @@ describe("cancelSalesOrder", () => {
 		const result = await cancelSalesOrder(mockTenantDb, "so1", {
 			cancelledBy: "user-1",
 			refundAmount: 100,
-		});
+		}, MOCK_ACTOR);
 
 		expect(result).toBeDefined();
 		expect(result.status).toBe("cancelled");
 		expect(result.cancellationNumber).toBe("CAN-20260227-0001");
 		expect(result.cancelledBy).toBe("user-1");
-		expect(mockUpdate).toHaveBeenCalledTimes(1);
-		// No transaction used — no insert into cancelled_sales
-		expect(mockInsert).not.toHaveBeenCalled();
+		// update() is called at least once (for the sales order itself; commission splits may also call it)
+		expect(mockUpdate).toHaveBeenCalled();
+		// writeAudit inside the transaction calls insert(auditLogs)
+		expect(mockTransaction).toHaveBeenCalledTimes(1);
 	});
 
 	test("passes cancellation reason to update set", async () => {
@@ -291,7 +402,7 @@ describe("cancelSalesOrder", () => {
 			cancelledBy: "user-2",
 			reason: "Customer request",
 			refundAmount: 200,
-		});
+		}, MOCK_ACTOR);
 
 		expect(result.cancellationReason).toBe("Customer request");
 		expect(result.cancelledBy).toBe("user-2");
@@ -335,7 +446,7 @@ describe("cancelSalesOrder", () => {
 		const result = await cancelSalesOrder(mockTenantDb, "so3", {
 			cancelledBy: "user-3",
 			refundAmount: 5000, // partial refund — half of totalAmount
-		});
+		}, MOCK_ACTOR);
 
 		// The set() call must write cancelled_amount with the partial refund value
 		const setArg = capturedSet[0];
@@ -358,7 +469,7 @@ describe("cancelSalesOrder", () => {
 			cancelSalesOrder(mockTenantDb, "so4", {
 				cancelledBy: "user-4",
 				refundAmount: 20000, // > totalAmount
-			})
+			}, MOCK_ACTOR)
 		).rejects.toThrow(/out of range/);
 
 		// update() must not have been called — validation happens before the DB write
@@ -378,7 +489,7 @@ describe("cancelSalesOrder", () => {
 			cancelSalesOrder(mockTenantDb, "so5", {
 				cancelledBy: "user-5",
 				refundAmount: -100,
-			})
+			}, MOCK_ACTOR)
 		).rejects.toThrow(/out of range/);
 
 		expect(mockUpdate).not.toHaveBeenCalled();

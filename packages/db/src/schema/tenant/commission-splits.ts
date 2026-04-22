@@ -63,6 +63,18 @@ export const commissionSplits = pgTable(
 		// Payout linkage (no Drizzle FK — avoids circular import with payouts.ts)
 		payoutId: uuid("payout_id"),
 
+		// Commission calculation snapshot fields (no FKs — historical integrity)
+		slotIndex: integer("slot_index"),
+		conditionId: uuid("condition_id"), // Snapshot; no FK — config may change after creation
+		trainerTierId: uuid("trainer_tier_id"), // Snapshot at time of calculation; no FK
+		weightageBasisPoints: integer("weightage_basis_points"),
+		baseAmountCents: integer("base_amount_cents"), // Rate before weightage applied
+		splitType: text("split_type").notNull().default("automatic"), // "automatic" | "manual"
+		manualNote: text("manual_note"), // Required when splitType="manual"
+
+		// Use earnedAt (not createdAt) for payroll period filtering
+		earnedAt: timestamp("earned_at", { withTimezone: true }).notNull(),
+
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
@@ -81,5 +93,6 @@ export const commissionSplits = pgTable(
 		salesOrderIdx: index("commission_splits_sales_order_idx").on(
 			table.salesOrderId,
 		),
+		earnedAtIdx: index("commission_splits_earned_at_idx").on(table.earnedAt),
 	}),
 );

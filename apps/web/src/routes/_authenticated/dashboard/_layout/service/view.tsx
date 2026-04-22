@@ -1,74 +1,61 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
-import DataTable from "@/components/tables/service/view/data-table";
-import { columns } from "@/components/tables/service/view/columns";
+import { ServicesPage } from "@/components/pages/services/services-page";
+import { ServiceCategoriesPage } from "@/components/pages/services/categories-page";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/service/view",
 )({
-	component: ServiceViewPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		tab: (search.tab as string | undefined) ?? "services",
+	}),
+	component: ServicesTabPage,
 });
 
-function ServiceViewPage() {
-	const { data: userContext } = useUserContext();
-	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+const TABS = [
+	{ id: "services", label: "Services" },
+	{ id: "categories", label: "Categories" },
+];
 
-	const { data: services = [], isLoading: servicesLoading } = useQuery({
-		queryKey: ["services", organizationId],
-		queryFn: () => client.services.list({ organizationId: organizationId! }),
-		enabled: !!organizationId,
-	});
-
-	const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-		queryKey: ["serviceCategories", organizationId],
-		queryFn: () =>
-			client.serviceCategories.list({ organizationId: organizationId! }),
-		enabled: !!organizationId,
-	});
-
-	const isLoading = servicesLoading || categoriesLoading;
-
-	function handleSuccess() {
-		queryClient.invalidateQueries({ queryKey: ["services", organizationId] });
-	}
-
-	if (!organizationId) {
-		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to view services.
-			</div>
-		);
-	}
-
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
-	}
+function ServicesTabPage() {
+	const { tab } = Route.useSearch();
+	const navigate = Route.useNavigate();
 
 	return (
-		<div className="p-6 space-y-6">
-			<div>
-				<h1 className="text-2xl font-bold font-heading">Services</h1>
-				<p className="text-sm text-muted-foreground">
-					Manage services offered by your organization
-				</p>
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div>
+					<h1 className="text-xl font-semibold">Services</h1>
+					<p className="mt-0.5 text-sm text-muted-foreground">
+						Manage services and categories offered by your organization
+					</p>
+				</div>
 			</div>
-			<DataTable
-				columns={columns}
-				data={services}
-				organizationId={organizationId}
-				categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-				isLoading={isLoading}
-				onSuccess={handleSuccess}
-			/>
+
+			{/* Underline tabs */}
+			<div className="shrink-0 border-b border-border/40 px-6">
+				<div className="flex h-10 items-end gap-0">
+					{TABS.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => navigate({ search: { tab: t.id } })}
+							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
+								tab === t.id
+									? "border-foreground text-foreground"
+									: "border-transparent text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{t.label}
+						</button>
+					))}
+				</div>
+			</div>
+
+			{/* Tab content */}
+			<div className="min-h-0 flex-1 overflow-hidden">
+				{tab === "services" ? <ServicesPage /> : <ServiceCategoriesPage />}
+			</div>
 		</div>
 	);
 }

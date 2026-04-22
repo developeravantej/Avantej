@@ -20,6 +20,7 @@ import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-category-form";
 import { ServiceCategoryDetailDialog } from "@/components/forms/service-category-detail-dialog";
+import { CategoryCommissionForm } from "@/components/forms/category-commission-form";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 
@@ -44,6 +45,9 @@ export default function DataTable<TData, TValue>({
 	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 	const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
+	const [commissionCategoryId, setCommissionCategoryId] = useState<string | null>(null);
+	const [commissionCategoryName, setCommissionCategoryName] = useState<string>("");
+	const [isCommissionSheetOpen, setIsCommissionSheetOpen] = useState(false);
 
 	const table = useReactTable({
 		data,
@@ -75,19 +79,12 @@ export default function DataTable<TData, TValue>({
 				name: editCategoryData.category.name,
 				duration: editCategoryData.config?.defaultDuration ?? 60,
 				maxAttendees: editCategoryData.config?.defaultMaxAttendees ?? undefined,
-				incentive: {
-					type: (editCategoryData.config?.incentiveType as "fixed" | "variable") ?? "fixed",
-					isConditional: editCategoryData.config?.isConditional ?? false,
-					maxStaff: editCategoryData.config?.maxStaff ?? 1,
-					staffPoolPercentage: editCategoryData.config?.staffPoolPercentage ?? 100,
-					paymentStructure: (editCategoryData.config?.paymentStructures as any) ?? {},
-					staffWeightage: (editCategoryData.config?.staffWeightage as any[]) ?? [{ id: 1, position: 1, title: "Head Staff", percentage: 100 }],
-				},
 				rules: {
 					requireAdvanceBooking: editCategoryData.config?.requireAdvanceBooking ?? false,
 					minAdvanceHours: editCategoryData.config?.minAdvanceHours ?? 0,
 					enableCancellationWindow: editCategoryData.config?.enableCancellationWindow ?? false,
 					cancellationCutoffHours: editCategoryData.config?.cancellationCutoffHours ?? 0,
+					bufferTimeMinutes: editCategoryData.config?.bufferTimeMinutes ?? 0,
 				},
 			}
 		: undefined;
@@ -120,97 +117,110 @@ export default function DataTable<TData, TValue>({
 	);
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between gap-2">
-				<Button
-					onClick={() => setIsAddDialogOpen(true)}
-					className="bg-black text-white hover:bg-black/90"
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Add Service Category
-				</Button>
-				<div className="relative w-72">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<div className="flex h-full flex-col">
+			<div className="flex shrink-0 items-center justify-between border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
-						placeholder="Search..."
+						placeholder="Search categories..."
 						value={globalFilter ?? ""}
 						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="pl-8"
+						className="pl-9"
 					/>
 				</div>
+				<Button
+					size="sm"
+					onClick={() => setIsAddDialogOpen(true)}
+				>
+					<Plus className="mr-2 h-4 w-4" />
+					Add Category
+				</Button>
 			</div>
 
-			{isLoading ? (
-				<div className="rounded-md border flex items-center justify-center py-12 text-muted-foreground">
-					Loading...
-				</div>
-			) : (
-				<div className="rounded-md border shadow-sm">
-					<Table>
-						<TableHeader>
-							{table.getHeaderGroups().map((headerGroup) => (
-								<TableRow
-									key={headerGroup.id}
-									className="border-b bg-muted/50 hover:bg-muted/60"
-								>
-									{headerGroup.headers.map((header) => (
-										<TableHead
-											key={header.id}
-											className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
-										>
-											{header.isPlaceholder
-												? null
-												: flexRender(
-														header.column.columnDef.header,
-														header.getContext()
-													)}
-										</TableHead>
-									))}
-								</TableRow>
-							))}
-						</TableHeader>
-						<TableBody>
-							{table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map((row, index) => (
-									<TableRow
-										key={row.id}
-										data-state={row.getIsSelected() && "selected"}
-										onClick={() => {
-											const categoryId = (row.original as { id?: string }).id;
-											if (categoryId) {
-												setSelectedCategoryId(categoryId);
-												setIsDetailDialogOpen(true);
-											}
-										}}
-										className={`border-b transition-colors hover:bg-muted/50 cursor-pointer data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+			<div className="flex-1 overflow-y-auto">
+				<Table>
+					<TableHeader className="sticky top-0 z-10 bg-white">
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow
+								key={headerGroup.id}
+								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
+							>
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
 									>
-										{row.getVisibleCells().map((cell) => (
-											<TableCell
-												key={cell.id}
-												className="px-4 py-3 text-sm whitespace-nowrap"
-											>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext()
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext()
 												)}
-											</TableCell>
-										))}
-									</TableRow>
-								))
-							) : (
-								<TableRow>
-									<TableCell
-										colSpan={columns.length}
-										className="h-24 text-center text-muted-foreground"
-									>
-										No categories yet. Add one to get started.
+									</TableHead>
+								))}
+								<TableHead className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Actions
+								</TableHead>
+							</TableRow>
+						))}
+					</TableHeader>
+					<TableBody>
+						{table.getRowModel().rows?.length ? (
+							table.getRowModel().rows.map((row) => (
+								<TableRow
+									key={row.id}
+									data-state={row.getIsSelected() && "selected"}
+									onClick={() => {
+										const categoryId = (row.original as { id?: string }).id;
+										if (categoryId) {
+											setSelectedCategoryId(categoryId);
+											setIsDetailDialogOpen(true);
+										}
+									}}
+									className="border-b border-border/30 cursor-pointer transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+								>
+									{row.getVisibleCells().map((cell) => (
+										<TableCell
+											key={cell.id}
+											className="whitespace-nowrap px-6 py-4 text-sm"
+										>
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext()
+											)}
+										</TableCell>
+									))}
+									<TableCell className="whitespace-nowrap px-6 py-4 text-sm">
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={(e) => {
+												e.stopPropagation();
+												const categoryId = (row.original as { id?: string }).id ?? "";
+												const categoryName = (row.original as { name?: string }).name ?? "";
+												setCommissionCategoryId(categoryId);
+												setCommissionCategoryName(categoryName);
+												setIsCommissionSheetOpen(true);
+											}}
+										>
+											Commission Config
+										</Button>
 									</TableCell>
 								</TableRow>
-							)}
-						</TableBody>
-					</Table>
-				</div>
-			)}
+							))
+						) : (
+							<TableRow>
+								<TableCell
+									colSpan={columns.length}
+									className="py-16 text-center text-sm text-muted-foreground"
+								>
+									No categories yet. Add one to get started.
+								</TableCell>
+							</TableRow>
+						)}
+					</TableBody>
+				</Table>
+			</div>
 
 			<ServiceFormDialog
 				isOpen={isAddDialogOpen}
@@ -241,6 +251,16 @@ export default function DataTable<TData, TValue>({
 				onEdit={handleEditCategory}
 				onDelete={handleDeleteCategory}
 			/>
+
+			{commissionCategoryId && (
+				<CategoryCommissionForm
+					open={isCommissionSheetOpen}
+					onOpenChange={setIsCommissionSheetOpen}
+					categoryId={commissionCategoryId}
+					categoryName={commissionCategoryName}
+					organizationId={organizationId}
+				/>
+			)}
 		</div>
 	);
 }

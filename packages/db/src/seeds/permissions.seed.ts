@@ -111,6 +111,20 @@ const SEED_PERMISSIONS = [
 		action: "process",
 		description: "Mark commission splits as paid",
 	},
+	// trainer_tier_management
+	{ resource: "trainer_tier_management", action: "read" },
+	{ resource: "trainer_tier_management", action: "create" },
+	{ resource: "trainer_tier_management", action: "update" },
+	{ resource: "trainer_tier_management", action: "delete" },
+	// category_commission_management
+	{ resource: "category_commission_management", action: "read" },
+	{ resource: "category_commission_management", action: "create" },
+	{ resource: "category_commission_management", action: "update" },
+	{ resource: "category_commission_management", action: "delete" },
+	// commission_payout — finance-gated; only owner-level should hold create/update
+	{ resource: "commission_payout", action: "read" },
+	{ resource: "commission_payout", action: "create" },
+	{ resource: "commission_payout", action: "update" },
 ];
 
 export async function seedPermissions(

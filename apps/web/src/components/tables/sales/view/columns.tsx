@@ -1,12 +1,13 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
+import { Copy, Eye } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/currency";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 export interface SalesRow {
 	id: string;
@@ -14,7 +15,9 @@ export interface SalesRow {
 	sales_order?: string | null;
 	total_sales?: number;
 	customer_name?: string | null;
+	customerId?: string | null;
 	created_by?: string | null;
+	status?: string | null;
 }
 
 // Helper component for copyable cells
@@ -65,6 +68,26 @@ const formatDate = (dateString: string | null | undefined): string => {
 };
 
 
+function SalesActionCell({ row }: { row: import("@tanstack/react-table").Row<SalesRow> }) {
+	const navigate = useNavigate();
+	return (
+		<div className="flex items-center gap-2">
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={() =>
+					navigate({
+						to: "/dashboard/sales/$id",
+						params: { id: row.original.id },
+					})
+				}
+			>
+				<Eye className="h-4 w-4 mr-1" /> View
+			</Button>
+		</div>
+	);
+}
+
 export const columns: ColumnDef<SalesRow>[] = [
 	{
 		accessorKey: "date",
@@ -108,7 +131,22 @@ export const columns: ColumnDef<SalesRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Customer Name" />
 		),
-		cell: ({ getValue }) => getValue<string>() || "N/A",
+		cell: ({ row }) => {
+			const name = row.original.customer_name;
+			const customerId = row.original.customerId;
+			if (customerId) {
+				return (
+					<Link
+						to="/dashboard/customers/view"
+						search={{ customerId }}
+						className="text-primary underline-offset-4 hover:underline"
+					>
+						{name || "N/A"}
+					</Link>
+				);
+			}
+			return name || "N/A";
+		},
 		enableSorting: true,
 		enableHiding: false,
 	},
@@ -135,29 +173,33 @@ export const columns: ColumnDef<SalesRow>[] = [
 		enableHiding: false,
 	},
 	{
+		accessorKey: "status",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Status" />
+		),
+		cell: ({ getValue }) => {
+			const status = getValue<string>();
+			const statusStyles: Record<string, string> = {
+				completed: "bg-green-100 text-green-700 border-green-200",
+				confirmed: "bg-blue-100 text-blue-700 border-blue-200",
+				draft: "bg-gray-100 text-gray-600 border-gray-200",
+				cancelled: "bg-red-100 text-red-700 border-red-200",
+			};
+			return status ? (
+				<Badge className={`capitalize border ${statusStyles[status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
+					{status}
+				</Badge>
+			) : "N/A";
+		},
+		enableSorting: true,
+		enableHiding: false,
+	},
+	{
 		id: "actions",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => {
-			const navigate = useNavigate();
-			return (
-				<div className="flex items-center gap-2">
-					<button
-						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-						type="button"
-						onClick={() =>
-							navigate({
-								to: "/dashboard/sales/$id",
-								params: { id: row.original.id },
-							})
-						}
-					>
-						View
-					</button>
-				</div>
-			);
-		},
+		cell: ({ row }) => <SalesActionCell row={row} />,
 		enableSorting: false,
 		enableHiding: false,
 	},

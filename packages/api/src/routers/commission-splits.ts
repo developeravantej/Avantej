@@ -8,7 +8,10 @@ import {
 	approveCommissionSplits,
 	markCommissionSplitsPaid,
 	voidCommissionSplit,
+	createManualAdjustment,
 	listCommissionLedger,
+	liabilitySummary,
+	markPaidBatch,
 } from "@avantej-core/services/commission-splits.service";
 import { requirePermission } from "@avantej-core/services";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -374,6 +377,166 @@ const voidSplit = protectedProcedure
 		}
 	});
 
+/**
+ * createManualAdjustment: create a manual commission adjustment (bonus or clawback).
+ * Requires commission_payout:create.
+ */
+const manualAdjustment = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			staffId: z.string().uuid(),
+			amountCents: z.number().int(),
+			note: z.string().min(1),
+			salesOrderId: z.string().uuid().optional(),
+			appointmentId: z.string().uuid().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb || !context.member) throw new ORPCError("UNAUTHORIZED");
+
+		try {
+			await requirePermission(context.tenantDb, context.member, "commission_payout", "create");
+		} catch {
+			throw new ORPCError("FORBIDDEN", { message: "commission_payout:create required" });
+		}
+
+		try {
+			return await createManualAdjustment(context.tenantDb, {
+				staffId: input.staffId,
+				amountCents: input.amountCents,
+				note: input.note,
+				salesOrderId: input.salesOrderId,
+				appointmentId: input.appointmentId,
+				actor: {
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				},
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", { message: err instanceof Error ? err.message : "Unknown error" });
+		}
+	});
+
+/**
+ * liabilitySummary: aggregate commission liability for a date range.
+ * Filters on earnedAt. Optionally scoped by hierarchy node and/or service category.
+ * Requires commission_management:read OR commission_payout:read.
+ */
+const liabilitySummaryProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			from: z.string().datetime(),
+			to: z.string().datetime(),
+			hierarchyNodeId: z.string().uuid().optional(),
+			categoryId: z.string().uuid().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		// OR permission check: commission_management:read OR commission_payout:read
+		let hasPermission = false;
+		try {
+			await requirePermission(context.tenantDb, context.member, "commission_management", "read");
+			hasPermission = true;
+		} catch {
+			// Try the alternative permission
+		}
+		if (!hasPermission) {
+			try {
+				await requirePermission(context.tenantDb, context.member, "commission_payout", "read");
+				hasPermission = true;
+			} catch {
+				// Both failed
+			}
+		}
+		if (!hasPermission) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "commission_management:read or commission_payout:read required",
+			});
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+
+		try {
+			return await liabilitySummary(context.tenantDb, controlPanelDb, {
+				from: input.from,
+				to: input.to,
+				hierarchyNodeId: input.hierarchyNodeId,
+				categoryId: input.categoryId,
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: err instanceof Error ? err.message : "Failed to compute liability summary",
+			});
+		}
+	});
+
+/**
+ * markPaidBatch: batch-mark approved splits as paid for given members in a date range.
+ * Uses earnedAt for range filtering.
+ * Requires commission_payout:update.
+ */
+const markPaidBatchProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			memberIds: z.array(z.string().uuid()).min(1),
+			from: z.string().datetime(),
+			to: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(context.tenantDb, context.member, "commission_payout", "update");
+		} catch {
+			throw new ORPCError("FORBIDDEN", { message: "commission_payout:update required" });
+		}
+
+		try {
+			return await markPaidBatch(context.tenantDb, {
+				memberIds: input.memberIds,
+				from: input.from,
+				to: input.to,
+				actor: {
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				},
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Failed to mark splits as paid",
+			});
+		}
+	});
+
 export const commissionSplitsRouter = {
 	list,
 	getByAppointment,
@@ -382,4 +545,7 @@ export const commissionSplitsRouter = {
 	approve,
 	markPaid,
 	void: voidSplit,
+	createManualAdjustment: manualAdjustment,
+	liabilitySummary: liabilitySummaryProcedure,
+	markPaidBatch: markPaidBatchProcedure,
 };

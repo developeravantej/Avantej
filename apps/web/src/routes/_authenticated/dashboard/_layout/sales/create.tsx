@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Check, ShoppingCart, UserX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CartSummary } from "@/components/pos/cart-summary";
@@ -8,10 +8,12 @@ import { CustomerStep } from "@/components/pos/customer-step";
 import { ItemsStep } from "@/components/pos/items-step";
 import { PaymentStep } from "@/components/pos/payment-step";
 import { PromoStep } from "@/components/pos/promo-step";
+import { TrainerPickerStep } from "@/components/pos/trainer-picker-step";
 import type {
 	AppliedPromo,
 	CartItem,
 	CustomerType,
+	ItemTrainerAssignments,
 	PaymentMethod,
 	SelectedCustomer,
 	TaxRateOption,
@@ -38,7 +40,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -52,6 +53,36 @@ export const Route = createFileRoute(
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function StepBadge({
+	n,
+	isComplete,
+	isLocked,
+}: {
+	n: number;
+	isComplete: boolean;
+	isLocked: boolean;
+}) {
+	if (isComplete) {
+		return (
+			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500">
+				<Check className="h-3.5 w-3.5 text-white" />
+			</span>
+		);
+	}
+	if (isLocked) {
+		return (
+			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground text-xs">
+				{n}
+			</span>
+		);
+	}
+	return (
+		<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
+			{n}
+		</span>
+	);
+}
 
 function calcTotals(
 	items: CartItem[],
@@ -89,31 +120,6 @@ function PosCreatePage() {
 	const [selectedCustomer, setSelectedCustomer] =
 		useState<SelectedCustomer | null>(null);
 
-	// ── Walk-in customers list (loaded when walk-in mode is active) ────────────
-	const walkInCustomersQuery = useQuery({
-		queryKey: ["walkInCustomers-pos", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return (client as any).walkInCustomers.list({
-				organizationId,
-				isActive: true,
-				limit: 100,
-			}) as Promise<
-				Array<{
-					id: string;
-					name: string;
-					phone: string | null;
-					email?: string | null;
-					branchId?: string | null;
-				}>
-			>;
-		},
-		enabled: !!organizationId && customerTypeMode === "walk_in",
-	});
-
-	// ── Walk-in mode: selected walk-in customer id ─────────────────────────────
-	const [selectedWalkInId, setSelectedWalkInId] = useState<string | null>(null);
-
 	// ── Items ──────────────────────────────────────────────────────────────────
 	const [items, setItems] = useState<CartItem[]>([]);
 	const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false);
@@ -128,16 +134,7 @@ function PosCreatePage() {
 	const defaultBranchId =
 		currentOrg?.hierarchy?.member?.hierarchyScopeId ?? null;
 
-	// For walk-in mode, resolve branchId from the selected walk-in record
-	const selectedWalkIn =
-		customerTypeMode === "walk_in" && selectedWalkInId
-			? (walkInCustomersQuery.data ?? []).find((c) => c.id === selectedWalkInId)
-			: null;
-
-	const resolvedBranchId =
-		customerTypeMode === "member"
-			? (selectedCustomer?.branchId ?? defaultBranchId)
-			: (selectedWalkIn?.branchId ?? defaultBranchId);
+	const resolvedBranchId = selectedCustomer?.branchId ?? defaultBranchId;
 
 	// ── Promo ──────────────────────────────────────────────────────────────────
 	const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
@@ -198,6 +195,10 @@ function PosCreatePage() {
 	// ── Notes ─────────────────────────────────────────────────────────────────
 	const [notes, setNotes] = useState("");
 
+	// ── Trainer assignments (optional, for commission-configured service items) ─
+	const [trainerAssignments, setTrainerAssignments] =
+		useState<ItemTrainerAssignments>({});
+
 	// ── Computed totals ────────────────────────────────────────────────────────
 	const discountCents = appliedPromo?.discountCents ?? 0;
 	const { subtotalCents, totalCents } = calcTotals(
@@ -206,11 +207,14 @@ function PosCreatePage() {
 		taxRateBps,
 	);
 
+	// ── Service items check (for optional trainers step) ──────────────────────
+	const hasServiceItems = items.some(
+		(item) => item.type === "service" && item.refId,
+	);
+
 	// ── Submit readiness ───────────────────────────────────────────────────────
 	const hasCustomer =
-		customerTypeMode === "member"
-			? selectedCustomer !== null
-			: selectedWalkInId !== null;
+		customerTypeMode === "walk_in" || selectedCustomer !== null;
 	const hasItems = items.length > 0;
 	const hasPaymentMethod = paymentMethod !== null;
 	const cashOk =
@@ -233,10 +237,8 @@ function PosCreatePage() {
 
 	function handleCustomerTypeModeChange(mode: CustomerType) {
 		if (mode === customerTypeMode) return;
-		// Switching modes resets both customer selections and clears the cart
 		setCustomerTypeMode(mode);
 		setSelectedCustomer(null);
-		setSelectedWalkInId(null);
 		setItems([]);
 		setAppliedPromo(null);
 	}
@@ -271,6 +273,7 @@ function PosCreatePage() {
 	function confirmClearCart() {
 		setItems([]);
 		setAppliedPromo(null);
+		setTrainerAssignments({});
 		if (pendingCustomerRef.current) {
 			setSelectedCustomer(pendingCustomerRef.current);
 			pendingCustomerRef.current = null;
@@ -316,7 +319,7 @@ function PosCreatePage() {
 
 	const submitMutation = useMutation({
 		mutationFn: async () => {
-			if (!organizationId || !paymentMethod || !selectedTaxRateId) {
+			if (!organizationId || !paymentMethod) {
 				throw new Error("Missing required sale information.");
 			}
 
@@ -333,12 +336,9 @@ function PosCreatePage() {
 				customerId = selectedCustomer.id;
 				customerName = selectedCustomer.name;
 			} else {
-				if (!selectedWalkInId || !selectedWalkIn) {
-					throw new Error("Please select a walk-in customer.");
-				}
 				customerType = "walk_in";
-				customerId = selectedWalkIn.id;
-				customerName = selectedWalkIn.name;
+				customerId = "anonymous";
+				customerName = "Walk-in";
 			}
 
 			if (!resolvedBranchId) {
@@ -346,6 +346,19 @@ function PosCreatePage() {
 					"Branch could not be determined. Please select a customer.",
 				);
 			}
+
+			// Build itemTrainerAssignments: only include slots with a real staffId
+			const filteredAssignments = Object.fromEntries(
+				Object.entries(trainerAssignments)
+					.map(([k, arr]) => [
+						k,
+						arr.filter((a) => a.staffId !== "").map((a) => ({
+							staffId: a.staffId,
+							slotIndex: a.slotIndex,
+						})),
+					])
+					.filter(([, arr]) => (arr as unknown[]).length > 0),
+			);
 
 			return client.pos.recordSale({
 				organizationId,
@@ -361,13 +374,17 @@ function PosCreatePage() {
 					unitPriceCents: item.unitPriceCents,
 				})),
 				promotionCode: appliedPromo?.code,
-				taxRateId: selectedTaxRateId,
+				taxRateId: selectedTaxRateId ?? undefined,
 				paymentMethod,
 				paymentReference: paymentReference || undefined,
 				amountTenderedCents:
 					paymentMethod === "cash" ? amountTenderedCents : undefined,
 				installmentPlanCode: selectedPlan?.code,
 				notes: notes || undefined,
+				itemTrainerAssignments:
+					Object.keys(filteredAssignments).length > 0
+						? filteredAssignments
+						: undefined,
 			});
 		},
 		onSuccess: (data) => {
@@ -410,23 +427,21 @@ function PosCreatePage() {
 	// ── Render ─────────────────────────────────────────────────────────────────
 
 	return (
-		<div className="space-y-6 p-6">
+		<div className="space-y-6 p-6 bg-muted/30 -m-6 min-h-full">
 			{/* Header */}
-			<div className="flex items-center gap-4">
+			<div className="flex items-center gap-3">
 				<Link to="/dashboard/sales/view">
-					<Button variant="ghost" size="icon" className="h-8 w-8">
+					<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
 						<ArrowLeft className="h-4 w-4" />
 					</Button>
 				</Link>
 				<div className="flex items-center gap-3">
-					<div className="rounded-lg bg-primary/10 p-2">
-						<ShoppingCart className="h-6 w-6 text-primary" />
+					<div className="rounded-xl bg-primary p-2.5 shadow-sm">
+						<ShoppingCart className="h-5 w-5 text-primary-foreground" />
 					</div>
 					<div>
-						<h1 className="font-bold font-heading text-2xl">New Sale</h1>
-						<p className="text-muted-foreground text-sm">
-							Record an in-store sale
-						</p>
+						<h1 className="font-bold font-heading text-xl leading-tight">New Sale</h1>
+						<p className="text-muted-foreground text-xs">Point of sale</p>
 					</div>
 				</div>
 			</div>
@@ -434,7 +449,8 @@ function PosCreatePage() {
 			{/* Two-column layout: form + cart */}
 			<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
 				{/* Left: stepped form */}
-				<div className="lg:col-span-2">
+				<div className="lg:col-span-2 space-y-4">
+					<div className="rounded-xl border bg-card shadow-sm overflow-hidden">
 					<Accordion
 						type="single"
 						collapsible
@@ -444,25 +460,23 @@ function PosCreatePage() {
 					>
 						{/* Step 1: Customer */}
 						<AccordionItem value="customer">
-							<AccordionTrigger className="font-semibold text-base hover:no-underline">
+							<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
 								<span className="flex items-center gap-2">
-									<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-										1
-									</span>
+									<StepBadge n={1} isComplete={hasCustomer} isLocked={false} />
 									Customer
 									{customerTypeMode === "member" && selectedCustomer && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
 											— {selectedCustomer.name}
 										</span>
 									)}
-									{customerTypeMode === "walk_in" && selectedWalkIn && (
+									{customerTypeMode === "walk_in" && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
-											— {selectedWalkIn.name}
+											— Walk-in
 										</span>
 									)}
 								</span>
 							</AccordionTrigger>
-							<AccordionContent className="pt-3 pb-5">
+							<AccordionContent className="px-5 pt-2 pb-6">
 								<div className="space-y-4">
 									{/* Customer type toggle */}
 									<div className="flex gap-2">
@@ -501,44 +515,18 @@ function PosCreatePage() {
 										/>
 									)}
 
-									{/* Walk-in customer picker */}
+									{/* Walk-in info */}
 									{customerTypeMode === "walk_in" && (
-										<div className="space-y-1.5">
-											<Label htmlFor="walk-in-customer">Walk-in customer</Label>
-											<Select
-												value={selectedWalkInId ?? ""}
-												onValueChange={(v) => {
-													setSelectedWalkInId(v || null);
-													// Advance to items when a walk-in is selected
-													if (v) setAccordionValue("items");
-												}}
-											>
-												<SelectTrigger
-													id="walk-in-customer"
-													className="w-full max-w-sm"
-												>
-													<SelectValue placeholder="Select a walk-in customer..." />
-												</SelectTrigger>
-												<SelectContent>
-													{walkInCustomersQuery.isLoading && (
-														<SelectItem value="_loading" disabled>
-															Loading...
-														</SelectItem>
-													)}
-													{!walkInCustomersQuery.isLoading &&
-														(walkInCustomersQuery.data ?? []).length === 0 && (
-															<SelectItem value="_empty" disabled>
-																No walk-in customers — add one first.
-															</SelectItem>
-														)}
-													{(walkInCustomersQuery.data ?? []).map((c) => (
-														<SelectItem key={c.id} value={c.id}>
-															{c.name}
-															{c.phone ? ` · ${c.phone}` : ""}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
+										<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+											<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
+												<UserX className="h-4 w-4 text-muted-foreground" />
+											</div>
+											<div>
+												<p className="font-medium text-sm">Anonymous Walk-in</p>
+												<p className="text-muted-foreground text-xs">
+													No customer record will be saved for this sale.
+												</p>
+											</div>
 										</div>
 									)}
 								</div>
@@ -547,11 +535,12 @@ function PosCreatePage() {
 
 						{/* Step 2: Items */}
 						<AccordionItem value="items">
-							<AccordionTrigger className="font-semibold text-base hover:no-underline">
+							<AccordionTrigger
+								disabled={!hasCustomer}
+								className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
+							>
 								<span className="flex items-center gap-2">
-									<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-										2
-									</span>
+									<StepBadge n={2} isComplete={hasItems} isLocked={!hasCustomer} />
 									Items
 									{items.length > 0 && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
@@ -560,7 +549,7 @@ function PosCreatePage() {
 									)}
 								</span>
 							</AccordionTrigger>
-							<AccordionContent className="pt-3 pb-5">
+							<AccordionContent className="px-5 pt-2 pb-6">
 								{!hasCustomer ? (
 									<p className="text-muted-foreground text-sm">
 										Select a customer first before adding items.
@@ -568,7 +557,6 @@ function PosCreatePage() {
 								) : (
 									<ItemsStep
 										organizationId={organizationId}
-										isWalkIn={customerTypeMode === "walk_in"}
 										items={items}
 										onAddItem={handleAddItem}
 										onUpdateItem={handleUpdateItem}
@@ -578,13 +566,51 @@ function PosCreatePage() {
 							</AccordionContent>
 						</AccordionItem>
 
+						{/* Step 2.5: Trainers (optional — only shown when service items are in cart) */}
+						{hasServiceItems && (
+							<AccordionItem value="trainers">
+								<AccordionTrigger
+									className="px-5 font-semibold text-base hover:no-underline"
+								>
+									<span className="flex items-center gap-2">
+										<StepBadge
+											n={3}
+											isComplete={false}
+											isLocked={!hasItems}
+										/>
+										Trainers
+										<span className="font-normal text-muted-foreground text-xs">
+											(optional)
+										</span>
+									</span>
+								</AccordionTrigger>
+								<AccordionContent className="px-5 pt-2 pb-6">
+									<TrainerPickerStep
+										items={items}
+										organizationId={organizationId}
+										assignments={trainerAssignments}
+										onChange={setTrainerAssignments}
+									/>
+									<Button
+										className="mt-4 w-full"
+										variant="outline"
+										onClick={() => setAccordionValue("promo")}
+										type="button"
+									>
+										Continue to Promotion
+									</Button>
+								</AccordionContent>
+							</AccordionItem>
+						)}
+
 						{/* Step 3: Promo */}
 						<AccordionItem value="promo">
-							<AccordionTrigger className="font-semibold text-base hover:no-underline">
+							<AccordionTrigger
+								disabled={!hasCustomer}
+								className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
+							>
 								<span className="flex items-center gap-2">
-									<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-										3
-									</span>
+									<StepBadge n={3} isComplete={appliedPromo !== null} isLocked={!hasCustomer} />
 									Promotion
 									{appliedPromo && (
 										<span className="ml-1 font-normal text-green-600 text-sm">
@@ -596,7 +622,7 @@ function PosCreatePage() {
 									</span>
 								</span>
 							</AccordionTrigger>
-							<AccordionContent className="pt-3 pb-5">
+							<AccordionContent className="px-5 pt-2 pb-6">
 								{!hasCustomer ? (
 									<p className="text-muted-foreground text-sm">
 										Select a customer first to apply a promo code.
@@ -607,7 +633,7 @@ function PosCreatePage() {
 										customerId={
 											customerTypeMode === "member"
 												? (selectedCustomer?.id ?? "")
-												: (selectedWalkInId ?? "")
+												: "anonymous"
 										}
 										branchId={resolvedBranchId}
 										items={items}
@@ -621,11 +647,9 @@ function PosCreatePage() {
 
 						{/* Step 4: Tax */}
 						<AccordionItem value="tax">
-							<AccordionTrigger className="font-semibold text-base hover:no-underline">
+							<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
 								<span className="flex items-center gap-2">
-									<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-										4
-									</span>
+									<StepBadge n={4} isComplete={true} isLocked={false} />
 									Tax
 									{selectedTaxRate && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
@@ -635,7 +659,7 @@ function PosCreatePage() {
 									)}
 								</span>
 							</AccordionTrigger>
-							<AccordionContent className="pt-3 pb-5">
+							<AccordionContent className="px-5 pt-2 pb-6">
 								<div className="space-y-1.5">
 									<Label htmlFor="tax-rate">Tax rate</Label>
 									<Select
@@ -663,11 +687,9 @@ function PosCreatePage() {
 
 						{/* Step 5: Payment */}
 						<AccordionItem value="payment">
-							<AccordionTrigger className="font-semibold text-base hover:no-underline">
+							<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
 								<span className="flex items-center gap-2">
-									<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-										5
-									</span>
+									<StepBadge n={5} isComplete={hasPaymentMethod && cashOk} isLocked={false} />
 									Payment
 									{paymentMethod && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm capitalize">
@@ -680,7 +702,7 @@ function PosCreatePage() {
 									)}
 								</span>
 							</AccordionTrigger>
-							<AccordionContent className="pt-3 pb-5">
+							<AccordionContent className="px-5 pt-2 pb-6">
 								<PaymentStep
 									organizationId={organizationId}
 									items={items}
@@ -698,53 +720,54 @@ function PosCreatePage() {
 							</AccordionContent>
 						</AccordionItem>
 					</Accordion>
-
-					{/* Notes */}
-					<div className="mt-4 space-y-1.5">
-						<Label htmlFor="sale-notes">Notes (optional)</Label>
-						<Textarea
-							id="sale-notes"
-							placeholder="Any special instructions or notes about this sale..."
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-							rows={2}
-						/>
 					</div>
 
-					<Separator className="my-5" />
-
-					{/* Submit */}
-					<div className="flex items-center justify-between gap-4">
-						<div className="text-muted-foreground text-sm">
-							{!isReadyToSubmit && (
-								<span>
-									{!hasCustomer
-										? "Select a customer"
-										: !hasItems
-											? "Add at least one item"
-											: !hasPaymentMethod
-												? "Choose a payment method"
-												: !cashOk
-													? "Enter the tendered cash amount"
-													: ""}
-								</span>
-							)}
+					{/* Notes + Submit card */}
+					<div className="rounded-xl border bg-card shadow-sm p-5 space-y-4">
+						<div className="space-y-1.5">
+							<Label htmlFor="sale-notes" className="text-sm font-medium">Notes <span className="font-normal text-muted-foreground">(optional)</span></Label>
+							<Textarea
+								id="sale-notes"
+								placeholder="Any special instructions or notes..."
+								value={notes}
+								onChange={(e) => setNotes(e.target.value)}
+								rows={2}
+								className="resize-none"
+							/>
 						</div>
-						<Button
-							size="lg"
-							disabled={!isReadyToSubmit || submitMutation.isPending}
-							onClick={() => submitMutation.mutate()}
-							className="min-w-40"
-						>
-							{submitMutation.isPending ? (
-								<>
-									<div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
-									Processing...
-								</>
-							) : (
-								"Charge & Confirm"
-							)}
-						</Button>
+
+						<div className="flex items-center justify-between gap-4 pt-1">
+							<div className="text-muted-foreground text-sm">
+								{!isReadyToSubmit && (
+									<span>
+										{!hasCustomer
+											? "Select a customer"
+											: !hasItems
+												? "Add at least one item"
+												: !hasPaymentMethod
+													? "Choose a payment method"
+													: !cashOk
+														? "Enter the tendered cash amount"
+														: ""}
+									</span>
+								)}
+							</div>
+							<Button
+								size="lg"
+								disabled={!isReadyToSubmit || submitMutation.isPending}
+								onClick={() => submitMutation.mutate()}
+								className="min-w-44 font-semibold"
+							>
+								{submitMutation.isPending ? (
+									<>
+										<div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+										Processing...
+									</>
+								) : (
+									"Charge & Confirm"
+								)}
+							</Button>
+						</div>
 					</div>
 				</div>
 

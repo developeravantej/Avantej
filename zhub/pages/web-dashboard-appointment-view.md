@@ -88,12 +88,12 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
 | `appointments` | SELECT / INSERT / UPDATE | `id`, `type`, `startTime`, `endTime`, `duration`, `serviceId`, `branchId`, `status`, `sessionTotal`, `pricePerClient`, `userId`, `trainerId`, `packageInstanceId`, `creditsUsed`, `location`, `bookingNumber`, `classSlotId`, `cancelledAt`, `cancellationReason`, `description`, `imageUrl`, `roomId`, `googleCalendarEventId`, `isRecurring`, `recurringParentId`, `paymentStatus`, `notes`, `createdBy` |
-| `services` (tenant) | SELECT (batch join) | `id`, `name`, `commissionPercentage` — resolved for `serviceName`; commission config used to trigger split creation on completion |
+| `services` (tenant) | SELECT (batch join) | `id`, `name`, `categoryId` — resolved for `serviceName`; categoryId used to look up commission config on completion |
 | `member_profiles` (tenant) | SELECT (batch join) | `memberId`, `displayName` — resolved for `trainerName` on each appointment |
 | `user` (control panel) | SELECT (batch join) | `id`, `name` — resolved for `clientName` on each appointment |
 | `members` | SELECT (TrainerSidebar) | `userId`, `role`, `status`, `displayName`, `name`, `email` |
 | `appointment_clients` | INSERT / SELECT | `appointmentId`, `clientId`, `packageInstanceId`, `pricePaid`, `attended`, `clientType` ("member"\|"walk_in"), `walkInCustomerId` (nullable) |
-| `commission_splits` | INSERT (non-fatal) | Created when status→'completed' and `services.commissionPercentage > 0`; one split per assigned staff member |
+| `commission_splits` | INSERT (non-fatal) | Created when status→'completed' via `calculateCommissionForAppointment`; one split per assigned staff member (per coach slot config) |
 
 **Key types / Zod schemas:**
 - `ApiAppointment` / `CalendarAppointment` — defined in `apps/web/src/lib/appointment-mapper.ts`
@@ -138,9 +138,9 @@ Create fields include: `type`, `startTime`, `duration`, `branchId`, `serviceId`,
 - Non-fatal: if the package is not found or already in a terminal state, a warning is logged and restoration is skipped.
 
 **Commission split creation on completion:**
-- When status transitions to `"completed"`, `appointment.service.ts` fetches `services.commissionPercentage` for the appointment's service.
-- If `commissionPercentage > 0`, looks up `appointment_staff` for the appointment and creates one `commission_split` per staff member.
-- Split percentage = `(commissionBasisPoints / 100) / staffCount`.
+- When status transitions to `"completed"`, `appointment.service.ts` calls `calculateCommissionForAppointment` with the serviceId and staff assignments.
+- The calculator looks up `categoryCommissionConfigs` for the service's category, resolves rates per trainer tier and coach slot weightage, and inserts one `commission_split` per assigned staff member.
+- Unclaimed slot weightage from absent coaches redistributes evenly to present coaches (not retained by company).
 - Non-fatal: appointment update succeeds even if commission creation fails.
 
 **`appointment_clients` schema additions (migration 0027):**

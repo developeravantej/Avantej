@@ -1,5 +1,8 @@
-import { eq, and, inArray, gte, lte, asc } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, asc, ne } from "drizzle-orm";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
+import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -65,7 +68,7 @@ export async function listClassSlots(
 	}
 
 	if (isAvailable !== undefined) {
-		conditions.push(eq(classSlots.isAvailable, true));
+		conditions.push(eq(classSlots.isAvailable, isAvailable));
 	}
 
 	if (accessibleNodeIds && accessibleNodeIds.length > 0) {
@@ -264,6 +267,58 @@ export async function decrementBooking(
 		.returning();
 
 	return updated;
+}
+
+export async function listClassSlotSignups(
+	tenantDb: TenantDb,
+	classSlotId: string,
+) {
+	const slotAppointments = await tenantDb
+		.select({ id: appointments.id, status: appointments.status })
+		.from(appointments)
+		.where(
+			and(
+				eq(appointments.classSlotId, classSlotId),
+				ne(appointments.status, "cancelled"),
+			),
+		);
+
+	if (slotAppointments.length === 0) return [];
+
+	const appointmentIds = slotAppointments.map((a) => a.id);
+	const statusMap = new Map(slotAppointments.map((a) => [a.id, a.status]));
+
+	const clients = await tenantDb
+		.select({
+			appointmentId: appointmentClients.appointmentId,
+			clientId: appointmentClients.clientId,
+			clientType: appointmentClients.clientType,
+			walkInCustomerId: appointmentClients.walkInCustomerId,
+			pricePaid: appointmentClients.pricePaid,
+			attended: appointmentClients.attended,
+			walkInName: walkInCustomers.name,
+			walkInEmail: walkInCustomers.email,
+			walkInPhone: walkInCustomers.phone,
+		})
+		.from(appointmentClients)
+		.leftJoin(
+			walkInCustomers,
+			eq(appointmentClients.walkInCustomerId, walkInCustomers.id),
+		)
+		.where(inArray(appointmentClients.appointmentId, appointmentIds));
+
+	return clients.map((c) => ({
+		appointmentId: c.appointmentId,
+		clientId: c.clientType === "walk_in" ? null : c.clientId,
+		walkInCustomerId: c.walkInCustomerId ?? null,
+		clientType: c.clientType,
+		pricePaid: c.pricePaid,
+		attended: c.attended,
+		appointmentStatus: statusMap.get(c.appointmentId) ?? "unknown",
+		walkInName: c.walkInName ?? null,
+		walkInEmail: c.walkInEmail ?? null,
+		walkInPhone: c.walkInPhone ?? null,
+	}));
 }
 
 export async function getBookingCounts(

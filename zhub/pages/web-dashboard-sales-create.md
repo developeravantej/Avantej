@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx:1`
 **Platform:** web
 **Auth required:** authenticated + `pos_management:create`
-**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
+**Last updated:** 2026-04-22
 
 ---
 
@@ -23,8 +23,9 @@
 **Layout:** Two-column on desktop. Left: stepped form (`<Accordion>` defaultValue="customer"). Right: persistent `CartSummary` panel.
 
 **Steps (single page, accordion-style wizard):**
-1. **Customer** — Toggle: **Member** | **Walk-in**. Member mode: Combobox via `pos.searchCustomers`. Walk-in mode: `<Select>` from `walkInCustomers.list`; "+ Create New Walk-in Customer" opens inline creation.
+1. **Customer** — Toggle: **Member** | **Walk-in**. Member mode: Combobox via `pos.searchCustomers`. Walk-in mode: fully anonymous — no combobox, no "+ Create New Walk-in Customer" button. Walk-in sends `{ customerType: "walk_in", customerId: "anonymous", customerName: "Walk-in" }`.
 2. **Items** — Service / Package / Custom line-items. Rows with qty + unit price + total + trash.
+3. **Trainers step** (conditional): Appears only when cart contains service items (type=`service` with a `refId`). Optional — cashier can skip. Shows one card per service item with Add/Remove trainer slots. Trainer assignment is passed to `recordSale` as `itemTrainerAssignments: Record<string, {staffId, slotIndex}[]>`.
 3. **Promotion** (optional) — Code input + Apply via `promotions.validate`.
 4. **Tax** — Default rate auto-loaded from `taxRates.getDefault`; dropdown of active rates to override.
 5. **Payment** — Method radio (Cash | Card | Bank Transfer). Cash: tendered input + change due. Card/Bank: reference input. Installment plan picker when exactly one Package item.
@@ -35,6 +36,7 @@ RouteComponent → onSubmit
   → client.pos.recordSale({ customerType, customerId, items, promotionCode?, taxRateId, paymentMethod, ... })
     → posRouter.recordSale       # rbac: pos:create + branch scope
       → recordPosSale(tenantDb, input)   # SINGLE tenantDb.transaction
+        0. Walk-in + package guard: if customerType === 'walk_in' AND any item has type === 'package' → throws BAD_REQUEST("Walk-in customers cannot purchase packages") before tx opens
         1. Validate upstream (package fields: services.sessionCount + expirable + expiryDays)
         2. Validate customer (member OR walk_in); verify branch in accessibleNodeIds
         3. Compute subtotal
@@ -57,13 +59,14 @@ RouteComponent → onSubmit
 ## 3. What Depends On It
 
 **API endpoints:**
-- `pos.recordSale` — orchestrator
-- `pos.searchCustomers` — cross-DB member search + walk_in ILIKE; returns up to 10 results
+- `pos.recordSale` — orchestrator; now accepts `itemTrainerAssignments`
+- `pos.searchCustomers` — cross-DB member search; returns up to 10 results (walk-in results removed)
 - `pos.getReceiptData` — for Print Receipt (called from sales/$id.tsx)
-- `promotions.validate`, `services.list`, `taxRates.list` + `.getDefault`, `installmentPlans.list`, `walkInCustomers.create`
+- `promotions.validate`, `services.list`, `taxRates.list` + `.getDefault`, `installmentPlans.list`
 
 **Components:**
 - `CustomerStep`, `ItemsStep`, `PromoStep`, `PaymentStep`, `CartSummary`, `ReceiptView` — all in `apps/web/src/components/pos/`
+- `TrainerPickerStep` (`@/components/pos/trainer-picker-step.tsx`) — fetches all members, filters role=trainer client-side, lets cashier assign trainers per line item
 
 **Navigation: incoming:** `sales/view.tsx` "+ New Sale" button.
 **Navigation: outgoing:** `/dashboard/sales/$id` after success.
@@ -85,7 +88,7 @@ RouteComponent → onSubmit
 | `installments` | INSERT schedule + 1st marked paid (if installment plan) |
 | `audit_logs` | INSERT (`sale.create`) |
 
-**Walk-in customers:** supported via `walkInCustomerId` on `package_instances` (XOR constraint with `clientId` — exactly one must be set). Walk-in + package is now valid as of migration 0027.
+**Walk-in customers:** fully anonymous — no DB lookup, no `walkInCustomerId`. Walk-in + package is now **BLOCKED** (throws `BAD_REQUEST` before the transaction opens). Walk-in + service is allowed. The `walkInCustomerId` column on `package_instances` remains in the DB schema from migration 0027 but is no longer written to by the POS flow.
 
 **POS validation (Stream D):** `unitPriceCents >= 0 && quantity >= 1` required; `discountCents` may not exceed `subtotalCents`.
 
@@ -99,8 +102,10 @@ None yet. Chrome-verified: page renders, customer search returns "Bryan Voo Khai
 
 ## 6. Notes
 
+- **Trainers step UX (added 2026-04-22):** Appears conditionally when cart has any service items. Always shows even if service category has no commission config. A future improvement would be to only display for items with commission configuration.
 - **Currency override at POS create site only.** `payments.currency` default is `'usd'` elsewhere. Other phases unchanged.
 - **No idempotency key.** Double-submit mitigated by disabling Charge & Confirm button on click. Document risk.
 - **Sequence numbering:** SELECT MAX pattern inside the tx (no postgres sequence). Adequate at tenant scale.
 - **Permission cache bug:** if user can't see this page despite DB grants, clear localStorage — see `memory/feedback_stale_permission_cache.md`.
 - Shipped in tracking-pages plan phase 4 (2026-04-19).
+- **Walk-in anonymization (2026-04-21):** Walk-in mode in CustomerStep is now fully anonymous — no `walkInCustomers.list` combobox, no inline creation. Walk-in + package purchases are blocked at the server (`pos.recordSale` guard). The `pos.searchCustomers` endpoint no longer returns walk-in results.

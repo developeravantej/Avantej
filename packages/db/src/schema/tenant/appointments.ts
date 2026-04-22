@@ -19,6 +19,7 @@ import { members } from "./members";
 import { packageInstances } from "./package-instances";
 import { classSlots } from "./class-slots";
 import { rooms } from "./rooms";
+import { salesOrders } from "./sales-orders";
 
 export const appointments = pgTable("appointments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -93,6 +94,9 @@ export const appointments = pgTable("appointments", {
 
 	// Google Calendar integration
 	googleCalendarEventId: text("google_calendar_event_id"),
+
+	// POS linkage for double-commission guard (Policy P6)
+	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
@@ -109,5 +113,6 @@ export const appointments = pgTable("appointments", {
 	classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
 	userStatusIdx: index("appointments_user_status_idx").on(table.userId, table.status),
 	roomIdIdx: index("appointments_room_idx").on(table.roomId),
+	salesOrderIdIdx: index("appointments_sales_order_idx").on(table.salesOrderId),
 }));
 

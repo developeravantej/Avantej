@@ -173,7 +173,6 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
-        commissionPercentage: z.number().int().min(0).max(10000).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -265,7 +264,6 @@ export const servicesRouter = {
           ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
           ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
           ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
-          ...(input.commissionPercentage !== undefined ? { commissionPercentage: input.commissionPercentage } : {}),
         } as Parameters<typeof createService>[1]);
         return created;
       } catch (error) {
@@ -307,7 +305,6 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
-        commissionPercentage: z.number().int().min(0).max(10000).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -417,8 +414,7 @@ export const servicesRouter = {
             ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
             ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
             ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
-            ...(input.commissionPercentage !== undefined ? { commissionPercentage: input.commissionPercentage } : {}),
-          } as Parameters<typeof updateService>[2]
+            } as Parameters<typeof updateService>[2]
         );
         return updated;
       } catch (error) {

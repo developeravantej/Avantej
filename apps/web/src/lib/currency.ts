@@ -6,7 +6,10 @@ export const formatPrice = (price: number, currency: string) => {
 
   // Handle Malaysian Ringgit specifically to show "RM" instead of "MYR"
   if (upperCurrency === "MYR") {
-    return `RM ${amount.toFixed(2)}`;
+    return `RM ${amount.toLocaleString("en-MY", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   }
 
   // For other currencies, use standard formatting

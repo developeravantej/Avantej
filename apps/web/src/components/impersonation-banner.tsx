@@ -1,5 +1,3 @@
-"use client";
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client, queryClient } from "@/utils/orpc";

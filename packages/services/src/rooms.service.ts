@@ -20,7 +20,9 @@ export async function listRooms(
 	const { branchId, isActive, accessibleNodeIds } = params;
 
 	const conditions = [];
-	conditions.push(eq(rooms.isActive, isActive !== undefined ? isActive : true));
+	if (isActive !== undefined) {
+		conditions.push(eq(rooms.isActive, isActive));
+	}
 	if (branchId !== undefined) {
 		conditions.push(eq(rooms.branchId, branchId));
 	}

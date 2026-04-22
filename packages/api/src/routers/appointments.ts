@@ -254,6 +254,10 @@ export const appointmentsRouter = {
         imageUrl: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
         bookingNumber: z.string().nullable().optional(),
+        staffAssignments: z.array(z.object({
+          staffId: z.string().uuid(),
+          slotIndex: z.number().int().min(0),
+        })).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -318,6 +322,7 @@ export const appointmentsRouter = {
           imageUrl: input.imageUrl ?? null,
           notes: input.notes ?? null,
           bookingNumber: input.bookingNumber ?? null,
+          staffAssignments: input.staffAssignments,
         });
 
         // Fire-and-forget Google Calendar sync — never blocks the response

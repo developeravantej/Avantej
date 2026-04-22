@@ -9,7 +9,7 @@
  * Also provides `searchPosCustomers` for the customer-lookup combobox.
  */
 
-import { eq, and, sql, ilike, or } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
@@ -18,7 +18,6 @@ import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
 import { promotions, promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
@@ -30,7 +29,6 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
 import { calculateInstallmentAmounts, calculateCreditsUnlocked } from "./installment.service";
-import { createCommissionSplitsForPos } from "./commission-splits.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 // Drizzle transaction type — structurally compatible with TenantDb for inserts/selects
@@ -59,8 +57,8 @@ export interface RecordPosSaleInput {
 	items: PosLineItem[];
 	// Promo
 	promotionCode?: string; // validated server-side
-	// Tax
-	taxRateId: string;
+	// Tax — undefined means no tax (0%)
+	taxRateId?: string;
 	// Payment
 	paymentMethod: "cash" | "card" | "bank_transfer";
 	paymentReference?: string; // card auth code, bank transfer ref, etc.
@@ -69,17 +67,8 @@ export interface RecordPosSaleInput {
 	installmentPlanCode?: string; // matches installment_plans.code
 	// Notes
 	notes?: string;
-	/**
-	 * salesperson: optional member userId (members.userId / cross-DB user ID, NOT tenant member PK)
-	 * of the staff member who made the sale. When provided and the sold item is a service/package
-	 * with commission config, a commission split is auto-created (status=pending).
-	 *
-	 * NOTE (Open Question 6): The schema does NOT yet have serviceCommissionConfig or
-	 * services.commissionPercentage. Commission creation on POS is currently a no-op
-	 * unless/until that column is added. The salesperson field is wired through so the
-	 * frontend can send it today without backend changes when config becomes available.
-	 */
-	salesperson?: string;
+	/** Per-item trainer assignments. Key = item index (0-based). Optional — POS commission is optional. */
+	itemTrainerAssignments?: Record<number, { staffId: string; slotIndex: number }[]>;
 	// Actor
 	actor: { userId: string; memberId: string; role: string };
 }
@@ -252,10 +241,21 @@ export async function recordPosSale(
 		}
 	}
 
+	// Walk-ins cannot purchase packages — UI enforces this but we guard server-side
+	// to prevent the pkg_owner_xor CHECK constraint from firing with an opaque DB error.
+	if (input.customerType === "walk_in") {
+		const hasPackage = input.items.some((it) => it.type === "package");
+		if (hasPackage) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Walk-in customers cannot purchase packages",
+			});
+		}
+	}
+
 	// ------------------------------------------------------------------
 	// Transaction
 	// ------------------------------------------------------------------
-	return tenantDb.transaction(async (tx) => {
+	const result = await tenantDb.transaction(async (tx) => {
 		const now = new Date();
 
 		// Step 1: Validate customer
@@ -269,20 +269,6 @@ export async function recordPosSale(
 			if (!member) {
 				throw new ORPCError("NOT_FOUND", {
 					message: `Member (client) not found for userId: ${input.customerId}`,
-				});
-			}
-		} else {
-			const walkIn = await tx.query.walkInCustomers.findFirst({
-				where: eq(walkInCustomers.id, input.customerId),
-			});
-			if (!walkIn) {
-				throw new ORPCError("NOT_FOUND", {
-					message: `Walk-in customer not found: ${input.customerId}`,
-				});
-			}
-			if (!walkIn.isActive) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Walk-in customer is inactive.",
 				});
 			}
 		}
@@ -336,17 +322,20 @@ export async function recordPosSale(
 		}
 
 		// Step 5: Compute tax
-		const taxRate = await tx.query.taxRates.findFirst({
-			where: eq(taxRates.id, input.taxRateId),
-		});
-		if (!taxRate) {
-			throw new ORPCError("NOT_FOUND", {
-				message: `Tax rate not found: ${input.taxRateId}`,
+		let taxRate: typeof taxRates.$inferSelect | undefined;
+		if (input.taxRateId) {
+			taxRate = await tx.query.taxRates.findFirst({
+				where: eq(taxRates.id, input.taxRateId),
 			});
+			if (!taxRate) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Tax rate not found: ${input.taxRateId}`,
+				});
+			}
 		}
 
 		const taxBase = Math.max(0, subtotalCents - discountCents);
-		const taxCents = Math.floor((taxBase * taxRate.rateInBasisPoints) / 10000);
+		const taxCents = Math.floor((taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000);
 		const totalCents = taxBase + taxCents;
 
 		// Step 6: Generate numbers
@@ -444,7 +433,7 @@ export async function recordPosSale(
 		}
 
 		// Tax item
-		if (taxCents > 0) {
+		if (taxCents > 0 && taxRate) {
 			await tx.insert(paymentItems).values({
 				paymentId: payment.id,
 				itemType: "tax",
@@ -539,7 +528,7 @@ export async function recordPosSale(
 					.values({
 						serviceId: item.refId!,
 						clientId: input.customerType === "member" ? input.customerId : null,
-						walkInCustomerId: input.customerType === "walk_in" ? input.customerId : null,
+						walkInCustomerId: input.customerType === "walk_in" && input.customerId !== "anonymous" ? input.customerId : null,
 						source: "purchased",
 						paymentId: payment.id,
 						totalPrice: itemTotal,
@@ -644,45 +633,7 @@ export async function recordPosSale(
 			},
 		});
 
-		// Step 15: Commission splits (if salesperson provided)
-		// For each service/package line item, look up commission config and create splits.
-		// Non-fatal: POS sale succeeds even if commission creation fails.
-		if (input.salesperson) {
-			const serviceItems = input.items.filter(
-				(i) => (i.type === "service" || i.type === "package") && i.refId,
-			);
-
-			for (const item of serviceItems) {
-				try {
-					const svc = await tx.query.services.findFirst({
-						where: eq(services.id, item.refId!),
-						columns: { id: true, name: true, commissionPercentage: true },
-					});
-
-					if (!svc || (svc.commissionPercentage ?? 0) <= 0) continue;
-
-					const lineAmountCents = item.unitPriceCents * item.quantity;
-
-					await createCommissionSplitsForPos(tx as unknown as TenantDb, {
-						salesOrderId: salesOrder.id,
-						serviceId: svc.id,
-						serviceName: svc.name,
-						amountCents: lineAmountCents,
-						serviceCommissionBasisPoints: svc.commissionPercentage,
-						staffIds: [input.salesperson],
-						actor: input.actor,
-					});
-				} catch (commissionErr) {
-					console.warn(
-						`[commission] POS sale ${salesOrderNumber}: failed to create commission split for item "${item.description}":`,
-						commissionErr,
-					);
-					// Non-fatal: continue processing other items
-				}
-			}
-		}
-
-		// Step 16: Return result
+		// Step 15: Return result
 		const changeDueCents =
 			input.paymentMethod === "cash" &&
 			input.amountTenderedCents != null &&
@@ -705,6 +656,38 @@ export async function recordPosSale(
 			changeDueCents,
 		};
 	});
+
+	// Commission: fire per-item if trainer assignments provided (outside transaction)
+	if (input.itemTrainerAssignments && Object.keys(input.itemTrainerAssignments).length > 0) {
+		const { calculateCommissionForPos } = await import("./commission-calculator.service");
+
+		for (const [indexStr, staffAssignments] of Object.entries(input.itemTrainerAssignments)) {
+			const itemIndex = parseInt(indexStr, 10);
+			const item = input.items[itemIndex];
+			if (!item || !item.refId) continue; // Skip items without a service refId
+
+			try {
+				await calculateCommissionForPos(tenantDb, {
+					salesOrderId: result.salesOrderId,
+					serviceId: item.refId,
+					unitPriceCents: item.unitPriceCents,
+					quantity: item.quantity,
+					staffAssignments,
+					actor: input.actor,
+				});
+			} catch (err) {
+				// Commission failure must not fail the sale — log and continue
+				console.error(JSON.stringify({
+					event: "commission_calculation_failed",
+					salesOrderId: result.salesOrderId,
+					itemIndex,
+					error: err instanceof Error ? err.message : String(err),
+				}));
+			}
+		}
+	}
+
+	return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -780,48 +763,6 @@ export async function searchPosCustomers(
 			}
 
 			if (results.length >= 10) break;
-		}
-	}
-
-	// ---- Walk-in customers ----
-	if (results.length < 10) {
-		const remaining = 10 - results.length;
-
-		// Build conditions: name ILIKE or phone ILIKE, scoped by branchId
-		const walkIns = await tenantDb
-			.select({
-				id: walkInCustomers.id,
-				name: walkInCustomers.name,
-				phone: walkInCustomers.phone,
-				email: walkInCustomers.email,
-				branchId: walkInCustomers.branchId,
-				createdAt: walkInCustomers.createdAt,
-			})
-			.from(walkInCustomers)
-			.where(
-				and(
-					eq(walkInCustomers.isActive, true),
-					or(
-						ilike(walkInCustomers.name, `%${query}%`),
-						ilike(walkInCustomers.phone, `%${query}%`),
-					),
-				),
-			)
-			.limit(remaining);
-
-		for (const wi of walkIns) {
-			// RBAC: branchId must be in accessible nodes
-			if (!wi.branchId || !accessibleNodeIds.includes(wi.branchId)) continue;
-
-			results.push({
-				type: "walk_in",
-				id: wi.id,
-				name: wi.name,
-				phone: wi.phone ?? null,
-				email: wi.email ?? null,
-				branchId: wi.branchId,
-				lastVisitAt: null,
-			});
 		}
 	}
 

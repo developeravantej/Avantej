@@ -6,8 +6,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table"; // Standard Shadcn table components
-
+} from "@/components/ui/table";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -43,56 +42,54 @@ export default function DataTable<TData, TValue>({
 	});
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between gap-2">
-				<div className="relative w-72">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<div className="flex h-full flex-col">
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
-						placeholder="Search all columns..."
+						placeholder="Search..."
 						value={globalFilter ?? ""}
 						onChange={(event) => setGlobalFilter(event.target.value)}
-						className="pl-8"
+						className="pl-9"
 					/>
 				</div>
 			</div>
-			<div className="rounded-md border shadow-sm">
+			<div className="flex-1 overflow-y-auto">
 				<Table>
-					<TableHeader>
+					<TableHeader className="sticky top-0 z-10 bg-white">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow
 								key={headerGroup.id}
-								className="border-b bg-muted/50 hover:bg-muted/60"
+								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 							>
-								{headerGroup.headers.map((header) => {
-									return (
-										<TableHead
-											key={header.id}
-											className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
-										>
-											{header.isPlaceholder
-												? null
-												: flexRender(
-														header.column.columnDef.header,
-														header.getContext(),
-													)}
-										</TableHead>
-									);
-								})}
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+									>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
+									</TableHead>
+								))}
 							</TableRow>
 						))}
 					</TableHeader>
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row, index) => (
+							table.getRowModel().rows.map((row) => (
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
-									className={`border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+									className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
 								>
 									{row.getVisibleCells().map((cell) => (
 										<TableCell
 											key={cell.id}
-											className="px-4 py-3 text-sm whitespace-nowrap"
+											className="whitespace-nowrap px-6 py-4 text-sm"
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
@@ -106,9 +103,9 @@ export default function DataTable<TData, TValue>({
 							<TableRow>
 								<TableCell
 									colSpan={columns.length}
-									className="h-24 text-center"
+									className="py-16 text-center text-sm text-muted-foreground"
 								>
-									No results.
+									No results found.
 								</TableCell>
 							</TableRow>
 						)}

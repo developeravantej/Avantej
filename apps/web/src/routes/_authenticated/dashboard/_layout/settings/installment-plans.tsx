@@ -95,7 +95,7 @@ function InstallmentPlansPage() {
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
 		queryKey: ["installmentPlans", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -426,6 +426,19 @@ function InstallmentPlansPage() {
 				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
 					<span className="sr-only">Loading...</span>
 				</div>
+			</div>
+		);
+	}
+
+	// ─── Error state ──────────────────────────────────────────────────────────
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-96 gap-3">
+				<p className="text-destructive text-sm">Failed to load installment plans. Please try again.</p>
+				<Button onClick={() => refetch()} variant="outline" size="sm">
+					Retry
+				</Button>
 			</div>
 		);
 	}

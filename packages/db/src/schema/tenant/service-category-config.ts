@@ -1,11 +1,12 @@
 /**
  * Tenant Service Category Config Schema
  *
- * Commission, incentive, and booking rule configuration per category.
+ * Booking rule configuration per category.
  * 1:1 relationship with service_categories.
+ * Commission configuration has moved to category_commission_configs.
  */
 
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { serviceCategories } from "./service-categories";
 
 export const serviceCategoryConfig = pgTable("service_category_config", {
@@ -18,15 +19,6 @@ export const serviceCategoryConfig = pgTable("service_category_config", {
 	// Default values for services in this category
 	defaultDuration: integer("default_duration"),
 	defaultMaxAttendees: integer("default_max_attendees"),
-
-	// Commission/incentive config
-	incentiveType: text("incentive_type"), // "fixed" | "variable"
-	isConditional: boolean("is_conditional").default(false).notNull(),
-	maxStaff: integer("max_staff").default(1).notNull(),
-	staffPoolPercentage: integer("staff_pool_percentage").default(100).notNull(),
-	staffWeightage: jsonb("staff_weightage").$type<Array<{ position: number; percentage: number; title?: string }> | null>(),
-	paymentStructures: jsonb("payment_structures").$type<Record<string, unknown> | null>(),
-	threshold: integer("threshold"),
 
 	// Booking rules
 	requireAdvanceBooking: boolean("require_advance_booking").default(false).notNull(),
@@ -43,5 +35,4 @@ export const serviceCategoryConfig = pgTable("service_category_config", {
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
 	categoryIdIdx: index("service_category_config_category_idx").on(table.categoryId),
-	incentiveTypeIdx: index("service_category_config_incentive_idx").on(table.incentiveType),
 }));

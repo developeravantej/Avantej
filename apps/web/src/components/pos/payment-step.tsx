@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Banknote, Check, CreditCard, Landmark } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { formatPrice } from "@/lib/currency";
 import { client } from "@/utils/orpc";
 import type { CartItem, InstallmentPlanOption, PaymentMethod } from "./types";
 
@@ -34,11 +36,31 @@ function parseCents(raw: string): number {
 	return Math.round(n * 100);
 }
 
+const METHOD_CONFIG = [
+	{
+		method: "cash" as const,
+		label: "Cash",
+		subtitle: "Exact change",
+		icon: Banknote,
+	},
+	{
+		method: "card" as const,
+		label: "Card",
+		subtitle: "Tap or swipe",
+		icon: CreditCard,
+	},
+	{
+		method: "bank_transfer" as const,
+		label: "Bank Transfer",
+		subtitle: "Reference required",
+		icon: Landmark,
+	},
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface PaymentStepProps {
 	organizationId: string;
-	/** Items to detect package + installment visibility */
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
@@ -70,11 +92,14 @@ export function PaymentStep({
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? (amountTenderedCents / 100).toFixed(2) : "";
 
-	// Show installment picker if exactly one "package" item
+	const changeDueCents =
+		method === "cash" && amountTenderedCents >= totalCents
+			? amountTenderedCents - totalCents
+			: null;
+
 	const packageItems = items.filter((i) => i.type === "package");
 	const showInstallmentPicker = packageItems.length === 1;
 
-	// Load installment plans (org-wide, no serviceId filter in existing router)
 	const { data: installmentPlans = [] } = useQuery({
 		queryKey: ["installment-plans", organizationId],
 		queryFn: async () => {
@@ -95,28 +120,39 @@ export function PaymentStep({
 
 	return (
 		<div className="space-y-6">
-			{/* Payment method */}
+			{/* Payment method cards */}
 			<div className="space-y-2">
 				<Label>Payment method</Label>
-				<div className="flex flex-wrap gap-2">
-					{(["cash", "card", "bank_transfer"] as const).map((m) => {
-						const labels: Record<typeof m, string> = {
-							cash: "Cash",
-							card: "Card",
-							bank_transfer: "Bank Transfer",
-						};
+				<div className="grid grid-cols-3 gap-3">
+					{METHOD_CONFIG.map(({ method: m, label, subtitle, icon: Icon }) => {
+						const isSelected = method === m;
 						return (
 							<button
 								key={m}
 								type="button"
 								onClick={() => onMethodChange(m)}
-								className={`rounded-md border px-4 py-2 font-medium text-sm transition-colors ${
-									method === m
-										? "border-primary bg-primary text-primary-foreground"
-										: "border-border bg-background hover:bg-accent"
+								className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+									isSelected
+										? "border-primary bg-primary/5 shadow-sm"
+										: "border-border bg-background hover:border-primary/40 hover:bg-accent/50"
 								}`}
 							>
-								{labels[m]}
+								{isSelected && (
+									<span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+										<Check className="h-2.5 w-2.5 text-primary-foreground" />
+									</span>
+								)}
+								<Icon
+									className={`h-6 w-6 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
+								/>
+								<div className="text-center">
+									<p
+										className={`font-semibold text-sm ${isSelected ? "text-primary" : "text-foreground"}`}
+									>
+										{label}
+									</p>
+									<p className="text-muted-foreground text-xs">{subtitle}</p>
+								</div>
 							</button>
 						);
 					})}
@@ -140,30 +176,44 @@ export function PaymentStep({
 
 			{/* Cash tendered */}
 			{method === "cash" && (
-				<div className="space-y-1.5">
-					<Label htmlFor="cash-tendered">Amount tendered (RM)</Label>
-					<div className="relative max-w-xs">
-						<span className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground text-sm">
-							RM
-						</span>
-						<Input
-							id="cash-tendered"
-							type="number"
-							min={(totalCents / 100).toFixed(2)}
-							step="0.01"
-							className="pl-9"
-							placeholder={(totalCents / 100).toFixed(2)}
-							value={amountTenderedRm}
-							onChange={(e) =>
-								onAmountTenderedChange(parseCents(e.target.value))
-							}
-						/>
+				<div className="space-y-3">
+					<div className="space-y-1.5">
+						<Label htmlFor="cash-tendered">Amount tendered (RM)</Label>
+						<div className="relative max-w-xs">
+							<span className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground text-sm">
+								RM
+							</span>
+							<Input
+								id="cash-tendered"
+								type="number"
+								min={(totalCents / 100).toFixed(2)}
+								step="0.01"
+								className="pl-9"
+								placeholder={(totalCents / 100).toFixed(2)}
+								value={amountTenderedRm}
+								onChange={(e) =>
+									onAmountTenderedChange(parseCents(e.target.value))
+								}
+							/>
+						</div>
+						{amountTenderedCents > 0 && amountTenderedCents < totalCents && (
+							<p className="text-destructive text-xs">
+								Tendered amount is less than total. Please collect at least{" "}
+								{formatPrice(totalCents, "MYR")}.
+							</p>
+						)}
 					</div>
-					{amountTenderedCents > 0 && amountTenderedCents < totalCents && (
-						<p className="text-destructive text-xs">
-							Tendered amount is less than total. Please collect at least RM{" "}
-							{(totalCents / 100).toFixed(2)}.
-						</p>
+
+					{/* Prominent change due */}
+					{changeDueCents !== null && (
+						<div className="flex items-center justify-between rounded-xl border-2 border-green-200 bg-green-50 px-5 py-4">
+							<span className="font-medium text-green-800 text-sm">
+								Change Due
+							</span>
+							<span className="font-bold text-2xl text-green-700 tabular-nums">
+								{formatPrice(changeDueCents, "MYR")}
+							</span>
+						</div>
 					)}
 				</div>
 			)}

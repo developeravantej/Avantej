@@ -1,19 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, User, UserPlus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { Search, X } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { useDebounce } from "@/hooks/useDebounce";
 import { client } from "@/utils/orpc";
 import type { SelectedCustomer } from "./types";
@@ -30,13 +20,15 @@ interface SearchResult {
 	lastVisitAt?: Date | string | null;
 }
 
-interface WalkInCreateForm {
-	name: string;
-	phone: string;
-	email: string;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const EMPTY_WALK_IN: WalkInCreateForm = { name: "", phone: "", email: "" };
+function getInitials(name: string): string {
+	return name
+		.split(" ")
+		.slice(0, 2)
+		.map((w) => w[0]?.toUpperCase() ?? "")
+		.join("");
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -55,19 +47,8 @@ export function CustomerStep({
 	onSelect,
 	onClear,
 }: CustomerStepProps) {
-	const queryClient = useQueryClient();
-
-	// Search state
 	const [query, setQuery] = useState("");
-	const debouncedQuery = useDebounce(query, 300);
-	const [showResults, setShowResults] = useState(false);
-	const containerRef = useRef<HTMLDivElement>(null);
-
-	// Walk-in create dialog
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [walkInForm, setWalkInForm] = useState<WalkInCreateForm>(EMPTY_WALK_IN);
-
-	// ── Search query ──────────────────────────────────────────────────────────
+	const debouncedQuery = useDebounce(query, 250);
 
 	const { data: results = [], isFetching } = useQuery({
 		queryKey: [
@@ -77,71 +58,15 @@ export function CustomerStep({
 			branchId,
 		],
 		queryFn: async () => {
-			if (!debouncedQuery || debouncedQuery.length < 2) return [];
 			return client.pos.searchCustomers({
 				organizationId,
 				query: debouncedQuery,
-				branchId: branchId ?? "",
+				branchId: branchId ?? undefined,
 			}) as Promise<SearchResult[]>;
 		},
-		enabled: debouncedQuery.length >= 2,
+		enabled: !!organizationId,
+		staleTime: 30_000,
 	});
-
-	// Show results when we have them and query is not empty
-	useEffect(() => {
-		setShowResults(debouncedQuery.length >= 2);
-	}, [debouncedQuery, results]);
-
-	// Click outside handler to close dropdown
-	useEffect(() => {
-		function handleClickOutside(e: MouseEvent) {
-			if (
-				containerRef.current &&
-				!containerRef.current.contains(e.target as Node)
-			) {
-				setShowResults(false);
-			}
-		}
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, []);
-
-	// ── Walk-in create mutation ────────────────────────────────────────────────
-
-	const createWalkInMutation = useMutation({
-		mutationFn: async (form: WalkInCreateForm) => {
-			return client.walkInCustomers.create({
-				organizationId,
-				name: form.name,
-				phone: form.phone || undefined,
-				email: form.email || undefined,
-				branchId: branchId || undefined,
-			});
-		},
-		onSuccess: (data, _form) => {
-			queryClient.invalidateQueries({ queryKey: ["walkInCustomers"] });
-			toast.success("Walk-in customer created.");
-			// Select the newly created customer
-			onSelect({
-				type: "walk_in",
-				id: data.id,
-				name: data.name,
-				phone: data.phone ?? null,
-				email: data.email ?? null,
-				branchId: data.branchId ?? branchId ?? "",
-			});
-			setDialogOpen(false);
-			setWalkInForm(EMPTY_WALK_IN);
-			setQuery("");
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to create customer.",
-			);
-		},
-	});
-
-	// ── Handlers ──────────────────────────────────────────────────────────────
 
 	function handleSelect(result: SearchResult) {
 		onSelect({
@@ -153,29 +78,20 @@ export function CustomerStep({
 			branchId: result.branchId,
 		});
 		setQuery("");
-		setShowResults(false);
 	}
 
-	function handleCreateWalkIn(e: React.FormEvent) {
-		e.preventDefault();
-		if (!walkInForm.name.trim()) {
-			toast.error("Name is required.");
-			return;
-		}
-		createWalkInMutation.mutate(walkInForm);
-	}
-
-	// ── Render: selected state ─────────────────────────────────────────────────
+	// ── Render: selected ──────────────────────────────────────────────────────
 
 	if (selected) {
+		const initials = getInitials(selected.name);
 		return (
-			<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-				<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-					<User className="h-4 w-4 text-primary" />
+			<div className="flex items-center gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 p-3.5">
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground text-sm">
+					{initials}
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className="truncate font-medium">{selected.name}</p>
-					<div className="flex items-center gap-2 text-muted-foreground text-sm">
+					<p className="truncate font-semibold text-sm">{selected.name}</p>
+					<div className="flex items-center gap-2 text-muted-foreground text-xs">
 						<Badge
 							variant={selected.type === "member" ? "default" : "secondary"}
 							className="text-xs"
@@ -188,7 +104,7 @@ export function CustomerStep({
 				<Button
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 shrink-0"
+					className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
 					onClick={onClear}
 					type="button"
 					aria-label="Clear customer selection"
@@ -199,150 +115,88 @@ export function CustomerStep({
 		);
 	}
 
-	// ── Render: search state ───────────────────────────────────────────────────
+	// ── Render: list + search ─────────────────────────────────────────────────
+
+	const filtered = query.trim()
+		? results.filter(
+				(r) =>
+					r.name.toLowerCase().includes(query.toLowerCase()) ||
+					r.email?.toLowerCase().includes(query.toLowerCase()) ||
+					r.phone?.includes(query),
+			)
+		: results;
 
 	return (
-		<div className="space-y-4">
-			{/* Search box */}
-			<div ref={containerRef} className="relative">
-				<div className="relative">
-					<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						placeholder="Search by name, phone or email..."
-						value={query}
-						onChange={(e) => setQuery(e.target.value)}
-						className="pl-9"
-						onFocus={() => debouncedQuery.length >= 2 && setShowResults(true)}
-					/>
-					{isFetching && (
-						<div className="absolute top-1/2 right-3 -translate-y-1/2">
-							<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-r-transparent" />
-						</div>
-					)}
-				</div>
-
-				{/* Results dropdown */}
-				{showResults && (
-					<div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-						{results.length === 0 && !isFetching ? (
-							<p className="px-4 py-3 text-muted-foreground text-sm">
-								No customers found for "{debouncedQuery}"
-							</p>
-						) : (
-							<ul className="max-h-60 overflow-y-auto py-1">
-								{results.map((r) => (
-									<li key={`${r.type}-${r.id}`}>
-										<button
-											type="button"
-											className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-accent"
-											onClick={() => handleSelect(r)}
-										>
-											<User className="h-4 w-4 shrink-0 text-muted-foreground" />
-											<div className="min-w-0 flex-1">
-												<p className="truncate font-medium">{r.name}</p>
-												<p className="truncate text-muted-foreground text-xs">
-													{r.phone ?? r.email ?? "No contact info"}
-												</p>
-											</div>
-											<Badge
-												variant={r.type === "member" ? "default" : "secondary"}
-												className="shrink-0 text-xs"
-											>
-												{r.type === "member" ? "Member" : "Walk-in"}
-											</Badge>
-										</button>
-									</li>
-								))}
-							</ul>
-						)}
+		<div className="space-y-3">
+			{/* Search input */}
+			<div className="relative">
+				<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					placeholder="Search by name, email or phone..."
+					value={query}
+					onChange={(e) => setQuery(e.target.value)}
+					className="pl-9 pr-9"
+					autoComplete="off"
+				/>
+				{isFetching && (
+					<div className="absolute top-1/2 right-3 -translate-y-1/2">
+						<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-r-transparent" />
 					</div>
 				)}
 			</div>
 
-			{/* Separator */}
-			<div className="flex items-center gap-3">
-				<Separator className="flex-1" />
-				<span className="text-muted-foreground text-xs">or</span>
-				<Separator className="flex-1" />
+			{/* Customer list */}
+			<div className="overflow-hidden rounded-xl border bg-background">
+				{isFetching && filtered.length === 0 ? (
+					<div className="space-y-1 p-2">
+						{[...Array(3)].map((_, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+							<div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+								<div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+								<div className="flex-1 space-y-1.5">
+									<div className="h-3 w-32 animate-pulse rounded bg-muted" />
+									<div className="h-2.5 w-24 animate-pulse rounded bg-muted" />
+								</div>
+							</div>
+						))}
+					</div>
+				) : filtered.length === 0 ? (
+					<div className="flex flex-col items-center justify-center gap-1 py-8 text-muted-foreground">
+						<p className="text-sm font-medium">No customers found</p>
+						{query && (
+							<p className="text-xs">Try a different name, email or phone</p>
+						)}
+					</div>
+				) : (
+					<ul className="max-h-60 divide-y overflow-y-auto">
+						{filtered.map((r) => (
+							<li key={`${r.type}-${r.id}`}>
+								<button
+									type="button"
+									className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+									onClick={() => handleSelect(r)}
+								>
+									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary text-xs">
+										{getInitials(r.name)}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="truncate font-medium text-sm">{r.name}</p>
+										<p className="truncate text-muted-foreground text-xs">
+											{r.phone ?? r.email ?? "No contact info"}
+										</p>
+									</div>
+									<Badge
+										variant={r.type === "member" ? "default" : "secondary"}
+										className="shrink-0 text-xs"
+									>
+										{r.type === "member" ? "Member" : "Walk-in"}
+									</Badge>
+								</button>
+							</li>
+						))}
+					</ul>
+				)}
 			</div>
-
-			{/* Create new walk-in button */}
-			<Button
-				type="button"
-				variant="outline"
-				className="w-full"
-				onClick={() => setDialogOpen(true)}
-			>
-				<UserPlus className="mr-2 h-4 w-4" />
-				Create New Walk-in Customer
-			</Button>
-
-			{/* Create walk-in dialog */}
-			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>New Walk-in Customer</DialogTitle>
-					</DialogHeader>
-					<form onSubmit={handleCreateWalkIn} className="space-y-4 py-2">
-						<div className="space-y-1.5">
-							<Label htmlFor="wic-new-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="wic-new-name"
-								placeholder="Full name"
-								value={walkInForm.name}
-								onChange={(e) =>
-									setWalkInForm((f) => ({ ...f, name: e.target.value }))
-								}
-								required
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="wic-new-phone">Phone</Label>
-							<Input
-								id="wic-new-phone"
-								type="tel"
-								placeholder="+60 12-345 6789"
-								value={walkInForm.phone}
-								onChange={(e) =>
-									setWalkInForm((f) => ({ ...f, phone: e.target.value }))
-								}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="wic-new-email">Email</Label>
-							<Input
-								id="wic-new-email"
-								type="email"
-								placeholder="customer@example.com"
-								value={walkInForm.email}
-								onChange={(e) =>
-									setWalkInForm((f) => ({ ...f, email: e.target.value }))
-								}
-							/>
-						</div>
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setDialogOpen(false);
-									setWalkInForm(EMPTY_WALK_IN);
-								}}
-								disabled={createWalkInMutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={createWalkInMutation.isPending}>
-								{createWalkInMutation.isPending
-									? "Creating..."
-									: "Create & Select"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }

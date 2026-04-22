@@ -6,16 +6,19 @@
  * and admin overview queries.
  */
 
-import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte } from "drizzle-orm";
+import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte, inArray } from "drizzle-orm";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
+import { user } from "@avantej-core/db/schema/auth";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
+type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 // Drizzle transaction type: same shape as base DB client within a tx callback
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
@@ -314,13 +317,14 @@ export async function confirmInstallmentPayment(
 
 		if (!updatedInstallment) throw new Error("Failed to update installment");
 
-		// Recalculate credits
+		// Recalculate credits — use max() so an admin override is never rolled back by a payment
 		const newInstallmentsPaid = pkg.installmentsPaid + 1;
-		const newCreditsUnlocked = calculateCreditsUnlocked(
+		const formulaCredits = calculateCreditsUnlocked(
 			pkg.creditsTotal,
 			newInstallmentsPaid,
 			pkg.installmentsTotal,
 		);
+		const newCreditsUnlocked = Math.max(pkg.creditsUnlocked ?? 0, formulaCredits);
 		// Determine nextDueDate
 		let newNextDueDate: Date | null = null;
 		let newGracePeriodEndsAt: Date | null = null; // clear grace period on payment
@@ -590,6 +594,98 @@ export async function unlockPackage(
 }
 
 // ---------------------------------------------------------------------------
+// Admin credit adjustment
+// ---------------------------------------------------------------------------
+
+export type AdjustCreditsParams = {
+	creditsUnlocked?: number;
+	creditsUsed?: number;
+	reason: string;
+	actorId: string;
+	actor: { userId: string; memberId: string; role: string };
+};
+
+/**
+ * Admin override: set creditsUnlocked and/or creditsUsed on a package instance.
+ * Sets creditsAdminOverride=true so subsequent payment confirmations use max() instead of overwriting.
+ * Recomputes status: exhausted if remaining reaches 0, active if remaining is restored.
+ */
+export async function adjustCredits(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+	params: AdjustCreditsParams,
+): Promise<typeof packageInstances.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, packageInstanceId))
+			.for("update");
+
+		if (!pkg) throw new Error("Package instance not found");
+
+		const newUnlocked = params.creditsUnlocked ?? (pkg.creditsUnlocked ?? pkg.creditsTotal);
+		const newUsed = params.creditsUsed ?? pkg.creditsUsed;
+
+		if (newUnlocked > pkg.creditsTotal) {
+			throw Object.assign(new Error(`creditsUnlocked (${newUnlocked}) cannot exceed creditsTotal (${pkg.creditsTotal})`), { code: "BAD_REQUEST" });
+		}
+		if (newUsed > newUnlocked) {
+			throw Object.assign(new Error(`creditsUsed (${newUsed}) cannot exceed creditsUnlocked (${newUnlocked})`), { code: "BAD_REQUEST" });
+		}
+
+		const newRemaining = newUnlocked - newUsed;
+		let newStatus = pkg.status;
+		if (newRemaining <= 0 && pkg.status === "active") newStatus = "exhausted";
+		if (newRemaining > 0 && pkg.status === "exhausted") newStatus = "active";
+
+		const now = new Date();
+		const [updated] = await tx
+			.update(packageInstances)
+			.set({
+				creditsUnlocked: newUnlocked,
+				creditsUsed: newUsed,
+				creditsAdminOverride: true,
+				status: newStatus,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, packageInstanceId))
+			.returning();
+
+		if (!updated) throw new Error("Failed to update package instance");
+
+		await logInstallmentEvent(tx, {
+			packageInstanceId,
+			eventType: "credits_admin_adjusted",
+			actorId: params.actorId,
+			metadata: JSON.stringify({
+				creditsUnlocked: newUnlocked,
+				creditsUsed: newUsed,
+				previous: { creditsUnlocked: pkg.creditsUnlocked, creditsUsed: pkg.creditsUsed },
+			}),
+			reason: params.reason,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "package.credits_adjusted",
+			entityType: "package_instance",
+			entityId: packageInstanceId,
+			summary: `Admin adjusted credits for package ${packageInstanceId}: unlocked=${newUnlocked}, used=${newUsed}. Reason: ${params.reason}`,
+			changes: {
+				creditsUnlocked: { from: pkg.creditsUnlocked, to: newUnlocked },
+				creditsUsed: { from: pkg.creditsUsed, to: newUsed },
+				reason: params.reason,
+			},
+		});
+
+		return updated;
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Refund
 // ---------------------------------------------------------------------------
 
@@ -761,6 +857,7 @@ export type AdminInstallmentOverviewParams = {
 
 export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect & {
 	serviceName: string | null;
+	clientName: string | null;
 };
 
 /**
@@ -769,6 +866,7 @@ export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect 
 export async function getAdminInstallmentOverview(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: AdminInstallmentOverviewParams = {},
+	controlPanelDb?: ControlPanelDb,
 ): Promise<{ items: AdminInstallmentOverviewItem[]; total: number }> {
 	const { status, limit = 50, offset = 0, search, dueBefore, dueAfter, paymentPlanCode } = params;
 
@@ -822,9 +920,23 @@ export async function getAdminInstallmentOverview(
 
 	const serviceMap = new Map(serviceRows.map((s) => [s.id, s.name]));
 
+	// Cross-DB: batch-lookup client names from control panel
+	let userMap = new Map<string, string>();
+	if (controlPanelDb && rows.length > 0) {
+		const clientIds = [...new Set(rows.map((r) => r.clientId).filter((id): id is string => id != null))];
+		if (clientIds.length > 0) {
+			const userRows = await controlPanelDb
+				.select({ id: user.id, name: user.name })
+				.from(user)
+				.where(inArray(user.id, clientIds));
+			userMap = new Map(userRows.map((u) => [u.id, u.name]));
+		}
+	}
+
 	const items: AdminInstallmentOverviewItem[] = rows.map((row) => ({
 		...row,
 		serviceName: serviceMap.get(row.serviceId) ?? null,
+		clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
 	}));
 
 	// Count total

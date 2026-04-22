@@ -1,6 +1,6 @@
 # API Routers Overview
 
-**Last updated:** 2026-04-20 (Pipeline Audit B/C/D)
+**Last updated:** 2026-04-22
 
 All procedures use **oRPC**. POST to `/rpc/{router}/{procedure}` with body `{"json": {input}}`.
 
@@ -88,8 +88,8 @@ The router is defined in two layers:
 |-----------|------|-------------|
 | `services.list` | protected | List services with optional filters. |
 | `services.getById` | protected | Get service by ID. |
-| `services.create` | protected | Create a new service. Accepts `commissionPercentage` (integer basis points, e.g. 500 = 5%); default 0. |
-| `services.update` | protected | Update a service. Accepts `commissionPercentage`; used by appointment and POS commission triggers. |
+| `services.create` | protected | Create a new service. Commission configured at category level via `categoryCommission.upsert`. |
+| `services.update` | protected | Update a service. Commission configured at category level via `categoryCommission.upsert`. |
 
 ---
 
@@ -101,6 +101,29 @@ The router is defined in two layers:
 | `serviceCategories.getById` | protected | Get category by ID. |
 | `serviceCategories.create` | protected | Create a service category. |
 | `serviceCategories.update` | protected | Update a service category. |
+
+---
+
+## Trainer Tiers (`packages/api/src/routers/trainer-tiers.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `trainerTiers.list` | protected (`trainer_tier_management:read`) | List all trainer tiers (active + inactive) for org. |
+| `trainerTiers.create` | protected (`trainer_tier_management:create`) | Create new tier. Returns tier + optional `missingRateCategories` array. |
+| `trainerTiers.update` | protected (`trainer_tier_management:update`) | Update tier name/rank/description. |
+| `trainerTiers.deactivate` | protected (`trainer_tier_management:delete`) | Soft-deactivate a tier; trainers with this tier will skip commission. |
+| `trainerTiers.reactivate` | protected (`trainer_tier_management:create`) | Reactivate a tier. Returns tier + optional `missingRateCategories`. |
+| `trainerTiers.assignToMember` | protected (`trainer_tier_management:update`) | Assign tier to trainer or clear assignment (tierId=null). |
+
+---
+
+## Category Commission (`packages/api/src/routers/category-commission.ts`)
+
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `categoryCommission.getByCategory` | protected (`category_commission_management:read`) | Get commission config for a service category. |
+| `categoryCommission.upsert` | protected (`category_commission_management:update`) | Create or update commission configuration (payment type, tier rates, conditions). |
+| `categoryCommission.delete` | protected (`category_commission_management:delete`) | Delete commission configuration for a category. |
 
 ---
 
@@ -402,7 +425,8 @@ All procedures use `service_management` as the permission resource (list/getById
 | `commissionSplits.listLedger` | protected (`commission_management:read`) | Enriched ledger with totals (pending/approved/paid). New in P6. |
 | `commissionSplits.approve` | protected (`commission_management:approve`) | Bulk approve pending splits. |
 | `commissionSplits.markPaid` | protected (`commission_management:process`) | Bulk mark approved splits as paid with payout method/reference/payoutId. |
-| `commissionSplits.void` | protected (`commission_management:approve`) | Void a single split from any status with a required reason. |
+| `commissionSplits.void` | protected (`commission_management:update`) | Void a single split from any status with a required reason. |
+| `commissionSplits.createManualAdjustment` | protected (`commission_payout:create`) | Create manual bonus/clawback; lands at `status=pending`. |
 
 ---
 
@@ -427,8 +451,8 @@ All procedures use `service_management` as the permission resource (list/getById
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `pos.recordSale` | protected (`pos_management:create` + branch scope) | Atomic tenantDb transaction: sales_orders + items + payments (`currency='myr'`) + payment_items + invoice + optional package_instance (accepts `walkInCustomerId`) + installments + commission splits per line item (non-fatal) + audit row. Validates: `unitPriceCents >= 0`, `quantity >= 1`, `discountCents <= subtotalCents`. |
-| `pos.searchCustomers` | protected (`pos:create`) | Cross-DB member search + walk_in_customers ILIKE; up to 10 results; RBAC-filtered. |
+| `pos.recordSale` | protected (`pos_management:create` + branch scope) | Atomic tenantDb transaction: sales_orders + items + payments (`currency='myr'`) + payment_items + invoice + optional package_instance (accepts `walkInCustomerId`) + installments + commission splits per line item (non-fatal) + audit row. Now accepts `itemTrainerAssignments: Record<string, {staffId, slotIndex}[]>` for trainer assignment per line item. Validates: `unitPriceCents >= 0`, `quantity >= 1`, `discountCents <= subtotalCents`. Walk-in+package guard: throws `BAD_REQUEST` if `customerType === 'walk_in'` and any item has `type === 'package'` (before tx opens). |
+| `pos.searchCustomers` | protected (`pos:create`) | Returns only member-type results (walk-in results removed). Cross-DB member name search; RBAC-filtered. Up to 10 results. |
 | `pos.getReceiptData` | protected (`pos:create`) | Joined sale + items + payment + invoice + optional package + installments + customer name; for Print Receipt. |
 
 ---
@@ -450,7 +474,7 @@ All procedures use `service_management` as the permission resource (list/getById
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `checkIns.recordCheckIn` | protected (`attendance_management:create` + branch scope) | Insert check-in; 30-min anti-duplicate for drop-ins without appointmentClientId; reverts to `ALREADY_CHECKED_IN` error with `minutesAgo`; audit `checkin.create`. |
+| `checkIns.recordCheckIn` | protected (`attendance_management:create` + branch scope) | Insert check-in; `clientId` is optional for `walk_in` type (server synthesizes `crypto.randomUUID()`); required for `member` type. Optional `clientDisplayName` (max 120 chars) persisted for walk-in display. 30-min anti-duplicate for drop-ins without appointmentClientId (effectively a no-op for walk-ins since each gets a unique UUID); reverts to `ALREADY_CHECKED_IN` error with `minutesAgo`; audit `checkin.create`. |
 | `checkIns.listTodaysBookings` | protected (`attendance_management:read` + branch scope) | Today's appointments for a branch with check-in status annotations. |
 | `checkIns.list` | protected (`attendance_management:read`) | Filtered check-in log with cross-DB name enrichment; date filter accepts both naive `YYYY-MM-DDTHH:mm:ss` and strict ISO. |
 | `checkIns.deleteCheckIn` | protected (`attendance_management:delete`) | Revert attendance: delete row + uncheck appointment_clients.attended + restore package credit; audit `checkin.delete`. |
@@ -484,15 +508,17 @@ All procedures use `service_management` as the permission resource (list/getById
 
 ---
 
-## Walk-In Customers (`packages/api/src/routers/walk-in-customers.ts`)
+## Walk-In Customers (`packages/api/src/routers/walk-in-customers.ts`) — STUBBED
+
+Feature removed 2026-04-21. The service file (`walk-in-customers.service.ts`) has been deleted. The router file remains but all procedures are stubs.
 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `walkInCustomers.list` | protected | List walk-in customer records. |
-| `walkInCustomers.getById` | protected | Get a walk-in customer by ID. |
-| `walkInCustomers.create` | protected | Create a walk-in customer record. |
-| `walkInCustomers.update` | protected | Update a walk-in customer record. |
-| `walkInCustomers.deactivate` | protected | Soft-deactivate a walk-in customer. |
+| `walkInCustomers.list` | protected | STUBBED — always returns `{ items: [], total: 0 }`. Walk-in customers removed. |
+| `walkInCustomers.getById` | protected | STUBBED — throws `BAD_REQUEST('Walk-in customers have been removed')`. Feature removed 2026-04-21. |
+| `walkInCustomers.create` | protected | STUBBED — throws `BAD_REQUEST('Walk-in customers have been removed')`. Feature removed 2026-04-21. |
+| `walkInCustomers.update` | protected | STUBBED — throws `BAD_REQUEST('Walk-in customers have been removed')`. Feature removed 2026-04-21. |
+| `walkInCustomers.deactivate` | protected | STUBBED — throws `BAD_REQUEST('Walk-in customers have been removed')`. Feature removed 2026-04-21. |
 
 ---
 

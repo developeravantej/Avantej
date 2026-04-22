@@ -5,6 +5,7 @@ import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
+import { formatPrice } from "@/lib/currency";
 
 interface ServiceDetailDialogProps {
 	isOpen: boolean;
@@ -30,13 +31,6 @@ function formatDate(date: Date | string | null | undefined): string {
 	}
 }
 
-function formatPrice(priceCents: number | null | undefined): string {
-	if (priceCents == null) return "—";
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-	}).format(priceCents / 100);
-}
 
 function formatDuration(duration: number, unit?: string | null): string {
 	if (unit === "hours") return `${duration} hour(s)`;
@@ -246,7 +240,9 @@ export function ServiceDetailDialog({
 											<div className="grid grid-cols-2 gap-4">
 												<div>
 													<label className="block text-sm font-medium text-brand-primary-1">Price</label>
-													<p className="mt-1 text-sm text-brand-secondary-1">{formatPrice(service.price)}</p>
+													<p className="mt-1 text-sm text-brand-secondary-1">
+								{service.price != null ? formatPrice(service.price, "MYR") : "—"}
+							</p>
 												</div>
 												<div>
 													<label className="block text-sm font-medium text-brand-primary-1">Taxable</label>

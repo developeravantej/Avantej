@@ -9,10 +9,8 @@
  *   1. Appointment completed  → createCommissionSplitsForAppointment (called by appointment.service)
  *   2. POS sale with salesperson → createCommissionSplit (called by pos.service)
  *
- * NOTE (Open Question 6 — Phase 6): Appointment-based commission creation requires a
- * service commission config table or column (serviceCommissionConfig / services.commissionPercentage).
- * Neither exists in the current schema. The hook in appointment.service is scaffolded but will
- * silently no-op until the config is added. See plan §6.11 risk note and execute/log.md.
+ * Commission config: categoryCommissionConfigs → commissionCoachSlots + commissionTierRates/Conditions.
+ * The calculator (commission-calculator.service.ts) handles rate lookup and slot redistribution.
  *
  * staffId convention: always the member's cross-DB userId (i.e. members.userId), NOT member.id.
  * Frontend and callers must send userId — not the tenant member table PK.
@@ -25,15 +23,21 @@ import {
 	gte,
 	inArray,
 	lte,
+	ne,
+	sql,
 } from "drizzle-orm";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
+import { getDescendantNodeIds } from "./hierarchy.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -155,7 +159,16 @@ export interface CreateSplitParams {
 	splitPercentage: number; // 0–100
 	calculatedAmountCents: number; // pre-tax, integer cents
 	notes?: string;
+	earnedAt?: Date; // defaults to now(); use appointment.completedAt or salesOrder.createdAt when available
 	actor: { userId: string; memberId: string; role: string };
+	// Commission calculation snapshot fields
+	slotIndex?: number;
+	conditionId?: string;
+	trainerTierId?: string;
+	weightageBasisPoints?: number;
+	baseAmountCents?: number;
+	splitType?: "automatic" | "manual";
+	manualNote?: string;
 }
 
 /**
@@ -176,7 +189,15 @@ export async function createCommissionSplit(
 		splitPercentage,
 		calculatedAmountCents,
 		notes,
+		earnedAt,
 		actor,
+		slotIndex,
+		conditionId,
+		trainerTierId,
+		weightageBasisPoints,
+		baseAmountCents,
+		splitType,
+		manualNote,
 	} = params;
 
 	if (!appointmentId && !salesOrderId) {
@@ -200,6 +221,14 @@ export async function createCommissionSplit(
 			calculatedAmount: calculatedAmountCents,
 			notes: notes ?? null,
 			status: "pending",
+			earnedAt: earnedAt ?? new Date(),
+			slotIndex: slotIndex ?? null,
+			conditionId: conditionId ?? null,
+			trainerTierId: trainerTierId ?? null,
+			weightageBasisPoints: weightageBasisPoints ?? null,
+			baseAmountCents: baseAmountCents ?? null,
+			splitType: splitType ?? "automatic",
+			manualNote: manualNote ?? null,
 		})
 		.onConflictDoNothing()
 		.returning();
@@ -249,90 +278,6 @@ export async function createCommissionSplit(
 	return existing;
 }
 
-export interface CreateSplitsForAppointmentParams {
-	appointmentId: string;
-	splits: Array<{
-		staffId: string; // members.userId (cross-DB)
-		splitPercentage: number;
-		sessionTotalCents: number;
-		notes?: string;
-	}>;
-	actor: { userId: string; memberId: string; role: string };
-}
-
-/**
- * Batch helper: create one commission split per staff member for an appointment.
- * calculatedAmount per split = sessionTotal × splitPercentage / 100 (integer cents).
- * Idempotent via createCommissionSplit's onConflictDoNothing.
- */
-export async function createCommissionSplitsForAppointment(
-	db: TenantDb | TenantTx,
-	params: CreateSplitsForAppointmentParams,
-): Promise<CommissionSplit[]> {
-	const results: CommissionSplit[] = [];
-	for (const split of params.splits) {
-		const calculatedAmountCents = Math.floor(
-			(split.sessionTotalCents * split.splitPercentage) / 100,
-		);
-		const row = await createCommissionSplit(db, {
-			appointmentId: params.appointmentId,
-			staffId: split.staffId,
-			splitPercentage: split.splitPercentage,
-			calculatedAmountCents,
-			notes: split.notes,
-			actor: params.actor,
-		});
-		results.push(row);
-	}
-	return results;
-}
-
-export interface CreateSplitsForPosParams {
-	salesOrderId: string;
-	serviceId: string;
-	serviceName: string;
-	amountCents: number; // line-item amount (after discount, before tax)
-	serviceCommissionBasisPoints: number; // e.g. 1000 = 10%
-	staffIds: string[]; // members.userId (cross-DB), NOT tenant member PK
-	actor: { userId: string; memberId: string; role: string };
-}
-
-/**
- * Create commission splits for a POS sale line item.
- *
- * Total commission = amountCents × serviceCommissionBasisPoints / 10000.
- * Split evenly across all staffIds (floor division; remainder is lost).
- * Idempotent via createCommissionSplit's onConflictDoNothing.
- */
-export async function createCommissionSplitsForPos(
-	db: TenantDb | TenantTx,
-	params: CreateSplitsForPosParams,
-): Promise<void> {
-	if (params.staffIds.length === 0 || params.serviceCommissionBasisPoints <= 0) return;
-
-	const totalCommission = Math.floor(
-		(params.amountCents * params.serviceCommissionBasisPoints) / 10000,
-	);
-	if (totalCommission <= 0) return;
-
-	const perStaff = Math.floor(totalCommission / params.staffIds.length);
-	if (perStaff <= 0) return;
-
-	const splitPercentage = params.serviceCommissionBasisPoints / 100 / params.staffIds.length;
-
-	await Promise.all(
-		params.staffIds.map((staffId) =>
-			createCommissionSplit(db, {
-				salesOrderId: params.salesOrderId,
-				staffId,
-				splitPercentage,
-				calculatedAmountCents: perStaff,
-				notes: `POS commission for service "${params.serviceName}"`,
-				actor: params.actor,
-			}),
-		),
-	);
-}
 
 // ---------------------------------------------------------------------------
 // Lifecycle transitions
@@ -460,8 +405,8 @@ export async function markCommissionSplitsPaid(
 }
 
 /**
- * Void a commission split from any status.
- * Appends reason to notes. Writes audit.
+ * Void a single commission split.
+ * Blocks on paid status. Idempotent if already void. Writes audit.
  */
 export async function voidCommissionSplit(
 	tenantDb: TenantDb,
@@ -477,34 +422,20 @@ export async function voidCommissionSplit(
 			.for("update");
 
 		if (!existing) {
-			throw new ORPCError("NOT_FOUND", {
-				message: `Commission split not found: ${id}`,
-			});
+			throw new ORPCError("NOT_FOUND", { message: "Commission split not found" });
 		}
-
-		if (!["pending", "approved"].includes(existing.status)) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Cannot void commission split with status '${existing.status}'`,
-			});
+		if (existing.status === "paid") {
+			throw new ORPCError("BAD_REQUEST", { message: "Cannot void a paid commission split. Contact finance." });
 		}
-
-		const now = new Date();
-		const previousStatus = existing.status;
-		const updatedNotes = existing.notes
-			? `${existing.notes}\nVoid reason: ${reason}`
-			: `Void reason: ${reason}`;
+		if (existing.status === "void") {
+			return existing; // Idempotent
+		}
 
 		const [updated] = await tx
 			.update(commissionSplits)
-			.set({
-				status: "void",
-				notes: updatedNotes,
-				updatedAt: now,
-			})
+			.set({ status: "void", notes: reason, updatedAt: new Date() })
 			.where(eq(commissionSplits.id, id))
 			.returning();
-
-		if (!updated) throw new Error("voidCommissionSplit: update returned no row");
 
 		await writeAudit(tx, {
 			actorUserId: actor.userId,
@@ -513,12 +444,403 @@ export async function voidCommissionSplit(
 			action: "commission.void",
 			entityType: "commission_split",
 			entityId: id,
-			summary: `Commission split voided for staff ${existing.staffId} — reason: ${reason}`,
-			changes: { previousStatus, newStatus: "void", reason },
+			summary: `Commission split voided: ${reason}`,
+			changes: { previousStatus: existing.status, reason },
 		});
 
-		return updated;
+		return updated!;
 	});
+}
+
+/**
+ * Void all non-void, non-paid commission splits for a sales order.
+ * Used by the cancelled-sales flow (Phase 4.8a).
+ */
+export async function voidCommissionSplitsForSalesOrder(
+	tenantDb: TenantDb,
+	salesOrderId: string,
+	reason: string,
+	actor: { userId: string; memberId: string; role: string },
+): Promise<CommissionSplit[]> {
+	const rows = await tenantDb
+		.select()
+		.from(commissionSplits)
+		.where(and(
+			eq(commissionSplits.salesOrderId, salesOrderId),
+			ne(commissionSplits.status, "void"),
+			ne(commissionSplits.status, "paid"),
+		));
+
+	if (rows.length === 0) return [];
+
+	const ids = rows.map(r => r.id);
+	const updated = await tenantDb
+		.update(commissionSplits)
+		.set({ status: "void", notes: reason, updatedAt: new Date() })
+		.where(inArray(commissionSplits.id, ids))
+		.returning();
+
+	for (const row of updated) {
+		await writeAudit(tenantDb, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "commission.void",
+			entityType: "commission_split",
+			entityId: row.id,
+			summary: `Commission voided on sales order cancellation: ${reason}`,
+			changes: { salesOrderId, reason },
+		});
+	}
+
+	return updated;
+}
+
+export interface CreateManualAdjustmentParams {
+	staffId: string; // members.userId (cross-DB)
+	amountCents: number; // Can be negative (clawback)
+	note: string; // Required
+	salesOrderId?: string;
+	appointmentId?: string;
+	actor: { userId: string; memberId: string; role: string };
+}
+
+/**
+ * Create a manual commission adjustment (positive bonus or negative clawback).
+ * splitType="manual". Writes audit. No idempotency guard — each call creates a new row.
+ */
+// ---------------------------------------------------------------------------
+// Liability summary (Phase 6)
+// ---------------------------------------------------------------------------
+
+export interface LiabilitySummaryTrainer {
+	memberId: string; // members.userId (staffId on commission_splits)
+	name: string; // from control-panel user.name; falls back to userId
+	approvedUnpaidCents: number;
+	paidCents: number;
+	manualAdjustmentCents: number; // manual splits where status IN (pending, approved)
+	netPayableCents: number; // approvedUnpaidCents + manualAdjustmentCents
+}
+
+export interface LiabilitySummaryResult {
+	trainers: LiabilitySummaryTrainer[];
+	totals: {
+		approvedUnpaidCents: number;
+		paidCents: number;
+		manualAdjustmentCents: number;
+		netPayableCents: number;
+	};
+}
+
+export interface LiabilitySummaryParams {
+	from: string; // ISO datetime
+	to: string; // ISO datetime (inclusive end)
+	hierarchyNodeId?: string; // optional scope to hierarchy subtree
+	categoryId?: string; // optional filter by service category
+}
+
+/**
+ * Aggregate commission liability for a date range.
+ *
+ * Filters on earnedAt (not createdAt) — sessions delivered in a period but
+ * completed later still fall in the correct payroll period.
+ *
+ * Status buckets (all non-void):
+ *   approvedUnpaidCents  — automatic splits, status="approved"
+ *   paidCents            — status="paid" (any splitType)
+ *   manualAdjustmentCents— manual splits, status IN ("pending","approved")
+ *   netPayableCents      — approvedUnpaidCents + manualAdjustmentCents
+ */
+export async function liabilitySummary(
+	tenantDb: TenantDb,
+	controlPanelDb: ControlPanelDb,
+	params: LiabilitySummaryParams,
+): Promise<LiabilitySummaryResult> {
+	const { from, to, hierarchyNodeId, categoryId } = params;
+
+	const fromDate = new Date(from);
+	const toDate = new Date(to);
+
+	// Build staff scope from hierarchy if needed
+	let staffIdScope: string[] | null = null;
+	if (hierarchyNodeId) {
+		const descendantNodeIds = await getDescendantNodeIds(tenantDb, hierarchyNodeId);
+		if (descendantNodeIds.length === 0) {
+			// No nodes found — return empty result
+			return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+		}
+		// Fetch userIds of members whose hierarchyScopeId is within the descendant set
+		const scopedMembers = await tenantDb
+			.select({ userId: members.userId })
+			.from(members)
+			.where(inArray(members.hierarchyScopeId, descendantNodeIds));
+		staffIdScope = scopedMembers.map((m) => m.userId);
+		if (staffIdScope.length === 0) {
+			return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+		}
+	}
+
+	// Build WHERE conditions
+	const baseConditions = [
+		gte(commissionSplits.earnedAt, fromDate),
+		lte(commissionSplits.earnedAt, toDate),
+		ne(commissionSplits.status, "void"),
+	];
+
+	if (staffIdScope !== null) {
+		baseConditions.push(inArray(commissionSplits.staffId, staffIdScope));
+	}
+
+	// Single aggregation query using conditional sums grouped by staffId.
+	// If categoryId is provided, we LEFT JOIN appointments and salesOrders, then
+	// filter to splits that have a matching category (or are manual with no source).
+	let rows: { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+
+	if (categoryId) {
+		// Category filter: appointment path → appointments.serviceId → services.categoryId
+		//                  sales order path → sales_order_items.serviceId → services.categoryId
+		// Manual splits with neither appointmentId nor salesOrderId are excluded.
+		rows = await tenantDb
+			.select({
+				staffId: commissionSplits.staffId,
+				approvedUnpaid: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						     AND ${commissionSplits.splitType} = 'automatic'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				paid: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				manualAdj: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.splitType} = 'manual'
+						     AND ${commissionSplits.status} IN ('pending', 'approved')
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+			})
+			.from(commissionSplits)
+			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(services, eq(appointments.serviceId, services.id))
+			.where(
+				and(
+					...baseConditions,
+					// Must match category via one of the two paths
+					sql`(
+						-- Appointment-linked: service.categoryId matches
+						(${commissionSplits.appointmentId} IS NOT NULL
+						 AND ${services.categoryId} = ${categoryId})
+						OR
+						-- SalesOrder-linked: at least one SOI line has matching serviceId→category
+						(${commissionSplits.salesOrderId} IS NOT NULL
+						 AND EXISTS (
+						   SELECT 1
+						   FROM ${salesOrderItems} soi
+						   INNER JOIN ${services} svc ON svc.id = soi.service_id
+						   WHERE soi.sales_order_id = ${commissionSplits.salesOrderId}
+						   AND svc.category_id = ${categoryId}
+						 ))
+					)`,
+				),
+			)
+			.groupBy(commissionSplits.staffId) as { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+	} else {
+		// No category filter — simple aggregation
+		rows = await tenantDb
+			.select({
+				staffId: commissionSplits.staffId,
+				approvedUnpaid: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						     AND ${commissionSplits.splitType} = 'automatic'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				paid: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				manualAdj: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.splitType} = 'manual'
+						     AND ${commissionSplits.status} IN ('pending', 'approved')
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+			})
+			.from(commissionSplits)
+			.where(and(...baseConditions))
+			.groupBy(commissionSplits.staffId) as { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+	}
+
+	if (rows.length === 0) {
+		return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+	}
+
+	// Enrich names from control-panel user table (best-effort — same pattern as listCommissionLedger)
+	const distinctStaffIds = rows.map((r) => r.staffId);
+	const staffNameMap = new Map<string, string>();
+	try {
+		const { user } = await import("@avantej-core/db/schema/auth");
+		const { inArray: inArr } = await import("drizzle-orm");
+		const users = await controlPanelDb
+			.select({ id: user.id, name: user.name })
+			.from(user)
+			.where(inArr(user.id, distinctStaffIds));
+		for (const u of users) {
+			staffNameMap.set(u.id, u.name);
+		}
+	} catch {
+		// Best-effort: if control panel is unavailable, names fall back to userId
+	}
+
+	// Build per-trainer result rows
+	const trainers: LiabilitySummaryTrainer[] = rows.map((row) => {
+		const approvedUnpaidCents = row.approvedUnpaid;
+		const paidCents = row.paid;
+		const manualAdjustmentCents = row.manualAdj;
+		const netPayableCents = approvedUnpaidCents + manualAdjustmentCents;
+		return {
+			memberId: row.staffId,
+			name: staffNameMap.get(row.staffId) ?? row.staffId,
+			approvedUnpaidCents,
+			paidCents,
+			manualAdjustmentCents,
+			netPayableCents,
+		};
+	});
+
+	// Aggregate totals from per-trainer rows (cheap JS reduction)
+	const totals = trainers.reduce(
+		(acc, t) => ({
+			approvedUnpaidCents: acc.approvedUnpaidCents + t.approvedUnpaidCents,
+			paidCents: acc.paidCents + t.paidCents,
+			manualAdjustmentCents: acc.manualAdjustmentCents + t.manualAdjustmentCents,
+			netPayableCents: acc.netPayableCents + t.netPayableCents,
+		}),
+		{ approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 },
+	);
+
+	return { trainers, totals };
+}
+
+// ---------------------------------------------------------------------------
+// Mark paid batch (Phase 6)
+// ---------------------------------------------------------------------------
+
+export interface MarkPaidBatchParams {
+	memberIds: string[]; // staffIds / userIds
+	from: string; // ISO datetime
+	to: string; // ISO datetime
+	actor: { userId: string; memberId: string; role: string };
+}
+
+export interface MarkPaidBatchResult {
+	updatedCount: number;
+	memberIds: string[]; // subset of input that actually had rows updated
+}
+
+/**
+ * Batch-mark all approved commission splits for the given members in the
+ * earnedAt date range as paid. Wrapped in a transaction.
+ *
+ * One audit log entry per MEMBER affected (not per split).
+ */
+export async function markPaidBatch(
+	tenantDb: TenantDb,
+	params: MarkPaidBatchParams,
+): Promise<MarkPaidBatchResult> {
+	const { memberIds, from, to, actor } = params;
+
+	const fromDate = new Date(from);
+	const toDate = new Date(to);
+
+	return tenantDb.transaction(async (tx) => {
+		const updated = await tx
+			.update(commissionSplits)
+			.set({
+				status: "paid",
+				paidBy: actor.userId,
+				paidAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.where(
+				and(
+					inArray(commissionSplits.staffId, memberIds),
+					eq(commissionSplits.status, "approved"),
+					gte(commissionSplits.earnedAt, fromDate),
+					lte(commissionSplits.earnedAt, toDate),
+				),
+			)
+			.returning({ staffId: commissionSplits.staffId, id: commissionSplits.id });
+
+		const updatedCount = updated.length;
+		// Distinct memberIds that had at least one row updated
+		const affectedMemberIds = [...new Set(updated.map((r) => r.staffId))];
+
+		// One audit entry per affected member
+		for (const memberId of affectedMemberIds) {
+			const memberSplitCount = updated.filter((r) => r.staffId === memberId).length;
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.batch_paid",
+				entityType: "commission_split",
+				entityId: memberId,
+				summary: `Batch paid ${memberSplitCount} commission split(s) for staff ${memberId} (period: ${from} – ${to})`,
+				changes: {
+					staffId: memberId,
+					splitCount: memberSplitCount,
+					from,
+					to,
+				},
+			});
+		}
+
+		return { updatedCount, memberIds: affectedMemberIds };
+	});
+}
+
+export async function createManualAdjustment(
+	tenantDb: TenantDb,
+	params: CreateManualAdjustmentParams,
+): Promise<CommissionSplit> {
+	const [inserted] = await tenantDb
+		.insert(commissionSplits)
+		.values({
+			appointmentId: params.appointmentId ?? null,
+			salesOrderId: params.salesOrderId ?? null,
+			staffId: params.staffId,
+			splitPercentage: 0,
+			calculatedAmount: params.amountCents,
+			notes: params.note,
+			status: "pending",
+			splitType: "manual",
+			manualNote: params.note,
+			earnedAt: new Date(),
+		})
+		.returning();
+
+	await writeAudit(tenantDb, {
+		actorUserId: params.actor.userId,
+		actorMemberId: params.actor.memberId,
+		actorRole: params.actor.role,
+		action: "commission.manual_adjustment",
+		entityType: "commission_split",
+		entityId: inserted!.id,
+		summary: `Manual commission adjustment for staff ${params.staffId}: ${params.amountCents} cents`,
+		changes: { amountCents: params.amountCents, note: params.note },
+	});
+
+	return inserted!;
 }
 
 // ---------------------------------------------------------------------------

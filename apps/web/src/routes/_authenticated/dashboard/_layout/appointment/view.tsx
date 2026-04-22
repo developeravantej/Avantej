@@ -1,9 +1,8 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { createFileRoute } from "@tanstack/react-router";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { AppointmentCalendar } from "@/components/calendar/appointment";
+import { AppointmentList } from "@/components/appointments/appointment-list";
 import { TrainerSidebar } from "@/components/calendar/trainer-sidebar";
 import { requirePermission } from "@/lib/route-guards";
 import { client } from "@/utils/orpc";
@@ -22,27 +21,17 @@ export const Route = createFileRoute(
 		);
 	},
 	component: RouteComponent,
-	validateSearch: (search: Record<string, unknown>) => {
-		return {
-			view: search.view as string | undefined,
-		};
-	},
 });
 
 function RouteComponent() {
-	const search = useSearch({ from: "/_authenticated/dashboard/_layout/appointment/view" });
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	// Role detection — normalise to lowercase to guard against DB casing variance
 	const currentOrg = userContext?.organizations.find((o) => o.id === organizationId);
 	const memberRole = currentOrg?.hierarchy?.member?.role?.toLowerCase();
 	const memberId = currentOrg?.hierarchy?.member?.id;
-	const isTrainer = memberRole === "trainer";
-	// Only admin/staff may browse all trainers; trainers and clients cannot
 	const canViewAllTrainers = memberRole === "admin" || memberRole === "staff";
 
-	// For admin/staff: selected from sidebar. For trainers: locked to self.
 	const [sidebarSelectedId, setSidebarSelectedId] = useState<string | null>(null);
 	const selectedTrainerId = canViewAllTrainers ? sidebarSelectedId : (memberId ?? null);
 
@@ -73,78 +62,27 @@ function RouteComponent() {
 		[apiAppointments]
 	);
 
-	const handleDateSelect = (date: Date) => {
-		toast.info(`Selected date: ${date.toLocaleDateString()}`);
-	};
+	if (!organizationId) return <p className="text-muted-foreground">No organization selected.</p>;
 
-	const handleAppointmentClick = (appointment: { id: string; title: string; clientName: string }) => {
-		toast.info(`Appointment: ${appointment.title} with ${appointment.clientName}`);
-	};
-
-	const handleAddAppointment = () => {
-		// The AppointmentCalendar manages its own modal state internally.
-		// This callback fires when the user clicks "Add Appointment" inside the calendar.
-	};
-
-	if (!organizationId) {
-		return (
-			<div className="space-y-4">
-				<h1 className="text-3xl font-bold font-heading">
-					{isTrainer ? "My Schedule" : "Appointments"}
-				</h1>
-				<p className="text-muted-foreground">No organization selected.</p>
-			</div>
-		);
-	}
-
-	if (error) {
-		return (
-			<div className="space-y-4">
-				<h1 className="text-3xl font-bold font-heading">
-					{isTrainer ? "My Schedule" : "Appointments"}
-				</h1>
-				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
-			</div>
-		);
-	}
+	if (error) return <p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>;
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold font-heading">
-					{isTrainer ? "My Schedule" : "Appointments"}
-				</h1>
-			</div>
-
-			<div className="flex gap-4">
-				{/* Sidebar — only admin/staff can browse all trainers */}
-				{canViewAllTrainers && (
-					<div className="w-64 shrink-0">
-						<TrainerSidebar
-							organizationId={organizationId}
-							selectedTrainerId={sidebarSelectedId}
-							onSelectTrainer={setSidebarSelectedId}
-						/>
-					</div>
-				)}
-
-				{/* Calendar — takes remaining width */}
-				<div className="flex-1 min-w-0">
-					{isLoading ? (
-						<div className="flex items-center justify-center py-24 text-muted-foreground">
-							Loading appointments...
-						</div>
-					) : (
-						<AppointmentCalendar
-							appointments={appointments}
-							onDateSelect={handleDateSelect}
-							onAppointmentClick={handleAppointmentClick}
-							onAddAppointment={handleAddAppointment}
-							initialView={search.view === "weekly" ? "weekly" : "monthly"}
-							defaultTrainerId={selectedTrainerId}
-						/>
-					)}
+		<div className="flex gap-4 h-[calc(100vh-3rem)]">
+			{canViewAllTrainers && (
+				<div className="w-60 shrink-0 h-full">
+					<TrainerSidebar
+						organizationId={organizationId}
+						selectedTrainerId={sidebarSelectedId}
+						onSelectTrainer={setSidebarSelectedId}
+					/>
 				</div>
+			)}
+			<div className="flex-1 min-w-0 h-full">
+				<AppointmentList
+					appointments={appointments}
+					isLoading={isLoading}
+					defaultTrainerId={selectedTrainerId}
+				/>
 			</div>
 		</div>
 	);

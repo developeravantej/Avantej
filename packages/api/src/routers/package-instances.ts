@@ -13,9 +13,11 @@ import {
   requirePermission,
 } from "@avantej-core/services";
 import { listMemberships } from "@avantej-core/services/package-instance.service";
+import { listExpiringMemberships } from "@avantej-core/services/memberships.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
-import { desc, and, eq } from "drizzle-orm";
+import { user } from "@avantej-core/db/schema/auth";
+import { desc, and, eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -359,6 +361,36 @@ export const packageInstancesRouter = {
     }),
 
   /**
+   * List expiring memberships within a given window (7 or 30 days).
+   * Used by dashboard widgets to surface members whose packages are about to expire.
+   * Requires: reports:read permission.
+   */
+  listExpiring: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        within: z.union([z.literal(7), z.literal(30)]),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+      }
+      await requirePermission(context.tenantDb, context.member, "reports", "read");
+
+      const controlPanelDb = getControlPanelDb(context);
+      return listExpiringMemberships(context.tenantDb, controlPanelDb, {
+        within: input.within,
+        accessibleNodeIds: context.accessibleNodeIds ?? [],
+      });
+    }),
+
+  /**
    * List all package instances for an organization (admin view).
    * Supports optional filters by clientId, status, and source.
    */
@@ -411,6 +443,21 @@ export const packageInstancesRouter = {
         .orderBy(desc(packageInstances.createdAt))
         .limit(input.limit);
 
-      return rows;
+      // Cross-DB: batch-lookup client names from control panel
+      const controlPanelDb = getControlPanelDb(context);
+      let userMap = new Map<string, string>();
+      const clientIds = [...new Set(rows.map((r) => r.clientId).filter((id): id is string => id != null))];
+      if (clientIds.length > 0) {
+        const userRows = await controlPanelDb
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(inArray(user.id, clientIds));
+        userMap = new Map(userRows.map((u) => [u.id, u.name]));
+      }
+
+      return rows.map((row) => ({
+        ...row,
+        clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
+      }));
     }),
 };

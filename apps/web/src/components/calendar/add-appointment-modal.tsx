@@ -24,6 +24,7 @@ interface TeamMember {
 
 interface Client {
   id: string;
+  userId: string;
   name: string;
   email: string;
   phone: string;
@@ -35,6 +36,7 @@ interface Service {
   name: string;
   durationMinutes: number;
   creditCost: number;
+  schedulingType: string;
 }
 
 interface AppointmentSlot {
@@ -108,6 +110,7 @@ interface AddAppointmentModalProps {
     endsType: string;
     endsDate?: string;
     endsOccurrences?: number;
+    staffAssignments?: { staffId: string; slotIndex: number }[];
   }) => void;
   teamMembers: TeamMember[];
   selectedDate?: Date;
@@ -142,12 +145,13 @@ export function AddAppointmentModal({
     enabled: !!organizationId,
   });
 
-  const clients: Client[] = clientMembers.map((m: any) => ({
+  const clients: Client[] = (clientMembers as any[]).map((m: any) => ({
     id: m.id,
+    userId: m.userId,
     name: m.name ?? m.email ?? m.userId,
     email: m.email ?? "",
     phone: "",
-    creditPoints: 0, // TODO: populate from package_instances in future phase
+    creditPoints: 0,
   }));
 
   const { data: servicesData = [] } = useQuery({
@@ -160,6 +164,7 @@ export function AddAppointmentModal({
     name: s.name,
     durationMinutes: Math.round(s.duration / 60), // seconds → minutes
     creditCost: s.price ?? 0, // cents; TODO: confirm display unit with team
+    schedulingType: s.schedulingType ?? "appointment",
   }));
 
   const { data: roomsData = [] } = useQuery({
@@ -175,13 +180,13 @@ export function AddAppointmentModal({
     type: r.roomType ?? "",
   }));
 
-  const { data: staffData = [] } = useQuery({
-    queryKey: ["members", organizationId, "staff"],
-    queryFn: () => client.members.list({ organizationId }),
+  const { data: trainersData = [] } = useQuery({
+    queryKey: ["members", organizationId, "trainer"],
+    queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
     enabled: !!organizationId,
   });
 
-  const employees: { id: string; name: string; role: string; department: string }[] = staffData.map((m: any) => ({
+  const trainers: { id: string; name: string; role: string; department: string }[] = (trainersData as any[]).map((m: any) => ({
     id: m.id as string,
     name: (m.name ?? m.email ?? m.userId) as string,
     role: (m.role ?? "") as string,
@@ -334,6 +339,7 @@ export function AddAppointmentModal({
   const [selectedAppointmentId, setSelectedAppointmentId] = React.useState<string | null>(null);
   const [isTestDialogOpen, setIsTestDialogOpen] = React.useState(false);
   const [testAppointmentData, setTestAppointmentData] = React.useState<any>(null);
+  const [selectedClassSlotId, setSelectedClassSlotId] = React.useState<string | null>(null);
 
   const [newAppointment, setNewAppointment] = React.useState<NewAppointment>({
     clientId: "",
@@ -367,6 +373,73 @@ export function AddAppointmentModal({
     }
   }, [selectedDate]);
 
+  // Control-panel userId for the selected client (needed for package lookup)
+  const selectedClientUserId = useMemo(() => {
+    if (!newAppointment.clientId) return null;
+    const member = (clientMembers as any[]).find((m: any) => m.id === newAppointment.clientId);
+    return member?.userId ?? null;
+  }, [newAppointment.clientId, clientMembers]);
+
+  const { data: clientPackageInstances = [], isLoading: isLoadingPackages } = useQuery({
+    ...orpc.packageInstances.listAll.queryOptions({
+      input: { organizationId, clientId: selectedClientUserId ?? "", status: "active" },
+    }),
+    enabled: !!organizationId && !!selectedClientUserId,
+  });
+
+  const purchasedServiceIds = useMemo(
+    () => new Set((clientPackageInstances as any[]).map((p: any) => p.serviceId as string)),
+    [clientPackageInstances],
+  );
+
+  const selectedClassSlotService = useMemo(
+    () =>
+      newAppointment.selectedServices
+        .map((id) => services.find((s) => s.id === id))
+        .find((s) => s?.schedulingType === "class_slot") ?? null,
+    [newAppointment.selectedServices, services],
+  );
+
+  // Derive categoryId from the first selected service (using raw servicesData to preserve categoryId)
+  const selectedServiceCategoryId = useMemo(() => {
+    if (!newAppointment.selectedServices.length) return null;
+    const firstServiceId = newAppointment.selectedServices[0];
+    const rawSvc = (servicesData as any[]).find((s: any) => s.id === firstServiceId);
+    return rawSvc?.categoryId ?? null;
+  }, [newAppointment.selectedServices, servicesData]);
+
+  // Fetch commission config for the selected service category
+  const { data: commissionConfig } = useQuery({
+    queryKey: ["categoryCommission", selectedServiceCategoryId, organizationId],
+    queryFn: () =>
+      client.categoryCommission.getByCategory({
+        organizationId,
+        categoryId: selectedServiceCategoryId!,
+      }),
+    enabled: !!selectedServiceCategoryId && !!organizationId,
+    staleTime: 60_000,
+  });
+  const commissionSlots = commissionConfig?.slots ?? [];
+
+  // State for trainer assignments in additional commission slots (slot 0 uses newAppointment.employeeId)
+  const [additionalSlotTrainers, setAdditionalSlotTrainers] = React.useState<string[]>([]);
+
+  const { data: classSlotOptions = [] } = useQuery({
+    ...orpc.classSlots.list.queryOptions({
+      input: {
+        organizationId,
+        serviceId: selectedClassSlotService?.id ?? "",
+        from: new Date().toISOString(),
+      },
+    }),
+    enabled: !!organizationId && !!selectedClassSlotService,
+  });
+
+  // Reset additional slot trainers when the service selection changes
+  React.useEffect(() => {
+    setAdditionalSlotTrainers([]);
+  }, [newAppointment.selectedServices]);
+
   // Default assignment to current user if present in teamMembers.
   // Skip if a defaultTrainerId was provided — that takes precedence over the logged-in user.
   React.useEffect(() => {
@@ -379,11 +452,17 @@ export function AddAppointmentModal({
     }
   }, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
 
-  const employeePlaceholder = useMemo(() => {
+  const handleClientChange = (clientId: string) => {
+    setNewAppointment(prev => ({ ...prev, clientId, selectedServices: [] }));
+    setAppointmentSlots(prev => prev.map(slot => ({ ...slot, selectedServices: [] })));
+    setAdditionalSlotTrainers([]);
+  };
+
+  const trainerPlaceholder = useMemo(() => {
     if (!newAppointment.roomId) return "Select an area first";
-    if (employees.length === 0) return "There are no employees available";
-    return "Select an employee";
-  }, [newAppointment.roomId, employees.length]);
+    if (trainers.length === 0) return "No trainers available";
+    return "Select a trainer";
+  }, [newAppointment.roomId, trainers.length]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setNewAppointment(prev => ({
@@ -413,13 +492,17 @@ export function AddAppointmentModal({
   };
 
   const removeService = (serviceId: string) => {
+    const removedSvc = services.find((s) => s.id === serviceId);
+    if (removedSvc?.schedulingType === "class_slot") {
+      setSelectedClassSlotId(null);
+    }
     setNewAppointment(prev => {
       const newSelectedServices = prev.selectedServices.filter(id => id !== serviceId);
       const totalDuration = newSelectedServices.reduce((total, id) => {
         const service = services.find(s => s.id === id);
         return total + (service?.durationMinutes || 0);
       }, 0);
-      
+
       return {
         ...prev,
         selectedServices: newSelectedServices,
@@ -857,11 +940,19 @@ export function AddAppointmentModal({
     const endDateTime = new Date(startDateTime);
     endDateTime.setMinutes(endDateTime.getMinutes() + totalDuration);
 
+    // Build staff assignments from slot trainer selections
+    const staffAssignments: { staffId: string; slotIndex: number }[] = [
+      ...(newAppointment.employeeId ? [{ staffId: newAppointment.employeeId, slotIndex: 0 }] : []),
+      ...additionalSlotTrainers
+        .map((staffId, i) => (staffId ? { staffId, slotIndex: i + 1 } : null))
+        .filter((a): a is { staffId: string; slotIndex: number } => a !== null),
+    ];
+
     const appointment = {
-      title: isBlockedTiming 
-        ? "BLOCKED TIME" 
+      title: isBlockedTiming
+        ? "BLOCKED TIME"
         : `${selectedServices.map(s => s?.name).join(', ')} - ${selectedClient?.name}`,
-      client: isBlockedTiming 
+      client: isBlockedTiming
         ? { id: "blocked", name: "Blocked Time", email: "", phone: "", creditPoints: 0 }
         : selectedClient,
       service: isBlockedTiming ? "Blocked Time" : selectedServices.map(s => s?.name).join(', '),
@@ -875,6 +966,7 @@ export function AddAppointmentModal({
       endsType: newAppointment.customRecurrence?.endsType,
       endsDate: newAppointment.customRecurrence?.endsType === "on" ? newAppointment.customRecurrence?.endsDate : undefined,
       endsOccurrences: newAppointment.customRecurrence?.endsType === "after" ? newAppointment.customRecurrence?.endsOccurrences : undefined,
+      staffAssignments: staffAssignments.length > 0 ? staffAssignments : undefined,
     };
 
     // Determine appointment type dynamically
@@ -983,10 +1075,11 @@ export function AddAppointmentModal({
         endsDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         endsOccurrences: 13,
       },
-    
+
     });
+    setAdditionalSlotTrainers([]);
     setIsBlockedTiming(false);
-    
+
     // Clear multi-appointment data
     setAppointmentSlots([]);
     setSelectedAppointmentId(null);
@@ -1014,8 +1107,9 @@ export function AddAppointmentModal({
         endsOccurrences: 13,
       },
     });
+    setAdditionalSlotTrainers([]);
     setIsBlockedTiming(false);
-    
+
     // Clear multi-appointment data
     setAppointmentSlots([]);
     setSelectedAppointmentId(null);
@@ -1155,7 +1249,7 @@ export function AddAppointmentModal({
                           </Tooltip>
                         </div>
                         <div className="flex gap-2">
-                          <Select value={newAppointment.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
+                          <Select value={newAppointment.clientId} onValueChange={handleClientChange}>
                             <SelectTrigger className="flex-1 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                               <SelectValue placeholder="Search Customer by Name" />
                             </SelectTrigger>
@@ -1352,10 +1446,10 @@ export function AddAppointmentModal({
                             </div>
                           </div>
 
-                          {/* Employee */}
+                          {/* Trainer */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Label htmlFor="employeeId" className="text-sm font-medium text-brand-primary-1">Employee</Label>
+                              <Label htmlFor="employeeId" className="text-sm font-medium text-brand-primary-1">Trainer</Label>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
@@ -1363,18 +1457,18 @@ export function AddAppointmentModal({
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
-                                  <p className="text-black font-medium">Select the employee for this blocked time.</p>
+                                  <p className="text-black font-medium">Select the trainer for this blocked time.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
                             <Select value={newAppointment.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)}>
                               <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
-                                <SelectValue placeholder="Select employee (optional)" />
+                                <SelectValue placeholder="Select trainer (optional)" />
                               </SelectTrigger>
                               <SelectContent className="z-[10001]">
-                                {employees.map((employee) => (
-                                  <SelectItem key={employee.id} value={employee.id}>
-                                    {employee.name}
+                                {trainers.map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -1439,7 +1533,7 @@ export function AddAppointmentModal({
                                   </Tooltip>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Select value={newAppointment.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
+                                    <Select value={newAppointment.clientId} onValueChange={handleClientChange}>
                                                     <SelectTrigger className="flex-1 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
                                                       <SelectValue placeholder="Search Customer by Name" />
                                       </SelectTrigger>
@@ -1654,6 +1748,53 @@ export function AddAppointmentModal({
                                   </div>
                                 )}
                                 
+                                {/* Class slot picker — shown when a class_slot service is selected */}
+                                {selectedClassSlotService && (
+                                  <div className="mt-4 space-y-2">
+                                    <Label className="text-sm font-medium text-brand-primary-1">Select Class *</Label>
+                                    <Select
+                                      value={selectedClassSlotId ?? ""}
+                                      onValueChange={(slotId) => {
+                                        const slot = (classSlotOptions as any[]).find((s: any) => s.id === slotId);
+                                        if (!slot) return;
+                                        setSelectedClassSlotId(slotId);
+                                        const dateStr =
+                                          typeof slot.date === "string"
+                                            ? slot.date.split("T")[0]
+                                            : new Date(slot.date).toISOString().split("T")[0];
+                                        handleInputChange("startDate", dateStr);
+                                        handleInputChange("startTime", slot.startTime);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                        <SelectValue placeholder="Choose a class session…" />
+                                      </SelectTrigger>
+                                      <SelectContent className="z-[10001]">
+                                        {(classSlotOptions as any[]).length === 0 ? (
+                                          <div className="px-3 py-3 text-center text-brand-secondary-1 text-sm">
+                                            No upcoming sessions available
+                                          </div>
+                                        ) : (
+                                          (classSlotOptions as any[]).map((slot: any) => {
+                                            const dateStr =
+                                              typeof slot.date === "string"
+                                                ? slot.date.split("T")[0]
+                                                : new Date(slot.date).toISOString().split("T")[0];
+                                            return (
+                                              <SelectItem key={slot.id} value={slot.id}>
+                                                {dateStr} · {slot.startTime}–{slot.endTime}{" "}
+                                                {slot.spotsAvailable != null
+                                                  ? `(${slot.spotsAvailable} spots)`
+                                                  : ""}
+                                              </SelectItem>
+                                            );
+                                          })
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+
                                 {newAppointment.selectedServices.length === 0 && (
                                   <div className="text-center py-8 text-brand-secondary-1">
                                     <div className="text-sm">No services selected</div>
@@ -1682,15 +1823,31 @@ export function AddAppointmentModal({
                                   </Button>
                                 </div>
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                                  {services
-                                    .filter(svc => {
+                                  {!newAppointment.clientId && !isBlockedTiming ? (
+                                    <div className="text-center py-4 text-brand-secondary-1 text-sm">
+                                      Select a customer first
+                                    </div>
+                                  ) : isLoadingPackages ? (
+                                    <div className="text-center py-4 text-brand-secondary-1 text-sm">
+                                      Loading available services…
+                                    </div>
+                                  ) : (() => {
+                                    const availableServices = services.filter(svc => {
+                                      if (!isBlockedTiming && svc.schedulingType !== "class_slot" && !purchasedServiceIds.has(svc.id)) return false;
                                       if (isMultiAppointment && selectedAppointmentId) {
                                         const selectedSlot = appointmentSlots.find(slot => slot.id === selectedAppointmentId);
                                         return selectedSlot && !selectedSlot.selectedServices.includes(svc.id);
                                       }
                                       return !newAppointment.selectedServices.includes(svc.id);
-                                    })
-                                    .map((svc) => (
+                                    });
+                                    if (availableServices.length === 0) {
+                                      return (
+                                        <div className="text-center py-4 text-brand-secondary-1 text-sm">
+                                          All available services have been selected
+                                        </div>
+                                      );
+                                    }
+                                    return availableServices.map((svc) => (
                                       <div
                                         key={svc.id}
                                         className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer"
@@ -1708,18 +1865,8 @@ export function AddAppointmentModal({
                                           <span className="text-sm text-brand-secondary-1">{svc.durationMinutes} min</span>
                                         </div>
                                       </div>
-                                    ))}
-                                  {services.filter(svc => {
-                                    if (isMultiAppointment && selectedAppointmentId) {
-                                      const selectedSlot = appointmentSlots.find(slot => slot.id === selectedAppointmentId);
-                                      return selectedSlot && !selectedSlot.selectedServices.includes(svc.id);
-                                    }
-                                    return !newAppointment.selectedServices.includes(svc.id);
-                                  }).length === 0 && (
-                                    <div className="text-center py-4 text-brand-secondary-1">
-                                      All services have been selected
-                              </div>
-                                  )}
+                                    ));
+                                  })()}
                                 </div>
                               </CardContent>
                             </Card>
@@ -1848,15 +1995,15 @@ export function AddAppointmentModal({
                                   </div>
                                 
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-brand-primary-1">Employee</Label>
+                                    <Label className="text-sm font-medium text-brand-primary-1">Trainer</Label>
                                     <Select value={selectedSlot.employeeId} onValueChange={(value) => updateAppointmentSlot(selectedSlot.id, 'employeeId', value)}>
                                       <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
-                                        <SelectValue placeholder="There are no employees available" />
+                                        <SelectValue placeholder="Select a trainer" />
                                       </SelectTrigger>
                                       <SelectContent className="z-[10001]">
-                                        {employees.map((employee) => (
-                                          <SelectItem key={employee.id} value={employee.id}>
-                                            {employee.name}
+                                        {trainers.map((trainer) => (
+                                          <SelectItem key={trainer.id} value={trainer.id}>
+                                            {trainer.name}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -1936,31 +2083,37 @@ export function AddAppointmentModal({
                               {/* Date and Time */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                  <Label htmlFor="startDate" className="text-sm font-medium text-brand-primary-1">Date *</Label>
+                                  <Label htmlFor="startDate" className="text-sm font-medium text-brand-primary-1">
+                                    Date *{selectedClassSlotId && <span className="ml-1 text-xs text-brand-secondary-1">(set by class)</span>}
+                                  </Label>
                                   <Input
                                     id="startDate"
                                     type="date"
                                     value={newAppointment.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
                                     required
-                                    className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
+                                    disabled={!!selectedClassSlotId}
+                                    className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 disabled:opacity-60 disabled:cursor-not-allowed"
                                   />
                                 </div>
-                                
+
                                 <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-brand-primary-1">Start Time *</Label>
+                                  <Label className="text-sm font-medium text-brand-primary-1">
+                                    Start Time *{selectedClassSlotId && <span className="ml-1 text-xs text-brand-secondary-1">(set by class)</span>}
+                                  </Label>
                                   <div className="flex gap-2">
                                     {/* Hour Selector */}
                                     <div className="flex-1">
-                                      <Select 
-                                        value={newAppointment.startTime ? newAppointment.startTime.split(':')[0] : ''} 
+                                      <Select
+                                        value={newAppointment.startTime ? newAppointment.startTime.split(':')[0] : ''}
                                         onValueChange={(hour) => {
                                           const currentMinute = newAppointment.startTime ? newAppointment.startTime.split(':')[1] || '00' : '00';
                                           const timeString = `${hour.padStart(2, '0')}:${currentMinute}`;
                                           handleInputChange('startTime', timeString);
                                         }}
+                                        disabled={!!selectedClassSlotId}
                                       >
-                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 disabled:opacity-60 disabled:cursor-not-allowed">
                                           <SelectValue placeholder="Hour" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -1976,18 +2129,19 @@ export function AddAppointmentModal({
                                         </SelectContent>
                                       </Select>
                                     </div>
-                                    
+
                                     {/* Minute Selector - 15 minute intervals */}
                                     <div className="flex-1">
-                                      <Select 
-                                        value={newAppointment.startTime ? newAppointment.startTime.split(':')[1] : ''} 
+                                      <Select
+                                        value={newAppointment.startTime ? newAppointment.startTime.split(':')[1] : ''}
                                         onValueChange={(minute) => {
                                           const currentHour = newAppointment.startTime ? newAppointment.startTime.split(':')[0] || '00' : '00';
                                           const timeString = `${currentHour}:${minute}`;
                                           handleInputChange('startTime', timeString);
                                         }}
+                                        disabled={!!selectedClassSlotId}
                                       >
-                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                        <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 disabled:opacity-60 disabled:cursor-not-allowed">
                                           <SelectValue placeholder="Minute" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[10001]">
@@ -2281,36 +2435,72 @@ export function AddAppointmentModal({
                                     )}
                                   </div>
                                 
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <Label htmlFor="employeeId" className="text-sm font-medium text-brand-primary-1">Employee</Label>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <button type="button" className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium">
-                                            ?
-                                          </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" align="start" className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none">
-                                          <p className="text-black font-medium">Select the employee who will handle this appointment.</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </div>
-                                    <Select
-                                      value={newAppointment.employeeId}
-                                      onValueChange={(value) => handleInputChange('employeeId', value)}
-                                      disabled={!newAppointment.roomId}
-                                    >
-                                      <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
-                                        <SelectValue placeholder={employeePlaceholder} />
-                                      </SelectTrigger>
-                                      <SelectContent className="z-[10001]">
-                                        {employees.map((employee) => (
-                                          <SelectItem key={employee.id} value={employee.id}>
-                                            {employee.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                  {/* Trainer / Staff Slots */}
+                                  <div className={commissionSlots.length > 1 ? "space-y-3 md:col-span-2" : "space-y-2"}>
+                                    <Label className="text-sm font-medium text-brand-primary-1">
+                                      {commissionSlots.length > 1 ? "Staff Slots" : "Trainer"}
+                                    </Label>
+                                    {commissionSlots.length > 1 ? (
+                                      // Slot-based picker: one row per commission slot
+                                      commissionSlots.map((slot, idx) => (
+                                        <div key={slot.slotIndex} className="space-y-1">
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <span className="font-medium text-brand-primary-1">{slot.label}</span>
+                                            <span className="text-muted-foreground">({(slot.weightageBasisPoints / 100).toFixed(0)}%)</span>
+                                          </div>
+                                          <Select
+                                            value={idx === 0 ? newAppointment.employeeId : (additionalSlotTrainers[idx - 1] ?? "")}
+                                            onValueChange={(value) => {
+                                              if (idx === 0) {
+                                                handleInputChange("employeeId", value);
+                                              } else {
+                                                setAdditionalSlotTrainers((prev) => {
+                                                  const next = [...prev];
+                                                  next[idx - 1] = value;
+                                                  return next;
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                              <SelectValue placeholder={`Select ${slot.label} (optional)`} />
+                                            </SelectTrigger>
+                                            <SelectContent className="z-[10001]">
+                                              {trainers.map((trainer) => (
+                                                <SelectItem key={trainer.id} value={trainer.id}>
+                                                  {trainer.name}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      // Single trainer picker (original behaviour)
+                                      <>
+                                        {commissionSlots.length === 1 && (
+                                          <div className="text-xs text-muted-foreground mb-1">
+                                            {commissionSlots[0].label} ({(commissionSlots[0].weightageBasisPoints / 100).toFixed(0)}%)
+                                          </div>
+                                        )}
+                                        <Select
+                                          value={newAppointment.employeeId}
+                                          onValueChange={(value) => handleInputChange("employeeId", value)}
+                                          disabled={!newAppointment.roomId}
+                                        >
+                                          <SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
+                                            <SelectValue placeholder={trainerPlaceholder} />
+                                          </SelectTrigger>
+                                          <SelectContent className="z-[10001]">
+                                            {trainers.map((trainer) => (
+                                              <SelectItem key={trainer.id} value={trainer.id}>
+                                                {trainer.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </div>

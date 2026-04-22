@@ -1,8 +1,9 @@
-import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, sql, inArray } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { voidCommissionSplitsForSalesOrder } from "./commission-splits.service";
 
 export type CreateSalesOrderParams = {
 	date: Date;
@@ -58,6 +59,11 @@ async function generateCancellationNumber(
 	return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
+export interface ListSalesOrdersResult {
+	rows: (typeof salesOrders.$inferSelect)[];
+	total: number;
+}
+
 export async function listSalesOrders(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: {
@@ -67,11 +73,26 @@ export async function listSalesOrders(
 		from?: Date;
 		to?: Date;
 		accessibleNodeIds?: string[];
+		limit?: number;
+		offset?: number;
 	} = {}
-): Promise<(typeof salesOrders.$inferSelect)[]> {
-	const { branchId, status, customerId, from, to, accessibleNodeIds } = params;
+): Promise<ListSalesOrdersResult> {
+	const { branchId, status, customerId, from, to, accessibleNodeIds, limit = 50, offset = 0 } = params;
+
+	// Early exit if RBAC scope is empty — user has no accessible nodes
+	if (accessibleNodeIds !== undefined && accessibleNodeIds.length === 0) {
+		return { rows: [], total: 0 };
+	}
+
+	// Validate branchId is within the caller's accessible scope
+	if (branchId && accessibleNodeIds && !accessibleNodeIds.includes(branchId)) {
+		throw new Error("FORBIDDEN: branch not in accessible scope");
+	}
 
 	const conditions = [];
+	if (accessibleNodeIds && accessibleNodeIds.length > 0) {
+		conditions.push(inArray(salesOrders.branchId, accessibleNodeIds));
+	}
 	if (branchId) {
 		conditions.push(eq(salesOrders.branchId, branchId));
 	}
@@ -88,16 +109,23 @@ export async function listSalesOrders(
 		conditions.push(lte(salesOrders.date, to));
 	}
 
-	const rows = await tenantDb.query.salesOrders.findMany({
-		where: conditions.length > 0 ? and(...conditions) : undefined,
-		orderBy: [desc(salesOrders.date)],
-	});
+	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-	if (accessibleNodeIds && accessibleNodeIds.length > 0) {
-		return rows.filter((row) => accessibleNodeIds.includes(row.branchId));
-	}
+	const [countResult, rows] = await Promise.all([
+		tenantDb.select({ total: count() }).from(salesOrders).where(where),
+		tenantDb
+			.select()
+			.from(salesOrders)
+			.where(where)
+			.orderBy(desc(salesOrders.date), desc(salesOrders.id))
+			.limit(limit)
+			.offset(offset),
+	]);
 
-	return rows;
+	return {
+		rows,
+		total: countResult[0]?.total ?? 0,
+	};
 }
 
 export async function getSalesOrderById(
@@ -212,6 +240,13 @@ export async function cancelSalesOrder(
 			summary: `Cancelled sales order ${existing.salesOrderNumber ?? id}`,
 			changes: { refundAmount: params.refundAmount, reason: params.reason ?? null },
 		});
+
+		await voidCommissionSplitsForSalesOrder(
+			tx as unknown as NeonDatabase<typeof tenantSchema>,
+			id,
+			"Sale cancelled: " + (params.reason ?? "no reason given"),
+			actor,
+		);
 
 		return updatedOrder;
 	});

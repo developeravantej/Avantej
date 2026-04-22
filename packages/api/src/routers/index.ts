@@ -9,6 +9,7 @@ import { brandsRouter } from "./brands";
 import { cancelledSalesRouter } from "./cancelled-sales";
 import { checkInsRouter } from "./check-ins";
 import { classSlotsRouter } from "./class-slots";
+import { categoryCommissionRouter } from "./category-commission";
 import { commissionSplitsRouter } from "./commission-splits";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
@@ -47,6 +48,7 @@ import { stockRequestsRouter } from "./stock-requests";
 import { suppliersRouter } from "./suppliers";
 import { taxRatesRouter } from "./tax-rates";
 import { trainerAvailabilityRouter } from "./trainer-availability";
+import { trainerTiersRouter } from "./trainer-tiers";
 import { transferOrdersRouter } from "./transfer-orders";
 import { unitsOfMeasureRouter } from "./units-of-measure";
 import { userActivityLogRouter } from "./user-activity-log";
@@ -98,6 +100,7 @@ export const baseRouter = {
 	memberProfiles: memberProfilesRouter,
 	waitlist: waitlistRouter,
 	commissionSplits: commissionSplitsRouter,
+	categoryCommission: categoryCommissionRouter,
 	purchaseOrders: purchaseOrdersRouter,
 	promotions: promotionsRouter,
 	walkInCustomers: walkInCustomersRouter,
@@ -105,6 +108,7 @@ export const baseRouter = {
 	analytics: analyticsRouter,
 	registration: registrationRouter,
 	trainerAvailability: trainerAvailabilityRouter,
+	trainerTiers: trainerTiersRouter,
 	serviceMembers: serviceMembersRouter,
 	installments: installmentsRouter,
 	installmentPlans: installmentPlansRouter,

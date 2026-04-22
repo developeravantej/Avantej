@@ -143,6 +143,7 @@ describe("Invitations — org-wide scope (Ticket B fix)", () => {
 			status: "active" as const,
 			hierarchyScopeId: TEST_BRANCH_NODE_ID,
 			joinedAt: new Date(),
+			trainerTierId: null,
 		};
 
 		await expect(

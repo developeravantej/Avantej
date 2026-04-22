@@ -2,10 +2,8 @@
 
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-	BadgeCheck,
 	BadgeDollarSign,
 	Bell,
-	BookUser,
 	Briefcase,
 	Building2,
 	Calendar,
@@ -16,8 +14,8 @@ import {
 	DoorOpen,
 	FileChartColumnIncreasing,
 	Home,
+	Layers,
 	LogOut,
-	Mail,
 	Map,
 	Megaphone,
 	Package,
@@ -45,6 +43,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -100,33 +99,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Customers",
 		items: [
 			{
-				title: "Registered",
+				title: "Customers",
 				url: "/dashboard/customers/view",
 				icon: Users,
 				permission: "customer_management:read",
 			},
 			{
-				title: "Walk-in",
-				url: "/dashboard/customers/walk-in/view",
-				icon: BookUser,
-				permission: "walk_in_customer_management:read",
-			},
-			{
-				title: "Memberships",
+				title: "Membership",
 				url: "/dashboard/memberships/view",
-				icon: BadgeCheck,
-				permission: "service_management:read",
-			},
-			{
-				title: "Package Instances",
-				url: "/dashboard/packages/instances/view",
 				icon: Package,
-				permission: "service_management:read",
-			},
-			{
-				title: "Installments",
-				url: "/dashboard/packages/installments/view",
-				icon: CreditCard,
 				permission: "service_management:read",
 			},
 		],
@@ -157,24 +138,14 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Services",
 		items: [
-			{
-				title: "Service Categories",
-				url: "/dashboard/service-category/view",
-				icon: Tag,
-			},
 			{ title: "Services", url: "/dashboard/service/view", icon: PackageSearch },
 		],
 	},
 	{
 		label: "Sales",
 		items: [
-			{ title: "Sales", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-			{ title: "Payments", url: "/dashboard/payment/view", icon: DollarSign },
-			{
-				title: "Cancelled Sales",
-				url: "/dashboard/cancelled-sales/view",
-				icon: Receipt,
-			},
+			{ title: "POS", url: "/dashboard/sales/create", icon: ShoppingCart },
+			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
 			{ title: "Promotions", url: "/dashboard/promotions/view", icon: Percent },
 			{
 				title: "Purchase Orders",
@@ -192,23 +163,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/inventory-options",
 				icon: Warehouse,
 			},
-			{ title: "Brands", url: "/dashboard/brands/view", icon: Tag },
-			{ title: "Categories", url: "/dashboard/categories/view", icon: Tag },
-			{ title: "Suppliers", url: "/dashboard/suppliers/view", icon: Store },
-			{ title: "Unit of Measure", url: "/dashboard/uom/view", icon: Package },
+			{ title: "Units of Measure", url: "/dashboard/uom/view", icon: Package },
 			{
-				title: "UoM Conversions",
-				url: "/dashboard/uom-conversions/view",
-				icon: Package,
-			},
-			{
-				title: "Stock Requests",
+				title: "Stock Movement",
 				url: "/dashboard/stock-requests/view",
-				icon: ShoppingCart,
-			},
-			{
-				title: "Transfer Orders",
-				url: "/dashboard/transfer-orders/view",
 				icon: ShoppingCart,
 			},
 		],
@@ -228,7 +186,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Commissions",
 				url: "/dashboard/commissions/view",
 				icon: TrendingUp,
-				permission: "commission_management:read",
 			},
 		],
 	},
@@ -241,8 +198,13 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: Users,
 				permission: "user_management:read",
 			},
+			{
+				title: "Tiers",
+				url: "/dashboard/trainers/tiers",
+				icon: Layers,
+				permission: "trainer_tier_management:read",
+			},
 			{ title: "Employees", url: "/dashboard/user/view", icon: Users },
-			{ title: "User Roles", url: "/dashboard/role/view", icon: Shield },
 			{
 				title: "Attendance",
 				url: "/dashboard/attendance/view",
@@ -261,27 +223,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Access & Comms",
 		items: [
 			{
-				title: "Role Management",
+				title: "Roles",
 				url: "/dashboard/access-control/roles",
 				icon: Shield,
 				permission: "role_management:read",
 			},
 			{
-				title: "Permissions",
-				url: "/dashboard/access-control/permissions",
-				icon: Settings,
-				permission: "role_management:read",
-			},
-			{
-				title: "User Assignment",
+				title: "Staff Access",
 				url: "/dashboard/access-control/user-assignment",
 				icon: UserPlus,
-				permission: "user_management:read",
-			},
-			{
-				title: "Invitations",
-				url: "/dashboard/access-control/invitations",
-				icon: Mail,
 				permission: "user_management:read",
 			},
 			{
@@ -311,6 +261,16 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Google Calendar",
 				url: "/dashboard/settings/google-calendar",
 				icon: Calendar,
+			},
+			{
+				title: "Organization",
+				url: "/dashboard/settings/organization",
+				icon: Building2,
+			},
+			{
+				title: "Notification Preferences",
+				url: "/dashboard/settings/notifications",
+				icon: Bell,
 			},
 			{ title: "GHL Integration", url: "/go-highlevel-integration", icon: Map },
 		],
@@ -368,21 +328,28 @@ function SidebarUserFooter() {
 				</button>
 			</DropdownMenuTrigger>
 
-			<DropdownMenuContent side="top" align="start" className="w-56">
+			<DropdownMenuContent side="top" align="start" className="w-56 rounded-xl">
+				<DropdownMenuLabel className="font-normal">
+					<div className="flex flex-col space-y-1">
+						<p className="text-sm font-medium leading-none">{displayName}</p>
+						<p className="text-xs leading-none text-brand-secondary-1">{email}</p>
+					</div>
+				</DropdownMenuLabel>
+				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
 					<Link to="/customers" className="flex items-center gap-2">
 						<User className="size-4" />
-						<span>Profile</span>
+						<span>Personal Details</span>
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
-					<Link
-						to="/dashboard/settings/tax-rates"
-						className="flex items-center gap-2"
-					>
+					<Link to="/dashboard/settings/organization" className="flex items-center gap-2">
 						<Settings className="size-4" />
 						<span>Settings</span>
 					</Link>
+				</DropdownMenuItem>
+				<DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+					<span>Help</span>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
@@ -544,7 +511,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										isActive={pathname.startsWith("/dashboard/platform-admin/users")}
 										tooltip="Users"
 									>
-										{/* @ts-expect-error -- route registers in routeTree.gen.ts after next bun dev */}
 										<Link to={"/dashboard/platform-admin/users" as string}>
 											<Users className="size-4" />
 											<span>Users</span>
@@ -558,7 +524,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 											isActive={pathname.startsWith("/dashboard/platform-admin/admins")}
 											tooltip="Admins"
 										>
-											{/* @ts-expect-error -- route registers in routeTree.gen.ts after next bun dev (Phase 5) */}
 											<Link to={"/dashboard/platform-admin/admins" as string}>
 												<Shield className="size-4" />
 												<span>Admins</span>

@@ -1,5 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+import { inArray } from "drizzle-orm";
 import { protectedProcedure } from "../index";
 import {
 	listClassSlots,
@@ -8,8 +9,12 @@ import {
 	updateClassSlot,
 	cancelClassSlot,
 	getBookingCounts,
+	listClassSlotSignups,
 } from "@avantej-core/services/class-slots.service";
 import { requirePermission } from "@avantej-core/services";
+import { user } from "@avantej-core/db/schema/auth";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 const list = protectedProcedure
 	.input(
@@ -255,6 +260,97 @@ const bookingCounts = protectedProcedure
 		});
 	});
 
+const getSignups = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			id: z.string().uuid(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available. Ensure organization context is set.",
+			});
+		}
+
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "Permission denied",
+			});
+		}
+
+		const slot = await getClassSlotById(context.tenantDb, input.id);
+		if (!slot) {
+			throw new ORPCError("NOT_FOUND", {
+				message: `Class slot not found: ${input.id}`,
+			});
+		}
+
+		if (context.accessibleNodeIds && !context.accessibleNodeIds.includes(slot.branchId)) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "You do not have access to this class slot",
+			});
+		}
+
+		const rawSignups = await listClassSlotSignups(context.tenantDb, input.id);
+
+		const memberClientIds = rawSignups
+			.filter((s) => s.clientType !== "walk_in" && s.clientId != null)
+			.map((s) => s.clientId as string);
+
+		const userMap = new Map<string, { name: string; email: string }>();
+
+		if (memberClientIds.length > 0) {
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
+			if (controlPanelDb) {
+				const userRows = await controlPanelDb
+					.select({ id: user.id, name: user.name, email: user.email })
+					.from(user)
+					.where(inArray(user.id, memberClientIds));
+				for (const u of userRows) {
+					userMap.set(u.id, { name: u.name, email: u.email });
+				}
+			}
+		}
+
+		return rawSignups.map((s) => {
+			if (s.clientType === "walk_in" || s.clientId == null) {
+				return {
+					appointmentId: s.appointmentId,
+					clientType: s.clientType as string,
+					name: s.walkInName ?? "Walk-in Customer",
+					email: s.walkInEmail ?? null,
+					phone: s.walkInPhone ?? null,
+					attended: s.attended,
+					pricePaid: s.pricePaid,
+					appointmentStatus: s.appointmentStatus,
+				};
+			}
+			const details = userMap.get(s.clientId);
+			return {
+				appointmentId: s.appointmentId,
+				clientType: s.clientType as string,
+				name: details?.name ?? s.clientId,
+				email: details?.email ?? null,
+				phone: null as string | null,
+				attended: s.attended,
+				pricePaid: s.pricePaid,
+				appointmentStatus: s.appointmentStatus,
+			};
+		});
+	});
+
 export const classSlotsRouter = {
 	list,
 	getById,
@@ -262,4 +358,5 @@ export const classSlotsRouter = {
 	update,
 	cancel,
 	bookingCounts,
+	getSignups,
 };

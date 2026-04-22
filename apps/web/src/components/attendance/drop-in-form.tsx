@@ -1,6 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { UserPlus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,17 +33,46 @@ export function DropInForm({
 	const [clientType, setClientType] = useState<"member" | "walk_in">("member");
 	const [displayName, setDisplayName] = useState("");
 
+	// UUID validation — used to gate the active package query
+	const uuidRegex =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	const isValidUuid = uuidRegex.test(clientId.trim());
+
+	// Credits lookup — fires only when clientType is "member" and clientId is a valid UUID
+	const { data: activePackage } = useQuery({
+		queryKey: ["activePackageForMember", organizationId, clientId.trim()],
+		queryFn: async () =>
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(client as any).checkIns.getActivePackageForMember({
+				organizationId,
+				clientId: clientId.trim(),
+			}),
+		enabled: clientType === "member" && isValidUuid,
+		staleTime: 30 * 1000,
+	});
+
 	const checkInMutation = useMutation({
 		mutationFn: async () => {
+			const payload =
+				clientType === "walk_in"
+					? {
+							organizationId,
+							clientType: "walk_in" as const,
+							branchId,
+							source: "drop_in" as const,
+							outcome: "attended" as const,
+							clientDisplayName: displayName.trim() || undefined,
+						}
+					: {
+							organizationId,
+							clientType: "member" as const,
+							clientId: clientId.trim(),
+							branchId,
+							source: "drop_in" as const,
+							outcome: "attended" as const,
+						};
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.recordCheckIn({
-				organizationId,
-				clientType,
-				clientId: clientId.trim(),
-				branchId,
-				source: "drop_in",
-				outcome: "attended",
-			});
+			return (client as any).checkIns.recordCheckIn(payload);
 		},
 		onSuccess: () => {
 			toast.success(
@@ -74,7 +101,9 @@ export function DropInForm({
 		},
 	});
 
-	const canSubmit = clientId.trim().length > 0 && !checkInMutation.isPending;
+	const canSubmit =
+		(clientType === "walk_in" || clientId.trim().length > 0) &&
+		!checkInMutation.isPending;
 
 	return (
 		<Card>
@@ -108,40 +137,49 @@ export function DropInForm({
 					</button>
 				</div>
 
-				{/* Client ID field */}
-				<div className="space-y-1">
-					<Label className="text-xs">
-						{clientType === "member" ? "Member User ID" : "Walk-in Customer ID"}
-					</Label>
-					<Input
-						placeholder={
-							clientType === "member"
-								? "Paste member user ID..."
-								: "Paste walk-in customer ID..."
-						}
-						value={clientId}
-						onChange={(e) => setClientId(e.target.value)}
-						className="font-mono text-xs"
-					/>
-					<p className="text-[11px] text-muted-foreground">
-						{clientType === "member"
-							? "Find via Customer Directory — copy the user ID."
-							: "Find via Walk-in Customers — copy the customer ID."}
-					</p>
-				</div>
-
-				{/* Optional display name (local only — helps staff confirm identity) */}
-				<div className="space-y-1">
-					<Label className="text-xs">Display Name (optional)</Label>
-					<Input
-						placeholder="e.g. Sarah Tan"
-						value={displayName}
-						onChange={(e) => setDisplayName(e.target.value)}
-					/>
-					<p className="text-[11px] text-muted-foreground">
-						For your reference only — not stored.
-					</p>
-				</div>
+				{/* Client ID or Walk-in (depends on mode) */}
+				{clientType === "member" ? (
+					<div className="space-y-1">
+						<Label className="text-xs">Member User ID</Label>
+						<Input
+							placeholder="Paste member user ID..."
+							value={clientId}
+							onChange={(e) => setClientId(e.target.value)}
+							className="font-mono text-xs"
+						/>
+						<p className="text-[11px] text-muted-foreground">
+							Find via Customer Directory — copy the user ID.
+						</p>
+						{/* Credits lookup result */}
+						{clientType === "member" && isValidUuid && (
+							<div className="mt-2">
+								{activePackage === null && (
+									<p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+										No active package credits. Check-in will not debit anything.
+									</p>
+								)}
+								{activePackage && (
+									<p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+										{activePackage.creditsRemaining} credits remaining on active
+										package
+									</p>
+								)}
+							</div>
+						)}
+					</div>
+				) : (
+					<div className="space-y-1">
+						<Label className="text-xs">Display Name (optional)</Label>
+						<Input
+							placeholder="e.g. Sarah Tan"
+							value={displayName}
+							onChange={(e) => setDisplayName(e.target.value)}
+						/>
+						<p className="text-[11px] text-muted-foreground">
+							Optional — shown in the check-in log.
+						</p>
+					</div>
+				)}
 
 				{/* Check-in button */}
 				<Button
@@ -151,16 +189,6 @@ export function DropInForm({
 				>
 					{checkInMutation.isPending ? "Checking in..." : "Check In (Drop-in)"}
 				</Button>
-
-				{/* Create new walk-in shortcut */}
-				<div className="border-t pt-3">
-					<Link
-						to="/dashboard/customers/walk-in/view"
-						className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed py-2 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
-					>
-						<UserPlus className="h-4 w-4" />+ Create New Walk-in
-					</Link>
-				</div>
 			</CardContent>
 		</Card>
 	);

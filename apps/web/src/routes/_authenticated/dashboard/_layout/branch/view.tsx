@@ -167,10 +167,6 @@ function RouteComponent() {
   // Update allHierarchyNodes state when hierarchyNodesData changes
   useEffect(() => {
     if (hierarchyNodesData?.nodes) {
-      console.log(
-        "Setting allHierarchyNodes:",
-        hierarchyNodesData.nodes.length
-      );
       setAllHierarchyNodes(hierarchyNodesData.nodes);
     }
   }, [hierarchyNodesData]);
@@ -199,45 +195,9 @@ function RouteComponent() {
       });
 
       // Filter branches and map with hierarchy
-      // First, get all nodes with type="branch"
+      // Get all nodes with type="branch" (include any depth to avoid data loss)
       const branchNodes = allNodes.filter((node) => node.type === "branch");
-      
-      console.log(
-        `[mapBranchesWithHierarchy] Found ${branchNodes.length} nodes with type="branch" out of ${allNodes.length} total nodes`
-      );
-      console.log("[mapBranchesWithHierarchy] All node types:", [
-        ...new Set(allNodes.map((n) => n.type)),
-      ]);
-      console.log("[mapBranchesWithHierarchy] All depths:", [
-        ...new Set(allNodes.map((n) => n.depth)),
-      ]);
-
-      // Filter branches - prefer depth=4, but also include branches with wrong depth (with warning)
-      const branches = branchNodes.filter((node) => {
-        if (node.depth === 4) {
-          return true; // Correct depth
-        }
-        // Include branches with wrong depth but log warning
-        console.warn(
-          `[mapBranchesWithHierarchy] Branch node ${node.id} (${node.name}) has unexpected depth: ${node.depth} (expected 4). Including anyway.`
-        );
-        return true; // Include even with wrong depth to prevent data loss
-      });
-
-      if (branchNodes.length > 0 && branches.length === 0) {
-        console.error(
-          `[mapBranchesWithHierarchy] CRITICAL: Found ${branchNodes.length} branch nodes but none passed filter!`
-        );
-        branchNodes.forEach((b) => {
-          console.error(
-            `  - Branch ${b.id} (${b.name}): depth=${b.depth}, type=${b.type}, parentId=${b.parentId}`
-          );
-        });
-      }
-
-      console.log(
-        `[mapBranchesWithHierarchy] Filtered to ${branches.length} branches`
-      );
+      const branches = branchNodes;
 
       return branches.map((branch) => {
         // Find parent nodes by traversing up the hierarchy
@@ -300,7 +260,6 @@ function RouteComponent() {
     queryKey: ["branches", organizationId],
     queryFn: async () => {
       if (!organizationId) {
-        console.log("No organizationId, returning empty items");
         return { items: [] };
       }
 
@@ -334,98 +293,33 @@ function RouteComponent() {
           try {
             const hierarchy = JSON.parse(cachedHierarchy);
             const allNodes = hierarchy.nodes || [];
-            console.log(
-              `Using cached hierarchy (${Math.round(cacheAge / 1000)}s old), nodes count:`,
-              allNodes.length
-            );
             const mappedBranches = mapBranchesWithHierarchy(
               allNodes,
               currentUser,
               organizationId
             );
-            console.log("Mapped branches from cache:", mappedBranches.length);
-            
-            // If cache has no nodes, or has nodes but no branches, fetch fresh data
-            if (mappedBranches.length === 0) {
-              console.warn(
-                allNodes.length > 0
-                  ? "Cache has nodes but no branches found. Fetching fresh data..."
-                  : "Cache has no nodes. Fetching fresh data..."
-              );
-              localStorage.removeItem(`org_${organizationId}_hierarchy`);
-              localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
-            } else {
+
+            // If cache has no branches, fall through to fetch fresh data
+            if (mappedBranches.length > 0) {
               return { items: mappedBranches };
             }
-          } catch (e) {
-            console.warn(
-              "Failed to parse cached hierarchy, fetching from API:",
-              e
-            );
+            localStorage.removeItem(`org_${organizationId}_hierarchy`);
+            localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
+          } catch (_e) {
             localStorage.removeItem(`org_${organizationId}_hierarchy`);
             localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
           }
         } else {
-          console.log(
-            `Cache is too old (${Math.round(cacheAge / 1000)}s), fetching fresh data`
-          );
           localStorage.removeItem(`org_${organizationId}_hierarchy`);
           localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
         }
       }
 
       // Fallback to API
-      console.log(
-        "[branches query] Fetching hierarchy nodes from API for org:",
-        organizationId
-      );
       try {
         const result = await client.hierarchy.listNodes({ organizationId });
-        console.log(
-          "[branches query] API returned nodes count:",
-          result.nodes?.length || 0
-        );
-        console.log(
-          "[branches query] API nodes sample:",
-          result.nodes?.slice(0, 3)
-        );
-
-        // Check for the specific branch ID
-        const targetBranch = result.nodes?.find(
-          (n: any) => n.id === "7cce143b-627c-472c-a6b6-57696e2b2a75"
-        );
-        if (targetBranch) {
-          console.log(
-            "[branches query] Found target branch in API response:",
-            targetBranch
-          );
-        } else {
-          console.warn(
-            "[branches query] Target branch NOT found in API response"
-          );
-          console.warn(
-            "[branches query] All node IDs:",
-            result.nodes?.map((n: any) => ({
-              id: n.id,
-              name: n.name,
-              type: n.type,
-              depth: n.depth,
-            }))
-          );
-        }
 
         if (!result.nodes || result.nodes.length === 0) {
-          console.warn(
-            "[branches query] API returned no nodes. This might mean:"
-          );
-          console.warn("1. No hierarchy nodes exist in the database");
-          console.warn("2. User doesn't have access to any nodes");
-          console.warn("3. Organization context is not set up correctly");
-          console.warn(
-            "4. User needs to create branches first via /dashboard/branch/create"
-          );
-          console.warn("Organization ID:", organizationId);
-          console.warn("Is Authenticated:", isAuthenticated);
           // Clear stale cache
           localStorage.removeItem(`org_${organizationId}_hierarchy`);
           return { items: [] };
@@ -435,10 +329,6 @@ function RouteComponent() {
           result.nodes,
           currentUser,
           organizationId
-        );
-        console.log(
-          "[branches query] Mapped branches from API:",
-          mappedBranches.length
         );
 
         // Cache the hierarchy data for future use
@@ -453,23 +343,8 @@ function RouteComponent() {
           Date.now().toString()
         );
 
-        if (mappedBranches.length === 0) {
-          console.warn(
-            "[branches query] No branches found after mapping. Check console for details."
-          );
-        }
-
         return { items: mappedBranches };
       } catch (apiError: any) {
-        console.error(
-          "[branches query] Error fetching hierarchy nodes from API:",
-          apiError
-        );
-        console.error("[branches query] Error details:", {
-          message: apiError?.message,
-          stack: apiError?.stack,
-          response: apiError?.response,
-        });
         throw apiError; // Re-throw so React Query can handle it
       }
     },
@@ -545,7 +420,6 @@ function RouteComponent() {
       queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
       queryClient.invalidateQueries({ queryKey: ["user-context"] });
       localStorage.removeItem(`org_${organizationId}_hierarchy`);
-      toast.success("Branch updated successfully");
     },
     onError: (error: Error) => {
       const errorMessage =

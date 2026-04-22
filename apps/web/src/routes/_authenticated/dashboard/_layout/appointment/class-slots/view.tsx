@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { useUserContext } from "@/hooks/useUserContext";
@@ -45,7 +45,7 @@ export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/appointment/class-slots/view",
 )({
 	beforeLoad: async () => {
-		await requirePermission("appointment_management:read");
+		await requirePermission("class_slot_management:read");
 	},
 	component: ClassSlotsPage,
 });
@@ -136,6 +136,11 @@ function ClassSlotsPage() {
 	);
 	const [cancellationReason, setCancellationReason] = useState("");
 
+	// --- Signups sheet state ---
+	const [signupsSheetOpen, setSignupsSheetOpen] = useState(false);
+	const [viewingSignupsSlot, setViewingSignupsSlot] =
+		useState<ClassSlotRow | null>(null);
+
 	// --- Form state ---
 	const [createForm, setCreateForm] =
 		useState<CreateFormState>(EMPTY_CREATE_FORM);
@@ -150,7 +155,7 @@ function ClassSlotsPage() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["classSlots", organizationId],
+		queryKey: ["classSlots", organizationId, filterServiceId, filterFrom, filterTo, filterAvailableOnly],
 		queryFn: async () => {
 			if (!organizationId) return [];
 			return client.classSlots.list({
@@ -180,6 +185,18 @@ function ClassSlotsPage() {
 			return client.members.list({ organizationId });
 		},
 		enabled: !!organizationId,
+	});
+
+	const { data: signups = [], isLoading: signupsLoading } = useQuery({
+		queryKey: ["classSlotSignups", viewingSignupsSlot?.id],
+		queryFn: async () => {
+			if (!organizationId || !viewingSignupsSlot) return [];
+			return client.classSlots.getSignups({
+				organizationId,
+				id: viewingSignupsSlot.id,
+			});
+		},
+		enabled: !!organizationId && !!viewingSignupsSlot,
 	});
 
 	// ---------------------------------------------------------------------------
@@ -305,6 +322,11 @@ function ClassSlotsPage() {
 		setCancelDialogOpen(true);
 	};
 
+	const handleViewSignups = (slot: ClassSlotRow) => {
+		setViewingSignupsSlot(slot);
+		setSignupsSheetOpen(true);
+	};
+
 	// ---------------------------------------------------------------------------
 	// Table columns
 	// ---------------------------------------------------------------------------
@@ -356,6 +378,21 @@ function ClassSlotsPage() {
 		{
 			accessorKey: "spotsBooked",
 			header: "Booked",
+			cell: ({ row }) => {
+				const slot = row.original;
+				const count = slot.spotsBooked;
+				if (count === 0) return <span className="text-muted-foreground">0</span>;
+				return (
+					<button
+						type="button"
+						onClick={() => handleViewSignups(slot)}
+						className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+					>
+						<Users className="h-3.5 w-3.5" />
+						{count}
+					</button>
+				);
+			},
 		},
 		{
 			accessorKey: "spotsAvailable",
@@ -859,6 +896,89 @@ function ClassSlotsPage() {
 							{updateMutation.isPending ? "Saving..." : "Save Changes"}
 						</Button>
 					</SheetFooter>
+				</SheetContent>
+			</Sheet>
+
+			{/* ----------------------------------------------------------------- */}
+			{/* Signups Sheet                                                      */}
+			{/* ----------------------------------------------------------------- */}
+			<Sheet
+				open={signupsSheetOpen}
+				onOpenChange={(open) => {
+					setSignupsSheetOpen(open);
+					if (!open) setViewingSignupsSlot(null);
+				}}
+			>
+				<SheetContent className="overflow-y-auto sm:max-w-lg">
+					<SheetHeader>
+						<SheetTitle className="flex items-center gap-2">
+							<Users className="h-5 w-5" />
+							Signups
+						</SheetTitle>
+						{viewingSignupsSlot && (
+							<SheetDescription>
+								{serviceNameById(viewingSignupsSlot.serviceId)} —{" "}
+								{new Date(viewingSignupsSlot.date).toLocaleDateString()} at{" "}
+								{viewingSignupsSlot.startTime}
+							</SheetDescription>
+						)}
+					</SheetHeader>
+
+					<Separator className="my-4" />
+
+					{signupsLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<div className="animate-spin h-6 w-6 border-2 border-current border-r-transparent rounded-full" />
+						</div>
+					) : signups.length === 0 ? (
+						<p className="text-center text-muted-foreground py-12 text-sm">
+							No sign-ups yet.
+						</p>
+					) : (
+						<div className="space-y-2">
+							{signups.map((signup, i) => (
+								<div
+									key={`${signup.appointmentId}-${i}`}
+									className="rounded-lg border p-3 space-y-1"
+								>
+									<div className="flex items-center justify-between">
+										<span className="font-medium text-sm">{signup.name}</span>
+										<Badge
+											variant={
+												signup.attended === true
+													? "default"
+													: signup.attended === false
+														? "destructive"
+														: "secondary"
+											}
+											className="text-xs"
+										>
+											{signup.attended === true
+												? "Attended"
+												: signup.attended === false
+													? "No-show"
+													: "Pending"}
+										</Badge>
+									</div>
+									{signup.email && (
+										<p className="text-xs text-muted-foreground">
+											{signup.email}
+										</p>
+									)}
+									{signup.phone && (
+										<p className="text-xs text-muted-foreground">
+											{signup.phone}
+										</p>
+									)}
+									<div className="flex items-center gap-3 text-xs text-muted-foreground">
+										<span className="capitalize">{signup.clientType === "walk_in" ? "Walk-in" : "Member"}</span>
+										<span>·</span>
+										<span className="capitalize">{signup.appointmentStatus}</span>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
 				</SheetContent>
 			</Sheet>
 

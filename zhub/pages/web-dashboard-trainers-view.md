@@ -4,15 +4,15 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/view.tsx:1`
 **Platform:** web
 **Auth required:** rbac(`user_management:read`) — enforced via `requirePermission` in `beforeLoad`
-**Last updated:** 2026-04-20 (Pipeline Audit C.2)
+**Last updated:** 2026-04-22 (Pipeline Audit C.2)
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Manage trainer members — add new trainers, update their profiles, configure availability, set per-service buffer times, and suspend/reactivate accounts.
+**Purpose (user perspective):** Manage trainer members — add new trainers, update their profiles, configure availability, set per-service buffer times, and suspend/reactivate accounts. Each trainer row has an inline Tier dropdown for commission tier assignment. Each trainer row has an inline Tier dropdown for commission tier assignment. Each trainer row has an inline Tier dropdown for commission tier assignment.
 
-**Produces:** A searchable data table of all trainer-role members with profile details merged in; a side Sheet for create/edit with collapsible sections for profile, weekly availability, and buffer times.
+**Produces:** A searchable data table of all trainer-role members with profile details merged in; a side Sheet for create/edit with collapsible sections for profile, weekly availability, services, and commission ledger.
 
 **On success:** New trainer created and profile upserted; existing trainer profile saved; status changes applied. All mutations invalidate trainer/trainerProfiles cache and show a success toast.
 
@@ -33,7 +33,10 @@ TrainersView
   → useQuery(["trainerProfiles", orgId, memberIds])
     → Promise.allSettled(client.memberProfiles.get() for each trainer)
       → member_profiles table (tenant DB)
-  → useQuery(["trainerServices", orgId, memberId])   # lazy: only when bufferSectionOpen
+  → useQuery(["trainerTiers", orgId, "active"])
+    → client.trainerTiers.list({ organizationId, includeInactive: false })
+      → trainer_tiers table (tenant DB)
+  → useQuery(["trainerServices", orgId, memberId])   # lazy: only when servicesSectionOpen
     → client.serviceMembers.listForMember(...)
   → createMutation
     → client.members.create(...)             # role="trainer"
@@ -42,7 +45,10 @@ TrainersView
   → suspendMutation    → client.members.suspend(...)
   → reactivateMutation → client.members.reactivate(...)
   → updateBufferMutation → client.serviceMembers.updateBuffer(...)
-  → useQuery(["commissionLedger", orgId, staffId])  # lazy: only when commissionsSectionOpen
+  → assignTierMutation
+    → client.trainerTiers.assignToMember({ organizationId, memberId, tierId })
+      → trainerTiersRouter.assignToMember    # rbac: trainer_tier_management:update
+  → useQuery(["trainerCommissions", orgId, staffId])  # lazy: only when commissionsSectionOpen
     → client.commissionSplits.listLedger({ organizationId, staffId: editingTrainerUserId, limit: 20, offset: 0 })
 ```
 
@@ -51,17 +57,19 @@ TrainersView
 - Sheet form: email (create only), hierarchyScopeId (create only), displayName, specialization, phoneNumber, bio, certifications (comma-separated string)
 - Availability editor: delegated to `TrainerAvailabilityEditor`
 - Buffer times: numeric input per service (0–480 min; empty = use category default → stored as `null`)
+- Tier dropdown (inline on card): selecting a tier calls `assignToMember`; selecting "No tier" passes `tierId: null` to unassign
+- Tier dropdown (inline on card): selecting a tier calls `assignToMember`; selecting "No tier" passes `tierId: null` to unassign
 
 **State management:**
 - `search` / `debouncedSearch` — client-side filter
 - `sheetOpen`, `editingMemberId`, `form` — Sheet open/close and form values
-- `profileSectionOpen`, `availabilitySectionOpen`, `bufferSectionOpen` — collapsible sections
+- `profileSectionOpen`, `availabilitySectionOpen`, `servicesSectionOpen`, `commissionsSectionOpen` — collapsible sections
 - `editingBufferServiceId`, `bufferInputValue` — inline buffer row editor
-- `commissionsSectionOpen` — lazy-load gate for the Commissions section
+- `selectedTrainer` — trainer clicked on card (opens detail dialog)
 
-**Outputs:** DataTable with merged trainer + profile rows; Sheet opens for create or edit.
+**Outputs:** Grid of trainer cards with tier selector dropdowns; Sheet opens for create/edit; detail modal on card click.
 
-**Side effects:** `queryClient.invalidateQueries` on trainers and trainerProfiles after any mutation.
+**Side effects:** `queryClient.invalidateQueries` on trainers and trainerProfiles after any mutation. Tier assignment invalidates trainers cache. Tier assignment invalidates trainers cache.
 
 ---
 
@@ -75,6 +83,8 @@ TrainersView
 - `members.suspend` / `members.reactivate` — status management
 - `serviceMembers.listForMember` — service assignments (for buffer section)
 - `serviceMembers.updateBuffer` — save per-service buffer time
+- `trainerTiers.list` — fetch active tiers for the tier dropdown (includeInactive: false)
+- `trainerTiers.assignToMember` — assign tier to trainer; removes assignment if tierId is null
 - `commissionSplits.listLedger` — lazy-loaded when Commissions section is opened; fetches trainer's commission history (Date, Source, Amount, Status); status badges: pending=yellow, approved=blue, paid=green, void=gray
 
 **Uses these components:**
@@ -97,15 +107,17 @@ TrainersView
 **DB tables touched:**
 | Table | Operation | Key columns used |
 |-------|-----------|-----------------|
-| `members` (tenant) | READ, UPDATE | `id`, `userId`, `role`, `hierarchyScopeId`, `status`, `joinedAt` |
+| `members` (tenant) | READ, UPDATE | `id`, `userId`, `role`, `hierarchyScopeId`, `status`, `joinedAt`, `trainerTierId` |
 | `member_profiles` (tenant) | READ, UPSERT | `memberId`, `displayName`, `bio`, `specialization`, `phoneNumber`, `certifications` |
 | `service_members` (tenant) | READ, UPDATE | `memberId`, `serviceId`, `bufferTimeMinutes` |
+| `trainer_tiers` (tenant) | READ, UPDATE | `id`, `name`, `rank`, `isActive` |
+| `trainer_tiers` (tenant) | READ, UPDATE | `id`, `name`, `rank`, `isActive` |
 
 **Key types:**
 ```typescript
 type TrainerRow = {
   id: string; userId: string; hierarchyScopeId: string; status: string;
-  joinedAt: Date|string|null; name: string; email: string;
+  joinedAt: Date|string|null; name: string; email: string; trainerTierId?: string|null;
   displayName?: string|null; specialization?: string|null;
   phoneNumber?: string|null; bio?: string|null; certifications?: string[]|null;
 }
@@ -132,6 +144,8 @@ type TrainerRow = {
 - Profile fetch silently drops failures (`Promise.allSettled`) — a trainer with no profile record shows all-null fields rather than an error
 - Buffer time saved as empty string maps to `null` (use default) — no explicit validation
 - Hierarchy dropdown with zero nodes (shows disabled placeholder but form still submits)
+- Tier dropdown on card may not properly refresh when tier assignment changes elsewhere
+- Tier dropdown on card may not properly refresh when tier assignment changes elsewhere
 
 ---
 
@@ -141,6 +155,7 @@ type TrainerRow = {
 - Profile data is fetched with `Promise.allSettled` so a missing profile record does not block the rest.
 - Certifications stored as `string[]` in DB; UI uses a comma-separated string — conversion happens in mutation helpers.
 - The Availability section only renders when `editingMemberId` is set (edit mode only).
-- Buffer times section is lazy-loaded (gated by `bufferSectionOpen`) to avoid N+1 calls on open.
+- Buffer times section is lazy-loaded (gated by `servicesSectionOpen`) to avoid N+1 calls on open.
+- **TRAINER TIERS (added 2026-04-22):** Card grid includes inline dropdown to select tier. Fetches active tiers from `trainerTiers.list`. Selecting a tier or "No tier" calls `assignToMember` which can set or clear the tier assignment. Tier ID persisted in `members.trainerTierId`.
 - **COMMISSIONS section** (added 2026-04-20): read-only collapsible inside the edit Sheet alongside PROFILE / WEEKLY AVAILABILITY / SERVICES. Lazy-loads `commissionSplits.listLedger({ staffId: editingTrainerUserId })` when first opened. Shows last 20 splits; no pagination currently.
 - Hierarchy node list is sourced from `userContext.organizations[].hierarchy.nodes` — already in context, no extra API call.

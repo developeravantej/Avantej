@@ -53,6 +53,9 @@ export const checkIns = pgTable(
 		// Metadata
 		notes: text("notes"),
 
+		// Optional display name for anonymous walk-ins (not populated for members)
+		clientDisplayName: text("client_display_name"),
+
 		// Staff who performed the check-in (members.userId)
 		checkedInBy: text("checked_in_by").notNull(),
 

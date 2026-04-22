@@ -38,7 +38,7 @@ export function AppointmentsWidget() {
 
 	const handleWidgetClick = () => {
 		navigate({
-			to: "/appointment/view",
+			to: "/dashboard/appointment/view",
 			search: { view: "weekly" },
 		});
 	};
