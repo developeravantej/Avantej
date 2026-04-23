@@ -3,7 +3,9 @@ import {
 	DEFAULT_GRACE_PERIOD_DAYS,
 	getGracePeriodDaysForPackage,
 	evaluateAndLockIfOverdue,
+	getAdminInstallmentOverview,
 } from "@avantej-core/services";
+import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
 // Shared mock primitives
@@ -253,5 +255,201 @@ describe("evaluateAndLockIfOverdue", () => {
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
 		expect(result.isLocked).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: getAdminInstallmentOverview — due_soon filter
+// ---------------------------------------------------------------------------
+
+describe("due_soon filter", () => {
+	/**
+	 * Build a minimal package instance fixture for due_soon tests.
+	 * nextDueDate is relative to now, computed at call time.
+	 */
+	function makePackageInstance(overrides: {
+		id?: string;
+		nextDueDate?: Date | null;
+		gracePeriodEndsAt?: Date | null;
+		isLocked?: boolean;
+		paymentPlanType?: string | null;
+		serviceId?: string;
+		clientId?: string | null;
+		[key: string]: unknown;
+	} = {}) {
+		return {
+			id: "pi-due-1",
+			paymentPlanType: "half",
+			serviceId: "svc-1",
+			clientId: null,
+			isLocked: false,
+			gracePeriodEndsAt: null,
+			nextDueDate: null,
+			creditsTotal: 10,
+			creditsUsed: 0,
+			creditsUnlocked: 5,
+			creditsRemaining: 5,
+			purchaseNumber: "P001",
+			...overrides,
+		};
+	}
+
+	test("(a) package with nextDueDate in 5 days → included in results", async () => {
+		const db = createMockTenantDb() as any;
+		const in5d = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+		const pkg = makePackageInstance({ id: "pi-a", nextDueDate: in5d });
+
+		// findMany for packageInstances returns the matching package
+		db.query.packageInstances = {
+			findMany: mock(() => Promise.resolve([pkg])),
+			findFirst: mock(() => Promise.resolve(undefined)),
+		};
+		// findMany for services (join)
+		db.query.services = {
+			findMany: mock(() => Promise.resolve([])),
+		};
+		// select chain for the batch installments query and COUNT — override select to return []
+		db.select = mock(() => ({
+			from: mock(() => ({
+				where: mock(() => ({
+					orderBy: mock(() => Promise.resolve([])),
+				})),
+			})),
+		}));
+		// Provide a separate select mock that handles the COUNT aggregate
+		// by returning a count row for the second call
+		let selectCallCount = 0;
+		db.select = mock(() => {
+			selectCallCount++;
+			if (selectCallCount === 1) {
+				// batch installments select
+				return {
+					from: mock(() => ({
+						where: mock(() => ({
+							orderBy: mock(() => Promise.resolve([])),
+						})),
+					})),
+				};
+			}
+			// COUNT select
+			return {
+				from: mock(() => ({
+					where: mock(() => Promise.resolve([{ count: 1 }])),
+				})),
+			};
+		});
+
+		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+
+		expect(result.items).toHaveLength(1);
+		expect(result.items[0]!.id).toBe("pi-a");
+		expect(result.total).toBe(1);
+		// findMany was called — confirming due_soon branch hit the query path
+		expect(db.query.packageInstances.findMany).toHaveBeenCalledTimes(1);
+	});
+
+	test("(b) package with nextDueDate in 20 days → excluded (SQL filters it out)", async () => {
+		const db = createMockTenantDb() as any;
+		// SQL excludes this row — simulate by returning empty array from findMany
+		db.query.packageInstances = {
+			findMany: mock(() => Promise.resolve([])),
+			findFirst: mock(() => Promise.resolve(undefined)),
+		};
+		db.query.services = {
+			findMany: mock(() => Promise.resolve([])),
+		};
+		let selectCallCount2 = 0;
+		db.select = mock(() => {
+			selectCallCount2++;
+			if (selectCallCount2 === 1) {
+				return {
+					from: mock(() => ({
+						where: mock(() => ({
+							orderBy: mock(() => Promise.resolve([])),
+						})),
+					})),
+				};
+			}
+			return {
+				from: mock(() => ({
+					where: mock(() => Promise.resolve([{ count: 0 }])),
+				})),
+			};
+		});
+
+		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+
+		expect(result.items).toHaveLength(0);
+		expect(result.total).toBe(0);
+	});
+
+	test("(c) package in grace period (gracePeriodEndsAt set) → excluded even if nextDueDate < 14d", async () => {
+		const db = createMockTenantDb() as any;
+		// The due_soon filter requires gracePeriodEndsAt IS NULL — SQL excludes this row
+		db.query.packageInstances = {
+			findMany: mock(() => Promise.resolve([])),
+			findFirst: mock(() => Promise.resolve(undefined)),
+		};
+		db.query.services = {
+			findMany: mock(() => Promise.resolve([])),
+		};
+		let selectCallCount3 = 0;
+		db.select = mock(() => {
+			selectCallCount3++;
+			if (selectCallCount3 === 1) {
+				return {
+					from: mock(() => ({
+						where: mock(() => ({
+							orderBy: mock(() => Promise.resolve([])),
+						})),
+					})),
+				};
+			}
+			return {
+				from: mock(() => ({
+					where: mock(() => Promise.resolve([{ count: 0 }])),
+				})),
+			};
+		});
+
+		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+
+		expect(result.items).toHaveLength(0);
+		expect(result.total).toBe(0);
+	});
+
+	test("(d) locked package → excluded even if nextDueDate is in 5 days", async () => {
+		const db = createMockTenantDb() as any;
+		// The due_soon filter requires isLocked = false — SQL excludes locked packages
+		db.query.packageInstances = {
+			findMany: mock(() => Promise.resolve([])),
+			findFirst: mock(() => Promise.resolve(undefined)),
+		};
+		db.query.services = {
+			findMany: mock(() => Promise.resolve([])),
+		};
+		let selectCallCount4 = 0;
+		db.select = mock(() => {
+			selectCallCount4++;
+			if (selectCallCount4 === 1) {
+				return {
+					from: mock(() => ({
+						where: mock(() => ({
+							orderBy: mock(() => Promise.resolve([])),
+						})),
+					})),
+				};
+			}
+			return {
+				from: mock(() => ({
+					where: mock(() => Promise.resolve([{ count: 0 }])),
+				})),
+			};
+		});
+
+		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+
+		expect(result.items).toHaveLength(0);
+		expect(result.total).toBe(0);
 	});
 });

@@ -127,7 +127,7 @@ export function PackageInstallmentsPage() {
 
 	// ── List state ──────────────────────────────────────────────────────────────
 	const [statusFilter, setStatusFilter] = useState<
-		"active" | "overdue" | "locked" | undefined
+		"active" | "overdue" | "locked" | "due_soon" | undefined
 	>(undefined);
 
 	// ── Filter state ─────────────────────────────────────────────────────────────
@@ -372,6 +372,7 @@ export function PackageInstallmentsPage() {
 	const STATUS_TABS = [
 		{ value: undefined, label: "All" },
 		{ value: "active" as const, label: "Active" },
+		{ value: "due_soon" as const, label: "Due Soon" },
 		{ value: "overdue" as const, label: "Overdue" },
 		{ value: "locked" as const, label: "Locked" },
 	];
@@ -587,6 +588,9 @@ export function PackageInstallmentsPage() {
 							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Plan Type</TableHead>
 							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Credits</TableHead>
 							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progress</TableHead>
+							{statusFilter === "due_soon" && (
+								<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next Amount</TableHead>
+							)}
 							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next Due Date</TableHead>
 							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
 						</TableRow>
@@ -599,13 +603,16 @@ export function PackageInstallmentsPage() {
 									<TableCell className="px-5 py-4"><Skeleton className="h-4 w-20" /></TableCell>
 									<TableCell className="px-5 py-4"><Skeleton className="h-4 w-28" /></TableCell>
 									<TableCell className="px-5 py-4"><Skeleton className="h-4 w-16" /></TableCell>
+									{statusFilter === "due_soon" && (
+										<TableCell className="px-5 py-4"><Skeleton className="h-4 w-20" /></TableCell>
+									)}
 									<TableCell className="px-5 py-4"><Skeleton className="h-4 w-24" /></TableCell>
 									<TableCell className="px-5 py-4"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
 								</TableRow>
 							))
 						) : instances.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={6} className="h-60">
+								<TableCell colSpan={statusFilter === "due_soon" ? 7 : 6} className="h-60">
 									<div className="flex flex-col items-center justify-center gap-3 text-center">
 										<div className="flex size-14 items-center justify-center rounded-full bg-muted">
 											<CreditCard className="h-6 w-6 text-muted-foreground" />
@@ -624,6 +631,9 @@ export function PackageInstallmentsPage() {
 											.replace(/_/g, " ")
 											.replace(/\b\w/g, (c: string) => c.toUpperCase()))
 									: "—";
+								// nextInstallmentAmount is an optional field added by Agent 1A (backend).
+								// Use optional chaining to tolerate when the backend hasn't deployed yet.
+								const nextAmount = (row as { nextInstallmentAmount?: number | null }).nextInstallmentAmount;
 								return (
 									<TableRow
 										key={row.id}
@@ -649,6 +659,11 @@ export function PackageInstallmentsPage() {
 												{row.installmentsPaid ?? 0} of {row.installmentsTotal ?? 0}
 											</span>
 										</TableCell>
+										{statusFilter === "due_soon" && (
+											<TableCell className="px-5 py-4 text-sm font-medium tabular-nums">
+												{nextAmount != null ? formatPrice(nextAmount, "MYR") : "—"}
+											</TableCell>
+										)}
 										<TableCell className="px-5 py-4 text-sm">
 											{formatDate(row.nextDueDate)}
 										</TableCell>

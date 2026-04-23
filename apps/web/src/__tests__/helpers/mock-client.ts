@@ -155,4 +155,19 @@ export const mockClient = {
 		getByCategory: vi.fn().mockResolvedValue(null),
 		upsert: vi.fn().mockResolvedValue({}),
 	},
+	commissionSplits: {
+		approve: vi.fn().mockResolvedValue({}),
+		void: vi.fn().mockResolvedValue({}),
+	},
+	installments: {
+		adminOverview: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+		listByPackageInstance: vi.fn().mockResolvedValue([]),
+		confirmPayment: vi.fn().mockResolvedValue({}),
+		manualUnlock: vi.fn().mockResolvedValue({}),
+		adjustCredits: vi.fn().mockResolvedValue({}),
+		suggestRefund: vi.fn().mockResolvedValue({ suggestedRefund: 0 }),
+	},
+	installmentPlans: {
+		list: vi.fn().mockResolvedValue([]),
+	},
 };

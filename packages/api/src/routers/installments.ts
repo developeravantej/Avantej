@@ -211,7 +211,7 @@ const adminOverview = protectedProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
-			status: z.enum(["active", "overdue", "locked"]).optional(),
+			status: z.enum(["active", "overdue", "locked", "due_soon"]).optional(),
 			limit: z.number().int().min(1).max(200).optional(),
 			offset: z.number().int().min(0).optional(),
 			search: z.string().optional(),

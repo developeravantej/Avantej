@@ -6,7 +6,7 @@
  * and admin overview queries.
  */
 
-import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte, inArray } from "drizzle-orm";
+import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte, inArray, sql } from "drizzle-orm";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -846,7 +846,7 @@ export async function getInstallmentsByPackageInstance(
 }
 
 export type AdminInstallmentOverviewParams = {
-	status?: "active" | "overdue" | "locked";
+	status?: "active" | "overdue" | "locked" | "due_soon";
 	limit?: number;
 	offset?: number;
 	search?: string;
@@ -858,6 +858,8 @@ export type AdminInstallmentOverviewParams = {
 export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect & {
 	serviceName: string | null;
 	clientName: string | null;
+	nextInstallmentAmount?: number | null;
+	nextInstallmentId?: string | null;
 };
 
 /**
@@ -884,6 +886,14 @@ export async function getAdminInstallmentOverview(
 	} else if (status === "active") {
 		conditions.push(eq(packageInstances.isLocked, false));
 		conditions.push(isNull(packageInstances.gracePeriodEndsAt));
+	} else if (status === "due_soon") {
+		const now = new Date();
+		const in14d = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+		conditions.push(eq(packageInstances.isLocked, false));
+		conditions.push(isNull(packageInstances.gracePeriodEndsAt));
+		conditions.push(isNotNull(packageInstances.nextDueDate));
+		conditions.push(gte(packageInstances.nextDueDate, now));
+		conditions.push(lte(packageInstances.nextDueDate, in14d));
 	}
 
 	if (search) {
@@ -933,18 +943,54 @@ export async function getAdminInstallmentOverview(
 		}
 	}
 
-	const items: AdminInstallmentOverviewItem[] = rows.map((row) => ({
-		...row,
-		serviceName: serviceMap.get(row.serviceId) ?? null,
-		clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
-	}));
+	// Batch-fetch next pending/overdue installment per returned package instance (Task 1.5)
+	// Single IN query — one extra query per page, no N+1.
+	const packageInstanceIds = rows.map((r) => r.id);
+	const nextInstallmentMap = new Map<string, { id: string; amount: number }>();
+	if (packageInstanceIds.length > 0) {
+		const nextInstallmentRows = await tenantDb
+			.select({
+				id: installments.id,
+				packageInstanceId: installments.packageInstanceId,
+				amount: installments.amount,
+				installmentNumber: installments.installmentNumber,
+			})
+			.from(installments)
+			.where(
+				and(
+					inArray(installments.packageInstanceId, packageInstanceIds),
+					or(
+						eq(installments.status, "pending"),
+						eq(installments.status, "overdue"),
+					)!,
+				),
+			)
+			.orderBy(asc(installments.installmentNumber));
+		// Take the first row per package (lowest installment_number due to ASC order)
+		for (const row of nextInstallmentRows) {
+			if (!nextInstallmentMap.has(row.packageInstanceId)) {
+				nextInstallmentMap.set(row.packageInstanceId, { id: row.id, amount: row.amount });
+			}
+		}
+	}
 
-	// Count total
-	const allRows = await tenantDb.query.packageInstances.findMany({
-		where,
-		columns: { id: true },
+	const items: AdminInstallmentOverviewItem[] = rows.map((row) => {
+		const nextInst = nextInstallmentMap.get(row.id);
+		return {
+			...row,
+			serviceName: serviceMap.get(row.serviceId) ?? null,
+			clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
+			nextInstallmentAmount: nextInst?.amount ?? null,
+			nextInstallmentId: nextInst?.id ?? null,
+		};
 	});
-	const total = allRows.length;
+
+	// Count total using a SQL aggregate — avoids unbounded full-fetch (Task #4)
+	const countRows = await tenantDb
+		.select({ count: sql<number>`count(*)::int` })
+		.from(packageInstances)
+		.where(where);
+	const total = countRows[0]?.count ?? 0;
 
 	return { items, total };
 }
