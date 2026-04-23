@@ -60,3 +60,26 @@ DONE: #8
 - PASS (web) — `apps/web` check-types emits zero errors in `installments-page.tsx` or `mock-client.ts`. All errors shown are pre-existing in unrelated files.
 
 ---
+
+## Agent: Agent 2 (frontend) — Phase 2
+**Completed:** 2026-04-23T14:15:00.000Z
+
+### What I Did
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added `daysFromNow(date: Date | string): number` pure helper (Math.ceil of ms difference / day-ms) at module top, after `formatDate`.
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Enhanced existing `nextDueDate` row in the Package Info grid to also display `nextInstallmentAmount` when non-null — appended as ` (RM X.XX)` using `formatPrice(..., "MYR")`.
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added new `gracePeriodEndsAt` row in the Package Info grid — shows date in `text-amber-700` plus a muted `(N days remaining)` sub-span using `daysFromNow`.
+- Both new fields accessed via safe `(selectedInstance as { field?: ... })` casts to tolerate the inferred `InstallmentOverviewItem` type until backend types include them.
+DONE: #9
+
+### Decisions Made
+- `nextInstallmentAmount` and `gracePeriodEndsAt` are not in the `InstallmentOverviewItem` inferred type yet (pending Phase 1 backend deployment). Used the same `(row as { field?: ... | null })` cast pattern already established by Agent 1B for `nextInstallmentAmount` in the table rows — consistent with existing pattern in the file.
+- `gracePeriodEndsAt` is already used in `getInstanceStatus` via `instance.gracePeriodEndsAt` (line 85 in original), confirming it IS on the type. However, a cast was still needed for the `Date | string` parameter type of `daysFromNow`.
+- The `formatDate` and `formatPrice` imports were already present — no new imports needed.
+
+### Issues Encountered
+- None. The existing `nextDueDate` row in the sheet was a stub (no amount shown). The `gracePeriodEndsAt` field is already referenced in `getInstanceStatus`, confirming it is on the type.
+
+### Type-check
+- PASS — zero errors in `installments-page.tsx`. All other errors in the output are pre-existing in unrelated files (package-instances.ts, payouts.ts, service-members.ts, auth/src/index.ts).
+
+---

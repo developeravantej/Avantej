@@ -77,6 +77,10 @@ function formatDate(value: string | number | Date | null | undefined): string {
 	}
 }
 
+function daysFromNow(date: Date | string): number {
+	return Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
 function getInstanceStatus(
 	instance: InstallmentOverviewItem,
 ): "Active" | "Overdue" | "Locked" {
@@ -736,6 +740,20 @@ export function PackageInstallmentsPage() {
 											<span className="text-muted-foreground">Next Due</span>
 											<p className="mt-0.5 font-medium">
 												{formatDate(selectedInstance.nextDueDate)}
+												{(selectedInstance as { nextInstallmentAmount?: number | null }).nextInstallmentAmount != null &&
+													` (${formatPrice((selectedInstance as { nextInstallmentAmount?: number | null }).nextInstallmentAmount as number, "MYR")})`}
+											</p>
+										</div>
+									)}
+									{(selectedInstance as { gracePeriodEndsAt?: string | Date | null }).gracePeriodEndsAt && (
+										<div>
+											<span className="text-muted-foreground">Grace Period Ends</span>
+											<p className="mt-0.5 font-medium text-amber-700">
+												{formatDate((selectedInstance as { gracePeriodEndsAt?: string | Date | null }).gracePeriodEndsAt)}
+												{" "}
+												<span className="text-xs text-muted-foreground">
+													({daysFromNow((selectedInstance as { gracePeriodEndsAt?: string | Date | null }).gracePeriodEndsAt as Date | string)} days remaining)
+												</span>
 											</p>
 										</div>
 									)}
