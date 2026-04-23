@@ -9,6 +9,9 @@ export const installmentEvents = pgTable("installment_events", {
 		.references(() => packageInstances.id, { onDelete: "cascade" }),
 	installmentId: uuid("installment_id")
 		.references(() => installments.id, { onDelete: "set null" }),
+	// Known eventType values: payment_confirmed, payment_overdue, package_locked,
+	// package_unlocked, credits_adjusted, manual_override_unlock, refund_processed,
+	// overdraft_enabled, overdraft_disabled
 	eventType: text("event_type").notNull(),
 	actorId: text("actor_id"),
 	amount: integer("amount"),

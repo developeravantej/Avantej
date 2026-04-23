@@ -2234,6 +2234,11 @@ const MIGRATION_0015_ABNORMAL_ABSORBING_MAN = `
 ALTER TABLE "package_instances" ADD COLUMN "credits_admin_override" boolean DEFAULT false NOT NULL;
 `;
 
+const MIGRATION_0016_WORRIED_WOLFPACK = `
+ALTER TABLE "expenses" ALTER COLUMN "currency" SET DEFAULT 'myr';
+ALTER TABLE "package_instances" ADD COLUMN "allow_credit_overdraft" boolean DEFAULT false NOT NULL;
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -2354,6 +2359,10 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0015_abnormal_absorbing_man",
     sql: MIGRATION_0015_ABNORMAL_ABSORBING_MAN,
+  },
+  {
+    hash: "0016_worried_wolfpack",
+    sql: MIGRATION_0016_WORRIED_WOLFPACK,
   },
 ] as const;
 

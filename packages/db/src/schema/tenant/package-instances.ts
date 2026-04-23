@@ -72,6 +72,10 @@ export const packageInstances = pgTable("package_instances", {
 	// When true, payment confirmations use max(current, formula) rather than overwriting
 	creditsAdminOverride: boolean("credits_admin_override").default(false).notNull(),
 
+	// When true, credit-consuming operations (appointment booking, check-in)
+	// ignore the isLocked flag. Admin override for VIP / trusted customers.
+	allowCreditOverdraft: boolean("allow_credit_overdraft").default(false).notNull(),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

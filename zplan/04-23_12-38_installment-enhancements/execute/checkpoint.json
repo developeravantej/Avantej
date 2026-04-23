@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "sessionPath": "zplan/04-23_12-38_installment-enhancements",
   "planPath": "zplan/04-23_12-38_installment-enhancements/plan/plan.md",
-  "updatedAt": "2026-04-23T14:05:00Z",
+  "updatedAt": "2026-04-23T14:15:00Z",
   "status": "in_progress",
   "gitHeadAtStart": "3a25d1254be1d16e9ac77bdc5436e947c23089a0",
-  "lastCompletedPhase": 2,
-  "currentPhase": null,
+  "lastCompletedPhase": 3,
+  "currentPhase": 4,
   "totalPhases": 5,
-  "pendingPhases": [3, 4, 5],
+  "pendingPhases": [4, 5],
   "phaseAgents": {
     "1": [
       { "role": "Agent 1A (backend)", "logWritten": true },
@@ -16,21 +16,26 @@
     ],
     "2": [
       { "role": "Agent 2 (frontend)", "logWritten": true }
+    ],
+    "3": [
+      { "role": "Agent 3 (backend)", "logWritten": true }
+    ],
+    "4": [
+      { "role": "Agent 4 (backend)", "logWritten": false }
     ]
   },
   "taskCoverage": {
     "1": { "total": 8, "done": 8, "missed": 0 },
-    "2": { "total": 1, "done": 1, "missed": 0 }
+    "2": { "total": 1, "done": 1, "missed": 0 },
+    "3": { "total": 5, "done": 5, "missed": 0 }
   },
   "missedTasks": [],
   "resolvedDecisions": [
-    { "id": "OQ1", "title": "Overdraft semantics", "decision": "Option B — bypass isLocked only", "reason": "Narrow, reversible, no data audit required" },
-    { "id": "OQ2", "title": "Due-soon window", "decision": "14 days hard-coded", "reason": "Plan default" },
-    { "id": "OQ3", "title": "Native app booking path", "decision": "Out of scope — do not touch apps/native", "reason": "User directive" },
-    { "id": "OQ4", "title": "Overdraft badge in Memberships tab", "decision": "Installments page only", "reason": "Deferred" },
-    { "id": "SCAL-COUNT", "title": "In-memory total count fix", "decision": "Folded into Phase 1 Task #4", "reason": "Same file, additive" }
+    { "id": "OQ1", "title": "Overdraft semantics", "decision": "Option B — bypass isLocked only", "reason": "Narrow, reversible" },
+    { "id": "OQ3", "title": "Native app booking path", "decision": "Out of scope", "reason": "User directive" },
+    { "id": "P3-DRIFT", "title": "expenses.currency drift bundled into 0016 migration", "decision": "Ship as-is (Option A)", "reason": "Idempotent; drift fix is harmless side effect" }
   ],
   "openQuestions": [],
-  "nextActions": ["Execute Phase 3 (schema migration) — PAUSE after for user to verify migration against dev tenant DB"],
+  "nextActions": ["Agent 4 (backend) for setPackageOverdraft + enforcement; user applies migration 0016 to dev tenant DB in parallel"],
   "subagentRetryLog": []
 }
