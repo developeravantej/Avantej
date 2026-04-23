@@ -166,6 +166,7 @@ export const mockClient = {
 		manualUnlock: vi.fn().mockResolvedValue({}),
 		adjustCredits: vi.fn().mockResolvedValue({}),
 		suggestRefund: vi.fn().mockResolvedValue({ suggestedRefund: 0 }),
+		setOverdraft: vi.fn().mockResolvedValue({}),
 	},
 	installmentPlans: {
 		list: vi.fn().mockResolvedValue([]),

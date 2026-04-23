@@ -166,3 +166,65 @@ DONE: #22
 - PASS — zero new type errors in any owned file beyond the pre-existing `bun:test` module resolution issue affecting all 55+ test files in the project (tsconfig gap, not introduced by this work)
 
 ---
+
+## Agent: Agent 5 (frontend) — Phase 5
+**Completed:** 2026-04-23T15:04:30.000Z
+
+### What I Did
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added `showOverdraftDialog` and `overdraftReason` state variables
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added `setOverdraftMutation` wired to `client.installments.setOverdraft`, invalidates `installments-overview` query on success
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added overdraft row in Package Info grid (amber "On" pill / muted "Off" text) — cast via `allowCreditOverdraft` optional property
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added "Allow Overdraft" / "Disable Overdraft" toggle button in the action-button row of the sheet
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added Overdraft Dialog (mirrors Manual Unlock dialog — reason textarea required, confirm disabled until non-empty)
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Added amber "Overdraft" pill badge beside status badge in overview table rows when `allowCreditOverdraft === true`
+- `apps/web/src/components/pages/packages/installments-page.tsx`: Updated `closeSheet` to reset `showOverdraftDialog` and `overdraftReason`
+- `apps/web/src/__tests__/helpers/mock-client.ts`: Added `setOverdraft: vi.fn().mockResolvedValue({})` to the `installments` namespace
+- `apps/web/src/__tests__/pages/packages/installments-page.test.tsx`: Added test "opens the Allow Overdraft dialog, fills reason, submits, and calls setOverdraft with correct args"
+DONE: #23
+DONE: #24
+
+### Decisions Made
+- Used `(selectedInstance as { allowCreditOverdraft?: boolean })` cast throughout — `allowCreditOverdraft` is on `packageInstances.$inferSelect` but the `AdminInstallmentOverviewItem` type (inferred from `client.installments.adminOverview`) may not yet include it if the backend type hasn't been rebuilt; the cast avoids type errors while staying runtime-safe
+- Dialog mirrors Manual Unlock dialog structure exactly as instructed (reason textarea, submit disabled until non-empty)
+- Overdraft badge in table rows uses flex wrapper around the StatusBadge to avoid layout breaking
+
+### Issues Encountered
+- None — pre-existing type errors in unrelated files (calendar, customers, auth) were present before this change and are not new
+
+### Type-check
+- pass (no errors in installments-page.tsx or any file I touched)
+
+---
+
+## Run: 2026-04-23 — /execute
+**Trigger:** /execute
+**Plan:** zplan/04-23_12-38_installment-enhancements/plan/plan.md
+
+### Phase outcomes
+- Phase 1: pass — Due Soon backend filter + frontend tab; SQL COUNT fix (OQ-SCAL) folded in
+- Phase 2: pass — Next-due + grace-period dates in detail sheet
+- Phase 3: pass — Schema + tenant migration 0016_worried_wolfpack (bundles incidental expenses.currency drift, approved); migration NOT yet applied to DB (user action)
+- Phase 4: pass — setPackageOverdraft service + setOverdraft oRPC + appointment lock-gate modified
+- Phase 5: pass — Overdraft toggle UI, table badge, reason dialog, mutation
+
+### Final build status
+- type check: PASS (no new errors on any of our new symbols across all phases; pre-existing errors in unrelated files persist)
+- lint: not separately run (Biome gates in pre-commit)
+- tests: Agent 1A added 4 due_soon cases; Agent 4 added 4 setPackageOverdraft + 3 appointment-gate unit tests + 2 integration tests (guarded); Agent 1B + 5 extended frontend tests
+
+### Cross-agent decisions
+- Folded scalability fix (SQL COUNT) into Phase 1 Task #4 (user-approved)
+- Phase 3 migration bundled expenses.currency drift → shipped as-is (user-approved)
+- apps/native untouched per user directive; OQ3 resolved out-of-scope
+
+### Subagent retry summary
+- 0 retries. All 6 agents wrote logs on first attempt. No fallbacks.
+
+### Commits landed
+- 3428bbff Phase 1
+- 15c6289f Phase 2
+- e7b13df6 Phase 3
+- 8900a884 Phase 4
+- (pending) Phase 5
+
+---

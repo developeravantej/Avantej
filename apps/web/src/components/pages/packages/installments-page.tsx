@@ -153,6 +153,8 @@ export function PackageInstallmentsPage() {
 	const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 	const [showRefundDialog, setShowRefundDialog] = useState(false);
 	const [showAdjustCreditsDialog, setShowAdjustCreditsDialog] = useState(false);
+	const [showOverdraftDialog, setShowOverdraftDialog] = useState(false);
+	const [overdraftReason, setOverdraftReason] = useState("");
 
 	// ── Form state ───────────────────────────────────────────────────────────────
 	const [paymentMethod, setPaymentMethod] = useState<
@@ -333,6 +335,24 @@ export function PackageInstallmentsPage() {
 		onError: (err: Error) => toast.error(err.message ?? "Failed to adjust credits."),
 	});
 
+	const setOverdraftMutation = useMutation({
+		mutationFn: (input: {
+			organizationId: string;
+			packageInstanceId: string;
+			enabled: boolean;
+			reason: string;
+		}) => client.installments.setOverdraft(input),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["installments-overview", organizationId],
+			});
+			toast.success("Overdraft updated");
+			setShowOverdraftDialog(false);
+			setOverdraftReason("");
+		},
+		onError: (err: Error) => toast.error(err.message),
+	});
+
 	/**
 	 * Note: installments.processRefund is deprecated in favour of the new refunds
 	 * workflow (request → approve → process). The UI now opens RequestRefundDialog
@@ -358,12 +378,14 @@ export function PackageInstallmentsPage() {
 		setShowUnlockDialog(false);
 		setShowRefundDialog(false);
 		setShowAdjustCreditsDialog(false);
+		setShowOverdraftDialog(false);
 		setConfirmInstallment(null);
 		resetConfirmForm();
 		setUnlockReason("");
 		setAdjustUnlocked("");
 		setAdjustUsed("");
 		setAdjustReason("");
+		setOverdraftReason("");
 	}
 
 	// Handler: open the request-refund dialog when user clicks "Request Refund" in the sheet
@@ -672,7 +694,14 @@ export function PackageInstallmentsPage() {
 											{formatDate(row.nextDueDate)}
 										</TableCell>
 										<TableCell className="px-5 py-4">
-											<StatusBadge instance={row} />
+											<div className="flex flex-wrap items-center gap-1.5">
+												<StatusBadge instance={row} />
+												{(row as { allowCreditOverdraft?: boolean }).allowCreditOverdraft && (
+													<span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+														Overdraft
+													</span>
+												)}
+											</div>
 										</TableCell>
 									</TableRow>
 								);
@@ -757,6 +786,18 @@ export function PackageInstallmentsPage() {
 											</p>
 										</div>
 									)}
+									<div>
+										<span className="text-muted-foreground">Overdraft</span>
+										<p className="mt-0.5 font-medium">
+											{(selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft ? (
+												<span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+													On
+												</span>
+											) : (
+												<span className="text-muted-foreground text-xs">Off</span>
+											)}
+										</p>
+									</div>
 									{selectedInstance.isLocked && (
 										<div className="col-span-2">
 											<span className="text-muted-foreground">Lock Reason</span>
@@ -874,6 +915,14 @@ export function PackageInstallmentsPage() {
 										Manual Unlock
 									</Button>
 								)}
+								<Button
+									variant="outline"
+									onClick={() => setShowOverdraftDialog(true)}
+								>
+									{(selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft
+										? "Disable Overdraft"
+										: "Allow Overdraft"}
+								</Button>
 								<Button
 									variant="outline"
 									onClick={() => {
@@ -1210,6 +1259,79 @@ export function PackageInstallmentsPage() {
 							disabled={adjustCreditsMutation.isPending}
 						>
 							{adjustCreditsMutation.isPending ? "Saving…" : "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* ── Overdraft Dialog ──────────────────────────────────────────────── */}
+			<Dialog
+				open={showOverdraftDialog}
+				onOpenChange={(open) => {
+					if (!open) {
+						setShowOverdraftDialog(false);
+						setOverdraftReason("");
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>
+							{selectedInstance && (selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft
+								? "Disable Overdraft"
+								: "Allow Overdraft"}
+						</DialogTitle>
+						<DialogDescription>
+							{selectedInstance && (selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft
+								? "Disabling overdraft will prevent credit consumption when the package is locked."
+								: "Allowing overdraft lets the customer continue booking even when the package is locked due to a missed installment."}
+							{" "}A reason is required for audit purposes.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex flex-col gap-4 py-2">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="overdraft-reason">
+								Reason <span className="text-destructive">*</span>
+							</Label>
+							<Textarea
+								id="overdraft-reason"
+								placeholder="Provide a reason…"
+								rows={3}
+								value={overdraftReason}
+								onChange={(e) => setOverdraftReason(e.target.value)}
+							/>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowOverdraftDialog(false);
+								setOverdraftReason("");
+							}}
+							disabled={setOverdraftMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								if (!selectedInstance || !overdraftReason.trim()) {
+									toast.error("A reason is required.");
+									return;
+								}
+								const currentOverdraft = !!(selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft;
+								setOverdraftMutation.mutate({
+									organizationId: organizationId ?? "",
+									packageInstanceId: selectedInstance.id,
+									enabled: !currentOverdraft,
+									reason: overdraftReason.trim(),
+								});
+							}}
+							disabled={!overdraftReason.trim() || setOverdraftMutation.isPending}
+						>
+							{setOverdraftMutation.isPending ? "Saving…" : "Confirm"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

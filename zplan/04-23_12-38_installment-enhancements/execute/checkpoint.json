@@ -2,33 +2,34 @@
   "schemaVersion": 1,
   "sessionPath": "zplan/04-23_12-38_installment-enhancements",
   "planPath": "zplan/04-23_12-38_installment-enhancements/plan/plan.md",
-  "updatedAt": "2026-04-23T14:30:00Z",
-  "status": "in_progress",
+  "updatedAt": "2026-04-23T14:45:00Z",
+  "status": "complete",
   "gitHeadAtStart": "3a25d1254be1d16e9ac77bdc5436e947c23089a0",
-  "lastCompletedPhase": 4,
-  "currentPhase": 5,
+  "lastCompletedPhase": 5,
+  "currentPhase": null,
   "totalPhases": 5,
-  "pendingPhases": [5],
+  "pendingPhases": [],
   "phaseAgents": {
     "1": [{"role": "Agent 1A (backend)", "logWritten": true}, {"role": "Agent 1B (frontend)", "logWritten": true}],
     "2": [{"role": "Agent 2 (frontend)", "logWritten": true}],
     "3": [{"role": "Agent 3 (backend)", "logWritten": true}],
     "4": [{"role": "Agent 4 (backend)", "logWritten": true}],
-    "5": [{"role": "Agent 5 (frontend)", "logWritten": false}]
+    "5": [{"role": "Agent 5 (frontend)", "logWritten": true}]
   },
   "taskCoverage": {
     "1": {"total": 8, "done": 8, "missed": 0},
     "2": {"total": 1, "done": 1, "missed": 0},
     "3": {"total": 5, "done": 5, "missed": 0},
-    "4": {"total": 8, "done": 8, "missed": 0}
+    "4": {"total": 8, "done": 8, "missed": 0},
+    "5": {"total": 2, "done": 2, "missed": 0}
   },
   "missedTasks": [],
   "resolvedDecisions": [
-    {"id": "OQ1", "title": "Overdraft semantics", "decision": "Option B — bypass isLocked only"},
-    {"id": "OQ3", "title": "Native app booking path", "decision": "Out of scope"},
-    {"id": "P3-DRIFT", "title": "expenses.currency drift in 0016", "decision": "Ship as-is"}
+    {"id": "OQ1", "decision": "Option B — bypass isLocked only"},
+    {"id": "OQ3", "decision": "Out of scope (apps/native untouched)"},
+    {"id": "P3-DRIFT", "decision": "Ship as-is — expenses.currency drift bundled"}
   ],
   "openQuestions": [],
-  "nextActions": ["Execute Phase 5 (overdraft UI)"],
+  "nextActions": ["User: apply migration 0016 to dev tenant DB", "User: chrome-verify Journeys 1–4 then run /done"],
   "subagentRetryLog": []
 }
