@@ -3,6 +3,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/service/view/data-table";
 import { columns } from "@/components/tables/service/view/columns";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export function ServicesPage() {
 	const { data: userContext } = useUserContext();
@@ -30,13 +31,7 @@ export function ServicesPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex min-h-96 items-center justify-center">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (

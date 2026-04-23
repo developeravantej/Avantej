@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, X, Save } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -153,7 +154,7 @@ export function TrainerAvailabilityEditor({
 	if (isLoading) {
 		return (
 			<div className="flex items-center gap-2 py-4 text-sm text-brand-secondary-1">
-				<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+				<LoadingSpinner size="sm" />
 				Loading availability...
 			</div>
 		);

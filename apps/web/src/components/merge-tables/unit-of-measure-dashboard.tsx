@@ -10,6 +10,7 @@ import { columns as uomColumns } from "@/components/tables/uom/view/columns";
 import UomConversionDataTable from "@/components/tables/uom-conversions/view/data-table";
 import { columns as uomConversionColumns } from "@/components/tables/uom-conversions/view/columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export function UomOptionsDashboard() {
 	const { data: userContext } = useUserContext();
