@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Badge } from "@/components/ui/badge";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
