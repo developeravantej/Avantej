@@ -1,5 +1,6 @@
 import { columns } from "@/components/tables/branch/view/columns";
 import DataTable from "@/components/tables/branch/view/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -739,27 +740,22 @@ function RouteComponent() {
         </Link>
       </div>
 
-      
+
       {/* Empty State */}
       {!isLoadingBranches && branchData?.items?.length === 0 && (
-        <div className="py-12 text-center border border-brand-secondary-3 rounded-lg bg-brand-secondary-3/50">
-          <p className="text-lg font-medium text-brand-primary-1 mb-2">
-            No branches found
-          </p>
-          <p className="text-sm text-brand-secondary-1 mb-4">
-            {organizationId
+        <EmptyState
+          title="No branches found"
+          description={
+            organizationId
               ? "Create your first branch to get started."
-              : "Please ensure you're logged in and have an organization selected."}
-          </p>
-          {organizationId && (
-            <Link to="/dashboard/branch/create">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Branch
-              </Button>
-            </Link>
-          )}
-        </div>
+              : "Please ensure you're logged in and have an organization selected."
+          }
+          action={
+            organizationId
+              ? { label: "Create Branch", onClick: () => navigate({ to: "/dashboard/branch/create" }) }
+              : undefined
+          }
+        />
       )}
 
       {/* Data Table */}

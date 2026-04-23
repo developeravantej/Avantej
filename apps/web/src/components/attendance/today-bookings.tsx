@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock, UserX, XCircle } from "lucide-react";
+import { UserX } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,37 +60,6 @@ function groupByTimeBucket(
 	return buckets;
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
-function StatusBadge({
-	status,
-}: {
-	status: TodaysBookingRow["attendanceStatus"];
-}) {
-	if (status === "checked_in") {
-		return (
-			<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs">
-				<CheckCircle2 className="h-3 w-3" />
-				Checked In
-			</span>
-		);
-	}
-	if (status === "no_show") {
-		return (
-			<span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 text-xs">
-				<XCircle className="h-3 w-3" />
-				No-Show
-			</span>
-		);
-	}
-	return (
-		<span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600 text-xs">
-			<Clock className="h-3 w-3" />
-			Pending
-		</span>
-	);
-}
-
 // ─── Pure display component ───────────────────────────────────────────────────
 
 export function TodayBookings({
@@ -110,12 +81,11 @@ export function TodayBookings({
 
 	if (bookings.length === 0) {
 		return (
-			<div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
-				<UserX className="h-8 w-8 text-muted-foreground/50" />
-				<p className="text-muted-foreground text-sm">
-					No bookings for today at this branch.
-				</p>
-			</div>
+			<EmptyState
+				icon={UserX}
+				title="No bookings today"
+				description="No bookings for today at this branch."
+			/>
 		);
 	}
 
@@ -180,7 +150,11 @@ export function TodayBookings({
 										</div>
 
 										{/* Status */}
-										<StatusBadge status={booking.attendanceStatus} />
+										{booking.attendanceStatus === "no_show" ? (
+											<StatusBadge status="no-show" label="No-Show" />
+										) : (
+											<StatusBadge status={booking.attendanceStatus} />
+										)}
 
 										{/* Action buttons — only visible when pending */}
 										{booking.attendanceStatus === "pending" && (

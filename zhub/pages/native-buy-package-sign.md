@@ -1,91 +1,119 @@
-# Buy Package — Sign
+# Sign Screen
 
 **Route:** `(app)/dashboard/buy-package/sign`
-**File:** `apps/native/app/(app)/dashboard/buy-package/sign.tsx:1`
+**File:** `apps/native/app/(app)/dashboard/buy-package/sign.tsx`
 **Platform:** native
 **Auth required:** authenticated
 **Flow:** buy-package (step 5/7) — prev: review, next: pay
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The user must (1) open and view all three terms documents, (2) check the agreement checkbox, and (3) provide a handwritten e-signature before proceeding to payment.
-**Produces:** Three tappable document links (Company–Client Agreement, 100% Satisfaction Guarantee, Par-Q & You), an agreement checkbox, and a signature pad area that opens in a full-screen landscape modal.
-**On success:** Both signature and agreedToTerms truthy → Continue ("Proceed to Payment") button appears → context written → navigates to `./pay`.
-**On failure / error states:** Tapping the checkbox before viewing all three docs triggers an Alert dialog. Continue button is conditionally hidden until both conditions met.
+**Purpose (user perspective):** Review and electronically sign terms documents; confirm agreement before payment.
+
+**Produces:**
+- Document links (3 required: agreement, satisfaction guarantee, par-q).
+- Signature canvas (tap to open landscape modal for signing).
+- Agreement checkbox (enabled only after viewing all docs).
+- Continue button (enabled only when signed and terms agreed).
+
+**On success:** Signature, agreement flag, and timestamp saved to state; navigates to pay screen.
+
+**On failure / error states:**
+- Not all documents viewed: alert on checkbox tap, prevent agreement toggle.
+- No signature: Continue button hidden.
+- No agreement: Continue button hidden.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-SignScreen
-  → user taps each TERMS_DOCUMENTS link → router.push("./terms", { document: id }) → setViewedDocs
-  → user taps agreement checkbox → handleAgreementPress → checks allTermsViewed → toggles agreedToTerms
-  → user taps signature area → handleOpenSignatureModal:
-      → ScreenOrientation.lockAsync(LANDSCAPE)
-      → setShowSignatureModal(true)
-  → SignatureCanvas (react-native-signature-canvas) captures drawing
-  → "Confirm Signature" → modalSignatureRef.readSignature() → onOK → setSignature(data)
-      → ScreenOrientation.unlockAsync()
-  → handleContinue → update({ signature, termsAgreed: true, termsAgreedAt: ISO string })
-      → router.push("./pay")
-```
+1. Mount: Track viewed docs state; load signature and agreement from context.
+2. User taps document link → open terms screen (params: document ID) → mark doc as viewed.
+3. User taps signature area → open landscape modal with SignatureCanvas.
+4. In modal: user signs on canvas → tap Confirm → close modal, store signature data URI.
+5. User taps agreement checkbox → if all docs viewed, toggle agreement state.
+6. Continue button (visible only if signature && agreedToTerms) → save to context, push to pay.
 
-**Inputs:** `state.signature`, `state.termsAgreed` (pre-fill on re-entry)
-**State management:** Local `signature: string`, `agreedToTerms: boolean`, `showSignatureModal: boolean`, `viewedDocs: Record<string, boolean>`; writes to context on continue
-**Outputs:** Terms list, checkbox, signature preview/pad, full-screen modal, Continue button (conditional)
-**Side effects:** Screen orientation lock/unlock via `expo-screen-orientation`
+**Inputs:**
+- Navigation params: none.
+- Context state: signature, termsAgreed (initial values from context).
+- Local state: signature (string, data URI), agreedToTerms (boolean), viewedDocs (map), showSignatureModal.
+
+**State management:**
+- PurchaseFlow context: stores signature, termsAgreed, termsAgreedAt (ISO timestamp set on continue).
+- Local state: signature URI, agreement flag, viewed docs tracking.
+
+**Outputs:**
+- On continue: `update({ signature, termsAgreed: true, termsAgreedAt: new Date().toISOString() })`.
+- Navigates to `./pay`.
+
+**Side effects:**
+- Screen orientation locked to LANDSCAPE when modal open (ScreenOrientation API).
+- Signature data URI stored (image); can be large.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None
+**Calls these API endpoints:** None.
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root layout wrapper
-- `SignatureCanvas` — `react-native-signature-canvas` — WebView-based signature capture
-- `Modal` from react-native — full-screen overlay for landscape signing
+- `Container` — wrapper.
+- `SignatureCanvas` from react-native-signature-canvas — drawing canvas for signature.
+- `Modal` — fullscreen landscape signature capture.
 
-**Context:** Reads `signature`, `termsAgreed`. Writes: `signature`, `termsAgreed`, `termsAgreedAt`
+**Uses these hooks:**
+- `usePurchaseFlow` — read/write signature, agreement, timestamp.
+- `useRef` — ref to SignatureCanvas for clear/confirm actions.
+- `useState` — signature, agreement, modal visibility, viewed docs.
+- `useEffect` — cleanup for screen orientation on unmount.
 
-**Navigation:**
-- `./terms` (with `{ document: "agreement" | "satisfaction" | "parq" }`) — on document link tap
-- `./pay` — on "Proceed to Payment" tap
+**Uses external libraries:**
+- expo-screen-orientation — lock/unlock landscape orientation.
+- react-native-signature-canvas — signature capture UI.
+
+**Navigation: who navigates here:** `./review` on continue.
+
+**Navigation: where it goes:** `./pay` on continue.
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| (none) | — | — |
+**DB tables touched:** None (UI only; saved at payment step).
 
-**Context fields used:**
-| Field | Type | Purpose |
-|-------|------|---------|
-| signature | string \| null | Pre-fills signature area on re-entry; written on continue (base64 data URI) |
-| termsAgreed | boolean | Pre-fills checkbox; written on continue |
-| termsAgreedAt | string \| null | ISO timestamp set at time of continue tap |
+**Key types / Zod schemas:**
+- `signature`: string (data URI format, e.g., `data:image/png;base64,...`).
+- `termsAgreed`: boolean.
+- `termsAgreedAt`: ISO 8601 timestamp string.
+- `viewedDocs`: Record<string, boolean> (document ID → viewed flag).
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
+
+**Not tested (risk areas):**
+- SignatureCanvas data URI format and size (large blobs, memory impact).
+- Landscape orientation lock on iPad (multi-window scenarios).
+- Modal dismissal via system back button (Android).
+- Signature re-sign flow (clearing and re-signing).
+- Very quick tap/drag on canvas (minimal signature detection).
+- Accessibility of modal and signature canvas.
 
 ---
 
 ## 6. Notes
 
-- `viewedDocs` is local state only — it is reset if the user navigates away and returns. The user must re-open each document every session for the checkbox to become tappable.
-- The `terms` route is a separate screen (`./terms`) that accepts a `document` param to show the relevant legal text.
-- Signature is stored as a base64 PNG data URI (from `react-native-signature-canvas`'s `onOK` callback).
-- The cleanup `useEffect` calls `ScreenOrientation.unlockAsync()` on unmount to guarantee portrait is restored if the modal is dismissed abnormally.
-- The "Re-sign" button clears the signature and immediately re-opens the landscape modal.
-- `expo-screen-orientation` lock only works on physical devices; simulators may ignore orientation lock.
+- Signature stored as data URI (base64 PNG); consider file size limit and storage implications.
+- Agreement checkbox enforces viewing all three documents before toggle; may be over-protective if users want to skip docs.
+- Screen orientation controlled via expo-screen-orientation; ensure cleanup in useEffect (lines 83–87).
+- SignatureCanvas uses custom webStyle (lines 488–509) to hide default buttons/footer.
+- Modal rendered inline (lines 417–542); large component tree increases complexity.
+- Re-sign flow (lines 395–407) clears signature and reopens modal; consider UX flow.
+- Document tracking (viewedDocs) local-only; not persisted; resets on unmount.

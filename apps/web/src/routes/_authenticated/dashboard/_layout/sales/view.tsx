@@ -13,6 +13,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/currency";
 import { getPeriodDates, type Period } from "@/lib/period";
 import { client } from "@/utils/orpc";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 // ─── Route search schema ───────────────────────────────────────────────────────
 
@@ -33,16 +34,6 @@ export const Route = createFileRoute(
 });
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
-
-function LoadingSpinner() {
-	return (
-		<div className="flex min-h-96 items-center justify-center">
-			<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-				<span className="sr-only">Loading...</span>
-			</div>
-		</div>
-	);
-}
 
 function ErrorCard({ error, refetch }: { error: unknown; refetch: () => void }) {
 	return (
@@ -98,6 +89,7 @@ function SalesTab({
 	onBranchChange,
 	onClear,
 }: SalesTabProps) {
+	const navigate = useNavigate();
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
 
 	const totalRevenue = data
@@ -110,7 +102,7 @@ function SalesTab({
 		<div className="flex h-full flex-col">
 			{/* Stats cards */}
 			<div className="grid shrink-0 grid-cols-2 gap-3 border-b border-border/40 px-6 py-4 lg:grid-cols-4">
-				<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
 					<div>
 						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Orders</p>
 						<p className="mt-1 text-2xl font-bold">{isLoading ? "—" : total}</p>
@@ -119,7 +111,7 @@ function SalesTab({
 						<ShoppingCart className="h-4 w-4 text-muted-foreground" />
 					</div>
 				</div>
-				<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
 					<div>
 						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Revenue</p>
 						<p className="mt-1 text-xl font-bold">{formatPrice(totalRevenue, "MYR")}</p>
@@ -128,7 +120,7 @@ function SalesTab({
 						<TrendingUp className="h-4 w-4 text-muted-foreground" />
 					</div>
 				</div>
-				<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
 					<div>
 						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Completed</p>
 						<p className="mt-1 text-2xl font-bold">{completedCount}</p>
@@ -137,7 +129,7 @@ function SalesTab({
 						<CheckCircle2 className="h-4 w-4 text-muted-foreground" />
 					</div>
 				</div>
-				<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
 					<div>
 						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cancelled</p>
 						<p className="mt-1 text-2xl font-bold">{cancelledCount}</p>
@@ -164,7 +156,7 @@ function SalesTab({
 			{/* Table */}
 			<div className="min-h-0 flex-1 overflow-hidden">
 				{isLoading ? (
-					<LoadingSpinner />
+					<PageLoader />
 				) : (
 					<SalesDataTable<SalesRow, unknown>
 						columns={salesColumns}
@@ -173,6 +165,8 @@ function SalesTab({
 						page={page}
 						onPageChange={onPageChange}
 						isLoading={isLoading}
+						emptyTitle="No sales found"
+						emptyAction={{ label: "New Sale", onClick: () => navigate({ to: "/dashboard/sales/create" }) }}
 					/>
 				)}
 			</div>
@@ -189,12 +183,12 @@ interface PaymentsTabProps {
 }
 
 function PaymentsTab({ data, isLoading, isError, error, refetch }: PaymentsTabProps) {
-	if (isLoading) return <LoadingSpinner />;
+	if (isLoading) return <PageLoader />;
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
 
 	return (
 		<div className="h-full overflow-hidden">
-			<PaymentDataTable<PaymentRow, unknown> columns={paymentColumns} data={data} />
+			<PaymentDataTable<PaymentRow, unknown> columns={paymentColumns} data={data} emptyTitle="No payments found" />
 		</div>
 	);
 }
@@ -316,10 +310,10 @@ function RouteComponent() {
 			{organizationId ? (
 				<Tabs defaultValue="orders" className="flex min-h-0 flex-1 flex-col overflow-hidden">
 					<div className="shrink-0 border-b border-border/40 px-6">
-						<TabsList className="h-10 bg-transparent p-0">
+						<TabsList className="h-10 rounded-none bg-transparent p-0">
 							<TabsTrigger
 								value="orders"
-								className="rounded-none border-b-2 border-transparent px-4 pb-2 pt-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-0 border-b-2 border-b-transparent px-4 pb-2 pt-0 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Sales Orders
 								{salesCount !== null && (
@@ -330,7 +324,7 @@ function RouteComponent() {
 							</TabsTrigger>
 							<TabsTrigger
 								value="payments"
-								className="rounded-none border-b-2 border-transparent px-4 pb-2 pt-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-0 border-b-2 border-b-transparent px-4 pb-2 pt-0 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Payments
 								{paymentsCount !== null && (
@@ -373,7 +367,7 @@ function RouteComponent() {
 					</TabsContent>
 				</Tabs>
 			) : (
-				<LoadingSpinner />
+				<PageLoader />
 			)}
 		</div>
 	);

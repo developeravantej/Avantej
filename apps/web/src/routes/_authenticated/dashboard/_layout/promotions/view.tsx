@@ -5,6 +5,7 @@ import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { formatPrice } from "@/lib/currency";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { Plus, Tag, Edit, Percent } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -212,9 +216,9 @@ function buildColumns(
 			header: "Status",
 			cell: ({ row }) =>
 				row.original.isActive ? (
-					<Badge variant="default">Active</Badge>
+					<StatusBadge status="active" />
 				) : (
-					<Badge variant="outline">Inactive</Badge>
+					<StatusBadge status="inactive" />
 				),
 		},
 		{
@@ -472,25 +476,13 @@ function PromotionsViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
 		return (
-			<div className="flex flex-col items-center justify-center py-12">
-				<p className="text-lg font-medium text-destructive">Failed to load data</p>
-				<p className="text-sm text-muted-foreground mb-4">
-					{error instanceof Error ? error.message : "An unexpected error occurred"}
-				</p>
-				<Button variant="outline" onClick={() => refetch()}>
-					Try Again
-				</Button>
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load promotions" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -498,26 +490,25 @@ function PromotionsViewPage() {
 	return (
 		<div className="space-y-6">
 			{/* Page header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-						<Tag className="h-5 w-5 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-2xl font-bold font-heading tracking-tight">Promotions</h1>
-						<p className="text-sm text-muted-foreground">
-							Manage discount codes and promotions for checkout.
-						</p>
-					</div>
-				</div>
-				<Button onClick={() => setCreateOpen(true)} className="gap-2">
-					<Plus className="h-4 w-4" />
-					New Promotion
-				</Button>
-			</div>
+			<PageHeader
+				icon={Tag}
+				title="Promotions"
+				description="Manage discount codes and promotions for checkout."
+				actions={
+					<Button onClick={() => setCreateOpen(true)} className="gap-2">
+						<Plus className="h-4 w-4" />
+						New Promotion
+					</Button>
+				}
+			/>
 
 			{/* Table */}
-			<DataTable<PromotionRow, unknown> columns={columns} data={data} />
+			<DataTable<PromotionRow, unknown>
+				columns={columns}
+				data={data}
+				emptyTitle="No promotions found"
+				emptyAction={{ label: "New Promotion", onClick: () => setCreateOpen(true) }}
+			/>
 
 			{/* ── Create Sheet ─────────────────────────────────────────────────── */}
 			<Sheet open={createOpen} onOpenChange={setCreateOpen}>

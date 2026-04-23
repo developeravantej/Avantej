@@ -8,6 +8,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -93,6 +97,7 @@ function priorityBadge(priority: Priority) {
 		case "normal":
 			return <Badge variant="secondary">Normal</Badge>;
 		case "high":
+			// Priority level indicator — documented exception per §2.5 (semantic priority scale, not lifecycle status)
 			return (
 				<Badge variant="secondary" className="text-orange-600 border-orange-200 bg-orange-50">
 					High
@@ -129,7 +134,7 @@ function AnnouncementsViewPage() {
 	const isActiveFilter =
 		statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined;
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
 		queryKey: ["announcements", organizationId, isActiveFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -348,9 +353,9 @@ function AnnouncementsViewPage() {
 			header: "Status",
 			cell: ({ row }) =>
 				row.original.isActive ? (
-					<Badge variant="default">Active</Badge>
+					<StatusBadge status="active" />
 				) : (
-					<Badge variant="outline">Inactive</Badge>
+					<StatusBadge status="inactive" />
 				),
 		},
 		{
@@ -403,11 +408,15 @@ function AnnouncementsViewPage() {
 	}
 
 	if (isLoading) {
+		return <PageLoader />;
+	}
+
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
+			<div className="p-6">
+				<StatusCallout variant="error" onRetry={() => refetch()}>
+					Failed to load announcements. Please try again.
+				</StatusCallout>
 			</div>
 		);
 	}
@@ -468,11 +477,19 @@ function AnnouncementsViewPage() {
 
 			<Separator />
 
-			{/* Table */}
-			<DataTable<AnnouncementRow, unknown>
-				columns={columns}
-				data={filteredData}
-			/>
+			{/* Table or empty state */}
+			{filteredData.length === 0 ? (
+				<EmptyState
+					icon={Megaphone}
+					title="No announcements"
+					description="No announcements match the current filters."
+				/>
+			) : (
+				<DataTable<AnnouncementRow, unknown>
+					columns={columns}
+					data={filteredData}
+				/>
+			)}
 
 			{/* Delete Confirmation Dialog */}
 			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { ProcessRefundDialog } from "@/components/refunds/process-refund-dialog";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -28,6 +27,10 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { CanonicalStatus } from "@/components/ui/status-badge";
 import { formatPrice } from "@/lib/currency";
 import { client } from "@/utils/orpc";
 
@@ -109,33 +112,19 @@ function formatDateTime(value: string | Date | null | undefined): string {
 	}
 }
 
-function StatusBadge({ status }: { status: string }) {
-	const configs: Record<string, { className: string; label: string }> = {
-		pending: {
-			className:
-				"bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
-			label: "Pending",
-		},
-		approved: {
-			className: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
-			label: "Approved",
-		},
-		rejected: {
-			className: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
-			label: "Rejected",
-		},
-		processed: {
-			className:
-				"bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
-			label: "Processed",
-		},
-		cancelled: {
-			className: "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100",
-			label: "Cancelled",
-		},
-	};
-	const cfg = configs[status] ?? { className: "", label: status };
-	return <Badge className={cfg.className}>{cfg.label}</Badge>;
+// Maps refund statuses to canonical StatusBadge equivalents.
+// "processed" is not canonical; mapped to "completed" with a label override.
+const REFUND_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+	pending: { status: "pending" },
+	approved: { status: "approved" },
+	rejected: { status: "rejected" },
+	processed: { status: "completed", label: "Processed" },
+	cancelled: { status: "cancelled" },
+};
+
+function RefundStatusBadge({ status }: { status: string }) {
+	const mapped = REFUND_STATUS_MAP[status] ?? { status: "draft" as CanonicalStatus, label: status };
+	return <StatusBadge status={mapped.status} label={mapped.label} />;
 }
 
 function TargetCell({ refund }: { refund: RefundRow }) {
@@ -226,7 +215,7 @@ function RefundDetailDrawer({
 							</div>
 							<div>
 								<p className="text-muted-foreground">Status</p>
-								<StatusBadge status={refund.status} />
+								<RefundStatusBadge status={refund.status} />
 							</div>
 							<div>
 								<p className="text-muted-foreground">Customer</p>
@@ -468,7 +457,7 @@ function RefundsLedgerPage() {
 	const [approveRefundId, setApproveRefundId] = useState<string | null>(null);
 
 	// ── Data ───────────────────────────────────────────────────────────────────
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["refunds", organizationId, activeTab],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
@@ -596,7 +585,7 @@ function RefundsLedgerPage() {
 		{
 			id: "status",
 			header: "Status",
-			cell: ({ row }) => <StatusBadge status={row.original.status} />,
+			cell: ({ row }) => <RefundStatusBadge status={row.original.status} />,
 		},
 		{
 			id: "actions",
@@ -685,30 +674,14 @@ function RefundsLedgerPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex min-h-96 items-center justify-center">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-					<span className="sr-only">Loading…</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<div className="space-y-6 p-6">
 			{/* Header */}
-			<div className="flex items-center gap-3">
-				<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-					<Undo2 className="h-5 w-5 text-primary" />
-				</div>
-				<div>
-					<h1 className="font-bold font-heading text-2xl">Refunds</h1>
-					<p className="text-muted-foreground text-sm">
-						Review and process refund requests.
-					</p>
-				</div>
-			</div>
+			<PageHeader icon={Undo2} title="Refunds" description="Review and process refund requests." />
 
 			{/* Status tabs */}
 			<div className="flex items-center gap-1 border-b">
@@ -732,7 +705,13 @@ function RefundsLedgerPage() {
 			</div>
 
 			{/* Table */}
-			<DataTable<RefundRow, unknown> columns={columns} data={rows} />
+			<DataTable<RefundRow, unknown>
+					columns={columns}
+					data={rows}
+					emptyTitle="No refunds found"
+					error={isError ? error : undefined}
+					onRetry={() => refetch()}
+				/>
 
 			{/* Detail drawer */}
 			<RefundDetailDrawer

@@ -1,84 +1,89 @@
-# Buy Package — Review
+# Review Screen
 
 **Route:** `(app)/dashboard/buy-package/review`
-**File:** `apps/native/app/(app)/dashboard/buy-package/review.tsx:1`
+**File:** `apps/native/app/(app)/dashboard/buy-package/review.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Flow:** buy-package (step 4/7) — prev: plan (or info if plan skipped), next: sign
-**Last updated:** 2026-04-16
+**Flow:** buy-package (step 4/7) — prev: plan, next: sign
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The user sees a summary of all choices made so far — category, service, package details (credits, price, validity), preferred times (private only), and remark — before committing to sign and pay.
-**Produces:** Read-only cards for each populated context field. Fields render conditionally — empty/null fields are omitted.
-**On success:** Continue tapped → navigates to `./sign`. No context mutations.
-**On failure / error states:** No API calls; no error states. All data comes from context.
+**Purpose (user perspective):** Display a read-only summary of all selections before signing and payment.
+
+**Produces:** Review cards for category, service, package, preferred times (if private training), and remark (if provided).
+
+**On success:** No state changes; navigates to sign screen on continue.
+
+**On failure / error states:** No validation; all data displayed as-is from context.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-ReviewScreen
-  → reads state from PurchaseFlowContext (read-only)
-  → renders summary cards for each field present
-  → handleContinue → router.push("./sign")
-```
+1. Mount: Read all PurchaseFlow state.
+2. Render cards for each completed step (category, service, package, times, remark).
+3. Continue button pushes to sign (no state mutation).
 
-**Inputs:** All relevant context fields read for display
-**State management:** No local state; no context writes
-**Outputs:** Scrollable summary; Continue button always visible
-**Side effects:** None
+**Inputs:**
+- Navigation params: none.
+- Context state: all fields from PurchaseFlowState (readonly).
+
+**State management:**
+- PurchaseFlow context: read-only (via `const { state } = usePurchaseFlow()`).
+- No local state.
+
+**Outputs:**
+- No state mutation on continue.
+- Navigates to `./sign`.
+
+**Side effects:** None.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None
+**Calls these API endpoints:** None.
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root layout wrapper
+- `Container` — wrapper.
 
-**Context:** Reads `categoryName`, `serviceName`, `packageName`, `creditsTotal`, `price`, `validityDays`, `serviceType`, `preferredTimes`, `remark`. Writes: nothing
+**Uses these hooks:**
+- `usePurchaseFlow` — read state.
 
-**Navigation:** `./sign` — on Continue tap
+**Navigation: who navigates here:** `./plan` on continue.
+
+**Navigation: where it goes:** `./sign` on continue.
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| (none) | — | — |
+**DB tables touched:** None (display only).
 
-**Context fields used:**
-| Field | Type | Purpose |
-|-------|------|---------|
-| categoryName | string \| null | Category card (omitted if null) |
-| serviceName | string \| null | Service card (omitted if null) |
-| packageName | string \| null | Package card header |
-| creditsTotal | number \| null | Shown under package name |
-| price | number \| null | Shown as formatted dollar amount |
-| validityDays | number \| null | Shown as "Valid for N days" |
-| serviceType | "private" \| "semi_private" \| null | Controls whether preferred times card renders |
-| preferredTimes | Array<{ day: string; time: string }> | Shown only when serviceType === "private" and non-empty |
-| remark | string \| null | Remark card (omitted if null) |
+**Key types / Zod schemas:**
+- All fields from `PurchaseFlowState` (read from context).
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
+
+**Not tested (risk areas):**
+- Missing optional fields rendering (e.g., remark, preferred times).
+- Very long text truncation.
+- Accessibility of icon + text combos.
 
 ---
 
 ## 6. Notes
 
-- This screen is purely presentational — it holds no state and makes no mutations.
-- The step indicator on this screen labels step 4 as "Review", but plan.tsx also labels step 4 as "Plan" in its own progress dots — the label naming is inconsistent between the two screens.
-- The "payment plan" selection (from the plan step) is not shown in the review summary — only package, times, and remark are reviewed.
-- `state.price.toFixed(2)` is called with a null guard (`state.price != null`) — safe.
+- This is a pure display screen; no logic or interaction beyond back/continue buttons.
+- Preferred times only shown if `serviceType === "private"` and times exist.
+- Remark card only shown if remark text is non-empty.
+- Icons used: grid, fitness, cube, time, document — ensure consistency with design system.
+- No edit functionality — user must go back to previous screens to modify selections.

@@ -27,6 +27,7 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createColumns, type RoomRow } from "./columns";
 
 interface DataTableProps {
@@ -36,6 +37,9 @@ interface DataTableProps {
 	onReactivate: (id: string) => Promise<void>;
 	isDeactivating?: boolean;
 	isReactivating?: boolean;
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
 }
 
 export function DataTable({
@@ -45,6 +49,9 @@ export function DataTable({
 	onReactivate,
 	isDeactivating = false,
 	isReactivating = false,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
 }: DataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
@@ -157,11 +164,13 @@ export function DataTable({
 							))
 						) : (
 							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="py-16 text-center text-sm text-muted-foreground"
-								>
-									No results found.
+								<TableCell colSpan={columns.length} className="p-0">
+									<EmptyState
+										title={emptyTitle ?? "No results found"}
+										description={emptyDescription}
+										action={emptyAction}
+										context={globalFilter ? "search" : "empty"}
+									/>
 								</TableCell>
 							</TableRow>
 						)}

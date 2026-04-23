@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
+import { cn } from "@/lib/utils";
 import { client } from "@/utils/orpc";
 import type { SelectedCustomer } from "./types";
 
@@ -176,7 +177,12 @@ export function CustomerStep({
 									className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
 									onClick={() => handleSelect(r)}
 								>
-									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary text-xs">
+									<div className={cn(
+										"flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
+										r.type === "walk_in"
+											? "bg-brand-secondary-2 text-brand-primary-1"
+											: "bg-primary text-primary-foreground"
+									)}>
 										{getInitials(r.name)}
 									</div>
 									<div className="min-w-0 flex-1">

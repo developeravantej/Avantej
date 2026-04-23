@@ -1,116 +1,154 @@
 # Tax Configuration
 
 **Route:** `/dashboard/settings/tax-rates`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets admins define, edit, deactivate, and set default tax rates applied to sales orders and invoices.
-**Produces:** A filterable table of tax rates with a sliding sheet form for create/edit, inline star button to set default, and deactivate action.
-**On success:** Toast notification and query cache invalidated.
-**On failure / error states:** Spinner while loading; "Select an organization" prompt; toast errors on mutation failure; client-side form validation before submission.
+**Purpose (user perspective):** Manage tax rates applied to sales orders (SST, GST, service tax, withholding tax, tax exempt, or custom).
+**Produces:** Table of active/inactive tax rates with CRUD operations, form to create/edit, rate display as percent with basis points indicator.
+**On success:** Rate created/updated/deactivated; table refreshes; toast confirmation.
+**On failure / error states:** Loading spinner, error card with retry button, form validation toasts.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-TaxRatesPage
-  → useUserContext() → organizationId
-  → useQuery(["taxRates", organizationId])
-      → client.taxRates.list({ organizationId })
-  → filter: showInactive toggle (Active | All)
-  → columns defined inline (Name, Code, Rate%, Category, Default, EffectiveFrom, EffectiveUntil, Status, Actions)
-  → DataTable (sales/view/data-table) — generic table
-  → Sheet (create/edit form)
-      → createMutation → client.taxRates.create(...)
-      → updateMutation → client.taxRates.update(...)
-  → setDefaultMutation → client.taxRates.setDefault({ organizationId, id })
-  → deactivateMutation → client.taxRates.deactivate({ organizationId, id })
-```
+1. Page loads; `useUserContext()` reads `organizationId`
+2. `useQuery` fetches `client.taxRates.list()`
+3. Render table with Active/All filter toggle and date-effective columns
+4. User clicks "Add Tax Rate" → opens Sheet with empty form
+5. User fills form (name, code, rate %, category, effective dates) and submits
+6. Form validation checks required fields and rate range (0–100%)
+7. On submit: `createMutation` fires with rate converted to basis points
+8. On success: invalidate query, close sheet, show toast
+9. Edit: click row → pre-fill form → `updateMutation` on submit (code is read-only)
+10. Set Default: star button → `setDefaultMutation`
+11. Deactivate: button → confirm dialog → `deactivateMutation` (blocked if default)
 
-**Inputs:** No URL params. Form fields: name, code (uppercase), ratePercent (decimal → stored as basis points), category (select), effectiveFrom (date), effectiveUntil (date, optional), description (textarea), isDefault (checkbox, create only).
-**State management:** `useState` for sheet open/close, editingId, form values, showInactive filter. TanStack Query for server state.
-**Outputs:** Renders table + filter toolbar; opens Sheet on "Add Tax Rate" or "Edit"; star button triggers setDefault; "Deactivate" triggers soft-delete.
-**Side effects:** All mutations invalidate `["taxRates", organizationId]`.
+**Inputs:**
+- Form: `name`, `code`, `ratePercent` (user enters "8.00"), `category`, `effectiveFrom` (date), `effectiveUntil` (optional date), `description`, `isDefault`
+- Rate stored as basis points (percent × 100)
+
+**State management:**
+- TanStack Query: `["taxRates", organizationId]`
+- Local state: `sheetOpen`, `editingId`, `form`, `showInactive`
+- Form validation: custom checks in `handleSubmit()`
+
+**Outputs:**
+- DataTable with columns: Name, Code, Rate, Category, Default (star), Effective From, Effective Until, Status, Actions
+- Create/Edit Sheet sidebar
+- Empty state with icon if no rates
+- Date formatting in "en-MY" locale
+
+**Side effects:**
+- Query invalidation on create/update/setDefault/deactivate
+- No external API calls beyond tax rate CRUD
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `taxRates.list` — fetch all tax rates
-- `taxRates.create` — create new rate
-- `taxRates.update` — edit existing rate (name, code, rate, category, dates, description)
-- `taxRates.setDefault` — mark one rate as the org default
-- `taxRates.deactivate` — soft-delete a rate
+- `client.taxRates.list({ organizationId })` — fetch all rates
+- `client.taxRates.create({ organizationId, ...fields })` — create new rate
+- `client.taxRates.update({ organizationId, id, ...fields })` — update existing (code omitted)
+- `client.taxRates.setDefault({ organizationId, id })` — mark as default
+- `client.taxRates.deactivate({ organizationId, id })` — mark inactive
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic TanStack Table wrapper
-- `Sheet`, `SheetContent`, `SheetHeader`, `SheetFooter` — `@/components/ui/sheet` — slide-in create/edit form
-- `Badge`, `Button`, `Input`, `Textarea`, `Label`, `Checkbox`, `Select`, `Separator` — `@/components/ui/*`
-- `Star`, `Plus`, `Edit`, `Tag` icons — `lucide-react`
+- `DataTable` — render rate list
+- `Button`, `Badge`, `Input`, `Textarea`, `Checkbox`, `Select` — form controls
+- `Sheet` (sidebar) — create/edit modal
+- `Separator`, `EmptyState`, `StatusCallout` — layout
+- `lucide-react` icons (Star, Plus, Edit, Tag)
 
 **Uses these hooks:**
-- `useUserContext` — `currentOrganizationId`
-- `useQuery`, `useMutation`, `useQueryClient`
-- `useState`
+- `useUserContext()` — org ID
+- `useQuery()` — list rates
+- `useMutation()` (×4: create, update, setDefault, deactivate)
+- `useQueryClient()` — invalidate on success
+- `useState()` — form and UI state
 
-**Navigation: who navigates here:**
-- App sidebar → Settings section → "Tax Rates" link (`/dashboard/settings/tax-rates`)
-- App sidebar header quick-link also points to this route
-
-**Navigation: where it goes:** Stays on this page.
+**Navigation: who navigates here:** Settings sidebar
+**Navigation: where it goes:** None (modal-based CRUD)
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `tax_rates` | SELECT | `id`, `name`, `code`, `rateInBasisPoints`, `category`, `isDefault`, `isActive`, `effectiveFrom`, `effectiveUntil`, `description`, `createdAt` |
-| `tax_rates` | INSERT | all fields above |
-| `tax_rates` | UPDATE | `name`, `code`, `rateInBasisPoints`, `category`, `effectiveFrom`, `effectiveUntil`, `description` |
-| `tax_rates` | UPDATE | `isDefault` (setDefault) |
-| `tax_rates` | UPDATE | `isActive = false` (deactivate) |
-
-**Key types:**
-```ts
+**DB tables touched:** `taxRates` (multi-tenant per org)
+**Key types / Zod schemas:**
+```typescript
 type TaxCategory = "SST" | "GST" | "service_tax" | "withholding_tax" | "tax_exempt" | "custom";
-// rateInBasisPoints: integer (e.g. 800 = 8.00%)
+
+type TaxRateRow = {
+  id: string;
+  name: string;
+  code: string;
+  rateInBasisPoints: number;  // 800 = 8.00%
+  category: TaxCategory;
+  isDefault: boolean;
+  effectiveFrom: string;  // ISO date string
+  effectiveUntil: string | null;  // ISO date or null (= active)
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type FormState = {
+  name: string;
+  code: string;
+  ratePercent: string;  // user-entered "8.00"; parsed to BPS on submit
+  category: TaxCategory;
+  effectiveFrom: string;  // YYYY-MM-DD for <input type="date">
+  effectiveUntil: string;  // YYYY-MM-DD or empty
+  description: string;
+  isDefault: boolean;
+};
 ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/web/src/__tests__/routes/tax-rates.test.tsx`
-
+**Test files:** `src/__tests__/routes/tax-rates.test.tsx`
 **Scenarios covered:**
 - Renders without crashing (empty state)
-- Page heading and "Add Tax Rate" button visible
-- 800 basis points displays as "8.00%"
-- Deactivate button disabled for default rate
-- Deactivate button enabled for non-default rate
-- Active badge shown for active rates
-- Category label mapping (`service_tax` → "Service Tax")
-- Active/All filter toggle buttons visible
+- Shows page heading and "Add Tax Rate" button
+- Displays basis points as percentage (800 bps → "8.00%")
+- Deactivate button disabled for default tax rate
 
-**Not tested:** Create/update form submission, setDefault mutation, sheet open/close, form validation, error states.
+**Not tested (risk areas):**
+- Form validation (required fields, rate range)
+- Date range logic (effective until after effective from)
+- Code immutability on edit
+- Error handling and retry
 
 ---
 
 ## 6. Notes
 
-- Rate is stored as integer basis points (1% = 100 bp). The UI converts: user enters "8.00" → stored as 800.
-- `isDefault` is only settable on create via checkbox; editing does not expose this field (use the star button instead).
-- Deactivating the default rate is blocked in the UI (button disabled + title tooltip). The service layer silently clears `isDefault` instead of throwing.
-- The `effectiveUntil` field shows "Active" text when null.
+**Rate unit conversion:** Form shows percent (user enters "8.00"), API stores basis points (800). Conversion: `Math.round(percent * 100)` on create/update, `bps / 100` on display with `.toFixed(2)`.
+
+**Code immutability on edit:** When editing, the `code` field is disabled and validation skipped (line 272). Codes cannot be changed after creation.
+
+**Effective dates:** `effectiveFrom` is required; `effectiveUntil` is optional. If null, rate is considered "active" (line 388). Date validation ensures `until >= from` (line 694).
+
+**Default constraint:** Cannot deactivate a rate while marked default. The deactivate button is disabled if `isDefault: true` (line 423) with tooltip explaining.
+
+**Status labels:** Active rates show "Active" badge; inactive rates show "Inactive" (lines 395–399).
+
+**Empty state:** Shows "No tax rates" message when list is empty (lines 530–534).
+
+**Date formatting:** Displayed as "en-MY" locale (e.g., "23 Apr 2026"). Helper functions `formatDate()` (line 98) and `toDateInputValue()` (line 112) handle ISO string conversion.
+
+**Error callout:** Uses `StatusCallout` component (line 465) instead of custom card for consistent error UX.
+
+**Stale time:** None set; queries default to 0 (always stale, refetch on mount).

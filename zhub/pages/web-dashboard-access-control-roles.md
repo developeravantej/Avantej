@@ -1,135 +1,117 @@
-# Access Control — Role Management
+# Roles Management
 
 **Route:** `/dashboard/access-control/roles`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/roles.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/roles.tsx`
 **Platform:** web
-**Auth required:** rbac(role_management:read)
-**Last updated:** 2026-04-20
+**Auth required:** rbac({resource: "role_management", action: "read"})
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Create and manage roles, assign/remove permissions per role, and view which members hold each role. Offers three view modes: Cards, Matrix (spreadsheet), and Wizard.
+**Purpose (user perspective):** Manage organization roles and their permissions via a tabbed interface with roles and permissions visibility.
 
-**Produces:**
-- **Cards view:** Grid of `RoleCard` components showing role name, description, member count, and actions.
-- **Matrix view:** `EnhancedPermissionMatrix` — spreadsheet of roles × permission actions with toggles.
-- **Wizard view:** 3-step flow (template → configure permissions → review) that opens `RoleEditor` on final step.
-- A slide-out Sheet (`RoleEditor`) for create/edit.
+**Produces:** Two tabs:
+- **Roles tab:** Lists all roles with ability to create, edit, and assign permissions
+- **Permissions tab:** Shows all permission resources and their available actions
 
-**On success:**
-- Permission toggle (matrix): immediate API call, success/error toast.
-- Role create/edit: `RoleEditor` handles its own save; parent shows "Role saved." toast.
+**On success:** Roles are created/updated, permissions are toggled per role.
 
-**On failure / error states:**
-- Roles loading → spinner card "Loading roles...".
-- Error loading roles → error card with "Try Again" button (page reload).
-- Permission toggle error → error toast from `handlePermissionChange`.
+**On failure / error states:** Permission denied if user lacks role_management:read, loading states during fetch, error toast on save failure.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-RoleManagementPage
-  → useUserContext() → organizationId
-  → useQuery(client.permissions.list) → permissionsData
-  → useQuery(client.roles.list) → rolesApiData
-  → useQuery(client.members.list) → membersData (for user counts per role)
-  → useMemo: group permissions → PermissionResource[]
-  → useMemo: map roles → Role[]
-  → useMemo: count members per role → userCounts{}
-  → useRoles(organizationId) → { createRole, addPermission, removePermission }
-  
-  Cards: RoleCard[] with onEdit → RoleEditor Sheet
-  Matrix: EnhancedPermissionMatrix → handlePermissionChange
-    → addPermission.mutateAsync / removePermission.mutateAsync
-  Wizard: 3-step UI → opens RoleEditor Sheet on save
-    → handleSaveRole(roleData, permissions):
-        → createRole.mutateAsync({ name, description, priority })
-        → for each permission: addPermission.mutateAsync({ roleId, permissionId })
-```
+1. Route guards check `role_management:read` permission in beforeLoad
+2. Component renders ConsolidatedTabs UI with route-based tab switching
+3. RolesTabPage queries permissions, roles, and members via oRPC
+4. RoleEditor allows creating/editing roles with permission matrix
+5. Mutations create roles and assign permissions via API
 
-**Inputs:** Search query (client filter), view mode tab selection.
+**Inputs:**
+- URL search param: `tab` ("roles" | "permissions", defaults to "roles")
 
 **State management:**
-- `viewMode`: "cards" | "enhanced" | "wizard" — local state.
-- `editingRole`, `isCreating` — controls Sheet open/closed.
-- `selectedRoles` — Set of selected role IDs (for multi-select, not currently wired to bulk action).
-- `pendingUpdates` — Set of in-flight permission update keys (shows progress indicator in matrix view).
-- `wizardPermissions` — Record tracking checked state in wizard step 2.
-- `showGuide` — toggles Quick Start Guide card.
+- TanStack Query: `["permissions", organizationId]`, `["roles", organizationId]`, `["members", organizationId]`
+- Local state: selectedRoles, searchQuery, editingRole, isCreating, viewMode (cards|enhanced|wizard)
+- Pending updates tracked per role-permission combo
 
-**Side effects:** `addPermission` / `removePermission` mutations invalidate `rolePermissions.list` query key.
+**Outputs:**
+- RoleCard grid (cards view) or EnhancedPermissionMatrix (matrix view) or Wizard (creation flow)
+- Permission toggles trigger addPermission/removePermission mutations
+- Role creation/updates with toasts on success/error
+
+**Side effects:**
+- onSuccess: invalidates query keys, displays toast, closes sheet
+- permission changes display pending indicator and update badge count
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `permissions.list` — fetch all permission resources+actions
-- `roles.list` — fetch all roles for org
-- `members.list` — fetch members to compute per-role user counts
-- `rolePermissions.add` — assign a permission to a role (via `useRoles`)
-- `rolePermissions.remove` — remove a permission from a role (via `useRoles`)
-- `roles.create` — called by `handleSaveRole` via `createRole.mutateAsync` when wizard/editor saves
-- `roles.update`, `roles.delete` — available via `useRoles` but not wired to UI actions
+- `client.permissions.list()` — fetch all permissions grouped by resource
+- `client.roles.list()` — fetch all roles
+- `client.members.list()` — fetch members (for role assignment counts)
+- `client.roles.create()` — create new role
+- `client.rolePermissions.add()` — assign permission to role
+- `client.rolePermissions.remove()` — remove permission from role
 
 **Uses these components:**
-- `RoleCard` — `apps/web/src/components/access-control/permission-cards/RoleCard.tsx` — card per role
-- `RoleEditor` — `apps/web/src/components/access-control/editors/RoleEditor.tsx` — create/edit form in Sheet
-- `EnhancedPermissionMatrix` — `apps/web/src/components/access-control/permission-matrix/EnhancedPermissionMatrix.tsx` — matrix view
+- `RolesTabPage` @ `/components/pages/access-control/roles-tab.tsx` — role management UI
+- `PermissionsTabPage` @ `/components/pages/access-control/permissions-tab.tsx` — permission resource browser
+- `ConsolidatedTabs` @ `/components/ui/consolidated-tabs` — tab UI
 
 **Uses these hooks:**
-- `useUserContext` — resolves `organizationId`
-- `useRoles` — `apps/web/src/hooks/useRoles.ts` — CRUD + permission mutations for roles
-- `useIsMobile` — grid column count
+- `useUserContext()` — access org ID
+- `useQuery()` — fetch roles, permissions, members
+- `useRoles()` — create/update role mutations
 
 **Navigation: who navigates here:**
-- App sidebar: "Role Management" under Access Control section
-- Quick Start Guide on this page links to `/dashboard/access-control/user-assignment`
+- Access Control menu link
 
 **Navigation: where it goes:**
-- Guide CTA → `/dashboard/access-control/user-assignment` (hard anchor `<a>`)
+- Can navigate to user-assignment tab via breadcrumb/link
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `permissions` (tenant) | SELECT | `id`, `resource`, `action`, `description` |
-| `roles` (tenant) | SELECT/INSERT/UPDATE/DELETE | `id`, `name`, `description`, `priority` |
-| `role_permissions` (tenant) | SELECT/INSERT/DELETE | `roleId`, `permissionId` |
-| `members` (tenant) | SELECT | `id`, `role` (for user count) |
+- roles — read, create
+- permissions — read
+- role_permissions — read, create, delete
+- members — read
 
-**Key types:**
-```typescript
-type Role = { id: string; name: string; description?: string; priority: number; permissions: [] }
-type PermissionResource = { id: string; name: string; icon; actions: { id; name; description? }[] }
-```
+**Key types / Zod schemas:**
+- `Role` — {id, name, description, priority, permissions[]}
+- `PermissionResource` — {id, name, description, icon, actions[]}
+- `Permission` — {id, resource, action, description}
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
+**Test files:** None found
+
+**Scenarios covered:** N/A
 
 **Not tested (risk areas):**
-- Wizard "Save Role" step — currently re-opens RoleEditor without wiring wizard permissions into it
-- `handleDeleteRole` and `handleDuplicateRole` are no-ops
-- Member count derivation (matches by role name string, not ID)
-- Concurrent permission toggles in matrix view
+- Permission grant/revoke edge cases (concurrent updates, cascade effects)
+- Role deletion (not exposed in UI, backend may have constraints)
+- Template-based role creation flow (wizard step 1-3)
+- Large permission sets (50+ resources)
 
 ---
 
 ## 6. Notes
 
-- `handleDeleteRole` and `handleDuplicateRole` are intentionally stubbed (no-op) — deletion must go through `useRoles.deleteRole` which is wired but not exposed in the UI.
-- Member-to-role count matching is done by comparing role name strings case-insensitively, because `members.list` returns a `role` string field, not a role ID.
-- The wizard step 3 "Save Role" button calls `handleSaveRole`, which now actually creates the role via `createRole.mutateAsync` and loops through each permission to call `addPermission.mutateAsync`. Previously this was a no-op toast stub.
-- `ROLE_TEMPLATES` are UI-only presets; selecting one does not pre-populate permissions in the RoleEditor.
-- `requirePermission` in `beforeLoad` is currently a stub.
+- **viewMode** defaults to "cards" but supports "enhanced" (matrix) and "wizard" (creation flow) modes
+- **Permissions-tab** shows all resources but does NOT filter by user access — assumes reader has role_management:read
+- **Role priority** influences display order and hierarchy (lower number = higher priority)
+- **Role templates** (Admin, Manager, Basic, ReadOnly) are hardcoded in RolesTabPage but not persisted; they guide creation
+- **Quick-start guide** is dismissible and stored in local component state (not persisted across sessions)
+- TODO: combobox for searching roles during permission assignment (currently free-text search only)

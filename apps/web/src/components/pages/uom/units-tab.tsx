@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable } from "@/components/tables/uom/view/data-table";
 import { columns } from "@/components/tables/uom/view/columns";
 import { Ruler } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export function UnitsTabPage() {
 	const { data: userContext } = useUserContext();
@@ -99,13 +101,7 @@ export function UnitsTabPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -130,15 +126,16 @@ export function UnitsTabPage() {
 				</div>
 				<div>
 					<h1 className="text-2xl font-bold font-heading">Units of Measure</h1>
-					<p className="text-brand-secondary-1 text-sm">Manage base units of measure for products.</p>
+					<p className="text-muted-foreground text-sm">Manage base units of measure for products.</p>
 				</div>
 			</div>
 			<Separator />
 			{baseUoms.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No units of measure defined</p>
-					<p className="text-sm">Add a unit of measure.</p>
-				</div>
+				<EmptyState
+					title="No units of measure"
+					description="Add a unit of measure to get started."
+					icon={Ruler}
+				/>
 			)}
 			<DataTable
 				columns={columns}

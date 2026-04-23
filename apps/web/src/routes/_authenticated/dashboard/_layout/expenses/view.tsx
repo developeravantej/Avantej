@@ -34,8 +34,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Receipt, Plus, CheckCircle, XCircle, DollarSign } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/expenses/view",
@@ -97,30 +100,7 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 	{ value: "paid", label: "Paid" },
 ];
 
-// ---------------------------------------------------------------------------
-// Status Badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: ExpenseStatus }) {
-	switch (status) {
-		case "pending":
-			return <Badge variant="secondary">Pending</Badge>;
-		case "approved":
-			return (
-				<Badge variant="default" className="bg-green-600 hover:bg-green-700">
-					Approved
-				</Badge>
-			);
-		case "rejected":
-			return <Badge variant="destructive">Rejected</Badge>;
-		case "paid":
-			return (
-				<Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
-					Paid
-				</Badge>
-			);
-	}
-}
+// All expense statuses (pending/approved/rejected/paid) are in CanonicalStatus — use StatusBadge directly.
 
 // ---------------------------------------------------------------------------
 // Page component
@@ -156,7 +136,7 @@ function ExpensesViewPage() {
 	const [paymentReference, setPaymentReference] = useState("");
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["expenses", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -466,44 +446,32 @@ function ExpensesViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ---- Render ----
 	return (
 		<div className="p-6 space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-						<Receipt className="h-5 w-5 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-2xl font-bold font-heading">Expenses</h1>
-						<p className="text-sm text-brand-secondary-1">
-							Submit and manage expense claims
-						</p>
-					</div>
-				</div>
-				{canCreate && (
-					<Button
-						onClick={() => {
-							resetCreateForm();
-							setIsCreateOpen(true);
-						}}
-						className="gap-2"
-					>
-						<Plus className="h-4 w-4" />
-						Submit Expense
-					</Button>
-				)}
-			</div>
+			<PageHeader
+				icon={Receipt}
+				title="Expenses"
+				description="Submit and manage expense claims"
+				actions={
+					canCreate ? (
+						<Button
+							onClick={() => {
+								resetCreateForm();
+								setIsCreateOpen(true);
+							}}
+							className="gap-2"
+						>
+							<Plus className="h-4 w-4" />
+							Submit Expense
+						</Button>
+					) : undefined
+				}
+			/>
 
 			{/* Status filter tabs */}
 			<div className="flex items-center gap-1 border-b">
@@ -527,7 +495,14 @@ function ExpensesViewPage() {
 			</div>
 
 			{/* Table */}
-			<DataTable<ExpenseRow, unknown> columns={columns} data={data} />
+			<DataTable<ExpenseRow, unknown>
+					columns={columns}
+					data={data}
+					emptyTitle="No expenses found"
+					emptyAction={canCreate ? { label: "Submit Expense", onClick: () => setIsCreateOpen(true) } : undefined}
+					error={isError ? error : undefined}
+					onRetry={() => refetch()}
+				/>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Create Expense Sheet                                                */}

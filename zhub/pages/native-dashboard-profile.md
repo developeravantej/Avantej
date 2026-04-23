@@ -1,151 +1,104 @@
-# Native Dashboard Profile
+# Profile Screen
 
-**Route:** `/(app)/dashboard/profile`
-**File:** `apps/native/app/(app)/dashboard/profile.tsx:1`
+**Route:** `(app)/dashboard/profile`
+**File:** `apps/native/app/(app)/dashboard/profile.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets the customer view and update their personal information, manage notification preferences, change their password, and sign out.
-**Produces:** A scrollable profile screen divided into four sections: User Summary, Personal Information (editable), Notification Preferences (toggles), and Account (change password, help, terms, sign out).
-**On success:** Profile and notification prefs load silently. Saving edits shows `Alert("Success", "Profile updated")`. Password change shows `Alert("Success", "Password changed successfully")`.
-**On failure / error states:** Save failure shows `Alert("Error", "Failed to update profile")`. Password change failure shows `Alert("Error", "Failed to change password...")`. API errors on initial load render silently (no error UI shown).
+**Purpose (user perspective):** View and edit personal profile, manage notification preferences, and access account settings (password, help, terms, sign out).
+**Produces:** Scrollable profile with user summary, editable personal info (full name, email read-only, phone), notification toggle switches, account actions (change password modal, help, terms, sign out).
+**On success:** Edit mode saves changes to backend via `client.customerProfiles.upsert` and `authClient.updateUser`; toggles persist notification preferences.
+**On failure / error states:** Alert dialogs for save/update errors; modal for change password; validation for password (8+ chars, must match).
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-ProfileScreen
-  → useAuth()                    # gets user (name, email, createdAt), logout()
-  → useOrganization()            # gets organizationId
-  → orpc.customerProfiles.get.queryOptions({ organizationId })
-      → customerProfilesRouter.get
-        → getCustomerProfile(tenantDb, userId)
-          → customer_profiles table
-  → orpc.notificationPreferences.get.queryOptions({ organizationId })
-      → notificationPreferencesRouter.get
-        → getNotificationPreferences(tenantDb, userId)
-          → notification_preferences table
+1. Fetches `user` via `useAuth()` hook (name, email, createdAt)
+2. Queries `orpc.customerProfiles.get` (organizationId) — fetches phone and other profile fields
+3. Queries `orpc.notificationPreferences.get` (organizationId) — fetches emailEnabled, pushEnabled, smsEnabled
+4. Initializes formData state with user.name, user.email, profile.phone
+5. Syncs profile.phone into form on first render (if loaded and form empty)
+6. Edit mode toggle shows/hides TextInput editability and save button
+7. `handleSaveChanges()` calls:
+   - `client.customerProfiles.upsert({ organizationId, phone })`
+   - `authClient.updateUser({ name })` if name changed
+   - Invalidates ["customerProfiles"] query
+8. `handleToggleNotifPref()` calls `client.notificationPreferences.update({ organizationId, [key]: value })`
+9. `handleLogout()` shows Alert confirming sign out, then calls `useAuth().logout()`
+10. `ChangePasswordModal` opens on button press, collects old and new passwords, calls `authClient.changePassword()`
 
-  → handleSaveChanges()
-      → client.customerProfiles.upsert({ organizationId, phone })
-          → customerProfilesRouter.upsert → upsertCustomerProfile(tenantDb, userId, {...})
-      → (if name changed) authClient.updateUser({ name })  # Better-Auth
-      → queryClient.invalidateQueries({ queryKey: ["customerProfiles"] })
-
-  → handleToggleNotifPref(key, value)
-      → client.notificationPreferences.update({ organizationId, [key]: value })
-          → notificationPreferencesRouter.update → upsertNotificationPreferences(tenantDb, userId, {...})
-      → queryClient.invalidateQueries({ queryKey: ["notificationPreferences"] })
-
-  → ChangePasswordModal.handleSubmit()
-      → authClient.changePassword({ currentPassword, newPassword })
-```
-
-**Inputs:**
-- Personal info form: `fullName` (text), `email` (read-only, always disabled), `phone` (phone-pad)
-- Notification toggles: `emailEnabled` (boolean), `pushEnabled` (boolean)
-- Change password modal: `currentPassword`, `newPassword`, `confirmPassword`
-
-**State management:**
-- `useQuery` — customerProfiles, notificationPreferences
-- `useQueryClient` — cache invalidation after mutations
-- Local `useState`: `isEditing`, `isSaving`, `showPasswordModal`
-- Local `useState` for `formData` (fullName, email, phone); phone is synced from profile when loaded and not yet editing
-
-**Outputs:**
-- User summary card: avatar placeholder, name, "Member since {month year}"
-- Personal info section: toggled by edit icon; Save Changes button appears only when `isEditing`
-- Notification preferences: two Switch toggles (email, push); changes apply immediately
-- Account section: Change Password (modal), Help & Support (mailto:), Terms & Privacy (browser), Sign Out (confirm dialog)
-- `ChangePasswordModal`: slide-up pageSheet modal with three password fields
-
-**Side effects:**
-- `client.customerProfiles.upsert` — writes/updates `customer_profiles` row in tenant DB
-- `authClient.updateUser` — updates `name` in control-panel auth DB (Better-Auth)
-- `client.notificationPreferences.update` — writes/updates `notification_preferences` row
-- `authClient.changePassword` — updates password hash in Better-Auth
-- `logout()` — ends session and redirects to auth screen
-- `Linking.openURL("mailto:support@avantej.com")` — opens device mail app
-- `Linking.openURL("https://avantej.com/terms")` — opens browser
+**Inputs:** organizationId (from context)
+**State management:** Local form state (fullName, email, phone), isEditing, isSaving, showPasswordModal; TanStack Query for profile and notifPrefs
+**Outputs:** Renders editable profile card, notification toggles, account actions; navigates to sign in on logout; shows modals and alerts
+**Side effects:** Query invalidation on save; authClient calls (updateUser, changePassword); logout clears session; linking to external URLs (support email, terms, privacy)
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `customerProfiles.get` — fetches user's customer profile (phone, etc.)
-- `customerProfiles.upsert` — saves phone and other profile fields
-- `notificationPreferences.get` — fetches email/push/sms toggle state
-- `notificationPreferences.update` — immediately persists toggle changes
-- `authClient.updateUser` — Better-Auth client call to update display name
-- `authClient.changePassword` — Better-Auth client call to change password
+- `orpc.customerProfiles.get` — fetch user's phone and profile data
+- `client.customerProfiles.upsert` — save phone number (oRPC, not wrapped in useQuery)
+- `client.notificationPreferences.update` — save notification preference toggles
+- `authClient.updateUser` — update auth user name via Better-Auth
+- `authClient.changePassword` — change password via Better-Auth
 
-**Uses these components:**
-- `TabContainer`, `useTabBarHeight` — `apps/native/components/container`
-- `ChangePasswordModal` — inline component defined in same file (line 405)
-
-**Uses these hooks:**
-- `useAuth` — `apps/native/hooks/useAuth` — `user`, `logout`
-- `useOrganization` — `apps/native/hooks/useOrganization` — `organizationId`
-- `useQuery`, `useQueryClient` — TanStack Query
-
-**Navigation: who navigates here:** Tab bar (profile tab). Expo Router renders this as the `profile` tab screen.
-**Navigation: where it goes:** No in-app navigation (external mailto/browser links only). Sign out triggers `logout()` which redirects the app to the auth flow.
+**Uses these components:** TabContainer, ScrollView, Switch, TextInput, TouchableOpacity, Modal, Alert, Linking, View, Text, Ionicons
+**Uses these hooks:** `useAuth()` (user, logout), `useOrganization()` (orgId), `useQuery()` (profile, notifPrefs), `useQueryClient()` (invalidate), `useState()`
+**Navigation: who navigates here:** Dashboard tab/profile button
+**Navigation: where it goes:** External URLs via Linking.openURL:
+- `mailto:support@avantej.com` — Help & Support
+- `https://avantej.com/terms` — Terms & Privacy
+- Sign in (via logout) — `/(auth)/login` (router context not used; logout triggers session clear)
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `customer_profiles` (tenant) | READ + WRITE | `userId`, `phone`, `dateOfBirth`, `gender`, `address`, etc. |
-| `notification_preferences` (tenant) | READ + WRITE | `userId`, `emailEnabled`, `pushEnabled`, `smsEnabled` |
-| `auth.user` (control-panel) | WRITE (name update) | `name` (via Better-Auth `updateUser`) |
-| `auth.account` (control-panel) | WRITE (password) | `password` (via Better-Auth `changePassword`) |
+- users (select name, email, createdAt; update name via Better-Auth)
+- customerProfiles (select phone; upsert phone)
+- notificationPreferences (select emailEnabled, pushEnabled, smsEnabled; update each toggle)
 
 **Key types / Zod schemas:**
-- `customerProfiles.upsert` input: `{ organizationId, phone?, dateOfBirth?, gender?, address?, emergencyContactName?, emergencyContactPhone?, medicalNotes?, fitnessGoals?, creditPoints?, notes? }`
-- `notificationPreferences.update` input: `{ organizationId, emailEnabled?, smsEnabled?, pushEnabled?, bookingReminders?, bookingConfirmations?, promotionalEmails? }`
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `fullName` | TextInput | None (free text) | `authClient.updateUser({ name })` |
-| `email` | TextInput | Always disabled | Display only |
-| `phone` | TextInput (phone-pad) | None | `customerProfiles.upsert({ phone })` |
-| `emailEnabled` | Switch | — | `notificationPreferences.update({ emailEnabled })` |
-| `pushEnabled` | Switch | — | `notificationPreferences.update({ pushEnabled })` |
-| `currentPassword` | TextInput (secure) | Required | `authClient.changePassword` |
-| `newPassword` | TextInput (secure) | min 8 chars | `authClient.changePassword` |
-| `confirmPassword` | TextInput (secure) | Must match newPassword | Client-side check only |
+- formData: { fullName, email, phone } (strings)
+- profile: { phone?, ...other fields }
+- notifPrefs: { emailEnabled, pushEnabled, smsEnabled } (booleans)
+- ChangePasswordModal props: { visible, onClose }
+- changePassword input: { currentPassword, newPassword }
+- updateUser input: { name }
+- upsert customerProfiles input: { organizationId, phone }
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
 **Not tested (risk areas):**
-- Phone sync race: `if (profilePhone && !formData.phone && !isEditing)` runs directly in render body (not useEffect) — will trigger re-renders and is fragile
-- `authClient.updateUser` failure is silently swallowed (bare `catch {}`)
-- Notification toggle failure shows Alert but does not revert the Switch UI state
+- Profile phone field sync logic (conditional setter on render — potential infinite loop if not careful)
+- Error handling for name update failure (silently caught, no user feedback)
+- Password change validation edge cases
+- Notification preference toggle error states
+- Member since date formatting with missing createdAt
+- External link deeplink handling on different platforms
 
 ---
 
 ## 6. Notes
 
-- Email field is always read-only (disabled in both edit and view modes) — email changes are not supported.
-- The phone sync from loaded profile data runs directly in the component body (not inside a `useEffect`), which is non-idiomatic and causes an extra render on first profile load.
-- `smsEnabled` toggle is NOT shown in the UI even though it exists in the notification preferences schema; only email and push are shown.
-- `ChangePasswordModal` is a locally defined function component at the bottom of the file, not imported from elsewhere.
-- Profile avatar is a placeholder icon (`Ionicons name="person"`) — user photo upload is not implemented.
-- `authClient` is imported from `@/lib/auth-client` (native Better-Auth client), separate from the oRPC `client` from `@/utils/orpc`.
-- Both `client.customerProfiles.upsert` and `client.notificationPreferences.update` use the direct `client` call pattern (not `useMutation`), so loading states are managed with local `isSaving` state.
+- formData state sync (lines 54-57) is a side effect in render, should ideally use useEffect
+- Email field read-only (opacity 0.5 visual hint)
+- Save button only shows in edit mode; toggles edit mode on close
+- Logout calls useAuth().logout() which clears queryClient and session
+- Better-Auth updateUser may not support name updates (catch block suggests this)
+- ChangePasswordModal is a nested function component, shared state with parent via prop callbacks
+- Phone field only editable in edit mode (unlike email which is always disabled)
+- Notification preferences toggle immediately (optimistic updates); errors shown in Alert
+- External links use Linking.openURL for email and web URLs

@@ -1,81 +1,98 @@
-# Buy Package — Plan
+# Plan Screen
 
 **Route:** `(app)/dashboard/buy-package/plan`
-**File:** `apps/native/app/(app)/dashboard/buy-package/plan.tsx:1`
+**File:** `apps/native/app/(app)/dashboard/buy-package/plan.tsx`
 **Platform:** native
 **Auth required:** authenticated
 **Flow:** buy-package (step 4/7) — prev: info, next: review
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The user chooses how to split their package payment — full, half (2 installments), or quarterly (4 installments). Each option shows the per-installment amount and credits unlocked per installment.
-**Produces:** A list of selectable payment plan cards filtered to those enabled on the service (`availablePaymentPlans`). Each card shows label, description, per-installment cost, and credits per installment.
-**On success:** Continue tapped → paymentPlanType written to context → navigates to `./review`.
-**On failure / error states:** No API calls. If only `"full"` is available (or no plans configured), this screen is auto-skipped via `router.replace("./review")` on mount.
+**Purpose (user perspective):** Select a payment plan (full, half, quarterly) based on available options for the service.
+
+**Produces:** Radio-button-style payment plan cards showing installments, per-installment cost, and credits unlocked per installment.
+
+**On success:** Selected plan saved to state; navigates to review screen.
+
+**On failure / error states:**
+- No payment plans available or only "full" available: auto-skip to review screen.
+- Each plan card shows cost breakdown.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-PlanScreen
-  → state.availablePaymentPlans filters PLAN_CONFIG keys
-  → useEffect: if plans.length === 0 OR only "full" → update({ paymentPlanType: "full" }) → router.replace("./review")
-  → User selects plan card
-  → handleContinue → update({ paymentPlanType: selectedPlan }) → router.push("./review")
-```
+1. Mount: Check `availablePaymentPlans` from context.
+2. If empty or only ["full"]: auto-update state with "full", push to review (no UI shown).
+3. Otherwise: filter PLAN_CONFIG keys by availability, set default to "full" or first option.
+4. User taps plan card → local state `selectedPlan` updated.
+5. Continue button calls `update({ paymentPlanType: selectedPlan })` → push to review.
 
-**Inputs:** `state.availablePaymentPlans`, `state.paymentPlanType`, `state.price`, `state.creditsTotal`
-**State management:** Local `selectedPlan: PlanKey` (defaults to context value or "full"); writes to context on continue
-**Outputs:** One card per available plan key from `["full", "half", "quarterly"]`
-**Side effects:** Auto-navigation via `router.replace("./review")` if screen should be skipped
+**Inputs:**
+- Navigation params: none.
+- Context state: `availablePaymentPlans`, `paymentPlanType` (for default), `price`, `creditsTotal`.
+- Local state: `selectedPlan` (one of full/half/quarterly).
+
+**State management:**
+- PurchaseFlow context: stores selected payment plan type and available options.
+- Local state: `selectedPlan` for form state.
+
+**Outputs:**
+- On continue: `update({ paymentPlanType })`.
+- Navigates to `./review`.
+
+**Side effects:** Auto-skip navigation if only full plan available (lines 54–60).
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None
+**Calls these API endpoints:** None.
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root layout wrapper
+- `Container` — wrapper.
 
-**Context:** Reads `availablePaymentPlans`, `paymentPlanType` (pre-select), `price`, `creditsTotal`. Writes: `paymentPlanType`
+**Uses these hooks:**
+- `usePurchaseFlow` — read/write payment plan.
+- `useState` — selected plan state.
+- `useEffect` — auto-skip logic.
 
-**Navigation:** `./review` — on Continue tap; also `router.replace("./review")` on mount if auto-skip
+**Navigation: who navigates here:** `./info` on continue.
+
+**Navigation: where it goes:** `./review` on continue (or auto-skip).
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| (none) | — | — |
+**DB tables touched:** None (UI only; configuration from setup step).
 
-**Context fields used:**
-| Field | Type | Purpose |
-|-------|------|---------|
-| availablePaymentPlans | string[] | Filters which plan cards to show |
-| paymentPlanType | "full" \| "half" \| "quarterly" \| null | Pre-selects current plan; written on continue |
-| price | number \| null | Divided by installment count for per-installment display |
-| creditsTotal | number \| null | `Math.floor(creditsTotal / installments)` per card |
+**Key types / Zod schemas:**
+- `PlanKey`: "full" | "half" | "quarterly".
+- `PLAN_CONFIG[key]`: `{ label, installments, description }`.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
+
+**Not tested (risk areas):**
+- Edge case: availablePaymentPlans contains unrecognized keys (not in PLAN_CONFIG).
+- Auto-skip does not validate if context is correctly populated.
+- Price/credits per installment calculation for fractional values.
+- Division by installment count may produce floating-point artifacts.
 
 ---
 
 ## 6. Notes
 
-- `PLAN_CONFIG` maps: `full` = 1 installment, `half` = 2, `quarterly` = 4.
-- Credits per installment uses `Math.floor` — any remainder credits are silently lost in the display (the full credit count is still stored in context).
-- The auto-skip `useEffect` has an empty dependency array with an eslint-disable comment. It only fires once on mount, which is intentional — it reads `availablePaymentPlans` from closure at mount time.
-- `router.replace` is used for auto-skip (not `push`) so the back button from review won't return here when there are no installment options.
-- The step indicator labels show "Review" at position 4 but this screen labels itself "Plan" — the step dots labels for this screen do not match what review.tsx shows at position 4.
+- Auto-skip (lines 54–60) uses `router.replace()` to avoid stacking history.
+- Step counter is hardcoded as 4/8 but other screens show 7 steps total; inconsistent.
+- `creditsPerInstallment` uses `Math.floor()` — loses remainder credits; consider `ceil()` or distribution logic.
+- Price breakdown shown per installment; tax calculated later at payment screen.
+- Available payment plans fetched at setup; no dynamic filtering here.

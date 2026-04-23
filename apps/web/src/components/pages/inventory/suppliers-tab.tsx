@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/tables/suppliers/view/data-table";
 import type { SupplierRow } from "@/components/tables/suppliers/view/columns";
@@ -127,13 +130,7 @@ export function SuppliersTabPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -157,20 +154,12 @@ export function SuppliersTabPage() {
 	return (
 		<div className="space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-						<Building2 className="h-5 w-5 text-primary" />
-					</div>
-					<div>
-						<h2 className="text-xl font-bold font-heading">Suppliers</h2>
-						<p className="text-sm text-muted-foreground">
-							Manage your product suppliers
-						</p>
-					</div>
-				</div>
-				<Badge variant="outline">{tableData.length} supplier(s)</Badge>
-			</div>
+			<PageHeader
+				icon={Building2}
+				title="Suppliers"
+				description="Manage your product suppliers"
+				actions={<Badge variant="outline">{tableData.length} supplier(s)</Badge>}
+			/>
 
 			{/* Active / Inactive filter tabs */}
 			<div className="flex items-center gap-1 border-b">
@@ -195,10 +184,11 @@ export function SuppliersTabPage() {
 
 			{/* Empty state */}
 			{tableData.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No suppliers found</p>
-					<p className="text-sm">Add a supplier to start purchasing.</p>
-				</div>
+				<EmptyState
+					title="No suppliers yet"
+					description="Add a supplier to start purchasing."
+					icon={Building2}
+				/>
 			)}
 
 			{/* Table */}

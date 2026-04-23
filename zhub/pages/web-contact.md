@@ -1,105 +1,105 @@
-# Contact
+# Contact Page
 
 **Route:** `/contact`
-**File:** `apps/web/src/routes/contact.tsx:1`
+**File:** `apps/web/src/routes/contact.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Provides contact information and a contact form that opens the user's email client to send a message to Avantej support.
+**Purpose (user perspective):** Contact form and company contact information (email, phone, address). Allows users to send messages directly via email client (mailto: links).
 
-**Produces:** Opens the system email client via `mailto:` URL with pre-filled subject and body.
+**Produces:** Two-column layout: left column has contact info (General Inquiries, Technical Support, Headquarters address) + social media buttons (Facebook, Twitter, Instagram, LinkedIn, YouTube). Right column has form (name, email, subject, message).
 
-**On success:** `toast.success("Opening your email client...")` shown; `window.location.href` navigates to a `mailto:` URL.
-**On failure / error states:** Zod validation errors shown inline for empty/invalid fields. No server error states (no API call made).
+**On success:** Form submits via `mailto:` URL, opens default email client with pre-filled subject/body.
+**On failure / error states:** Form validation errors show below fields (email format, message length). Toast shows success message.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-ContactPage
-  → useForm (react-hook-form + zod)    # local form state only
-  → form.onSubmit(data)
-    → constructs mailto: URL
-      → mailto:support@avantej.com?subject=...&body=...
-    → window.location.href = mailtoUrl  # opens email client
-    → toast.success(...)
-```
+1. Component mounts, initializes form with react-hook-form + Zod schema
+2. User fills form (name, email, subject, message) — min length validations applied
+3. On submit: builds `mailto:` URL with encoded subject + body
+4. window.location.href = mailtoUrl opens email client
+5. Toast shows "Opening your email client..."
 
-**Inputs:**
-- Form fields: `name`, `email`, `subject`, `message`
+**Inputs:** 
+- Form inputs: `name` (min 2), `email` (valid email), `subject` (min 2), `message` (min 10)
 
-**State management:** `react-hook-form` local state only. No TanStack Query, no global state.
+**State management:** 
+- react-hook-form + Zod schema for form validation
+- Local form state managed by hook
 
-**Outputs:** Two-column layout:
-- Left: contact details (General Inquiries, Technical Support, Headquarters address, social media buttons)
-- Right: contact form card
+**Outputs:** 
+- Renders contact form + contact info sections
+- Side effect: opens mailto: URL in browser
+- Mutation: none (client-side only)
 
-**Side effects:** `window.location.href` redirect to `mailto:` URL (browser behavior, may not work in all environments).
+**Side effects:** 
+- Opens email client via window.location.href
+- Toast notification
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None.
+**Calls these API endpoints:** None
+**Uses these components:** 
+- `Button`, `Input`, `Textarea`, `Form*` (FormField, FormControl, FormItem, FormLabel, FormMessage) — shadcn/ui
+- lucide-react icons (MessageSquare, Zap, Building2)
+- HTML form elements
 
-**Uses these components:**
-- `Form`, `FormControl`, `FormField`, `FormItem`, `FormLabel`, `FormMessage` — `@/components/ui/form`
-- `Input` — `@/components/ui/input`
-- `Textarea` — `@/components/ui/textarea`
-- `Button` — `@/components/ui/button`
-- Icons: `MessageSquare`, `Zap`, `Building2`
+**Uses these hooks:** 
+- `useForm()` + `zodResolver()` — react-hook-form + Zod
+- No React Router hooks (form submission is client-side)
 
-**Uses these hooks:**
-- `useForm` — react-hook-form with zodResolver
+**Navigation: who navigates here:** 
+- Contact links from marketing pages (if linked)
+- Direct URL `/contact`
 
-**Navigation: who navigates here:**
-- No internal navigation found pointing to `/contact`. Accessible via direct URL or footer links.
-
-**Navigation: where it goes:** None (opens external `mailto:` link, no in-app navigation).
+**Navigation: where it goes:** None (stays on page, opens email client in system)
 
 ---
 
 ## 4. Data Shapes
 
-No DB tables touched. No API calls.
-
-**Key types / Zod schemas:**
-```
-contactSchema = {
-  name: string (min 2),
-  email: string (email),
-  subject: string (min 2),
-  message: string (min 10)
-}
-```
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `name` | text | required, min 2 chars | mailto body `From: {name}` |
-| `email` | email | required, valid email | mailto body `({email})` |
-| `subject` | text | required, min 2 chars | mailto `?subject=...` |
-| `message` | textarea | required, min 10 chars | mailto body |
+**DB tables touched:** None
+**Key types / Zod schemas:** 
+- contactSchema (Zod):
+  ```
+  {
+    name: string (min 2),
+    email: string (valid email),
+    subject: string (min 2),
+    message: string (min 10)
+  }
+  ```
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** N/A (no server interaction; `mailto:` behavior is browser-dependent).
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- mailto: URL encoding edge cases (special characters in message)
+- Email client not installed on system (window.location.href fails silently)
+- Social media button clicks (disabled with "Coming soon" toast)
+- Form submission if user has no default email client configured
+- Very long message text may exceed URL length limits
 
 ---
 
 ## 6. Notes
 
-- Form submission does NOT send data to any server — it constructs a `mailto:` URL and redirects. If the user has no email client configured, the form silently fails.
-- Social media icon buttons (Facebook, Twitter, Instagram, YouTube) are placeholders that show `toast.info("Social links coming soon")` on click; all have `aria-disabled="true"`.
-- Contact info is hardcoded: `info@avantej.com`, `support@avantej.com`, US phone numbers, San Francisco address. This is placeholder marketing copy.
+- Social media buttons are disabled/non-functional — show "Coming soon" toast
+- Uses mailto: for submission rather than backend endpoint — no email is actually sent to support, it's user's responsibility to send
+- Contact addresses and phone numbers are hardcoded (demo/placeholder: "123 Business Plaza, San Francisco CA 94107")
+- Form doesn't actually send data anywhere — relies on user's email client to compose message
+- Button text says "Send Message" but actually opens email client
+

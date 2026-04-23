@@ -6,7 +6,7 @@ import {
 	getSortedRowModel,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import type { ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import {
 	Table,
@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -30,6 +30,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import type { UomConversionRow, UomConversionTableMeta } from "./columns";
 
 interface DataTableProps<TData, TValue> {
@@ -74,6 +76,11 @@ interface DataTableProps<TData, TValue> {
 	isCreating?: boolean;
 	isUpdating?: boolean;
 	isDeleting?: boolean;
+	error?: unknown;
+	onRetry?: () => void;
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
 }
 
 function DataTable<TData extends UomConversionRow, TValue>({
@@ -90,9 +97,14 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	onDelete,
 	isCreating,
 	isUpdating,
+	error,
+	onRetry,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [globalFilter, setGlobalFilter] = useState("");
 
 	// Create form state
 	const [createName, setCreateName] = useState("");
@@ -138,12 +150,13 @@ function DataTable<TData extends UomConversionRow, TValue>({
 		getPaginationRowModel: getPaginationRowModel(),
 		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(),
-		onColumnFiltersChange: setColumnFilters,
 		getFilteredRowModel: getFilteredRowModel(),
+		onGlobalFilterChange: setGlobalFilter,
+		globalFilterFn: "includesString",
 		meta,
 		state: {
 			sorting,
-			columnFilters,
+			globalFilter,
 		},
 	});
 
@@ -196,74 +209,102 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	}
 
 	return (
-		<div className="w-full">
-			<div className="flex items-center justify-between gap-2 py-4">
-				<Button
-					onClick={() => onAddDialogOpenChange(true)}
-					className="bg-black text-white hover:bg-black/90"
-					type="button"
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Add Conversion
-				</Button>
-				<Input
-					placeholder="Filter conversions..."
-					value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-					onChange={(event) =>
-						table.getColumn("name")?.setFilterValue(event.target.value)
-					}
-					className="max-w-sm"
-				/>
+		<div className="flex h-full flex-col">
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search conversions..."
+						value={globalFilter ?? ""}
+						onChange={(event) => setGlobalFilter(event.target.value)}
+						className="pl-9"
+					/>
+				</div>
+				<div className="ml-auto flex gap-2">
+					<Button
+						onClick={() => onAddDialogOpenChange(true)}
+						size="sm"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Conversion
+					</Button>
+				</div>
 			</div>
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
+
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={error instanceof Error ? error.message : "An error occurred"}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
+										</TableHead>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
-									No conversions found.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
-			<div className="flex items-center justify-end space-x-2 py-4">
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row) => (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && "selected"}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												className="whitespace-nowrap px-6 py-4 text-sm"
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title={emptyTitle ?? "No UoM conversions"}
+											description={emptyDescription}
+											action={emptyAction}
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+				</div>
+			)}
+
+			<div className="flex shrink-0 items-center justify-end space-x-2 border-t border-border/40 px-6 py-3">
 				<div className="flex-1 text-sm text-muted-foreground">
 					{table.getFilteredRowModel().rows.length} of{" "}
 					{table.getCoreRowModel().rows.length} row(s) total.

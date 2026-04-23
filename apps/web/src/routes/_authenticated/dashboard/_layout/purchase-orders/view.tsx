@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { CanonicalStatus } from "@/components/ui/status-badge";
+import { BranchSelector } from "@/components/branch/branch-selector";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +30,7 @@ import {
 	SheetDescription,
 } from "@/components/ui/sheet";
 import { ShoppingCart, Plus, CheckCircle, Package, Trash2 } from "lucide-react";
+import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useState, useCallback, useMemo } from "react";
 
 export const Route = createFileRoute(
@@ -84,17 +87,20 @@ type LineItem = {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-	const map: Record<string, { label: string; variant: "outline" | "secondary" | "default" | "destructive" }> = {
-		draft: { label: "Draft", variant: "outline" },
-		approved: { label: "Approved", variant: "secondary" },
-		ordered: { label: "Ordered", variant: "secondary" },
-		partially_received: { label: "Partial", variant: "secondary" },
-		received: { label: "Received", variant: "default" },
-		cancelled: { label: "Cancelled", variant: "destructive" },
-	};
-	const cfg = map[status] ?? { label: status, variant: "outline" };
-	return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
+// Maps PO statuses to canonical StatusBadge equivalents.
+// "ordered" and "partially_received" are PO-domain states not in CanonicalStatus.
+const PO_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+	draft: { status: "draft" },
+	approved: { status: "approved" },
+	ordered: { status: "confirmed", label: "Ordered" },
+	partially_received: { status: "in_transit", label: "Partial" },
+	received: { status: "received" },
+	cancelled: { status: "cancelled" },
+};
+
+function POStatusBadge({ status }: { status: string }) {
+	const mapped = PO_STATUS_MAP[status] ?? { status: "draft" as CanonicalStatus, label: status };
+	return <StatusBadge status={mapped.status} label={mapped.label} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,12 +244,12 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 
 					{/* Branch */}
 					<div className="space-y-1.5">
-						<Label htmlFor="po-branch">Branch ID</Label>
-						<Input
-							id="po-branch"
+						<Label htmlFor="po-branch">Branch</Label>
+						<BranchSelector
 							value={branchId}
-							onChange={(e) => setBranchId(e.target.value)}
-							placeholder="UUID of the destination branch"
+							onChange={setBranchId}
+							organizationId={organizationId}
+							placeholder="Select destination branch…"
 						/>
 					</div>
 
@@ -473,7 +479,7 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 				<div className="mt-6 space-y-4">
 					{isLoading && (
 						<div className="flex items-center justify-center py-8">
-							<div className="animate-spin h-6 w-6 border-2 border-current border-r-transparent rounded-full" />
+							<LoadingSpinner size="md" />
 						</div>
 					)}
 
@@ -543,7 +549,7 @@ function RouteComponent() {
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
 	const [receivePoId, setReceivePoId] = useState<string | null>(null);
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["purchaseOrders", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -643,7 +649,7 @@ function RouteComponent() {
 			id: "status",
 			header: "Status",
 			accessorKey: "status",
-			cell: ({ row }) => <StatusBadge status={row.original.status} />,
+			cell: ({ row }) => <POStatusBadge status={row.original.status} />,
 		},
 		{
 			id: "actions",
@@ -713,13 +719,7 @@ function RouteComponent() {
 	}));
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading…</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (
@@ -739,7 +739,14 @@ function RouteComponent() {
 			</div>
 
 			{/* Table */}
-			<DataTable<PurchaseOrderRow, unknown> columns={columns} data={data} />
+			<DataTable<PurchaseOrderRow, unknown>
+				columns={columns}
+				data={data}
+				emptyTitle="No purchase orders found"
+				emptyAction={canCreate ? { label: "New PO", onClick: () => setCreateSheetOpen(true) } : undefined}
+				error={isError ? error : undefined}
+				onRetry={() => refetch()}
+			/>
 
 			{/* Create Sheet */}
 			{organizationId && canCreate && (

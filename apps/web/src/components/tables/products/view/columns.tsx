@@ -1,5 +1,6 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import type { ColumnDef } from "@tanstack/table-core";
 import { Package } from "lucide-react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -22,34 +23,6 @@ export interface ProductRow {
 	updatedAt?: string | Date | null;
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
-	switch (status) {
-		case "active":
-			return (
-				<Badge variant="default" className="bg-green-600 hover:bg-green-700 capitalize">
-					Active
-				</Badge>
-			);
-		case "inactive":
-			return (
-				<Badge variant="secondary" className="capitalize">
-					Inactive
-				</Badge>
-			);
-		case "discontinued":
-			return (
-				<Badge variant="destructive" className="capitalize">
-					Discontinued
-				</Badge>
-			);
-		default:
-			return (
-				<Badge variant="outline" className="capitalize">
-					{status ?? "—"}
-				</Badge>
-			);
-	}
-}
 
 export const columns: ColumnDef<ProductRow>[] = [
 	{
@@ -116,7 +89,7 @@ export const columns: ColumnDef<ProductRow>[] = [
 	{
 		accessorKey: "status",
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-		cell: ({ getValue }) => <StatusBadge status={getValue<string | null | undefined>()} />,
+		cell: ({ getValue }) => <StatusBadge status={(getValue<string | null | undefined>() ?? "inactive") as CanonicalStatus} />,
 		enableSorting: true,
 		enableHiding: false,
 	},

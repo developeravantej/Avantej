@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -27,6 +28,8 @@ import {
 import DataTable from "@/components/tables/sales/view/data-table";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { ArrowUpDown, CheckCircle, XCircle, PackageCheck, Plus } from "lucide-react";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { CanonicalStatus } from "@/components/ui/status-badge";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,35 +76,6 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Status Badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: StockRequestStatus }) {
-	switch (status) {
-		case "pending":
-			return (
-				<Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-					Pending
-				</Badge>
-			);
-		case "approved":
-			return (
-				<Badge variant="default" className="bg-green-600 hover:bg-green-700">
-					Approved
-				</Badge>
-			);
-		case "rejected":
-			return <Badge variant="destructive">Rejected</Badge>;
-		case "fulfilled":
-			return (
-				<Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
-					Fulfilled
-				</Badge>
-			);
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
 
@@ -121,7 +95,7 @@ export function StockRequestsTabPage() {
 		},
 		enabled: !!organizationId,
 	});
-	const branches = (nodesData?.nodes ?? []).filter((n) => n.type === "branch");
+	const branches = ((nodesData?.nodes ?? []) as Array<{ id: string; type: string; name: string }>).filter((n) => n.type === "branch");
 
 	// ---- Filter state ----
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -143,7 +117,7 @@ export function StockRequestsTabPage() {
 	const [isFetchingFulfillItems, setIsFetchingFulfillItems] = useState(false);
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
 		queryKey: ["stockRequests", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -369,7 +343,7 @@ export function StockRequestsTabPage() {
 		{
 			accessorKey: "status",
 			header: "Status",
-			cell: ({ getValue }) => <StatusBadge status={getValue<StockRequestStatus>()} />,
+			cell: ({ getValue }) => <StatusBadge status={getValue<StockRequestStatus>() as CanonicalStatus} />,
 		},
 		{
 			id: "actions",
@@ -504,11 +478,13 @@ export function StockRequestsTabPage() {
 	}
 
 	if (isLoading) {
+		return <PageLoader />;
+	}
+
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load stock requests" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -560,7 +536,12 @@ export function StockRequestsTabPage() {
 			</div>
 
 			{/* Table */}
-			<DataTable<StockRequestRow, unknown> columns={columns} data={data} />
+			<DataTable<StockRequestRow, unknown>
+				columns={columns}
+				data={data}
+				emptyTitle="No stock requests"
+				emptyDescription="Create a new request to move inventory between branches."
+			/>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Create Stock Request Sheet                                          */}

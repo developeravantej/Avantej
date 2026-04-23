@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { TrainerAvailabilityEditor } from "@/components/trainers/trainer-availability-editor";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -38,6 +40,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users, Plus, Search, Edit, ChevronDown, Mail, Phone, Award } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -148,7 +151,7 @@ function TrainersView() {
 		trainerTierId?: string | null;
 	};
 
-	const { data: membersData = [] as MemberListItem[], isLoading } = useQuery({
+	const { data: membersData = [] as MemberListItem[], isLoading, isError, refetch } = useQuery({
 		queryKey: ["trainers", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [] as MemberListItem[];
@@ -535,11 +538,13 @@ function TrainersView() {
 	// ── Guard: loading ───────────────────────────────────────────────────────
 
 	if (isLoading) {
+		return <PageLoader />;
+	}
+
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load trainers" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -582,21 +587,17 @@ function TrainersView() {
 
 			{/* Empty state */}
 			{tableData.length === 0 && !isLoading ? (
-				<div className="flex flex-col items-center justify-center py-20 gap-3">
-					<Users className="h-12 w-12 text-muted-foreground/50" />
-					<p className="text-lg font-medium text-foreground">No trainers found</p>
-					<p className="text-sm text-muted-foreground">
-						{debouncedSearch
+				<EmptyState
+					icon={Users}
+					title="No trainers found"
+					description={
+						debouncedSearch
 							? "No trainers match your search. Try a different query."
-							: "Add your first trainer to get started."}
-					</p>
-					{!debouncedSearch && (
-						<Button onClick={openCreate} className="mt-2">
-							<Plus className="h-4 w-4 mr-2" />
-							Add Trainer
-						</Button>
-					)}
-				</div>
+							: "Add your first trainer to get started."
+					}
+					action={!debouncedSearch ? { label: "Add Trainer", onClick: openCreate } : undefined}
+					context={debouncedSearch ? "search" : "empty"}
+				/>
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 					{tableData.map((trainer) => {
@@ -610,39 +611,38 @@ function TrainersView() {
 								tabIndex={0}
 								onClick={() => setSelectedTrainer(trainer)}
 								onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedTrainer(trainer); }}
-								className="flex flex-col rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
+								className="flex flex-col rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
 							>
 								<div className="flex items-start gap-3 px-4 pt-4 pb-3">
-									<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold">
+									<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-sm font-bold">
 										{initials}
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-semibold text-gray-900 truncate">
+										<p className="text-sm font-semibold text-foreground truncate">
 											{trainer.displayName ?? trainer.name}
 										</p>
 										{trainer.specialization ? (
 											<p className="text-xs text-muted-foreground truncate mt-0.5">{trainer.specialization}</p>
 										) : (
-											<p className="text-xs text-gray-300 truncate mt-0.5">No specialization</p>
+											<p className="text-xs text-muted-foreground truncate mt-0.5">No specialization</p>
 										)}
-										<p className="text-xs text-gray-400 truncate mt-0.5">{trainer.email}</p>
+										<p className="text-xs text-muted-foreground truncate mt-0.5">{trainer.email}</p>
 									</div>
-									<Badge
-										variant={isActive ? "default" : "destructive"}
+									<StatusBadge
+										status={isActive ? "active" : "inactive"}
+										label={isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
 										className="shrink-0 self-start text-xs"
-									>
-										{isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
-									</Badge>
+									/>
 								</div>
 								<div className={cn("h-0.5 w-full shrink-0", isActive ? "bg-emerald-400" : "bg-rose-400")} />
 								{/* Tier selector */}
 								<div
-									className="px-4 py-2 border-t border-gray-50"
+									className="px-4 py-2 border-t border-border"
 									onClick={(e) => e.stopPropagation()}
 									onKeyDown={(e) => e.stopPropagation()}
 								>
 									<select
-										className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-700"
+										className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-card focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
 										value={trainer.trainerTierId ?? ""}
 										disabled={assignTierMutation.isPending}
 										onChange={(e) => {
@@ -674,14 +674,14 @@ function TrainersView() {
 						return (
 							<>
 								{/* Header */}
-								<div className="px-6 pt-6 pb-5 border-b border-gray-100">
+								<div className="px-6 pt-6 pb-5 border-b border-border">
 									<div className="flex items-start gap-4">
-										<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 text-xl font-bold">
+										<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-xl font-bold">
 											{initials}
 										</div>
 										<div className="flex-1 min-w-0 pt-1">
 											<DialogHeader className="p-0 space-y-0">
-												<DialogTitle className="text-base font-bold text-gray-900">
+												<DialogTitle className="text-base font-bold text-foreground">
 													{trainer.displayName ?? trainer.name}
 												</DialogTitle>
 												{trainer.specialization && (
@@ -691,9 +691,11 @@ function TrainersView() {
 												)}
 											</DialogHeader>
 											<div className="mt-2">
-												<Badge variant={isActive ? "default" : "destructive"} className="text-xs">
-													{isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
-												</Badge>
+												<StatusBadge
+													status={isActive ? "active" : "inactive"}
+													label={isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
+													className="text-xs"
+												/>
 											</div>
 										</div>
 									</div>
@@ -701,47 +703,47 @@ function TrainersView() {
 
 								{/* Detail rows */}
 								<div className="px-5 py-4 space-y-1 bg-white">
-									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-											<Mail className="h-3.5 w-3.5 text-gray-500" />
+									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+											<Mail className="h-3.5 w-3.5 text-muted-foreground" />
 										</div>
 										<div className="flex-1 min-w-0">
-											<p className="text-[11px] text-gray-400 font-medium">Email</p>
-											<p className="text-sm text-gray-800 font-medium">{trainer.email}</p>
+											<p className="text-[11px] text-muted-foreground font-medium">Email</p>
+											<p className="text-sm text-foreground font-medium">{trainer.email}</p>
 										</div>
 									</div>
 									{trainer.phoneNumber && (
-										<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-												<Phone className="h-3.5 w-3.5 text-gray-500" />
+										<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+												<Phone className="h-3.5 w-3.5 text-muted-foreground" />
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[11px] text-gray-400 font-medium">Phone</p>
-												<p className="text-sm text-gray-800 font-medium">{trainer.phoneNumber}</p>
+												<p className="text-[11px] text-muted-foreground font-medium">Phone</p>
+												<p className="text-sm text-foreground font-medium">{trainer.phoneNumber}</p>
 											</div>
 										</div>
 									)}
 									{trainer.bio && (
-										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-												<Users className="h-3.5 w-3.5 text-gray-500" />
+										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+												<Users className="h-3.5 w-3.5 text-muted-foreground" />
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[11px] text-gray-400 font-medium">Bio</p>
-												<p className="text-sm text-gray-700 leading-relaxed">{trainer.bio}</p>
+												<p className="text-[11px] text-muted-foreground font-medium">Bio</p>
+												<p className="text-sm text-foreground leading-relaxed">{trainer.bio}</p>
 											</div>
 										</div>
 									)}
 									{trainer.certifications && trainer.certifications.length > 0 && (
-										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-												<Award className="h-3.5 w-3.5 text-gray-500" />
+										<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+												<Award className="h-3.5 w-3.5 text-muted-foreground" />
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[11px] text-gray-400 font-medium">Certifications</p>
+												<p className="text-[11px] text-muted-foreground font-medium">Certifications</p>
 												<div className="flex flex-wrap gap-1.5 mt-1">
 													{trainer.certifications.map((cert) => (
-														<span key={cert} className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700 font-medium">
+														<span key={cert} className="inline-flex items-center rounded-full bg-brand-secondary-3 px-2.5 py-0.5 text-xs text-foreground font-medium">
 															{cert}
 														</span>
 													))}
@@ -756,7 +758,7 @@ function TrainersView() {
 									<button
 										type="button"
 										onClick={() => { setSelectedTrainer(null); openEdit(trainer); }}
-										className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+										className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
 									>
 										<Edit className="h-3.5 w-3.5" />
 										Edit Profile
@@ -766,7 +768,7 @@ function TrainersView() {
 											type="button"
 											onClick={() => { setSelectedTrainer(null); suspendMutation.mutate(trainer.id); }}
 											disabled={isMutating}
-											className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+											className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
 										>
 											Suspend
 										</button>
@@ -776,7 +778,7 @@ function TrainersView() {
 											type="button"
 											onClick={() => { setSelectedTrainer(null); reactivateMutation.mutate(trainer.id); }}
 											disabled={isMutating}
-											className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+											className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
 										>
 											Reactivate
 										</button>
@@ -1271,12 +1273,6 @@ function TrainersView() {
 												</thead>
 												<tbody>
 													{trainerCommissions.map((c) => {
-														const statusClasses: Record<string, string> = {
-															pending: "bg-yellow-100 text-yellow-800",
-															approved: "bg-blue-100 text-blue-800",
-															paid: "bg-green-100 text-green-800",
-															void: "bg-gray-100 text-gray-600",
-														};
 														const dateStr = c.createdAt
 															? new Date(c.createdAt).toLocaleDateString("en-MY")
 															: "—";
@@ -1299,14 +1295,7 @@ function TrainersView() {
 																	{formatPrice(c.calculatedAmount, "MYR")}
 																</td>
 																<td className="py-1.5">
-																	<span
-																		className={cn(
-																			"inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize",
-																			statusClasses[c.status] ?? "bg-gray-100 text-gray-600",
-																		)}
-																	>
-																		{c.status}
-																	</span>
+																	<StatusBadge status={c.status as CanonicalStatus} />
 																</td>
 															</tr>
 														);

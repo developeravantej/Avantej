@@ -1,114 +1,125 @@
-# GoHighLevel Integration
+# GoHighLevel Integration Admin Dashboard
 
-**Route:** `/_authenticated/go-highlevel-integration`
-**File:** `apps/web/src/routes/_authenticated/go-highlevel-integration.tsx:1`
+**Route:** `/go-highlevel-integration`
+**File:** `apps/web/src/routes/_authenticated/go-highlevel-integration.tsx`
 **Platform:** web
-**Auth required:** authenticated + **platform admin only** (`requireSystemAdmin` beforeLoad + in-component gate, both added 2026-04-17)
-**Last updated:** 2026-04-17
+**Auth required:** authenticated, rbac(system_admin)
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Admin dashboard for monitoring and configuring the GoHighLevel (GHL) CRM webhook integration — shows connected locations, recent sync events, and contact-to-member links.
-**Produces:** Four sections: (1) webhook setup instructions, (2) connected locations manager with add form, (3) recent sync events table with expandable payload viewer, (4) contact links table.
-**On success:** Locations, sync events (last 25), and contact links (last 50) load on mount and when location selection changes.
-**On failure / error states:** Inline red error banner displayed on any fetch failure. Refresh/Save buttons disabled during loading. Empty state rows shown when no data yet.
+**Purpose (user perspective):** System admin debugging/monitoring dashboard for GoHighLevel webhook integration. View connected GHL locations, recent sync events, and contact links.
+
+**Produces:** Multi-card dashboard showing: webhook setup instructions, connected locations dropdown, sync events table (limit 25), contact links table (limit 50), and location mapping form.
+
+**On success:** Displays live data from server endpoints; allows admins to add new location mappings and view webhook payloads with field parsing.
+
+**On failure / error states:** Error banner shows network/permission errors. Loading spinner shows during data fetch. Access denied message if user is not system admin.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-Route.beforeLoad
-  → requireSystemAdmin("/dashboard")
-    → reads user context from TanStack Query cache (fetches once if cold)
-    → redirects to /dashboard?unauthorized=true when !ctx.isSystemAdmin
+1. Route guard checks `requireSystemAdmin()` → redirects to `/dashboard` if not admin
+2. Component checks `useIsSystemAdmin()` hook
+3. On mount, calls `loadLocations()` → fetches from `GET /webhooks/gohighlevel/locations`
+4. When location selected, calls `loadLocationData()` → fetches events and links in parallel
+5. Admin can save new location mapping via `POST /webhooks/gohighlevel/locations` with locationId + webhookSecret
 
-GoHighLevelIntegrationPage (renders only if beforeLoad passed)
-  → useIsSystemAdmin() { isSystemAdmin, loading: adminLoading }
-    → adminLoading  → return null
-    → !isSystemAdmin → render "Access Denied" Card (defense in depth)
-  → useEffect on mount: refresh()
-    → GET /webhooks/gohighlevel/locations (credentials: include)
-    → if selectedLocationId: loadLocationData(locationId)
-      → GET /webhooks/gohighlevel/{locationId}/events?limit=25
-      → GET /webhooks/gohighlevel/{locationId}/links?limit=50
-  → useEffect on selectedLocationId change: loadLocationData(locationId)
-  → saveLocationMapping():
-    → POST /webhooks/gohighlevel/locations
-      → body: { locationId, webhookSecret? }
-    → refresh()
-  → extractParsedFieldsPreview(event): normalizes rawPayload fields for display
-```
+**Inputs:** Location selection (dropdown); new location ID and webhook secret (form inputs); refresh button
 
-**Inputs:**
-- Location selector dropdown (changes viewed events/links)
-- `newLocationId` text input (required to register)
-- `newSecret` text input (optional webhook secret)
+**State management:** Local state for locations, selectedLocationId, events, links, loading, error, newLocationId, newSecret
 
-**State management:** All local React state — `locations[]`, `selectedLocationId`, `events[]`, `links[]`, `loading`, `error`, `newLocationId`, `newSecret`
+**Outputs:** Direct fetch API calls to server (not via oRPC client). Navigation redirects to `/dashboard` if not admin.
 
-**Outputs:**
-- Webhook URL preview: `${VITE_SERVER_URL}/webhooks/gohighlevel/${selectedLocationId}`
-- Tables of sync events and contact links
-- `extractParsedFieldsPreview` normalizes ~20 GHL payload fields into a consistent shape
-
-**Side effects:** POST registers a new location on the server
+**Side effects:** Fetches webhook data; creates location mappings; displays raw and parsed GHL payloads
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints (direct fetch, NOT oRPC):**
-- `GET /webhooks/gohighlevel/locations` — list registered GHL locations
-- `POST /webhooks/gohighlevel/locations` — register new location + optional webhook secret
-- `GET /webhooks/gohighlevel/{locationId}/events?limit=25` — recent sync events
-- `GET /webhooks/gohighlevel/{locationId}/links?limit=50` — GHL-to-user contact links
+**Calls these API endpoints:**
+- `GET /webhooks/gohighlevel/locations` — fetch all connected locations
+- `GET /webhooks/gohighlevel/{locationId}/events?limit=25` — fetch recent sync events
+- `GET /webhooks/gohighlevel/{locationId}/links?limit=50` — fetch contact links
+- `POST /webhooks/gohighlevel/locations` — save new location mapping
 
-**Uses these components:** Shadcn UI primitives only (`Card`, `CardHeader`, `CardContent`, `CardTitle`, `Button`) — no custom components
+**Uses these components:**
+- `Card, CardContent, CardHeader, CardTitle` — `@/components/ui/card` — layout
+- `Button` — `@/components/ui/button` — action buttons
 
 **Uses these hooks:**
-- `useIsSystemAdmin` — `apps/web/src/hooks/usePermissions.ts` — in-component gate (returns `{ isSystemAdmin, loading }`)
-- Otherwise all state is local `useState` / `useEffect`
+- `useIsSystemAdmin` — check system admin role
+- `useMemo` — compute webhook URL preview
+- `useState` — manage form and data state
+- `useEffect` — load data on mount and location change
 
-**Uses these guards:**
-- `requireSystemAdmin` from `@/lib/route-guards` — route-level `beforeLoad` gate
+**Navigation: who navigates here:** System admin only (route guard enforces)
 
-**Navigation: who navigates here:**
-- App sidebar: "GHL Integration" (last item in nav) → `/go-highlevel-integration`
-
-**Navigation: where it goes:** No outbound navigation
+**Navigation: where it goes:** `/dashboard` if not admin (redirect in beforeLoad)
 
 ---
 
 ## 4. Data Shapes
 
-**Key types (defined locally in this file):**
-```typescript
-GhlLocation    { locationId, organizationId, isActive, createdAt, updatedAt }
-GhlSyncEvent   { id, eventKey, eventType, ghlContactId, email, status, errorMessage, rawPayload, createdAt }
-GhlContactLink { id, ghlContactId, userId, customerProfileId, syncStatus, lastSyncedAt, profileIsDeleted, profileDeletedAt, updatedAt }
-```
+**DB tables touched:** (Backend: ghl_locations, ghl_sync_events, ghl_contact_links)
 
-**`extractParsedFieldsPreview` normalized output:**
-`id`, `name`, `first_name`, `last_name`, `email`, `phone`, `id_passport`, `address_type`, `address`, `dob`, `emergency_name`, `emergency_phone`, `emergency_relationship`, `country`, `location`, `service`, `service_start_date`, `currency`, `payment_method`, `remark`, `primary_coach`
+**Key types / Zod schemas:**
+```typescript
+type GhlLocation = {
+  locationId: string;
+  organizationId: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type GhlSyncEvent = {
+  id: string;
+  eventKey: string;
+  eventType: string;
+  ghlContactId: string | null;
+  email: string | null;
+  status: string;
+  errorMessage: string | null;
+  rawPayload: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+type GhlContactLink = {
+  id: string;
+  ghlContactId: string;
+  userId: string;
+  customerProfileId: string | null;
+  syncStatus: string;
+  lastSyncedAt: string | null;
+  updatedAt: string;
+  profileIsDeleted: boolean | null;
+  profileDeletedAt: string | null;
+};
+```
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Payload parsing edge cases; POST location registration error handling; credential-dependent fetch calls
+
+**Scenarios covered:** None
+
+**Not tested (risk areas):** Admin auth bypass, malformed webhook payloads, rate limiting on endpoint hits, error handling for 500 responses, XSS via raw payload display
 
 ---
 
 ## 6. Notes
 
-- Uses direct `fetch()` calls with `credentials: "include"` — does NOT go through the oRPC client. Server URL from `VITE_SERVER_URL` env (defaults to `http://localhost:3000`).
-- `extractParsedFieldsPreview` handles Thailand-specific custom field names (e.g., `select_main_branch_assigned_in_contract_for_service_thailand`) — this integration is primarily used for Thai operations.
-- Described in its subtitle as "Demo sync flow" — likely an internal diagnostic/tooling page rather than a production feature.
-- **Platform-admin-only** as of 2026-04-17 (Ticket A of the dashboard-completeness plan). `beforeLoad: requireSystemAdmin("/dashboard")` blocks non-admins before render; in-component `useIsSystemAdmin` check renders an Access Denied Card as defense in depth. Non-admins land on `/dashboard?unauthorized=true`.
-- Backend `/webhooks/gohighlevel/*` endpoints are NOT protected by this frontend guard — they accept raw `fetch` calls. Backend auth on those endpoints is tracked as a follow-up (see `zplan/17-04_10-18_dashboard-completeness/00-overview.md` residual gaps).
+- Uses native `fetch` API instead of oRPC client (direct HTTP).
+- Webhook URL preview shows template format when no location selected.
+- Payload viewer shows both raw JSON and normalized field extraction (contact.id, email, phone, emergency contact info, etc.).
+- Location mapping form accepts optional webhook secret for Bearer token security.
+- Server URL loaded from `import.meta.env.VITE_SERVER_URL` (fallback `http://localhost:3000`).
+- "Recent Sync Events" limited to 25; "Contact Links" limited to 50 per query.
+- Missing error state for auth failures on individual API calls (only shows loading state).

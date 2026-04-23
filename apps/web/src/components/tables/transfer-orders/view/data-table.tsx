@@ -24,18 +24,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { Search } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 function DataTable<TData, TValue>({
 	columns,
 	data,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
+	error,
+	onRetry,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [globalFilter, setGlobalFilter] = useState("");
 
 	const table = useReactTable({
 		data,
@@ -46,88 +60,118 @@ function DataTable<TData, TValue>({
 		getSortedRowModel: getSortedRowModel(),
 		onColumnFiltersChange: setColumnFilters,
 		getFilteredRowModel: getFilteredRowModel(),
+		onGlobalFilterChange: setGlobalFilter,
+		globalFilterFn: "includesString",
 		state: {
 			sorting,
 			columnFilters,
+			globalFilter,
 		},
 	});
 
 	return (
-		<div className="w-full">
-			<div className="flex items-center py-4">
-				<Input
-					placeholder="Filter transfer orders..."
-					value={(table.getColumn("transferNumber")?.getFilterValue() as string) ?? ""}
-					onChange={(event) =>
-						table.getColumn("transferNumber")?.setFilterValue(event.target.value)
-					}
-					className="max-w-sm"
-				/>
+		<div className="flex h-full flex-col">
+			{/* Search bar */}
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search transfer orders..."
+						value={globalFilter ?? ""}
+						onChange={(e) => setGlobalFilter(e.target.value)}
+						className="pl-9"
+					/>
+				</div>
 			</div>
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
+
+			{/* Error state */}
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={error instanceof Error ? error.message : "An error occurred"}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-										</TableCell>
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(header.column.columnDef.header, header.getContext())}
+										</TableHead>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell colSpan={columns.length} className="h-24 text-center">
-									No results.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
-			<div className="flex items-center justify-end space-x-2 py-4">
-				<div className="flex-1 text-sm text-muted-foreground">
-					{table.getFilteredRowModel().rows.length} of{" "}
-					{table.getCoreRowModel().rows.length} row(s) total.
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row) => (
+									<TableRow
+										key={row.id}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id} className="whitespace-nowrap px-6 py-4 text-sm">
+												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title={emptyTitle ?? "No transfer orders"}
+											description={emptyDescription}
+											action={emptyAction}
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
 				</div>
-				<div className="space-x-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
-					>
-						Next
-					</Button>
+			)}
+
+			{/* Pagination */}
+			<div className="shrink-0 border-t border-border/40 px-6 py-3">
+				<div className="flex items-center justify-end space-x-2">
+					<div className="flex-1 text-sm text-muted-foreground">
+						{table.getFilteredRowModel().rows.length} of{" "}
+						{table.getCoreRowModel().rows.length} row(s) total.
+					</div>
+					<div className="space-x-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => table.previousPage()}
+							disabled={!table.getCanPreviousPage()}
+						>
+							Previous
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => table.nextPage()}
+							disabled={!table.getCanNextPage()}
+						>
+							Next
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -1,125 +1,95 @@
-# Native Dashboard Home
+# Dashboard Home
 
-**Route:** `/(app)/dashboard/` (tab index screen)
-**File:** `apps/native/app/(app)/dashboard/index.tsx:1`
+**Route:** `(app)/dashboard/home`
+**File:** `apps/native/app/(app)/dashboard/index.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The main home screen of the customer mobile app; shows the user's active fitness package status, upcoming appointment, recent activity, and quick-action buttons.
-**Produces:** A scrollable feed: greeting card with notification badge, active package card with credit progress bar, quick-insight card, four action shortcuts, "UP NEXT" upcoming appointment, and "RECENT ACTIVITY" list.
-**On success:** All sections populate from live API data; pull-to-refresh reloads everything.
-**On failure / error states:** Each section renders an independent inline error message. Global org-loading shows a full-screen ActivityIndicator. Skeleton loaders shown for package card and upcoming section while loading.
+**Purpose (user perspective):** Show user greeting, active fitness plan progress, upcoming session, and recent activity in one dashboard view.
+**Produces:** Scrollable home screen with header (greeting, notifications badge), plan card (credits remaining, progress bar), quick insight, action buttons (book, calendar, buy package, my credits), upcoming session card, recent activity list.
+**On success:** All data loads and displays; pull-to-refresh updates all queries.
+**On failure / error states:** Skeleton loaders while fetching; error messages if API calls fail; "No Active Plan" card if no package; "No upcoming sessions" empty state.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-Home screen
-  → useAuth()                            # gets user name
-  → useOrganization()                    # gets organizationId
-  → orpc.packageInstances.getActiveForClient.queryOptions(...)
-      → packageInstancesRouter.getActiveForClient
-        → listPackageInstancesForClient(tenantDb, { clientId, status:"active", limit:1 })
-          → package_instances table
-  → orpc.notifications.getUnreadCount.queryOptions(...)
-      → notificationsRouter.getUnreadCount
-        → getUnreadCount(tenantDb, userId)
-  → orpc.appointments.listForUser.queryOptions({ status:"confirmed", startFrom:now, limit:1 })
-      → appointmentsRouter.listForUser  # upcoming
-        → appointments table (with service join)
-  → orpc.appointments.listForUser.queryOptions({ limit:5 })
-      → appointmentsRouter.listForUser  # recent
-        → appointments table
-```
+1. Fetches organization context via `useOrganization()` hook
+2. Queries 4 oRPC endpoints in parallel:
+   - `orpc.packageInstances.getActiveForClient` (plan details, credits, expiry)
+   - `orpc.notifications.getUnreadCount` (unread badge, refetch every 30s)
+   - `orpc.appointments.listForUser` (upcoming confirmed session, limit 1, from today forward)
+   - `orpc.appointments.listForUser` (recent appointments, limit 5, all statuses)
+3. Derives computed state: planStats (progress %), upcomingActivity, recentActivities
+4. Renders conditional UI based on loading/error/data states
+5. Pull-to-refresh invalidates packageInstances, appointments, notifications queries
 
-**Inputs:** None from URL/navigation. All data from session user + organizationId.
-**State management:**
-- 4 TanStack Query queries (packageInstances, notifications, upcoming appointments, recent appointments)
-- `queryClient.invalidateQueries` on pull-to-refresh for keys: `packageInstances`, `appointments`, `notifications`
-- Notifications polled every 30 seconds (`refetchInterval: 30000`)
-
-**Outputs:**
-- Greeting card: user name (from `user.firstName` or `user.name`), current date, notification bell with unread badge
-- Package card: plan label "ACTIVE", credits remaining (large display), progress bar (% used), estimated weeks to finish, renewal date, "Manage membership" link
-- No-plan state: empty card with "Browse Packages" CTA
-- Quick-insight card (only when plan active): hardcoded tip text
-- Action grid (4 buttons): Book Session, Calendar, Buy Package, My Credits
-- UP NEXT: next confirmed appointment image/title/time, tappable to booking detail
-- RECENT ACTIVITY: last 5 appointments with status icon and credit deduction
-
-**Side effects:** None (read-only screen).
+**Inputs:** organizationId (from context)
+**State management:** TanStack Query with oRPC queryOptions; derived state via useMemo for planStats, recentActivities
+**Outputs:** Renders header, plan card, action buttons, upcoming session, recent activity; navigates on button presses
+**Side effects:** onRefresh invalidates 3 query families; notification bell navigates to notifications screen
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `packageInstances.getActiveForClient` — returns single active package instance for session user
-- `notifications.getUnreadCount` — returns integer count, polled every 30s
-- `appointments.listForUser` (×2) — upcoming (status:confirmed, limit:1) and recent (limit:5)
+- `orpc.packageInstances.getActiveForClient` — fetch active subscription
+- `orpc.notifications.getUnreadCount` — fetch unread notification count
+- `orpc.appointments.listForUser` (2x) — fetch upcoming and recent appointments
 
-**Uses these components:**
-- `TabContainer` — `apps/native/components/container` — wraps tab screens with safe area + tab-bar padding
-- `useTabBarHeight` — `apps/native/components/container` — returns dynamic tab bar height for bottom padding
-- `SkeletonBox`, `PlanCardSkeleton`, `UpcomingSkeleton` — inline local skeleton components
-
-**Uses these hooks:**
-- `useAuth` — `apps/native/hooks/useAuth` — provides `user`
-- `useOrganization` — `apps/native/hooks/useOrganization` — provides `organizationId`, `isLoading`
-- `useQuery`, `useQueryClient` — TanStack Query
-- `useCallback`, `useMemo` — memoized refresh + derived data
-
-**Navigation: who navigates here:** Tab bar (index tab). Expo Router renders this as the default dashboard tab.
+**Uses these components:** TabContainer, Image, ScrollView, TouchableOpacity, ActivityIndicator, View, Text, Ionicons
+**Uses these hooks:** `useAuth()` (user name), `useOrganization()` (orgId), `useQuery()` (TanStack Query), `useTabBarHeight()` (padding), `useMemo()`, `useCallback()`
+**Navigation: who navigates here:** Root of (app) routes after auth check
 **Navigation: where it goes:**
-- `/dashboard/notifications/` — notification bell press
-- `/dashboard/packages` — "Manage membership" link and "My Credits" action button
-- `/dashboard/buy-package/setup` — "Buy Package" action button and "No Active Plan" CTA
-- `/dashboard/book-workout/book-workout` — "Book Session" action button and empty UP NEXT CTA
-- `/dashboard/calendar` — "Calendar" action button
-- `/dashboard/bookings/{id}` — tapping an upcoming appointment card
+- `/dashboard/notifications/` — notification bell
+- `/dashboard/book-workout/book-workout` — book session button
+- `/dashboard/calendar` — calendar button
+- `/dashboard/buy-package/setup` — buy package buttons
+- `/dashboard/packages` — manage membership
+- `/dashboard/bookings/{id}` — upcoming session card tap
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `package_instances` (tenant) | READ | `clientId`, `status`, `creditsRemaining`, `creditsTotal`, `expiresAt` |
-| `appointments` (tenant) | READ | `userId`, `status`, `startTime`, `duration`, `creditsUsed`, service join |
-| `notifications` (tenant) | READ (count) | `userId`, `isRead` |
+**DB tables touched:** 
+- packageInstances (select creditsRemaining, creditsTotal, expiresAt)
+- appointments (select id, startTime, duration, status, creditsUsed; join services for name/imageUrl)
+- notifications (count unread)
 
-**Key types:**
-- `activePackage` — package instance record with `creditsRemaining`, `creditsTotal`, `expiresAt`
-- `planStats` — derived: `{ creditsRemaining, creditsTotal, progress, weeksToFinish, renewalDate }`
-- `upcomingActivity` — derived: `{ id, title, time, duration, date, image }`
-- `recentActivities` — derived array: `{ id, name, date, credits, icon }`
+**Key types / Zod schemas:**
+- activePackage: { creditsRemaining, creditsTotal, expiresAt }
+- appointment: { id, startTime, duration, status, creditsUsed, service?: { name, imageUrl } }
+- planStats derived: { creditsRemaining, creditsTotal, progress, weeksToFinish, renewalDate }
+- recentActivities: { id, name, date, credits, icon, status }
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):**
-- No-package empty state vs. API error differentiation
-- Pull-to-refresh invalidation breadth (all three query keys)
-- Notification badge overflow display (shows "9+" for >9 unread)
+**Not tested (risk areas):** 
+- Error state display (package error, upcoming error, recent error branches)
+- Pull-to-refresh invalidation logic
+- 30s refetch interval for notifications
+- Accessibility of notification badge number formatting (9+)
+- Time/date formatting edge cases (week calculation, relative past)
 
 ---
 
 ## 6. Notes
 
-- `getGreeting()` returns time-of-day greeting ("Good Morning" / "Good Afternoon" / "Good Evening") based on local device time, not server time.
-- Profile image in greeting card is hardcoded to `https://via.placeholder.com/48` — customer profile images are not yet surfaced here.
-- The "Quick insight" card text ("Most members book 2 workouts per week...") is hardcoded static text, not personalized data.
-- `upcomingAppointments` uses `orpc` query options pattern (`orpc.router.proc.queryOptions({ input })`); the `organizationId` is required in the input even though the backend uses `session.user.id` as the client filter.
-- Recent activity items are not tappable (no `onPress` handler despite wrapping in `TouchableOpacity`) — a known gap.
-- `service?.imageUrl` falls back to `DEFAULT_IMAGE` (an Unsplash gym photo URL) when no service image is set.
+- activePackage data typing is loose (uses `as any` for service fields); suggests union type or discriminator needed
+- Skeleton components animate with Tailwind's animate-pulse class
+- Plan stats derived state uses useMemo with activePackage dependency but derives from optional fields
+- Notification refetch interval: 30s (hardcoded, not configurable)
+- "At this pace" calculation uses creditsTotal and creditsRemaining to project weeks remaining
+- Default service image used: `https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400`
+- Pull-to-refresh uses predicate to target only relevant query families

@@ -6,11 +6,7 @@ import {
 	getSortedRowModel,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import type {
-	ColumnDef,
-	SortingState,
-	ColumnFiltersState,
-} from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import {
 	Table,
@@ -24,12 +20,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
 	BrandFormDialog,
 	type BrandFormData,
 } from "@/components/forms/brand-form";
 import type { BrandRow, BrandTableMeta } from "./columns";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -38,6 +36,8 @@ interface DataTableProps<TData, TValue> {
 	onEdit: (id: string, data: BrandFormData) => void;
 	onDelete: (id: string) => void;
 	isMutating?: boolean;
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 function DataTable<TData extends BrandRow, TValue>({
@@ -47,9 +47,11 @@ function DataTable<TData extends BrandRow, TValue>({
 	onEdit,
 	onDelete,
 	isMutating,
+	error,
+	onRetry,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [editInitialData, setEditInitialData] = useState<
@@ -68,11 +70,12 @@ function DataTable<TData extends BrandRow, TValue>({
 		getPaginationRowModel: getPaginationRowModel(),
 		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(),
-		onColumnFiltersChange: setColumnFilters,
 		getFilteredRowModel: getFilteredRowModel(),
+		onGlobalFilterChange: setGlobalFilter,
+		globalFilterFn: "includesString",
 		state: {
 			sorting,
-			columnFilters,
+			globalFilter,
 		},
 		meta: {
 			onEdit: (row: BrandRow) => {
@@ -86,34 +89,59 @@ function DataTable<TData extends BrandRow, TValue>({
 		} satisfies BrandTableMeta,
 	});
 
+	const rows = table.getRowModel().rows;
+
 	return (
-		<div className="w-full">
-			<div className="flex items-center justify-between gap-2 py-4">
-				<Button
-					onClick={() => setIsAddDialogOpen(true)}
-					className="bg-black text-white hover:bg-black/90"
-					type="button"
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Add Brand
-				</Button>
-				<Input
-					placeholder="Filter brands..."
-					value={(table.getColumn("Name")?.getFilterValue() as string) ?? ""}
-					onChange={(event) =>
-						table.getColumn("Name")?.setFilterValue(event.target.value)
-					}
-					className="max-w-sm"
-				/>
+		<div className="flex h-full flex-col">
+			{/* Search bar row */}
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search brands..."
+						value={globalFilter ?? ""}
+						onChange={(e) => setGlobalFilter(e.target.value)}
+						className="pl-9"
+					/>
+				</div>
+				<div className="ml-auto flex gap-2">
+					<Button
+						onClick={() => setIsAddDialogOpen(true)}
+						className="bg-black text-white hover:bg-black/90"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Brand
+					</Button>
+				</div>
 			</div>
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => {
-									return (
-										<TableHead key={header.id}>
+
+			{/* Error state or table */}
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
+								<TableRow
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
+								>
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										>
 											{header.isPlaceholder
 												? null
 												: flexRender(
@@ -121,65 +149,45 @@ function DataTable<TData extends BrandRow, TValue>({
 														header.getContext(),
 													)}
 										</TableHead>
-									);
-								})}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
-								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
-									No results.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
-			<div className="flex items-center justify-end space-x-2 py-4">
-				<div className="flex-1 text-sm text-muted-foreground">
-					{table.getFilteredRowModel().rows.length} of{" "}
-					{table.getCoreRowModel().rows.length} row(s) total.
+							))}
+						</TableHeader>
+						<TableBody>
+							{rows.length ? (
+								rows.map((row) => (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && "selected"}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												className="whitespace-nowrap px-6 py-4 text-sm"
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title="No brands found"
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
 				</div>
-				<div className="space-x-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
-					>
-						Next
-					</Button>
-				</div>
-			</div>
+			)}
 
 			{/* Add Brand Dialog */}
 			{isAddDialogOpen && (
@@ -212,12 +220,12 @@ function DataTable<TData extends BrandRow, TValue>({
 
 			{/* Delete Confirmation Dialog */}
 			{isDeleteDialogOpen && brandToDelete && (
-				<div className="fixed inset-0 bg-brand-primary-1/50 flex items-center justify-center z-50">
-					<div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-						<h3 className="text-lg font-semibold text-brand-primary-1 mb-4">
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-primary-1/50">
+					<div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
+						<h3 className="mb-4 text-lg font-semibold text-brand-primary-1">
 							Delete Brand
 						</h3>
-						<p className="text-brand-secondary-1 mb-6">
+						<p className="mb-6 text-brand-secondary-1">
 							Are you sure you want to delete the brand "{brandToDelete.name}"?
 							This action cannot be undone.
 						</p>

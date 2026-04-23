@@ -1,5 +1,6 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, Eye } from "lucide-react";
@@ -179,16 +180,8 @@ export const columns: ColumnDef<SalesRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const status = getValue<string>();
-			const statusStyles: Record<string, string> = {
-				completed: "bg-green-100 text-green-700 border-green-200",
-				confirmed: "bg-blue-100 text-blue-700 border-blue-200",
-				draft: "bg-gray-100 text-gray-600 border-gray-200",
-				cancelled: "bg-red-100 text-red-700 border-red-200",
-			};
 			return status ? (
-				<Badge className={`capitalize border ${statusStyles[status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
-					{status}
-				</Badge>
+				<StatusBadge status={status as CanonicalStatus} />
 			) : "N/A";
 		},
 		enableSorting: true,

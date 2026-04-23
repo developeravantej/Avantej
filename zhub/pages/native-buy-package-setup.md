@@ -1,105 +1,110 @@
-# Buy Package — Setup
+# Setup Screen
 
 **Route:** `(app)/dashboard/buy-package/setup`
-**File:** `apps/native/app/(app)/dashboard/buy-package/setup.tsx:1`
+**File:** `apps/native/app/(app)/dashboard/buy-package/setup.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Flow:** buy-package (step 1/7) — prev: dashboard, next: schedule
-**Last updated:** 2026-04-16
+**Flow:** buy-package (step 1/7) — prev: none, next: schedule
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The user selects the service category, service, and package they want to purchase.
-**Produces:** Three cascaded selection lists — categories, services filtered by category, packages filtered by the selected service's appointment type. Each selection shows name, description, price, credits, and validity.
-**On success:** All three selections made → Continue button appears → context written → navigates to `./schedule`.
-**On failure / error states:** No error state shown for API failures. If no services exist for a category, shows "No services available." If no packages match the service type, shows "No packages available for this service type." Loading states show skeleton cards.
+**Purpose (user perspective):** Select a category, service, and package to begin purchasing.
+
+**Produces:** Three cascading selectors displayed sequentially: categories, services (filtered by category), and packages (filtered by service type). Each renders via TanStack Query with loading skeleton cards.
+
+**On success:** State is saved via `usePurchaseFlow` context; navigates to schedule screen.
+
+**On failure / error states:**
+- No categories returned: render empty state.
+- Service loading fails: skeleton cards shown until data arrives.
+- No packages available for selected service type: empty state message.
+- All selections required before Continue button appears.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-SetupScreen
-  → useOrganization() → organizationId
-  → orpc.serviceCategories.list({ organizationId })
-      → serviceCategoriesRouter.list
-        → listServiceCategories(tenantDb)
-          → tenantDb.serviceCategories
-  → orpc.services.list({ organizationId, categoryId }) [enabled when category selected]
-      → servicesRouter.list
-        → listServices(tenantDb, { categoryId })
-          → tenantDb.services
-  → orpc.packages.list({ organizationId, appointmentType }) [enabled when service selected]
-      → MISSING: packages router does not exist in appRouter
-  → handleContinue → update(context) → router.push("./schedule")
-```
+1. Mount: Hide tab bar using `useFocusEffect`.
+2. User taps category → query for services (enabled when categoryId set).
+3. User taps service → store serviceType, query all services again (to get packages).
+4. Filter services with `sessionCount != null` (packages), match service type.
+5. User taps package → store selected IDs and metadata.
+6. Continue button calls `update()` with all selected data → push to schedule.
 
-**Inputs:** organizationId from useOrganization hook; user taps to select category, service, package
-**State management:** Local state `selectedCategoryId`, `selectedServiceId`, `selectedPackageId`; on continue writes to PurchaseFlowContext
-**Outputs:** Renders three cascaded selection card lists with progress indicator at step 1/7
-**Side effects:** Three TanStack Query fetches on mount/selection change
+**Inputs:**
+- Navigation params: none (fresh start from dashboard).
+- Local state: `selectedCategoryId`, `selectedServiceId`, `selectedPackageId`.
+
+**State management:**
+- Context `usePurchaseFlow`: stores category/service/package IDs and names, credits, price, validity days, available payment plans, installment interval.
+- TanStack Query: caches service categories, services per category.
+
+**Outputs:**
+- On continue: PurchaseFlowState updated with categoryId, categoryName, serviceId, serviceName, serviceType, packageId, packageName, creditsTotal (sessionCount), price, validityDays, availablePaymentPlans, installmentIntervalDays.
+- Navigates to `./schedule`.
+
+**Side effects:**
+- Tab bar hidden during flow via `setOptions({ tabBarStyle: { display: "none" } })`.
+- Query invalidation: none (reads only).
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `serviceCategories.list` — fetches all categories for the org
-- `services.list` — fetches services filtered by selected categoryId
-- `packages.list` — **MISSING**: this router does not exist in `appRouter`; this call will fail at runtime
+- `orpc.serviceCategories.list` — fetch org categories.
+- `orpc.services.list` (two calls) — fetch services by category, then all services for package filtering.
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root layout wrapper
-- `SkeletonCard` (inline) — loading placeholder
-- `SafeAreaView` from react-native-safe-area-context
+- `Container` — wrapper; path `components/container`.
+- `SkeletonCard` — loading placeholder; defined in file.
 
-**Context:** Reads `categoryId`, `serviceId`, `packageId` for pre-selection. Writes: `categoryId`, `categoryName`, `serviceId`, `serviceName`, `serviceType`, `packageId`, `packageName`, `creditsTotal`, `price`, `validityDays`, `availablePaymentPlans`, `installmentIntervalDays`
+**Uses these hooks:**
+- `usePurchaseFlow` — context for state.
+- `useOrganization` — get organizationId.
+- `useQuery` — TanStack Query.
+- `useFocusEffect` — navigation listener.
 
-**Navigation:** `./schedule` — on Continue button tap (requires all three selections)
+**Navigation: who navigates here:** Dashboard or parent screens via `router.push('./setup')`.
+
+**Navigation: where it goes:** `./schedule` on continue.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| serviceCategories | SELECT | id, name, description |
-| services | SELECT | id, name, description, type, availablePaymentPlans, installmentIntervalDays |
-| packages | SELECT | id, name, description, sessionCount, pricePerSession, validityDays, appointmentType |
+- `serviceCategories` (read): id, name, description, organizationId.
+- `services` (read): id, name, description, type (private/semi_private/both), organizationId, availablePaymentPlans, installmentIntervalDays.
+- `services` as packages (read, filtered by sessionCount): id, name, price, sessionCount (credits), expiryDays, type.
 
-**Context fields used:**
-| Field | Type | Purpose |
-|-------|------|---------|
-| categoryId | string \| null | Pre-selects category on re-entry |
-| serviceId | string \| null | Pre-selects service on re-entry |
-| packageId | string \| null | Pre-selects package on re-entry |
-| categoryName | string \| null | Written on continue |
-| serviceName | string \| null | Written on continue |
-| serviceType | "private" \| "semi_private" \| null | Written on continue; drives schedule UI |
-| packageName | string \| null | Written on continue |
-| creditsTotal | number \| null | Written on continue |
-| price | number \| null | pricePerSession * sessionCount |
-| validityDays | number \| null | Written on continue |
-| availablePaymentPlans | string[] | From service record; drives plan step |
-| installmentIntervalDays | number | From service record; defaults to 30 |
+**Key types / Zod schemas:**
+- Category: `{ id, name, description }`.
+- Service: `{ id, name, description, type, availablePaymentPlans, installmentIntervalDays }`.
+- Service/Package: `{ id, name, price, sessionCount, expiryDays, type }`.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
+
+**Not tested (risk areas):**
+- Multi-type service filtering logic (private vs semi_private vs both).
+- Tab bar visibility state on mount/unmount.
+- Concurrent loading of category and service queries.
+- Edge case: no services in selected category.
 
 ---
 
 ## 6. Notes
 
-- `orpc.packages.list` is called but **`packages` is not a key in `appRouter`** (`packages/api/src/routers/index.ts`). This will produce a TypeScript error or runtime failure. There may be a server-side packages router that hasn't been wired into the shared base router yet.
-- The service type mapping `semi_private → "semi-private"` is done inline before passing to the packages query.
-- The price displayed on package cards is `pricePerSession * sessionCount` (total, not per session).
-- The Continue button only appears after all three selections are made — there is no separate validation step.
-- The step indicator on this screen hard-codes `totalSteps = 7` but `info.tsx` shows `totalSteps = 8`. The step counts are inconsistent across screens.
-- `useFocusEffect` in this screen duplicates the tab-bar-hiding logic from `_layout.tsx` — this is redundant.
+- Package filtering checks `s.type === serviceType || s.type === "both"` — a package marked "both" is compatible with any service type.
+- Step indicator shows 7 steps but code mentions 8 (`totalSteps = 7` on line 109). Clarify intent.
+- Unsplash header image is placeholder; should be replaced with org-specific branding.
+- Tab bar recovery on unmount handled by useCallback cleanup, but only in useFocusEffect context.
+- No error boundary; API failures will crash the screen without fallback UI.

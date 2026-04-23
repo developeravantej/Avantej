@@ -1,120 +1,112 @@
-# Signup
+# Sign Up Page
 
 **Route:** `/signup`
-**File:** `apps/web/src/routes/(auth)/signup.tsx:1`
+**File:** `apps/web/src/routes/(auth)/signup.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Allows new users to create an Avantej account with their name, email, and password.
+**Purpose (user perspective):** Create a new Avantej account with first name, last name, email, and password. Optionally auto-accept organization invitation if invitation token/orgId in URL.
 
-**Produces:** A new user account via Better-Auth; on success the user is redirected to `/dashboard` (or back to `/accept-invitation` if arriving via an invitation link).
+**Produces:** Sign up form with first/last name, email, password, confirm password fields; link to login page.
 
-**On success:** `toast.success("Account created successfully!")` shown; session refreshed; navigate to `/dashboard` or `/accept-invitation`.
-**On failure / error states:**
-- User already exists → `toast.info("Account already exists. Please log in...")` + redirect to `/login` (with invitation params preserved if present)
-- Password/email validation errors → inline field-level error messages
-- Other server errors → `toast.error(errorMessage)`
+**On success:** Account created, user logged in, redirected to `/dashboard`, `/accept-invitation`, or callback if provided.
+**On failure / error states:** Toast shows error messages (validation failures, "user already exists"). If email already exists, redirects to `/login` with invitation params preserved. Form disabled while submitting.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-RouteComponent
-  → <SignupForm />
-    → authClient.useSession()          # check current session state
-    → useSearch({ strict: false })     # read optional invitationToken, orgId from URL
-    → form.onSubmit → authClient.signUp.email()
-        → POST /api/auth/sign-up/email  (Better-Auth)
-          → creates user in control-panel DB (auth.user table)
-          → sends verification email
-        onSuccess:
-          → refetch() session
-          → if onSignupSuccess callback → call it (invitation flow)
-          → else if invitationToken+orgId → navigate("/accept-invitation?...")
-          → else → navigate("/dashboard")
-        onError:
-          → if user exists → navigate("/login")
-          → else → toast.error
-```
+1. Component mounts, reads invitation token + orgId from URL search params (or accepts as props)
+2. Form pre-fills email if `invitationEmail` prop provided (read-only)
+3. User submits form → react-hook-form validates with Zod schema
+4. `authClient.signUp.email()` called (Better-Auth) with name + password
+5. On success: session refetched, callback fired (if provided) or redirect to `/accept-invitation` or `/dashboard`
+6. On error "user already exists": redirects to `/login` with invitation params
 
-**Inputs:**
-- Form fields: `firstName`, `lastName`, `email`, `password`, `confirmPassword`
-- Query params (optional): `invitationToken`, `orgId` — passed through from invitation flow
-- Props (when used embedded in `/accept-invitation`): `invitationEmail` (locks email field), `invitationToken`, `orgId`, `onSignupSuccess`
+**Inputs:** 
+- Props: `invitationEmail?`, `invitationToken?`, `orgId?`, `onSignupSuccess?` callback
+- URL search params: `invitationToken?`, `orgId?`
+- Form inputs: `firstName`, `lastName`, `email`, `password`, `confirmPassword`
 
-**State management:**
-- `authClient.useSession()` — for `isPending` (disables inputs while session loads)
-- `useSearch({ strict: false })` — reads invitation params from URL
-- `react-hook-form` with `zodResolver` manages field state
+**State management:** 
+- `useForm()` from react-hook-form + Zod resolver for validation
+- `authClient.useSession()` for session state
+- `useSearch()` for URL params
 
-**Outputs:** Renders a form with 5 fields. Button label changes to "Sign Up & Accept Invitation" when `invitationEmail` prop is provided. Email field is read-only if pre-filled from an invitation.
+**Outputs:** 
+- Renders signup form UI
+- Mutation: `authClient.signUp.email()` call (Better-Auth)
+- Navigation: to `/dashboard`, `/accept-invitation`, or `/login` (if user exists)
 
-**Side effects:** Creates user account in Better-Auth / control-panel DB. Triggers verification email (handled server-side by `sendVerificationEmail`).
+**Side effects:** 
+- Session refetch after signup success
+- 300ms delay before navigation to ensure session is propagated
+- Invitation email field made read-only and pre-filled
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `authClient.signUp.email` — Better-Auth: POST `/api/auth/sign-up/email`
+**Calls these API endpoints:** 
+- Better-Auth `/api/auth/sign-up/email` (via `authClient.signUp.email()`)
 
-**Uses these components:**
-- `SignupForm` — `apps/web/src/components/forms/signup-form.tsx` — the reusable form (also used in `/accept-invitation`)
+**Uses these components:** 
+- `SignupForm` — `apps/web/src/components/forms/signup-form.tsx` — wrapper, handles logic
+- `Button`, `Input`, `Label`, `Form*` (FormField, FormControl, FormItem, FormLabel, FormMessage) — shadcn/ui components
 
-**Uses these hooks:**
-- `authClient.useSession` — TanStack Query powered Better-Auth session hook
-- `useSearch` — TanStack Router
+**Uses these hooks:** 
+- `useForm()` — react-hook-form — form state + validation
+- `authClient.useSession()` — Better-Auth — session refetch
+- `useNavigate()` — TanStack Router — programmatic navigation
+- `useSearch()` — TanStack Router — reads URL params
 
-**Navigation: who navigates here:**
-- `apps/web/src/components/forms/login-form.tsx` — "Sign up" link (possibly with invitation params)
-- `apps/web/src/routes/index.tsx` — landing page CTA links (implied by route existence)
+**Navigation: who navigates here:** 
+- `/login` — "Already have an account?" link (if no invitation)
+- Landing page (`/`) — "Get Started" buttons
 
-**Navigation: where it goes:**
-- `/dashboard` — successful signup with no invitation
-- `/accept-invitation?token=...&orgId=...` — successful signup with invitation params
-- `/login` — when user already exists (with invitation params preserved if applicable)
+**Navigation: where it goes:** 
+- `/dashboard` — default on successful signup
+- `/accept-invitation?token=X&orgId=Y` — if invitation token/orgId present
+- `/login` — if user already exists (preserves invitation params)
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `auth.user` (control-panel) | WRITE | `email`, `name`, `firstName`, `lastName`, `emailVerified` |
-
-**Key types / Zod schemas:**
-- Form: `{ firstName: string (min 2), lastName: string (min 2), email: string (email), password: string (min 8, uppercase, digit), confirmPassword: string }` + refine passwords match
-- `SignupForm` props: `invitationEmail?: string`, `invitationToken?: string`, `orgId?: string`, `onSignupSuccess?: () => void`
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `firstName` | text | required, min 2 chars | `authClient.signUp.email({ firstName })` |
-| `lastName` | text | required, min 2 chars | `authClient.signUp.email({ lastName })` |
-| `email` | email | required, valid email; locked if invited | `authClient.signUp.email({ email })` |
-| `password` | password | min 8, 1 uppercase, 1 digit | `authClient.signUp.email({ password })` |
-| `confirmPassword` | password | must match password | client-side only |
+**DB tables touched:** `users` (controlPanelDb, shared) — write on account creation
+**Key types / Zod schemas:** 
+- Input: `{ firstName, lastName, email, password, confirmPassword }` with constraints:
+  - firstName/lastName: min 2 chars
+  - email: valid email format
+  - password: min 8 chars, must contain uppercase + number
+  - confirmPassword: must match password
+- Response: Better-Auth session object or error
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Invitation email lock enforcement, duplicate-user redirect with invitation params preserved, password complexity rules.
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Pre-filled email validation (email field is read-only, may not re-validate on form submit)
+- Race condition: double-submit before first request completes
+- Error handling for network failures during refetch
+- Callback execution and error handling if callback throws
 
 ---
 
 ## 6. Notes
 
-- `SignupForm` is a reusable component also embedded inside `/accept-invitation`; when used there, `onSignupSuccess` callback handles post-signup invitation acceptance without a page redirect.
-- Email verification is required before login (server checks `emailVerified` flag); however, invitation acceptance flow pre-verifies the invited email via `invitations.verifyEmailByToken`, bypassing this requirement for invited users.
-- The `invitationEmail` prop disables and makes the email field read-only to prevent signing up with a different email than the one invited.
+- Email field becomes read-only (and gray background) when `invitationEmail` is provided
+- 300ms delay after signup before navigation to allow session to propagate to useUserContext
+- Uses react-hook-form (unlike login which uses TanStack Form) — form library inconsistency
+- "User already exists" detection is string-based (matches on error message keywords)
+- Form button text changes based on invitation state: "Sign Up & Accept Invitation" vs. "Sign Up"
+

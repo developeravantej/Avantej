@@ -1,68 +1,56 @@
-# Onboarding
+# Onboarding - Organization Setup
 
-**Route:** `/_authenticated/onboarding`
-**File:** `apps/web/src/routes/_authenticated/onboarding.tsx:1`
+**Route:** `/onboarding`
+**File:** `apps/web/src/routes/_authenticated/onboarding.tsx`
 **Platform:** web
-**Auth required:** authenticated (no RBAC check, but requires session)
-**Last updated:** 2026-04-20
+**Auth required:** authenticated
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** First-time setup page where a newly authenticated user enters an organization name before proceeding to choose a subscription plan.
-**Produces:** A centered card with a single "Organization Name" input field and a "Proceed to Subscription" submit button.
-**On success:** Stores the entered name in `sessionStorage` under `"pendingOrgName"`, then navigates to `/subscribe`.
-**On failure / error states:** Auth loading spinner while `useAuth` resolves. Submit button disabled while submitting or if validation fails.
+**Purpose (user perspective):** Step 1 of the post-signup flow. Authenticated user enters an organization name to proceed to subscription setup.
+
+**Produces:** A centered card with a gradient background, form field for organization name, submit button, and info text about next steps.
+
+**On success:** Stores organization name in sessionStorage as `pendingOrgName`, navigates to `/subscribe` route.
+
+**On failure / error states:** Form validation errors display below field (required, max 255 chars). Submit button disabled while validating or if errors present. Loading spinner shown during navigation.
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:**
-```
-RouteComponent
-  → useAuth() → { isLoading }
-  → react-hook-form with zodResolver(formSchema: name min 1 max 255)
-  → onSubmit(values):
-      → sessionStorage.setItem("pendingOrgName", values.name)
-      → navigate({ to: "/subscribe" })
-```
+**Execution flow:** Page mounts → checks auth loading status → user enters org name → form validates with Zod → onSubmit stores name in sessionStorage → navigates to `/subscribe`
 
-**Inputs:**
-- Optional search params: `user_id` (validated via `onboardingSearchSchema`) — declared but unused
-- Form field: `name` (organization name string)
+**Inputs:** Form field: organization name
 
-**State management:**
-- react-hook-form with zodResolver
-- Local state: `isSubmitting` — disables button and shows "Redirecting..." spinner during navigation
+**State management:** React Hook Form with Zod validation; local isSubmitting state; sessionStorage for cross-route data passing
 
-**Outputs:** Navigates to `/subscribe` — org name is passed via `sessionStorage`, not URL params.
-**Side effects:** `sessionStorage.setItem("pendingOrgName", ...)` — `/subscribe` page reads this to pre-populate the org name in the subscription flow.
+**Outputs:** Navigation to `/subscribe` with org name in sessionStorage (not URL params)
+
+**Side effects:** sessionStorage update; useNavigate call
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None — no server calls on this page.
+**Calls these API endpoints:** None
 
 **Uses these components:**
-- `Card`, `CardContent`, `CardHeader`, `CardTitle` — Shadcn card layout
-- `Form`, `FormControl`, `FormField`, `FormItem`, `FormLabel` — react-hook-form + Shadcn
-- `Input`, `Button` — Shadcn UI
+- `Card, CardContent, CardHeader, CardTitle` — `@/components/ui/card` — layout
+- `Button` — `@/components/ui/button` — submit button
+- `Input` — `@/components/ui/input` — form field
+- `Form, FormControl, FormField, FormItem, FormLabel` — `@/components/ui/form` — form rendering
 
 **Uses these hooks:**
-- `useAuth` — `apps/web/src/hooks/useAuth.ts` — provides `isLoading`
+- `useAuth` — permission/auth check (confirms user is authenticated)
 - `useNavigate` — TanStack Router navigation
-- `useForm` (react-hook-form) with `zodResolver`
 
-**Navigation: who navigates here:**
-- `apps/web/src/routes/(auth)/setup-password.tsx` references `/onboarding`
-- Likely navigated to after first login when user has no organization
-- `user_id` search param suggests the auth flow can pass a user ID here
+**Navigation: who navigates here:** From signup flow, after account creation
 
-**Navigation: where it goes:**
-- `/subscribe` — after name is entered and submitted
+**Navigation: where it goes:** `/subscribe` (subscription/payment setup)
 
 ---
 
@@ -70,19 +58,13 @@ RouteComponent
 
 **DB tables touched:** None
 
-**sessionStorage written:**
-| Key | Value |
-|-----|-------|
-| `"pendingOrgName"` | Organization name string entered by the user |
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| name | text | min 1, max 255 | `sessionStorage["pendingOrgName"]` |
-
-**Search params schema:**
+**Key types / Zod schemas:**
 ```typescript
-{ user_id?: string }
+formSchema = z.object({
+  name: z.string()
+    .min(1, "Organization name is required")
+    .max(255, "Organization name is too long"),
+})
 ```
 
 ---
@@ -90,16 +72,17 @@ RouteComponent
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):**
-- sessionStorage availability (private browsing)
-- `/subscribe` page correctly reading `"pendingOrgName"` on load
+
+**Scenarios covered:** None
+
+**Not tested (risk areas):** sessionStorage reliability, cross-tab persistence, what happens if subscribe route doesn't find pendingOrgName
 
 ---
 
 ## 6. Notes
 
-- **Significantly simplified from earlier version.** Previous version had a debounced organization name availability check (mock using `setTimeout`) and called `checkAuth()` + navigated to `/dashboard` on creation. Now it just captures the name and hands off to `/subscribe` via sessionStorage.
-- No API call is made on this page — organization creation is deferred to the subscription flow.
-- `user_id` search param is declared and validated but never read in the current implementation.
-- The background gradient (`from-blue-50 to-indigo-100`) deviates from the app's usual white theme — this is the only page with this styling.
+- Organization name is confirmed later during subscription completion.
+- sessionStorage is used instead of URL params or context state (volatile across navigations).
+- Route requires authentication via `_authenticated` path segment — non-authenticated users are blocked by layout guard.
+- Loading spinner shows while auth state is being resolved on mount.
+- Gradient background is from Tailwind utilities (`from-blue-50 to-indigo-100`).

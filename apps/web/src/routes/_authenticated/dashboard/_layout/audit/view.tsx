@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ChevronRight, ClipboardList } from "lucide-react";
+import { ChevronRight, ClipboardList, SearchX } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { useState } from "react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Dialog,
 	DialogContent,
@@ -91,7 +94,7 @@ const ACTION_CATEGORY_COLORS: Record<string, string> = {
 	package: "bg-indigo-100 text-indigo-800 border-indigo-200",
 	promotion: "bg-pink-100 text-pink-800 border-pink-200",
 	tax: "bg-yellow-100 text-yellow-800 border-yellow-200",
-	system: "bg-gray-100 text-gray-700 border-gray-200",
+	system: "bg-muted text-muted-foreground border-border",
 };
 
 // Refund actions get their own color (override the sale.* default)
@@ -172,8 +175,8 @@ const ROLE_BADGE_COLORS: Record<string, string> = {
 	admin: "bg-red-100 text-red-800 border-red-200",
 	staff: "bg-blue-100 text-blue-800 border-blue-200",
 	trainer: "bg-green-100 text-green-800 border-green-200",
-	client: "bg-gray-100 text-gray-700 border-gray-200",
-	system: "bg-slate-100 text-slate-700 border-slate-200",
+	client: "bg-muted text-muted-foreground border-border",
+	system: "bg-muted text-muted-foreground border-border",
 };
 
 function RoleBadge({ role }: { role: string | null }) {
@@ -351,6 +354,7 @@ function AuditLogPage() {
 		data: listData,
 		isLoading,
 		error,
+		refetch,
 	} = useQuery({
 		queryKey: [
 			"auditLog",
@@ -547,20 +551,16 @@ function AuditLogPage() {
 			);
 		}
 		return (
-			<div className="flex min-h-96 items-center justify-center text-destructive">
-				Failed to load audit log. Please try again.
+			<div className="p-6">
+				<StatusCallout variant="error" onRetry={() => refetch()}>
+					Failed to load audit log. Please try again.
+				</StatusCallout>
 			</div>
 		);
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex min-h-96 items-center justify-center">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ── Render ─────────────────────────────────────────────────────────────
@@ -726,8 +726,16 @@ function AuditLogPage() {
 
 			<Separator />
 
-			{/* Table */}
-			<DataTable<AuditRowEnriched, unknown> columns={columns} data={rows} />
+			{/* Table or empty state */}
+			{rows.length === 0 ? (
+				<EmptyState
+					icon={SearchX}
+					title="No audit events"
+					description="No audit log entries match the current filters."
+				/>
+			) : (
+				<DataTable<AuditRowEnriched, unknown> columns={columns} data={rows} />
+			)}
 
 			{/* Pagination */}
 			{total > PAGE_LIMIT && (

@@ -1,91 +1,105 @@
-# Home / Landing Page
+# Home Page (Landing)
 
 **Route:** `/`
-**File:** `apps/web/src/routes/index.tsx:1`
+**File:** `apps/web/src/routes/index.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Marketing landing page that showcases Avantej platform features and pricing plans.
+**Purpose (user perspective):** Marketing landing page showcasing Avantej Core platform features, pricing, testimonials, and CTA to sign up or request demo.
 
-**Produces:** A static multi-section landing page with hero, feature cards, pricing tiers (Starter $99, Professional $299, Enterprise $599), testimonials, and CTA buttons.
+**Produces:** Long-form marketing page with hero section, feature cards (client mgmt, financial mgmt, analytics), stats grid, comprehensive feature sections, pricing cards (Starter $99, Professional $299, Enterprise $599), testimonials, "How It Works" flow, CTA sections.
 
-**On success:** User clicks "Get Started" or "Login" and is taken to `/login`, optionally carrying `invitationToken` and `orgId` query params to pre-fill an invitation flow.
-**On failure / error states:** No data fetching; page is entirely static so there are no loading or error states.
+**On success:** User views content, clicks CTA buttons to navigate to login/signup.
+**On failure / error states:** None — static content page. Links disabled/styled consistently.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-HomeComponent
-  → useSearch({ from: "/" }) — reads invitationToken + orgId from URL
-  → All CTA Links pass loginSearch = { invitationToken, orgId } to /login
-```
+1. Component mounts, reads optional search params (invitationToken, orgId) for passing through CTA links
+2. Renders header with logo + nav (Login, Get Started buttons)
+3. Renders hero section with CTA buttons, passing invitation params
+4. Renders feature sections using helper components (FeatureCard, StatCard, TestimonialCard)
+5. Renders pricing cards grid with Starter/Professional/Enterprise plans
+6. Renders testimonials, "How It Works" steps, footer CTA sections
 
-**Inputs:**
-- `?invitationToken` (string, optional) — forwarded to login
-- `?orgId` (string, optional) — forwarded to login
+**Inputs:** 
+- URL search params: `invitationToken?`, `orgId?` (optional, for accepting org invites)
 
-**State management:** No React state; stateless component.
+**State management:** 
+- `useSearch()` hook reads and validates search params
+- Memoization via `useMemo` or component props (FeatureCard, etc.)
 
-**Outputs:** Static JSX — hero, features grid, stats section, pricing cards, testimonials, CTA.
+**Outputs:** 
+- Static HTML/JSX rendered as page
+- Navigation links to `/login` (with optional search params)
+- All CTA buttons point to login/signup
 
-**Side effects:** None.
+**Side effects:** None — purely presentational
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None.
+**Calls these API endpoints:** None
+**Uses these components:** 
+- `Button` + `buttonVariants()` — shadcn/ui
+- `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` — shadcn/ui
+- Multiple lucide-react icons (BarChart3, Users, Building2, CreditCard, etc.)
+- Internal helper components: `FeatureCard`, `StatCard`, `TestimonialCard` (defined inline in this file)
 
-**Uses these components:**
-- `FeatureCard` — inline local component — renders icon + title + description card
-- `StatCard` — inline local component — renders a number/label stat
-- `TestimonialCard` — inline local component — renders a quote card
-- `Card`, `CardHeader`, etc. — `@/components/ui/card` — pricing card containers
-- `buttonVariants` — `@/components/ui/button` — Link styled as button
+**Uses these hooks:** 
+- `useSearch()` — TanStack Router
 
-**Uses these hooks:**
-- `useSearch` (TanStack Router) — reads `invitationToken` and `orgId` from URL params
+**Navigation: who navigates here:** 
+- Direct URL `/`
+- Marketing links, referrals, organic search
 
-**Navigation: who navigates here:**
-- Default browser entry point / root route
-
-**Navigation: where it goes:**
-- `/login` — all CTAs ("Get Started", "Login", "Request Demo", "Explore All Features")
+**Navigation: where it goes:** 
+- `/login` — "Login" button in header, CTA buttons throughout
+- `/about` — (not linked on this page, but related marketing page)
+- `/features` — (not linked on this page, but related marketing page)
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** None.
-
-**Key types / Zod schemas:**
-```typescript
-type LandingSearch = {
-  invitationToken?: string;
-  orgId?: string;
-};
-```
+**DB tables touched:** None
+**Key types / Zod schemas:** 
+- LandingSearch (validated search params):
+  ```
+  {
+    invitationToken?: string,
+    orgId?: string
+  }
+  ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Invitation token pass-through to login — if `invitationToken`/`orgId` are present but malformed, the login page receives them unchecked.
+**Test files:** None found
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Search params validation edge cases (malformed token, missing orgId with token)
+- Responsive layout on mobile/tablet (many grid sections)
+- Image loading (logo_only.png, login-page-image.jpg) — broken images not tested
+- Link behavior with search params — may fail if parameters aren't passed through correctly
 
 ---
 
 ## 6. Notes
 
-- All pricing shown ($99, $299, $599 USD) is hardcoded static content — not fetched from Stripe or any backend.
-- The invitation flow is passive: this page only forwards tokens it receives; the actual acceptance logic is in the login / registration flow.
-- `loginSearch` is only populated when both `invitationToken` AND `orgId` are present; a partial URL with only one param results in an empty search object forwarded to login.
+- Pricing cards are hardcoded ($99, $299, $599) — not fetched from API (unlike /subscribe page which fetches plans dynamically)
+- Helper components (FeatureCard, StatCard, TestimonialCard) defined as functions in same file — could be extracted to separate components file for reuse
+- Search params validation in route validateSearch ensures consistent shape
+- All CTA buttons pass `loginSearch` object (invitationToken + orgId if both present) through navigation
+- Hero section and feature sections are duplicated/similar (both show key features) — content overlap
+- No error handling needed as page is static
+

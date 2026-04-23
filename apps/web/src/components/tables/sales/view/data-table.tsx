@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 const PAGE_SIZE = 50;
 
@@ -29,8 +31,37 @@ interface DataTableProps<TData, TValue> {
 	page?: number; // 1-indexed
 	onPageChange?: (page: number) => void;
 	isLoading?: boolean;
+	// Empty state
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: {
+		label: string;
+		onClick: () => void;
+	};
+	// Error state
+	error?: unknown;
+	onRetry?: () => void;
 }
 
+/**
+ * Reference DataTable for the sales/view route.
+ *
+ * Empty + error pattern for all 12 other domain tables:
+ *
+ * ```tsx
+ * <DataTable
+ *   columns={columns}
+ *   data={query.data ?? []}
+ *   error={query.error}
+ *   onRetry={() => query.refetch()}
+ *   emptyTitle="No sales yet"
+ *   emptyAction={{ label: "New Sale", onClick: () => navigate({ to: "/dashboard/sales/create" }) }}
+ * />
+ * ```
+ *
+ * Pass `error` and `onRetry` from your TanStack Query result.
+ * Pass `emptyTitle` and `emptyAction` specific to the page's primary action.
+ */
 export default function DataTable<TData, TValue>({
 	columns,
 	data,
@@ -38,6 +69,11 @@ export default function DataTable<TData, TValue>({
 	page,
 	onPageChange,
 	isLoading,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
+	error,
+	onRetry,
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 
@@ -68,64 +104,77 @@ export default function DataTable<TData, TValue>({
 					/>
 				</div>
 			</div>
-			<div className="flex-1 overflow-y-auto">
-				<Table>
-					<TableHeader className="sticky top-0 z-10 bg-white">
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
-							>
-								{headerGroup.headers.map((header) => (
-									<TableHead
-										key={header.id}
-										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
-									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={error instanceof Error ? error.message : "An error occurred"}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-									className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell
-											key={cell.id}
-											className="whitespace-nowrap px-6 py-4 text-sm"
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
 										>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
+										</TableHead>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="py-16 text-center text-sm text-muted-foreground"
-								>
-									No results found.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row) => (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && "selected"}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												className="whitespace-nowrap px-6 py-4 text-sm"
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title={emptyTitle ?? "No results found"}
+											description={emptyDescription}
+											action={emptyAction}
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 			{showPagination && (
 				<div className="shrink-0 border-t border-border/40 px-6 py-3">
 					<div className="flex items-center justify-between">

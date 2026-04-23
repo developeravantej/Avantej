@@ -1,8 +1,10 @@
+// LEGACY — slated for rewrite; do not extend
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/user/view/data-table";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { createColumns } from "@/components/tables/user/view/columns";
 
 export const Route = createFileRoute(
@@ -39,13 +41,7 @@ function UserViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (

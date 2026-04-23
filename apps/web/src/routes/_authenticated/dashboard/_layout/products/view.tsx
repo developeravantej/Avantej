@@ -11,6 +11,9 @@ import { columns } from "@/components/tables/products/view/columns";
 import type { ProductRow } from "@/components/tables/products/view/columns";
 import type { CreateProductInput, UpdateProductInput } from "@/hooks/useProductForm";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/products/view",
@@ -118,13 +121,7 @@ function ProductsViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -144,17 +141,11 @@ function ProductsViewPage() {
 	return (
 		<div className="p-6 space-y-6">
 			{/* Header */}
-			<div className="flex items-center gap-3">
-				<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-					<Package className="h-5 w-5 text-primary" />
-				</div>
-				<div>
-					<h1 className="text-2xl font-bold font-heading">Products</h1>
-					<p className="text-sm text-muted-foreground">
-						Manage your product catalog
-					</p>
-				</div>
-			</div>
+			<PageHeader
+				icon={Package}
+				title="Products"
+				description="Manage your product catalog"
+			/>
 
 			{/* Status filter tabs */}
 			<div className="flex items-center gap-1 border-b">
@@ -179,10 +170,11 @@ function ProductsViewPage() {
 
 			{/* Empty state */}
 			{tableData.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No products found</p>
-					<p className="text-sm">Create your first product to get started.</p>
-				</div>
+				<EmptyState
+					title="No products found"
+					description="Create your first product to get started."
+					icon={Package}
+				/>
 			)}
 
 			{/* Table */}

@@ -1,3 +1,4 @@
+// LEGACY — slated for rewrite; do not extend
 import { createFileRoute } from "@tanstack/react-router";
 import { ServicesPage } from "@/components/pages/services/services-page";
 import { ServiceCategoriesPage } from "@/components/pages/services/categories-page";

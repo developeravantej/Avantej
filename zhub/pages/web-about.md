@@ -1,32 +1,35 @@
 # About Page
 
 **Route:** `/about`
-**File:** `apps/web/src/routes/about.tsx:1`
+**File:** `apps/web/src/routes/about.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Public static "About Avantej" page presenting the company story, values, and leadership team.
-**Produces:** Two-section page: (1) hero with company mission statement, (2) "Our Story" text + "Our Values" card (3 values) + leadership team grid (4 placeholder profiles).
-**On success:** Static content renders immediately — no data fetching.
-**On failure / error states:** No error states — purely static render.
+**Purpose (user perspective):** Tells the story of Avantej company — mission, values, leadership team, and customer success focus.
+
+**Produces:** Static page with hero section, "Our Story" narrative + "Our Values" (Customer Success, Innovation, Integrity), leadership team photos/names/titles (4 founders).
+
+**On success:** User reads about company and team.
+**On failure / error states:** None — static content page.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-AboutPage → renders static JSX
-```
+1. Component mounts
+2. Renders hero section (heading + tagline)
+3. Renders two-column section: story text (left) + values list (right)
+4. Renders leadership team grid (4 people with placeholder avatars)
 
 **Inputs:** None
 **State management:** None
-**Outputs:** Static about page
+**Outputs:** Static HTML rendering
 **Side effects:** None
 
 ---
@@ -34,35 +37,38 @@ AboutPage → renders static JSX
 ## 3. What Depends On It
 
 **Calls these API endpoints:** None
-
-**Uses these components:**
-- `Check` icon from `lucide-react` — used in values list items
+**Uses these components:** 
+- `Check` icon — lucide-react
+- HTML divs + Tailwind classes (no shadcn/ui components)
 
 **Uses these hooks:** None
-
-**Navigation: who navigates here:** Direct URL `/about` — no nav links found pointing here in sidebar or landing page
-
-**Navigation: where it goes:** No outbound links on this page
+**Navigation: who navigates here:** None (not linked from other pages in codebase)
+**Navigation: where it goes:** None
 
 ---
 
 ## 4. Data Shapes
 
-No data shapes — fully static content.
+**DB tables touched:** None
+**Key types / Zod schemas:** None
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** N/A — static page
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Image loading (placeholder avatars are empty divs with bg-gray-200)
+- Text truncation on narrow viewports
+- Leadership team grid responsiveness
 
 ---
 
 ## 6. Notes
 
-- Leadership team profiles (Sarah Johnson, Michael Chen, Amanda Rodriguez, David Kim) use gray placeholder circles — no actual photos.
-- The same names appear in the testimonials section of `index.tsx` as both customers and leadership — clearly placeholder copy.
-- This page is not linked from anywhere visible in the codebase (no sidebar link, not referenced from landing page). Likely a stub for future use.
-- Users must use browser back to leave this page — no navigation links back to landing or login.
+- Very minimal, static page
+- Leadership team members have placeholder gray circles instead of actual images
+- Founded year hardcoded as 2018
+- No links or navigation on this page
+

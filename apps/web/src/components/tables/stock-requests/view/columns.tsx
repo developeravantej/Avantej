@@ -1,5 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -30,34 +30,6 @@ export interface StockRequestRow {
 	createdAt: string;
 }
 
-// ---------------------------------------------------------------------------
-// Status Badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: StockRequestStatus }) {
-	switch (status) {
-		case "pending":
-			return (
-				<Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-					Pending
-				</Badge>
-			);
-		case "approved":
-			return (
-				<Badge variant="default" className="bg-green-600 hover:bg-green-700">
-					Approved
-				</Badge>
-			);
-		case "rejected":
-			return <Badge variant="destructive">Rejected</Badge>;
-		case "fulfilled":
-			return (
-				<Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
-					Fulfilled
-				</Badge>
-			);
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Columns
@@ -99,6 +71,6 @@ export const columns: ColumnDef<StockRequestRow>[] = [
 	{
 		accessorKey: "status",
 		header: "Status",
-		cell: ({ getValue }) => <StatusBadge status={getValue<StockRequestStatus>()} />,
+		cell: ({ getValue }) => <StatusBadge status={getValue<StockRequestStatus>() as CanonicalStatus} />,
 	},
 ];

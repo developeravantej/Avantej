@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatPrice } from "@/lib/currency";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ interface BulkActionBarProps {
 	canApprove: boolean;
 	canProcess: boolean;
 	onDone: () => void;
+	totalAmountCents?: number;
 }
 
 // ─── Approve Confirmation Dialog ──────────────────────────────────────────────
@@ -36,12 +38,14 @@ function ApproveConfirmDialog({
 	count,
 	onConfirm,
 	isPending,
+	totalAmountCents,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	count: number;
 	onConfirm: () => void;
 	isPending: boolean;
+	totalAmountCents?: number;
 }) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,8 +54,9 @@ function ApproveConfirmDialog({
 					<DialogTitle>Approve Commission Splits</DialogTitle>
 					<DialogDescription>
 						You are about to approve {count} commission split
-						{count !== 1 ? "s" : ""}. This will move them from Pending to
-						Approved. Continue?
+						{count !== 1 ? "s" : ""} totalling{" "}
+						<span className="font-semibold">{formatPrice(totalAmountCents ?? 0, "MYR")}</span>.
+						{" "}This will move them from Pending to Approved. Continue?
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
@@ -153,6 +158,7 @@ export function BulkActionBar({
 	canApprove,
 	canProcess,
 	onDone,
+	totalAmountCents,
 }: BulkActionBarProps) {
 	const queryClient = useQueryClient();
 	const count = selectedIds.length;
@@ -259,6 +265,7 @@ export function BulkActionBar({
 				count={count}
 				onConfirm={() => approveMutation.mutate()}
 				isPending={approveMutation.isPending}
+				totalAmountCents={totalAmountCents}
 			/>
 
 			{/* Mark Paid dialog */}

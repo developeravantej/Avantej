@@ -4,6 +4,9 @@ import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowLeftRight } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import DataTable from "@/components/tables/uom-conversions/view/data-table";
 import { columns } from "@/components/tables/uom-conversions/view/columns";
 
@@ -113,13 +116,7 @@ export function UomConversionsTabPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -139,10 +136,11 @@ export function UomConversionsTabPage() {
 	return (
 		<>
 			{conversions.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No UOM conversions defined</p>
-					<p className="text-sm">Add a conversion.</p>
-				</div>
+				<EmptyState
+					title="No UoM conversions"
+					description="Add a conversion to relate units of measure."
+					icon={ArrowLeftRight}
+				/>
 			)}
 			<DataTable
 				columns={columns}

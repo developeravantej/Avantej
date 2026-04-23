@@ -19,6 +19,8 @@ import { useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { ProductFormDialog } from "@/components/forms/product-form";
 import type { CreateProductInput, UpdateProductInput } from "@/hooks/useProductForm";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
@@ -36,6 +38,11 @@ interface DataTableProps<TData, TValue> {
 	categories: Category[];
 	suppliers: Supplier[];
 	uoms: Uom[];
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 export default function DataTable<TData, TValue>({
@@ -49,6 +56,11 @@ export default function DataTable<TData, TValue>({
 	categories,
 	suppliers,
 	uoms,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
+	error,
+	onRetry,
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -75,72 +87,88 @@ export default function DataTable<TData, TValue>({
 	}
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between gap-2">
-				<Button
-					onClick={() => setIsAddDialogOpen(true)}
-					className="gap-2"
-				>
-					<Plus className="h-4 w-4" />
-					Add Product
-				</Button>
-				<div className="relative w-72">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<div className="flex h-full flex-col">
+			{/* Search bar + toolbar */}
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search products..."
 						value={globalFilter ?? ""}
-						onChange={(event) => setGlobalFilter(event.target.value)}
-						className="pl-8"
+						onChange={(e) => setGlobalFilter(e.target.value)}
+						className="pl-9"
 					/>
+				</div>
+				<div className="ml-auto flex gap-2">
+					<Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+						<Plus className="h-4 w-4" />
+						Add Product
+					</Button>
 				</div>
 			</div>
 
-			<div className="rounded-md border shadow-sm">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b bg-muted/50 hover:bg-muted/60"
-							>
-								{headerGroup.headers.map((header) => (
-									<TableHead
-										key={header.id}
-										className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
-									>
-										{header.isPlaceholder
-											? null
-											: flexRender(header.column.columnDef.header, header.getContext())}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row, index) => (
+			{/* Error state */}
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={error instanceof Error ? error.message : "An error occurred"}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-									className={`border-b transition-colors hover:bg-muted/50 ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id} className="px-4 py-3 text-sm whitespace-nowrap">
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-										</TableCell>
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(header.column.columnDef.header, header.getContext())}
+										</TableHead>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-									No products found.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row) => (
+									<TableRow
+										key={row.id}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id} className="whitespace-nowrap px-6 py-4 text-sm">
+												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title={emptyTitle ?? "No products found"}
+											description={emptyDescription}
+											action={emptyAction}
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 
 			<ProductFormDialog
 				isOpen={isAddDialogOpen}

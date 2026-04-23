@@ -1,4 +1,4 @@
-import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -34,15 +34,11 @@ async function generateInvoiceNumber(
 	date: Date
 ): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const prefix = `INV-${datePart}-`;
-
-	const result = await tenantDb
-		.select({ total: count() })
-		.from(invoices)
-		.where(sql`${invoices.invoiceNumber} LIKE ${prefix + "%"}`);
-
-	const seq = (result[0]?.total ?? 0) + 1;
-	return `${prefix}${String(seq).padStart(4, "0")}`;
+	const result = await tenantDb.execute<{ seq: string }>(
+		sql`SELECT nextval('tenant_invoice_seq') AS seq`
+	);
+	const seq = Number((result.rows[0] as { seq: string | number }).seq);
+	return `INV-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
 export async function listInvoices(

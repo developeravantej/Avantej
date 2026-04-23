@@ -1,96 +1,96 @@
-# Inventory Options
+# Inventory Options (Brands, Categories, Suppliers)
 
 **Route:** `/dashboard/inventory-options`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/inventory-options.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/inventory-options.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Single consolidated page for managing inventory reference data — Brands, Product Categories, and Suppliers — without leaving the page.
-**Produces:** Three card sections: Brands table, Categories table, Suppliers table, each with inline create/edit/delete/deactivate actions.
-**On success:** Changes reflected immediately via query invalidation; success toasts shown.
-**On failure / error states:** Loading spinner while all three queries are pending; error toasts on mutation failure; "Select an organization" guard when no org context.
+**Purpose (user perspective):** Manage inventory configuration across three tabs: Brands, Categories, and Suppliers.
+
+**Produces:** Tab-based dashboard with content for each inventory option type; query parameter tracks active tab.
+
+**On success:** Tab content loads; user can switch tabs via button or URL.
+
+**On failure / error states:** Per-tab error handling (delegated to tab components).
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:**
-```
-RouteComponent
-  → <InventoryOptionsDashboard />
-       → useUserContext() → organizationId
-       → useQuery(brands.list)             → client.brands.list({ organizationId })
-       → useQuery(productCategories.list)  → client.productCategories.list({ organizationId })
-       → useQuery(suppliers.list)          → client.suppliers.list({ organizationId })
-       → useQuery(products.list)           → client.products.list({ organizationId })
-       → useMemo: productCountByBrand (Map<brandId, count>)
-       → useMemo: productCountByCategory (Map<categoryId, count>)
-       → Mutations: brands.create/update/delete, productCategories.create/update/delete,
-                    suppliers.create/update/deactivate
-       → <BrandDataTable>, <CategoryDataTable>, <SupplierDataTable>
-```
+**Execution flow:**  
+1. Route matches `/dashboard/inventory-options`
+2. `validateSearch()` parses `?tab=` param; defaults to "brands"
+3. `InventoryOptionsDashboard` renders tabbed UI with three tabs
+4. `onTabChange` handler calls `navigate({ search: { tab: v } })` to update URL
+5. Each tab mounts its respective page component
 
-**Inputs:** No URL params. All actions are inline within each sub-table.
-**State management:** TanStack Query for fetching; mutations for CUD operations. Each table's open/close state is managed inside its own DataTable component.
-**Outputs:** Renders three data tables; mutations invalidate matching query keys.
-**Side effects:** Cache keys `["brands", orgId]`, `["productCategories", orgId]`, `["suppliers", orgId]` invalidated on success. `isLoading` includes `productsLoading` in addition to the three reference-data queries.
+**Inputs:**  
+- URL query param `tab` (brands|categories|suppliers); defaults to brands
+
+**State management:**  
+- Router search state: `{ tab: string }`
+- Tab-specific state delegated to child components (BrandsTabPage, CategoriesTabPage, SuppliersTabPage)
+
+**Outputs:**  
+- Tab UI with content switching
+- URL updates on tab change
+
+**Side effects:**  
+- History entry on tab change
+- Tab-specific API calls (per child component)
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `brands.list` / `brands.create` / `brands.update` / `brands.delete`
-- `productCategories.list` / `productCategories.create` / `productCategories.update` / `productCategories.delete`
-- `suppliers.list` / `suppliers.create` / `suppliers.update` / `suppliers.deactivate`
-- `products.list` — fetches products to compute per-brand and per-category product counts
+**Calls these API endpoints:** None (delegated to tab components)
 
-**Uses these components:**
-- `InventoryOptionsDashboard` — `apps/web/src/components/merge-tables/inventory-options-dashboard.tsx` — all data fetching and mutation logic lives here
-- `DataTable` (brands) — `apps/web/src/components/tables/brands/view/data-table.tsx`
-- `CategoryDataTable` — `apps/web/src/components/tables/categories/view/data-table.tsx`
-- `SupplierDataTable` — `apps/web/src/components/tables/suppliers/view/data-table.tsx`
+**Uses these components:**  
+- `InventoryOptionsDashboard` — `src/components/merge-tables/inventory-options-dashboard.tsx` — tabbed wrapper
+- `BrandsTabPage` — `src/components/pages/inventory/brands-tab.tsx` — brands CRUD
+- `CategoriesTabPage` — `src/components/pages/inventory/categories-tab.tsx` — categories CRUD
+- `SuppliersTabPage` — `src/components/pages/inventory/suppliers-tab.tsx` — suppliers CRUD
+- `ConsolidatedTabs` (shadcn/ui variant) — tab component
 
-**Uses these hooks:**
-- `useUserContext` — resolves `currentOrganizationId`
+**Uses these hooks:**  
+- `Route.useSearch()` — read tab param
+- `Route.useNavigate()` — update tab param
 
-**Navigation: who navigates here:**
-- App sidebar under Inventory section → "Inventory Options" link
+**Navigation: who navigates here:**  
+- Dashboard sidebar link
 
-**Navigation: where it goes:** No outbound navigation; self-contained CRUD.
+**Navigation: where it goes:** None (internal tab navigation)
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `brands` | SELECT / INSERT / UPDATE / DELETE | `id`, `name`, `organizationId` |
-| `product_categories` | SELECT / INSERT / UPDATE / DELETE | `id`, `name`, `organizationId` |
-| `suppliers` | SELECT / INSERT / UPDATE / soft-delete | `id`, `name`, `description`, `accountNumber`, `paymentTerms`, `contactPerson`, `contactPhone`, `officePhone`, `email`, `website`, `barcode`, `isActive` |
-
-**Brand form fields:** `name` (required)
-**Category form fields:** `name` (required)
-**Supplier form fields:** `name` (required), `description`, `accountNumber`, `paymentTerms`, `contactPerson`, `contactPhone`, `officePhone`, `email`, `website`, `barcode`
+Delegated to child components. See their respective docs.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found directly for this route or `InventoryOptionsDashboard`. Brand and category data tables have separate tests in `apps/web/src/__tests__/routes/brands.test.tsx` and `apps/web/src/__tests__/routes/categories.test.tsx`.
-**Not tested:** The combined inventory-options page itself, supplier mutations, loading/error states.
+**Test files:** `src/__tests__/routes/brands.test.tsx`, `src/__tests__/routes/categories.test.tsx` (may exist)
+
+**Scenarios covered:** Per tab component
+
+**Not tested (risk areas):**  
+- Tab switching via URL parameter
+- Search parameter validation/parsing
+- Default tab fallback to "brands"
 
 ---
 
 ## 6. Notes
 
-- The route file is a thin shell — all logic lives in `InventoryOptionsDashboard`.
-- ~~Hardcoded product counts~~ **FIXED (2026-04-16):** "Products Assigned" column in brands and categories now uses real data from `client.products.list()`, computed via `useMemo` maps (`productCountByBrand`, `productCountByCategory`).
-- `externalCode` field in categories data is hardcoded to `""`.
-- Supplier deactivate uses soft-delete (`isActive = false`) rather than physical deletion; suppliers do not have a delete endpoint.
+- **Thin wrapper**: This route file is minimal; all logic delegated to tab page components
+- **Tab routing**: Uses TanStack Router search params for tab state; shareable URL includes active tab
+- **Layout**: Single-level tabs; no nested routing per tab
+- **Accessibility**: Tab switching via buttons (handled by ConsolidatedTabs component)
+

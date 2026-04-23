@@ -1,79 +1,73 @@
-# Features
+# Features Page
 
 **Route:** `/features`
-**File:** `apps/web/src/routes/features.tsx:1`
+**File:** `apps/web/src/routes/features.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Static marketing page showcasing all Avantej platform capabilities organized into a visual feature grid.
+**Purpose (user perspective):** Detailed showcase of all Avantej platform features organized into three main categories: core features, additional features, and system features.
 
-**Produces:** A read-only grid of feature cards; no interactive elements beyond CSS hover effects.
+**Produces:** Static page with hero section, feature cards in three grids: 6 core features (Dashboard, Scoreboards, Client Management, Calendar, Payroll, Admin), 6 additional features (Claims, Roles, Financial Analytics, Packages, Payments, Purchase Approval), 3 system features (Data Center, Announcements, Branding).
 
-**On success:** Page renders immediately; no loading or error states.
-**On failure / error states:** None (fully static).
+**On success:** User views all available features with descriptions.
+**On failure / error states:** None — static content page.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-FeaturesPage
-  → renders static JSX only
-  → no hooks, no API calls, no side effects
-```
+1. Component mounts
+2. Renders hero section (heading + description)
+3. Renders three feature grids with icon + title + description for each feature
 
-**Inputs:** None.
-
-**State management:** None.
-
-**Outputs:** Hero section + three feature grids:
-1. Core features (6 cards): Dashboard & Analytics, Performance Scoreboards, Client Management, Smart Calendar, Payroll Management, Advanced Admin Settings
-2. Additional features (6 cards): Claims & Expenses, Role Management, Financial Analytics, Package Management, Payments & Invoicing, Purchase Approval
-3. System features (3 cards): Data Center, Announcement System, Branding Customization
-
-**Side effects:** None.
+**Inputs:** None
+**State management:** None
+**Outputs:** Static HTML rendering
+**Side effects:** None
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None.
+**Calls these API endpoints:** None
+**Uses these components:** 
+- Multiple lucide-react icons (HomeIcon, ClipboardList, UserCircle, Calendar, DollarSign, etc.)
+- HTML divs + Tailwind classes (no shadcn/ui components used)
 
-**Uses these components:**
-- `lucide-react` icons only (HomeIcon, ClipboardList, UserCircle, Calendar, DollarSign, Settings, FileText, UserCog, PieChart, Package, Receipt, CheckSquare, Database, Bell, Palette) — inline, not project components
-
-**Uses these hooks:** None.
-
-**Navigation: who navigates here:**
-- No internal navigation found pointing to `/features`. Accessible via direct URL or landing page links (the `apps/web/src/routes/index.tsx` landing page mentions features in text but no verified `Link to="/features"` was found).
-
-**Navigation: where it goes:** None (no navigation links inside this page).
+**Uses these hooks:** None
+**Navigation: who navigates here:** None (not linked from visible pages, but linked from home page in text/buttons)
+**Navigation: where it goes:** None
 
 ---
 
 ## 4. Data Shapes
 
-No DB tables touched. No API calls. No form fields.
+**DB tables touched:** None
+**Key types / Zod schemas:** None
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** N/A (static page).
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Layout responsiveness on mobile (3-column grid on desktop, 1-column on mobile)
+- Icon rendering consistency
+- Text overflow on narrow viewports
 
 ---
 
 ## 6. Notes
 
-- All 15 feature cards are hardcoded marketing copy; card descriptions do not link to the actual feature pages in the app dashboard.
-- No hover interactions beyond Tailwind `hover:shadow-lg transition-shadow` on each card.
-- This page mirrors the feature list in the landing page (`/`) feature teaser section, but with fuller descriptions.
-- Part of the public marketing surface alongside `/about`, `/contact`, and `/demo`.
+- Feature content is hardcoded in component (no CMS or data fetching)
+- Same features appear on home page (/index.tsx) — content duplication
+- Uses same icon/card pattern as home page
+- No interactive elements or state changes
+

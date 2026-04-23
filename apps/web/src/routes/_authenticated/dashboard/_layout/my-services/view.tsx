@@ -6,6 +6,7 @@ import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Briefcase, Edit } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/my-services/view",
@@ -195,13 +197,7 @@ function MyServicesView() {
 	// ── Guard: loading ───────────────────────────────────────────────────────
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ── Guard: error ─────────────────────────────────────────────────────────
@@ -238,15 +234,11 @@ function MyServicesView() {
 
 			{/* Empty state */}
 			{myServices.length === 0 && !isLoading ? (
-				<div className="flex flex-col items-center justify-center py-20 gap-3">
-					<Briefcase className="h-12 w-12 text-muted-foreground/50" />
-					<p className="text-lg font-medium text-foreground">
-						You have no service assignments yet.
-					</p>
-					<p className="text-sm text-muted-foreground">
-						Contact your manager to get assigned to services.
-					</p>
-				</div>
+				<EmptyState
+					icon={Briefcase}
+					title="No services assigned"
+					description="Contact your manager to get assigned to services."
+				/>
 			) : (
 				<DataTable<ServiceBufferAssignment, unknown>
 					columns={columns}

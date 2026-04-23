@@ -10,6 +10,7 @@ import {
 	type PayoutRow,
 } from "@/components/tables/payouts/view/columns";
 import { Banknote } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payouts/view",
@@ -36,7 +37,7 @@ function PayoutsViewPage() {
 		undefined,
 	);
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["payouts", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -69,13 +70,7 @@ function PayoutsViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (
@@ -120,7 +115,13 @@ function PayoutsViewPage() {
 			<Separator />
 
 			{/* Table */}
-			<DataTable<PayoutRow, unknown> columns={columns} data={data} />
+			<DataTable<PayoutRow, unknown>
+					columns={columns}
+					data={data}
+					emptyTitle="No payouts found"
+					error={isError ? error : undefined}
+					onRetry={() => refetch()}
+				/>
 		</div>
 	);
 }

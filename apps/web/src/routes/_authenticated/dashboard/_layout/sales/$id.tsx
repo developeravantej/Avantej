@@ -5,10 +5,13 @@ import { useState } from "react";
 import type { ReceiptData } from "@/components/pos/receipt-view";
 import { ReceiptView } from "@/components/pos/receipt-view";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { CanonicalStatus } from "@/components/ui/status-badge";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/currency";
 import { client } from "@/utils/orpc";
@@ -19,28 +22,26 @@ export const Route = createFileRoute(
 	component: SalesOrderDetailPage,
 });
 
-function StatusBadge({ status }: { status?: string | null }) {
-	const variants: Record<
-		string,
-		"default" | "secondary" | "destructive" | "outline"
-	> = {
-		confirmed: "default",
-		completed: "default",
-		paid: "default",
-		pending: "secondary",
-		processing: "secondary",
-		draft: "secondary",
-		sent: "secondary",
-		partially_paid: "secondary",
-		cancelled: "destructive",
-		rejected: "destructive",
-		overdue: "destructive",
-	};
-	return (
-		<Badge variant={variants[status ?? ""] ?? "outline"}>
-			{status ?? "unknown"}
-		</Badge>
-	);
+// Maps non-canonical statuses to the nearest canonical equivalent with a display label override.
+// "processing", "sent", "partially_paid", "overdue" are sales-domain states not in CanonicalStatus.
+const STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+	confirmed: { status: "confirmed" },
+	completed: { status: "completed" },
+	paid: { status: "paid" },
+	pending: { status: "pending" },
+	processing: { status: "pending", label: "Processing" },
+	draft: { status: "draft" },
+	sent: { status: "confirmed", label: "Sent" },
+	partially_paid: { status: "pending", label: "Partially Paid" },
+	cancelled: { status: "cancelled" },
+	rejected: { status: "rejected" },
+	overdue: { status: "rejected", label: "Overdue" },
+};
+
+function SalesStatusBadge({ status }: { status?: string | null }) {
+	if (!status) return <StatusBadge status="draft" label="Unknown" />;
+	const mapped = STATUS_MAP[status] ?? { status: "draft" as CanonicalStatus, label: status };
+	return <StatusBadge status={mapped.status} label={mapped.label} />;
 }
 
 function SalesOrderDetailPage() {
@@ -87,13 +88,7 @@ function SalesOrderDetailPage() {
 	});
 
 	if (orderLoading) {
-		return (
-			<div className="flex min-h-96 items-center justify-center">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (orderError || !order) {
@@ -104,7 +99,11 @@ function SalesOrderDetailPage() {
 						<ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales Orders
 					</Button>
 				</Link>
-				<p className="text-muted-foreground">Order not found.</p>
+				<StatusCallout
+					variant="error"
+					title="Order not found"
+					message={orderError instanceof Error ? orderError.message : "This order could not be loaded."}
+				/>
 			</div>
 		);
 	}
@@ -123,7 +122,7 @@ function SalesOrderDetailPage() {
 						Sales Order #{order.salesOrderNumber}
 					</h1>
 					<div className="mt-1 flex items-center gap-3">
-						<StatusBadge status={order.status} />
+						<SalesStatusBadge status={order.status} />
 						<span className="text-muted-foreground">
 							{order.date
 								? new Date(order.date).toLocaleDateString()
@@ -175,7 +174,7 @@ function SalesOrderDetailPage() {
 						<div>
 							<dt className="text-muted-foreground text-sm">Status</dt>
 							<dd>
-								<StatusBadge status={order.status} />
+								<SalesStatusBadge status={order.status} />
 							</dd>
 						</div>
 						<div>
@@ -217,7 +216,7 @@ function SalesOrderDetailPage() {
 									<span className="text-sm">
 										{formatPrice(inv.totalAmount ?? 0, "MYR")}
 									</span>
-									<StatusBadge status={inv.status} />
+									<SalesStatusBadge status={inv.status} />
 								</div>
 							))}
 						</div>

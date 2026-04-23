@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 import { useState } from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { CheckInRow } from "@/components/attendance/check-ins-log";
 import { CheckInsLog } from "@/components/attendance/check-ins-log";
 import { DropInForm } from "@/components/attendance/drop-in-form";
@@ -16,6 +18,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
@@ -93,6 +96,7 @@ function AttendancePage() {
 		data: bookingsData,
 		isLoading: bookingsLoading,
 		error: bookingsError,
+		refetch: refetchBookings,
 	} = useQuery({
 		queryKey: bookingsQueryKey,
 		queryFn: async () => {
@@ -115,6 +119,7 @@ function AttendancePage() {
 		data: checkInsData,
 		isLoading: checkInsLoading,
 		error: checkInsError,
+		refetch: refetchCheckIns,
 	} = useQuery({
 		queryKey: checkInsQueryKey,
 		queryFn: async () => {
@@ -160,17 +165,11 @@ function AttendancePage() {
 	return (
 		<div className="space-y-6 p-6">
 			{/* Header */}
-			<div className="flex items-center gap-3">
-				<div className="rounded-lg bg-primary/10 p-2">
-					<ClipboardCheck className="h-6 w-6 text-primary" />
-				</div>
-				<div>
-					<h1 className="font-bold font-heading text-2xl">Attendance</h1>
-					<p className="text-muted-foreground text-sm">
-						Check in members and walk-ins for today&apos;s sessions.
-					</p>
-				</div>
-			</div>
+			<PageHeader
+				icon={ClipboardCheck}
+				title="Attendance"
+				description="Check in members and walk-ins for today's sessions."
+			/>
 
 			{/* Top-bar filters */}
 			<div className="flex flex-wrap items-end gap-3">
@@ -227,14 +226,14 @@ function AttendancePage() {
 
 							{bookingsLoading && (
 								<div className="flex min-h-32 items-center justify-center">
-									<div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-r-transparent" />
+									<LoadingSpinner size="md" />
 								</div>
 							)}
 
 							{bookingsError && (
-								<div className="rounded-md bg-destructive/10 p-4 text-destructive text-sm">
+								<StatusCallout variant="error" onRetry={() => refetchBookings()}>
 									Failed to load bookings. Please try again.
-								</div>
+								</StatusCallout>
 							)}
 
 							{!bookingsLoading && !bookingsError && (
@@ -271,14 +270,14 @@ function AttendancePage() {
 
 						{checkInsLoading && (
 							<div className="flex min-h-24 items-center justify-center">
-								<div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-r-transparent" />
+								<LoadingSpinner size="md" />
 							</div>
 						)}
 
 						{checkInsError && (
-							<div className="rounded-md bg-destructive/10 p-4 text-destructive text-sm">
+							<StatusCallout variant="error" onRetry={() => refetchCheckIns()}>
 								Failed to load check-ins. Please try again.
-							</div>
+							</StatusCallout>
 						)}
 
 						{!checkInsLoading && !checkInsError && (

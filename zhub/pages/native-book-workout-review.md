@@ -1,121 +1,84 @@
-# Book Workout — Review (Native)
+# Book Workout - Review Screen
 
-**Route:** `/(app)/dashboard/book-workout/review`
-**File:** `apps/native/app/(app)/dashboard/book-workout/review.tsx:1`
+**Route:** `(app)/dashboard/book-workout/review`
+**File:** `apps/native/app/(app)/dashboard/book-workout/review.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Flow:** book-workout (step 3/4) — prev: `/(app)/dashboard/book-workout/schedule`, next: `/(app)/dashboard/book-workout/done`
-**Last updated:** 2026-04-16
+**Flow:** book-workout (step 3/4) — prev: schedule, next: done
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Step 3 of the book-workout flow — review the booking summary (service, trainer, date/time, credits) before confirming.
-**Produces:** A scrollable screen with a progress bar (75%), four summary cards (service, trainer, date/time, credits with package name), and a sticky "Confirm Booking" button.
-**On success:** Calls `appointments.create`, invalidates appointment and package instance caches, navigates to `./done` with `bookingId` and `bookingNumber` as params.
-**On failure / error states:** Button shows `ActivityIndicator` while mutation is pending (opacity 0.6). On error: `Alert.alert` with the error message. No retry mechanism.
+**Purpose (user perspective):** Final confirmation summary before creating appointment. Shows service, trainer, date/time, and credits to be deducted.
+
+**Produces:** Booking summary card with service name, trainer, date/time, package name, and 1 credit deduction label.
+
+**On success:** Confirm Booking creates appointment → navigates to Done with booking reference.
+
+**On failure / error states:** Alert dialog "Booking Failed" with error message; button disabled during pending.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-ReviewScreen
-  → useOrganization() → organizationId
-  → useBookingFlow() → state (all fields from steps 1 & 2)
-  → confirmMutation: client.appointments.create({
-        organizationId,
-        type: state.serviceType,
-        startTime: state.startTime,
-        duration: state.duration ?? 60,
-        branchId: state.branchId!,   ← NOTE: null in current flow
-        serviceId: state.serviceId,
-        trainerId: state.trainerId,
-        classSlotId: state.classSlotId,
-        packageInstanceId: state.packageInstanceId,
-        creditsUsed: 1,
-        status: "confirmed",
-        sessionTotal: 1,
-        pricePerClient: 0,
-      })
-    → appointmentsRouter.create
-      → requires appointment_management "create" permission
-      → createAppointment(tenantDb, { ... })
-        → appointments table INSERT
-      → fire-and-forget Google Calendar sync (create)
-  → on success: invalidate appointments + packageInstances queries
-  → router.push("./done", { bookingId, bookingNumber })
-  → useFocusEffect: hide tab bar
-```
+1. Display summary from booking-flow-context
+2. Confirm Booking → `confirmMutation.mutate()`
+3. Calls `client.appointments.create()` with booking data
+4. On success: invalidate appointments + packageInstances queries, navigate to Done
 
-**Inputs:** All from `BookingFlowContext.state` — no user input on this screen
+**Inputs:**
+- `organizationId` from `useOrganization()`
+- `state` from booking-flow-context (serviceName, trainerName, startTime, serviceType, packageInstanceId, branchId)
 
 **State management:**
-- TanStack Query mutation only
-- Reads `BookingFlowContext.state` (read-only at this step)
+- Local: none (reads context)
+- Mutation: `client.appointments.create()`
+- On success: invalidate query patterns "appointments" and "packageInstances"
 
-**Outputs:** Creates appointment record; navigates to done screen
-**Side effects:**
-- `queryClient.invalidateQueries` for appointments (predicate JSON match)
-- `queryClient.invalidateQueries` for packageInstances (predicate JSON match)
-- Google Calendar sync fires asynchronously (create)
+**Outputs:**
+- Mutation payload: `{ organizationId, type, startTime, duration, branchId, serviceId?, trainerId?, classSlotId?, packageInstanceId?, creditsUsed: 1, status: "confirmed", sessionTotal: 1, pricePerClient: 0 }`
+- On confirm: navigate to Done with `{ bookingId, bookingNumber }`
+
+**Side effects:** Hides tab bar on focus; Alert on error.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `appointments.create` — create the appointment record
+- `client.appointments.create({ organizationId, type, startTime, duration, branchId, ... })` — creates appointment + deducts credit
 
-**Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — SafeAreaView wrapper
-
-**Uses these hooks / contexts:**
-- `useBookingFlow` — `apps/native/contexts/booking-flow-context.tsx` — reads all booking state
-- `useOrganization` — `apps/native/hooks/useOrganization.ts` — provides `organizationId`
-- `client` — `apps/native/utils/orpc.ts` — oRPC mutation client
-
-**Navigation: who navigates here:**
-- `apps/native/app/(app)/dashboard/book-workout/schedule.tsx` — "Continue" button
-
-**Navigation: where it goes:**
-- `./done` with `{ bookingId, bookingNumber }` params — on confirm success
-- `router.back()` — back arrow
+**Navigation: who navigates here:** Schedule screen via `router.push("./review")`
+**Navigation: where it goes:** Confirm (success) → `./done` with params; Back → previous screen
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `appointments` | INSERT | `type`, `startTime`, `duration`, `branchId`, `serviceId`, `trainerId`, `classSlotId`, `packageInstanceId`, `creditsUsed`, `status`, `sessionTotal`, `pricePerClient`, `createdBy` |
-
-**Appointment creation input (hardcoded values):**
-- `creditsUsed: 1` — always 1 credit per session
-- `sessionTotal: 1` — hardcoded
-- `pricePerClient: 0` — always 0 (package-based, no direct charge)
-- `status: "confirmed"` — immediately confirmed
-
-**ServiceType normalization:** Both `"semi-private"` and `"semi_private"` (underscore variant) map to `"semi-private"` for the API call.
+| Table | Operation | Key columns |
+|-------|-----------|-------------|
+| `appointments` | WRITE | type, startTime, duration, branchId, serviceId, trainerId, classSlotId, packageInstanceId, creditsUsed, status |
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
+
 **Not tested (risk areas):**
-- `state.branchId!` is asserted non-null but is `null` throughout the flow — the `appointments.create` API requires a valid UUID for `branchId`; this will cause a validation error at runtime
-- No check that `state.startTime` is non-null before calling create
-- The `appointments.create` router requires `appointment_management` create permission — customer users without that permission will receive FORBIDDEN
+- `branchId` is always `state.branchId!` (non-null assertion) but initialized as null in context — API may fail
+- serviceType normalization ("semi_private" vs "semi-private") inconsistency
+- Cache invalidation is broad (pattern match affects unrelated queries)
 
 ---
 
 ## 6. Notes
 
-- **Critical bug:** `branchId` is never set during the booking flow (always `null`) but is passed as `state.branchId!` to the create call. The API's Zod schema requires a UUID string. This will cause a runtime error unless the API has been modified to make `branchId` optional.
-- Credits deduction from the package instance is not handled in the appointments router — it should be handled either here or in the service layer.
-- `sessionTotal: 1` and `pricePerClient: 0` are hardcoded; the UI says "1 credit will be deducted" which is always correct for this flow.
+- `branchId` is a required API field but booking-flow-context initializes it as null — likely causes API failures in production.
+- `creditsUsed` hardcoded to 1; assumes all sessions use exactly 1 credit.
+- `pricePerClient` hardcoded to 0 — cost absorbed by package.
+- No confirmation dialog before booking; Confirm button directly fires mutation.

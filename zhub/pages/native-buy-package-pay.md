@@ -1,112 +1,128 @@
-# Buy Package — Pay
+# Pay Screen
 
 **Route:** `(app)/dashboard/buy-package/pay`
-**File:** `apps/native/app/(app)/dashboard/buy-package/pay.tsx:1`
+**File:** `apps/native/app/(app)/dashboard/buy-package/pay.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Flow:** buy-package (step 6/7, shown as step 7/8 in progress text) — prev: sign, next: done
-**Last updated:** 2026-04-16
+**Flow:** buy-package (step 6/7) — prev: sign, next: done
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** The user reviews the order summary with tax-inclusive total and confirms the purchase by tapping "Pay $X.XX". This creates the package instance record in the database.
-**Produces:** Order summary card (package name, credits, service, validity), optional payment plan card (if installment chosen), price breakdown (subtotal + tax + total), a disabled payment method placeholder section.
-**On success:** `packageInstances.create` called → `preferredTimes.upsert` called (if times set) → context updated with `packageInstanceId` → navigates to `./done`.
-**On failure / error states:** `Alert.alert("Purchase Failed", error.message)` on API error. Button shows "Processing..." with 50% opacity while in-flight.
+**Purpose (user perspective):** Review order summary with taxes and total; complete purchase by creating package instance.
+
+**Produces:**
+- Order summary card (package, credits, service name, price).
+- Payment plan summary (if multi-installment).
+- Price breakdown (subtotal, tax, total).
+- Payment method section (disabled, placeholder for future Stripe integration).
+- Pay button showing total amount.
+
+**On success:** Package instance created via API; preferred times saved (if any); navigates to done screen.
+
+**On failure / error states:**
+- API error creating package instance: show Alert with error message.
+- Processing state: button disabled, text shows "Processing...".
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-PayScreen
-  → orpc.taxRates.getDefault({ organizationId }) → taxRate
-  → subtotal = state.price; taxAmount = subtotal * (rateInBasisPoints / 10000); total = subtotal + taxAmount
-  → handlePayment:
-      → client.packageInstances.create({ organizationId, packageId, clientId: session.user.id, ... })
-          → packageInstancesRouter.create
-            → requirePermission(tenantDb, member, "service_management", "create")
-            → createPackageInstance(tenantDb, {...})
-              → tenantDb.packageInstances (INSERT)
-            → if installment plan: createInstallmentSchedule(tenantDb, {...})
-              → tenantDb.installments (INSERT)
-      → if preferredTimes.length > 0:
-          → client.preferredTimes.upsert({ organizationId, packageInstanceId, items })
-              → preferredTimesRouter.upsert
-                → upsertPreferredTimes(tenantDb, packageInstanceId, items)
-                  → tenantDb.preferredTimes (UPSERT)
-      → queryClient.invalidateQueries(["packageInstances"])
-      → update({ paymentMethod: "pending", packageInstanceId: instance.id })
-      → router.push("./done")
-```
+1. Mount: Fetch default tax rate for org (useQuery).
+2. Calculate taxes: `taxAmount = subtotal * (taxRatePercent / 100)`.
+3. Display order summary and price breakdown.
+4. User taps Pay button → `handlePayment()`:
+   a. Set `isProcessing` true.
+   b. Calculate package expiry: `startsAt + (validityDays * ms)`.
+   c. Create packageInstance via `client.packageInstances.create()` with all purchase data (see inputs).
+   d. If preferred times exist and instance created: save via `client.preferredTimes.upsert()` (non-critical, failures ignored).
+   e. Invalidate packageInstances query cache.
+   f. Update context with packageInstanceId.
+   g. Navigate to done.
+   h. Catch and display error alert.
 
-**Inputs:** All accumulated context fields; `session.user.id` for `clientId`; `taxRates.getDefault` for tax
-**State management:** Local `isProcessing: boolean`; writes `paymentMethod`, `packageInstanceId` to context
-**Outputs:** Order summary, price breakdown, pay button
-**Side effects:** Creates `packageInstances` row; optionally creates `installments` rows; optionally upserts `preferredTimes` rows; invalidates `["packageInstances"]` query cache
+**Inputs:**
+- Context state: price, paymentPlanType, creditsTotal, validityDays, installmentIntervalDays, signature, termsAgreedAt, remark, serviceId, preferredTimes.
+- Organization ID, user ID (from authClient session).
+
+**State management:**
+- TanStack Query: fetch tax rate (cached).
+- Local state: `isProcessing` (boolean).
+- PurchaseFlow context: read all state, update packageInstanceId.
+
+**Outputs:**
+- API call: `client.packageInstances.create()` — creates row in packageInstances table.
+- API call: `client.preferredTimes.upsert()` — creates/updates preferred times (optional).
+- Context update: packageInstanceId.
+- Cache invalidation: packageInstances query key.
+- Navigation to `./done`.
+
+**Side effects:**
+- API calls (create and optional upsert).
+- Query cache invalidation.
+- Alert on error.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `taxRates.getDefault` — fetches org default tax rate (basis points)
-- `packageInstances.create` — creates the package instance record; requires `service_management:create` permission
-- `preferredTimes.upsert` — saves preferred times against the new instance (non-critical; errors silently swallowed)
+- `orpc.taxRates.getDefault()` — fetch default tax rate (basis points).
+- `client.packageInstances.create()` — create package purchase record.
+- `client.preferredTimes.upsert()` — save preferred times (optional, non-critical).
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root layout wrapper
+- `Container` — wrapper.
 
-**Context:** Reads `packageId`, `packageName`, `creditsTotal`, `serviceName`, `price`, `validityDays`, `paymentPlanType`, `installmentIntervalDays`, `signature`, `termsAgreedAt`, `remark`, `creditsTotal`, `preferredTimes`. Writes: `paymentMethod`, `packageInstanceId`
+**Uses these hooks:**
+- `usePurchaseFlow` — read/write state.
+- `useOrganization` — get organizationId.
+- `useQuery` — fetch tax rate.
+- `useQueryClient` — invalidate packageInstances query.
+- `authClient.useSession()` — get current user ID.
+- `useState` — processing state.
 
-**Navigation:** `./done` — on successful payment
+**Navigation: who navigates here:** `./sign` on continue.
+
+**Navigation: where it goes:** `./done` on success.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| taxRates | SELECT | rateInBasisPoints, isDefault |
-| packageInstances | INSERT | organizationId, packageId, clientId, source, totalPrice, taxAmount, paymentStatus, paymentMethod, eSignature, termsAgreedAt, creditsTotal, creditsUsed, startsAt, expiresAt, status, remark, paymentPlanType, installmentsTotal, installmentsPaid, creditsUnlocked |
-| installments | INSERT (conditional) | packageInstanceId, dueDate, amount, creditsToUnlock, status |
-| preferredTimes | UPSERT (conditional) | packageInstanceId, dayOfWeek, time, priority |
+- `packageInstances` (write): insert with fields from purchase flow (see lines 60–79).
+- `preferredTimes` (write/upsert): save preferred times linked to packageInstanceId.
 
-**Context fields used:**
-| Field | Type | Purpose |
-|-------|------|---------|
-| packageId | string \| null | Required for create call |
-| price | number \| null | Subtotal for tax calculation and order display |
-| creditsTotal | number \| null | Passed to packageInstances.create |
-| validityDays | number \| null | Calculates expiresAt (now + validityDays in ms) |
-| paymentPlanType | "full" \| "half" \| "quarterly" \| null | Passed to create; triggers installment schedule |
-| installmentIntervalDays | number | Used in installment schedule creation |
-| signature | string \| null | eSignature field |
-| termsAgreedAt | string \| null | Passed to create |
-| remark | string \| null | Passed to create |
-| preferredTimes | Array<{ day: string; time: string }> | Upserted after instance created |
-| packageInstanceId | string \| null | Written after successful create |
-| paymentMethod | string \| null | Written as "pending" after create |
+**Key types / Zod schemas:**
+- `packageInstance`: input object (lines 60–79) includes organizationId, serviceId, clientId, source, totalPrice, taxAmount, paymentStatus, paymentMethod, eSignature, termsAgreedAt, creditsTotal, creditsUsed, startsAt, expiresAt, status, remark, paymentPlanType, installmentIntervalDays.
+- `preferredTime`: { dayOfWeek: DayOfWeek, time: string, priority: number }.
+- `DayOfWeek`: "monday" | "tuesday" | ... (normalized to lowercase).
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
+
+**Not tested (risk areas):**
+- Tax rate calculation edge cases (rounding, very small/large rates).
+- Package instance creation failure — rollback of preferred times (currently not handled).
+- Concurrency: double-tap Pay button (isProcessing flag should prevent, but not tested).
+- Validity calculation: leap years, timezone edge cases.
+- Very long signature data URI handling in API.
+- Preferred times upsert failure — should not fail payment, but current logic swallows error silently.
 
 ---
 
 ## 6. Notes
 
-- `packageInstances.create` **requires `service_management:create` permission** on the tenant member. Customer-app users must have this permission or the call returns FORBIDDEN. This may be intentionally gated for staff-assisted purchase, or may be a bug if fully self-serve is intended.
-- Payment processing (Stripe) is not yet integrated. The "PAYMENT METHOD" section is rendered with `opacity-50` and a placeholder message. `paymentMethod` and `paymentStatus` are both hardcoded to `"pending"`.
-- Tax is fetched live from `taxRates.getDefault`. If no default rate is set, `taxRatePercent` defaults to 0 (no tax).
-- Tax rate is stored in basis points (e.g., 1000 = 10.00%). Conversion: `rateInBasisPoints / 100 = percent`, then `subtotal * percent / 100 = taxAmount`.
-- The `preferredTimes.upsert` failure is silently swallowed (empty catch) — intentionally non-critical.
-- `validityDays` defaults to 365 if null when computing `expiresAt`.
-- The `packageInstances.create` input schema expects `serviceId` as required but the screen passes `packageId`. There is a mismatch: the router input has `serviceId: z.string().uuid()` but the call site passes `packageId`. This is a likely bug.
-- The step progress counter shows `currentStep = 7, totalSteps = 8` but the steps array only has 7 items — another step-counter inconsistency.
+- Payment method section currently disabled (opacity-50, lines 407–421); awaiting Stripe integration.
+- `paymentStatus` and `paymentMethod` both set to "pending" (lines 67–68); likely updated later by Stripe webhook.
+- Tax rate in basis points (1000 = 10%); ensure tax rate endpoint returns correct unit.
+- Preferred times map: `pt.day` (e.g., "Monday") converted to lowercase enum "monday" (lines 97).
+- Preferred times saving is non-critical (try/catch with no rethrow, line 102); consider logging or alerting user if failed.
+- Step counter shows 7/8 but should be 6/7 (one-off error).

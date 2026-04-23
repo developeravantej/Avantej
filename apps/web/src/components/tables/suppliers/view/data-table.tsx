@@ -6,7 +6,7 @@ import {
 	getSortedRowModel,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
 import {
 	Table,
 	TableBody,
@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -28,9 +28,14 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { SupplierFormDialog, type SupplierFormData } from "@/components/forms/supplier-form";
+import {
+	SupplierFormDialog,
+	type SupplierFormData,
+} from "@/components/forms/supplier-form";
 import { SupplierDetailsDialog } from "@/components/dialogs/supplier-details-dialog";
 import { createColumns, type SupplierRow } from "./columns";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 interface DataTableProps {
 	data: SupplierRow[];
@@ -40,6 +45,8 @@ interface DataTableProps {
 	isCreating?: boolean;
 	isUpdating?: boolean;
 	isDeactivating?: boolean;
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 export function DataTable({
@@ -50,15 +57,20 @@ export function DataTable({
 	isCreating = false,
 	isUpdating = false,
 	isDeactivating = false,
+	error,
+	onRetry,
 }: DataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 	const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
-	const [selectedSupplier, setSelectedSupplier] = useState<SupplierRow | null>(null);
-	const [supplierToDeactivate, setSupplierToDeactivate] = useState<SupplierRow | null>(null);
+	const [selectedSupplier, setSelectedSupplier] = useState<SupplierRow | null>(
+		null,
+	);
+	const [supplierToDeactivate, setSupplierToDeactivate] =
+		useState<SupplierRow | null>(null);
 
 	const columns = createColumns({
 		onEdit: (supplier) => {
@@ -82,13 +94,16 @@ export function DataTable({
 		getPaginationRowModel: getPaginationRowModel(),
 		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(),
-		onColumnFiltersChange: setColumnFilters,
 		getFilteredRowModel: getFilteredRowModel(),
+		onGlobalFilterChange: setGlobalFilter,
+		globalFilterFn: "includesString",
 		state: {
 			sorting,
-			columnFilters,
+			globalFilter,
 		},
 	});
+
+	const rows = table.getRowModel().rows;
 
 	const handleCreate = async (formData: SupplierFormData) => {
 		await onCreateSupplier(formData);
@@ -108,7 +123,9 @@ export function DataTable({
 			await onDeactivateSupplier(supplierToDeactivate.id);
 			toast.success(`Supplier "${supplierToDeactivate.name}" deactivated`);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate supplier");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to deactivate supplier",
+			);
 		} finally {
 			setIsDeactivateDialogOpen(false);
 			setSupplierToDeactivate(null);
@@ -116,101 +133,102 @@ export function DataTable({
 	};
 
 	return (
-		<div className="w-full">
-			<div className="flex items-center justify-between gap-2 py-4">
-				<Button
-					onClick={() => setIsAddDialogOpen(true)}
-					className="bg-black text-white hover:bg-black/90"
-					type="button"
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Add Supplier
-				</Button>
-				<Input
-					placeholder="Filter suppliers..."
-					value={
-						(table.getColumn("name")?.getFilterValue() as string) ?? ""
-					}
-					onChange={(event) =>
-						table.getColumn("name")?.setFilterValue(event.target.value)
-					}
-					className="max-w-sm"
-				/>
+		<div className="flex h-full flex-col">
+			{/* Search bar row */}
+			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
+				<div className="relative w-64">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search suppliers..."
+						value={globalFilter ?? ""}
+						onChange={(e) => setGlobalFilter(e.target.value)}
+						className="pl-9"
+					/>
+				</div>
+				<div className="ml-auto flex gap-2">
+					<Button
+						onClick={() => setIsAddDialogOpen(true)}
+						className="bg-black text-white hover:bg-black/90"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Supplier
+					</Button>
+				</div>
 			</div>
 
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext()
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
+			{/* Error state or table */}
+			{error ? (
+				<div className="flex flex-1 items-center justify-center p-6">
+					<StatusCallout
+						variant="error"
+						title="Couldn't load data"
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
+						onRetry={onRetry}
+					/>
+				</div>
+			) : (
+				<div className="flex-1 overflow-y-auto">
+					<Table>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
+									key={headerGroup.id}
+									className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext()
-											)}
-										</TableCell>
+									{headerGroup.headers.map((header) => (
+										<TableHead
+											key={header.id}
+											className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+												  )}
+										</TableHead>
 									))}
 								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
-									No results.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
-
-			<div className="flex items-center justify-end space-x-2 py-4">
-				<div className="flex-1 text-sm text-muted-foreground">
-					{table.getFilteredRowModel().rows.length} of{" "}
-					{table.getCoreRowModel().rows.length} row(s) total.
+							))}
+						</TableHeader>
+						<TableBody>
+							{rows.length ? (
+								rows.map((row) => (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && "selected"}
+										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												className="whitespace-nowrap px-6 py-4 text-sm"
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="p-0">
+										<EmptyState
+											title="No suppliers found"
+											context={globalFilter ? "search" : "empty"}
+										/>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
 				</div>
-				<div className="space-x-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
-					>
-						Next
-					</Button>
-				</div>
-			</div>
+			)}
 
 			{/* Add Dialog */}
 			{isAddDialogOpen && (
@@ -289,8 +307,8 @@ export function DataTable({
 						<DialogTitle>Deactivate Supplier</DialogTitle>
 						<DialogDescription>
 							Are you sure you want to deactivate{" "}
-							<strong>{supplierToDeactivate?.name}</strong>? The supplier
-							will be marked as inactive and hidden from active lists.
+							<strong>{supplierToDeactivate?.name}</strong>? The supplier will
+							be marked as inactive and hidden from active lists.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

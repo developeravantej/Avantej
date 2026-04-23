@@ -3,6 +3,7 @@ import { Banknote, Check, CreditCard, Landmark } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Select,
 	SelectContent,
@@ -206,14 +207,11 @@ export function PaymentStep({
 
 					{/* Prominent change due */}
 					{changeDueCents !== null && (
-						<div className="flex items-center justify-between rounded-xl border-2 border-green-200 bg-green-50 px-5 py-4">
-							<span className="font-medium text-green-800 text-sm">
-								Change Due
-							</span>
-							<span className="font-bold text-2xl text-green-700 tabular-nums">
+						<StatusCallout variant="success" title="Change Due">
+							<span className="font-bold text-2xl tabular-nums font-mono">
 								{formatPrice(changeDueCents, "MYR")}
 							</span>
-						</div>
+						</StatusCallout>
 					)}
 				</div>
 			)}

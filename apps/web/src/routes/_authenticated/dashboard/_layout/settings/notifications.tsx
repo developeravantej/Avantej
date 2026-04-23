@@ -275,12 +275,14 @@ function NotificationPreferencesPage() {
 				<div className="text-sm text-muted-foreground min-w-16 text-right">
 					{saveState === "saving" && (
 						<span className="flex items-center gap-1.5 justify-end">
+							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
 							<span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
 							Saving…
 						</span>
 					)}
 					{saveState === "saved" && (
 						<span className="flex items-center gap-1.5 justify-end text-green-600">
+							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
 							<span className="h-2 w-2 rounded-full bg-green-500" />
 							Saved
 						</span>

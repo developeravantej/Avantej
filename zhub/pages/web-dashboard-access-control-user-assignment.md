@@ -1,135 +1,134 @@
-# Access Control — User Role Assignment
+# User Role Assignment
 
-**Route:** `/_authenticated/dashboard/_layout/access-control/user-assignment`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/user-assignment.tsx:1`
+**Route:** `/dashboard/access-control/user-assignment`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/user-assignment.tsx`
 **Platform:** web
-**Auth required:** rbac(user_management:read, role_management:read) — `requirePermission` in `beforeLoad` is a stub; actual enforcement is server-side.
-**Last updated:** 2026-04-20
+**Auth required:** authenticated (no explicit RBAC guard in beforeLoad)
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Manage all organization members — assign system roles, change hierarchy scope, deactivate/reactivate accounts, and invite new users by email.
-**Produces:** A card grid of member records showing name, email, current role badge, active/inactive status, and relative last-login time.
-**On success:** Role updates, deactivate/reactivate, and invitations each show a sonner toast and re-fetch the members list.
-**On failure / error states:** Full-screen loading overlay while fetching. Toast errors on mutation failure. Empty-state card when no users match filters. Invite blocked with error toast when inviter's `hierarchyScopeId` cannot be resolved from user context.
+**Purpose (user perspective):** Assign roles to organization members and manage invitations.
+
+**Produces:** Two tabs:
+- **Members tab:** Lists all active members with their assigned roles, allows editing roles and inviting new users
+- **Invitations tab:** Manages pending invitations
+
+**On success:** Users are assigned roles, deactivated/reactivated, or invited with email notification.
+
+**On failure / error states:** Permission denied (checked in component), loading spinners, error toasts on mutation failure.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-UserAssignmentPage
-  → useQuery(["members", orgId])     → client.members.list({ organizationId })
-  → useQuery(["roles", orgId])       → client.roles.list({ organizationId })
-  → useQuery(["hierarchy","nodes"])  → client.hierarchy.listNodes({ organizationId })
+1. Component renders ConsolidatedTabs with route-based tab selection
+2. MembersTabPage queries members, roles, and hierarchy nodes
+3. User cards show current roles and last login info
+4. Invite/Edit/Deactivate flows open sheets/dialogs
+5. Mutations call client.members.updateRole, client.invitations.create, etc.
 
-  handleSaveUserRoles(newRole)
-    → client.members.updateRole({ organizationId, memberId, newRole })
-        → MembershipService.updateMemberRole (dual-write: tenant + control panel)
-
-  handleDeactivateUser(userId)
-    → client.members.deactivate(...)   [tenant-only status change]
-    OR client.members.reactivate(...)  [dual-write via MembershipService]
-
-  handleInviteUser(email, role)
-    → client.invitations.create({ organizationId, email, role, hierarchyScopeId })
-    → client.invitations.sendEmail({ invitation, organizationId, ... })
-        [best-effort: email failure shows warning toast, not error; invite is still created]
-
-  handleSaveUserDetails()
-    → client.members.updateRole(...)
-    → client.hierarchy.reassignMember({ organizationId, memberId, newHierarchyScopeId })
-        [only if editHierarchyScopeId is non-empty]
-```
-
-**Inputs:** No URL or query params. Inviter's `hierarchyScopeId` derived from `userContext.organizations[currentOrg].hierarchy.member.hierarchyScopeId`.
+**Inputs:**
+- URL search param: `tab` ("members" | "invitations", defaults to "members")
 
 **State management:**
-- `users` — local copy of members synced from API via `useEffect` on `membersApiData` (one-tick lag on first render)
-- `selectedUsers` — Set of IDs for bulk-select UI (bulk actions are stubs only)
-- `searchQuery`, `roleFilter`, `statusFilter` — client-side filtering, no server round-trip
-- `editingUser` — opens `RoleAssignmentSheet`
-- `editingUserDetails` — opens "Edit User" Dialog
-- `showInviteDialog` — opens `InviteUserDialog` Sheet
-- `isSaving` — disables all mutation buttons during any in-flight call
+- TanStack Query: `["members", organizationId]`, `["roles", organizationId]`, `["hierarchy", "nodes", organizationId]`
+- Local state: users[], selectedUsers, searchQuery, roleFilter, statusFilter, editingUser, showInviteDialog, isSaving
+- Form state: email, role, editHierarchyScopeId in respective sheets/dialogs
 
-**Outputs:** Card grid renders with filters and stats. Mutations invalidate `["members", orgId]` on success.
-**Side effects:** Invitation email via server-side Resend; failure is non-blocking.
+**Outputs:**
+- User grid with cards showing avatar, name, email, roles, last login
+- Sheets for role assignment and user invitations
+- Dialogs for user details edit and confirm deactivate
+- Toasts on success/failure
+
+**Side effects:**
+- onSuccess: invalidates member/role queries, shows toast, closes sheet
+- Member status changes trigger hierarchy reassignment if applicable
+- Email invitations are sent asynchronously (warnings if send fails but invitation created)
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `members.list` — fetch members (cross-DB enriched with name/email from control panel)
-- `members.updateRole` — change system role (dual-write)
-- `members.deactivate` — tenant-only status → inactive
-- `members.reactivate` — restore active (dual-write)
-- `roles.list` — available roles for filter/badges
-- `hierarchy.listNodes` — populate hierarchy scope selector
-- `hierarchy.reassignMember` — move member to different node
-- `invitations.create` — create invitation record
-- `invitations.sendEmail` — server-side email trigger
+- `client.members.list()` — fetch all members
+- `client.roles.list()` — fetch all roles
+- `client.hierarchy.listNodes()` — fetch hierarchy for scope selection
+- `client.members.updateRole()` — update member role
+- `client.members.deactivate()` — deactivate member
+- `client.members.reactivate()` — reactivate member
+- `client.invitations.create()` — create invitation
+- `client.invitations.sendEmail()` — send invitation email
+- `client.hierarchy.reassignMember()` — reassign member to new hierarchy scope
 
-**Uses these components:** `UserCard`, `RoleAssignmentSheet`, `InviteUserDialog` (all defined inline in same file). Shadcn/ui: `Card`, `Sheet`, `Dialog`, `Select`, `Checkbox`, `Badge`, `Avatar`, `DropdownMenu`.
+**Uses these components:**
+- `MembersTabPage` @ `/components/pages/access-control/members-tab.tsx` — member management
+- `InvitationsTabPage` @ `/components/pages/access-control/invitations-tab.tsx` — invitation management
+- `ConsolidatedTabs` @ `/components/ui/consolidated-tabs` — tab UI
+- `UserCard` — individual member card with actions
 
 **Uses these hooks:**
-- `useUserContext` — `currentOrganizationId` + inviter's `hierarchyScopeId`
-- `useIsMobile` — Sheet slides from bottom on mobile, right on desktop
-- `useQueryClient` — manual cache invalidation
+- `useUserContext()` — access org ID, hierarchy scope
+- `useQuery()` — fetch members, roles, hierarchy
+- `useQueryClient()` — invalidate queries after mutations
+- `useIsMobile()` — responsive sheet/dialog placement
 
-**Navigation: who navigates here:** `apps/web/src/components/app-sidebar.tsx` — People → Access Control → "User Assignment" (sidebar link is permission-gated: requires `user_management:read`; hidden when the user lacks this permission)
+**Navigation: who navigates here:**
+- Access Control menu link or from roles page
 
-**Navigation: where it goes:** No outbound navigation.
+**Navigation: where it goes:**
+- Link to user-assignment from roles page quick-start guide
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `members` (tenant) | SELECT, UPDATE | `id`, `userId`, `role`, `status`, `hierarchyScopeId` |
-| `user` (control panel) | SELECT | `id`, `name`, `email` |
-| `roles` (tenant) | SELECT | `id`, `name`, `priority` |
-| `hierarchy_nodes` (tenant) | SELECT | `id`, `name`, `type`, `depth` |
-| `invitations` (tenant) | INSERT | `email`, `role`, `hierarchyScopeId`, `token`, `status` |
-| `organization_members` (control panel) | UPDATE | `role`, `status` |
+- members — read, update (role, status, hierarchy scope)
+- roles — read
+- hierarchy_nodes — read
+- invitations — create
+- invitations_emails — create (via sendEmail)
 
-**Key types:**
-- `UserForAssignment` — `{ id, name, email, roles: string[], isActive, department? }` from `apps/web/src/types/user-assignment.ts`
-- `RoleResponse` — `{ id, name, description?, priority }` from same file
-- `SystemRole` — `"admin" | "trainer" | "staff" | "client"` (inline)
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| email | text input | required (toast guard) | `invitations.create.email` |
-| role (invite) | Select SystemRole | default "staff" | `invitations.create.role` |
-| role (edit) | Select SystemRole | default "staff" | `members.updateRole.newRole` |
-| hierarchyScopeId | Select from hierarchy nodes | optional | `hierarchy.reassignMember.newHierarchyScopeId` |
+**Key types / Zod schemas:**
+- `UserForAssignment` — {id, name, firstName, lastName, email, roles[], isActive, lastLogin?, department?}
+- `RoleResponse` — {id, name, description?, priority}
+- `HierarchyNode` — {id, name, type, depth, parentId?, address?, picUserId?, createdAt, updatedAt}
+- System roles: "admin" | "trainer" | "staff" | "client"
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
+**Test files:** None found
+
 **Scenarios covered:** N/A
+
 **Not tested (risk areas):**
-- Two-step invite with email failure fallback
-- Deactivate vs reactivate toggle when `user.isActive` changes between renders
-- Null `inviterHierarchyScopeId` blocking invite silently
-- Bulk action menu items (stubs — no mutations wired)
+- Bulk user operations (currently disabled in UI)
+- Email send failure recovery (warning shown but no retry flow)
+- Hierarchy scope reassignment validation (assumes valid scope provided)
+- Concurrent member updates (no optimistic UI)
+- Role priority-based sorting in dropdowns
 
 ---
 
 ## 6. Notes
 
-- `requirePermission` in `beforeLoad` is a client-side stub and does not block navigation. Real RBAC is enforced in each server procedure.
-- `members.deactivate` (tenant-only) and `members.reactivate` (dual-write) are asymmetric — a bug risk if the two get out of sync.
-- The `users` local state array is populated in a `useEffect`, so stats cards show `0` on the initial render tick before the effect runs.
-- `roles` array on `UserForAssignment` is now populated: filtered from `rolesApiData` by case-insensitive name match against `member.role`. Still relies on name-string matching rather than role IDs, so it breaks if role names diverge.
-- Bulk action menu items ("Bulk Assign Role", "Bulk Remove Role", "Deactivate Selected") are now `disabled` with `title="Bulk actions coming soon"` — they visibly indicate incomplete state rather than silently doing nothing.
+- **No RBAC guard on route** — permission checks happen in component via `hasPermission("attendance_management:read")` pattern; consider adding explicit guard
+- **Bulk actions UI present but disabled** — placeholder for future implementation
+- **Hierarchy scope assignment** — optional in edit flow; only applied if editHierarchyScopeId is set
+- **System roles are hardcoded** — not configurable (admin, trainer, staff, client)
+- **Email send failures don't prevent invitation creation** — warning toasts allow graceful degradation
+- **Last login timestamps** — calculated on client; no server-side relative time support
+- **Member role mapping** — maps system role name to role.id for display/assignment
+
+---
+
+## Related Pages
+
+- [Roles Management](/dashboard/access-control/roles)

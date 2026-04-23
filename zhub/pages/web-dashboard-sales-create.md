@@ -1,111 +1,142 @@
-# POS / Record Sale
+# Sales Order (POS Create)
 
 **Route:** `/dashboard/sales/create`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx`
 **Platform:** web
-**Auth required:** authenticated + `pos_management:create`
-**Last updated:** 2026-04-22
+**Auth required:** authenticated + rbac(pos:create)
+**Flow:** POS multi-step flow (step 1-5) — Customer > Items > Promo > Payment > Trainers (optional)
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose:** Receptionist records an in-store sale end-to-end (customer → items → promo → tax → payment → installment → invoice → audit) in one atomic transaction. Printable receipt on completion.
+**Purpose (user perspective):** Multi-step POS form to record a new sale: select customer, add items, apply promo, select payment, assign trainers (optional).
 
-**Produces:** Redirects to `/dashboard/sales/$id` with `{ salesOrderId, salesOrderNumber, invoiceId, invoiceNumber, paymentId, packageInstanceId?, installmentIds?, subtotalCents, discountCents, taxCents, totalCents, changeDueCents? }`. Toast on success.
+**Produces:** Accordion-based stepped form on left, cart summary on right. Step badges show progress.
 
-**On failure:** ORPCError bubbles to toast; form state preserved; entire tenant-DB transaction rolls back — no orphan rows.
+**On success:**
+- Sale recorded via client.pos.recordSale()
+- Navigate to /dashboard/sales/:id
+- Toast: Sale recorded successfully
+
+**On failure / error states:**
+- Permission guard if !canCreate
+- Org guard if no organizationId
+- Toast errors on validation or submit failure
 
 ---
 
 ## 2. How It Works
 
-**Layout:** Two-column on desktop. Left: stepped form (`<Accordion>` defaultValue="customer"). Right: persistent `CartSummary` panel.
+**Execution flow:**
 
-**Steps (single page, accordion-style wizard):**
-1. **Customer** — Toggle: **Member** | **Walk-in**. Member mode: Combobox via `pos.searchCustomers`. Walk-in mode: fully anonymous — no combobox, no "+ Create New Walk-in Customer" button. Walk-in sends `{ customerType: "walk_in", customerId: "anonymous", customerName: "Walk-in" }`.
-2. **Items** — Service / Package / Custom line-items. Rows with qty + unit price + total + trash.
-3. **Trainers step** (conditional): Appears only when cart contains service items (type=`service` with a `refId`). Optional — cashier can skip. Shows one card per service item with Add/Remove trainer slots. Trainer assignment is passed to `recordSale` as `itemTrainerAssignments: Record<string, {staffId, slotIndex}[]>`.
-3. **Promotion** (optional) — Code input + Apply via `promotions.validate`.
-4. **Tax** — Default rate auto-loaded from `taxRates.getDefault`; dropdown of active rates to override.
-5. **Payment** — Method radio (Cash | Card | Bank Transfer). Cash: tendered input + change due. Card/Bank: reference input. Installment plan picker when exactly one Package item.
+1. Load tax rates and default via useQuery
+2. User selects customer type (member or walk-in)
+3. If member: CustomerStep component for search/select
+4. If walk-in: show info badge, no customer record
+5. ItemsStep: add items to cart (products or services)
+6. PromoStep: optional promo code input and validation
+7. PaymentStep: select payment method (cash, card, bank_transfer, installment)
+8. If service items: TrainerPickerStep for trainer assignment
+9. Submit via client.pos.recordSale() with all form data
+10. On success: redirect to order detail
 
-**Submit flow:**
-```
-RouteComponent → onSubmit
-  → client.pos.recordSale({ customerType, customerId, items, promotionCode?, taxRateId, paymentMethod, ... })
-    → posRouter.recordSale       # rbac: pos:create + branch scope
-      → recordPosSale(tenantDb, input)   # SINGLE tenantDb.transaction
-        0. Walk-in + package guard: if customerType === 'walk_in' AND any item has type === 'package' → throws BAD_REQUEST("Walk-in customers cannot purchase packages") before tx opens
-        1. Validate upstream (package fields: services.sessionCount + expirable + expiryDays)
-        2. Validate customer (member OR walk_in); verify branch in accessibleNodeIds
-        3. Compute subtotal
-        4. Apply promotion (validatePromoCode)
-        5. Compute tax (rateInBasisPoints × base / 10000)
-        6. Generate numbers (SO-YYYYMMDD-NNNN, PAY-..., INV-...)
-        7. INSERT sales_orders (status='confirmed', totalAmount=pre-tax)
-        8. INSERT N sales_order_items
-        9. INSERT payments (currency='myr' — overrides default 'usd' at POS create site)
-        10. INSERT payment_items (line + tax + discount)
-        11. If promo: applyPromotion (inc usageCount)
-        12. INSERT invoices (status='paid', amountPaid=total)
-        13. If package: INSERT package_instances (accepts walkInCustomerId XOR clientId) + createInstallmentSchedule + mark 1st paid
-        14. createCommissionSplitsForPos per service/package line item (non-fatal)
-        15. writeAudit('sale.create')
-```
+**Inputs:**
+- Customer selection or walk-in toggle
+- Items search and add to cart
+- Promo code (optional)
+- Payment method selection
+- Trainer assignments (optional)
+- Notes (textarea)
+
+**State management:**
+- TanStack Query: tax-rates, tax-rates-default, installment-plans
+- Local state: customer, items, promo, tax, payment, notes, trainers, accordion step
+- Effect: promo re-validation on cart subtotal change
+
+**Outputs:**
+- Accordion steps render conditionally
+- Cart summary updates in real-time
+- Step badges show completion status
+- Toast notifications
+
+**Side effects:**
+- Queries tax rates on mount
+- Lazy queries installment plans
+- Records sale on submit
+- Navigation on success
 
 ---
 
 ## 3. What Depends On It
 
-**API endpoints:**
-- `pos.recordSale` — orchestrator; now accepts `itemTrainerAssignments`
-- `pos.searchCustomers` — cross-DB member search; returns up to 10 results (walk-in results removed)
-- `pos.getReceiptData` — for Print Receipt (called from sales/$id.tsx)
-- `promotions.validate`, `services.list`, `taxRates.list` + `.getDefault`, `installmentPlans.list`
+**Calls these API endpoints:**
+- client.taxRates.list() — active tax rates
+- client.taxRates.getDefault() — default tax rate
+- client.installmentPlans.list() — active plans (lazy)
+- client.pos.recordSale() — submit sale
 
-**Components:**
-- `CustomerStep`, `ItemsStep`, `PromoStep`, `PaymentStep`, `CartSummary`, `ReceiptView` — all in `apps/web/src/components/pos/`
-- `TrainerPickerStep` (`@/components/pos/trainer-picker-step.tsx`) — fetches all members, filters role=trainer client-side, lets cashier assign trainers per line item
+**Uses these components:**
+- CustomerStep — member search
+- ItemsStep — item search/cart
+- PromoStep — promo validation
+- PaymentStep — payment selection
+- TrainerPickerStep — trainer assignment
+- CartSummary — totals sidebar
+- Accordion, Button, Select, Textarea — UI
 
-**Navigation: incoming:** `sales/view.tsx` "+ New Sale" button.
-**Navigation: outgoing:** `/dashboard/sales/$id` after success.
+**Uses these hooks:**
+- useUserContext() — org, permissions
+- useNavigate() — redirect
+- useQuery — tax rates, plans
+- useMutation — recordSale
+- useState, useCallback, useEffect — state management
+
+**Navigation: who navigates here:**
+- Sales list "New Sale" button
+- Direct URL
+
+**Navigation: where it goes:**
+- On success: /dashboard/sales/:id
+- Back: /dashboard/sales/view
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched (in tx):**
-| Table | Operation |
-|-------|-----------|
-| `sales_orders` | INSERT |
-| `sales_order_items` | INSERT N |
-| `payments` | INSERT (currency='myr') |
-| `payment_items` | INSERT N + tax + discount |
-| `invoices` | INSERT |
-| `promotion_usages` | INSERT (if promo applied) |
-| `package_instances` | INSERT (if package item) |
-| `installments` | INSERT schedule + 1st marked paid (if installment plan) |
-| `audit_logs` | INSERT (`sale.create`) |
+**DB tables touched:**
+- salesOrders (insert)
+- salesOrderItems (insert)
+- staffAssignments (insert, if trainers)
 
-**Walk-in customers:** fully anonymous — no DB lookup, no `walkInCustomerId`. Walk-in + package is now **BLOCKED** (throws `BAD_REQUEST` before the transaction opens). Walk-in + service is allowed. The `walkInCustomerId` column on `package_instances` remains in the DB schema from migration 0027 but is no longer written to by the POS flow.
-
-**POS validation (Stream D):** `unitPriceCents >= 0 && quantity >= 1` required; `discountCents` may not exceed `subtotalCents`.
+**Key types:**
+- CustomerType: member | walk_in
+- CartItem: id, type, refId, description, quantity, unitPriceCents
+- AppliedPromo: code, discountCents
+- PaymentMethod: cash | card | bank_transfer | installment
+- recordSale input: organizationId, customerType, customerId, customerName, branchId, items[], promotionCode, taxRateId, paymentMethod, paymentReference, amountTenderedCents, installmentPlanCode, notes, itemTrainerAssignments
 
 ---
 
 ## 5. Tests
 
-None yet. Chrome-verified: page renders, customer search returns "Bryan Voo Khai Qi" with Member badge, cart summary shows RM 0.00 placeholders, Charge & Confirm correctly disabled.
+**Test files:** None found
+
+**Scenarios covered:** (none)
+
+**Not tested (risk areas):** Multi-step flow, cart operations, promo validation, payment validation, trainer assignment, submit error handling
 
 ---
 
 ## 6. Notes
 
-- **Trainers step UX (added 2026-04-22):** Appears conditionally when cart has any service items. Always shows even if service category has no commission config. A future improvement would be to only display for items with commission configuration.
-- **Currency override at POS create site only.** `payments.currency` default is `'usd'` elsewhere. Other phases unchanged.
-- **No idempotency key.** Double-submit mitigated by disabling Charge & Confirm button on click. Document risk.
-- **Sequence numbering:** SELECT MAX pattern inside the tx (no postgres sequence). Adequate at tenant scale.
-- **Permission cache bug:** if user can't see this page despite DB grants, clear localStorage — see `memory/feedback_stale_permission_cache.md`.
-- Shipped in tracking-pages plan phase 4 (2026-04-19).
-- **Walk-in anonymization (2026-04-21):** Walk-in mode in CustomerStep is now fully anonymous — no `walkInCustomers.list` combobox, no inline creation. Walk-in + package purchases are blocked at the server (`pos.recordSale` guard). The `pos.searchCustomers` endpoint no longer returns walk-in results.
+- **Branch inference:** From customer search or org member scope
+- **Promo re-validation:** On cart change, promo cleared; server re-validates on submit
+- **Tax:** Basis points format (600 = 6%), applied to (subtotal - discount)
+- **Payment methods:** Cash requires tender >= total; Card/Bank optional reference; Installment requires plan
+- **Trainer assignments:** Services only; filtered by branch
+- **Customer toggle:** Switching clears items, promo, assignments
+- **Walk-in:** customerType = walk_in, customerId = anonymous, no customer record
+- **Layout:** Two-column (accordion left, summary right); responsive mobile
+

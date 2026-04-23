@@ -1,100 +1,69 @@
-# Verify Email
+# Verify Email Screen
 
-**Route:** `/(auth)/verify-email`
-**File:** `apps/native/app/(auth)/verify-email.tsx:1`
+**Route:** `(auth)/verify-email`
+**File:** `apps/native/app/(auth)/verify-email.tsx`
 **Platform:** native
 **Auth required:** public
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Confirms that a verification email was sent after registration, and lets the user resend it if needed.
-
-**Produces:** A static informational screen showing a mail icon, the email address the link was sent to, two buttons ("Go to Sign In" and "Resend Verification Email"), and a 30-second cooldown after resend.
-
-**On success:** User sees the screen after sign-up. Tapping "Go to Sign In" navigates to login. Tapping "Resend" triggers another verification email.
-
-**On failure / error states:**
-- Resend errors are silently swallowed.
-- If the `email` param is absent, the email display is skipped and the resend button does nothing.
-- While resending: `ActivityIndicator` replaces button text.
+**Purpose (user perspective):** Display confirmation that a verification email was sent; allow resending if not received.
+**Produces:** Screen showing email address, verification instructions, "Go to Sign In" button, and "Resend Verification Email" button.
+**On success:** User clicks email link, then taps "Go to Sign In" to return to login screen.
+**On failure / error states:** Resend button disabled for 30s after sending; loading spinner during resend request.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-VerifyEmailScreen
-  → useLocalSearchParams<{ email: string }>()
-  → handleResend():
-    → authClient.sendVerificationEmail({ email })
-    → catch: silently swallow
-    → setResent(true)
-    → setTimeout(() => setResent(false), 30000)  // 30-second cooldown
-  → "Go to Sign In" → router.replace("/(auth)/login")
-```
+1. Receives `email` param from sign-up screen route
+2. Displays email and instructions to click verification link
+3. User can tap "Go to Sign In" to go back to login (doesn't require verification to log in)
+4. User can resend verification email:
+   - `handleResend()` calls `authClient.sendVerificationEmail({ email })`
+   - Sets `resent=true` to disable button for 30s
+   - setTimeout clears resent flag after 30s
+   - Errors silently caught (line 25-26)
 
-**Inputs:**
-- `email` route param (passed from sign-up screen)
-
-**State management:**
-- `isResending: boolean` — loading indicator during resend
-- `resent: boolean` — 30-second cooldown after resend (disables button, shows "Email Sent")
-
-**Outputs:**
-- Static informational UI
-- Resend button with cooldown state
-
-**Side effects:**
-- `authClient.sendVerificationEmail` triggers a verification email server-side.
+**Inputs:** email (from route params via useLocalSearchParams)
+**State management:** Local state for isResending, resent (cooldown flag)
+**Outputs:** Navigation to login on button press; visual feedback for resend state
+**Side effects:** Router navigation; setTimeout for cooldown timer
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `POST /api/auth/send-verification-email` — Better-Auth native endpoint (via `authClient.sendVerificationEmail`)
-
-**Uses these components:**
-- `authClient` — `apps/native/lib/auth-client.ts` — direct (not via `useAuth`)
-- `SafeAreaView` — React Native / react-native-safe-area-context
-
-**Navigation: who navigates here:**
-- `apps/native/app/(auth)/sign-up.tsx` — on successful account creation (`router.replace`)
-
-**Navigation: where it goes:**
-- `/(auth)/login` — "Go to Sign In" button (`router.replace`)
+**Calls these API endpoints:** `authClient.sendVerificationEmail({ email })` → Better-Auth email verification request
+**Uses these components:** SafeAreaView, TouchableOpacity, ActivityIndicator, Ionicons, View, Text
+**Uses these hooks:** `useLocalSearchParams()` — to read email param from route
+**Navigation: who navigates here:** Sign-up screen after successful account creation (with email param)
+**Navigation: where it goes:** `/(auth)/login` via "Go to Sign In" button
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** Better-Auth `verification` table (control-panel DB) — token stored for email link.
-
-**`authClient.sendVerificationEmail` payload:**
-```typescript
-{ email: string }
-```
+**DB tables touched:** email_verification_tokens (Better-Auth), users
+**Key types / Zod schemas:** email string (from route params, type-safe via useLocalSearchParams<{ email: string }>)
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
-
-**Not tested (risk areas):**
-- If `email` param is undefined (direct navigation without params), the resend call silently does nothing — no user feedback.
-- The 30-second cooldown is client-side only; the server does not enforce rate limiting at this layer.
-- No confirmation that the email was actually received or that the link works.
+**Test files:** None found
+**Not tested (risk areas):** Email delivery, token expiry, link click detection, resend rate limiting, missing email param handling
 
 ---
 
 ## 6. Notes
 
-- This screen is reached via `router.replace` from sign-up, so back navigation bypasses it (no back button shown).
-- `authClient` is imported directly rather than via `useAuth` — the verify-email screen does not need the full auth hook since there is no session to manage.
-- The resend cooldown uses `setTimeout` which is not cleaned up on unmount — minor memory leak if user navigates away during the 30-second window.
-- Silent error swallowing on resend is intentional to prevent email enumeration (same pattern as forgot-password screen).
+- Email param is optional in types but required for UX; missing email shows no message (UI breaks gracefully)
+- Resend errors silently caught to prevent email enumeration (same pattern as forgot-password)
+- Button text changes to "Email Sent" for 30s after successful resend (visual confirmation)
+- User can navigate to sign in without verifying email (verification likely happens on first login or background)
+- Uses mail-outline Ionicon to visually reinforce email-based flow

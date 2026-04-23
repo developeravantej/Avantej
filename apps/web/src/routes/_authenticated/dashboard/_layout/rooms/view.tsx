@@ -5,7 +5,9 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -299,11 +301,7 @@ function RoomsViewPage() {
 						Select an organization to view rooms.
 					</div>
 				) : isLoading ? (
-					<div className="flex min-h-96 items-center justify-center">
-						<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-							<span className="sr-only">Loading...</span>
-						</div>
-					</div>
+					<PageLoader />
 				) : isError ? (
 					<div className="flex flex-col items-center justify-center py-12">
 						<p className="font-medium text-destructive text-lg">Failed to load data</p>
@@ -313,6 +311,14 @@ function RoomsViewPage() {
 						<Button variant="outline" onClick={() => refetch()}>
 							Try Again
 						</Button>
+					</div>
+				) : tableData.length === 0 ? (
+					<div className="flex items-center justify-center min-h-96">
+						<EmptyState
+							title="No rooms found"
+							description="Create your first room to get started."
+							action={canCreate ? { label: "Create Room", onClick: openCreate } : undefined}
+						/>
 					</div>
 				) : (
 					<DataTable
@@ -415,7 +421,7 @@ function RoomsViewPage() {
 									onChange={(e) =>
 										setForm((prev) => ({ ...prev, isActive: e.target.checked }))
 									}
-									className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+									className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
 								/>
 								<label htmlFor="room-active" className="text-sm font-medium">
 									Active

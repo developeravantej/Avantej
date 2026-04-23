@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, CreditCard } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/installment-plans",
@@ -421,13 +423,7 @@ function InstallmentPlansPage() {
 	// ─── Loading state ────────────────────────────────────────────────────────
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ─── Error state ──────────────────────────────────────────────────────────
@@ -499,8 +495,16 @@ function InstallmentPlansPage() {
 
 			<Separator />
 
-			{/* Data table */}
-			<DataTable<InstallmentPlanRow, unknown> columns={columns} data={rows} />
+			{/* Data table or empty state */}
+			{rows.length === 0 ? (
+				<EmptyState
+					icon={CreditCard}
+					title="No installment plans"
+					description="No installment plans have been configured yet. Add one to get started."
+				/>
+			) : (
+				<DataTable<InstallmentPlanRow, unknown> columns={columns} data={rows} />
+			)}
 
 			{/* Create / Edit Sheet */}
 			<Sheet

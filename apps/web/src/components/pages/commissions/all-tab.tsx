@@ -2,12 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { TrendingUp } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -29,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/currency";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,34 +88,6 @@ function formatDate(value: string | Date | null | undefined): string {
 	}
 }
 
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
-
-function CommissionStatusBadge({ status }: { status: string }) {
-	const configs: Record<string, { className: string; label: string }> = {
-		pending: {
-			className:
-				"bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
-			label: "Pending",
-		},
-		approved: {
-			className:
-				"bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
-			label: "Approved",
-		},
-		paid: {
-			className:
-				"bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
-			label: "Paid",
-		},
-		void: {
-			className:
-				"bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100",
-			label: "Void",
-		},
-	};
-	const cfg = configs[status] ?? { className: "", label: status };
-	return <Badge className={cfg.className}>{cfg.label}</Badge>;
-}
 
 // ─── SourceCell ───────────────────────────────────────────────────────────────
 
@@ -340,7 +314,7 @@ export function AllCommissionsPage() {
 	}
 
 	// ── Data ───────────────────────────────────────────────────────────────────
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: [
 			"commissions",
 			organizationId,
@@ -503,7 +477,7 @@ export function AllCommissionsPage() {
 			id: "status",
 			header: "Status",
 			cell: ({ row }) => (
-				<CommissionStatusBadge status={row.original.status} />
+				<StatusBadge status={row.original.status as CanonicalStatus} />
 			),
 		},
 		{
@@ -553,27 +527,10 @@ export function AllCommissionsPage() {
 		);
 	}
 
-	if (error) {
-		const isForbidden =
-			error instanceof Error &&
-			(error.message.includes("403") ||
-				error.message.toLowerCase().includes("forbidden") ||
-				error.message.toLowerCase().includes("permission"));
-		if (isForbidden) {
-			return (
-				<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-					<div className="space-y-2 text-center">
-						<p className="font-medium">Permission Denied</p>
-						<p className="text-sm">
-							You don't have permission to view commission splits.
-						</p>
-					</div>
-				</div>
-			);
-		}
+	if (isError) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-destructive">
-				Failed to load commissions. Please try again.
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load commissions" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -589,6 +546,10 @@ export function AllCommissionsPage() {
 	}
 
 	// ── Render ─────────────────────────────────────────────────────────────────
+	const selectedTotalCents = rows
+		.filter((r) => selectedIds.has(r.id))
+		.reduce((sum, r) => sum + r.calculatedAmount, 0);
+
 	return (
 		<div className="space-y-6">
 			{/* KPI Strip */}
@@ -650,8 +611,8 @@ export function AllCommissionsPage() {
 							<SelectContent>
 								<SelectItem value="all">All staff</SelectItem>
 								{staffMembers.map((m: any) => (
-									<SelectItem key={m.id} value={m.id}>
-										{m.name ?? m.email ?? m.id.slice(0, 8)}
+									<SelectItem key={m.id} value={m.userId}>
+										{m.name ?? m.email ?? m.userId.slice(0, 8)}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -744,6 +705,7 @@ export function AllCommissionsPage() {
 					canApprove={canApprove}
 					canProcess={canProcess}
 					onDone={resetSelection}
+					totalAmountCents={selectedTotalCents}
 				/>
 			)}
 

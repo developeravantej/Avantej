@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, Tag } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/tax-rates",
@@ -134,7 +137,7 @@ function TaxRatesPage() {
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
 
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
 		queryKey: ["taxRates", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -446,11 +449,17 @@ function TaxRatesPage() {
 	// ─── Loading state ────────────────────────────────────────────────────────
 
 	if (isLoading) {
+		return <PageLoader />;
+	}
+
+	// ─── Error state ──────────────────────────────────────────────────────────
+
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
+			<div className="p-6">
+				<StatusCallout variant="error" onRetry={() => refetch()}>
+					Failed to load tax rates. Please try again.
+				</StatusCallout>
 			</div>
 		);
 	}
@@ -511,8 +520,16 @@ function TaxRatesPage() {
 
 			<Separator />
 
-			{/* Data table */}
-			<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
+			{/* Data table or empty state */}
+			{rows.length === 0 ? (
+				<EmptyState
+					icon={Tag}
+					title="No tax rates"
+					description="No tax rates have been configured yet. Add one to get started."
+				/>
+			) : (
+				<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
+			)}
 
 			{/* Create / Edit Sheet */}
 			<Sheet

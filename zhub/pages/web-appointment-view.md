@@ -1,129 +1,128 @@
-# Appointment View (Calendar)
+# Appointments
 
-**Route:** `/_authenticated/appointment/view`
-**File:** `apps/web/src/routes/_authenticated/appointment/view.tsx:1`
+**Route:** `/appointment/view`
+**File:** `apps/web/src/routes/_authenticated/appointment/view.tsx`
 **Platform:** web
-**Auth required:** rbac(appointment_management:read)
-**Last updated:** 2026-04-20
+**Auth required:** `appointment_management:read` (with redirect fallback to `/dashboard`)
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Displays a calendar view of all appointments in the member's accessible branches for a ~3-month window (previous month through next month).
+**Purpose (user perspective):** Calendar view for managing appointments. Display all organization appointments across multiple calendar views (monthly, weekly, daily).
 
-**Produces:** An `AppointmentCalendar` component rendered with appointments fetched from the API, supporting both monthly and weekly views.
+**Produces:** Calendar UI (AppointmentCalendar component) showing appointments with details like attendee, time, status, notes.
 
-**On success:** Calendar renders with appointment blocks color-coded by status (confirmed, pending, cancelled).
-**On failure / error states:**
-- No organization selected → "No organization selected. Please select an organization first."
-- API error → displays `error.message` in destructive text.
-- Loading → centered "Loading appointments..." text (no skeleton).
-- Empty result → calendar renders empty (no special empty-state message).
+**On success:** Calendar loads and renders appointments mapped from API response. User can switch views and interact with appointments.
+
+**On failure / error states:** Loading spinner, error message if appointments fail to load, "no org selected" message if org context missing.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-AppointmentViewComponent
-  → useUserContext() — get organizationId
-  → getAppointmentQueryRange() — compute startFrom / startTo (prev month to next month+1)
-  → useQuery(["appointments", organizationId, startFrom, startTo])
-      → client.appointments.list({ organizationId, startFrom, startTo, limit: 200 })
-          → POST /rpc/appointments/list
-          → requirePermission(tenantDb, member, "appointment_management", "read")
-          → listAppointments(tenantDb, { accessibleNodeIds, startFrom, startTo, limit })
-              → SELECT FROM appointments WHERE branchId IN accessibleNodeIds
-  → useMemo: apiAppointments.map(mapApiAppointmentToCalendar)
-  → <AppointmentCalendar appointments={appointments} />
-```
+1. Before load: Check `{ resource: "appointment_management", action: "read" }` permission → redirect to `/dashboard` if denied
+2. On mount: Fetch organizationId from useUserContext
+3. Calculate date range: `getAppointmentQueryRange()` returns startFrom, startTo
+4. Load appointments: `client.appointments.list({ organizationId, startFrom, startTo, limit: 200 })`
+5. Map API appointments to calendar format: `mapApiAppointmentToCalendar()` for each appointment
+6. Render AppointmentCalendar component with mapped appointments
 
 **Inputs:**
-- No URL params or query params.
-- `organizationId` from `useUserContext()`.
-- Date range auto-computed: 1 month before today through 2 months after today.
+- Org from session context
+- Date range derived from current time
 
-**State management:** TanStack Query cache (`staleTime: 60s`). Component has no local state.
+**State management:**
+- TanStack Query: `queryKey = ["appointments", organizationId, startFrom, startTo]`
+- `staleTime: 60 * 1000` (1 minute)
+- Memoized appointment mapping: `useMemo(() => apiAppointments.map(mapApiAppointmentToCalendar), [apiAppointments])`
 
-**Outputs:** `<AppointmentCalendar>` with mapped appointments.
+**Outputs:** Calendar UI component with appointment list
 
-**Side effects:** None (read-only page; mutations are inside `AppointmentCalendar` component).
+**Side effects:** None explicit in this file (calendar component may have internal mutations)
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `appointments.list` — `POST /rpc/appointments/list` — fetches appointments scoped to accessible nodes, filtered by date range
+- `client.appointments.list({ organizationId, startFrom, startTo, limit: 200 })` — fetch appointments in date range
 
 **Uses these components:**
-- `AppointmentCalendar` — `@/components/calendar/appointment.tsx` — full calendar UI with add/edit appointment modals
+- `AppointmentCalendar` from `@/components/calendar/appointment` — calendar view and interaction
+- lucide icons: `Calendar` (implicit in component)
 
 **Uses these hooks:**
-- `useUserContext` — `@/hooks/useUserContext` — provides `organizationId`
-- `useQuery` — TanStack Query — fetches appointments
-- `useMemo` — maps API shape to calendar shape
+- `useUserContext()` — fetch org ID
+- `useQuery()` — TanStack Query
+- `useMemo()` — memoize appointment mapping
 
-**Navigation: who navigates here:**
-- `apps/web/src/components/appointments-widget.tsx:41` — "View all" link in dashboard appointments widget
-- `apps/web/src/routes/_authenticated/customers.tsx` — "Schedule" button per customer navigates to `/dashboard/appointment/view` (note: uses dashboard-prefixed route, which is a separate route at `/_authenticated/dashboard/_layout/appointment/view`)
+**Navigation: who navigates here:** `/appointment/view` route (protected by requirePermission with fallback)
 
-**Navigation: where it goes:** No outbound navigation from this component.
+**Navigation: where it goes:** Denied access → `/dashboard`
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `appointments` (tenant) | SELECT | `branch_id`, `start_time`, `end_time`, `status`, `user_id`, `trainer_id`, `service_id` |
-| `services` (tenant) | SELECT (batch) | `id`, `name` — enriched as `serviceName` |
-| `member_profiles` (tenant) | SELECT (batch) | `memberId`, `displayName` — enriched as `trainerName` |
-| `user` (control panel) | SELECT (batch) | `id`, `name` — enriched as `clientName` |
+- `tenantDb.appointments` — read only
 
-**Key types:**
+**Key types / Zod schemas:**
 ```typescript
-// appointments.list input
-{
-  organizationId: string; // UUID
-  startFrom?: string;     // ISO datetime
-  startTo?: string;       // ISO datetime
-  limit?: number;         // max 500; default 200 used here
-}
-
-// CalendarAppointment (after mapping)
-{
+// API response shape (pre-mapping)
+type ApiAppointment = {
   id: string;
-  title: string;         // appointment description or "Appointment"
-  start: Date;
+  title: string;
+  startTime: string | Date;
+  endTime: string | Date;
+  status: "confirmed" | "pending" | "cancelled";
+  // ... other fields
+};
+
+// Calendar-mapped shape
+type CalendarAppointment = {
+  id: string;
+  title: string;
+  start: Date; // converted from API time
   end: Date;
   status: "confirmed" | "pending" | "cancelled";
-  clientName: string;    // resolved from control-panel user.name; falls back to "Client (uuid…)"
-  service: string;       // resolved from services.name; falls back to "Service (uuid…)"
-  assignedTo?: { id: string; name: string };  // name from member_profiles.displayName
-}
+  // ... other fields
+};
+
+// Query range
+type DateRange = {
+  startFrom: string | Date;
+  startTo: string | Date;
+};
 ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found for this route.
+**Test files:** None found
+
 **Scenarios covered:** N/A
+
 **Not tested (risk areas):**
-- `mapApiAppointmentToCalendar` mapping — enriched name fallback path (deleted users → UUID slice).
-- Permission redirect in `beforeLoad` — `requirePermission` is a real guard that reads from query cache.
-- Empty appointments state in the calendar UI.
-- Appointments spanning month boundaries.
+- Permission check and redirect logic
+- Date range calculation (edge cases around month/year boundaries)
+- Appointment mapping edge cases (timezone, null dates)
+- Query stale time behavior (1 minute refresh)
+- Large appointment lists (limit is 200)
 
 ---
 
 ## 6. Notes
 
-- This route (`/_authenticated/appointment/view`) is distinct from the dashboard-nested route (`/_authenticated/dashboard/_layout/appointment/view`). Both exist; the sidebar links to the dashboard-nested version.
-- `clientName`, `service`, and trainer name are now resolved from real names: `appointments.list` performs three parallel batch queries (services, member_profiles, control-panel users) and returns enriched `serviceName`, `trainerName`, `clientName`. The mapper uses these fields with UUID-slice fallbacks if not found (e.g. deleted user).
-- `getAppointmentQueryRange()` fetches a ~3-month window to support smooth prev/next month navigation without additional fetches.
-- `beforeLoad` calls `requirePermission` which fetches the user context and checks `appointment_management:read` permission. Unauthorized users are redirected to `/dashboard?unauthorized=true`.
+- **RBAC with fallback:** Uses `requirePermission()` with explicit fallback to `/dashboard` if denied
+- **Date range calculated:** `getAppointmentQueryRange()` abstracted away; likely covers current + next month or week
+- **Mapped appointments:** API appointments are transformed via `mapApiAppointmentToCalendar()` before rendering
+- **Limit: 200 appointments** — query hard-coded to limit 200; may need pagination for large orgs
+- **Stale time:** 1 minute; appointments checked for updates every 1 minute
+- **No error handling in UI:** Only loading and "no org" message shown; errors logged but not displayed
+- **Calendar component:** All calendar logic, interactions, and view switching delegated to AppointmentCalendar
+

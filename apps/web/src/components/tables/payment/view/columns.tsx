@@ -167,11 +167,10 @@ export const columns: ColumnDef<PaymentRow>[] = [
 			const modeStyles: Record<string, string> = {
 				cash: "bg-green-100 text-green-700 border-green-200",
 				card: "bg-blue-100 text-blue-700 border-blue-200",
-				online: "bg-purple-100 text-purple-700 border-purple-200",
-				transfer: "bg-orange-100 text-orange-700 border-orange-200",
+				bank_transfer: "bg-orange-100 text-orange-700 border-orange-200",
 			};
 			return mode ? (
-				<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
+				<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}>
 					{mode}
 				</Badge>
 			) : (

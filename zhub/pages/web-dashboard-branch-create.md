@@ -1,88 +1,81 @@
 # Create Branch
 
 **Route:** `/dashboard/branch/create`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/branch/create.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/branch/create.tsx`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Auth required:** rbac(hierarchy_management:create)
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Provides a guided, multi-step form for creating a new hierarchy node (country → region → area → branch) within the organization's geographic structure.
+**Purpose (user perspective):** Step-by-step form to create a hierarchical branch with country, region, area, and branch details.
 
-**Produces:** A 2-column layout: the `HierarchicalBranchForm` on the left (spans 2 of 3 cols) and a sticky "How it works" info card on the right explaining the 4-step process.
+**Produces:** A two-column layout with the form on the left (spanning 2 cols on large screens) and an informational card on the right showing the 4-step process.
 
-**On success:** `onSuccess` callback fires (`console.log` only — no navigation implemented yet). The form component itself handles toast and any redirect.
+**On success:** Form submission calls `onSuccess` callback (currently unimplemented — TODO notes "Navigate to branch view after successful creation").
 
-**On failure / error states:** Handled entirely within `HierarchicalBranchForm` — the route itself has no error UI.
+**On failure / error states:** Form validation errors are handled by `HierarchicalBranchForm` component; errors display as toast notifications.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-CreateBranchComponent
-  → <HierarchicalBranchForm onSuccess={handleSuccess} />
-      → useAuth() → organizationId
-      → client.hierarchy.listNodes({ organizationId }) — cascading dropdown data
-      → react-hook-form + zod validation
-      → client.hierarchy.createNode({ organizationId, ... }) — on submit
-```
+1. Route guard `requirePermission()` in `beforeLoad` checks for `hierarchy_management:create` permission
+2. If denied, redirects to `/dashboard/branch/view`
+3. Component renders `HierarchicalBranchForm` + informational sidebar
+4. Form submission → API calls via `client.hierarchy.X()` endpoints
+5. Success callback (`onSuccess`) invoked but currently empty
 
-**Inputs:** All form inputs are driven by `HierarchicalBranchForm` (4-step wizard: country, region, area, branch details).
+**Inputs:**
+- No URL params or query params
+- Form inputs: country (select/create), region (select/create), area (select/create), branch name, branch code, branch type
 
-**State management:** Entirely within `HierarchicalBranchForm` — step counter, cascading selection state, loading flag, form data via `react-hook-form`.
+**State management:**
+- All state managed inside `HierarchicalBranchForm`; route component only receives `onSuccess` callback
+- TanStack Query likely used inside form component (not visible at this route level)
 
-**Outputs:** Creates a hierarchy node; calls `onSuccess` prop on completion.
+**Outputs:**
+- Renders layout grid with form card and info card
+- Emits `onSuccess` callback when form submits successfully
 
-**Side effects:** Invalidates hierarchy-related queries (inside `HierarchicalBranchForm`).
+**Side effects:**
+- Permission check on load; redirect if lacking permission
+- API mutations to create hierarchy nodes (country/region/area/branch)
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.hierarchy.listNodes` (via form) — populate country/region/area dropdowns
-- `client.hierarchy.createNode` (via form) — create the new node
+- `client.hierarchy.X()` — (called inside `HierarchicalBranchForm`, not directly in route)
 
 **Uses these components:**
-- `HierarchicalBranchForm` — `apps/web/src/components/forms/hierarchical-branch-form.tsx` — multi-step wizard with cascading selects and zod validation
-- `Card`, `CardContent`, `CardHeader`, `CardTitle`, `CardDescription` — shadcn/ui
+- `HierarchicalBranchForm` — `@/components/forms/hierarchical-branch-form` — multi-step form for hierarchy + branch creation
+- `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` — shadcn/ui card
+- Button, Input, Label, Select — shadcn/ui form primitives
 
 **Uses these hooks:**
-- `requirePermission` (beforeLoad guard) — `hierarchy_management:create`
+- None directly in route component
 
 **Navigation: who navigates here:**
-- `app-sidebar.tsx` — "Create Branch" link under Hierarchy section
-- `/dashboard/branch/view` — linked via sidebar
+- From `/dashboard/branch/view` via "Create Branch" link button
 
 **Navigation: where it goes:**
-- `HierarchicalBranchForm` calls `useNavigate` internally; after success it navigates to `/dashboard/branch/view` (implemented within the form component).
+- Back to `/dashboard/branch/view` (intended after success, via TODO callback)
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `hierarchy_nodes` | SELECT | `id`, `name`, `type`, `depth`, `parent_id`, `code` |
-| `hierarchy_nodes` | INSERT | `name`, `type`, `depth`, `parent_id`, `code`, `organization_id` |
+- `hierarchy_nodes` (tenantDb) — INSERT country, region, area, branch records
+- `organizations` (controlPanelDb) — read for org context
 
-**Key types / Zod schemas** (`hierarchical-branch-form.tsx`):
-```ts
-z.object({
-  country_id?, country_name?, country_code?,
-  region_id?, region_name?, region_code?,
-  area_id?, area_name?, area_code?,
-  branch_name, branch_code, branch_type?
-})
-```
-
-**Permission required:** `hierarchy_management:create` (enforced in `beforeLoad` — redirects to `/dashboard/branch/view` on failure)
+**Key types / Zod schemas:**
+- `HierarchicalBranchSchema` (from form component) — validates country_name, region_name, area_name, branch_name, branch_code
 
 ---
 
@@ -90,12 +83,19 @@ z.object({
 
 **Test files:** None found
 
-**Not tested:** Form submission, cascading dropdown logic, step navigation
+**Scenarios covered:** N/A
+
+**Not tested (risk areas):**
+- Permission guard logic
+- Form submission and success callback
+- Hierarchy creation with invalid parent IDs
+- Concurrent creation requests
 
 ---
 
 ## 6. Notes
 
-- `handleSuccess` in the route component is a no-op stub (`console.log` only). Navigation after creation is handled inside `HierarchicalBranchForm` via `useNavigate`.
-- The "How it works" card is purely informational; it shows 4 numbered steps (Country, Region, Area, Branch) plus a permissions note.
-- `requirePermission` is currently a stub in `route-guards.ts` and does not block access.
+- **TODO:** Success handler is empty; needs navigation to `/dashboard/branch/view` after creation
+- Route uses `requirePermission()` guard for RBAC enforcement
+- Form component is self-contained; route is primarily a layout wrapper
+- No error boundary; relies on form's error handling and toast notifications

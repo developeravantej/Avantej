@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	Select,
@@ -100,11 +101,11 @@ function UserCard({
 	const getPriorityColor = (priority: number) => {
 		switch (priority) {
 			case 1:
-				return "bg-red-100 text-red-800 border-red-300";
+				return "bg-destructive/10 text-destructive border-destructive/30";
 			case 2:
-				return "bg-orange-100 text-orange-800 border-orange-300";
+				return "bg-amber-100 text-amber-800 border-amber-300";
 			case 3:
-				return "bg-blue-100 text-blue-800 border-blue-300";
+				return "bg-primary/10 text-primary border-primary/30";
 			default:
 				return "bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3";
 		}
@@ -928,31 +929,21 @@ export function MembersTabPage() {
 			</div>
 
 			{filteredUsers.length === 0 && (
-				<Card>
-					<CardContent className="py-12">
-						<div className="text-center">
-							<Users className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
-							<h3 className="text-lg font-medium mb-2 text-brand-primary-1">
-								No users found
-							</h3>
-							<p className="text-brand-secondary-1 mb-4">
-								{searchQuery ||
-								roleFilter !== "all" ||
-								statusFilter !== "all"
-									? "No users match your current filters."
-									: "Get started by inviting your first user."}
-							</p>
-							{!searchQuery &&
-								roleFilter === "all" &&
-								statusFilter === "all" && (
-									<Button>
-										<UserPlus className="w-4 h-4 mr-2" />
-										Invite User
-									</Button>
-								)}
-						</div>
-					</CardContent>
-				</Card>
+				<EmptyState
+					icon={Users}
+					title="No members found"
+					description={
+						searchQuery || roleFilter !== "all" || statusFilter !== "all"
+							? "No users match your current filters."
+							: "Get started by inviting your first user."
+					}
+					action={
+						!searchQuery && roleFilter === "all" && statusFilter === "all"
+							? { label: "Invite User", onClick: () => setShowInviteDialog(true) }
+							: undefined
+					}
+					context={searchQuery || roleFilter !== "all" || statusFilter !== "all" ? "search" : undefined}
+				/>
 			)}
 
 			{/* Role Assignment Sheet */}

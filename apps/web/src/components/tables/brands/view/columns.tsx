@@ -68,7 +68,7 @@ export const columns: ColumnDef<BrandRow>[] = [
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+						className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
 						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onEdit?.(brand)}
 					>
 						<span className="sr-only">Edit brand</span>
@@ -77,7 +77,7 @@ export const columns: ColumnDef<BrandRow>[] = [
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+						className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
 						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onDelete?.(brand)}
 					>
 						<span className="sr-only">Delete brand</span>

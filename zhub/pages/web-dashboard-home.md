@@ -1,94 +1,85 @@
-# Dashboard Home
+# Dashboard Home / Overview
 
 **Route:** `/dashboard`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Central command screen showing KPIs, analytics, and activity widgets for the organization.
-**Produces:** Greeting banner, quick actions, period-filtered KPI cards (Sales Overview, Appointments, Active Members), Revenue by Branch table, Staff Performance table, and widget panels for appointments, announcements, payroll, and claims.
-**On success:** All cards and widgets populate with live data after queries resolve.
-**On failure / error states:** Each section renders skeleton placeholders while loading. Widget components manage their own error states. The KPI queries have a 1-minute stale time; no explicit error UI at this level.
+**Purpose (user perspective):** Main dashboard landing page showing KPI cards, analytics, and activity widgets for organization management (sales, appointments, members, staff performance, payroll, claims).
+
+**Produces:** Multi-section layout: greeting banner, quick actions, period filter pills, 3 KPI cards (sales, appointments, active members), quick insight message, revenue by branch table, staff performance table, and activity widgets (appointments, expiring memberships, announcements, payroll, claims).
+
+**On success:** Displays real-time analytics data filtered by selected period (today, this_week, this_month, this_year); links to detailed pages for sales, appointments, memberships.
+
+**On failure / error states:** Skeleton loaders show while data fetches. Empty states show if no data for period. KPI cards remain empty until API returns data.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-DashboardComponent
-  → useUserContext() → organizationId
-  → useQuery(analytics.getDashboardKpis)  → client.analytics.getDashboardKpis({ organizationId, period })
-  → useQuery(analytics.getStaffPerformance) → client.analytics.getStaffPerformance({ organizationId, period })
-  → <GreetingBanner /> (links to /dashboard/notifications/view)
-  → <QuickActions />
-  → Period filter pills (local state: Period)
-  → SalesCard / AppointmentsKpiCard / ActiveMembersCard (from kpiData)
-  → RevenuByBranchCard (from kpiData)
-  → StaffPerformanceCard (from staffData)
-  → <AppointmentsWidget /> / <AnnouncementsWidget /> / <PayrollWidget /> / <ClaimsWidget />
-```
+1. Page loads; reads `period` from search params (defaults to `this_month`)
+2. Calls `client.analytics.getDashboardKpis({ organizationId, period })`
+3. Calls `client.analytics.getStaffPerformance({ organizationId, period })` with mapped period
+4. Renders KPI cards, revenue table, staff table, and child widgets once data arrives
+5. User clicks period pill → updates search param → queries re-run with new period
 
-**Inputs:** No URL/query params. Period filter is local state (default: `"this_month"`).
-**State management:** `useState<Period>` for period filter; TanStack Query for KPI and staff data.
-**Outputs:** Read-only display — no mutations on this page.
-**Side effects:** None. Queries stale after 60 seconds.
+**Inputs:** Query param `period` (optional); organizationId from useUserContext
 
-**Period mapping quirk:** `getStaffPerformance` does not accept `"today"` — when `period === "today"` the staff query sends `"this_week"` instead.
+**State management:** TanStack Query for KPI and staff data; search params for period filter; useUserContext for org ID
+
+**Outputs:** API calls to `client.analytics.*`; renders charts and tables; links to detail pages
+
+**Side effects:** Query cache invalidation on period change; localStorage access in useUserContext
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `analytics.getDashboardKpis` — total sales (cents), order count, total/completed appointments, active members count, revenue-by-branch breakdown
-- `analytics.getStaffPerformance` — per-staff appointment count and commission (cents)
+- `client.analytics.getDashboardKpis({ organizationId, period })` — KPI data (sales, appointments, members, revenue by branch)
+- `client.analytics.getStaffPerformance({ organizationId, period })` — staff appointments and commission
 
 **Uses these components:**
-- `GreetingBanner` — `apps/web/src/components/dashboard/greeting-banner.tsx` — time-of-day greeting + notification bell link
-- `QuickActions` — `apps/web/src/components/dashboard/quick-actions.tsx` — shortcut buttons
-- `SectionHeader` — `apps/web/src/components/dashboard/section-header.tsx` — styled section label
-- `QuickInsight` — `apps/web/src/components/dashboard/quick-insight.tsx` — dynamic KPI-driven insight chip
-- `AppointmentsWidget` — `apps/web/src/components/appointments-widget.tsx` — recent appointments list
-- `AnnouncementsWidget` — `apps/web/src/components/announcements-widget.tsx` — active announcements
-- `PayrollWidget` — `apps/web/src/components/payroll-widget.tsx` — payroll summary
-- `ClaimsWidget` — `apps/web/src/components/claims-widget.tsx` — pending expense claims
+- `GreetingBanner` — `@/components/dashboard/greeting-banner` — welcome message
+- `QuickActions` — `@/components/dashboard/quick-actions` — action buttons
+- `SectionHeader` — `@/components/dashboard/section-header` — section titles
+- `QuickInsight` — `@/components/dashboard/quick-insight` — contextual message
+- `AppointmentsWidget, ExpiringMembershipsWidget, AnnouncementsWidget, PayrollWidget, ClaimsWidget` — activity/team cards
+- `Card, CardContent` — `@/components/ui/card` — layout
+- `Skeleton` — `@/components/ui/skeleton` — loading placeholders
+- `Link` — TanStack Router — navigate to detail pages
 
 **Uses these hooks:**
-- `useUserContext` — resolves `currentOrganizationId` to scope all queries
+- `useUserContext` — fetch org ID and user data
+- `useQuery` — TanStack Query for analytics
+- `useNavigate, useSearch` — TanStack Router navigation and search params
 
-**Navigation: who navigates here:**
-- App sidebar "Home" link — `/dashboard`
-- Logo link in sidebar header — `/dashboard`
-- Default redirect after login
+**Navigation: who navigates here:** From login, direct URLs, sidebar links
 
-**Navigation: where it goes:**
-- `/dashboard/notifications/view` — bell icon in `GreetingBanner`
+**Navigation: where it goes:** `/dashboard/sales/view`, `/dashboard/appointment/view`, `/dashboard/memberships/view` (KPI card links)
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched (via analytics service):**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `sales_orders` | SELECT aggregate | `total`, `created_at`, `status` |
-| `appointments` | SELECT aggregate | `status`, `created_at` |
-| `members` | SELECT count | `isActive` |
-| `hierarchy_nodes` | SELECT | `id`, `name`, `type` |
-| `commission_splits` | SELECT aggregate | `calculatedAmount`, `staffId` |
+**DB tables touched:** (Backend: sales orders, appointments, organization members, staff commissions)
 
-**Key types:**
+**Key types / Zod schemas:**
 ```typescript
-type Period = "today" | "this_week" | "this_month" | "this_year";
+// Search params
+dashboardSearchSchema = z.object({
+  period: z.enum(["today", "this_week", "this_month", "this_year"]).default("this_month"),
+})
 
+// KPI data
 interface KpiData {
-  totalSales: number;          // cents
+  totalSales: number;               // in cents
   salesOrderCount: number;
   totalAppointments: number;
   completedAppointments: number;
@@ -96,16 +87,17 @@ interface KpiData {
   revenueByBranch: Array<{
     branchId: string;
     branchName: string | null;
-    totalRevenue: number;      // cents
+    totalRevenue: number;
     orderCount: number;
   }>;
 }
 
+// Staff performance data
 interface StaffRow {
   staffId: string;
   memberId: string;
   appointmentsCompleted: number;
-  totalCommission: number;     // cents
+  totalCommission: number;           // in cents
 }
 ```
 
@@ -114,24 +106,27 @@ interface StaffRow {
 ## 5. Tests
 
 **Test files:** `apps/web/src/__tests__/routes/dashboard.test.tsx`
-**Scenarios covered:**
-- Renders heading without crashing
-- Defaults to `this_month` period on mount
-- Renders all four period selector tabs
-- Switching to "Today" maps staff performance period to `"this_week"`
-- KPI card formats cents → MYR correctly (250000 → "2,500")
-- Displays order count label
-- Completion rate shown as percentage
-- Revenue-by-branch table renders branch names
-- KPI card titles ("Sales Overview", "Active Members", "Revenue by Branch", "Staff Performance") visible
 
-**Not tested:** Error states, empty branch list, staff performance sorting, `QuickActions` / widget interactions.
+**Scenarios covered:**
+- Renders dashboard heading and period selector tabs
+- Defaults to "this_month" period on load
+- Switches period and calls correct analytics endpoints
+- KPI cards display formatted sales (cents → currency) and appointment counts
+- Completion rate calculated and shown as percentage
+- Revenue by branch table renders branch data
+- Staff performance table shows top 10 by appointments
+- All widget titles and child components render
+
+**Not tested (risk areas):** Error boundary handling, large data sets (pagination), real-time updates, concurrent period changes, accessibility (keyboard nav, screen readers)
 
 ---
 
 ## 6. Notes
 
-- `QuickInsight` message is now dynamic and KPI-driven: when `kpiData.totalAppointments > 0`, it shows appointment count + completion rate for the selected period (e.g., "You have 12 appointments this month, with 8 completed -- a 67% completion rate."); when there are no appointments, it shows active member count (e.g., "Your organization has 45 active members. No appointments scheduled for this period."). Only rendered when `kpiData` is available.
-- Staff Performance card shows top 10 entries sorted by `appointmentsCompleted` desc (client-side sort).
-- `formatRM` is a local helper (not from `lib/currency`) — converts integer cents to `RM X,XXX.XX` string.
-- The `RevenuByBranchCard` has a typo in the component name: `RevenuByBranchCard` (missing 'e').
+- Sales total is displayed in MYR currency (from formatPrice helper).
+- Staff performance sorted by appointments, top 10 shown.
+- staleTime is 1 minute; cache not invalidated on search param change, but new queries made with updated period.
+- Quick insight message contextualizes completion rate or member count based on data.
+- Period "today" maps to "this_week" for staff performance (weekly context).
+- All widgets (AppointmentsWidget, PayrollWidget, etc.) have their own query logic and error handling.
+- Child widgets are mocked in tests to isolate dashboard component testing.

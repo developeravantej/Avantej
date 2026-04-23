@@ -1,107 +1,104 @@
-# Login
+# Login Page
 
 **Route:** `/login`
-**File:** `apps/web/src/routes/(auth)/login.tsx:1`
+**File:** `apps/web/src/routes/(auth)/login.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Allows existing users to sign in to Avantej with their email and password.
+**Purpose (user perspective):** Sign in to an existing Avantej account with email and password, optionally accepting an organization invitation.
 
-**Produces:** An authenticated Better-Auth session cookie; the user is redirected to `/dashboard` (or `/accept-invitation` if arriving from an invitation link).
+**Produces:** Login form with email/password fields, links to signup, "continue with" OAuth placeholders (Apple, Google, Meta, LinkedIn), login background image on desktop.
 
-**On success:** `toast.success("Login successful")` shown; navigation to `/dashboard` or `/accept-invitation`.
-**On failure / error states:** `toast.error(...)` shown with server error message. Already-authenticated users are automatically redirected away to `/dashboard` via `useEffect`.
+**On success:** User is authenticated and redirected to `/dashboard`, or to `/accept-invitation?token=X&orgId=Y` if invitation params present in URL.
+**On failure / error states:** Toast notifications show validation errors (invalid email, password too short). Loading spinner during submission. Form disabled while request pending.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-RouteComponent
-  → <LoginForm />
-    → useAuth()                       # wraps Better-Auth session + user context
-      → authClient.useSession()       # reads Better-Auth cookie session
-      → useUserContext()              # fetches org/hierarchy data when session exists
-    → form.onSubmit → login()
-      → authClient.signIn.email()     # Better-Auth: POST /api/auth/sign-in/email
-        → sets HTTP-only session cookie
-      → refetch()                     # refresh TanStack Query session
-```
+1. Component mounts, checks if user already logged in via `useAuth()` hook
+2. If authenticated, redirects immediately to `/dashboard` (useEffect cleanup prevents double render)
+3. User fills email + password, form validates on submit with Zod schema
+4. `login()` call from `useAuth` → `authClient.signIn.email()` (Better-Auth)
+5. On success: session refreshed, user redirected (with invitation params if present)
+6. On error: toast shows error message, form remains
 
-**Inputs:**
-- `email` — text, required, validated as email
-- `password` — text, required, min 8 chars
-- Query params (passed through if present): `invitationToken`, `orgId` — forwarded to `/accept-invitation` after successful login
+**Inputs:** 
+- URL search params: `invitationToken?`, `orgId?` (for post-login redirect)
+- Form inputs: `email` (string), `password` (string, min 8 chars)
 
-**State management:**
-- `useAuth()` — reads `authClient.useSession()` for auth state
-- `useSearch({ strict: false })` — reads `invitationToken` and `orgId` query params
-- TanStack Form manages field state and validation
+**State management:** 
+- `useAuth()` hook provides `user`, `isLoading`, `login()` function
+- `useSearch()` hook reads query params
+- `useForm()` from TanStack Form handles form state + validation
 
-**Outputs:** Renders a centered card with email/password fields, "Or continue with" OAuth section (disabled, "coming soon"), and a link to `/signup`. Shows a decorative image panel on desktop.
+**Outputs:** 
+- Renders `LoginForm` component (wrapper + styling)
+- Mutations: `login()` calls Better-Auth signIn endpoint
+- Navigation: to `/dashboard` or `/accept-invitation`
 
-**Side effects:** Sets Better-Auth session cookie. Clears no caches on login (cache refresh happens via `useUserContext` reacting to new session).
+**Side effects:** 
+- Redirects if already logged in
+- Clears previous form errors on input
+- Toast notifications on success/error
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `authClient.signIn.email` — Better-Auth sign-in via POST `/api/auth/sign-in/email`
+**Calls these API endpoints:** 
+- Better-Auth `/api/auth/sign-in/email` (via `authClient.signIn.email()`)
 
-**Uses these components:**
-- `LoginForm` — `apps/web/src/components/forms/login-form.tsx` — the full login form
+**Uses these components:** 
+- `LoginForm` — `apps/web/src/components/forms/login-form.tsx` — renders form UI, handles submission
+- `Button`, `Card`, `CardContent`, `Input`, `Label` — shadcn/ui components
 
-**Uses these hooks:**
-- `useAuth` — `apps/web/src/hooks/useAuth.ts` — wraps Better-Auth session and exposes `login`, `logout`, user state
+**Uses these hooks:** 
+- `useAuth()` — `apps/web/src/hooks/useAuth.ts` — manages session state + login logic
+- `useSearch()` — TanStack Router — reads URL params
+- `useNavigate()` — TanStack Router — programmatic navigation
+- `useForm()` — TanStack Form — form state management
 
-**Navigation: who navigates here:**
-- `apps/web/src/hooks/useAuth.ts` — `logout()` always redirects to `/login`
-- `apps/web/src/routes/(auth)/setup-password.tsx` — redirects here on expired/invalid/already-set tokens
-- `apps/web/src/routes/accept-invitation.tsx` — "Log in to accept invitation" button navigates here with `invitationToken` + `orgId` query params
-- `apps/web/src/components/forms/signup-form.tsx` — redirects here when user already exists
-- `apps/web/src/routes/_authenticated.tsx` — unauthenticated guard redirect (inferred)
+**Navigation: who navigates here:** 
+- `/signup` — link to sign up instead
+- Landing page (`/`) — "Login" button in header and CTA buttons
 
-**Navigation: where it goes:**
-- `/dashboard` — successful login (no invitation params)
-- `/accept-invitation?token=...&orgId=...` — successful login with invitation query params
+**Navigation: where it goes:** 
+- `/dashboard` — on successful login (no invitation)
+- `/accept-invitation?token=X&orgId=Y` — on successful login with invitation params
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-None directly (Better-Auth manages session cookies; session stored in Better-Auth tables).
-
-**Key types / Zod schemas:**
-- Form: `{ email: string (email), password: string (min 8) }`
-- `authClient.signIn.email` returns Better-Auth session + user object
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `email` | email | required, valid email | `authClient.signIn.email({ email })` |
-| `password` | password | required, min 8 chars | `authClient.signIn.email({ password })` |
+**DB tables touched:** `users` (controlPanelDb, shared) — read only during authentication
+**Key types / Zod schemas:** 
+- Input: `{ email: string, password: string }` (min 8 chars password)
+- Response from Better-Auth: `{ success: true, data: session }` or `{ success: false, error: string }`
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Login with wrong credentials, redirect after login with invitation params, already-authenticated redirect loop.
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Redirect behavior with invalid invitation params
+- Race condition if user logs out while on this page
+- OAuth button click behavior (disabled/unimplemented)
 
 ---
 
 ## 6. Notes
 
-- Uses `@tanstack/react-form` (not `react-hook-form`) — different from most other forms in the codebase which use `react-hook-form` + `zodResolver`.
-- OAuth buttons (Apple, Google, Meta) are rendered but disabled with `cursor-not-allowed`; labelled "Coming soon".
-- The `useAuth` hook also fetches user context (organizations/hierarchy) via `useUserContext`; this adds a second async call after session is confirmed.
-- `invitationToken` and `orgId` query params are forwarded through login so invitation acceptance flow continues seamlessly.
+- OAuth buttons (Apple, Google, Meta, LinkedIn) are visually rendered but disabled — marked "Coming soon" with opacity-50
+- Early return after hooks prevents state update errors when already authenticated
+- Form uses TanStack Form (different from signup which uses react-hook-form) — inconsistent form library usage
+- Search params handling with `strict: false` allows fallback usage outside `/login` route context
+

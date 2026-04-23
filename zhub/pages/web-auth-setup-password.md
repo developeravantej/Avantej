@@ -1,117 +1,143 @@
-# Setup Password
+# Set Up Password Page
 
 **Route:** `/setup-password`
-**File:** `apps/web/src/routes/(auth)/setup-password.tsx:1`
+**File:** `apps/web/src/routes/(auth)/setup-password.tsx`
 **Platform:** web
-**Auth required:** public (token-validated)
-**Last updated:** 2026-04-15
+**Auth required:** public
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Allows a newly invited user to set their initial password using a one-time setup token sent via email.
+**Purpose (user perspective):** Set password for newly invited users via a one-time token. Validates token, shows user's email/name, and allows them to create a password before proceeding to onboarding.
 
-**Produces:** A created password for the account; on success the user is redirected to `/onboarding`.
+**Produces:** Token validation spinner, then password setup card with form (2 password fields, account info display), submit button. Error redirects to login.
 
-**On success:** `toast.success("Password set up successfully! Redirecting to onboarding...")` shown; `access_token` stored in `localStorage.authToken`; navigate to `/onboarding`.
-**On failure / error states:**
-- No token in URL → `toast.error("No setup token provided")` + redirect to `/login`
-- Token expired → `toast.error("Password setup link has expired")` + redirect to `/login`
-- Token already used → `toast.info("Password already set for this account")` + redirect to `/login`
-- HTTP error during validation → `toast.error("Invalid or expired password setup link")` + redirect to `/login`
-- While validating: spinner shown ("Validating setup link...")
-- Server error on submit → `toast.error(errorMessage)`
+**On success:** Password set, access token stored in localStorage, user redirected to `/onboarding` to create organization.
+**On failure / error states:** Expired token → toast + redirect to login. Already has password → toast + redirect to login. Invalid token → error message + redirect. Loading state shows spinner during validation.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-SetupPasswordPage (mounts)
-  → useEffect: validateToken()
-    → GET {serverUrl}/api/v1/auth-setup/setup-token-info/{token}
-      → returns TokenInfo { email, full_name, is_expired, already_has_password }
-    → if expired/already_has_password → navigate("/login")
-  → form submit → setupPasswordMutation.mutate()
-    → POST {serverUrl}/api/v1/auth-setup/setup-password
-      → body: { token, password }
-      → returns { access_token, user_id, email, full_name }
-    → localStorage.setItem("authToken", access_token)
-    → navigate("/onboarding")
-```
+1. Component mounts, reads `token` from URL search params
+2. useEffect validates token by fetching `/api/v1/auth-setup/setup-token-info/{token}`
+3. Response contains `TokenInfo` with email, full_name, is_expired, already_has_password flags
+4. If expired or already has password → toast + redirect to login
+5. User fills password + confirm password, form validates with Zod
+6. On submit: POST to `/api/v1/auth-setup/setup-password` with token + password
+7. Response includes access_token, user_id, email, full_name
+8. access_token stored in localStorage, user redirected to `/onboarding`
 
-**Inputs:**
-- Query param: `token` (string, optional — validated by `validateSearch`)
-- Form fields: `password`, `confirmPassword`
+**Inputs:** 
+- URL search param: `token` (string, required)
+- Form inputs: `password`, `confirmPassword` (min 8 chars, must match)
 
-**State management:**
-- `useState<TokenInfo | null>` — holds validated token data (name, email)
-- `useState<boolean>` — `isValidatingToken` controls loading spinner
-- `useMutation` (TanStack Query) — `setupPasswordMutation` for the submit call
-- `useSearch` reads `token` from URL
+**State management:** 
+- Local state: `tokenInfo` (TokenInfo object), `isValidatingToken` (boolean)
+- react-hook-form + Zod for form validation
+- TanStack React Query `useMutation` for submit handler
 
-**Outputs:** Full-page card showing user's name and email (from token), two password fields, submit button with loading spinner.
+**Outputs:** 
+- Renders loading spinner or password form
+- Mutation: POST to `/api/v1/auth-setup/setup-password`
+- Side effect: localStorage.setItem('authToken', token)
+- Navigation: to `/onboarding` or `/login`
 
-**Side effects:** Stores `access_token` in `localStorage` under key `"authToken"`. Does not set a Better-Auth session cookie (relies on token-based auth for onboarding flow).
+**Side effects:** 
+- Token validation on mount
+- Token info fetched and displayed (email, name)
+- Access token stored in client localStorage (auth state)
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `GET {serverUrl}/api/v1/auth-setup/setup-token-info/{token}` — validates the setup token (NOTE: this endpoint is not registered in the current server routes; may be unimplemented or served by a different service)
-- `POST {serverUrl}/api/v1/auth-setup/setup-password` — sets the password and returns an access token
+**Calls these API endpoints:** 
+- `GET /api/v1/auth-setup/setup-token-info/{token}` — validates token, returns user info
+- `POST /api/v1/auth-setup/setup-password` — sets password, returns auth token
 
-**Uses these components:**
-- `Card`, `CardContent`, `CardHeader`, `CardTitle` — `@/components/ui/card`
-- `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage` — `@/components/ui/form`
-- `Input`, `Button` — `@/components/ui/`
+**Uses these components:** 
+- `Button`, `Card`, `CardContent`, `CardHeader`, `CardTitle` — shadcn/ui
+- `Input` — shadcn/ui text input
+- `Form`, `FormControl`, `FormField`, `FormItem`, `FormLabel`, `FormMessage` — shadcn/ui form components
+- `Loader2` icon — lucide-react
 
-**Uses these hooks:**
-- `useNavigate`, `useSearch` — TanStack Router
-- `useMutation` — TanStack Query
-- `useForm` — react-hook-form with zod
+**Uses these hooks:** 
+- `useNavigate()` — TanStack Router
+- `useSearch()` — TanStack Router
+- `useState`, `useEffect` — React
+- `useMutation` — TanStack React Query
+- `useForm()` + `zodResolver` — react-hook-form + Zod
 
-**Navigation: who navigates here:**
-- Email links (external) containing `?token=<setup_token>`
+**Navigation: who navigates here:** 
+- `/subscribe` page — after guest checkout with password setup required
+- Email link from invite system (auth server generates URL with token)
 
-**Navigation: where it goes:**
-- `/login` — on any token validation failure
+**Navigation: where it goes:** 
 - `/onboarding` — on successful password setup
+- `/login` — if token invalid/expired/already used
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-None directly from the frontend. The server-side `auth-setup` endpoints handle DB operations (not verified — endpoint not found in current server source).
+**DB tables touched:** 
+- `users` (controlPanelDb, shared) — read during token validation, update on password set
+- Auth/token system (backend-specific) — validate and consume one-time token
 
-**Key types / Zod schemas:**
-- Form schema: `{ password: string (min 8), confirmPassword: string (min 8) }` with `.refine` that passwords match
-- `TokenInfo` interface: `{ email, full_name, is_expired, expires_at, already_has_password }`
-- `validateSearch`: `z.object({ token: z.string().optional() })`
-- Success response: `{ access_token: string, user_id: string, email: string, full_name: string }`
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `password` | password | required, min 8 chars | POST body `password` |
-| `confirmPassword` | password | required, min 8, must match password | client-side only |
+**Key types / Zod schemas:** 
+- TokenInfo (interface):
+  ```
+  {
+    email: string,
+    full_name: string,
+    is_expired: boolean,
+    expires_at: string,
+    already_has_password: boolean
+  }
+  ```
+- Form input schema:
+  ```
+  {
+    password: string (min 8),
+    confirmPassword: string (min 8)
+  }
+  ```
+  with refinement: password === confirmPassword
+- API response:
+  ```
+  {
+    access_token: string,
+    user_id: string,
+    email: string,
+    full_name: string
+  }
+  ```
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Token validation failure paths, already-set password redirect, password mismatch UI.
+**Scenarios covered:** None
+**Not tested (risk areas):** 
+- Token expiration boundary (e.g., token expires between validation check and submit)
+- Concurrent requests (double-submit before first completes)
+- localStorage.setItem failure (quota exceeded, private browsing, etc.)
+- Race condition if user navigates away during token validation
+- Error response parsing (error.response?.data?.detail handling may fail if structure differs)
 
 ---
 
 ## 6. Notes
 
-- **Critical gap:** The API endpoint `GET /api/v1/auth-setup/setup-token-info/{token}` and `POST /api/v1/auth-setup/setup-password` are called but NOT registered in `apps/server/src/index.ts`. This page will fail at runtime unless these endpoints exist on a different server or path.
-- The page stores `access_token` in `localStorage` (not a Better-Auth cookie), which diverges from the rest of the auth system that uses Better-Auth cookies. This token may not be consumed by any existing middleware.
-- Uses `useSearch({ strict: false })` with a manual type cast — less safe than the strict form used in other routes.
+- API calls use raw fetch() instead of oRPC client — inconsistent with rest of codebase
+- Token validation happens only on mount — if token expires during form interaction, submit will fail
+- Error messages in catch block check for specific strings ("already set", "expired") — fragile if error messages change server-side
+- localStorage used for auth token rather than cookie/session — needs careful handling in auth flow
+- Component has unusual early-return pattern: loading state returns spinner, then checks tokenInfo before rendering form
+- Redirect happens inside fetch callback rather than useEffect — can cause "setState on unmounted component" warnings
+

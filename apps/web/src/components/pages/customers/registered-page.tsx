@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Download, Eye, Pencil, Search, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { useEffect, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -61,23 +63,6 @@ function getInitials(name: string): string {
 		.slice(0, 2)
 		.map((n) => n[0].toUpperCase())
 		.join("");
-}
-
-const AVATAR_COLORS = [
-	"bg-blue-100 text-blue-700",
-	"bg-violet-100 text-violet-700",
-	"bg-emerald-100 text-emerald-700",
-	"bg-amber-100 text-amber-700",
-	"bg-rose-100 text-rose-700",
-	"bg-cyan-100 text-cyan-700",
-	"bg-orange-100 text-orange-700",
-	"bg-teal-100 text-teal-700",
-];
-
-function getAvatarColor(name: string): string {
-	let hash = 0;
-	for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) & 0xffffffff;
-	return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -198,8 +183,12 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 			);
 		}
 		return (
-			<div className="flex min-h-96 items-center justify-center text-destructive text-sm">
-				Failed to load customers. Please try again.
+			<div className="p-6">
+				<StatusCallout
+					variant="error"
+					title="Failed to load customers"
+					message="Please try again."
+				/>
 			</div>
 		);
 	}
@@ -310,23 +299,21 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 								) : rows.length === 0 ? (
 									<TableRow>
 										<TableCell colSpan={6} className="h-60">
-											<div className="flex flex-col items-center justify-center gap-3 text-center">
-												<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-													<Users className="h-6 w-6 text-muted-foreground" />
-												</div>
-												<p className="font-medium text-sm">No customers found</p>
-												<p className="text-muted-foreground text-xs">
-													{search || branchId
+											<EmptyState
+												icon={Users}
+												title="No customers found"
+												description={
+													search || branchId
 														? "Try adjusting your search or branch filter."
-														: "Customers will appear here once they register."}
-												</p>
-											</div>
+														: "Customers will appear here once they register."
+												}
+												context={search || branchId ? "search" : "empty"}
+											/>
 										</TableCell>
 									</TableRow>
 								) : (
 									rows.map((row) => {
 										const initials = getInitials(row.name);
-										const avatarColor = getAvatarColor(row.name);
 										return (
 											<TableRow
 												key={row.memberId}
@@ -335,7 +322,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 												{/* Customer */}
 												<TableCell className={TD}>
 													<div className="flex items-center gap-3.5">
-														<span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor}`}>
+														<span className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold bg-primary text-primary-foreground">
 															{initials}
 														</span>
 														<div className="min-w-0">

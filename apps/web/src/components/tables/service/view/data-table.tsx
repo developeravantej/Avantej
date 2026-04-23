@@ -23,6 +23,7 @@ import { ServiceFormDialog } from "@/components/forms/service-form";
 import { ServiceDetailDialog } from "@/components/forms/service-detail-dialog";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -30,6 +31,9 @@ interface DataTableProps<TData, TValue> {
 	organizationId: string;
 	isLoading?: boolean;
 	onSuccess: () => void;
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
 }
 
 export default function DataTable<TData, TValue>({
@@ -38,6 +42,9 @@ export default function DataTable<TData, TValue>({
 	organizationId,
 	isLoading = false,
 	onSuccess,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -206,11 +213,13 @@ export default function DataTable<TData, TValue>({
 							))
 						) : (
 							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="py-16 text-center text-sm text-muted-foreground"
-								>
-									No services yet. Add one to get started.
+								<TableCell colSpan={columns.length} className="p-0">
+									<EmptyState
+										title={emptyTitle ?? "No results found"}
+										description={emptyDescription}
+										action={emptyAction}
+										context={globalFilter ? "search" : "empty"}
+									/>
 								</TableCell>
 							</TableRow>
 						)}

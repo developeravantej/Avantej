@@ -43,6 +43,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // ─── Route definition ──────────────────────────────────────────────────────────
 
@@ -211,6 +212,11 @@ function PosCreatePage() {
 	const hasServiceItems = items.some(
 		(item) => item.type === "service" && item.refId,
 	);
+
+	// Step numbers shift when Trainers step is visible
+	const promoStepN = hasServiceItems ? 4 : 3;
+	const taxStepN = hasServiceItems ? 5 : 4;
+	const paymentStepN = hasServiceItems ? 6 : 5;
 
 	// ── Submit readiness ───────────────────────────────────────────────────────
 	const hasCustomer =
@@ -610,7 +616,7 @@ function PosCreatePage() {
 								className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
 							>
 								<span className="flex items-center gap-2">
-									<StepBadge n={3} isComplete={appliedPromo !== null} isLocked={!hasCustomer} />
+									<StepBadge n={promoStepN} isComplete={appliedPromo !== null} isLocked={!hasCustomer} />
 									Promotion
 									{appliedPromo && (
 										<span className="ml-1 font-normal text-green-600 text-sm">
@@ -649,7 +655,7 @@ function PosCreatePage() {
 						<AccordionItem value="tax">
 							<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
 								<span className="flex items-center gap-2">
-									<StepBadge n={4} isComplete={true} isLocked={false} />
+									<StepBadge n={taxStepN} isComplete={true} isLocked={false} />
 									Tax
 									{selectedTaxRate && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm">
@@ -689,7 +695,7 @@ function PosCreatePage() {
 						<AccordionItem value="payment">
 							<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
 								<span className="flex items-center gap-2">
-									<StepBadge n={5} isComplete={hasPaymentMethod && cashOk} isLocked={false} />
+									<StepBadge n={paymentStepN} isComplete={hasPaymentMethod && cashOk} isLocked={false} />
 									Payment
 									{paymentMethod && (
 										<span className="ml-1 font-normal text-muted-foreground text-sm capitalize">
@@ -760,7 +766,7 @@ function PosCreatePage() {
 							>
 								{submitMutation.isPending ? (
 									<>
-										<div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+										<LoadingSpinner size="sm" className="mr-2" />
 										Processing...
 									</>
 								) : (

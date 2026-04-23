@@ -12,7 +12,9 @@ import {
 	columns as staticColumns,
 	type NotificationRow,
 } from "@/components/tables/notifications/view/columns";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/notifications/view",
@@ -113,13 +115,7 @@ function NotificationsViewPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (
@@ -168,14 +164,15 @@ function NotificationsViewPage() {
 
 			{/* Table or empty state */}
 			{data.length === 0 ? (
-				<div className="flex flex-col items-center justify-center py-16 gap-2">
-					<Bell className="h-10 w-10 text-brand-secondary-2" />
-					<p className="text-sm text-brand-secondary-1">
-						{readFilter === false
-							? "You're all caught up!"
-							: "No notifications"}
-					</p>
-				</div>
+				<EmptyState
+					icon={Bell}
+					title={readFilter === false ? "You're all caught up!" : "No notifications"}
+					description={
+						readFilter === false
+							? "All notifications have been read."
+							: "No notifications here yet."
+					}
+				/>
 			) : (
 				<DataTable<NotificationRow, unknown> columns={columns} data={data} />
 			)}

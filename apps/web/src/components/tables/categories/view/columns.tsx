@@ -79,7 +79,7 @@ export const columns: ColumnDef<CategoryRow>[] = [
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+						className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
 						onClick={() => (table.options.meta as CategoryTableMeta | undefined)?.onEdit?.(category)}
 					>
 						<span className="sr-only">Edit category</span>
@@ -88,7 +88,7 @@ export const columns: ColumnDef<CategoryRow>[] = [
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+						className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
 						onClick={() => (table.options.meta as CategoryTableMeta | undefined)?.onDelete?.(category)}
 					>
 						<span className="sr-only">Delete category</span>

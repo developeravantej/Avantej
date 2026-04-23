@@ -1,95 +1,91 @@
-# Buy Package – Terms & Conditions
+# Terms Screen
 
-**Route:** `/dashboard/buy-package/terms`
-**File:** `apps/native/app/(app)/dashboard/buy-package/terms.tsx:1`
+**Route:** `(app)/dashboard/buy-package/terms`
+**File:** `apps/native/app/(app)/dashboard/buy-package/terms.tsx`
 **Platform:** native
 **Auth required:** authenticated
-**Flow:** buy-package (step 5b/6) — prev: `sign` (opened from sign screen), next: returns to `sign` via `router.back()`
-**Last updated:** 2026-04-16
+**Flow:** buy-package (step 5/7 — sign step) — prev: sign, next: sign
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Displays a legal document (Terms & Conditions, Satisfaction Guarantee, or PAR-Q) that the customer can read before agreeing in the sign step.
+**Purpose (user perspective):** Display terms, conditions, and legal documents (PDF or HTML fallback).
 
-**Produces:** A scrollable full-screen document viewer. On Android/iOS with local PDFs enabled, it opens the PDF in the system viewer and immediately calls `router.back()`. On web or when local PDF fails, it renders a WebView with a base64-encoded PDF or falls back to hardcoded scrollable text.
+**Produces:**
+- Native platforms (iOS/Android): Open system PDF viewer; auto-navigate back after open attempt.
+- Web: Display PDF in WebView (via Google Docs Viewer or embedded base64 HTML).
+- If no PDF: fallback to in-screen HTML text (terms section).
 
-**On success:** PDF opens in system viewer (native) or renders in WebView (web). After reading, user presses back to return to the sign step.
+**On success:** Document viewed; back button returns to sign screen.
 
 **On failure / error states:**
-- Loading spinner shown while the PDF asset is downloading.
-- If native PDF open fails, shows an Alert with platform-specific guidance and falls back to `localPdfError = true`.
-- If `localPdfError` is true and no remote URL is set, falls through to the hardcoded scrollable text (4 sections: Terms of Service, Cancellation, Health Waiver, Privacy Policy).
+- PDF load error: show alert, set `localPdfError` flag, render fallback HTML text.
+- System PDF viewer unavailable: alert user to install PDF app.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-TermsScreen
-  → useLocalSearchParams<{ pdfUrl?, document? }>()
-  → useEffect on documentId
-    → Asset.fromModule(documentConfig.asset).downloadAsync()
-    → Android: FileSystem.getContentUriAsync → IntentLauncher.startActivityAsync → router.back()
-    → iOS: Linking.openURL → router.back()
-    → Web: FileSystem.readAsStringAsync (base64) → setPdfViewSource({ html })
-  → useFocusEffect: hides tab bar via parent navigator setOptions
-```
+1. Extract document ID and PDF URL from route params (defaults to "agreement").
+2. If USE_LOCAL_PDF: load bundled PDF asset asynchronously.
+3. On native: open in system viewer → immediate back navigation.
+4. On web: convert to base64 data URI, render in WebView.
+5. If error: fallback to bundled HTML terms text.
 
 **Inputs:**
-- `params.document` — one of `"agreement"`, `"satisfaction"`, `"parq"` (defaults to `"agreement"`)
-- `params.pdfUrl` — optional remote URL override (not used by default, `TERMS_PDF_URL = ""`)
+- Route params: `document` (ID: agreement/satisfaction/parq), `pdfUrl` (remote URL).
+- Navigation context: current navigation object.
 
 **State management:**
-- `pdfViewSource` — `{ uri }` or `{ html }` fed to `<WebView>`
-- `localPdfError` — boolean; triggers fallback text render
+- Local state: `pdfViewSource` (URI or HTML), `localPdfError` (boolean).
+- Asset loading via expo-asset (cached after first fetch).
 
 **Outputs:**
-- Native: opens system PDF viewer, then navigates back
-- Web: `<WebView>` with base64 PDF embed
-- Fallback: `<ScrollView>` with hardcoded terms text
+- Renders WebView, ActivityIndicator, or ScrollView (fallback HTML).
+- Side effect: tab bar hidden (useFocusEffect pattern, lines 141–185).
 
 **Side effects:**
-- Hides the tab bar for the duration of the screen via `useFocusEffect` + parent navigator traversal.
+- Tab bar hidden via `setOptions`.
+- File system operations: Asset.downloadAsync(), FileSystem.getContentUriAsync() (Android), base64 encoding (web).
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None — fully offline/local document screen.
+**Calls these API endpoints:** None.
 
 **Uses these components:**
-- `Container` — `apps/native/components/container.tsx` — root safe-area wrapper
-- `WebView` — `react-native-webview` — PDF rendering on web
-- `expo-asset` — PDF asset resolution
-- `expo-file-system/legacy` — base64 read + content URI conversion
-- `expo-intent-launcher` — Android PDF intent
+- `WebView` from react-native-webview — PDF display.
+- `Container` — wrapper.
 
-**Navigation: who navigates here:**
-- `apps/native/app/(app)/dashboard/buy-package/sign.tsx` — when user taps "View Terms" link, pushes `./terms` with `{ document: "agreement" | "satisfaction" | "parq" }`
+**Uses these hooks:**
+- `useFocusEffect` — hide tab bar.
+- `useState` — PDF source and error state.
+- `useEffect` — async PDF asset loading.
+- `useNavigation` — access to tabs navigator.
 
-**Navigation: where it goes:**
-- `router.back()` — always; triggered after PDF opens on native, or user presses the back arrow
+**Uses external libraries:**
+- expo-asset — bundle PDF loading.
+- expo-file-system — file operations and base64 encoding.
+- expo-intent-launcher — Android system PDF viewer launch.
+- react-native-webview — PDF rendering.
+
+**Navigation: who navigates here:** `./sign` screen (via router.push with params).
+
+**Navigation: where it goes:** Back to `./sign` (router.back()).
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** None.
+**DB tables touched:** None (documents bundled as assets).
 
-**Key types:**
-```typescript
-// Local document registry
-DOCUMENT_ASSETS: Record<string, { asset: number; name: string } | undefined>
-// Keys: "agreement" | "satisfaction" | "parq"
-```
-
-**PDF asset files (must exist at build time):**
-- `apps/native/assets/documents/agreement.pdf`
-- `apps/native/assets/documents/satisfaction-guarantee.pdf`
-- `apps/native/assets/documents/parq.pdf`
+**Key types / Zod schemas:**
+- `params`: `{ pdfUrl?: string; document?: string }`.
+- `DOCUMENT_ASSETS`: map of document ID to `{ asset: number; name: string }`.
 
 ---
 
@@ -98,17 +94,20 @@ DOCUMENT_ASSETS: Record<string, { asset: number; name: string } | undefined>
 **Test files:** None found.
 
 **Not tested (risk areas):**
-- Android `IntentLauncher.startActivityAsync` failure path
-- iOS `Linking.canOpenURL` returning false
-- Web base64 encoding of large PDFs
-- Tab bar show/hide state leak if screen unmounts mid-load
+- Asset resolution in Metro bundler for require() statements.
+- Platform-specific file URI handling (Android content:// vs file://).
+- Large PDF rendering performance in WebView.
+- Cancellation token behavior in cleanup function.
+- Tab bar recovery on abnormal unmount.
+- Base64 encoding of large PDFs on web (memory impact).
 
 ---
 
 ## 6. Notes
 
-- `USE_LOCAL_PDF = true` is hardcoded; there is no runtime toggle. Flip to `false` only to use the remote `TERMS_PDF_URL` fallback.
-- On native, the screen immediately calls `router.back()` after opening the system viewer — the "loading" spinner is only visible for the brief asset download time.
-- The tab bar hiding uses a fragile parent-navigator traversal (up to depth 5) rather than a layout-level option. This pattern is repeated in several screens.
-- The fallback hardcoded text is dated "January 2025" — it must be manually kept in sync with the actual PDF documents.
-- `remotePdfUrl` is proxied through Google Docs Viewer (`docs.google.com/viewer`) when set, which may fail for large files or in restricted networks.
+- USE_LOCAL_PDF flag (line 24) can be toggled to use remote URLs; TERMS_PDF_URL empty, so local fallback used.
+- DOCUMENT_ASSETS requires() statement dependencies must be bundled; verify Metro includes assets/documents/*.pdf.
+- On native platforms, router.back() is called immediately after opening PDF; user sees loader briefly then returns to sign screen.
+- Web platform loads PDF via Google Docs Viewer if remote URL; prone to slow load and third-party dependency.
+- Fallback HTML (lines 280–446) hardcodes terms text; should be templated or localized.
+- Tab bar hiding uses depth-first search for tabs navigator; fragile if navigation structure changes.

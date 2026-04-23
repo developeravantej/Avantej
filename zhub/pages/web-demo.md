@@ -1,105 +1,87 @@
-# Demo
+# Demo Request Page
 
 **Route:** `/demo`
-**File:** `apps/web/src/routes/demo.tsx:1`
+**File:** `apps/web/src/routes/demo.tsx`
 **Platform:** web
 **Auth required:** public
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets prospective customers request a product demo by submitting their contact details, which opens a pre-filled email to Avantej support.
+**Purpose (user perspective):** Allow prospective customers to request a demo of Avantej by filling out a contact form.
 
-**Produces:** Opens the system email client via `mailto:` URL with a pre-filled demo request message.
+**Produces:** A hero section describing Avantej, a form card with fields for name, email, company, and message, and a submit button.
 
-**On success:** `toast.success("Opening your email client...")` shown; `window.location.href` navigates to a `mailto:` URL.
-**On failure / error states:** Zod validation errors shown inline for invalid/missing required fields. No server error states (no API call made).
+**On success:** Opens the user's default email client with a pre-composed mailto URL to `support@avantej.com` with the form data in the subject and body. Toast notification shows "Opening your email client...".
+
+**On failure / error states:** Form validation errors display below respective fields (required email format, minimum name length). No async errors since form directly opens mailto URL.
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:**
-```
-DemoPage
-  → useForm (react-hook-form + zod)    # local form state only
-  → form.onSubmit(data)
-    → constructs body text lines (name, email, optional company, optional message)
-    → constructs mailto: URL
-      → mailto:support@avantej.com?subject=Demo+Request&body=...
-    → window.location.href = mailtoUrl  # opens email client
-    → toast.success(...)
-```
+**Execution flow:** User fills form → handleSubmit validates with Zod schema → constructs mailto URL from form data → navigates browser to mailto → success toast shown
 
-**Inputs:**
-- Form fields: `name` (required), `email` (required), `company` (optional), `message` (optional)
+**Inputs:** Form fields (name, email, company, message)
 
-**State management:** `react-hook-form` local state only. No TanStack Query, no global state.
+**State management:** React Hook Form with Zod validation; local form state only
 
-**Outputs:** Hero section + centered `Card` containing the form.
+**Outputs:** Redirects to mailto URL; no API calls or database updates
 
-**Side effects:** `window.location.href` redirect to `mailto:` URL.
+**Side effects:** Opens system email client via `window.location.href`
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None.
+**Calls these API endpoints:** None
 
 **Uses these components:**
-- `Card`, `CardContent`, `CardDescription`, `CardHeader`, `CardTitle` — `@/components/ui/card`
-- `Form`, `FormControl`, `FormField`, `FormItem`, `FormLabel`, `FormMessage` — `@/components/ui/form`
-- `Input` — `@/components/ui/input`
-- `Textarea` — `@/components/ui/textarea`
-- `Button` — `@/components/ui/button`
+- `Card, CardContent, CardHeader, CardTitle` — `@/components/ui/card` — layout
+- `Form, FormControl, FormField, FormItem, FormLabel, FormMessage` — `@/components/ui/form` — form rendering
+- `Button` — `@/components/ui/button` — submit button
+- `Input` — `@/components/ui/input` — text input fields
+- `Textarea` — `@/components/ui/textarea` — message field
 
-**Uses these hooks:**
-- `useForm` — react-hook-form with zodResolver
+**Uses these hooks:** `useForm` (react-hook-form)
 
-**Navigation: who navigates here:**
-- No internal navigation found pointing to `/demo`. Accessible via direct URL or landing page CTAs.
+**Navigation: who navigates here:** Public landing page, marketing site links
 
-**Navigation: where it goes:** None (opens external `mailto:` link, no in-app navigation).
+**Navigation: where it goes:** Nowhere (mailto redirect only)
 
 ---
 
 ## 4. Data Shapes
 
-No DB tables touched. No API calls.
+**DB tables touched:** None
 
 **Key types / Zod schemas:**
+```typescript
+demoSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  company: z.string().optional(),
+  message: z.string().optional(),
+})
 ```
-demoSchema = {
-  name: string (min 2),
-  email: string (email),
-  company: string (optional),
-  message: string (optional)
-}
-```
-
-**Form fields:**
-| Field | Type | Validation | Maps to |
-|-------|------|------------|---------|
-| `name` | text | required, min 2 chars | mailto body `From: {name}` |
-| `email` | email | required, valid email | mailto body `({email})` |
-| `company` | text | optional | mailto body `Company: {company}` (omitted if empty) |
-| `message` | textarea | optional | mailto body (defaults to "I would like to request a demo of Avantej.") |
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** N/A (no server interaction).
+
+**Scenarios covered:** None
+
+**Not tested (risk areas):** Form validation, mailto URL encoding, edge cases in name/email sanitization
 
 ---
 
 ## 6. Notes
 
-- Form submission does NOT send data to any server — constructs a `mailto:` URL. If the user has no email client configured, the form silently fails to deliver the request.
-- Default message when `data.message` is empty: `"I would like to request a demo of Avantej."` — ensures the email body is never blank.
-- `null` lines (e.g., missing company) are filtered out before joining to avoid blank lines in the email body.
-- This is a placeholder marketing page; a real demo booking system (e.g., Calendly integration) is not implemented.
+- No persistence or backend integration — form submission is purely client-side mailto.
+- Company and message fields are optional.
+- Default message if none provided: "I would like to request a demo of Avantej."
+- Uses `encodeURIComponent` for URL-safe encoding of form fields.

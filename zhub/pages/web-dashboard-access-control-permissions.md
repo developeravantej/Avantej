@@ -1,118 +1,74 @@
-# Access Control — Permission Management
+# Access Control - Permissions (Legacy Redirect)
 
 **Route:** `/dashboard/access-control/permissions`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/permissions.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/permissions.tsx`
 **Platform:** web
-**Auth required:** rbac(role_management:read)
-**Last updated:** 2026-04-16
+**Auth required:** authenticated
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View all permission resources and their available actions, and bulk-remove all role assignments for an entire resource.
+**Purpose (user perspective):** Legacy redirect stub. This page is slated for rewrite and does not render UI.
 
-**Produces:** Stats cards (resource count, total actions, avg actions/resource), a search-filtered grid of resource cards, and a confirmation dialog for removing all role-permission assignments for a resource.
+**Produces:** No user-visible output (immediate redirect).
 
-**On success:** "Remove All Permissions" → toast with count removed; query cache invalidated.
+**On success:** Redirects to `/dashboard/access-control/roles` with tab param `permissions`.
 
-**On failure / error states:**
-- Loading → spinner card with "Loading permissions..."
-- No match for search → empty-state card with "No resources found"
-- Remove error → destructive toast with error message.
+**On failure / error states:** N/A (stub route)
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:**
-```
-PermissionManagementPage
-  → useUserContext() → organizationId
-  → useQuery(client.permissions.list) → flat permission records
-  → useQuery(client.rolePermissions.list) → role-permission assignments
-  → useMemo: group permissions by resource → PermissionResource[]
-  → filteredResources (search filter on client)
-  → ResourceCard[] (with "Remove All Permissions" dropdown)
-  → handleConfirmRemovePermissions:
-      → find permissionIds for resource
-      → find rolePermission assignments for those permissionIds
-      → Promise.all(client.rolePermissions.remove per assignment)
-      → invalidate ["rolePermissions", organizationId]
-```
+**Execution flow:** Route loads → beforeLoad hook calls `makeTabRedirect("/dashboard/access-control/roles", "permissions")` → user redirected before component renders
 
-**Inputs:** Search query (client-side filter on resource name, description, action names).
+**Inputs:** None (redirect is automatic)
 
-**State management:**
-- `searchQuery` — local state for filtering.
-- `confirmResource` — local state for which resource is being bulk-removed.
-- `isRemoving` — local boolean during bulk removal.
+**State management:** None
 
-**Outputs:** Read-only resource cards with action badges. One destructive action (remove all role assignments for a resource).
+**Outputs:** Navigation redirect only
 
-**Side effects:** Cache invalidation of `["rolePermissions", organizationId]` after removal.
+**Side effects:** Router history updated
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `permissions.list` — list all permission records for the org (`{ organizationId }`)
-- `rolePermissions.list` — list all role-permission assignments (`{ organizationId }`)
-- `rolePermissions.remove` — remove a single role-permission assignment (`{ organizationId, roleId, permissionId }`)
+**Calls these API endpoints:** None
 
-**Uses these components:**
-- `ResourceCard` — inline component — renders a card per resource with action badges and a remove dropdown
+**Uses these components:** None
 
-**Uses these hooks:**
-- `useUserContext` — resolves `organizationId`
-- `useQuery`, `useQueryClient` — data fetching and cache management
-- `useIsMobile` — controls grid column count
+**Uses these hooks:** None
 
-**Navigation: who navigates here:**
-- App sidebar: "Permissions" under Access Control section
+**Navigation: who navigates here:** Old bookmarks, legacy links (deprecated)
 
-**Navigation: where it goes:** Stays on page.
+**Navigation: where it goes:** `/dashboard/access-control/roles?tab=permissions`
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `permissions` (tenant) | SELECT | `id`, `resource`, `action`, `description` |
-| `role_permissions` (tenant) | SELECT | `roleId`, `permissionId` |
-| `role_permissions` (tenant) | DELETE | `roleId`, `permissionId` |
+**DB tables touched:** None
 
-**Key types:**
-```typescript
-// Flat permission record from API
-{ id: string; resource: string; action: string; description?: string }
-
-// Grouped into PermissionResource for display
-type PermissionResource = {
-  id: string; name: string; description: string;
-  icon: ComponentType; actions: { id: string; name: string; description?: string }[];
-}
-```
+**Key types / Zod schemas:** None
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found.
+**Test files:** None found
 
-**Not tested (risk areas):**
-- Bulk remove with concurrent API calls
-- Partial failure in `Promise.all` (one removal fails)
-- Search filtering edge cases (empty results vs no data)
+**Scenarios covered:** None
+
+**Not tested (risk areas):** Redirect loop if roles page doesn't exist
 
 ---
 
 ## 6. Notes
 
-- This page is **read-only for the permission catalog** — it cannot add new permissions or actions, only remove role-to-permission assignments in bulk.
-- The icon map (`RESOURCE_ICON_MAP`) only covers a subset of resource identifiers; unlisted resources fall back to `Shield`.
-- `formatActionName` maps known CRUD actions to human-readable labels; unknown actions are title-cased.
-- Removing all permissions for a resource does not delete the permission records themselves — only the `role_permissions` join entries are deleted.
+- Marked as LEGACY in code (though comment is in invitations.tsx file).
+- Component file exists but is a stub that never renders.
+- Actual permissions/roles functionality moved to `/dashboard/access-control/roles` route.
+- `makeTabRedirect` helper handles the redirect logic in beforeLoad guard.

@@ -4,6 +4,9 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Tag } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import DataTable from "@/components/tables/brands/view/data-table";
 import { columns } from "@/components/tables/brands/view/columns";
 import type { BrandRow } from "@/components/tables/brands/view/columns";
@@ -95,13 +98,7 @@ export function BrandsTabPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -131,10 +128,11 @@ export function BrandsTabPage() {
 	return (
 		<>
 			{tableData.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-					<p className="text-lg font-medium">No brands yet</p>
-					<p className="text-sm">Add a brand to organize your products.</p>
-				</div>
+				<EmptyState
+					title="No brands yet"
+					description="Add a brand to organize your products."
+					icon={Tag}
+				/>
 			)}
 			<DataTable
 				columns={columns}

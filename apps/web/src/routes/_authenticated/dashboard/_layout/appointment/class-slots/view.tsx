@@ -4,17 +4,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Calendar, Plus, Users } from "lucide-react";
+import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import { BranchSelector } from "@/components/branch/branch-selector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Select,
@@ -153,7 +158,8 @@ function ClassSlotsPage() {
 	const {
 		data: classSlots = [],
 		isLoading,
-		error,
+		isError,
+		refetch,
 	} = useQuery({
 		queryKey: ["classSlots", organizationId, filterServiceId, filterFrom, filterTo, filterAvailableOnly],
 		queryFn: async () => {
@@ -404,12 +410,12 @@ function ClassSlotsPage() {
 			cell: ({ row }) => {
 				const { isCancelled, spotsAvailable } = row.original;
 				if (isCancelled) {
-					return <Badge variant="destructive">Cancelled</Badge>;
+					return <StatusBadge status={"cancelled" as CanonicalStatus} />;
 				}
 				if (spotsAvailable === 0) {
-					return <Badge variant="secondary">Full</Badge>;
+					return <StatusBadge status={"inactive" as CanonicalStatus} label="Full" />;
 				}
-				return <Badge variant="default">Available</Badge>;
+				return <StatusBadge status={"active" as CanonicalStatus} label="Available" />;
 			},
 		},
 		{
@@ -455,15 +461,10 @@ function ClassSlotsPage() {
 		);
 	}
 
-	if (error) {
+	if (isError) {
 		return (
-			<div className="space-y-4">
-				<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
-				<p className="text-destructive">
-					{error instanceof Error
-						? error.message
-						: "Failed to load class slots"}
-				</p>
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load class slots" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -567,13 +568,15 @@ function ClassSlotsPage() {
 
 			{/* Table */}
 			{isLoading ? (
-				<div className="flex items-center justify-center min-h-96">
-					<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-						<span className="sr-only">Loading...</span>
-					</div>
-				</div>
+				<PageLoader />
 			) : (
-				<DataTable<ClassSlotRow, unknown> columns={columns} data={classSlots} />
+				<DataTable<ClassSlotRow, unknown>
+					columns={columns}
+					data={classSlots}
+					emptyTitle="No class slots found"
+					emptyDescription="Create your first class slot to get started."
+					emptyAction={{ label: "Create Class Slot", onClick: () => setCreateSheetOpen(true) }}
+				/>
 			)}
 
 			{/* ----------------------------------------------------------------- */}
@@ -615,22 +618,18 @@ function ClassSlotsPage() {
 							</Select>
 						</div>
 
-						{/* Branch ID */}
+						{/* Branch */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="create-branch">
-								Branch ID <span className="text-destructive">*</span>
+								Branch <span className="text-destructive">*</span>
 							</Label>
-							<Input
-								id="create-branch"
-								type="text"
-								placeholder="Enter branch UUID"
+							<BranchSelector
 								value={createForm.branchId}
-								onChange={(e) =>
-									setCreateForm((prev) => ({
-										...prev,
-										branchId: e.target.value,
-									}))
+								onChange={(v) =>
+									setCreateForm((prev) => ({ ...prev, branchId: v }))
 								}
+								organizationId={organizationId ?? ""}
+								placeholder="Select a branch"
 							/>
 						</div>
 
@@ -928,7 +927,7 @@ function ClassSlotsPage() {
 
 					{signupsLoading ? (
 						<div className="flex items-center justify-center py-12">
-							<div className="animate-spin h-6 w-6 border-2 border-current border-r-transparent rounded-full" />
+							<LoadingSpinner size="md" />
 						</div>
 					) : signups.length === 0 ? (
 						<p className="text-center text-muted-foreground py-12 text-sm">
@@ -943,22 +942,22 @@ function ClassSlotsPage() {
 								>
 									<div className="flex items-center justify-between">
 										<span className="font-medium text-sm">{signup.name}</span>
-										<Badge
-											variant={
+										<StatusBadge
+											status={
 												signup.attended === true
-													? "default"
+													? ("completed" as CanonicalStatus)
 													: signup.attended === false
-														? "destructive"
-														: "secondary"
+														? ("no-show" as CanonicalStatus)
+														: ("pending" as CanonicalStatus)
 											}
-											className="text-xs"
-										>
-											{signup.attended === true
-												? "Attended"
-												: signup.attended === false
-													? "No-show"
-													: "Pending"}
-										</Badge>
+											label={
+												signup.attended === true
+													? "Attended"
+													: signup.attended === false
+														? "No-show"
+														: "Pending"
+											}
+										/>
 									</div>
 									{signup.email && (
 										<p className="text-xs text-muted-foreground">

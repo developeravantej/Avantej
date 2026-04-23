@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -27,6 +28,8 @@ import {
 import DataTable from "@/components/tables/sales/view/data-table";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { ArrowUpDown, Truck, CheckCircle, XCircle, Plus } from "lucide-react";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { CanonicalStatus } from "@/components/ui/status-badge";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,35 +75,6 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Status Badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: TransferOrderStatus }) {
-	switch (status) {
-		case "pending":
-			return (
-				<Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-					Pending
-				</Badge>
-			);
-		case "in_transit":
-			return (
-				<Badge variant="default" className="bg-orange-500 hover:bg-orange-600">
-					In Transit
-				</Badge>
-			);
-		case "completed":
-			return (
-				<Badge variant="default" className="bg-green-600 hover:bg-green-700">
-					Completed
-				</Badge>
-			);
-		case "cancelled":
-			return <Badge variant="destructive">Cancelled</Badge>;
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
 
@@ -120,7 +94,7 @@ export function TransferOrdersTabPage() {
 		},
 		enabled: !!organizationId,
 	});
-	const branches = (nodesData?.nodes ?? []).filter((n) => n.type === "branch");
+	const branches = ((nodesData?.nodes ?? []) as Array<{ id: string; type: string; name: string }>).filter((n) => n.type === "branch");
 
 	// ---- Filter state ----
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -143,7 +117,7 @@ export function TransferOrdersTabPage() {
 	const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading } = useQuery({
+	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
 		queryKey: ["transferOrders", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -369,7 +343,7 @@ export function TransferOrdersTabPage() {
 		{
 			accessorKey: "status",
 			header: "Status",
-			cell: ({ getValue }) => <StatusBadge status={getValue<TransferOrderStatus>()} />,
+			cell: ({ getValue }) => <StatusBadge status={getValue<TransferOrderStatus>() as CanonicalStatus} />,
 		},
 		{
 			id: "actions",
@@ -517,11 +491,13 @@ export function TransferOrdersTabPage() {
 	}
 
 	if (isLoading) {
+		return <PageLoader />;
+	}
+
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load transfer orders" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -573,7 +549,12 @@ export function TransferOrdersTabPage() {
 			</div>
 
 			{/* Table */}
-			<DataTable<TransferOrderRow, unknown> columns={columns} data={data} />
+			<DataTable<TransferOrderRow, unknown>
+				columns={columns}
+				data={data}
+				emptyTitle="No transfer orders"
+				emptyDescription="Create a new transfer to move inventory between branches."
+			/>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Create Transfer Order Sheet                                         */}

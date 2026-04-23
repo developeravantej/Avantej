@@ -1,141 +1,99 @@
-# Accept Invitation
+# Accept Organization Invitation
 
 **Route:** `/accept-invitation`
-**File:** `apps/web/src/routes/accept-invitation.tsx:1`
+**File:** `apps/web/src/routes/accept-invitation.tsx`
 **Platform:** web
-**Auth required:** public (handles both authenticated and unauthenticated users)
-**Last updated:** 2026-04-15
+**Auth required:** public
+**Last updated:** 2026-04-23
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Allows a user to accept an organization membership invitation sent via email link, handling both new users (signup inline) and existing users (auto-accept after login).
+**Purpose (user perspective):** Allow a user to accept an invitation to join an organization, whether they have an existing account or not.
 
-**Produces:** Creates a member record in the tenant DB, marks the invitation as accepted, stores the org ID in `localStorage`, and redirects to `/dashboard`.
+**Produces:** Multiple conditional screens: signup form (new users), loading spinner, error card, or success/processing state.
 
-**On success:** `toast.success("Successfully joined organization!")` shown; `localStorage.setItem("current_organization_id", orgId)` set; navigate to `/dashboard` after 2-second delay.
-**On failure / error states:**
-- Invalid/expired invitation → error card with "Invalid Invitation" heading + `errorMessage`
-- UNAUTHORIZED from accept → `toast.error("Please sign up or log in...")`
-- Email mismatch (logged in as different user) → `toast.warning(...)` with 10s duration
-- Loading: full-page spinner
-- Already processing/success: processing card with spinner or success with checkmark
+**On success:** Sets `current_organization_id` in localStorage, displays success message, redirects to `/dashboard` after 2s.
+
+**On failure / error states:** Invalid invitation shows error card with "Go to Home" button. Email mismatch warns user to sign out and use correct email. Signup errors redirect to login if user already exists. Accept errors show toast with specific error message.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-```
-AcceptInvitationPage (mounts)
-  → useSearch → reads token, orgId from URL
-  → authClient.useSession()              # check if user is logged in
-  → useQuery: client.invitations.getByToken({ token, orgId })
-      → invitations.getByToken (publicProcedure)
-        → getInvitationByToken(token, tenantDb)
-        → validateInvitation(invitation)
-        → returns { invitation, isValid, error }
-  → useEffect: if isValid && invitation.email
-      → verifyEmailMutation: client.invitations.verifyEmailByToken(...)
-        → pre-verifies invited email in control-panel DB (no-op if not found)
-  → if !session && isValid → show SignupForm (embedded, with invitationEmail locked)
-      → SignupForm.onSignupSuccess → handleSignupSuccess()
-          → refetchSession()
-          → acceptMutation.mutate()
-  → if session && isValid && email matches → auto-accept:
-      → acceptMutation: client.invitations.accept({ token, orgId })
-          → invitations.accept (publicProcedure, checks session internally)
-            → validateInvitation → check email match → createMember (dual-write)
-            → mark user.emailVerified = true in control-panel DB
-```
+1. Fetch invitation by token + orgId
+2. Check session; if logged in and invitation valid, auto-accept if email matches
+3. If not logged in and invitation valid, show signup form pre-filled with invitation email
+4. On signup success, call handleSignupSuccess → auto-accept invitation → redirect to dashboard
+5. If invitation invalid or expired, show error screen
 
-**Inputs:**
-- Query params: `token` (string, required), `orgId` (string UUID, required)
+**Inputs:** Query params `token`, `orgId`; session from authClient
 
-**State management:**
-- `authClient.useSession()` — session check
-- `useQuery` (key: `["invitation", token, orgId]`) — invitation details, no retry
-- `useMutation` — `verifyEmailMutation`, `acceptMutation`
-- `useRef<boolean>` — `hasProcessedRef` prevents double-accept in StrictMode
-- `localStorage` — writes `current_organization_id` on success
+**State management:** TanStack Query for invitation fetch; TanStack Mutation for verifyEmail and accept; useRef for one-time processing logic
 
-**Outputs:** Multi-state rendering:
-1. Signup form (unauthenticated + valid invitation)
-2. Loading spinner
-3. Invalid invitation error card
-4. Processing/success card
+**Outputs:** API calls to `client.invitations.getByToken()`, `verifyEmailByToken()`, `accept()`; localStorage update; navigation
 
-**Side effects:**
-- Writes `members` record to tenant DB (via `MembershipService.createMember`)
-- Writes `organizationMembers` record to control-panel DB
-- Sets `user.emailVerified = true` in control-panel DB
-- Updates `invitations.status` to `"accepted"` in tenant DB
-- Writes `current_organization_id` to `localStorage`
+**Side effects:** Email pre-verification for new users; auto-accept for logged-in users with matching email; localStorage persist of orgId
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.invitations.getByToken` — fetch and validate invitation by token (publicProcedure)
-- `client.invitations.verifyEmailByToken` — pre-verify invited email (publicProcedure)
-- `client.invitations.accept` — accept invitation and create member (publicProcedure, checks session internally)
+- `client.invitations.getByToken({ token, organizationId })` — fetch invitation details
+- `client.invitations.verifyEmailByToken({ token, organizationId })` — pre-verify email for new users
+- `client.invitations.accept({ token, organizationId })` — accept invitation
 
 **Uses these components:**
-- `SignupForm` — `apps/web/src/components/forms/signup-form.tsx` — embedded with `invitationEmail` locked and `onSignupSuccess` callback
-- `Card`, `CardContent`, `CardDescription`, `CardHeader`, `CardTitle` — UI
-- `Button` — UI
-- Icons: `Loader2`, `Mail`, `CheckCircle`, `XCircle`, `UserPlus`
+- `SignupForm` — `@/components/forms/signup-form` — pre-filled signup (email locked)
+- `Card, CardContent, CardDescription, CardHeader, CardTitle` — `@/components/ui/card` — layout
+- `Button` — `@/components/ui/button` — navigation
+- `UserPlus, Mail, CheckCircle, XCircle, Loader2` — lucide-react icons
 
 **Uses these hooks:**
-- `authClient.useSession` — session check + refetch
-- `useQuery`, `useMutation` — TanStack Query
-- `useSearch`, `useNavigate` — TanStack Router
+- `authClient.useSession()` — Better-Auth session state
+- `useQuery` — invitation data fetch
+- `useMutation` — verifyEmail and accept mutations
+- `useNavigate` — redirect after success
 
-**Navigation: who navigates here:**
-- `apps/web/src/components/forms/login-form.tsx` — after successful login with `invitationToken` + `orgId` params
-- `apps/web/src/components/forms/signup-form.tsx` — after signup with invitation params
-- Email links (external) containing `?token=...&orgId=...`
+**Navigation: who navigates here:** Email links in invitation emails, login page with invitation params
 
-**Navigation: where it goes:**
-- `/dashboard` — after successful acceptance (2s delay)
-- `/login?invitationToken=...&orgId=...` — "Log in to accept invitation" button for existing users
-- `/` — "Go to Home" on invalid invitation
+**Navigation: where it goes:** `/dashboard` on success; `/login` if user already exists and needs to log in
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `invitations` (tenant) | READ | `token`, `email`, `role`, `status`, `expiresAt` |
-| `invitations` (tenant) | WRITE | `status = "accepted"` |
-| `members` (tenant) | READ (exists check) | `userId` |
-| `members` (tenant) | WRITE | `userId`, `organizationId`, `role`, `hierarchyScopeId` |
-| `organizationMembers` (control-panel) | WRITE | `userId`, `organizationId`, `role`, `status` |
-| `auth.user` (control-panel) | WRITE | `emailVerified = true` |
+**DB tables touched:** (Backend: invitations, users, organization_members)
 
 **Key types / Zod schemas:**
-- `validateSearch` returns: `{ token: string, orgId: string }`
-- `getByToken` returns: `{ invitation: { id, email, role, status, expiresAt, createdAt }, isValid: boolean, error?: string }`
-- `accept` returns: `{ success: boolean, message: string, organizationId: string }`
+```typescript
+// Search params (validated)
+{ token: string; orgId: string }
+
+// Invitation data (from API)
+{ invitation: { email: string; role: string; ... }; isValid: boolean; error?: string }
+```
 
 ---
 
 ## 5. Tests
 
 **Test files:** None found
-**Scenarios covered:** N/A
-**Not tested (risk areas):** Email mismatch warning, double-accept prevention, session propagation race after signup, invitation expiry edge case.
+
+**Scenarios covered:** None
+
+**Not tested (risk areas):** Email mismatch edge cases, race conditions between auto-accept and signup, logout race with pending mutation, localStorage error handling
 
 ---
 
 ## 6. Notes
 
-- `hasProcessedRef` guards against React StrictMode double-effect calls triggering two accept mutations.
-- The `verifyEmailByToken` call runs as a fire-and-forget side effect (no UI blocking) to pre-verify invited users who may already have an unverified account, enabling them to log in.
-- A 2-second `setTimeout` is used before navigating to `/dashboard` to allow the success state to render.
-- `localStorage.setItem("current_organization_id", orgId)` ensures the accepted org is selected immediately when the dashboard loads.
-- If the logged-in user's email does not match the invitation email, a `toast.warning` with 10-second duration is shown, but the page does NOT redirect — the user must manually log out.
+- SignupForm pre-fills email and locks it read-only to prevent email mismatch.
+- Auto-accept logic uses useRef to ensure it runs only once even if dependencies change.
+- verifyEmailByToken is called proactively to pre-verify the invited email, enabling unverified users to log in.
+- Invitation verification errors show specific messages (e.g., different email address).
+- localStorage.setItem() errors are silently caught to prevent flow interruption.
+- 2s redirect delay allows success state to display before navigation.

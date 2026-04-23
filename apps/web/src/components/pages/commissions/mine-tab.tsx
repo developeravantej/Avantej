@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/currency";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,34 +39,6 @@ function formatDate(value: string | Date | null | undefined): string {
 	}
 }
 
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
-
-function CommissionStatusBadge({ status }: { status: string }) {
-	const configs: Record<string, { className: string; label: string }> = {
-		pending: {
-			className:
-				"bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
-			label: "Pending",
-		},
-		approved: {
-			className:
-				"bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
-			label: "Approved",
-		},
-		paid: {
-			className:
-				"bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
-			label: "Paid",
-		},
-		void: {
-			className:
-				"bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100",
-			label: "Void",
-		},
-	};
-	const cfg = configs[status] ?? { className: "", label: status };
-	return <Badge className={cfg.className}>{cfg.label}</Badge>;
-}
 
 // ─── SourceCell ───────────────────────────────────────────────────────────────
 
@@ -100,7 +74,7 @@ export function MyCommissionsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ["my-commissions", organizationId],
 		queryFn: () =>
 			client.commissionSplits.getMyCommissions({
@@ -169,7 +143,7 @@ export function MyCommissionsPage() {
 			id: "status",
 			header: "Status",
 			cell: ({ row }) => (
-				<CommissionStatusBadge status={row.original.status} />
+				<StatusBadge status={row.original.status as CanonicalStatus} />
 			),
 		},
 	];
@@ -183,10 +157,10 @@ export function MyCommissionsPage() {
 		);
 	}
 
-	if (error) {
+	if (isError) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-destructive">
-				Failed to load your commissions. Please try again.
+			<div className="p-6">
+				<StatusCallout variant="error" title="Couldn't load commissions" onRetry={() => refetch()} />
 			</div>
 		);
 	}
@@ -204,16 +178,12 @@ export function MyCommissionsPage() {
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<div className="space-y-6">
-			{/* Empty state */}
-			{rows.length === 0 ? (
-				<div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed">
-					<p className="text-muted-foreground text-sm">
-						No commission splits found for your account.
-					</p>
-				</div>
-			) : (
-				<DataTable<MyCommissionRow, unknown> columns={columns} data={rows} />
-			)}
+			<DataTable<MyCommissionRow, unknown>
+				columns={columns}
+				data={rows}
+				emptyTitle="No commissions yet"
+				emptyDescription="No commission splits found for your account."
+			/>
 		</div>
 	);
 }
