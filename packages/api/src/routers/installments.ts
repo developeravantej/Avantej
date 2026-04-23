@@ -15,6 +15,7 @@ import {
 	evaluateAndLockIfOverdue,
 	requirePermission,
 	getSuggestedRefund,
+	setPackageOverdraft,
 } from "@avantej-core/services";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { ORPCError } from "@orpc/server";
@@ -375,6 +376,49 @@ const adjustCreditsProcedure = protectedProcedure
 		}
 	});
 
+const setOverdraft = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			packageInstanceId: z.string().uuid(),
+			enabled: z.boolean(),
+			reason: z.string().min(1),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available. Ensure organization context is set.",
+			});
+		}
+
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		if (context.member.role !== "admin") {
+			throw new ORPCError("FORBIDDEN", {
+				message: "Admin role required",
+			});
+		}
+
+		const actor = {
+			userId: context.session!.user.id,
+			memberId: context.member.id,
+			role: context.member.role,
+		};
+
+		return setPackageOverdraft(
+			context.tenantDb,
+			input.packageInstanceId,
+			input.enabled,
+			input.reason,
+			actor,
+		);
+	});
+
 export const installmentsRouter = {
 	adjustCredits: adjustCreditsProcedure,
 	confirmPayment,
@@ -384,4 +428,5 @@ export const installmentsRouter = {
 	adminOverview,
 	getEvents,
 	suggestRefund,
+	setOverdraft,
 };

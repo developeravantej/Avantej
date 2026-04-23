@@ -4,6 +4,7 @@ import {
 	getGracePeriodDaysForPackage,
 	evaluateAndLockIfOverdue,
 	getAdminInstallmentOverview,
+	setPackageOverdraft,
 } from "@avantej-core/services";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
@@ -451,5 +452,181 @@ describe("due_soon filter", () => {
 
 		expect(result.items).toHaveLength(0);
 		expect(result.total).toBe(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: setPackageOverdraft
+// ---------------------------------------------------------------------------
+
+describe("setPackageOverdraft", () => {
+	const actor = { userId: "user-1", memberId: "member-1", role: "admin" };
+
+	/**
+	 * Build a minimal package instance fixture for overdraft tests.
+	 */
+	function makePkg(overrides: Partial<{
+		id: string;
+		allowCreditOverdraft: boolean;
+		updatedAt: Date;
+	}> = {}) {
+		return {
+			id: "pi-overdraft-1",
+			serviceId: "svc-1",
+			clientId: null,
+			source: "assigned",
+			paymentStatus: "paid",
+			creditsTotal: 10,
+			creditsUsed: 0,
+			creditsRemaining: 10,
+			creditsUnlocked: null,
+			creditsAdminOverride: false,
+			allowCreditOverdraft: false,
+			isLocked: true,
+			lockedAt: new Date(),
+			lockedReason: "non_payment",
+			installmentsTotal: 2,
+			installmentsPaid: 0,
+			paymentPlanType: "half",
+			status: "active",
+			startsAt: new Date(),
+			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			nextDueDate: null,
+			gracePeriodEndsAt: null,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			...overrides,
+		};
+	}
+
+	test("enable → sets flag to true, writes event row and audit row", async () => {
+		const pkg = makePkg({ allowCreditOverdraft: false });
+		const updatedPkg = { ...pkg, allowCreditOverdraft: true };
+
+		// transaction mock calls the callback with a nested db instance
+		// We need to control what the nested tx does:
+		// 1. select().from().where().for("update") → [pkg]
+		// 2. update().set().where().returning() → [updatedPkg]
+		// 3. insert().values() → (installmentEvents)
+		// 4. insert().values() → (auditLog via writeAudit)
+
+		const mockInsertValues = mock(() => Promise.resolve([]));
+		const mockInsert = mock(() => ({ values: mockInsertValues }));
+
+		const mockForUpdate = mock(() => Promise.resolve([pkg]));
+		const mockSelectWhere = mock(() => ({ for: mockForUpdate }));
+		const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
+		const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+		const mockUpdateReturning = mock(() => Promise.resolve([updatedPkg]));
+		const mockUpdateWhere = mock(() => ({ returning: mockUpdateReturning }));
+		const mockUpdateSet = mock(() => ({ where: mockUpdateWhere }));
+		const mockUpdate = mock(() => ({ set: mockUpdateSet }));
+
+		const tx = {
+			select: mockSelect,
+			update: mockUpdate,
+			insert: mockInsert,
+		} as any;
+
+		const db = {
+			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+		} as any;
+
+		const result = await setPackageOverdraft(db, pkg.id, true, "VIP customer", actor);
+
+		expect(result.allowCreditOverdraft).toBe(true);
+		// update was called once (package row)
+		expect(mockUpdate).toHaveBeenCalledTimes(1);
+		// insert was called twice: installmentEvents + auditLog
+		expect(mockInsert).toHaveBeenCalledTimes(2);
+		// first insert values contain overdraft_enabled eventType
+		const firstInsertArg = mockInsertValues.mock.calls[0]?.[0] as any;
+		expect(firstInsertArg?.eventType).toBe("overdraft_enabled");
+	});
+
+	test("enable when already enabled → no-op, no audit row, no event row", async () => {
+		const pkg = makePkg({ allowCreditOverdraft: true });
+
+		const mockInsert = mock(() => ({ values: mock(() => Promise.resolve([])) }));
+		const mockUpdate = mock(() => ({ set: mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })) }));
+
+		const mockForUpdate = mock(() => Promise.resolve([pkg]));
+		const mockSelectWhere = mock(() => ({ for: mockForUpdate }));
+		const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
+		const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+		const tx = {
+			select: mockSelect,
+			update: mockUpdate,
+			insert: mockInsert,
+		} as any;
+
+		const db = {
+			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+		} as any;
+
+		const result = await setPackageOverdraft(db, pkg.id, true, "already on", actor);
+
+		// Returns original pkg without modification
+		expect(result.allowCreditOverdraft).toBe(true);
+		// No update, no insert (idempotent)
+		expect(mockUpdate).not.toHaveBeenCalled();
+		expect(mockInsert).not.toHaveBeenCalled();
+	});
+
+	test("disable → sets flag to false, writes overdraft_disabled event", async () => {
+		const pkg = makePkg({ allowCreditOverdraft: true });
+		const updatedPkg = { ...pkg, allowCreditOverdraft: false };
+
+		const mockInsertValues = mock(() => Promise.resolve([]));
+		const mockInsert = mock(() => ({ values: mockInsertValues }));
+
+		const mockForUpdate = mock(() => Promise.resolve([pkg]));
+		const mockSelectWhere = mock(() => ({ for: mockForUpdate }));
+		const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
+		const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+		const mockUpdateReturning = mock(() => Promise.resolve([updatedPkg]));
+		const mockUpdateWhere = mock(() => ({ returning: mockUpdateReturning }));
+		const mockUpdateSet = mock(() => ({ where: mockUpdateWhere }));
+		const mockUpdate = mock(() => ({ set: mockUpdateSet }));
+
+		const tx = {
+			select: mockSelect,
+			update: mockUpdate,
+			insert: mockInsert,
+		} as any;
+
+		const db = {
+			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+		} as any;
+
+		const result = await setPackageOverdraft(db, pkg.id, false, "payment cleared", actor);
+
+		expect(result.allowCreditOverdraft).toBe(false);
+		expect(mockUpdate).toHaveBeenCalledTimes(1);
+		// event row written with overdraft_disabled
+		const firstInsertArg = mockInsertValues.mock.calls[0]?.[0] as any;
+		expect(firstInsertArg?.eventType).toBe("overdraft_disabled");
+	});
+
+	test("non-existent packageInstanceId → throws 'Package instance not found'", async () => {
+		const mockForUpdate = mock(() => Promise.resolve([])); // empty — not found
+		const mockSelectWhere = mock(() => ({ for: mockForUpdate }));
+		const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
+		const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+		const tx = {
+			select: mockSelect,
+		} as any;
+
+		const db = {
+			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+		} as any;
+
+		await expect(
+			setPackageOverdraft(db, "nonexistent-id", true, "test", actor),
+		).rejects.toThrow("Package instance not found");
 	});
 });

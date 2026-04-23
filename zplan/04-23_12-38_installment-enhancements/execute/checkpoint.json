@@ -2,40 +2,33 @@
   "schemaVersion": 1,
   "sessionPath": "zplan/04-23_12-38_installment-enhancements",
   "planPath": "zplan/04-23_12-38_installment-enhancements/plan/plan.md",
-  "updatedAt": "2026-04-23T14:15:00Z",
+  "updatedAt": "2026-04-23T14:30:00Z",
   "status": "in_progress",
   "gitHeadAtStart": "3a25d1254be1d16e9ac77bdc5436e947c23089a0",
-  "lastCompletedPhase": 3,
-  "currentPhase": 4,
+  "lastCompletedPhase": 4,
+  "currentPhase": 5,
   "totalPhases": 5,
-  "pendingPhases": [4, 5],
+  "pendingPhases": [5],
   "phaseAgents": {
-    "1": [
-      { "role": "Agent 1A (backend)", "logWritten": true },
-      { "role": "Agent 1B (frontend)", "logWritten": true }
-    ],
-    "2": [
-      { "role": "Agent 2 (frontend)", "logWritten": true }
-    ],
-    "3": [
-      { "role": "Agent 3 (backend)", "logWritten": true }
-    ],
-    "4": [
-      { "role": "Agent 4 (backend)", "logWritten": false }
-    ]
+    "1": [{"role": "Agent 1A (backend)", "logWritten": true}, {"role": "Agent 1B (frontend)", "logWritten": true}],
+    "2": [{"role": "Agent 2 (frontend)", "logWritten": true}],
+    "3": [{"role": "Agent 3 (backend)", "logWritten": true}],
+    "4": [{"role": "Agent 4 (backend)", "logWritten": true}],
+    "5": [{"role": "Agent 5 (frontend)", "logWritten": false}]
   },
   "taskCoverage": {
-    "1": { "total": 8, "done": 8, "missed": 0 },
-    "2": { "total": 1, "done": 1, "missed": 0 },
-    "3": { "total": 5, "done": 5, "missed": 0 }
+    "1": {"total": 8, "done": 8, "missed": 0},
+    "2": {"total": 1, "done": 1, "missed": 0},
+    "3": {"total": 5, "done": 5, "missed": 0},
+    "4": {"total": 8, "done": 8, "missed": 0}
   },
   "missedTasks": [],
   "resolvedDecisions": [
-    { "id": "OQ1", "title": "Overdraft semantics", "decision": "Option B — bypass isLocked only", "reason": "Narrow, reversible" },
-    { "id": "OQ3", "title": "Native app booking path", "decision": "Out of scope", "reason": "User directive" },
-    { "id": "P3-DRIFT", "title": "expenses.currency drift bundled into 0016 migration", "decision": "Ship as-is (Option A)", "reason": "Idempotent; drift fix is harmless side effect" }
+    {"id": "OQ1", "title": "Overdraft semantics", "decision": "Option B — bypass isLocked only"},
+    {"id": "OQ3", "title": "Native app booking path", "decision": "Out of scope"},
+    {"id": "P3-DRIFT", "title": "expenses.currency drift in 0016", "decision": "Ship as-is"}
   ],
   "openQuestions": [],
-  "nextActions": ["Agent 4 (backend) for setPackageOverdraft + enforcement; user applies migration 0016 to dev tenant DB in parallel"],
+  "nextActions": ["Execute Phase 5 (overdraft UI)"],
   "subagentRetryLog": []
 }

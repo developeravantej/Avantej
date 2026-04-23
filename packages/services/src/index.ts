@@ -149,6 +149,7 @@ export {
 	adjustCredits,
 	type AdjustCreditsParams,
 	processRefund,
+	setPackageOverdraft,
 	type SuggestedRefundInput,
 	type SuggestedRefundResult,
 	unlockPackage,

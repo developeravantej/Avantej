@@ -829,6 +829,76 @@ export async function rescheduleInstallment(
 }
 
 // ---------------------------------------------------------------------------
+// Overdraft toggle
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle the allowCreditOverdraft flag on a package instance.
+ *
+ * When enabled, credit-consuming operations (appointment booking, check-in)
+ * bypass the isLocked check. Intended for VIP / trusted customers where the
+ * admin has agreed to accept a delayed payment verbally.
+ *
+ * Idempotent: if the flag is already in the target state, returns the existing
+ * row without writing an audit row or event (matches unlockPackage D.2.4 pattern).
+ */
+export async function setPackageOverdraft(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+	enabled: boolean,
+	reason: string,
+	actor: { userId: string; memberId: string; role: string },
+): Promise<typeof packageInstances.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, packageInstanceId))
+			.for("update");
+
+		if (!pkg) throw new Error("Package instance not found");
+
+		// Idempotent no-op — flag is already in target state
+		if (pkg.allowCreditOverdraft === enabled) return pkg;
+
+		const now = new Date();
+		const [updated] = await tx
+			.update(packageInstances)
+			.set({ allowCreditOverdraft: enabled, updatedAt: now })
+			.where(eq(packageInstances.id, packageInstanceId))
+			.returning();
+
+		if (!updated) throw new Error("Failed to update package instance");
+
+		await tx.insert(installmentEvents).values({
+			packageInstanceId,
+			installmentId: null,
+			eventType: enabled ? "overdraft_enabled" : "overdraft_disabled",
+			actorId: actor.userId,
+			amount: null,
+			reason,
+			metadata: JSON.stringify({ previous: pkg.allowCreditOverdraft }),
+		});
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: enabled ? "package.overdraft_enabled" : "package.overdraft_disabled",
+			entityType: "package_instance",
+			entityId: packageInstanceId,
+			summary: `Admin ${enabled ? "enabled" : "disabled"} overdraft on package ${packageInstanceId}: ${reason}`,
+			changes: {
+				allowCreditOverdraft: { from: pkg.allowCreditOverdraft, to: enabled },
+				reason,
+			},
+		});
+
+		return updated;
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
 

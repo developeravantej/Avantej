@@ -128,3 +128,41 @@ Note: The `expenses` currency default change reflects a pre-existing schema drif
   2. `bun run scripts/migrate-all-tenants.ts --concurrency=1` to apply
 
 ---
+
+## Agent: Agent 4 (backend) — Phase 4
+**Completed:** 2026-04-23T17:30:00.000Z
+
+### What I Did
+- `packages/services/src/installment.service.ts`: Added `setPackageOverdraft` function — transactional, idempotent no-op when flag already in target state, writes `installmentEvents` row + `writeAudit` row via same tx, uses `.for("update")` on packageInstances row
+- `packages/services/src/index.ts`: Added `setPackageOverdraft` to named exports from `./installment.service`
+- `packages/api/src/routers/installments.ts`: Added `setOverdraft` procedure mirroring `manualUnlock` pattern (tenantDb guard → member guard → admin-role guard); exported in `installmentsRouter` object; imported `setPackageOverdraft` from `@avantej-core/services`
+- `packages/services/src/appointment.service.ts`: Changed line ~264 from `if (lockedPkg.isLocked)` to `if (lockedPkg.isLocked && !lockedPkg.allowCreditOverdraft)`, added comment noting that `check-ins.service.ts` must also honour this flag if it ever adds an isLocked check
+- `apps/server/src/tests/helpers/db-mock.factory.ts`: Added `installments`, `installmentEvents`, `packageInstances` to `query` object in `createMockTenantDb()`
+- `apps/server/src/tests/unit/services/installment.test.ts`: Added import for `setPackageOverdraft`; added `describe("setPackageOverdraft")` block with 4 test cases (enable, idempotent enable, disable, not-found)
+- `apps/server/src/tests/unit/services/appointment.service.test.ts`: CREATED — 3 test cases for the A.1.5 gate: locked+overdraft=true→proceeds, locked+overdraft=false→throws, unlocked+overdraft=false→proceeds
+- `apps/server/src/tests/integration/installments.integration.test.ts`: CREATED — 2 integration tests: enable overdraft → row updated + audit_log row exists; idempotent call → no audit row written. Guards with `shouldSkipIntegration()`
+
+DONE: #15
+DONE: #16
+DONE: #17
+DONE: #18 (other isLocked paths found: `installment.service.ts:455` — already-locked early-return in evaluateAndLockIfOverdue (not a consumption gate); `installment.service.ts:555` — unlock precondition guard; `installment.service.ts:769` — rescheduleInstallment admin workflow gate (overdraft not applicable); `installment.service.ts:88x` — adminOverview filter predicates (not gates); `package-instance.service.ts:67,174,193,359,388` — schema mapping only. check-ins.service.ts: zero isLocked matches confirmed. Only appointment.service.ts:264 is a consumption gate.)
+DONE: #19
+DONE: #20
+DONE: #21
+DONE: #22
+
+### Decisions Made
+- Used `bun:test` imports (not vitest) for all new test files — matched the existing test file convention despite plan documentation saying "Vitest"
+- `appointment.service.test.ts` uses a counter-based select mock that handles the exact call sequence inside `createAppointment`: call 0=evaluateAndExpireIfOverdue (line 247), call 1=evaluateAndExpireIfOverdue again (inside evaluateAndLockIfOverdue), call 2=getGracePeriodDaysForPackage, call 3=evaluateAndLockIfOverdue inner FOR UPDATE, call 4=A.1.3 FOR UPDATE
+- `select().where()` mock made thenable (added `.then()` property) to handle code that awaits `.where()` directly without chaining further
+- Integration test inserts a minimal packageInstances row using a real `serviceId` fetched from dev DB; gracefully skips with a console.warn if no services exist
+- `rescheduleInstallment` isLocked check at line 769 is an admin workflow guard (prevents rescheduling on locked packages), NOT a credit-consumption gate — overdraft flag is correctly NOT applied there
+
+### Issues Encountered
+- `appointment.service.test.ts` mock chain required iterative debugging: initial `{} is not iterable` error was from `.where()` returning an object (not a promise), requiring `.then()` on the where-result object; then `"Package instance not found"` was from incorrect call count (4 calls needed, not 4 because evaluateAndLockIfOverdue internally calls evaluateAndExpireIfOverdue again)
+- `setPackageOverdraft` tests in `installment.test.ts`: 4 pass cleanly; all 5 pre-existing evaluateAndLockIfOverdue failures are unchanged
+
+### Type-check
+- PASS — zero new type errors in any owned file beyond the pre-existing `bun:test` module resolution issue affecting all 55+ test files in the project (tsconfig gap, not introduced by this work)
+
+---

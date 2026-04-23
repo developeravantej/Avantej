@@ -261,7 +261,11 @@ export async function createAppointment(
         }
 
         // A.1.5 — Re-check status and credits on locked row
-        if (lockedPkg.isLocked) {
+        // allowCreditOverdraft=true bypasses the lock check for VIP / trusted customers
+        // who have been given admin permission to continue booking despite a missed payment.
+        // NOTE: if check-ins.service.ts ever adds an isLocked check, it MUST also honour
+        // allowCreditOverdraft in the same way.
+        if (lockedPkg.isLocked && !lockedPkg.allowCreditOverdraft) {
           throw new Error("Package is locked due to unpaid installment. Please complete your payment to continue booking.");
         }
         if (lockedPkg.status !== "active") {
