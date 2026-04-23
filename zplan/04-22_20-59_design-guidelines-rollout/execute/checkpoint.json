@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/04-22_20-59_design-guidelines-rollout",
+  "planPath": "zplan/04-22_20-59_design-guidelines-rollout/plan/plan.md",
+  "updatedAt": "2026-04-23T10:40:00Z",
+  "status": "in_progress",
+  "gitHeadAtStart": "7ebda7a2d66df724922f27d379e27ef81d618f24",
+  "lastCompletedPhase": "0+1",
+  "currentPhase": null,
+  "totalPhases": 6,
+  "pendingPhases": [2, 3, 4, 5, 6],
+  "phaseAgents": {
+    "0+1": [
+      { "role": "Agent 0A (PageCard)", "logWritten": true },
+      { "role": "Agent 0B (StatusBadge)", "logWritten": true },
+      { "role": "Agent 0C (EmptyState)", "logWritten": true },
+      { "role": "Agent 0D (StatusCallout)", "logWritten": true },
+      { "role": "Agent 0E (BranchSelector)", "logWritten": true },
+      { "role": "Agent 1A (Sidebar+QuickWins)", "logWritten": true }
+    ]
+  },
+  "taskCoverage": {
+    "0+1": { "total": 16, "done": 16, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "OQ8.4", "title": "Attendance anti-duplicate signal", "decision": "Option A (pre-flight checkIns.list)", "reason": "Zero server change; audit recommended" },
+    { "id": "OQ8.5", "title": "Step-chip colour", "decision": "bg-primary", "reason": "Consistent with §10.1 CTA treatment" },
+    { "id": "OQ8.6", "title": "Activity dot pattern", "decision": "Approved exception — 2-4px dots paired with text", "reason": "Sub-6px indicators are allowed per proposed §2.5 addition" },
+    { "id": "OQ8.7", "title": "Orange-600 announcements", "decision": "Map to warning variant", "reason": "Closest canonical mapping" },
+    { "id": "OQ8.1", "title": "Native app scope", "decision": "Token-only parity (default)", "reason": "Engineering lead default; ratify before Phase 6.3" },
+    { "id": "task15-findres", "title": "formatPrice canonicalisation task #15", "decision": "No changes made — all toFixed(2) sites in POS/refunds are form input values, not display labels", "reason": "Converting to formatPrice would return 'RM 5.00' which breaks <input type=number>" }
+  ],
+  "openQuestions": [],
+  "nextActions": [
+    "Run /execute again scoped to Phase 2 (enforcement) — requires .github/ creation + Biome/lint-classes.ts script",
+    "Phase 3 (high-violation pages) — requires Phase 0 done (now satisfied)",
+    "Phase 4 (per-section page refactors) — requires Phase 0 done (now satisfied)"
+  ],
+  "subagentRetryLog": [
+    {
+      "phase": "0+1",
+      "agentRole": "Agent 0B (StatusBadge)",
+      "attempt": 1,
+      "outcome": "no_log_entry",
+      "fallback": "inline",
+      "note": "Files were created correctly; agent failed to append to log.md"
+    }
+  ]
+}

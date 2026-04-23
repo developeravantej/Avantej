@@ -2,6 +2,7 @@
 
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+	ArrowLeftRight,
 	BadgeDollarSign,
 	Bell,
 	Briefcase,
@@ -9,10 +10,12 @@ import {
 	Calendar,
 	ChevronRight,
 	ClipboardCheck,
+	ClipboardList,
 	CreditCard,
 	DollarSign,
 	DoorOpen,
 	FileChartColumnIncreasing,
+	Grid3x3,
 	Home,
 	Layers,
 	LogOut,
@@ -22,6 +25,7 @@ import {
 	PackageSearch,
 	Percent,
 	Receipt,
+	Ruler,
 	ScrollText,
 	Search,
 	Settings,
@@ -107,7 +111,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{
 				title: "Membership",
 				url: "/dashboard/memberships/view",
-				icon: Package,
+				icon: CreditCard,
 				permission: "service_management:read",
 			},
 		],
@@ -124,7 +128,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{
 				title: "Class Slots",
 				url: "/dashboard/appointment/class-slots/view",
-				icon: Calendar,
+				icon: Grid3x3,
 				permission: "appointment_management:read",
 			},
 			{
@@ -150,7 +154,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{
 				title: "Purchase Orders",
 				url: "/dashboard/purchase-orders/view",
-				icon: ShoppingCart,
+				icon: ClipboardList,
 			},
 		],
 	},
@@ -163,11 +167,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/inventory-options",
 				icon: Warehouse,
 			},
-			{ title: "Units of Measure", url: "/dashboard/uom/view", icon: Package },
+			{ title: "Units of Measure", url: "/dashboard/uom/view", icon: Ruler },
 			{
 				title: "Stock Movement",
 				url: "/dashboard/stock-requests/view",
-				icon: ShoppingCart,
+				icon: ArrowLeftRight,
 			},
 		],
 	},

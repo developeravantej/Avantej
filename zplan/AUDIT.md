@@ -1,13 +1,14 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-04-21 23:50
+**Last run:** 2026-04-23 00:00
 **Sessions audited:** 1
-**Clean:** 1 · **Needs attention:** 0 · **Critical:** 0
+**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
 
 ## Sessions
 
 | Status | Session | Summary | Report |
 |--------|---------|---------|--------|
+| 🟡 needs-attention | `04-22_20-59_design-guidelines-rollout` | 8/8 sections, 0 broken refs (all 7 patched), 7 unresolved decisions/risks, not executed | [report](04-22_20-59_design-guidelines-rollout/audit/report.md) |
 | 🟢 clean | `04-21_19-53_service-category-commission` | 8/8 sections, 0 broken refs, 0 missing impact, 0 open TODOs, not executed | [report](04-21_19-53_service-category-commission/audit/report.md) |
 
 ## How to act on this

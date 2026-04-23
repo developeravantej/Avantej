@@ -20,7 +20,7 @@ interface HierarchyNode {
 	parentId: string | null;
 }
 
-interface BranchComboboxProps {
+export interface BranchComboboxProps {
 	organizationId: string;
 	value: string;
 	onChange: (value: string) => void;
@@ -28,6 +28,10 @@ interface BranchComboboxProps {
 	disabled?: boolean;
 }
 
+/**
+ * @deprecated Use `BranchSelector` from `@/components/branch/branch-selector` instead.
+ * This path will be removed after one PR cycle.
+ */
 export function BranchCombobox({
 	organizationId,
 	value,
