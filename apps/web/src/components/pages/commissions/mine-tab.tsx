@@ -166,13 +166,7 @@ export function MyCommissionsPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex min-h-96 items-center justify-center">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-					<span className="sr-only">Loading…</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	// ── Render ─────────────────────────────────────────────────────────────────
