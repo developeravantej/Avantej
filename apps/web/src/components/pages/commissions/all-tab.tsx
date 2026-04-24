@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 

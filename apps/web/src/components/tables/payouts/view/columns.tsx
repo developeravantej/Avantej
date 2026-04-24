@@ -2,7 +2,7 @@ import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Badge } from "@/components/ui/badge";
 import type { ColumnDef } from "@tanstack/react-table";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 export interface PayoutRow {
 	id?: string;

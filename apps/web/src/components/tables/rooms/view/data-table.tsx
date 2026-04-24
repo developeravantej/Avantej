@@ -1,3 +1,6 @@
+// NOTE: Partial migration — adopts TableToolbar visual primitive for the search bar.
+// Full migration to EntityDataTable skipped: deactivate/reactivate flow (not add/edit/delete),
+// RoomRow uses lowercase `id` (not `ID`), and caller supplies async handlers.
 import {
 	flexRender,
 	getCoreRowModel,
@@ -15,9 +18,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Search } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import { createColumns, type RoomRow } from "./columns";
 
 interface DataTableProps {
@@ -105,17 +107,13 @@ export function DataTable({
 
 	return (
 		<div className="flex h-full flex-col">
-			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
-				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						placeholder="Search rooms..."
-						value={globalFilter ?? ""}
-						onChange={(event) => setGlobalFilter(event.target.value)}
-						className="pl-9"
-					/>
-				</div>
-			</div>
+			<TableToolbar
+				search={{
+					value: globalFilter,
+					onChange: setGlobalFilter,
+					placeholder: "Search rooms...",
+				}}
+			/>
 
 			<div className="flex-1 overflow-y-auto">
 				<Table>

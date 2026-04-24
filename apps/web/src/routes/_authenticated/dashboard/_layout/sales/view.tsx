@@ -10,7 +10,7 @@ import PaymentDataTable from "@/components/tables/payment/view/data-table";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { getPeriodDates, type Period } from "@/lib/period";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";

@@ -11,15 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, queryClient } from "@/utils/orpc";
-import { Dialog, Transition } from "@headlessui/react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -392,7 +398,7 @@ function RouteComponent() {
   }, [error, navigate]);
 
   // Update mutation
-  const updateMutation = useMutation({
+  const updateMutation = useApiMutation({
     mutationFn: async ({
       branchId,
       name,
@@ -416,32 +422,34 @@ function RouteComponent() {
         picUserId,
       });
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: false,
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("already exists")) {
-        toast.error(`Failed to update branch: ${errorMessage}`);
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch not found");
-      } else if (
+        return `Failed to update branch: ${errorMessage}`;
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to update this branch");
-      } else {
-        toast.error(`Failed to update branch: ${errorMessage}`);
+        return "You don't have permission to update this branch";
       }
+      return `Failed to update branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
   // Move mutation
-  const moveMutation = useMutation({
+  const moveMutation = useApiMutation({
     mutationFn: async ({
       branchId,
       newAreaId,
@@ -459,40 +467,43 @@ function RouteComponent() {
         newParentId: newAreaId,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: false,
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("circular reference")) {
-        toast.error("Cannot move branch: would create circular reference");
-      } else if (errorMessage.includes("already exists")) {
-        toast.error(
-          "A branch with this name already exists in the selected area"
-        );
-      } else if (
+        return "Cannot move branch: would create circular reference";
+      }
+      if (errorMessage.includes("already exists")) {
+        return "A branch with this name already exists in the selected area";
+      }
+      if (
         errorMessage.includes("Invalid parent type") ||
         errorMessage.includes("depth mismatch")
       ) {
-        toast.error("Invalid move: parent type mismatch");
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch or area not found");
-      } else if (
+        return "Invalid move: parent type mismatch";
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch or area not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to move this branch");
-      } else {
-        toast.error(`Failed to move branch: ${errorMessage}`);
+        return "You don't have permission to move this branch";
       }
+      return `Failed to move branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
   // Delete mutation
-  const deleteMutation = useMutation({
+  const deleteMutation = useApiMutation({
     mutationFn: async (branchId: string) => {
       if (!organizationId) {
         throw new Error("Organization ID is required");
@@ -503,34 +514,32 @@ function RouteComponent() {
         nodeId: branchId,
       });
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-      toast.success("Branch deleted successfully");
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: "Branch deleted successfully",
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("child node")) {
-        toast.error(
-          "Cannot delete branch: It has child nodes. Please delete or move them first."
-        );
-      } else if (errorMessage.includes("assigned member")) {
-        toast.error(
-          "Cannot delete branch: It has assigned members. Please reassign them first."
-        );
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch not found");
-      } else if (
+        return "Cannot delete branch: It has child nodes. Please delete or move them first.";
+      }
+      if (errorMessage.includes("assigned member")) {
+        return "Cannot delete branch: It has assigned members. Please reassign them first.";
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to delete this branch");
-      } else {
-        toast.error(`Failed to delete branch: ${errorMessage}`);
+        return "You don't have permission to delete this branch";
       }
+      return `Failed to delete branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
@@ -769,42 +778,14 @@ function RouteComponent() {
       )}
 
       {/* Edit Branch Dialog */}
-      <Transition appear show={isEditDialogOpen} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-10"
-          onClose={() => setIsEditDialogOpen(false)}
-        >
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-brand-primary-1/50" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-full p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all max-h-[90vh] overflow-y-auto">
-                  <Dialog.Title
-                    as="h3"
-                    className="mb-4 text-lg font-medium leading-6 text-brand-primary-1"
-                  >
-                    Edit Branch
-                  </Dialog.Title>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => !open && setIsEditDialogOpen(false)}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Branch</DialogTitle>
+          </DialogHeader>
                   <div className="space-y-4">
                     {/* Branch Name */}
                     <div className="space-y-2">
@@ -974,45 +955,41 @@ function RouteComponent() {
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditDialogOpen(false);
-                        setEditingBranch(null);
-                        setEditBranchName("");
-                        setEditBranchAddress("");
-                        setEditBranchPicUserId("");
-                        setEditBranchCountryId("");
-                        setEditBranchRegionId("");
-                        setEditBranchAreaId("");
-                      }}
-                      disabled={
-                        updateMutation.isPending || moveMutation.isPending
-                      }
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleEditSubmit}
-                      disabled={
-                        !editBranchName.trim() ||
-                        !editBranchAreaId ||
-                        updateMutation.isPending ||
-                        moveMutation.isPending
-                      }
-                    >
-                      {updateMutation.isPending || moveMutation.isPending
-                        ? "Saving..."
-                        : "Save Changes"}
-                    </Button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingBranch(null);
+                setEditBranchName("");
+                setEditBranchAddress("");
+                setEditBranchPicUserId("");
+                setEditBranchCountryId("");
+                setEditBranchRegionId("");
+                setEditBranchAreaId("");
+              }}
+              disabled={
+                updateMutation.isPending || moveMutation.isPending
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={
+                !editBranchName.trim() ||
+                !editBranchAreaId ||
+                updateMutation.isPending ||
+                moveMutation.isPending
+              }
+            >
+              {updateMutation.isPending || moveMutation.isPending
+                ? "Saving..."
+                : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { useState } from "react";
+import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 
 const onboardingSearchSchema = z.object({
   user_id: z.string().optional(),
@@ -52,9 +53,7 @@ function RouteComponent() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-          <span className="sr-only">Loading...</span>
-        </div>
+        <PageLoader />
       </div>
     );
   }
@@ -109,7 +108,7 @@ function RouteComponent() {
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="animate-spin h-4 w-4 border-2 border-current border-r-transparent rounded-full mr-2" />
+                      <LoadingSpinner size="sm" className="mr-2" />
                       Redirecting...
                     </>
                   ) : (

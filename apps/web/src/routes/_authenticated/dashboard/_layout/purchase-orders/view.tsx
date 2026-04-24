@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -23,12 +24,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { ShoppingCart, Plus, CheckCircle, Package, Trash2 } from "lucide-react";
 import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useState, useCallback, useMemo } from "react";
@@ -136,16 +137,14 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 		enabled: !!organizationId && open,
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.purchaseOrders.create>[0]) =>
 			client.purchaseOrders.create(input),
+		successMessage: "Purchase order created successfully.",
+		errorMessage: (err) => `Failed to create purchase order: ${err.message}`,
 		onSuccess: () => {
-			toast.success("Purchase order created successfully.");
 			onCreated();
 			handleClose();
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to create purchase order: ${err.message}`);
 		},
 	});
 
@@ -209,20 +208,20 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 				productId: l.productId,
 				orderedQty: parseInt(l.orderedQty, 10),
 				// API stores in cents; user enters in RM
-				unitCost: Math.round(parseFloat(l.unitCostRM) * 100),
+				unitCost: rmToCents(parseFloat(l.unitCostRM)),
 			})),
 		});
 	}
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-				<SheetHeader>
-					<SheetTitle>New Purchase Order</SheetTitle>
-					<SheetDescription>
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-2xl overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>New Purchase Order</DialogTitle>
+					<DialogDescription>
 						Create a draft purchase order to send to a supplier.
-					</SheetDescription>
-				</SheetHeader>
+					</DialogDescription>
+				</DialogHeader>
 
 				<div className="mt-6 space-y-5">
 					{/* Supplier */}
@@ -369,7 +368,7 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 								<span className="text-sm font-medium text-muted-foreground">
 									Running total:{" "}
 									<span className="text-foreground font-semibold">
-										{formatPrice(runningTotal * 100, "MYR")}
+										{formatPrice(rmToCents(runningTotal), "MYR")}
 									</span>
 								</span>
 							</div>
@@ -387,8 +386,8 @@ function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: Create
 						</Button>
 					</div>
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -426,16 +425,14 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 		[products],
 	);
 
-	const receiveMutation = useMutation({
+	const receiveMutation = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.purchaseOrders.receiveItems>[0]) =>
 			client.purchaseOrders.receiveItems(input),
+		successMessage: "Items received successfully.",
+		errorMessage: (err) => `Failed to receive items: ${err.message}`,
 		onSuccess: () => {
-			toast.success("Items received successfully.");
 			onDone();
 			onClose();
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to receive items: ${err.message}`);
 		},
 	});
 
@@ -465,16 +462,16 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 	const items = detail?.items ?? [];
 
 	return (
-		<Sheet open={!!poId} onOpenChange={(open) => { if (!open) onClose(); }}>
-			<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-				<SheetHeader>
-					<SheetTitle>Receive Items</SheetTitle>
-					<SheetDescription>
+		<Dialog open={!!poId} onOpenChange={(open) => { if (!open) onClose(); }}>
+			<DialogContent className="sm:max-w-lg overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>Receive Items</DialogTitle>
+					<DialogDescription>
 						{order
 							? `Record received quantities for PO ${order.purchaseOrderNumber}.`
 							: "Loading purchase order…"}
-					</SheetDescription>
-				</SheetHeader>
+					</DialogDescription>
+				</DialogHeader>
 
 				<div className="mt-6 space-y-4">
 					{isLoading && (
@@ -530,8 +527,8 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 						</>
 					)}
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -558,28 +555,20 @@ function RouteComponent() {
 		enabled: !!organizationId,
 	});
 
-	const approveMutation = useMutation({
+	const approveMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.purchaseOrders.approve({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			toast.success("Purchase order approved.");
-			qc.invalidateQueries({ queryKey: ["purchaseOrders", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to approve: ${err.message}`);
-		},
+		successMessage: "Purchase order approved.",
+		errorMessage: (err) => `Failed to approve: ${err.message}`,
+		invalidate: [["purchaseOrders", organizationId]],
 	});
 
-	const cancelMutation = useMutation({
+	const cancelMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.purchaseOrders.cancel({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			toast.success("Purchase order cancelled.");
-			qc.invalidateQueries({ queryKey: ["purchaseOrders", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to cancel: ${err.message}`);
-		},
+		successMessage: "Purchase order cancelled.",
+		errorMessage: (err) => `Failed to cancel: ${err.message}`,
+		invalidate: [["purchaseOrders", organizationId]],
 	});
 
 	const handleInvalidate = useCallback(() => {

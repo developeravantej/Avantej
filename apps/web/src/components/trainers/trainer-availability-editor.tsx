@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Save } from "lucide-react";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,6 @@ export function TrainerAvailabilityEditor({
 	trainerId,
 	onSaved,
 }: TrainerAvailabilityEditorProps) {
-	const queryClient = useQueryClient();
 	const [shifts, setShifts] = useState<ShiftState[]>([]);
 
 	// ── Fetch existing availability ──────────────────────────────────────────
@@ -96,7 +95,7 @@ export function TrainerAvailabilityEditor({
 
 	// ── Mutations ────────────────────────────────────────────────────────────
 
-	const saveMutation = useMutation({
+	const saveMutation = useApiMutation({
 		mutationFn: () =>
 			client.trainerAvailability.upsert({
 				organizationId,
@@ -114,17 +113,11 @@ export function TrainerAvailabilityEditor({
 					endTime: s.endTime,
 				})),
 			}),
+		successMessage: "Availability saved successfully.",
+		errorMessage: (err) => err.message || "Failed to save availability.",
+		invalidate: [["trainer-availability", trainerId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["trainer-availability", trainerId],
-			});
-			toast.success("Availability saved successfully.");
 			onSaved?.();
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to save availability.",
-			);
 		},
 	});
 

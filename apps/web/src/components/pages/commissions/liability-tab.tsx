@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -22,7 +22,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { centsToRm, formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 
@@ -79,10 +79,7 @@ function csvCell(value: string): string {
 	return `"${value.replace(/"/g, '""')}"`;
 }
 
-/** Convert cents to RM decimal string for CSV (no currency symbol) */
-function centsToRm(cents: number): string {
-	return (cents / 100).toFixed(2);
-}
+// centsToRm imported from @/lib/money
 
 // ─── CSV Export ───────────────────────────────────────────────────────────────
 
@@ -194,7 +191,6 @@ function MarkPaidDialog({
 export function LiabilityTab() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const canRead = hasPermission("commission_payout:read");
 	const canUpdate = hasPermission("commission_payout:update");
@@ -308,7 +304,7 @@ export function LiabilityTab() {
 		selectedMemberIds.has(t.memberId),
 	);
 
-	const { mutate: markPaidBatch, isPending: isMarkingPaid } = useMutation({
+	const { mutate: markPaidBatch, isPending: isMarkingPaid } = useApiMutation({
 		mutationFn: () =>
 			client.commissionSplits.markPaidBatch({
 				organizationId: organizationId ?? "",
@@ -316,23 +312,17 @@ export function LiabilityTab() {
 				from: toIsoStart(fromDate),
 				to: toIsoEnd(toDate),
 			}),
-		onSuccess: (result) => {
-			toast.success(
-				`Marked ${result.updatedCount} commission split${result.updatedCount !== 1 ? "s" : ""} as paid.`,
-			);
+		successMessage: (result) =>
+			`Marked ${result.updatedCount} commission split${result.updatedCount !== 1 ? "s" : ""} as paid.`,
+		errorMessage: (err) => err.message || "Failed to mark commissions as paid.",
+		invalidate: [
+			["commissionLiability"],
+			["commissions"],
+			["my-commissions"],
+		],
+		onSuccess: () => {
 			setMarkPaidOpen(false);
 			setSelectedMemberIds(new Set());
-			// Invalidate all commission-related queries for immediate refresh
-			queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
-			queryClient.invalidateQueries({ queryKey: ["commissions"] });
-			queryClient.invalidateQueries({ queryKey: ["my-commissions"] });
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error
-					? err.message
-					: "Failed to mark commissions as paid.",
-			);
 		},
 	});
 

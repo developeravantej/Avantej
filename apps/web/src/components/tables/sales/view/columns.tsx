@@ -7,7 +7,7 @@ import { Copy, Eye } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 export interface SalesRow {

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
-import { toast } from "sonner";
 import { useState } from "react";
 import {
 	Card,
@@ -197,7 +197,7 @@ function NotificationPreferencesPage() {
 
 	// ─── Mutation ────────────────────────────────────────────────────────────
 
-	const mutation = useMutation({
+	const mutation = useApiMutation({
 		mutationFn: (field: Partial<NotifPrefs>) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.notificationPreferences.update({
@@ -205,6 +205,7 @@ function NotificationPreferencesPage() {
 				...field,
 			});
 		},
+		errorMessage: "Failed to save preference",
 		onMutate: () => setSaveState("saving"),
 		onSuccess: () => {
 			setSaveState("saved");
@@ -212,7 +213,6 @@ function NotificationPreferencesPage() {
 		},
 		onError: () => {
 			setSaveState("idle");
-			toast.error("Failed to save preference");
 		},
 	});
 

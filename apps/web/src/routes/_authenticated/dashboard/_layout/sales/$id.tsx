@@ -13,7 +13,7 @@ import type { CanonicalStatus } from "@/components/ui/status-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(

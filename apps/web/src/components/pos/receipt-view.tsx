@@ -1,5 +1,5 @@
 import { Separator } from "@/components/ui/separator";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

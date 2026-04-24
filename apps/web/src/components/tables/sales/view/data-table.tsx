@@ -1,3 +1,7 @@
+// NOTE: Partial migration — adopts TableToolbar visual primitive for the search bar.
+// Full migration to EntityDataTable skipped: read-only view (no add/edit/delete actions),
+// uses cursor-style PaginationBar, complex external FilterToolbar rendered by parent,
+// and SalesRow uses lowercase `id`, not `ID`.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	Table,
@@ -13,12 +17,11 @@ import {
 	useReactTable,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Search } from "lucide-react";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 
 const PAGE_SIZE = 50;
 
@@ -93,17 +96,13 @@ export default function DataTable<TData, TValue>({
 
 	return (
 		<div className="flex h-full flex-col">
-			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
-				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						placeholder="Search..."
-						value={globalFilter ?? ""}
-						onChange={(event) => setGlobalFilter(event.target.value)}
-						className="pl-9"
-					/>
-				</div>
-			</div>
+			<TableToolbar
+				search={{
+					value: globalFilter,
+					onChange: setGlobalFilter,
+					placeholder: "Search...",
+				}}
+			/>
 			{error ? (
 				<div className="flex flex-1 items-center justify-center p-6">
 					<StatusCallout

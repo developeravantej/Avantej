@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,11 +57,12 @@ function TrainerTiersPage() {
 		enabled: !!orgId,
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (data: { name: string; description?: string; rank: number }) =>
 			client.trainerTiers.create({ organizationId: orgId, ...data }),
+		successMessage: "Tier created",
+		errorMessage: (err) => err.message || "Failed to create tier",
 		onSuccess: (result) => {
-			toast.success("Tier created");
 			setCreateOpen(false);
 			setCreateForm(EMPTY_FORM);
 			refetch();
@@ -68,34 +70,30 @@ function TrainerTiersPage() {
 				setMissingRateBanner((result as any).missingRateCategories);
 			}
 		},
-		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to create tier"),
 	});
 
-	const deactivateMutation = useMutation({
+	const deactivateMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.trainerTiers.deactivate({ organizationId: orgId, id }),
+		successMessage: "Tier deactivated",
+		errorMessage: (err) => err.message || "Failed to deactivate tier",
 		onSuccess: () => {
-			toast.success("Tier deactivated");
 			setDeactivateTarget(null);
 			refetch();
 		},
-		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate tier"),
 	});
 
-	const reactivateMutation = useMutation({
+	const reactivateMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.trainerTiers.reactivate({ organizationId: orgId, id }),
+		successMessage: "Tier reactivated",
+		errorMessage: (err) => err.message || "Failed to reactivate tier",
 		onSuccess: (result) => {
-			toast.success("Tier reactivated");
 			refetch();
 			if ((result as any).missingRateCategories?.length > 0) {
 				setMissingRateBanner((result as any).missingRateCategories);
 			}
 		},
-		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to reactivate tier"),
 	});
 
 	function handleCreate(e: React.FormEvent) {

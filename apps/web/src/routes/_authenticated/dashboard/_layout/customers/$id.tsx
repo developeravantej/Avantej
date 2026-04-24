@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Route ─────────────────────────────────────────────────────────────────────
@@ -144,11 +144,15 @@ function KpiCard({ label, value, valueClassName }: KpiCardProps) {
 
 // ─── Main page ──────────────────────────────────────────────────────────────────
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function Customer360Page() {
 	const { id } = Route.useParams();
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canRead = hasPermission("customer_management:read");
+	const idIsValid = UUID_RE.test(id);
 
 	// ── Primary query ──────────────────────────────────────────────────────
 	const {
@@ -162,7 +166,7 @@ function Customer360Page() {
 				organizationId: organizationId!,
 				memberId: id,
 			}),
-		enabled: !!organizationId && canRead,
+		enabled: !!organizationId && canRead && idIsValid,
 		staleTime: 60_000,
 		retry: (failureCount, err) => {
 			// Don't retry on NOT_FOUND / FORBIDDEN
@@ -234,6 +238,24 @@ function Customer360Page() {
 						You don't have permission to view customer profiles.
 					</AlertDescription>
 				</Alert>
+			</div>
+		);
+	}
+
+	if (!idIsValid) {
+		return (
+			<div className="flex min-h-96 flex-col items-center justify-center gap-4 p-6">
+				<Alert variant="destructive" className="max-w-md">
+					<AlertDescription>
+						Invalid customer link. This URL doesn't point to a valid customer.
+					</AlertDescription>
+				</Alert>
+				<Button variant="outline" asChild>
+					<Link to="/dashboard/customers/view" search={{ tab: "registered" }}>
+						<ArrowLeft className="mr-2 h-4 w-4" />
+						Back to Customers
+					</Link>
+				</Button>
 			</div>
 		);
 	}

@@ -1,6 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
-import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 
 type ProductStatus = "active" | "inactive" | "discontinued";
 type ProductType = "product" | "service_item";
@@ -43,27 +43,23 @@ export function useProductForm(organizationId: string | null) {
 		});
 	}
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (data: CreateProductInput) =>
 			client.products.create({ organizationId: organizationId!, ...data }),
+		successMessage: "Product created successfully",
+		errorMessage: (err) => err.message || "Failed to create product",
 		onSuccess: () => {
 			invalidateProducts();
-			toast.success("Product created successfully");
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create product");
 		},
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({ id, ...data }: { id: string } & UpdateProductInput) =>
 			client.products.update({ organizationId: organizationId!, id, ...data }),
+		successMessage: "Product updated successfully",
+		errorMessage: (err) => err.message || "Failed to update product",
 		onSuccess: () => {
 			invalidateProducts();
-			toast.success("Product updated successfully");
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update product");
 		},
 	});
 

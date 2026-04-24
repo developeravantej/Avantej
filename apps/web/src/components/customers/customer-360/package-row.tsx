@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { centsToRm } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ function InstallmentsSection({
 							</td>
 							<td className="px-3 py-2 tabular-nums">
 								{inst.amount != null
-									? `MYR ${(inst.amount / 100).toFixed(2)}`
+									? `MYR ${centsToRm(inst.amount)}`
 									: "—"}
 							</td>
 							<td className="px-3 py-2">

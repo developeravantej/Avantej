@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	flexRender,
@@ -7,7 +6,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { Search, LogIn } from "lucide-react";
-import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Button } from "@/components/ui/button";
@@ -95,14 +94,14 @@ export function UsersTable({
 
 	const canImpersonate = callerRole === "super_admin" || callerRole === "support";
 
-	const impersonateMutation = useMutation({
+	const impersonateMutation = useApiMutation({
 		mutationFn: (userId: string) => client.admin.impersonateUser({ userId }),
+		errorMessage: (err) => `Impersonation failed: ${err.message}`,
 		onSuccess: (result) => {
 			// Hard reload so the new cookie takes effect
 			window.location.href = result.redirectTo;
 		},
-		onError: (err: Error) => {
-			toast.error(`Impersonation failed: ${err.message}`);
+		onError: () => {
 			setConfirmingUser(null);
 		},
 	});

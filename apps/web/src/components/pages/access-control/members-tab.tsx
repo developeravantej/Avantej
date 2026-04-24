@@ -37,12 +37,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
-import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
@@ -288,14 +282,12 @@ function RoleAssignmentSheet({
 		}
 	};
 
-	const isMobile = useIsMobile();
-
 	return (
-		<Sheet open={isOpen} onOpenChange={onClose}>
-			<SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
-				<SheetHeader>
-					<SheetTitle>Assign Role to {user?.name}</SheetTitle>
-				</SheetHeader>
+		<Dialog open={isOpen} onOpenChange={onClose}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Assign Role to {user?.name}</DialogTitle>
+				</DialogHeader>
 
 				<div className="p-4 mt-6 space-y-4">
 					<div className="space-y-2">
@@ -361,8 +353,8 @@ function RoleAssignmentSheet({
 						</Button>
 					</div>
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -381,7 +373,6 @@ function InviteUserDialog({
 }: InviteUserDialogProps) {
 	const [email, setEmail] = useState("");
 	const [role, setRole] = useState<SystemRole>("staff");
-	const isMobile = useIsMobile();
 
 	const handleSubmit = async () => {
 		if (!email) {
@@ -403,11 +394,11 @@ function InviteUserDialog({
 	};
 
 	return (
-		<Sheet open={isOpen} onOpenChange={handleClose}>
-			<SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
-				<SheetHeader>
-					<SheetTitle>Invite User</SheetTitle>
-				</SheetHeader>
+		<Dialog open={isOpen} onOpenChange={handleClose}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Invite User</DialogTitle>
+				</DialogHeader>
 
 				<div className="p-4 mt-6 space-y-4">
 					<div className="space-y-2">
@@ -453,8 +444,8 @@ function InviteUserDialog({
 						</Button>
 					</div>
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,6 @@ function GoogleCalendarPage() {
 	const organizationId = userContext?.currentOrganizationId ?? "";
 	const { gcal, message } = Route.useSearch();
 	const navigate = Route.useNavigate();
-	const queryClient = useQueryClient();
 
 	// Fix 1 + 4: Show toast on redirect back from OAuth, then clear the params
 	// so remounts don't re-fire the toast.
@@ -89,17 +89,11 @@ function GoogleCalendarPage() {
 		enabled: !!organizationId,
 	});
 
-	const disconnectMutation = useMutation({
-		mutationFn: () => client.googleCalendar.disconnect({ organizationId }),
-		onSuccess: () => {
-			toast.success("Google Calendar disconnected");
-			queryClient.invalidateQueries({
-				queryKey: ["googleCalendar", "status", organizationId],
-			});
-		},
-		onError: () => {
-			toast.error("Failed to disconnect Google Calendar");
-		},
+	const disconnectMutation = useApiMutation({
+		mutationFn: (_: void) => client.googleCalendar.disconnect({ organizationId }),
+		successMessage: "Google Calendar disconnected",
+		errorMessage: "Failed to disconnect Google Calendar",
+		invalidate: [["googleCalendar", "status", organizationId]],
 	});
 
 	// Fix 2: Disable Connect when organizationId is not yet resolved

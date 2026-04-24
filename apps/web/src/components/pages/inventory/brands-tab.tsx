@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tag } from "lucide-react";
@@ -14,7 +14,6 @@ import type { BrandRow } from "@/components/tables/brands/view/columns";
 export function BrandsTabPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// Dialog state
 	const [_editTarget, setEditTarget] = useState<BrandRow | null>(null);
@@ -49,44 +48,16 @@ export function BrandsTabPage() {
 		return counts;
 	}, [products]);
 
-	const invalidate = () =>
-		queryClient.invalidateQueries({
-			queryKey: [
-				orpc.brands.list.key({ input: { organizationId: organizationId! } }),
-			],
-		});
-
-	// Mutations
-	const createMutation = useMutation({
-		mutationFn: (data: { name: string; description?: string }) =>
-			client.brands.create({ organizationId: organizationId!, ...data }),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Brand created successfully");
-		},
-		onError: (e: Error) => toast.error(e.message),
-	});
-
-	const updateMutation = useMutation({
-		mutationFn: (data: { id: string; name?: string; description?: string }) =>
-			client.brands.update({ organizationId: organizationId!, ...data }),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Brand updated successfully");
-			setEditTarget(null);
-		},
-		onError: (e: Error) => toast.error(e.message),
-	});
-
-	const deleteMutation = useMutation({
+	// Delete mutation (still owned by parent — form handles create/update)
+	const deleteMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.brands.delete({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Brand deleted successfully");
-			setDeleteTarget(null);
-		},
-		onError: (e: Error) => toast.error(e.message),
+		successMessage: "Brand deleted successfully",
+		errorMessage: (e) => e.message,
+		invalidate: [
+			[orpc.brands.list.key({ input: { organizationId: organizationId! } })],
+		],
+		onSuccess: () => setDeleteTarget(null),
 	});
 
 	if (!organizationId) {
@@ -137,14 +108,9 @@ export function BrandsTabPage() {
 			<DataTable
 				columns={columns}
 				data={tableData}
-				onAdd={(data) => createMutation.mutate(data)}
-				onEdit={(id, data) => updateMutation.mutate({ id, ...data })}
+				organizationId={organizationId}
 				onDelete={(id) => deleteMutation.mutate(id)}
-				isMutating={
-					createMutation.isPending ||
-					updateMutation.isPending ||
-					deleteMutation.isPending
-				}
+				isMutating={deleteMutation.isPending}
 			/>
 		</>
 	);

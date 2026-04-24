@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import type { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,13 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Briefcase, Edit } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -45,7 +46,6 @@ type ServiceBufferAssignment = {
 function MyServicesView() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? "";
-	const queryClient = useQueryClient();
 
 	// ── Sheet state ──────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ function MyServicesView() {
 
 	// ── Mutation ─────────────────────────────────────────────────────────────
 
-	const saveMutation = useMutation({
+	const saveMutation = useApiMutation({
 		mutationFn: ({
 			serviceId,
 			bufferTimeMinutes,
@@ -78,14 +78,13 @@ function MyServicesView() {
 				serviceId,
 				bufferTimeMinutes,
 			}),
+		successMessage: "Buffer time updated.",
+		errorMessage: (err) => err.message || "Failed to update.",
+		invalidate: [["myServices", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["myServices", organizationId] });
 			setSheetOpen(false);
 			setSelectedService(null);
-			toast.success("Buffer time updated.");
 		},
-		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to update."),
 	});
 
 	// ── Sheet helpers ────────────────────────────────────────────────────────
@@ -246,21 +245,21 @@ function MyServicesView() {
 				/>
 			)}
 
-			{/* Edit Buffer Sheet */}
-			<Sheet
+			{/* Edit Buffer Dialog */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-md overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>Set Buffer Time</SheetTitle>
-						<SheetDescription>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Set Buffer Time</DialogTitle>
+						<DialogDescription>
 							Override the default buffer time for this service.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="flex flex-col gap-5 px-4 py-4">
 						{/* Read-only: Service name */}
@@ -307,7 +306,7 @@ function MyServicesView() {
 							</p>
 						</div>
 
-						<SheetFooter className="px-0 pt-2 flex-col gap-2 sm:flex-row">
+						<DialogFooter className="px-0 pt-2 flex-col gap-2 sm:flex-row">
 							<Button
 								type="button"
 								variant="outline"
@@ -334,10 +333,10 @@ function MyServicesView() {
 							>
 								{saveMutation.isPending ? "Saving..." : "Save"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</div>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

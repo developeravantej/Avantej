@@ -23,19 +23,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
-import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogDescription,
+	DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,7 +39,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/trainers/view",
@@ -791,25 +784,25 @@ function TrainersView() {
 			</Dialog>
 
 
-			{/* Create / Edit Sheet */}
-			<Sheet
+			{/* Create / Edit Dialog */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
 							{editingMemberId ? "Edit Trainer" : "Add Trainer"}
-						</SheetTitle>
-						<SheetDescription>
+						</DialogTitle>
+						<DialogDescription>
 							{editingMemberId
 								? "Update this trainer's profile information."
 								: "Add an existing user as a trainer in this organization."}
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-4">
 						{/* ── Member Info (create only) ─────────────────────────── */}
@@ -1309,7 +1302,7 @@ function TrainersView() {
 						)}
 
 						{/* ── Footer ───────────────────────────────────────────── */}
-						<SheetFooter className="px-0 pt-4">
+						<DialogFooter className="px-0 pt-4">
 							<Button
 								type="button"
 								variant="outline"
@@ -1325,10 +1318,10 @@ function TrainersView() {
 										? "Save Changes"
 										: "Add Trainer"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

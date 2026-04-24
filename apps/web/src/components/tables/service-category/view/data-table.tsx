@@ -1,3 +1,8 @@
+// NOTE: Not migrated to shared <EntityDataTable> because this table uses useQuery internally
+// for edit data fetching, has row-click opening a ServiceCategoryDetailDialog, appends an
+// inline "Commission Config" action column with its own sheet, uses an onSuccess callback
+// pattern instead of onAdd/onEdit/onDelete, and handles deactivation via direct API calls.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	Table,
@@ -15,13 +20,13 @@ import {
 } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-category-form";
 import { ServiceCategoryDetailDialog } from "@/components/forms/service-category-detail-dialog";
 import { CategoryCommissionForm } from "@/components/forms/category-commission-form";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -30,7 +35,6 @@ interface DataTableProps<TData, TValue> {
 	data: TData[];
 	organizationId: string;
 	isLoading?: boolean;
-	onSuccess: () => void;
 	emptyTitle?: string;
 	emptyDescription?: string;
 	emptyAction?: { label: string; onClick: () => void };
@@ -41,7 +45,6 @@ export default function DataTable<TData, TValue>({
 	data,
 	organizationId,
 	isLoading = false,
-	onSuccess,
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
@@ -55,6 +58,7 @@ export default function DataTable<TData, TValue>({
 	const [commissionCategoryId, setCommissionCategoryId] = useState<string | null>(null);
 	const [commissionCategoryName, setCommissionCategoryName] = useState<string>("");
 	const [isCommissionSheetOpen, setIsCommissionSheetOpen] = useState(false);
+	const qc = useQueryClient();
 
 	const table = useReactTable({
 		data,
@@ -113,14 +117,14 @@ export default function DataTable<TData, TValue>({
 					isActive: false,
 				});
 				toast.success("Category deactivated");
-				onSuccess();
+				qc.invalidateQueries({ queryKey: orpc.serviceCategories.list.key() });
 			} catch (err: unknown) {
 				const message = err instanceof Error ? err.message : "Failed to deactivate category";
 				toast.error(message);
 				throw err;
 			}
 		},
-		[organizationId, onSuccess]
+		[organizationId, qc]
 	);
 
 	return (
@@ -234,7 +238,7 @@ export default function DataTable<TData, TValue>({
 			<ServiceFormDialog
 				isOpen={isAddDialogOpen}
 				onClose={() => setIsAddDialogOpen(false)}
-				onSubmit={async () => { onSuccess(); }}
+				organizationId={organizationId}
 				mode="create"
 			/>
 
@@ -244,7 +248,7 @@ export default function DataTable<TData, TValue>({
 					setIsEditDialogOpen(false);
 					setEditCategoryId(null);
 				}}
-				onSubmit={async () => { onSuccess(); }}
+				organizationId={organizationId}
 				mode="edit"
 				initialData={editInitialData}
 			/>

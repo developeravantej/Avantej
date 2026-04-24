@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { GreetingBanner } from "@/components/dashboard/greeting-banner";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { SectionHeader } from "@/components/dashboard/section-header";

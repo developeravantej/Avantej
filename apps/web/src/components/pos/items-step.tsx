@@ -12,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { centsToRm, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import type { CartItem, LineItemType } from "./types";
 
@@ -24,7 +25,7 @@ function nanoid(): string {
 function parsePriceCents(raw: string): number {
 	const n = Number.parseFloat(raw);
 	if (isNaN(n) || n < 0) return 0;
-	return Math.round(n * 100);
+	return rmToCents(n);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ interface RowProps {
 }
 
 function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
-	const priceRm = (item.unitPriceCents / 100).toFixed(2);
+	const priceRm = centsToRm(item.unitPriceCents);
 
 	const isLookup = item.type === "service";
 

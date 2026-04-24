@@ -1,3 +1,7 @@
+// NOTE: Partial migration — adopts TableToolbar + StatusCallout visual primitives.
+// Full migration to EntityDataTable skipped: requires enum-lookup props (brands,
+// categories, suppliers, uoms) for form fields; ProductFormDialog is not compatible
+// with the generic add/edit dialog slot; ProductRow uses lowercase `id`, not `ID`.
 import type { ColumnDef } from "@tanstack/table-core";
 import {
 	Table,
@@ -13,14 +17,14 @@ import {
 	useReactTable,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ProductFormDialog } from "@/components/forms/product-form";
-import type { CreateProductInput, UpdateProductInput } from "@/hooks/useProductForm";
+import type { ProductRow } from "@/components/tables/products/view/columns";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
@@ -30,10 +34,7 @@ interface Uom { id: string; name: string; symbol?: string }
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
-	onProductCreate?: (data: CreateProductInput) => void;
-	onProductUpdate?: (data: { id: string } & UpdateProductInput) => void;
-	isCreating?: boolean;
-	isUpdating?: boolean;
+	organizationId: string;
 	brands: Brand[];
 	categories: Category[];
 	suppliers: Supplier[];
@@ -45,13 +46,10 @@ interface DataTableProps<TData, TValue> {
 	onRetry?: () => void;
 }
 
-export default function DataTable<TData, TValue>({
+export default function DataTable<TData extends ProductRow, TValue>({
 	columns,
 	data,
-	onProductCreate,
-	onProductUpdate,
-	isCreating = false,
-	isUpdating = false,
+	organizationId,
 	brands,
 	categories,
 	suppliers,
@@ -64,6 +62,7 @@ export default function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+	const [editTarget, setEditTarget] = useState<TData | null>(null);
 
 	const table = useReactTable({
 		data,
@@ -77,37 +76,26 @@ export default function DataTable<TData, TValue>({
 		},
 	});
 
-	function handleCreateSubmit(formData: CreateProductInput | ({ id: string } & UpdateProductInput)) {
-		if ("id" in formData) {
-			onProductUpdate?.(formData);
-		} else {
-			onProductCreate?.(formData as CreateProductInput);
-		}
-		setIsAddDialogOpen(false);
-	}
-
 	return (
 		<div className="flex h-full flex-col">
-			{/* Search bar + toolbar */}
-			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
-				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						placeholder="Search products..."
-						value={globalFilter ?? ""}
-						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="pl-9"
-					/>
-				</div>
-				<div className="ml-auto flex gap-2">
-					<Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-						<Plus className="h-4 w-4" />
+			<TableToolbar
+				search={{
+					value: globalFilter,
+					onChange: setGlobalFilter,
+					placeholder: "Search products...",
+				}}
+				actions={
+					<Button
+						onClick={() => setIsAddDialogOpen(true)}
+						className="bg-black text-white hover:bg-black/90"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
 						Add Product
 					</Button>
-				</div>
-			</div>
+				}
+			/>
 
-			{/* Error state */}
 			{error ? (
 				<div className="flex flex-1 items-center justify-center p-6">
 					<StatusCallout
@@ -144,7 +132,8 @@ export default function DataTable<TData, TValue>({
 								table.getRowModel().rows.map((row) => (
 									<TableRow
 										key={row.id}
-										className="border-b border-border/30 transition-colors hover:bg-muted/30"
+										className="border-b border-border/30 transition-colors hover:bg-muted/30 cursor-pointer"
+										onClick={() => setEditTarget(row.original)}
 									>
 										{row.getVisibleCells().map((cell) => (
 											<TableCell key={cell.id} className="whitespace-nowrap px-6 py-4 text-sm">
@@ -170,12 +159,25 @@ export default function DataTable<TData, TValue>({
 				</div>
 			)}
 
+			{/* Add dialog */}
 			<ProductFormDialog
 				isOpen={isAddDialogOpen}
 				onClose={() => setIsAddDialogOpen(false)}
-				onSubmit={handleCreateSubmit}
-				isLoading={isCreating || isUpdating}
+				organizationId={organizationId}
 				mode="create"
+				brands={brands}
+				categories={categories}
+				suppliers={suppliers}
+				uoms={uoms}
+			/>
+
+			{/* Edit dialog — opened by clicking a row */}
+			<ProductFormDialog
+				isOpen={editTarget !== null}
+				onClose={() => setEditTarget(null)}
+				organizationId={organizationId}
+				mode="edit"
+				initialData={editTarget ?? undefined}
 				brands={brands}
 				categories={categories}
 				suppliers={suppliers}

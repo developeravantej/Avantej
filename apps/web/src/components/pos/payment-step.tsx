@@ -11,7 +11,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { formatPrice } from "@/lib/currency";
+import { centsToRm, formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import type { CartItem, InstallmentPlanOption, PaymentMethod } from "./types";
 
@@ -34,7 +34,7 @@ function calcTotalCents(
 function parseCents(raw: string): number {
 	const n = Number.parseFloat(raw);
 	if (isNaN(n) || n < 0) return 0;
-	return Math.round(n * 100);
+	return rmToCents(n);
 }
 
 const METHOD_CONFIG = [
@@ -91,7 +91,7 @@ export function PaymentStep({
 }: PaymentStepProps) {
 	const totalCents = calcTotalCents(items, discountCents, taxRateBps);
 	const amountTenderedRm =
-		amountTenderedCents > 0 ? (amountTenderedCents / 100).toFixed(2) : "";
+		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
 
 	const changeDueCents =
 		method === "cash" && amountTenderedCents >= totalCents
@@ -187,10 +187,10 @@ export function PaymentStep({
 							<Input
 								id="cash-tendered"
 								type="number"
-								min={(totalCents / 100).toFixed(2)}
+								min={centsToRm(totalCents)}
 								step="0.01"
 								className="pl-9"
-								placeholder={(totalCents / 100).toFixed(2)}
+								placeholder={centsToRm(totalCents)}
 								value={amountTenderedRm}
 								onChange={(e) =>
 									onAmountTenderedChange(parseCents(e.target.value))

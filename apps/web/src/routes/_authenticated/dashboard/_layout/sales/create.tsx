@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, ShoppingCart, UserX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -323,7 +324,7 @@ function PosCreatePage() {
 		(p) => p.id === selectedInstallmentPlanId,
 	);
 
-	const submitMutation = useMutation({
+	const submitMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!organizationId || !paymentMethod) {
 				throw new Error("Missing required sale information.");
@@ -393,19 +394,13 @@ function PosCreatePage() {
 						: undefined,
 			});
 		},
+		successMessage: "Sale recorded successfully!",
+		errorMessage: (err) => err.message || "Failed to record sale. Please try again.",
 		onSuccess: (data) => {
-			toast.success("Sale recorded successfully!");
 			navigate({
 				to: "/dashboard/sales/$id",
 				params: { id: data.salesOrderId },
 			});
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error
-					? err.message
-					: "Failed to record sale. Please try again.",
-			);
 		},
 	});
 

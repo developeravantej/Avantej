@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import {
 	BarChart2,
 	ChevronDown,
@@ -9,7 +10,6 @@ import {
 	User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Badge } from "@/components/ui/badge";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -30,14 +30,14 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -193,8 +193,6 @@ export function CustomerDetailSheet({
 	onOpenChange,
 	onSaved,
 }: CustomerDetailSheetProps) {
-	const queryClient = useQueryClient();
-
 	// Profile form state (managed separately to allow editing without refetching)
 	const [profileForm, setProfileForm] =
 		useState<ProfileFormState>(EMPTY_PROFILE_FORM);
@@ -236,7 +234,7 @@ export function CustomerDetailSheet({
 
 	// ── Profile upsert mutation ────────────────────────────────────────────
 
-	const upsertMutation = useMutation({
+	const upsertMutation = useApiMutation({
 		mutationFn: () => {
 			if (!data) throw new Error("No customer data loaded");
 			return client.customerProfiles.upsertForCustomer({
@@ -258,22 +256,16 @@ export function CustomerDetailSheet({
 				notes: profileForm.notes || undefined,
 			});
 		},
+		successMessage: "Profile updated successfully.",
+		errorMessage: (err) => err.message || "Failed to update profile.",
+		// Invalidate both the detail and the list so the table refreshes
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			["customerDirectory", organizationId],
+		],
 		onSuccess: () => {
-			toast.success("Profile updated successfully.");
 			setFormDirty(false);
-			// Invalidate both the detail and the list so the table refreshes
-			queryClient.invalidateQueries({
-				queryKey: ["customerDirectory", "detail", organizationId, memberId],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ["customerDirectory", organizationId],
-			});
 			onSaved?.();
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to update profile.",
-			);
 		},
 	});
 
@@ -292,18 +284,14 @@ export function CustomerDetailSheet({
 	// ── Render ──────────────────────────────────────────────────────────────
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[640px]">
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl">
 				{isLoading || !data ? (
-					<div className="flex min-h-96 items-center justify-center">
-						<div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-r-transparent">
-							<span className="sr-only">Loading...</span>
-						</div>
-					</div>
+					<PageLoader />
 				) : (
 					<>
-						{/* ── Sheet Header ─────────────────────────────────── */}
-						<SheetHeader className="border-b px-6 pt-6 pb-4">
+						{/* ── Dialog Header ─────────────────────────────────── */}
+						<DialogHeader className="border-b px-6 pt-6 pb-4">
 							<div className="flex items-center gap-3">
 								<span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-sm">
 									{(user?.name ?? "?")
@@ -314,20 +302,20 @@ export function CustomerDetailSheet({
 										.join("")}
 								</span>
 								<div className="min-w-0 flex-1">
-									<SheetTitle className="font-semibold text-lg leading-tight">
+									<DialogTitle className="font-semibold text-lg leading-tight">
 										{user?.name ?? "Unknown"}
-									</SheetTitle>
-									<SheetDescription asChild>
+									</DialogTitle>
+									<DialogDescription asChild>
 										<div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
 											<CopyableCell value={user?.email} />
 											<span className="text-muted-foreground text-xs">
 												Member since {formatDate(member?.joinedAt)}
 											</span>
 										</div>
-									</SheetDescription>
+									</DialogDescription>
 								</div>
 							</div>
-						</SheetHeader>
+						</DialogHeader>
 
 						<div className="flex-1 space-y-2 overflow-y-auto px-6 py-4">
 							{/* ── Section 1: Profile (editable) ──────────── */}
@@ -627,7 +615,7 @@ export function CustomerDetailSheet({
 						</div>
 					</>
 				)}
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }

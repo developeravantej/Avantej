@@ -6,9 +6,12 @@ import { PageLoader } from "@/components/ui/loading-spinner";
 import { useState } from "react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { ActionCategoryBadge } from "@/components/ui/action-category-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
 	Dialog,
 	DialogContent,
@@ -80,32 +83,6 @@ const ENTITY_TYPES = [
 	"tax_rate",
 ] as const;
 
-// ─── Action color mapping ─────────────────────────────────────────────────────
-
-/**
- * Maps the leading category of an action string to a Tailwind badge class.
- * Key = first segment of action (before the first ".").
- */
-const ACTION_CATEGORY_COLORS: Record<string, string> = {
-	sale: "bg-blue-100 text-blue-800 border-blue-200",
-	commission: "bg-green-100 text-green-800 border-green-200",
-	member: "bg-purple-100 text-purple-800 border-purple-200",
-	checkin: "bg-cyan-100 text-cyan-800 border-cyan-200",
-	package: "bg-indigo-100 text-indigo-800 border-indigo-200",
-	promotion: "bg-pink-100 text-pink-800 border-pink-200",
-	tax: "bg-yellow-100 text-yellow-800 border-yellow-200",
-	system: "bg-muted text-muted-foreground border-border",
-};
-
-// Refund actions get their own color (override the sale.* default)
-function getActionColor(action: string): string {
-	if (action.includes("refund")) {
-		return "bg-orange-100 text-orange-800 border-orange-200";
-	}
-	const category = action.split(".")[0] ?? "system";
-	return ACTION_CATEGORY_COLORS[category] ?? ACTION_CATEGORY_COLORS.system;
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AuditRowEnriched = {
@@ -167,29 +144,6 @@ function formatAbsoluteTime(date: Date | string | null): string {
 		minute: "2-digit",
 		second: "2-digit",
 	});
-}
-
-// ─── Role badge ───────────────────────────────────────────────────────────────
-
-const ROLE_BADGE_COLORS: Record<string, string> = {
-	admin: "bg-red-100 text-red-800 border-red-200",
-	staff: "bg-blue-100 text-blue-800 border-blue-200",
-	trainer: "bg-green-100 text-green-800 border-green-200",
-	client: "bg-muted text-muted-foreground border-border",
-	system: "bg-muted text-muted-foreground border-border",
-};
-
-function RoleBadge({ role }: { role: string | null }) {
-	if (!role) return null;
-	const colorClass =
-		ROLE_BADGE_COLORS[role.toLowerCase()] ?? ROLE_BADGE_COLORS.system;
-	return (
-		<span
-			className={`inline-flex items-center rounded border px-1.5 py-0.5 font-medium text-[10px] uppercase tracking-wide ${colorClass}`}
-		>
-			{role}
-		</span>
-	);
 }
 
 // ─── Changes Dialog ───────────────────────────────────────────────────────────
@@ -438,16 +392,12 @@ function AuditLogPage() {
 		{
 			accessorKey: "action",
 			header: "Action",
-			cell: ({ row }) => {
-				const colorClass = getActionColor(row.original.action);
-				return (
-					<span
-						className={`inline-flex items-center rounded border px-2 py-0.5 font-mono text-xs ${colorClass}`}
-					>
-						{row.original.action}
-					</span>
-				);
-			},
+			cell: ({ row }) => (
+				<ActionCategoryBadge
+					action={row.original.action}
+					className="font-mono normal-case tracking-normal text-xs px-2"
+				/>
+			),
 		},
 		{
 			accessorKey: "entityType",
@@ -739,29 +689,12 @@ function AuditLogPage() {
 
 			{/* Pagination */}
 			{total > PAGE_LIMIT && (
-				<div className="flex items-center justify-between text-muted-foreground text-sm">
-					<span>
-						Page {currentPage} of {totalPages} ({total} total)
-					</span>
-					<div className="flex gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
-							disabled={offset === 0}
-						>
-							Previous
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setOffset(offset + PAGE_LIMIT)}
-							disabled={offset + PAGE_LIMIT >= total}
-						>
-							Next
-						</Button>
-					</div>
-				</div>
+				<TablePagination
+					page={Math.floor(offset / PAGE_LIMIT)}
+					pageSize={PAGE_LIMIT}
+					totalRows={total}
+					onPageChange={(newPage) => setOffset(newPage * PAGE_LIMIT)}
+				/>
 			)}
 
 			{/* Detail dialog — row expand v1 */}

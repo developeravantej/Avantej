@@ -1,8 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
-import { toast } from "sonner";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,14 +13,6 @@ import { PageLoader } from "@/components/ui/loading-spinner";
 export function UnitsTabPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
-
-	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-	const [editTarget, setEditTarget] = useState<{
-		id: string;
-		name: string;
-		description: string;
-	} | null>(null);
 
 	const { data: allUoms = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["unitsOfMeasure", organizationId],
@@ -33,63 +24,16 @@ export function UnitsTabPage() {
 	// Show only base UOMs (no parent)
 	const baseUoms = allUoms.filter((u) => !u.baseUomId);
 
-	const createMutation = useMutation({
-		mutationFn: (vars: { name: string; description?: string }) =>
-			client.unitsOfMeasure.create({
-				organizationId: organizationId!,
-				name: vars.name,
-				description: vars.description,
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("UoM created");
-			setIsAddDialogOpen(false);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create UoM: ${message}`);
-		},
-	});
-
-	const updateMutation = useMutation({
-		mutationFn: (vars: { id: string; name: string; description?: string }) =>
-			client.unitsOfMeasure.update({
-				organizationId: organizationId!,
-				id: vars.id,
-				name: vars.name,
-				description: vars.description,
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("UoM updated");
-			setEditTarget(null);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to update UoM: ${message}`);
-		},
-	});
-
-	const deleteMutation = useMutation({
+	const deleteMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.unitsOfMeasure.delete({
 				organizationId: organizationId!,
 				id,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("UoM deleted");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to delete UoM: ${message}`);
-		},
+		successMessage: "UoM deleted",
+		errorMessage: (error) =>
+			`Failed to delete UoM: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["unitsOfMeasure", organizationId]],
 	});
 
 	if (!organizationId) {
@@ -140,15 +84,8 @@ export function UnitsTabPage() {
 			<DataTable
 				columns={columns}
 				data={baseUoms}
-				isAddDialogOpen={isAddDialogOpen}
-				onAddDialogOpenChange={setIsAddDialogOpen}
-				editTarget={editTarget}
-				onEditTargetChange={setEditTarget}
-				onCreate={(vars) => createMutation.mutate(vars)}
-				onUpdate={(vars) => updateMutation.mutate(vars)}
+				organizationId={organizationId}
 				onDelete={(id) => deleteMutation.mutate(id)}
-				isCreating={createMutation.isPending}
-				isUpdating={updateMutation.isPending}
 				isDeleting={deleteMutation.isPending}
 			/>
 		</div>

@@ -1,3 +1,11 @@
+// NOTE: Not migrated to shared <EntityDataTable> because:
+//   1. UomConversionRow uses lowercase `id` (BaseRow requires uppercase `ID`) and columns.tsx is off-limits.
+//   2. Add/edit dialog state is owned by the parent caller (conversions-tab.tsx) via props
+//      (isAddDialogOpen, editTarget, onEditTargetChange), incompatible with useEntityTable internals.
+//   3. Has extra domain props (uomMap, baseUoms) with inline select fields not compatible
+//      with the generic FormDialog pattern.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
+
 import {
 	flexRender,
 	getCoreRowModel,

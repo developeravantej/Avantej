@@ -4,7 +4,7 @@ import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge"
 import type { ColumnDef } from "@tanstack/table-core";
 import { Package } from "lucide-react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 export interface ProductRow {
 	id: string;

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -11,14 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -34,7 +27,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { Plus, Tag, Edit, Percent } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -257,7 +250,7 @@ function buildColumns(
 function PromotionsViewPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+	const promotionsKey = ["promotions", organizationId];
 
 	// Sheet state
 	const [createOpen, setCreateOpen] = useState(false);
@@ -316,46 +309,38 @@ function PromotionsViewPage() {
 
 	// ── Mutations ──────────────────────────────────────────────────────────────
 
-	const { mutate: createPromotion, isPending: isCreating } = useMutation({
+	const { mutate: createPromotion, isPending: isCreating } = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.promotions.create>[0]) =>
 			client.promotions.create(input),
+		successMessage: "Promotion created successfully.",
+		errorMessage: (err) => err.message || "Failed to create promotion.",
+		invalidate: [promotionsKey],
 		onSuccess: () => {
-			toast.success("Promotion created successfully.");
-			queryClient.invalidateQueries({ queryKey: ["promotions", organizationId] });
 			setCreateOpen(false);
 			setCreateForm(defaultCreateForm);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create promotion.");
-		},
 	});
 
-	const { mutate: updatePromotion, isPending: isUpdating } = useMutation({
+	const { mutate: updatePromotion, isPending: isUpdating } = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.promotions.update>[0]) =>
 			client.promotions.update(input),
+		successMessage: "Promotion updated successfully.",
+		errorMessage: (err) => err.message || "Failed to update promotion.",
+		invalidate: [promotionsKey],
 		onSuccess: () => {
-			toast.success("Promotion updated successfully.");
-			queryClient.invalidateQueries({ queryKey: ["promotions", organizationId] });
 			setEditOpen(false);
 			setEditTarget(null);
 		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update promotion.");
-		},
 	});
 
-	const { mutate: deactivatePromotion, isPending: isDeactivating } = useMutation({
+	const { mutate: deactivatePromotion, isPending: isDeactivating } = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected.");
 			return client.promotions.deactivate({ organizationId, id });
 		},
-		onSuccess: () => {
-			toast.success("Promotion deactivated.");
-			queryClient.invalidateQueries({ queryKey: ["promotions", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to deactivate promotion.");
-		},
+		successMessage: "Promotion deactivated.",
+		errorMessage: (err) => err.message || "Failed to deactivate promotion.",
+		invalidate: [promotionsKey],
 	});
 
 	// ── Handlers ───────────────────────────────────────────────────────────────
@@ -408,7 +393,7 @@ function PromotionsViewPage() {
 
 		const rawMinOrder = parseFloat(createForm.minimumOrderAmount);
 		const minimumOrderAmount = !Number.isNaN(rawMinOrder) && rawMinOrder > 0
-			? Math.round(rawMinOrder * 100)
+			? rmToCents(rawMinOrder)
 			: undefined;
 
 		const rawUsageLimit = parseInt(createForm.usageLimit, 10);
@@ -510,19 +495,19 @@ function PromotionsViewPage() {
 				emptyAction={{ label: "New Promotion", onClick: () => setCreateOpen(true) }}
 			/>
 
-			{/* ── Create Sheet ─────────────────────────────────────────────────── */}
-			<Sheet open={createOpen} onOpenChange={setCreateOpen}>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-					<SheetHeader className="pb-4">
-						<SheetTitle className="flex items-center gap-2">
+			{/* ── Create Dialog ─────────────────────────────────────────────────── */}
+			<Dialog open={createOpen} onOpenChange={setCreateOpen}>
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader className="pb-4">
+						<DialogTitle className="flex items-center gap-2">
 							<Percent className="h-4 w-4 text-primary" />
 							New Promotion
-						</SheetTitle>
-						<SheetDescription>
+						</DialogTitle>
+						<DialogDescription>
 							Create a new discount code or promotion. The code will be
 							automatically uppercased.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 					<Separator />
 					<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 px-4 py-5">
 						{/* Code */}
@@ -747,7 +732,7 @@ function PromotionsViewPage() {
 						</div>
 
 						<Separator />
-						<SheetFooter className="px-0 pb-0">
+						<DialogFooter className="px-0 pb-0">
 							<Button
 								type="button"
 								variant="outline"
@@ -762,10 +747,10 @@ function PromotionsViewPage() {
 							<Button type="submit" disabled={isCreating}>
 								{isCreating ? "Creating..." : "Create Promotion"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 
 			{/* ── Deactivate Confirmation Dialog ──────────────────────────────── */}
 			<Dialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
@@ -799,8 +784,8 @@ function PromotionsViewPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* ── Edit Sheet ───────────────────────────────────────────────────── */}
-			<Sheet
+			{/* ── Edit Dialog ───────────────────────────────────────────────────── */}
+			<Dialog
 				open={editOpen}
 				onOpenChange={(open) => {
 					if (!open) {
@@ -809,17 +794,17 @@ function PromotionsViewPage() {
 					}
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-					<SheetHeader className="pb-4">
-						<SheetTitle className="flex items-center gap-2">
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader className="pb-4">
+						<DialogTitle className="flex items-center gap-2">
 							<Edit className="h-4 w-4 text-primary" />
 							Edit Promotion
-						</SheetTitle>
-						<SheetDescription>
+						</DialogTitle>
+						<DialogDescription>
 							Update the name, description, and validity window. Code and type
 							cannot be changed after creation.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 					<Separator />
 
 					{editTarget && (
@@ -908,7 +893,7 @@ function PromotionsViewPage() {
 						</div>
 
 						<Separator />
-						<SheetFooter className="px-0 pb-0">
+						<DialogFooter className="px-0 pb-0">
 							<Button
 								type="button"
 								variant="outline"
@@ -923,10 +908,10 @@ function PromotionsViewPage() {
 							<Button type="submit" disabled={isUpdating}>
 								{isUpdating ? "Saving..." : "Save Changes"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

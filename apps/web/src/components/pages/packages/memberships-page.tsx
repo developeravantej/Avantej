@@ -28,7 +28,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 type MembershipFilter =

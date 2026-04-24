@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
-import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,7 +13,6 @@ import { columns } from "@/components/tables/uom-conversions/view/columns";
 export function UomConversionsTabPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [editTarget, setEditTarget] = useState<{
@@ -37,7 +36,7 @@ export function UomConversionsTabPage() {
 	const baseUoms = allUoms.filter((u) => !u.baseUomId);
 	const uomMap = Object.fromEntries(allUoms.map((u) => [u.id, u.name]));
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (vars: {
 			name: string;
 			description?: string;
@@ -51,20 +50,14 @@ export function UomConversionsTabPage() {
 				baseUomId: vars.baseUomId,
 				conversionFactor: vars.conversionFactor,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion created");
-			setIsAddDialogOpen(false);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create conversion: ${message}`);
-		},
+		successMessage: "Conversion created",
+		errorMessage: (error) =>
+			`Failed to create conversion: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setIsAddDialogOpen(false),
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: (vars: {
 			id: string;
 			name?: string;
@@ -76,35 +69,23 @@ export function UomConversionsTabPage() {
 				organizationId: organizationId!,
 				...vars,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion updated");
-			setEditTarget(null);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to update conversion: ${message}`);
-		},
+		successMessage: "Conversion updated",
+		errorMessage: (error) =>
+			`Failed to update conversion: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setEditTarget(null),
 	});
 
-	const deleteMutation = useMutation({
+	const deleteMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.unitsOfMeasure.delete({
 				organizationId: organizationId!,
 				id,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion deleted");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to delete conversion: ${message}`);
-		},
+		successMessage: "Conversion deleted",
+		errorMessage: (error) =>
+			`Failed to delete conversion: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["unitsOfMeasure", organizationId]],
 	});
 
 	if (!organizationId) {

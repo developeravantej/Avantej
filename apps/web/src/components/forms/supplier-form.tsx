@@ -1,408 +1,427 @@
-import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useEffect, useState } from "react";
+/**
+ * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * - Zod schema colocated (top of file)
+ * - organizationId is a prop, never a form field
+ * - Email/URL use z.union([z.string().email/url(), z.literal("")]).optional() for empty-string compat
+ * - Error display: inline <FormMessage> + toast on mutation error
+ */
 
-export interface SupplierFormData {
-	name: string;
-	description?: string;
-	accountNumber?: string;
-	paymentTerms?: string;
-	contactPerson?: string;
-	contactPhone?: string;
-	officePhone?: string;
-	email?: string;
-	website?: string;
-	barcode?: string;
-	isActive?: boolean;
-}
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
+import { useApiMutation } from "@/hooks/useApiMutation";
+import { client, orpc } from "@/utils/orpc";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+// 1. Schema — colocated, defines UI shape + validation. Server validates separately.
+const supplierFormSchema = z.object({
+	name: z
+		.string()
+		.min(1, "Supplier name is required")
+		.max(100, "Name must be 100 characters or fewer"),
+	description: z.string().optional(),
+	accountNumber: z.string().optional(),
+	paymentTerms: z.string().optional(),
+	contactPerson: z.string().optional(),
+	contactPhone: z.string().optional(),
+	officePhone: z.string().optional(),
+	email: z
+		.union([z.string().email("Invalid email address"), z.literal("")])
+		.optional(),
+	website: z
+		.union([z.string().url("Invalid URL (include https://)"), z.literal("")])
+		.optional(),
+	barcode: z.string().optional(),
+	isActive: z.boolean(),
+});
+
+type SupplierFormValues = z.infer<typeof supplierFormSchema>;
+
+// 2. Props — organizationId is a prop, NOT a form field
 interface SupplierFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSuccess?: () => void;
-	initialData?: SupplierFormData & { id: string };
-	mode?: "create" | "edit";
-	onSubmit?: (data: SupplierFormData, id?: string) => Promise<void> | void;
-	isLoading?: boolean;
+	organizationId: string;
+	mode: "create" | "edit";
+	initialData?: {
+		id?: string;
+		name?: string;
+		description?: string;
+		accountNumber?: string;
+		paymentTerms?: string;
+		contactPerson?: string;
+		contactPhone?: string;
+		officePhone?: string;
+		email?: string;
+		website?: string;
+		barcode?: string;
+		isActive?: boolean;
+	};
 }
 
 export function SupplierFormDialog({
 	isOpen,
 	onClose,
-	onSuccess,
+	organizationId,
+	mode,
 	initialData,
-	mode = "create",
-	onSubmit,
-	isLoading = false,
 }: SupplierFormDialogProps) {
-	const [formData, setFormData] = useState<SupplierFormData>({
-		name: "",
-		description: "",
-		accountNumber: "",
-		paymentTerms: "",
-		contactPerson: "",
-		contactPhone: "",
-		officePhone: "",
-		email: "",
-		website: "",
-		barcode: "",
-		isActive: true,
+	// 3. Form instance
+	const form = useForm<SupplierFormValues>({
+		resolver: zodResolver(supplierFormSchema),
+		defaultValues: {
+			name: initialData?.name ?? "",
+			description: initialData?.description ?? "",
+			accountNumber: initialData?.accountNumber ?? "",
+			paymentTerms: initialData?.paymentTerms ?? "",
+			contactPerson: initialData?.contactPerson ?? "",
+			contactPhone: initialData?.contactPhone ?? "",
+			officePhone: initialData?.officePhone ?? "",
+			email: initialData?.email ?? "",
+			website: initialData?.website ?? "",
+			barcode: initialData?.barcode ?? "",
+			isActive: initialData?.isActive ?? true,
+		},
 	});
 
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
+	// 4. Reset on dialog re-open with fresh initialData
 	useEffect(() => {
-		if (initialData) {
-			setFormData({
-				name: initialData.name,
-				description: initialData.description ?? "",
-				accountNumber: initialData.accountNumber ?? "",
-				paymentTerms: initialData.paymentTerms ?? "",
-				contactPerson: initialData.contactPerson ?? "",
-				contactPhone: initialData.contactPhone ?? "",
-				officePhone: initialData.officePhone ?? "",
-				email: initialData.email ?? "",
-				website: initialData.website ?? "",
-				barcode: initialData.barcode ?? "",
-				isActive: initialData.isActive ?? true,
-			});
-		} else {
-			setFormData({
-				name: "",
-				description: "",
-				accountNumber: "",
-				paymentTerms: "",
-				contactPerson: "",
-				contactPhone: "",
-				officePhone: "",
-				email: "",
-				website: "",
-				barcode: "",
-				isActive: true,
+		if (isOpen) {
+			form.reset({
+				name: initialData?.name ?? "",
+				description: initialData?.description ?? "",
+				accountNumber: initialData?.accountNumber ?? "",
+				paymentTerms: initialData?.paymentTerms ?? "",
+				contactPerson: initialData?.contactPerson ?? "",
+				contactPhone: initialData?.contactPhone ?? "",
+				officePhone: initialData?.officePhone ?? "",
+				email: initialData?.email ?? "",
+				website: initialData?.website ?? "",
+				barcode: initialData?.barcode ?? "",
+				isActive: initialData?.isActive ?? true,
 			});
 		}
-	}, [initialData, isOpen]);
+	}, [isOpen, initialData, form]);
 
-	if (!isOpen) return null;
+	// 5. Mutation — isPending drives submit state
+	const mutation = useApiMutation({
+		mutationFn: (values: SupplierFormValues) =>
+			mode === "create"
+				? client.suppliers.create({ organizationId, ...values })
+				: client.suppliers.update({
+						organizationId,
+						id: initialData!.id!,
+						...values,
+					}),
+		successMessage:
+			mode === "create" ? "Supplier created" : "Supplier updated",
+		errorMessage: (err) => err.message || "Failed to save supplier",
+		invalidate: [orpc.suppliers.list.key()],
+		onSuccess: () => onClose(),
+	});
 
-	const handleChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-		>
-	) => {
-		const { name, value, type } = e.target;
-		if (type === "checkbox") {
-			const checked = (e.target as HTMLInputElement).checked;
-			setFormData((prev) => ({ ...prev, [name]: checked }));
-		} else {
-			setFormData((prev) => ({ ...prev, [name]: value }));
-		}
-	};
+	// 6. Submit handler
+	const onSubmit = (values: SupplierFormValues) => mutation.mutate(values);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setIsSubmitting(true);
-		try {
-			if (onSubmit) await onSubmit(formData, initialData?.id);
-			onSuccess?.();
-			onClose();
-		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Failed to save supplier"
-			);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const busy = isSubmitting || isLoading;
+	const inputClass =
+		"mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm";
 
 	return (
-		<Transition appear show={isOpen} as={Fragment}>
-			<Dialog as="div" className="relative z-10" onClose={onClose}>
-				<Transition.Child
-					as={Fragment}
-					enter="ease-out duration-300"
-					enterFrom="opacity-0"
-					enterTo="opacity-100"
-					leave="ease-in duration-200"
-					leaveFrom="opacity-100"
-					leaveTo="opacity-0"
-				>
-					<div className="fixed inset-0 bg-brand-primary-1/50" />
-				</Transition.Child>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>
+						{mode === "create" ? "Add Supplier" : "Edit Supplier"}
+					</DialogTitle>
+				</DialogHeader>
 
-				<div className="fixed inset-0 overflow-y-auto">
-					<div className="flex min-h-full items-center justify-center p-4 text-center">
-						<Transition.Child
-							as={Fragment}
-							enter="ease-out duration-300"
-							enterFrom="opacity-0 scale-95"
-							enterTo="opacity-100 scale-100"
-							leave="ease-in duration-200"
-							leaveFrom="opacity-100 scale-100"
-							leaveTo="opacity-0 scale-95"
-						>
-							<Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-								<Dialog.Title
-									as="h1"
-									className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
-								>
-									{mode === "create" ? "Add Supplier" : "Edit Supplier"}
-								</Dialog.Title>
-
-								{error && (
-									<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
-										{error}
-									</div>
-								)}
-
-								<form onSubmit={handleSubmit} className="space-y-4">
-									{/* Supplier Details Section */}
-									<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
-										<h4 className="text-md font-medium text-brand-primary-1 mb-2">
-											Supplier Details
-										</h4>
-										<div className="grid grid-cols-2 gap-4">
-											<div>
-												<label
-													htmlFor="name"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Supplier Name *
-												</label>
-												<input
-													id="name"
-													name="name"
-													type="text"
-													required
-													value={formData.name}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						{/* Supplier Details Section */}
+						<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
+							<h4 className="text-md font-medium text-brand-primary-1 mb-2">
+								Supplier Details
+							</h4>
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="name"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Supplier Name{" "}
+												<span className="text-destructive">*</span>
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="EG: THE BODY SHOP"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="description"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Supplier Description
-												</label>
-												<input
-													id="description"
-													name="description"
-													type="text"
-													value={formData.description}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								<FormField
+									control={form.control}
+									name="description"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Supplier Description
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="EG: SUPPLY LOTION"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="accountNumber"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Account Number
-												</label>
-												<input
-													id="accountNumber"
-													name="accountNumber"
-													type="text"
-													value={formData.accountNumber}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								<FormField
+									control={form.control}
+									name="accountNumber"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Account Number
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="888888888888 (BANK)"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="paymentTerms"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Payment Terms
-												</label>
-												<input
-													id="paymentTerms"
-													name="paymentTerms"
-													type="text"
-													value={formData.paymentTerms}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								<FormField
+									control={form.control}
+									name="paymentTerms"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Payment Terms
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="EG: 30 days"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="barcode"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Barcode
-												</label>
-												<input
-													id="barcode"
-													name="barcode"
-													type="text"
-													value={formData.barcode}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								<FormField
+									control={form.control}
+									name="barcode"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Barcode
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="EG: 1234567890"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div className="flex items-center gap-2 pt-2">
-												<input
+								<FormField
+									control={form.control}
+									name="isActive"
+									render={({ field }) => (
+										<FormItem className="flex items-center gap-2 pt-2">
+											<FormControl>
+												<Checkbox
+													checked={field.value}
+													onCheckedChange={field.onChange}
 													id="isActive"
-													name="isActive"
-													type="checkbox"
-													checked={formData.isActive ?? true}
-													onChange={handleChange}
-													className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
 												/>
-												<label
-													htmlFor="isActive"
-													className="ml-2 block text-sm text-brand-primary-1"
-												>
-													Active
-												</label>
-											</div>
-										</div>
-									</div>
+											</FormControl>
+											<FormLabel
+												htmlFor="isActive"
+												className="ml-2 block text-sm text-brand-primary-1 !mt-0 cursor-pointer"
+											>
+												Active
+											</FormLabel>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
 
-									{/* Contact Information Section */}
-									<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
-										<h4 className="text-md font-medium text-brand-primary-1 mb-2">
-											Contact Information
-										</h4>
-										<div className="grid grid-cols-2 gap-4">
-											<div>
-												<label
-													htmlFor="contactPerson"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Contact Person
-												</label>
-												<input
-													id="contactPerson"
-													name="contactPerson"
-													type="text"
-													value={formData.contactPerson}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+						{/* Contact Information Section */}
+						<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
+							<h4 className="text-md font-medium text-brand-primary-1 mb-2">
+								Contact Information
+							</h4>
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="contactPerson"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Contact Person
+											</FormLabel>
+											<FormControl>
+												<Input
 													placeholder="EG: JONATHAN MORRISON"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="contactPhone"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Mobile Number
-												</label>
-												<input
-													id="contactPhone"
-													name="contactPhone"
+								<FormField
+									control={form.control}
+									name="contactPhone"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Mobile Number
+											</FormLabel>
+											<FormControl>
+												<Input
 													type="tel"
-													value={formData.contactPhone}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="+60 12-345 6789"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="officePhone"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Office Phone
-												</label>
-												<input
-													id="officePhone"
-													name="officePhone"
+								<FormField
+									control={form.control}
+									name="officePhone"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Office Phone
+											</FormLabel>
+											<FormControl>
+												<Input
 													type="tel"
-													value={formData.officePhone}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="+60 3-1234 5678"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="email"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													E-Mail
-												</label>
-												<input
-													id="email"
-													name="email"
+								<FormField
+									control={form.control}
+									name="email"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												E-Mail
+											</FormLabel>
+											<FormControl>
+												<Input
 													type="email"
-													value={formData.email}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: SUPPLIER@EXAMPLE.COM"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
-											<div>
-												<label
-													htmlFor="website"
-													className="block text-sm font-medium text-brand-primary-1"
-												>
-													Website
-												</label>
-												<input
-													id="website"
-													name="website"
+								<FormField
+									control={form.control}
+									name="website"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="block text-sm font-medium text-brand-primary-1">
+												Website
+											</FormLabel>
+											<FormControl>
+												<Input
 													type="url"
-													value={formData.website}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 													placeholder="EG: https://www.example.com"
+													className={inputClass}
+													{...field}
 												/>
-											</div>
-										</div>
-									</div>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
 
-									{/* Form Actions */}
-									<div className="mt-6 flex justify-end space-x-3">
-										<button
-											type="button"
-											onClick={onClose}
-											disabled={busy}
-											className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											Cancel
-										</button>
-										<button
-											type="submit"
-											disabled={busy || !formData.name}
-											className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											{busy
-												? mode === "create"
-													? "Adding..."
-													: "Saving..."
-												: mode === "create"
-													? "Add Supplier"
-													: "Save Changes"}
-										</button>
-									</div>
-								</form>
-							</Dialog.Panel>
-						</Transition.Child>
-					</div>
-				</div>
-			</Dialog>
-		</Transition>
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onClose}
+								disabled={mutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button type="submit" disabled={mutation.isPending}>
+								{mutation.isPending
+									? mode === "create"
+										? "Adding..."
+										: "Saving..."
+									: mode === "create"
+										? "Add Supplier"
+										: "Save Changes"}
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
 	);
 }

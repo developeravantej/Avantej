@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useState, useMemo, useRef } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
@@ -11,13 +12,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import {
 	Select,
 	SelectContent,
@@ -152,19 +153,18 @@ function RoomsViewPage() {
 		});
 	}
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (data: { name: string; type: RoomType; capacity: number; branchId: string }) =>
 			client.rooms.create({ organizationId: organizationId!, ...data }),
+		successMessage: "Room created successfully",
+		errorMessage: (err) => err.message || "Failed to create room",
 		onSuccess: () => {
 			invalidateRooms();
-			toast.success("Room created successfully");
 			closeSheet();
 		},
-		onError: (err: unknown) =>
-			toast.error(err instanceof Error ? err.message : "Failed to create room"),
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({
 			id,
 			data,
@@ -172,13 +172,12 @@ function RoomsViewPage() {
 			id: string;
 			data: { name: string; type: RoomType; capacity: number; branchId: string; isActive: boolean };
 		}) => client.rooms.update({ organizationId: organizationId!, id, ...data }),
+		successMessage: "Room updated successfully",
+		errorMessage: (err) => err.message || "Failed to update room",
 		onSuccess: () => {
 			invalidateRooms();
-			toast.success("Room updated successfully");
 			closeSheet();
 		},
-		onError: (err: unknown) =>
-			toast.error(err instanceof Error ? err.message : "Failed to update room"),
 	});
 
 	const deactivateMutation = useMutation({
@@ -332,17 +331,17 @@ function RoomsViewPage() {
 				)}
 			</div>
 
-			{/* Create / Edit Sheet */}
-			<Sheet open={isSheetOpen} onOpenChange={(open) => { if (!open) closeSheet(); }}>
-				<SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>{editingRoom ? "Edit Room" : "Create Room"}</SheetTitle>
-						<SheetDescription>
+			{/* Create / Edit Dialog */}
+			<Dialog open={isSheetOpen} onOpenChange={(open) => { if (!open) closeSheet(); }}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>{editingRoom ? "Edit Room" : "Create Room"}</DialogTitle>
+						<DialogDescription>
 							{editingRoom
 								? "Update the room details below."
 								: "Fill in the details to create a new room."}
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="flex flex-col gap-4 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
@@ -430,7 +429,7 @@ function RoomsViewPage() {
 						)}
 					</div>
 
-					<SheetFooter className="px-4">
+					<DialogFooter className="px-4">
 						<Button variant="outline" onClick={closeSheet} disabled={isBusy}>
 							Cancel
 						</Button>
@@ -439,9 +438,9 @@ function RoomsViewPage() {
 								? editingRoom ? "Saving..." : "Creating..."
 								: editingRoom ? "Save Changes" : "Create Room"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

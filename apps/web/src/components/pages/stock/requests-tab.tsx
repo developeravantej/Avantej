@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
@@ -9,14 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -84,7 +77,6 @@ export function StockRequestsTabPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canCreate = hasPermission("inventory_management:create");
 	const canUpdate = hasPermission("inventory_management:update");
-	const queryClient = useQueryClient();
 
 	// ---- Branch nodes query ----
 	const { data: nodesData } = useQuery({
@@ -130,7 +122,7 @@ export function StockRequestsTabPage() {
 	});
 
 	// ---- Mutations ----
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (vars: {
 			toBranchId: string;
 			fromBranchId?: string;
@@ -156,60 +148,48 @@ export function StockRequestsTabPage() {
 					},
 				],
 			}),
+		successMessage: "Stock request created",
+		errorMessage: (error) =>
+			`Failed to create stock request: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["stockRequests", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
-			toast.success("Stock request created");
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create stock request: ${message}`);
-		},
 	});
 
-	const approveMutation = useMutation({
+	const approveMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.stockRequests.approve({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
-			toast.success("Stock request approved");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to approve stock request: ${message}`);
-		},
+		successMessage: "Stock request approved",
+		errorMessage: (error) =>
+			`Failed to approve stock request: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["stockRequests", organizationId]],
 	});
 
-	const rejectMutation = useMutation({
+	const rejectMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.stockRequests.reject({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
-			toast.success("Stock request rejected");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to reject stock request: ${message}`);
-		},
+		successMessage: "Stock request rejected",
+		errorMessage: (error) =>
+			`Failed to reject stock request: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["stockRequests", organizationId]],
 	});
 
-	const fulfillMutation = useMutation({
+	const fulfillMutation = useApiMutation({
 		mutationFn: (vars: { id: string; items: { itemId: string; quantityFulfilled: number }[] }) =>
 			client.stockRequests.fulfill({
 				organizationId: organizationId!,
 				id: vars.id,
 				items: vars.items,
 			}),
+		successMessage: "Stock request fulfilled",
+		errorMessage: (error) =>
+			`Failed to fulfill stock request: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [["stockRequests", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["stockRequests", organizationId] });
-			toast.success("Stock request fulfilled");
 			setFulfillTarget(null);
 			setFulfillQuantities({});
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to fulfill stock request: ${message}`);
 		},
 	});
 
@@ -546,14 +526,14 @@ export function StockRequestsTabPage() {
 			{/* ------------------------------------------------------------------ */}
 			{/* Create Stock Request Sheet                                          */}
 			{/* ------------------------------------------------------------------ */}
-			<Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>New Stock Request</SheetTitle>
-						<SheetDescription>
+			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>New Stock Request</DialogTitle>
+						<DialogDescription>
 							Request stock items from another branch or warehouse.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="flex flex-col gap-4 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
@@ -648,7 +628,7 @@ export function StockRequestsTabPage() {
 						</div>
 					</div>
 
-					<SheetFooter className="px-4">
+					<DialogFooter className="px-4">
 						<Button
 							variant="outline"
 							onClick={() => setIsCreateOpen(false)}
@@ -662,9 +642,9 @@ export function StockRequestsTabPage() {
 						>
 							{createMutation.isPending ? "Creating…" : "Create"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Fulfill Dialog                                                      */}

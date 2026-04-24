@@ -1,7 +1,7 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { client, queryClient } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
+import { useApiMutation } from "@/hooks/useApiMutation";
 
 export function ImpersonationBanner() {
 	const { data } = useQuery({
@@ -11,21 +11,19 @@ export function ImpersonationBanner() {
 		refetchOnWindowFocus: true,
 	});
 
-	const stopMutation = useMutation({
+	const stopMutation = useApiMutation({
 		mutationFn: async () => {
 			// TODO Phase 6/7: when type === 'tenant', route to client.tenantAdmin.stopImpersonating({})
 			// once that procedure exists. For now both platform and tenant type fall back to
 			// admin.stopImpersonating as a temporary measure agreed in Phase 3 planning.
 			return client.admin.stopImpersonating({});
 		},
+		errorMessage: (err) => err.message || "Failed to stop impersonation",
 		onSuccess: (result) => {
 			queryClient.invalidateQueries();
 			// Hard reload required so the restored admin cookie is picked up cleanly by
 			// orpcTenantMiddleware and createContext — router.navigate() will not work here.
 			window.location.href = result.redirectTo;
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to stop impersonation");
 		},
 	});
 

@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
-import { toast } from "sonner";
 import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/tables/suppliers/view/data-table";
 import type { SupplierRow } from "@/components/tables/suppliers/view/columns";
-import type { SupplierFormData } from "@/components/forms/supplier-form";
 
 // Active / all toggle tabs
 const ACTIVE_TABS = [
@@ -23,7 +22,6 @@ const ACTIVE_TABS = [
 export function SuppliersTabPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
 
@@ -47,59 +45,14 @@ export function SuppliersTabPage() {
 		enabled: !!organizationId,
 	});
 
-	// ---- Mutations ----
-	const createMutation = useMutation({
-		mutationFn: (data: SupplierFormData) =>
-			client.suppliers.create({
-				organizationId: organizationId!,
-				...data,
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: [...orpc.suppliers.list.key(), { organizationId }],
-			});
-			toast.success("Supplier created successfully");
-		},
-		onError: (error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create supplier: ${message}`);
-		},
-	});
-
-	const updateMutation = useMutation({
-		mutationFn: ({ id, data }: { id: string; data: SupplierFormData }) =>
-			client.suppliers.update({
-				organizationId: organizationId!,
-				id,
-				...data,
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: [...orpc.suppliers.list.key(), { organizationId }],
-			});
-			toast.success("Supplier updated successfully");
-		},
-		onError: (error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to update supplier: ${message}`);
-		},
-	});
-
-	const deactivateMutation = useMutation({
+	// ---- Delete/deactivate mutation (stays in parent) ----
+	const deactivateMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.suppliers.deactivate({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: [...orpc.suppliers.list.key(), { organizationId }],
-			});
-		},
-		onError: (error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to deactivate supplier: ${message}`);
-		},
+		successMessage: false,
+		errorMessage: (error) =>
+			`Failed to deactivate supplier: ${error.message || "An unexpected error occurred"}`,
+		invalidate: [[...orpc.suppliers.list.key(), { organizationId }]],
 	});
 
 	// ---- Map API data to SupplierRow ----
@@ -194,17 +147,10 @@ export function SuppliersTabPage() {
 			{/* Table */}
 			<DataTable
 				data={tableData}
-				onCreateSupplier={async (data) => {
-					await createMutation.mutateAsync(data);
-				}}
-				onUpdateSupplier={async (id, data) => {
-					await updateMutation.mutateAsync({ id, data });
-				}}
+				organizationId={organizationId}
 				onDeactivateSupplier={async (id) => {
 					await deactivateMutation.mutateAsync(id);
 				}}
-				isCreating={createMutation.isPending}
-				isUpdating={updateMutation.isPending}
 				isDeactivating={deactivateMutation.isPending}
 			/>
 		</div>

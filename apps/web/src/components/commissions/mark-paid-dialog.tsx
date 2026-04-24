@@ -1,8 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -76,22 +75,19 @@ export function MarkPaidDialog({
 		},
 	});
 
-	const mutation = useMutation({
+	const mutation = useApiMutation({
 		mutationFn: (values: MarkPaidFormValues) =>
 			client.commissionSplits.markPaid({
 				organizationId,
 				ids: selectedIds,
 				payoutId: values.payoutId || undefined,
 			}),
+		successMessage: `Marked ${count} commission split${count !== 1 ? "s" : ""} as paid.`,
+		errorMessage: (err) => err.message || "Failed to mark commission splits as paid.",
 		onSuccess: () => {
-			toast.success(
-				`Marked ${count} commission split${count !== 1 ? "s" : ""} as paid.`,
-			);
 			form.reset();
 			onDone();
 		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to mark commission splits as paid."),
 	});
 
 	function handleClose() {

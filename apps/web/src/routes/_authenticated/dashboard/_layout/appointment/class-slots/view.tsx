@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Calendar, Plus, Users } from "lucide-react";
 import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
-import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -28,14 +28,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -209,7 +201,9 @@ function ClassSlotsPage() {
 	// Mutations
 	// ---------------------------------------------------------------------------
 
-	const createMutation = useMutation({
+	const classSlotsKey = ["classSlots", organizationId];
+
+	const createMutation = useApiMutation({
 		mutationFn: (form: CreateFormState) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.classSlots.create({
@@ -224,18 +218,16 @@ function ClassSlotsPage() {
 				location: form.location || undefined,
 			});
 		},
+		successMessage: "Class slot created successfully.",
+		errorMessage: (err) => `Failed to create class slot: ${err.message}`,
+		invalidate: [classSlotsKey],
 		onSuccess: () => {
-			toast.success("Class slot created successfully.");
 			setCreateSheetOpen(false);
 			setCreateForm(EMPTY_CREATE_FORM);
-			queryClient.invalidateQueries({ queryKey: ["classSlots", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to create class slot: ${err.message}`);
 		},
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({
 			id,
 			form,
@@ -251,19 +243,17 @@ function ClassSlotsPage() {
 				location: form.location || undefined,
 			});
 		},
+		successMessage: "Class slot updated successfully.",
+		errorMessage: (err) => `Failed to update class slot: ${err.message}`,
+		invalidate: [classSlotsKey],
 		onSuccess: () => {
-			toast.success("Class slot updated successfully.");
 			setEditSheetOpen(false);
 			setEditingSlot(null);
 			setEditForm(EMPTY_EDIT_FORM);
-			queryClient.invalidateQueries({ queryKey: ["classSlots", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to update class slot: ${err.message}`);
 		},
 	});
 
-	const cancelMutation = useMutation({
+	const cancelMutation = useApiMutation({
 		mutationFn: ({
 			id,
 			reason,
@@ -275,15 +265,13 @@ function ClassSlotsPage() {
 				cancellationReason: reason || undefined,
 			});
 		},
+		successMessage: "Class slot cancelled.",
+		errorMessage: (err) => `Failed to cancel class slot: ${err.message}`,
+		invalidate: [classSlotsKey],
 		onSuccess: () => {
-			toast.success("Class slot cancelled.");
 			setCancelDialogOpen(false);
 			setCancellingSlot(null);
 			setCancellationReason("");
-			queryClient.invalidateQueries({ queryKey: ["classSlots", organizationId] });
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to cancel class slot: ${err.message}`);
 		},
 	});
 
@@ -580,16 +568,16 @@ function ClassSlotsPage() {
 			)}
 
 			{/* ----------------------------------------------------------------- */}
-			{/* Create Sheet                                                       */}
+			{/* Create Dialog                                                      */}
 			{/* ----------------------------------------------------------------- */}
-			<Sheet open={createSheetOpen} onOpenChange={setCreateSheetOpen}>
-				<SheetContent className="overflow-y-auto sm:max-w-md">
-					<SheetHeader>
-						<SheetTitle>Create Class Slot</SheetTitle>
-						<SheetDescription>
+			<Dialog open={createSheetOpen} onOpenChange={setCreateSheetOpen}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Create Class Slot</DialogTitle>
+						<DialogDescription>
 							Schedule a new group class slot.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<Separator className="my-4" />
 
@@ -746,7 +734,7 @@ function ClassSlotsPage() {
 						</div>
 					</div>
 
-					<SheetFooter className="mt-6">
+					<DialogFooter className="mt-6">
 						<Button
 							variant="outline"
 							onClick={() => setCreateSheetOpen(false)}
@@ -766,21 +754,21 @@ function ClassSlotsPage() {
 						>
 							{createMutation.isPending ? "Creating..." : "Create"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ----------------------------------------------------------------- */}
-			{/* Edit Sheet                                                         */}
+			{/* Edit Dialog                                                        */}
 			{/* ----------------------------------------------------------------- */}
-			<Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
-				<SheetContent className="overflow-y-auto sm:max-w-md">
-					<SheetHeader>
-						<SheetTitle>Edit Class Slot</SheetTitle>
-						<SheetDescription>
+			<Dialog open={editSheetOpen} onOpenChange={setEditSheetOpen}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Edit Class Slot</DialogTitle>
+						<DialogDescription>
 							Update the details for this class slot.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<Separator className="my-4" />
 
@@ -874,7 +862,7 @@ function ClassSlotsPage() {
 						</div>
 					</div>
 
-					<SheetFooter className="mt-6">
+					<DialogFooter className="mt-6">
 						<Button
 							variant="outline"
 							onClick={() => setEditSheetOpen(false)}
@@ -894,34 +882,34 @@ function ClassSlotsPage() {
 						>
 							{updateMutation.isPending ? "Saving..." : "Save Changes"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ----------------------------------------------------------------- */}
-			{/* Signups Sheet                                                      */}
+			{/* Signups Dialog                                                     */}
 			{/* ----------------------------------------------------------------- */}
-			<Sheet
+			<Dialog
 				open={signupsSheetOpen}
 				onOpenChange={(open) => {
 					setSignupsSheetOpen(open);
 					if (!open) setViewingSignupsSlot(null);
 				}}
 			>
-				<SheetContent className="overflow-y-auto sm:max-w-lg">
-					<SheetHeader>
-						<SheetTitle className="flex items-center gap-2">
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
 							<Users className="h-5 w-5" />
 							Signups
-						</SheetTitle>
+						</DialogTitle>
 						{viewingSignupsSlot && (
-							<SheetDescription>
+							<DialogDescription>
 								{serviceNameById(viewingSignupsSlot.serviceId)} —{" "}
 								{new Date(viewingSignupsSlot.date).toLocaleDateString()} at{" "}
 								{viewingSignupsSlot.startTime}
-							</SheetDescription>
+							</DialogDescription>
 						)}
-					</SheetHeader>
+					</DialogHeader>
 
 					<Separator className="my-4" />
 
@@ -978,8 +966,8 @@ function ClassSlotsPage() {
 							))}
 						</div>
 					)}
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 
 			{/* ----------------------------------------------------------------- */}
 			{/* Cancel Confirmation Dialog                                         */}

@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserX } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -201,7 +201,6 @@ export function TodayBookingsSection({
 	organizationId: string;
 	branchId: string;
 }) {
-	const queryClient = useQueryClient();
 	const [isCheckingIn, setIsCheckingIn] = useState<Record<string, boolean>>({});
 	// Bulk check-in: holds the bucket label of the pending confirmation dialog, or null
 	const [bulkDialogForBucket, setBulkDialogForBucket] = useState<string | null>(
@@ -212,7 +211,7 @@ export function TodayBookingsSection({
 		setIsCheckingIn((prev) => ({ ...prev, [id]: v }));
 	}
 
-	const checkInMutation = useMutation({
+	const checkInMutation = useApiMutation({
 		mutationFn: async (vars: {
 			appointmentClientId: string;
 			clientType: "member" | "walk_in";
@@ -230,17 +229,16 @@ export function TodayBookingsSection({
 				outcome: vars.outcome,
 			});
 		},
+		successMessage: (_, vars) =>
+			vars.outcome === "attended" ? "Checked in" : "Marked no-show",
+		errorMessage: false,
+		invalidate: [["attendance"]],
 		onSuccess: (_, vars) => {
 			markInFlight(vars.appointmentClientId, false);
-			const label =
-				vars.outcome === "attended" ? "Checked in" : "Marked no-show";
-			toast.success(label);
-			// Invalidate both bookings + check-ins log — both share the "attendance" prefix
-			queryClient.invalidateQueries({ queryKey: ["attendance"] });
 		},
-		onError: (err: unknown, vars) => {
+		onError: (err, vars) => {
 			markInFlight(vars.appointmentClientId, false);
-			const msg = err instanceof Error ? err.message : "Unknown error";
+			const msg = err.message || "Unknown error";
 			// Detect duplicate check-in error from backend
 			if (
 				msg.toLowerCase().includes("already_checked_in") ||
@@ -258,7 +256,7 @@ export function TodayBookingsSection({
 		},
 	});
 
-	const bulkCheckInMutation = useMutation({
+	const bulkCheckInMutation = useApiMutation({
 		mutationFn: async (vars: { bookingIds: string[] }) => {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			return (client as any).checkIns.recordBulkCheckIn({
@@ -267,18 +265,17 @@ export function TodayBookingsSection({
 				bookingIds: vars.bookingIds,
 			});
 		},
-		onSuccess: (result: any) => {
+		successMessage: (result: any) => {
 			const { totalChecked, totalSkipped, totalError } = result;
 			let message = `Checked in ${totalChecked}`;
 			if (totalSkipped > 0) message += ` · ${totalSkipped} already checked in`;
 			if (totalError > 0) message += ` · ${totalError} failed`;
-			toast.success(message);
-			queryClient.invalidateQueries({ queryKey: ["attendance"] });
-			setBulkDialogForBucket(null);
+			return message;
 		},
-		onError: (err: unknown) => {
-			const msg = err instanceof Error ? err.message : "Unknown error";
-			toast.error(`Bulk check-in failed: ${msg}`);
+		errorMessage: (err) => `Bulk check-in failed: ${err.message || "Unknown error"}`,
+		invalidate: [["attendance"]],
+		onSuccess: () => {
+			setBulkDialogForBucket(null);
 		},
 	});
 

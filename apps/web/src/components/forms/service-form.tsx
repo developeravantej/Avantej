@@ -1,869 +1,929 @@
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { orpc, client } from '@/utils/orpc';
-import { useUserContext } from '@/hooks/useUserContext';
-import { toast } from 'sonner';
+/**
+ * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * - Zod schema colocated (top of file)
+ * - organizationId is a prop, never a form field
+ * - Prices use z.number().transform((v) => Math.round(v * 100))
+ * - Error display: inline <FormMessage> + toast on mutation error
+ * - timePresetConfig is UI-only state; it is NOT sent to the backend (backend has no such field)
+ * - schedulingType maps: UI "appointment-based" → wire "appointment"; UI "time-preset" → wire "class_slot"
+ * - initialData.price comes in as dollars (data-table pre-divides by 100); zod transform converts to cents on submit
+ */
 
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import * as z from "zod";
 
-interface ServiceFormData {
-  name: string;
-  duration: number;
-  duration_unit: string;
-  expirable: boolean;
-  price: number;
-  sessions: number;
-  taxable: boolean;
-  tax_percentage: number;
-  category_id: string;
-  schedulingType: 'appointment-based' | 'time-preset';
-  sessionDurationMinutes: number;
-  maxAttendees: number;
-  availablePaymentPlans: string[];
-  installmentIntervalDays: number;
-  gracePeriodDays: number | null;
-  timePresetConfig?: {
-    recurringDays: string[];
-    timeSlotsPerDay: { [day: string]: string[] };
-  };
+import { useApiMutation } from "@/hooks/useApiMutation";
+import { client, orpc } from "@/utils/orpc";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { rmToCents } from "@/lib/money";
+
+// ---------------------------------------------------------------------------
+// 1. Schemas
+// ---------------------------------------------------------------------------
+
+const timePresetConfigSchema = z.object({
+	recurringDays: z.array(z.string()).min(1, "Pick at least one day"),
+	timeSlotsPerDay: z.record(z.string(), z.array(z.string()).min(1)),
+});
+
+const baseServiceFields = z.object({
+	name: z.string().min(1, "Service name is required").max(200, "Name must be 200 characters or fewer"),
+	categoryId: z.string().uuid("Category is required"),
+	sessionDurationMinutes: z.number().int().min(1, "Duration must be at least 1 minute"),
+	maxAttendees: z.number().int().min(1, "Must have at least 1 attendee"),
+	price: z
+		.number({ message: "Price is required" })
+		.min(0, "Price must be 0 or more")
+		.transform((v) => rmToCents(v)), // dollars → cents at submit
+	sessions: z.number().int().min(0, "Sessions cannot be negative"),
+	taxable: z.boolean(),
+	taxPercentage: z.number().int().min(0).max(100).optional(),
+	expirable: z.boolean(),
+	duration: z.number().int().min(1).optional(),
+	duration_unit: z.enum(["day", "week", "month", "year"]).optional(),
+	availablePaymentPlans: z.array(z.string()),
+	installmentIntervalDays: z.number().int().min(1).optional(),
+	gracePeriodDays: z.number().int().min(0).max(90).nullable().optional(),
+});
+
+const serviceFormSchema = baseServiceFields.and(
+	z.discriminatedUnion("schedulingType", [
+		z.object({ schedulingType: z.literal("appointment-based") }),
+		z.object({
+			schedulingType: z.literal("time-preset"),
+			timePresetConfig: timePresetConfigSchema,
+		}),
+	]),
+);
+
+// For react-hook-form we need the INPUT type (before transforms)
+type ServiceFormInput = z.input<typeof serviceFormSchema>;
+// Output type (after transforms — what mutationFn receives)
+type ServiceFormValues = z.output<typeof serviceFormSchema>;
+
+// ---------------------------------------------------------------------------
+// 2. Props
+// ---------------------------------------------------------------------------
+
+interface ServiceInitialData {
+	id: string;
+	name: string;
+	categoryId: string;
+	sessionDurationMinutes: number;
+	maxAttendees: number;
+	/** Price in dollars (data-table pre-divides by 100) */
+	price: number;
+	sessions: number;
+	taxable: boolean;
+	taxPercentage: number;
+	expirable: boolean;
+	duration: number;
+	duration_unit: string;
+	schedulingType: "appointment-based" | "time-preset";
+	availablePaymentPlans: string[];
+	installmentIntervalDays: number;
+	gracePeriodDays: number | null;
+	timePresetConfig?: {
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	};
 }
 
 interface ServiceFormDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: ServiceFormData, serviceId?: string) => Promise<void>;
-  initialData?: ServiceFormData & { id: string };
-  mode?: 'create' | 'edit';
+	isOpen: boolean;
+	onClose: () => void;
+	organizationId: string;
+	mode?: "create" | "edit";
+	initialData?: ServiceInitialData;
 }
 
-export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: ServiceFormDialogProps) {
-  const { data: userCtx } = useUserContext();
-  const organizationId = userCtx?.currentOrganizationId ?? "";
-  const qc = useQueryClient();
+// ---------------------------------------------------------------------------
+// 3. Helpers
+// ---------------------------------------------------------------------------
 
-  const { data: serviceCategories = [], isLoading: isLoadingCategories } = useQuery({
-    ...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
-    enabled: isOpen && !!organizationId,
-  });
+const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
-  // Fetch active installment plans dynamically
-  const { data: activePlans = [] } = useQuery({
-    queryKey: ["installmentPlans", organizationId, "active"],
-    queryFn: () => client.installmentPlans.list({ organizationId, activeOnly: true }),
-    enabled: isOpen && !!organizationId,
-  });
-
-  // Build a map of code → plan for fast lookup
-  const plansMap = useMemo(
-    () => new Map(activePlans.map((p) => [p.code, p])),
-    [activePlans],
-  );
-
-  const toExpiryDays = (duration: number, unit: string): number => {
-    if (unit === 'year') return duration * 365;
-    if (unit === 'month') return duration * 30;
-    if (unit === 'week') return duration * 7;
-    return duration;
-  };
-
-  const createMutation = useMutation({
-    mutationFn: (data: ServiceFormData) =>
-      client.services.create({
-        organizationId,
-        name: data.name,
-        categoryId: data.category_id || null,
-        duration: data.sessionDurationMinutes,
-        durationUnitType: "minutes",
-        maxAttendees: data.maxAttendees ?? 1,
-        attendanceThreshold: null,
-        branchId: null,
-        isActive: true,
-        price: data.price ? Math.round(data.price * 100) : null, // dollars → cents
-        taxable: data.taxable,
-        taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
-        schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
-        sessionCount: data.sessions > 0 ? data.sessions : null,
-        expirable: data.expirable,
-        expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
-        availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
-        installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
-        gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
-      toast.success("Service created successfully");
-      onClose();
-    },
-    onError: (err: any) => toast.error(err?.message || "Failed to create service"),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data: ServiceFormData) =>
-      client.services.update({
-        organizationId,
-        id: initialData!.id.toString(),
-        name: data.name,
-        categoryId: data.category_id || null,
-        duration: data.sessionDurationMinutes,
-        durationUnitType: "minutes",
-        maxAttendees: data.maxAttendees ?? 1,
-        price: data.price ? Math.round(data.price * 100) : null, // dollars → cents
-        taxable: data.taxable,
-        taxPercentage: data.taxable ? Math.round(data.tax_percentage) : 0,
-        schedulingType: data.schedulingType === "appointment-based" ? "appointment" : "class_slot",
-        sessionCount: data.sessions > 0 ? data.sessions : null,
-        expirable: data.expirable,
-        expiryDays: data.expirable ? toExpiryDays(data.duration, data.duration_unit) : null,
-        availablePaymentPlans: data.availablePaymentPlans.length > 0 ? data.availablePaymentPlans : undefined,
-        installmentIntervalDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.installmentIntervalDays : undefined,
-        gracePeriodDays: data.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) ? data.gracePeriodDays : null,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orpc.services.list.key() });
-      toast.success("Service updated successfully");
-      onClose();
-    },
-    onError: (err: any) => toast.error(err?.message || "Failed to update service"),
-  });
-
-  const [formData, setFormData] = useState<ServiceFormData>({
-    name: '',
-    duration: 1,
-    duration_unit: 'day',
-    expirable: false,
-    price: 0,
-    sessions: 0,
-    taxable: false,
-    tax_percentage: 6,
-    category_id: '',
-    schedulingType: 'appointment-based',
-    sessionDurationMinutes: 60,
-    maxAttendees: 1,
-    availablePaymentPlans: [],
-    installmentIntervalDays: 30,
-    gracePeriodDays: null,
-
-    timePresetConfig: {
-      recurringDays: [],
-      timeSlotsPerDay: {}
-    },
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name,
-        duration: initialData.duration,
-        duration_unit: initialData.duration_unit,
-        expirable: initialData.expirable,
-        price: initialData.price,
-        sessions: initialData.sessions,
-        taxable: initialData.taxable,
-        tax_percentage: initialData.tax_percentage,
-        category_id: initialData.category_id,
-        schedulingType: initialData.schedulingType || 'appointment-based',
-        sessionDurationMinutes: initialData.sessionDurationMinutes ?? 60,
-        maxAttendees: initialData.maxAttendees ?? 1,
-        availablePaymentPlans: initialData.availablePaymentPlans ?? [],
-        installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
-        gracePeriodDays: (initialData as any).gracePeriodDays ?? null,
-    
-        timePresetConfig: initialData.timePresetConfig || {
-          recurringDays: [],
-          timeSlotsPerDay: {}
-        },
-      });
-    } else {
-      setFormData({
-        name: '',
-        duration: 1,
-        duration_unit: 'day',
-        expirable: false,
-        price: 0,
-        sessions: 0,
-        taxable: false,
-        tax_percentage: 6,
-        category_id: '',
-        schedulingType: 'appointment-based',
-        sessionDurationMinutes: 60,
-        maxAttendees: 1,
-        availablePaymentPlans: [],
-        installmentIntervalDays: 30,
-        gracePeriodDays: null,
-    
-        timePresetConfig: {
-          recurringDays: [],
-          timeSlotsPerDay: {}
-        },
-      });
-    }
-  }, [initialData]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      if (!organizationId) {
-        throw new Error('User must be part of an organization to create services');
-      }
-
-      if (mode === 'edit' && initialData?.id) {
-        await updateMutation.mutateAsync(formData);
-      } else {
-        await createMutation.mutateAsync(formData);
-      }
-
-      await onSubmit(formData, initialData?.id);
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.detail || 'An error occurred';
-      setError(errorMessage);
-      // Mutation onError already toasts, so only set local error state here
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value
-    }));
-  };
-
-  // Calculate tax amount
-  const calculateTaxAmount = () => {
-    return (formData.price * formData.tax_percentage) / 100;
-  };
-
-  // Calculate total with tax
-  const calculateTotalWithTax = () => {
-    return formData.price + calculateTaxAmount();
-  };
-
-  // Calculate credit per session (price / sessions)
-  const calculateCreditPerSession = () => {
-    if (formData.sessions === 0) return 0;
-    return formData.price / formData.sessions;
-  };
-
-  // Helper functions for scheduling type configuration
-  const handleSchedulingTypeChange = (type: 'appointment-based' | 'time-preset') => {
-    setFormData(prev => ({
-      ...prev,
-      schedulingType: type,
-      timePresetConfig: type === 'time-preset' ? {
-        recurringDays: [],
-        timeSlotsPerDay: {}
-      } : undefined
-    }));
-  };
-
-  const handleRecurringDayToggle = (day: string) => {
-    setFormData(prev => {
-      if (!prev.timePresetConfig) return prev;
-      
-      const newDays = prev.timePresetConfig.recurringDays.includes(day)
-        ? prev.timePresetConfig.recurringDays.filter(d => d !== day)
-        : [...prev.timePresetConfig.recurringDays, day];
-      
-      // Initialize time slots for new day or remove time slots for removed day
-      const newTimeSlotsPerDay = { ...prev.timePresetConfig.timeSlotsPerDay };
-      if (newDays.includes(day) && !newTimeSlotsPerDay[day]) {
-        newTimeSlotsPerDay[day] = ['09:00'];
-      } else if (!newDays.includes(day)) {
-        delete newTimeSlotsPerDay[day];
-      }
-      
-      return {
-        ...prev,
-        timePresetConfig: {
-          ...prev.timePresetConfig,
-          recurringDays: newDays,
-          timeSlotsPerDay: newTimeSlotsPerDay
-        }
-      };
-    });
-  };
-
-  const addTimeSlot = (day: string) => {
-    setFormData(prev => {
-      if (!prev.timePresetConfig) return prev;
-      
-      const newTimeSlotsPerDay = { ...prev.timePresetConfig.timeSlotsPerDay };
-      if (!newTimeSlotsPerDay[day]) {
-        newTimeSlotsPerDay[day] = [];
-      }
-      newTimeSlotsPerDay[day] = [...newTimeSlotsPerDay[day], '09:00'];
-      
-      return {
-        ...prev,
-        timePresetConfig: {
-          ...prev.timePresetConfig,
-          timeSlotsPerDay: newTimeSlotsPerDay
-        }
-      };
-    });
-  };
-
-  const removeTimeSlot = (day: string, index: number) => {
-    setFormData(prev => {
-      if (!prev.timePresetConfig) return prev;
-      
-      const newTimeSlotsPerDay = { ...prev.timePresetConfig.timeSlotsPerDay };
-      if (newTimeSlotsPerDay[day]) {
-        newTimeSlotsPerDay[day] = newTimeSlotsPerDay[day].filter((_, i) => i !== index);
-      }
-      
-      return {
-        ...prev,
-        timePresetConfig: {
-          ...prev.timePresetConfig,
-          timeSlotsPerDay: newTimeSlotsPerDay
-        }
-      };
-    });
-  };
-
-  const updateTimeSlot = (day: string, index: number, time: string) => {
-    setFormData(prev => {
-      if (!prev.timePresetConfig) return prev;
-      
-      const newTimeSlotsPerDay = { ...prev.timePresetConfig.timeSlotsPerDay };
-      if (newTimeSlotsPerDay[day]) {
-        const newTimeSlots = [...newTimeSlotsPerDay[day]];
-        newTimeSlots[index] = time;
-        newTimeSlotsPerDay[day] = newTimeSlots;
-      }
-      
-      return {
-        ...prev,
-        timePresetConfig: {
-          ...prev.timePresetConfig,
-          timeSlotsPerDay: newTimeSlotsPerDay
-        }
-      };
-    });
-  };
-
-
-  return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-brand-primary-1/50" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title
-                  as="h1"
-                  className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
-                >
-                  {mode === 'create' ? 'Add New Service' : 'Edit Service'}
-                </Dialog.Title>
-
-                {error && (
-                  <div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
-                    {error}
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-brand-primary-1">
-                      Service Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      id="name"
-                      required
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="category_id" className="block text-sm font-medium text-brand-primary-1">
-                      Service Category *
-                    </label>
-                    <select
-                      name="category_id"
-                      id="category_id"
-                      required
-                      value={formData.category_id}
-                      onChange={handleChange}
-                      disabled={isLoadingCategories}
-                      className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm disabled:bg-brand-secondary-3 disabled:cursor-not-allowed"
-                    >
-                      <option value="">
-                        {isLoadingCategories ? 'Loading categories...' : 'Select a category'}
-                      </option>
-                      {serviceCategories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="sessionDurationMinutes" className="block text-sm font-medium text-brand-primary-1">
-                        Session Duration (minutes) *
-                      </label>
-                      <input
-                        type="number"
-                        name="sessionDurationMinutes"
-                        id="sessionDurationMinutes"
-                        required
-                        min="1"
-                        value={formData.sessionDurationMinutes}
-                        onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="maxAttendees" className="block text-sm font-medium text-brand-primary-1">
-                        Max Attendees *
-                      </label>
-                      <input
-                        type="number"
-                        name="maxAttendees"
-                        id="maxAttendees"
-                        required
-                        min="1"
-                        value={formData.maxAttendees}
-                        onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="expirable"
-                        id="expirable"
-                        checked={formData.expirable}
-                        onChange={handleChange}
-                        className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-                      />
-                      <label htmlFor="expirable" className="ml-2 text-sm font-medium text-brand-primary-1">
-                        Expirable
-                      </label>
-                    </div>
-
-                    {formData.expirable && (
-                      <div>
-                        <label htmlFor="duration" className="block text-sm font-medium text-brand-primary-1">
-                          Duration *
-                        </label>
-                        <div className="mt-1 flex gap-2">
-                      <input
-                        type="number"
-                        name="duration"
-                        id="duration"
-                        required
-                        min="1"
-                        value={formData.duration}
-                        onChange={handleChange}
-                        className="block flex-1 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="1"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                          <select
-                            name="duration_unit"
-                            id="duration_unit"
-                            required
-                            value={formData.duration_unit}
-                            onChange={handleChange}
-                            className="block flex-1 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-                          >
-                            <option value="day">Day(s)</option>
-                            <option value="week">Week(s)</option>
-                            <option value="month">Month(s)</option>
-                            <option value="year">Year(s)</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-
-                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="price" className="block text-sm font-medium text-brand-primary-1">
-                        Price *
-                      </label>
-                      <input
-                        type="number"
-                        name="price"
-                        id="price"
-                        required
-                        min="0"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="sessions" className="block text-sm font-medium text-brand-primary-1">
-                        Sessions *
-                      </label>
-                      <input
-                        type="number"
-                        name="sessions"
-                        id="sessions"
-                        required
-                        min="0"
-                        step="1"
-                        value={formData.sessions}
-                        onChange={handleChange}
-                        className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      />
-                    </div>
-                  </div>
-                  
-
-                  <div>
-                     <div className="mt-2 flex items-center">
-                       <span className="text-sm font-medium text-brand-primary-1">
-                         Credit per Session: RM {formData.sessions > 0 ? calculateCreditPerSession().toFixed(2) : '0.00'}
-                       </span>
-                     </div>
-                     
-                     {formData.sessions > 0 && formData.price > 0 && (
-                       <div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
-                         <div className="text-sm text-brand-secondary-1">
-                           <div className="flex justify-between">
-                             <span>Total Price:</span>
-                             <span>RM {formData.price.toFixed(2)}</span>
-                           </div>
-                           <div className="flex justify-between">
-                             <span>Number of Sessions:</span>
-                             <span>{formData.sessions}</span>
-                           </div>
-                           <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                             <span>Credit per Session:</span>
-                             <span>RM {calculateCreditPerSession().toFixed(2)}</span>
-                           </div>
-                         </div>
-                       </div>
-                     )}
-                  </div>
-                   
-                  <div>
-                     <div className="mt-2 flex items-center">
-                         <input
-                           type="checkbox"
-                           name="taxable"
-                           id="taxable"
-                           checked={formData.taxable}
-                           onChange={handleChange}
-                           className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-                         />
-                         <label htmlFor="taxable" className="ml-2 text-sm font-medium text-brand-primary-1">
-                           Taxable
-                         </label>
-                       </div>
-                       
-                       {formData.taxable && (
-                         <div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
-                           <div className="text-sm text-brand-secondary-1">
-                             <div className="flex justify-between">
-                               <span>Base Price:</span>
-                               <span>RM {formData.price.toFixed(2)}</span>
-                             </div>
-                             <div className="flex justify-between">
-                               <span>Tax ({formData.tax_percentage}%):</span>
-                               <span>RM {calculateTaxAmount().toFixed(2)}</span>
-                             </div>
-                             <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                               <span>Total:</span>
-                               <span>RM {calculateTotalWithTax().toFixed(2)}</span>
-                             </div>
-                           </div>
-                         </div>
-                       )}
-                  </div>
-
-                  {/* Payment Plans */}
-                  <div className="border-t border-brand-secondary-3 pt-4 mt-4">
-                    <h3 className="text-sm font-medium text-brand-primary-1 mb-3">Payment Plans</h3>
-                    <div className="space-y-2">
-                      {activePlans.map((plan) => (
-                        <div key={plan.code} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`plan-${plan.code}`}
-                            checked={formData.availablePaymentPlans.includes(plan.code)}
-                            onChange={(e) => {
-                              setFormData(prev => ({
-                                ...prev,
-                                availablePaymentPlans: e.target.checked
-                                  ? [...prev.availablePaymentPlans, plan.code]
-                                  : prev.availablePaymentPlans.filter(p => p !== plan.code),
-                              }));
-                            }}
-                            className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-                          />
-                          <label htmlFor={`plan-${plan.code}`} className="ml-2 text-sm text-brand-primary-1">
-                            {plan.name}
-                          </label>
-                        </div>
-                      ))}
-                      {activePlans.length === 0 && (
-                        <p className="text-sm text-brand-secondary-1 italic">No payment plans configured. Add plans under Settings &rarr; Installment Plans.</p>
-                      )}
-                    </div>
-                    {formData.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) && (
-                      <div className="mt-3">
-                        <label htmlFor="installmentIntervalDays" className="block text-sm font-medium text-brand-primary-1">
-                          Installment interval (days)
-                        </label>
-                        <input
-                          type="number"
-                          name="installmentIntervalDays"
-                          id="installmentIntervalDays"
-                          min="1"
-                          value={formData.installmentIntervalDays}
-                          onChange={handleChange}
-                          className="mt-1 block w-40 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                      </div>
-                    )}
-                    {formData.availablePaymentPlans.some(code => (plansMap.get(code)?.numInstallments ?? 1) > 1) && (
-                      <div className="mt-3">
-                        <label htmlFor="gracePeriodDays" className="block text-sm font-medium text-brand-primary-1">
-                          Grace period (days)
-                        </label>
-                        <input
-                          type="number"
-                          name="gracePeriodDays"
-                          id="gracePeriodDays"
-                          min="0"
-                          max="90"
-                          value={formData.gracePeriodDays ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormData(prev => ({
-                              ...prev,
-                              gracePeriodDays: val === '' ? null : parseInt(val, 10),
-                            }));
-                          }}
-                          placeholder="Default: 7"
-                          className="mt-1 block w-40 p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                        <p className="mt-1 text-xs text-brand-secondary-1">
-                          How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Scheduling Type Configuration */}
-                  <div className="border-t border-brand-secondary-3 pt-4 mt-4">
-                    <h3 className="text-lg font-medium text-brand-primary-1 mb-4">Scheduling Configuration</h3>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-brand-primary-1 mb-2">
-                          Scheduling Type *
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex gap-4">
-                            <div className="flex items-center">
-                              <input
-                                type="radio"
-                                id="appointment-based"
-                                name="schedulingType"
-                                value="appointment-based"
-                                checked={formData.schedulingType === 'appointment-based'}
-                                onChange={(e) => handleSchedulingTypeChange(e.target.value as 'appointment-based' | 'time-preset')}
-                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
-                              />
-                              <label htmlFor="appointment-based" className="ml-2 block text-sm text-brand-primary-1">
-                                Appointment-Based
-                              </label>
-                            </div>
-                            <div className="flex items-center">
-                              <input
-                                type="radio"
-                                id="time-preset"
-                                name="schedulingType"
-                                value="time-preset"
-                                checked={formData.schedulingType === 'time-preset'}
-                                onChange={(e) => handleSchedulingTypeChange(e.target.value as 'appointment-based' | 'time-preset')}
-                                className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
-                              />
-                              <label htmlFor="time-preset" className="ml-2 block text-sm text-brand-primary-1">
-                                Time-Preset (Fixed Schedule)
-                              </label>
-                            </div>
-                          </div>
-                          <p className="text-sm text-brand-secondary-1">
-                            {formData.schedulingType === 'appointment-based' 
-                              ? 'Sessions are booked flexibly based on coach and client availability'
-                              : 'Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)'
-                            }
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Time-Preset Configuration */}
-                      {formData.schedulingType === 'time-preset' && formData.timePresetConfig && (
-                        <div className="bg-brand-secondary-3/50 p-4 rounded-lg space-y-4">
-                          <h4 className="text-md font-medium text-brand-primary-1">Time-Preset Configuration</h4>
-                          
-                          {/* Recurring Days */}
-                          <div>
-                            <label className="block text-sm font-medium text-brand-primary-1 mb-2">
-                              Recurring Days *
-                            </label>
-                            <div className="grid grid-cols-7 gap-2">
-                              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                                <div key={day} className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    id={`day-${day}`}
-                                    checked={formData.timePresetConfig?.recurringDays.includes(day) || false}
-                                    onChange={() => handleRecurringDayToggle(day)}
-                                    className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-                                  />
-                                  <label htmlFor={`day-${day}`} className="ml-1 text-xs text-brand-primary-1">
-                                    {day.slice(0, 3)}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Time Slots per Day */}
-                          <div>
-                            <label className="block text-sm font-medium text-brand-primary-1 mb-2">
-                              Time Slots per Day *
-                            </label>
-                            <div className="space-y-4">
-                              {formData.timePresetConfig.recurringDays
-                                .sort((a, b) => {
-                                  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                                  return dayOrder.indexOf(a) - dayOrder.indexOf(b);
-                                })
-                                .map((day) => (
-                                <div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <h5 className="text-sm font-medium text-brand-primary-1">{day}</h5>
-                                    <button
-                                      type="button"
-                                      onClick={() => addTimeSlot(day)}
-                                      className="inline-flex items-center px-2 py-1 border border-brand-secondary-3 shadow-sm text-xs leading-4 font-medium rounded-md text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                      </svg>
-                                      Add Time
-                                    </button>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {(formData.timePresetConfig?.timeSlotsPerDay[day] || []).map((time, index) => (
-                                      <div key={index} className="flex items-center gap-2">
-                                        <input
-                                          type="time"
-                                          value={time}
-                                          onChange={(e) => updateTimeSlot(day, index, e.target.value)}
-                                          className="p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => removeTimeSlot(day, index)}
-                                          className="p-2 text-brand-secondary-1 hover:text-brand-secondary-1"
-                                          disabled={(formData.timePresetConfig?.timeSlotsPerDay[day] || []).length === 1}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {(!formData.timePresetConfig?.timeSlotsPerDay[day] || formData.timePresetConfig?.timeSlotsPerDay[day]?.length === 0) && (
-                                      <p className="text-sm text-brand-secondary-1 italic">No time slots configured for {day}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                              {formData.timePresetConfig.recurringDays.length === 0 && (
-                                <p className="text-sm text-brand-secondary-1 italic">Select recurring days above to configure time slots</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? (mode === 'create' ? 'Adding...' : 'Saving...') : (mode === 'create' ? 'Add Service' : 'Save Changes')}
-                    </button>
-                  </div>
-                </form>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition>
-  );
+function toExpiryDays(duration: number, unit: string): number {
+	if (unit === "year") return duration * 365;
+	if (unit === "month") return duration * 30;
+	if (unit === "week") return duration * 7;
+	return duration;
 }
 
+function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput {
+	if (initialData) {
+		const base = {
+			name: initialData.name,
+			categoryId: initialData.categoryId,
+			sessionDurationMinutes: initialData.sessionDurationMinutes,
+			maxAttendees: initialData.maxAttendees,
+			price: initialData.price, // already in dollars
+			sessions: initialData.sessions,
+			taxable: initialData.taxable,
+			taxPercentage: initialData.taxPercentage ?? 6,
+			expirable: initialData.expirable,
+			duration: initialData.duration ?? 1,
+			duration_unit: (initialData.duration_unit as "day" | "week" | "month" | "year") ?? "day",
+			availablePaymentPlans: initialData.availablePaymentPlans ?? [],
+			installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
+			gracePeriodDays: initialData.gracePeriodDays ?? null,
+		};
+		if (initialData.schedulingType === "time-preset") {
+			return {
+				...base,
+				schedulingType: "time-preset" as const,
+				timePresetConfig: initialData.timePresetConfig ?? { recurringDays: [], timeSlotsPerDay: {} },
+			};
+		}
+		return { ...base, schedulingType: "appointment-based" as const };
+	}
+	return {
+		name: "",
+		categoryId: "",
+		sessionDurationMinutes: 60,
+		maxAttendees: 1,
+		price: 0,
+		sessions: 0,
+		taxable: false,
+		taxPercentage: 6,
+		expirable: false,
+		duration: 1,
+		duration_unit: "day",
+		schedulingType: "appointment-based",
+		availablePaymentPlans: [],
+		installmentIntervalDays: 30,
+		gracePeriodDays: null,
+	};
+}
 
+// ---------------------------------------------------------------------------
+// 4. Component
+// ---------------------------------------------------------------------------
 
+export function ServiceFormDialog({
+	isOpen,
+	onClose,
+	organizationId,
+	mode = "create",
+	initialData,
+}: ServiceFormDialogProps) {
+	// Dependent queries — keep identical to original
+	const { data: serviceCategories = [], isLoading: isLoadingCategories } = useQuery({
+		...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
+		enabled: isOpen && !!organizationId,
+	});
 
+	const { data: activePlans = [] } = useQuery({
+		queryKey: ["installmentPlans", organizationId, "active"],
+		queryFn: () => client.installmentPlans.list({ organizationId, activeOnly: true }),
+		enabled: isOpen && !!organizationId,
+	});
 
+	const plansMap = useMemo(
+		() => new Map(activePlans.map((p) => [p.code, p])),
+		[activePlans],
+	);
+
+	// Form instance
+	const form = useForm<ServiceFormInput>({
+		resolver: zodResolver(serviceFormSchema),
+		defaultValues: buildDefaultValues(initialData),
+	});
+
+	// Reset on dialog re-open with fresh initialData
+	useEffect(() => {
+		if (isOpen) form.reset(buildDefaultValues(initialData));
+	}, [isOpen, initialData, form]);
+
+	// Watch reactive fields
+	const schedulingType = form.watch("schedulingType");
+	const expirable = form.watch("expirable");
+	const taxable = form.watch("taxable");
+	const price = form.watch("price") ?? 0;
+	const sessions = form.watch("sessions") ?? 0;
+	const taxPercentage = form.watch("taxPercentage") ?? 0;
+	const availablePaymentPlans = form.watch("availablePaymentPlans") ?? [];
+	// timePresetConfig — only defined when schedulingType === "time-preset"
+	const timePresetConfig =
+		schedulingType === "time-preset"
+			? (form.watch("timePresetConfig" as keyof ServiceFormInput) as { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> } | undefined)
+			: undefined;
+
+	const hasInstallmentPlan = availablePaymentPlans.some(
+		(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
+	);
+
+	// Derived display values (price is still in dollars at watch-time; zod transform hasn't run)
+	const taxAmount = (price * taxPercentage) / 100;
+	const totalWithTax = price + taxAmount;
+	const creditPerSession = sessions > 0 ? price / sessions : 0;
+
+	// Single mutation branching on mode
+	const mutation = useApiMutation({
+		mutationFn: (values: ServiceFormValues) => {
+			// Map UI schedulingType → wire schedulingType
+			const wireSchedulingType =
+				values.schedulingType === "time-preset" ? "class_slot" as const : "appointment" as const;
+
+			const commonFields = {
+				organizationId,
+				name: values.name,
+				categoryId: values.categoryId || null,
+				duration: values.sessionDurationMinutes,
+				durationUnitType: "minutes" as const,
+				maxAttendees: values.maxAttendees ?? 1,
+				attendanceThreshold: null,
+				branchId: null,
+				isActive: true,
+				// price is already in cents (zod transform ran)
+				price: values.price != null ? values.price : null,
+				taxable: values.taxable,
+				taxPercentage: values.taxable ? Math.round(values.taxPercentage ?? 0) : 0,
+				schedulingType: wireSchedulingType,
+				sessionCount: values.sessions > 0 ? values.sessions : null,
+				expirable: values.expirable,
+				expiryDays:
+					values.expirable && values.duration
+						? toExpiryDays(values.duration, values.duration_unit ?? "day")
+						: null,
+				availablePaymentPlans:
+					values.availablePaymentPlans.length > 0
+						? values.availablePaymentPlans
+						: undefined,
+				installmentIntervalDays: hasInstallmentPlan
+					? values.installmentIntervalDays
+					: undefined,
+				gracePeriodDays: hasInstallmentPlan ? values.gracePeriodDays : null,
+			};
+
+			if (mode === "edit") {
+				return client.services.update({
+					...commonFields,
+					id: initialData!.id,
+				});
+			}
+			return client.services.create(commonFields);
+		},
+		successMessage:
+			mode === "create"
+				? "Service created successfully"
+				: "Service updated successfully",
+		errorMessage: (err) => err?.message || "Failed to save service",
+		invalidate: [orpc.services.list.key()],
+		onSuccess: () => onClose(),
+	});
+
+	const onSubmit = (values: ServiceFormValues) => mutation.mutate(values);
+
+	// ---------------------------------------------------------------------------
+	// Time-preset helpers — update via form.setValue (not useState)
+	// ---------------------------------------------------------------------------
+
+	function getTimePresetConfig() {
+		return (form.getValues("timePresetConfig" as keyof ServiceFormInput) ?? {
+			recurringDays: [],
+			timeSlotsPerDay: {},
+		}) as { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> };
+	}
+
+	function handleSchedulingTypeChange(type: "appointment-based" | "time-preset") {
+		form.setValue("schedulingType", type, { shouldDirty: true });
+		if (type === "appointment-based") {
+			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+			// @ts-ignore — clearing time-preset field across discriminated union branches
+			form.setValue("timePresetConfig", undefined);
+		} else {
+			form.setValue("timePresetConfig", { recurringDays: [], timeSlotsPerDay: {} });
+		}
+	}
+
+	function handleRecurringDayToggle(day: string) {
+		const config = getTimePresetConfig();
+		const isSelected = config.recurringDays.includes(day);
+		const newDays = isSelected
+			? config.recurringDays.filter((d) => d !== day)
+			: [...config.recurringDays, day];
+
+		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
+		if (!isSelected && !newTimeSlotsPerDay[day]) {
+			newTimeSlotsPerDay[day] = ["09:00"];
+		} else if (isSelected) {
+			delete newTimeSlotsPerDay[day];
+		}
+
+		form.setValue("timePresetConfig", { recurringDays: newDays, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true, shouldValidate: true });
+	}
+
+	function addTimeSlot(day: string) {
+		const config = getTimePresetConfig();
+		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
+		if (!newTimeSlotsPerDay[day]) newTimeSlotsPerDay[day] = [];
+		newTimeSlotsPerDay[day] = [...newTimeSlotsPerDay[day], "09:00"];
+		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+	}
+
+	function removeTimeSlot(day: string, index: number) {
+		const config = getTimePresetConfig();
+		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
+		if (newTimeSlotsPerDay[day]) {
+			newTimeSlotsPerDay[day] = newTimeSlotsPerDay[day].filter((_, i) => i !== index);
+		}
+		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+	}
+
+	function updateTimeSlot(day: string, index: number, time: string) {
+		const config = getTimePresetConfig();
+		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
+		if (newTimeSlotsPerDay[day]) {
+			const slots = [...newTimeSlotsPerDay[day]];
+			slots[index] = time;
+			newTimeSlotsPerDay[day] = slots;
+		}
+		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+	}
+
+	// ---------------------------------------------------------------------------
+	// Render
+	// ---------------------------------------------------------------------------
+
+	return (
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>
+						{mode === "create" ? "Add New Service" : "Edit Service"}
+					</DialogTitle>
+				</DialogHeader>
+
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+						{/* Service Name */}
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>
+										Service Name <span className="text-destructive">*</span>
+									</FormLabel>
+									<FormControl>
+										<Input placeholder="Enter service name" {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{/* Service Category */}
+						<FormField
+							control={form.control}
+							name="categoryId"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>
+										Service Category <span className="text-destructive">*</span>
+									</FormLabel>
+									<FormControl>
+										<select
+											{...field}
+											disabled={isLoadingCategories}
+											className="mt-1 block w-full p-2 rounded-md border border-input bg-background shadow-sm focus:border-ring focus:ring-ring sm:text-sm disabled:bg-muted disabled:cursor-not-allowed"
+										>
+											<option value="">
+												{isLoadingCategories ? "Loading categories..." : "Select a category"}
+											</option>
+											{serviceCategories.map((category) => (
+												<option key={category.id} value={category.id}>
+													{category.name}
+												</option>
+											))}
+										</select>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{/* Session Duration + Max Attendees */}
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="sessionDurationMinutes"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>
+											Session Duration (minutes) <span className="text-destructive">*</span>
+										</FormLabel>
+										<FormControl>
+											<Input
+												type="number"
+												min={1}
+												{...field}
+												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+												onWheel={(e) => e.currentTarget.blur()}
+												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="maxAttendees"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>
+											Max Attendees <span className="text-destructive">*</span>
+										</FormLabel>
+										<FormControl>
+											<Input
+												type="number"
+												min={1}
+												{...field}
+												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+												onWheel={(e) => e.currentTarget.blur()}
+												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						{/* Expirable */}
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="expirable"
+								render={({ field }) => (
+									<FormItem className="flex items-center gap-2 space-y-0">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+											/>
+										</FormControl>
+										<FormLabel className="!mt-0">Expirable</FormLabel>
+									</FormItem>
+								)}
+							/>
+
+							{expirable && (
+								<FormItem>
+									<FormLabel>
+										Duration <span className="text-destructive">*</span>
+									</FormLabel>
+									<div className="flex gap-2">
+										<FormField
+											control={form.control}
+											name="duration"
+											render={({ field }) => (
+												<FormControl>
+													<Input
+														type="number"
+														min={1}
+														placeholder="1"
+														{...field}
+														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+														onWheel={(e) => e.currentTarget.blur()}
+														className="flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+													/>
+												</FormControl>
+											)}
+										/>
+										<FormField
+											control={form.control}
+											name="duration_unit"
+											render={({ field }) => (
+												<FormControl>
+													<select
+														{...field}
+														className="flex-1 p-2 rounded-md border border-input bg-background shadow-sm focus:border-ring sm:text-sm"
+													>
+														<option value="day">Day(s)</option>
+														<option value="week">Week(s)</option>
+														<option value="month">Month(s)</option>
+														<option value="year">Year(s)</option>
+													</select>
+												</FormControl>
+											)}
+										/>
+									</div>
+									<FormMessage />
+								</FormItem>
+							)}
+						</div>
+
+						{/* Price + Sessions */}
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="price"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>
+											Price <span className="text-destructive">*</span>
+										</FormLabel>
+										<FormControl>
+											<Input
+												type="number"
+												min={0}
+												step={0.01}
+												{...field}
+												onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+												onWheel={(e) => e.currentTarget.blur()}
+												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="sessions"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>
+											Sessions <span className="text-destructive">*</span>
+										</FormLabel>
+										<FormControl>
+											<Input
+												type="number"
+												min={0}
+												step={1}
+												{...field}
+												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+												onWheel={(e) => e.currentTarget.blur()}
+												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						{/* Credit per session summary */}
+						<div>
+							<div className="mt-2 flex items-center">
+								<span className="text-sm font-medium text-brand-primary-1">
+									Credit per Session: RM {sessions > 0 ? creditPerSession.toFixed(2) : "0.00"}
+								</span>
+							</div>
+							{sessions > 0 && price > 0 && (
+								<div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
+									<div className="text-sm text-brand-secondary-1">
+										<div className="flex justify-between">
+											<span>Total Price:</span>
+											<span>RM {price.toFixed(2)}</span>
+										</div>
+										<div className="flex justify-between">
+											<span>Number of Sessions:</span>
+											<span>{sessions}</span>
+										</div>
+										<div className="flex justify-between font-medium border-t pt-1 mt-1">
+											<span>Credit per Session:</span>
+											<span>RM {creditPerSession.toFixed(2)}</span>
+										</div>
+									</div>
+								</div>
+							)}
+						</div>
+
+						{/* Taxable */}
+						<div>
+							<FormField
+								control={form.control}
+								name="taxable"
+								render={({ field }) => (
+									<FormItem className="flex items-center gap-2 space-y-0 mt-2">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+											/>
+										</FormControl>
+										<FormLabel className="!mt-0">Taxable</FormLabel>
+									</FormItem>
+								)}
+							/>
+
+							{taxable && (
+								<>
+									<FormField
+										control={form.control}
+										name="taxPercentage"
+										render={({ field }) => (
+											<FormItem className="mt-3">
+												<FormLabel>Tax Percentage (%)</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														min={0}
+														max={100}
+														step={1}
+														{...field}
+														value={field.value ?? ""}
+														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+														onWheel={(e) => e.currentTarget.blur()}
+														className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
+										<div className="text-sm text-brand-secondary-1">
+											<div className="flex justify-between">
+												<span>Base Price:</span>
+												<span>RM {price.toFixed(2)}</span>
+											</div>
+											<div className="flex justify-between">
+												<span>Tax ({taxPercentage}%):</span>
+												<span>RM {taxAmount.toFixed(2)}</span>
+											</div>
+											<div className="flex justify-between font-medium border-t pt-1 mt-1">
+												<span>Total:</span>
+												<span>RM {totalWithTax.toFixed(2)}</span>
+											</div>
+										</div>
+									</div>
+								</>
+							)}
+						</div>
+
+						{/* Payment Plans */}
+						<div className="border-t border-brand-secondary-3 pt-4 mt-4">
+							<h3 className="text-sm font-medium text-brand-primary-1 mb-3">Payment Plans</h3>
+							<div className="space-y-2">
+								{activePlans.map((plan) => (
+									<div key={plan.code} className="flex items-center gap-2">
+										<Checkbox
+											id={`plan-${plan.code}`}
+											checked={availablePaymentPlans.includes(plan.code)}
+											disabled={mutation.isPending}
+											onCheckedChange={(checked) => {
+												const next = checked
+													? [...availablePaymentPlans, plan.code]
+													: availablePaymentPlans.filter((p) => p !== plan.code);
+												form.setValue("availablePaymentPlans", next, { shouldDirty: true });
+											}}
+										/>
+										<label htmlFor={`plan-${plan.code}`} className="text-sm text-brand-primary-1">
+											{plan.name}
+										</label>
+									</div>
+								))}
+								{activePlans.length === 0 && (
+									<p className="text-sm text-brand-secondary-1 italic">
+										No payment plans configured. Add plans under Settings &rarr; Installment Plans.
+									</p>
+								)}
+							</div>
+
+							{hasInstallmentPlan && (
+								<>
+									<FormField
+										control={form.control}
+										name="installmentIntervalDays"
+										render={({ field }) => (
+											<FormItem className="mt-3">
+												<FormLabel>Installment interval (days)</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														min={1}
+														{...field}
+														value={field.value ?? ""}
+														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+														onWheel={(e) => e.currentTarget.blur()}
+														className="w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="gracePeriodDays"
+										render={({ field }) => (
+											<FormItem className="mt-3">
+												<FormLabel>Grace period (days)</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														min={0}
+														max={90}
+														placeholder="Default: 7"
+														{...field}
+														value={field.value ?? ""}
+														onChange={(e) => {
+															const val = e.target.value;
+															field.onChange(val === "" ? null : parseInt(val, 10));
+														}}
+														onWheel={(e) => e.currentTarget.blur()}
+														className="w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+													/>
+												</FormControl>
+												<p className="mt-1 text-xs text-brand-secondary-1">
+													How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
+												</p>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</>
+							)}
+						</div>
+
+						{/* Scheduling Type */}
+						<div className="border-t border-brand-secondary-3 pt-4 mt-4">
+							<h3 className="text-lg font-medium text-brand-primary-1 mb-4">Scheduling Configuration</h3>
+
+							<div className="space-y-4">
+								<div>
+									<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+										Scheduling Type <span className="text-destructive">*</span>
+									</label>
+									<div className="flex gap-4">
+										<div className="flex items-center">
+											<input
+												type="radio"
+												id="scheduling-appointment-based"
+												name="schedulingType"
+												value="appointment-based"
+												checked={schedulingType === "appointment-based"}
+												onChange={() => handleSchedulingTypeChange("appointment-based")}
+												disabled={mutation.isPending}
+												className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
+											/>
+											<label htmlFor="scheduling-appointment-based" className="ml-2 block text-sm text-brand-primary-1">
+												Appointment-Based
+											</label>
+										</div>
+										<div className="flex items-center">
+											<input
+												type="radio"
+												id="scheduling-time-preset"
+												name="schedulingType"
+												value="time-preset"
+												checked={schedulingType === "time-preset"}
+												onChange={() => handleSchedulingTypeChange("time-preset")}
+												disabled={mutation.isPending}
+												className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
+											/>
+											<label htmlFor="scheduling-time-preset" className="ml-2 block text-sm text-brand-primary-1">
+												Time-Preset (Fixed Schedule)
+											</label>
+										</div>
+									</div>
+									<p className="text-sm text-brand-secondary-1 mt-1">
+										{schedulingType === "appointment-based"
+											? "Sessions are booked flexibly based on coach and client availability"
+											: "Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)"}
+									</p>
+								</div>
+
+								{/* Time-Preset Configuration — UI-only; NOT sent to backend */}
+								{schedulingType === "time-preset" && timePresetConfig && (
+									<div className="bg-brand-secondary-3/50 p-4 rounded-lg space-y-4">
+										<h4 className="text-md font-medium text-brand-primary-1">Time-Preset Configuration</h4>
+
+										{/* Recurring Days */}
+										<div>
+											<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+												Recurring Days <span className="text-destructive">*</span>
+											</label>
+											<div className="grid grid-cols-7 gap-2">
+												{DAY_ORDER.map((day) => (
+													<div key={day} className="flex items-center">
+														<input
+															type="checkbox"
+															id={`day-${day}`}
+															checked={timePresetConfig.recurringDays.includes(day)}
+															onChange={() => handleRecurringDayToggle(day)}
+															disabled={mutation.isPending}
+															className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
+														/>
+														<label htmlFor={`day-${day}`} className="ml-1 text-xs text-brand-primary-1">
+															{day.slice(0, 3)}
+														</label>
+													</div>
+												))}
+											</div>
+										</div>
+
+										{/* Time Slots per Day */}
+										<div>
+											<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+												Time Slots per Day <span className="text-destructive">*</span>
+											</label>
+											<div className="space-y-4">
+												{[...timePresetConfig.recurringDays]
+													.sort((a, b) => DAY_ORDER.indexOf(a as typeof DAY_ORDER[number]) - DAY_ORDER.indexOf(b as typeof DAY_ORDER[number]))
+													.map((day) => (
+														<div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
+															<div className="flex items-center justify-between mb-2">
+																<h5 className="text-sm font-medium text-brand-primary-1">{day}</h5>
+																<button
+																	type="button"
+																	onClick={() => addTimeSlot(day)}
+																	disabled={mutation.isPending}
+																	className="inline-flex items-center px-2 py-1 border border-brand-secondary-3 shadow-sm text-xs leading-4 font-medium rounded-md text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+																		<path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+																	</svg>
+																	Add Time
+																</button>
+															</div>
+															<div className="space-y-2">
+																{(timePresetConfig.timeSlotsPerDay[day] || []).map((time, index) => (
+																	<div key={index} className="flex items-center gap-2">
+																		<input
+																			type="time"
+																			value={time}
+																			onChange={(e) => updateTimeSlot(day, index, e.target.value)}
+																			disabled={mutation.isPending}
+																			className="p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+																		/>
+																		<button
+																			type="button"
+																			onClick={() => removeTimeSlot(day, index)}
+																			disabled={mutation.isPending || (timePresetConfig.timeSlotsPerDay[day] || []).length === 1}
+																			className="p-2 text-brand-secondary-1 hover:text-brand-secondary-1 disabled:opacity-40"
+																		>
+																			<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+																				<path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+																			</svg>
+																		</button>
+																	</div>
+																))}
+																{(!timePresetConfig.timeSlotsPerDay[day] || timePresetConfig.timeSlotsPerDay[day].length === 0) && (
+																	<p className="text-sm text-brand-secondary-1 italic">No time slots configured for {day}</p>
+																)}
+															</div>
+														</div>
+													))}
+												{timePresetConfig.recurringDays.length === 0 && (
+													<p className="text-sm text-brand-secondary-1 italic">
+														Select recurring days above to configure time slots
+													</p>
+												)}
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onClose}
+								disabled={mutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button type="submit" disabled={mutation.isPending}>
+								{mutation.isPending
+									? mode === "create"
+										? "Adding..."
+										: "Saving..."
+									: mode === "create"
+										? "Add Service"
+										: "Save Changes"}
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
+	);
+}

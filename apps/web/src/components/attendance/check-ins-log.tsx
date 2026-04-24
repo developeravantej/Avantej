@@ -1,9 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import DataTable from "@/components/tables/sales/view/data-table";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -96,9 +95,7 @@ function DeleteDialog({
 	organizationId: string;
 	queryKey: unknown[];
 }) {
-	const queryClient = useQueryClient();
-
-	const deleteMutation = useMutation({
+	const deleteMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!row) return;
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,15 +104,10 @@ function DeleteDialog({
 				id: row.id,
 			});
 		},
-		onSuccess: () => {
-			toast.success("Check-in record removed.");
-			onOpenChange(false);
-			queryClient.invalidateQueries({ queryKey });
-		},
-		onError: (err: unknown) => {
-			const msg = err instanceof Error ? err.message : "Unknown error";
-			toast.error(`Delete failed: ${msg}`);
-		},
+		successMessage: "Check-in record removed.",
+		errorMessage: (err) => `Delete failed: ${err.message || "Unknown error"}`,
+		invalidate: [queryKey],
+		onSuccess: () => onOpenChange(false),
 	});
 
 	return (

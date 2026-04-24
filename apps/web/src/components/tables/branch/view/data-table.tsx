@@ -1,3 +1,8 @@
+// NOTE: Not migrated to shared <EntityDataTable> because BranchRead uses optional lowercase `id`
+// (not `ID: string` as required by BaseRow), the caller owns the Add dialog externally (no
+// onAdd prop), and there is a custom full-pagination UI (page size + page navigation) not
+// provided by EntityDataTable.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	Table,

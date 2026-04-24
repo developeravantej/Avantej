@@ -94,8 +94,9 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{ title: "Home", url: "/dashboard", icon: Home },
 			{
 				title: "Reports",
-				url: "/dashboard/reports",
+				url: "/dashboard/reports/view",
 				icon: FileChartColumnIncreasing,
+				permission: "reports:read",
 			},
 		],
 	},

@@ -1,3 +1,8 @@
+// NOTE: Not migrated to shared <EntityDataTable> because:
+//   1. UomRow uses lowercase `id` (BaseRow requires uppercase `ID`) and columns.tsx is off-limits.
+//   2. Dialog state management moved to UomFormDialog (canonical pattern).
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
+
 import {
 	flexRender,
 	getCoreRowModel,
@@ -18,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
@@ -28,27 +33,16 @@ import {
 	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { UomFormDialog } from "@/components/forms/uom-form";
 import type { UomRow, UomTableMeta } from "./columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
-	isAddDialogOpen: boolean;
-	onAddDialogOpenChange: (open: boolean) => void;
-	editTarget: { id: string; name: string; description: string } | null;
-	onEditTargetChange: (
-		target: { id: string; name: string; description: string } | null,
-	) => void;
-	onCreate: (vars: { name: string; description?: string }) => void;
-	onUpdate: (vars: { id: string; name: string; description?: string }) => void;
+	organizationId: string;
 	onDelete: (id: string) => void;
-	isCreating?: boolean;
-	isUpdating?: boolean;
 	isDeleting?: boolean;
 	error?: unknown;
 	onRetry?: () => void;
@@ -60,15 +54,8 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData extends UomRow, TValue>({
 	columns,
 	data,
-	isAddDialogOpen,
-	onAddDialogOpenChange,
-	editTarget,
-	onEditTargetChange,
-	onCreate,
-	onUpdate,
+	organizationId,
 	onDelete,
-	isCreating,
-	isUpdating,
 	isDeleting,
 	error,
 	onRetry,
@@ -79,30 +66,25 @@ export function DataTable<TData extends UomRow, TValue>({
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
 
+	// Create dialog state
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+	// Edit dialog state
+	const [editTarget, setEditTarget] = useState<{
+		id: string;
+		name: string;
+		description: string | null;
+	} | null>(null);
+
 	// Delete confirmation state
 	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-	// Create form state
-	const [createName, setCreateName] = useState("");
-	const [createDescription, setCreateDescription] = useState("");
-
-	// Edit form state (synced from editTarget prop)
-	const [editName, setEditName] = useState("");
-	const [editDescription, setEditDescription] = useState("");
-
-	useEffect(() => {
-		if (editTarget) {
-			setEditName(editTarget.name);
-			setEditDescription(editTarget.description);
-		}
-	}, [editTarget]);
-
 	const meta: UomTableMeta = {
 		onEdit: (row: UomRow) => {
-			onEditTargetChange({
+			setEditTarget({
 				id: row.id,
 				name: row.name,
-				description: row.description ?? "",
+				description: row.description,
 			});
 		},
 		onDelete: (id: string) => {
@@ -127,32 +109,6 @@ export function DataTable<TData extends UomRow, TValue>({
 		},
 	});
 
-	function handleCreate() {
-		if (!createName.trim()) {
-			toast.error("Name is required");
-			return;
-		}
-		onCreate({
-			name: createName.trim(),
-			description: createDescription.trim() || undefined,
-		});
-		setCreateName("");
-		setCreateDescription("");
-	}
-
-	function handleUpdate() {
-		if (!editTarget) return;
-		if (!editName.trim()) {
-			toast.error("Name is required");
-			return;
-		}
-		onUpdate({
-			id: editTarget.id,
-			name: editName.trim(),
-			description: editDescription.trim() || undefined,
-		});
-	}
-
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
@@ -167,7 +123,7 @@ export function DataTable<TData extends UomRow, TValue>({
 				</div>
 				<div className="ml-auto flex gap-2">
 					<Button
-						onClick={() => onAddDialogOpenChange(true)}
+						onClick={() => setIsAddDialogOpen(true)}
 						size="sm"
 						type="button"
 					>
@@ -275,97 +231,21 @@ export function DataTable<TData extends UomRow, TValue>({
 			</div>
 
 			{/* Create Dialog */}
-			<Dialog open={isAddDialogOpen} onOpenChange={onAddDialogOpenChange}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Add New UoM</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="create-name"
-								placeholder="e.g., Piece, Kilogram"
-								value={createName}
-								onChange={(e) => setCreateName(e.target.value)}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-description">Description</Label>
-							<Textarea
-								id="create-description"
-								placeholder="Optional description for this UoM"
-								value={createDescription}
-								onChange={(e) => setCreateDescription(e.target.value)}
-								rows={3}
-							/>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => onAddDialogOpenChange(false)}
-							disabled={isCreating}
-						>
-							Cancel
-						</Button>
-						<Button onClick={handleCreate} disabled={isCreating}>
-							{isCreating ? "Adding..." : "Add UoM"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<UomFormDialog
+				isOpen={isAddDialogOpen}
+				onClose={() => setIsAddDialogOpen(false)}
+				organizationId={organizationId}
+				mode="create"
+			/>
 
 			{/* Edit Dialog */}
-			<Dialog
-				open={editTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) onEditTargetChange(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Edit UoM</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="edit-name"
-								placeholder="e.g., Piece, Kilogram"
-								value={editName}
-								onChange={(e) => setEditName(e.target.value)}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-description">Description</Label>
-							<Textarea
-								id="edit-description"
-								placeholder="Optional description for this UoM"
-								value={editDescription}
-								onChange={(e) => setEditDescription(e.target.value)}
-								rows={3}
-							/>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => onEditTargetChange(null)}
-							disabled={isUpdating}
-						>
-							Cancel
-						</Button>
-						<Button onClick={handleUpdate} disabled={isUpdating}>
-							{isUpdating ? "Saving..." : "Save Changes"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<UomFormDialog
+				isOpen={editTarget !== null}
+				onClose={() => setEditTarget(null)}
+				organizationId={organizationId}
+				mode="edit"
+				initialData={editTarget ?? undefined}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -62,8 +63,8 @@ function AcceptInvitationPage() {
 	});
 
 	// Accept invitation mutation
-	const acceptMutation = useMutation({
-		mutationFn: async () => {
+	const acceptMutation = useApiMutation({
+		mutationFn: async (_: void) => {
 			if (!token || !orgId) {
 				throw new Error("Token and organization ID are required");
 			}
@@ -72,8 +73,17 @@ function AcceptInvitationPage() {
 				organizationId: orgId,
 			});
 		},
+		successMessage: "Successfully joined organization!",
+		errorMessage: (error) => {
+			if (error.message.includes("UNAUTHORIZED")) {
+				return "Please sign up or log in to accept this invitation";
+			}
+			if (error.message.includes("different email address") || error.message.includes("sent to")) {
+				return error.message || "This invitation was sent to a different email address";
+			}
+			return `Failed to accept invitation: ${error.message}`;
+		},
 		onSuccess: () => {
-			toast.success("Successfully joined organization!");
 			// Ensure the app routes into the invited tenant context immediately
 			try {
 				if (orgId) {
@@ -86,16 +96,6 @@ function AcceptInvitationPage() {
 			setTimeout(() => {
 				navigate({ to: `/dashboard` });
 			}, 2000);
-		},
-		onError: (error: Error) => {
-			// Handle specific error cases
-			if (error.message.includes("UNAUTHORIZED")) {
-				toast.error("Please sign up or log in to accept this invitation");
-			} else if (error.message.includes("different email address") || error.message.includes("sent to")) {
-				toast.error(error.message || "This invitation was sent to a different email address");
-			} else {
-				toast.error(`Failed to accept invitation: ${error.message}`);
-			}
 		},
 	});
 

@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,10 +34,8 @@ type DropInFormProps = {
 export function DropInForm({
 	organizationId,
 	branchId,
-	queryKey,
+	queryKey: _queryKey,
 }: DropInFormProps) {
-	const queryClient = useQueryClient();
-
 	const [clientId, setClientId] = useState("");
 	const [clientType, setClientType] = useState<"member" | "walk_in">("member");
 	const [displayName, setDisplayName] = useState("");
@@ -61,7 +60,7 @@ export function DropInForm({
 		staleTime: 30 * 1000,
 	});
 
-	const checkInMutation = useMutation({
+	const checkInMutation = useApiMutation({
 		mutationFn: async () => {
 			const payload =
 				clientType === "walk_in"
@@ -84,17 +83,16 @@ export function DropInForm({
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			return (client as any).checkIns.recordCheckIn(payload);
 		},
+		successMessage: () =>
+			`Drop-in check-in recorded${displayName ? ` for ${displayName}` : ""}.`,
+		errorMessage: false,
+		invalidate: [["attendance"]],
 		onSuccess: () => {
-			toast.success(
-				`Drop-in check-in recorded${displayName ? ` for ${displayName}` : ""}.`,
-			);
 			setClientId("");
 			setDisplayName("");
-			// Invalidate both bookings + check-ins log — both share the "attendance" prefix
-			queryClient.invalidateQueries({ queryKey: ["attendance"] });
 		},
-		onError: (err: unknown) => {
-			const msg = err instanceof Error ? err.message : "Unknown error";
+		onError: (err) => {
+			const msg = err.message || "Unknown error";
 			if (
 				msg.toLowerCase().includes("already_checked_in") ||
 				msg.toLowerCase().includes("already checked in")

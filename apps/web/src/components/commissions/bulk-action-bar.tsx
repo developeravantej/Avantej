@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 import { MarkPaidDialog } from "@/components/commissions/mark-paid-dialog";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -169,24 +169,23 @@ export function BulkActionBar({
 	const [voidDialogOpen, setVoidDialogOpen] = useState(false);
 
 	// ── Approve mutation ───────────────────────────────────────────────────────
-	const approveMutation = useMutation({
+	const approveMutation = useApiMutation({
 		mutationFn: () =>
 			client.commissionSplits.approve({
 				organizationId,
 				ids: selectedIds,
 			}),
+		successMessage: `Approved ${count} commission split${count !== 1 ? "s" : ""}.`,
+		errorMessage: (err) => err.message || "Failed to approve commission splits.",
+		invalidate: [["commissions"]],
 		onSuccess: () => {
-			toast.success(`Approved ${count} commission split${count !== 1 ? "s" : ""}.`);
-			queryClient.invalidateQueries({ queryKey: ["commissions"] });
 			setApproveDialogOpen(false);
 			onDone();
 		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to approve commission splits."),
 	});
 
 	// ── Void mutation — one-by-one (backend void takes a single id + reason) ──
-	const voidMutation = useMutation({
+	const voidMutation = useApiMutation({
 		mutationFn: async (reason: string) => {
 			// Backend void operates on one id at a time per plan §6.4
 			for (const id of selectedIds) {
@@ -197,14 +196,13 @@ export function BulkActionBar({
 				});
 			}
 		},
+		successMessage: `Voided ${count} commission split${count !== 1 ? "s" : ""}.`,
+		errorMessage: (err) => err.message || "Failed to void commission splits.",
+		invalidate: [["commissions"]],
 		onSuccess: () => {
-			toast.success(`Voided ${count} commission split${count !== 1 ? "s" : ""}.`);
-			queryClient.invalidateQueries({ queryKey: ["commissions"] });
 			setVoidDialogOpen(false);
 			onDone();
 		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to void commission splits."),
 	});
 
 	if (count === 0) return null;

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Plus, Trash2 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { client } from "@/utils/orpc";
+import { centsToRm, rmToCents } from "@/lib/money";
 
 interface CategoryCommissionFormProps {
 	open: boolean;
@@ -94,7 +96,7 @@ export function CategoryCommissionForm({
 			setRates(
 				(apiRates ?? []).map((r: any) => ({
 					trainerTierId: r.trainerTierId,
-					amount: r.amount / 100,
+					amount: Number(centsToRm(r.amount)),
 				})),
 			);
 			setConditions([]);
@@ -109,7 +111,7 @@ export function CategoryCommissionForm({
 					label: condition.label ?? undefined,
 					rates: (cr ?? []).map((r: any) => ({
 						trainerTierId: r.trainerTierId,
-						amount: r.amount / 100,
+						amount: Number(centsToRm(r.amount)),
 					})),
 				})),
 			);
@@ -121,14 +123,12 @@ export function CategoryCommissionForm({
 		setRates(tiers.map((t: any) => ({ trainerTierId: t.id, amount: 0 })));
 	}, [tiers]);
 
-	const upsertMutation = useMutation({
+	const upsertMutation = useApiMutation({
 		mutationFn: (payload: Parameters<typeof client.categoryCommission.upsert>[0]) =>
 			client.categoryCommission.upsert(payload),
-		onSuccess: () => {
-			toast.success("Commission config saved");
-			onOpenChange(false);
-		},
-		onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to save"),
+		successMessage: "Commission config saved",
+		errorMessage: (err) => err.message || "Failed to save",
+		onSuccess: () => onOpenChange(false),
 	});
 
 	function handleSubmit() {
@@ -152,11 +152,11 @@ export function CategoryCommissionForm({
 			isConditional,
 			maxCoaches,
 			slots,
-			rates: isConditional ? undefined : rates.map((r) => ({ ...r, amount: Math.round(r.amount * 100) })),
+			rates: isConditional ? undefined : rates.map((r) => ({ ...r, amount: rmToCents(r.amount) })),
 			conditions: isConditional
 				? conditions.map((c) => ({
 						...c,
-						rates: c.rates.map((r) => ({ ...r, amount: Math.round(r.amount * 100) })),
+						rates: c.rates.map((r) => ({ ...r, amount: rmToCents(r.amount) })),
 					}))
 				: undefined,
 		});
@@ -234,13 +234,13 @@ export function CategoryCommissionForm({
 	const unitLabel = paymentType === "fixed" ? "RM" : "%";
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-				<SheetHeader className="mb-4">
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-2xl overflow-y-auto">
+				<DialogHeader className="mb-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
-							<SheetTitle>Commission Config</SheetTitle>
-							<SheetDescription>{categoryName}</SheetDescription>
+							<DialogTitle>Commission Config</DialogTitle>
+							<DialogDescription>{categoryName}</DialogDescription>
 						</div>
 						{!isLoadingConfig && (
 							existingConfig
@@ -248,7 +248,7 @@ export function CategoryCommissionForm({
 								: <Badge variant="outline" className="text-muted-foreground shrink-0">No config yet</Badge>
 						)}
 					</div>
-				</SheetHeader>
+				</DialogHeader>
 
 				{isLoadingConfig ? (
 					<div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
@@ -585,7 +585,7 @@ export function CategoryCommissionForm({
 						{upsertMutation.isPending ? "Saving..." : "Save Config"}
 					</Button>
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }

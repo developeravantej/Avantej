@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -19,12 +20,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, Tag } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -125,7 +126,7 @@ function toDateInputValue(value: string | Date | null | undefined): string {
 function TaxRatesPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+	const taxRatesKey = ["taxRates", organizationId];
 
 	// Sheet state
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -146,7 +147,7 @@ function TaxRatesPage() {
 		enabled: !!organizationId,
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (values: FormState) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.taxRates.create({
@@ -163,17 +164,13 @@ function TaxRatesPage() {
 				isDefault: values.isDefault,
 			});
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["taxRates", organizationId] });
-			toast.success("Tax rate created successfully.");
-			closeSheet();
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to create tax rate.");
-		},
+		successMessage: "Tax rate created successfully.",
+		errorMessage: (err) => err.message || "Failed to create tax rate.",
+		invalidate: [taxRatesKey],
+		onSuccess: () => closeSheet(),
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({ id, values }: { id: string; values: FormState }) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.taxRates.update({
@@ -190,42 +187,30 @@ function TaxRatesPage() {
 				description: values.description || undefined,
 			});
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["taxRates", organizationId] });
-			toast.success("Tax rate updated successfully.");
-			closeSheet();
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update tax rate.");
-		},
+		successMessage: "Tax rate updated successfully.",
+		errorMessage: (err) => err.message || "Failed to update tax rate.",
+		invalidate: [taxRatesKey],
+		onSuccess: () => closeSheet(),
 	});
 
-	const setDefaultMutation = useMutation({
+	const setDefaultMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.taxRates.setDefault({ organizationId, id });
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["taxRates", organizationId] });
-			toast.success("Tax rate set as default.");
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to set default tax rate.");
-		},
+		successMessage: "Tax rate set as default.",
+		errorMessage: (err) => err.message || "Failed to set default tax rate.",
+		invalidate: [taxRatesKey],
 	});
 
-	const deactivateMutation = useMutation({
+	const deactivateMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.taxRates.deactivate({ organizationId, id });
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["taxRates", organizationId] });
-			toast.success("Tax rate deactivated.");
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate tax rate.");
-		},
+		successMessage: "Tax rate deactivated.",
+		errorMessage: (err) => err.message || "Failed to deactivate tax rate.",
+		invalidate: [taxRatesKey],
 	});
 
 	const isMutating =
@@ -531,25 +516,25 @@ function TaxRatesPage() {
 				<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
 			)}
 
-			{/* Create / Edit Sheet */}
-			<Sheet
+			{/* Create / Edit Dialog */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white">
-					<SheetHeader>
-						<SheetTitle className="text-lg font-medium leading-6 text-brand-primary-1">
+				<DialogContent className="sm:max-w-lg overflow-y-auto bg-white">
+					<DialogHeader>
+						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
 							{editingId ? "Edit Tax Rate" : "Add Tax Rate"}
-						</SheetTitle>
-						<SheetDescription className="text-sm text-brand-secondary-1">
+						</DialogTitle>
+						<DialogDescription className="text-sm text-brand-secondary-1">
 							{editingId
 								? "Update the details for this tax rate."
 								: "Define a new tax rate to apply on sales."}
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Name */}
@@ -753,8 +738,8 @@ function TaxRatesPage() {
 							</button>
 						</div>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

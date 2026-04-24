@@ -1,7 +1,7 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
 import type { ColumnDef } from "@tanstack/react-table";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 export interface PackageRow {
 	id?: string;

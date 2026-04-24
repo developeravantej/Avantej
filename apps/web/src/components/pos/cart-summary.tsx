@@ -1,5 +1,5 @@
 import { ShoppingCart } from "lucide-react";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import type { CartItem } from "./types";
 
 interface CartSummaryProps {

@@ -1,6 +1,6 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import type { ColumnDef } from "@tanstack/react-table";
 
 const formatDate = (date: Date | string | null | undefined): string => {

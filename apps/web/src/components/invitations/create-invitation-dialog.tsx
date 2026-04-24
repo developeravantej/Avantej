@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { Loader2, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -97,7 +97,7 @@ export function CreateInvitationDialog({
 	});
 
 	// Create invitation mutation
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: async (data: InvitationFormData) => {
 			const result = await client.invitations.create({
 				organizationId,
@@ -120,13 +120,11 @@ export function CreateInvitationDialog({
 
 			return result;
 		},
+		successMessage: "Invitation sent successfully",
+		errorMessage: (error) => `Failed to create invitation: ${error.message}`,
 		onSuccess: () => {
-			toast.success("Invitation sent successfully");
 			reset();
 			onSuccess?.();
-		},
-		onError: (error: Error) => {
-			toast.error(`Failed to create invitation: ${error.message}`);
 		},
 	});
 

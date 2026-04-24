@@ -1,3 +1,8 @@
+// NOTE: Not migrated to shared <EntityDataTable> because this is a read-only historical
+// log (cancelled sales cannot be added/edited/deleted). EntityDataTable requires an add
+// button and onAddClick prop which are inappropriate here.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
+
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	Table,

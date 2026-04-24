@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useState } from "react";
 import { DataTable as UomDataTable } from "@/components/tables/uom/view/data-table";
 import { columns as uomColumns } from "@/components/tables/uom/view/columns";
@@ -15,7 +15,6 @@ import { PageLoader } from "@/components/ui/loading-spinner";
 export function UomOptionsDashboard() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// ---- UOM add/edit dialog state for base UOMs ----
 	const [uomAddOpen, setUomAddOpen] = useState(false);
@@ -59,26 +58,20 @@ export function UomOptionsDashboard() {
 	const uomMap = Object.fromEntries(allUoms.map((u) => [u.id, u.name]));
 
 	// ---- Mutations ----
-	const createUomMutation = useMutation({
+	const createUomMutation = useApiMutation({
 		mutationFn: (vars: { name: string; description?: string }) =>
 			client.unitsOfMeasure.create({
 				organizationId: organizationId!,
 				name: vars.name,
 				description: vars.description,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Unit of measure created");
-			setUomAddOpen(false);
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create unit of measure");
-		},
+		successMessage: "Unit of measure created",
+		errorMessage: (err) => err.message ?? "Failed to create unit of measure",
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setUomAddOpen(false),
 	});
 
-	const updateUomMutation = useMutation({
+	const updateUomMutation = useApiMutation({
 		mutationFn: (vars: { id: string; name: string; description?: string }) =>
 			client.unitsOfMeasure.update({
 				organizationId: organizationId!,
@@ -86,36 +79,24 @@ export function UomOptionsDashboard() {
 				name: vars.name,
 				description: vars.description,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Unit of measure updated");
-			setUomEditTarget(null);
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update unit of measure");
-		},
+		successMessage: "Unit of measure updated",
+		errorMessage: (err) => err.message ?? "Failed to update unit of measure",
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setUomEditTarget(null),
 	});
 
-	const deleteUomMutation = useMutation({
+	const deleteUomMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.unitsOfMeasure.delete({
 				organizationId: organizationId!,
 				id,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Unit of measure deleted");
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to delete unit of measure");
-		},
+		successMessage: "Unit of measure deleted",
+		errorMessage: (err) => err.message ?? "Failed to delete unit of measure",
+		invalidate: [["unitsOfMeasure", organizationId]],
 	});
 
-	const createConvMutation = useMutation({
+	const createConvMutation = useApiMutation({
 		mutationFn: (vars: {
 			name: string;
 			description?: string;
@@ -129,19 +110,13 @@ export function UomOptionsDashboard() {
 				baseUomId: vars.baseUomId,
 				conversionFactor: vars.conversionFactor,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion created");
-			setConvAddOpen(false);
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to create conversion");
-		},
+		successMessage: "Conversion created",
+		errorMessage: (err) => err.message ?? "Failed to create conversion",
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setConvAddOpen(false),
 	});
 
-	const updateConvMutation = useMutation({
+	const updateConvMutation = useApiMutation({
 		mutationFn: (vars: {
 			id: string;
 			name?: string;
@@ -157,33 +132,21 @@ export function UomOptionsDashboard() {
 				baseUomId: vars.baseUomId,
 				conversionFactor: vars.conversionFactor,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion updated");
-			setConvEditTarget(null);
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to update conversion");
-		},
+		successMessage: "Conversion updated",
+		errorMessage: (err) => err.message ?? "Failed to update conversion",
+		invalidate: [["unitsOfMeasure", organizationId]],
+		onSuccess: () => setConvEditTarget(null),
 	});
 
-	const deleteConvMutation = useMutation({
+	const deleteConvMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.unitsOfMeasure.delete({
 				organizationId: organizationId!,
 				id,
 			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["unitsOfMeasure", organizationId],
-			});
-			toast.success("Conversion deleted");
-		},
-		onError: (err: Error) => {
-			toast.error(err.message ?? "Failed to delete conversion");
-		},
+		successMessage: "Conversion deleted",
+		errorMessage: (err) => err.message ?? "Failed to delete conversion",
+		invalidate: [["unitsOfMeasure", organizationId]],
 	});
 
 	if (!organizationId) {
@@ -195,13 +158,7 @@ export function UomOptionsDashboard() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
+		return <PageLoader />;
 	}
 
 	return (

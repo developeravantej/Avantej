@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Shield, UserPlus, Trash2, Search } from "lucide-react";
-import { toast } from "sonner";
-import { client, queryClient } from "@/utils/orpc";
+import { useApiMutation } from "@/hooks/useApiMutation";
+import { client } from "@/utils/orpc";
 import { useDebounce } from "@/hooks/useDebounce";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -177,18 +177,15 @@ function AddAdminDialog({
 		enabled: debouncedSearch.length > 0,
 	});
 
-	const { mutate: grant, isPending: isGranting } = useMutation({
+	const { mutate: grant, isPending: isGranting } = useApiMutation({
 		mutationFn: ({ userId, role }: { userId: string; role: AdminRole }) =>
 			client.admin.grantPlatformAdmin({ userId, role }),
+		successMessage: "Platform admin access granted.",
+		errorMessage: "Failed to grant admin access. Please try again.",
+		invalidate: [["admin", "listAdmins"], ["admin", "listUsers"]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["admin", "listAdmins"] });
-			queryClient.invalidateQueries({ queryKey: ["admin", "listUsers"] });
-			toast.success("Platform admin access granted.");
 			handleClose();
 			onSuccess();
-		},
-		onError: () => {
-			toast.error("Failed to grant admin access. Please try again.");
 		},
 	});
 
@@ -331,17 +328,14 @@ function PlatformAdminAdminsPage() {
 		queryFn: () => client.admin.listAdmins({}),
 	});
 
-	const { mutate: revoke, isPending: isRevoking } = useMutation({
+	const { mutate: revoke, isPending: isRevoking } = useApiMutation({
 		mutationFn: ({ userId }: { userId: string }) =>
 			client.admin.revokePlatformAdmin({ userId }),
+		successMessage: "Platform admin access revoked.",
+		errorMessage: "Failed to revoke admin access. Please try again.",
+		invalidate: [["admin", "listAdmins"], ["admin", "listUsers"]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["admin", "listAdmins"] });
-			queryClient.invalidateQueries({ queryKey: ["admin", "listUsers"] });
-			toast.success("Platform admin access revoked.");
 			setRevokeTarget(null);
-		},
-		onError: () => {
-			toast.error("Failed to revoke admin access. Please try again.");
 		},
 	});
 

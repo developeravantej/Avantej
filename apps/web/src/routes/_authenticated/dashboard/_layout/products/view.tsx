@@ -1,15 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client, orpc } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useProductData } from "@/hooks/useProductData";
-import { toast } from "sonner";
 import { Package } from "lucide-react";
 import DataTable from "@/components/tables/products/view/data-table";
 import { columns } from "@/components/tables/products/view/columns";
 import type { ProductRow } from "@/components/tables/products/view/columns";
-import type { CreateProductInput, UpdateProductInput } from "@/hooks/useProductForm";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -33,16 +31,8 @@ const STATUS_TABS: { value: ProductStatus | undefined; label: string }[] = [
 function ProductsViewPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const [statusFilter, setStatusFilter] = useState<ProductStatus | undefined>(undefined);
-
-	// Use .key() for partial-match invalidation — matches all products.list queries
-	function invalidateProducts() {
-		queryClient.invalidateQueries({
-			queryKey: orpc.products.list.key(),
-		});
-	}
 
 	// Fetch products via oRPC
 	const { data: products = [], isLoading, isError, error, refetch } = useQuery({
@@ -55,44 +45,8 @@ function ProductsViewPage() {
 		enabled: !!organizationId,
 	});
 
-	// Fetch brands/categories/suppliers/uoms for the form
+	// Fetch brands/categories/suppliers/uoms for the form dropdowns
 	const { brands, categories, suppliers, uoms } = useProductData(organizationId);
-
-	// Create mutation
-	const createMutation = useMutation({
-		mutationFn: (data: CreateProductInput) =>
-			client.products.create({ organizationId: organizationId!, ...data }),
-		onSuccess: () => {
-			invalidateProducts();
-			toast.success("Product created successfully");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create product: ${message}`);
-		},
-	});
-
-	// Update mutation
-	const updateMutation = useMutation({
-		mutationFn: ({ id, ...data }: { id: string } & UpdateProductInput) =>
-			client.products.update({ organizationId: organizationId!, id, ...data }),
-		onSuccess: () => {
-			invalidateProducts();
-			toast.success("Product updated successfully");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to update product: ${message}`);
-		},
-	});
-
-	function handleProductCreate(data: CreateProductInput) {
-		createMutation.mutate(data);
-	}
-
-	function handleProductUpdate(data: { id: string } & UpdateProductInput) {
-		updateMutation.mutate(data);
-	}
 
 	// Map API response to ProductRow shape
 	const tableData: ProductRow[] = products.map((p) => ({
@@ -181,10 +135,7 @@ function ProductsViewPage() {
 			<DataTable
 				columns={columns}
 				data={tableData}
-				onProductCreate={handleProductCreate}
-				onProductUpdate={handleProductUpdate}
-				isCreating={createMutation.isPending}
-				isUpdating={updateMutation.isPending}
+				organizationId={organizationId}
 				brands={brands}
 				categories={categories}
 				suppliers={suppliers}

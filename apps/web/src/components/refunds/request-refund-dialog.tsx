@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/currency";
+import { centsToRm, formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ export function RequestRefundDialog({
 
 	const defaultAmountRm =
 		suggestedAmountCents != null && suggestedAmountCents > 0
-			? (suggestedAmountCents / 100).toFixed(2)
+			? centsToRm(suggestedAmountCents)
 			: "";
 
 	const form = useForm<FormValues>({
@@ -105,9 +105,9 @@ export function RequestRefundDialog({
 	const isPending = form.formState.isSubmitting;
 
 	async function onSubmit(values: FormValues) {
-		const amountCents = Math.round(Number.parseFloat(values.amountRm) * 100);
+		const amountCents = rmToCents(Number.parseFloat(values.amountRm));
 		const taxCents = values.taxAmountRm
-			? Math.round(Number.parseFloat(values.taxAmountRm) * 100)
+			? rmToCents(Number.parseFloat(values.taxAmountRm))
 			: 0;
 
 		try {

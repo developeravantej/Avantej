@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 import { client } from "@/utils/orpc";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -67,7 +67,6 @@ function WaitlistSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProps) {
-	const queryClient = useQueryClient();
 	const [selectedMemberId, setSelectedMemberId] = useState<string>("");
 
 	// -------------------------------------------------------------------------
@@ -108,47 +107,33 @@ export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProp
 	// Mutations
 	// -------------------------------------------------------------------------
 
-	const promoteMutation = useMutation({
+	const waitlistKey = ["waitlist", organizationId, classSlotId];
+
+	const promoteMutation = useApiMutation({
 		mutationFn: () =>
 			client.waitlist.promote({ organizationId, classSlotId }),
-		onSuccess: () => {
-			toast.success("First person promoted");
-			queryClient.invalidateQueries({
-				queryKey: ["waitlist", organizationId, classSlotId],
-			});
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to promote: ${err.message}`);
-		},
+		successMessage: "First person promoted",
+		errorMessage: (err) => `Failed to promote: ${err.message}`,
+		invalidate: [waitlistKey],
 	});
 
-	const removeMutation = useMutation({
+	const removeMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.waitlist.remove({ organizationId, id }),
-		onSuccess: () => {
-			toast.success("Removed from waitlist");
-			queryClient.invalidateQueries({
-				queryKey: ["waitlist", organizationId, classSlotId],
-			});
-		},
-		onError: (err: Error) => {
-			toast.error(`Failed to remove: ${err.message}`);
-		},
+		successMessage: "Removed from waitlist",
+		errorMessage: (err) => `Failed to remove: ${err.message}`,
+		invalidate: [waitlistKey],
 	});
 
-	const addMutation = useMutation({
+	const addMutation = useApiMutation({
 		mutationFn: (memberId: string) =>
 			client.waitlist.add({ organizationId, classSlotId, memberId }),
+		successMessage: "Added to waitlist",
+		// Surface BAD_REQUEST (e.g. duplicate) as a user-friendly error
+		errorMessage: (err) => err.message || "Failed to add to waitlist",
+		invalidate: [waitlistKey],
 		onSuccess: () => {
-			toast.success("Added to waitlist");
 			setSelectedMemberId("");
-			queryClient.invalidateQueries({
-				queryKey: ["waitlist", organizationId, classSlotId],
-			});
-		},
-		onError: (err: Error) => {
-			// Surface BAD_REQUEST (e.g. duplicate) as a user-friendly error
-			toast.error(err.message ?? "Failed to add to waitlist");
 		},
 	});
 

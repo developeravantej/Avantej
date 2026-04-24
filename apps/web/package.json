@@ -13,12 +13,12 @@
     "deploy": "bun run build && wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:mutations": "bun scripts/check-no-raw-mutation-toast.ts"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",
     "@avantej-core/auth": "workspace:*",
-    "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.1.1",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",

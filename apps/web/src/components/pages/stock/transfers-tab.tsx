@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
@@ -9,14 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -83,7 +76,7 @@ export function TransferOrdersTabPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canCreate = hasPermission("inventory_management:create");
 	const canUpdate = hasPermission("inventory_management:update");
-	const queryClient = useQueryClient();
+	const transferOrdersKey = ["transferOrders", organizationId];
 
 	// ---- Branch nodes query ----
 	const { data: nodesData } = useQuery({
@@ -130,7 +123,7 @@ export function TransferOrdersTabPage() {
 	});
 
 	// ---- Mutations ----
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (vars: {
 			fromBranchId: string;
 			toBranchId: string;
@@ -154,61 +147,51 @@ export function TransferOrdersTabPage() {
 					},
 				],
 			}),
+		successMessage: "Transfer order created",
+		errorMessage: (err) =>
+			`Failed to create transfer order: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [transferOrdersKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["transferOrders", organizationId] });
-			toast.success("Transfer order created");
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to create transfer order: ${message}`);
-		},
 	});
 
-	const markInTransitMutation = useMutation({
+	const markInTransitMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.transferOrders.markInTransit({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["transferOrders", organizationId] });
-			toast.success("Transfer order marked in transit");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to mark transfer in transit: ${message}`);
-		},
+		successMessage: "Transfer order marked in transit",
+		errorMessage: (err) =>
+			`Failed to mark transfer in transit: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [transferOrdersKey],
 	});
 
-	const completeMutation = useMutation({
+	const completeMutation = useApiMutation({
 		mutationFn: (vars: { id: string; items: { itemId: string; quantityReceived: number }[] }) =>
 			client.transferOrders.complete({
 				organizationId: organizationId!,
 				id: vars.id,
 				items: vars.items,
 			}),
+		successMessage: "Transfer order completed",
+		errorMessage: (err) =>
+			`Failed to complete transfer order: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [transferOrdersKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["transferOrders", organizationId] });
-			toast.success("Transfer order completed");
 			setCompleteTarget(null);
 			setReceiveQuantities({});
 		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to complete transfer order: ${message}`);
-		},
 	});
 
-	const cancelMutation = useMutation({
+	const cancelMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.transferOrders.cancel({ organizationId: organizationId!, id }),
+		successMessage: "Transfer order cancelled",
+		errorMessage: (err) =>
+			`Failed to cancel transfer order: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [transferOrdersKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["transferOrders", organizationId] });
-			toast.success("Transfer order cancelled");
 			setCancelTarget(null);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to cancel transfer order: ${message}`);
 		},
 	});
 
@@ -559,14 +542,14 @@ export function TransferOrdersTabPage() {
 			{/* ------------------------------------------------------------------ */}
 			{/* Create Transfer Order Sheet                                         */}
 			{/* ------------------------------------------------------------------ */}
-			<Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>New Transfer Order</SheetTitle>
-						<SheetDescription>
+			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>New Transfer Order</DialogTitle>
+						<DialogDescription>
 							Create a new inventory transfer between branches.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="flex flex-col gap-4 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
@@ -649,7 +632,7 @@ export function TransferOrdersTabPage() {
 						</div>
 					</div>
 
-					<SheetFooter className="px-4">
+					<DialogFooter className="px-4">
 						<Button
 							variant="outline"
 							onClick={() => setIsCreateOpen(false)}
@@ -663,9 +646,9 @@ export function TransferOrdersTabPage() {
 						>
 							{createMutation.isPending ? "Creating…" : "Create"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Complete Transfer Dialog                                            */}

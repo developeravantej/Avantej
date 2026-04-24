@@ -13,9 +13,9 @@ import {
 	DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { AddAppointmentModal } from "@/components/calendar/add-appointment-modal";
 import type { CalendarAppointment } from "@/lib/appointment-mapper";
@@ -116,9 +116,8 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 	const organizationId = userCtx?.currentOrganizationId ?? "";
 	const org = userCtx?.organizations.find((o) => o.id === organizationId);
 	const branchId = org?.hierarchy.member?.hierarchyScopeId ?? "";
-	const queryClient = useQueryClient();
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (params: { start: Date; duration: number; notes?: string; userId?: string | null }) =>
 			client.appointments.create({
 				organizationId,
@@ -131,28 +130,22 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				notes: params.notes ?? null,
 				userId: params.userId ?? null,
 			}),
+		successMessage: "Appointment created",
+		errorMessage: (err) => err.message || "Failed to create appointment",
+		invalidate: [["appointments"]],
 		onSuccess: () => {
-			toast.success("Appointment created");
 			setShowAddModal(false);
-			queryClient.invalidateQueries({ queryKey: ["appointments"] });
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to create appointment");
 		},
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: (params: { id: string; status: "confirmed" | "cancelled" }) =>
 			client.appointments.update({ organizationId, id: params.id, status: params.status }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["appointments"] });
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update appointment");
-		},
+		errorMessage: (err) => err.message || "Failed to update appointment",
+		invalidate: [["appointments"]],
 	});
 
-	const editMutation = useMutation({
+	const editMutation = useApiMutation({
 		mutationFn: (params: {
 			id: string;
 			startTime: string;
@@ -168,14 +161,12 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				notes: params.notes || null,
 				description: params.description || null,
 			}),
+		successMessage: "Appointment updated",
+		errorMessage: (err) => err.message || "Failed to update appointment",
+		invalidate: [["appointments"]],
 		onSuccess: () => {
-			toast.success("Appointment updated");
 			setEditAppt(null);
 			setEditForm(null);
-			queryClient.invalidateQueries({ queryKey: ["appointments"] });
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update appointment");
 		},
 	});
 

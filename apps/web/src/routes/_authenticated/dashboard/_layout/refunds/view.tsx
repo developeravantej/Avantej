@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Undo2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { ProcessRefundDialog } from "@/components/refunds/process-refund-dialog";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
@@ -18,20 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
@@ -193,14 +186,14 @@ function RefundDetailDrawer({
 	const auditRows = (auditData as any)?.rows ?? [];
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-				<SheetHeader>
-					<SheetTitle>Refund Details</SheetTitle>
-					<SheetDescription>
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-xl overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>Refund Details</DialogTitle>
+					<DialogDescription>
 						Full information and audit trail for {refund.refundNumber}.
-					</SheetDescription>
-				</SheetHeader>
+					</DialogDescription>
+				</DialogHeader>
 
 				<div className="flex flex-col gap-5 px-1 py-4">
 					{/* Core info */}
@@ -359,8 +352,8 @@ function RefundDetailDrawer({
 						)}
 					</div>
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -440,7 +433,7 @@ function RejectDialog({
 function RefundsLedgerPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+	const refundsKey = ["refunds", organizationId];
 
 	// Permissions
 	const canApprove = hasPermission("refund_management:approve");
@@ -474,37 +467,35 @@ function RefundsLedgerPage() {
 	const rows: RefundRow[] = (data as any)?.rows ?? [];
 
 	// ── Mutations ──────────────────────────────────────────────────────────────
-	const approveMutation = useMutation({
+	const approveMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes?: string }) =>
 			(client as any).refunds.approve({
 				organizationId,
 				id: vars.id,
 				reviewNotes: vars.reviewNotes,
 			}),
+		successMessage: "Refund approved.",
+		errorMessage: (err) => err.message ?? "Failed to approve refund.",
+		invalidate: [refundsKey],
 		onSuccess: () => {
-			toast.success("Refund approved.");
-			queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
 			setApproveRefundId(null);
 		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to approve refund."),
 	});
 
-	const rejectMutation = useMutation({
+	const rejectMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes: string }) =>
 			(client as any).refunds.reject({
 				organizationId,
 				id: vars.id,
 				reviewNotes: vars.reviewNotes,
 			}),
+		successMessage: "Refund rejected.",
+		errorMessage: (err) => err.message ?? "Failed to reject refund.",
+		invalidate: [refundsKey],
 		onSuccess: () => {
-			toast.success("Refund rejected.");
-			queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
 			setRejectDialogOpen(false);
 			setRejectRefundId(null);
 		},
-		onError: (err: Error) =>
-			toast.error(err.message ?? "Failed to reject refund."),
 	});
 
 	// ── Helpers ────────────────────────────────────────────────────────────────

@@ -1,396 +1,405 @@
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { orpc, client } from '@/utils/orpc';
-import { useUserContext } from '@/hooks/useUserContext';
-import { toast } from 'sonner';
+/**
+ * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * - Zod schema colocated (top of file)
+ * - organizationId is a prop, never a form field
+ * - Config fields (duration, maxAttendees, rules) submitted alongside basic fields in a single
+ *   onSubmit handler that calls serviceCategories.create/update then serviceCategoryConfig.upsert
+ * - Error display: inline <FormMessage> + toast on mutation error
+ */
 
-interface ServiceFormData {
-	name: string;
-	duration: number;
-	maxAttendees?: number;
-	rules?: {
-		requireAdvanceBooking: boolean;
-		minAdvanceHours: number; // hours before start to allow booking
-		enableCancellationWindow: boolean;
-		cancellationCutoffHours: number; // hours before start to allow cancel
-		bufferTimeMinutes: number; // minutes required between consecutive bookings
-	};
-}
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
+import { useApiMutation } from "@/hooks/useApiMutation";
+import { client, orpc } from "@/utils/orpc";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+// 1. Schema — colocated, defines UI shape + validation
+const serviceCategoryFormSchema = z.object({
+	name: z
+		.string()
+		.min(1, "Service category name is required")
+		.max(100, "Name must be 100 characters or fewer"),
+	duration: z
+		.number({ message: "Duration must be a number" })
+		.min(0, "Duration must be 0 or more"),
+	maxAttendees: z
+		.number({ message: "Must be a number" })
+		.min(1, "Must be at least 1")
+		.optional(),
+	requireAdvanceBooking: z.boolean(),
+	minAdvanceHours: z.number().min(0),
+	enableCancellationWindow: z.boolean(),
+	cancellationCutoffHours: z.number().min(0),
+	bufferTimeMinutes: z.number().min(0).max(480),
+});
+
+type ServiceCategoryFormValues = z.infer<typeof serviceCategoryFormSchema>;
+
+// 2. Props — organizationId is a prop, NOT a form field
 interface ServiceFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSubmit: (data: ServiceFormData, serviceId?: string) => Promise<void>;
-	initialData?: ServiceFormData & { id: string };
-	mode?: 'create' | 'edit';
+	organizationId: string;
+	mode?: "create" | "edit";
+	initialData?: {
+		id: string;
+		name: string;
+		duration?: number;
+		maxAttendees?: number;
+		rules?: {
+			requireAdvanceBooking: boolean;
+			minAdvanceHours: number;
+			enableCancellationWindow: boolean;
+			cancellationCutoffHours: number;
+			bufferTimeMinutes: number;
+		};
+	};
 }
 
-export function ServiceFormDialog({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: ServiceFormDialogProps) {
-	const { data: userCtx } = useUserContext();
-	const organizationId = userCtx?.currentOrganizationId ?? "";
+function buildDefaultValues(
+	initialData: ServiceFormDialogProps["initialData"],
+): ServiceCategoryFormValues {
+	return {
+		name: initialData?.name ?? "",
+		duration: initialData?.duration ?? 0,
+		maxAttendees: initialData?.maxAttendees,
+		requireAdvanceBooking: initialData?.rules?.requireAdvanceBooking ?? false,
+		minAdvanceHours: initialData?.rules?.minAdvanceHours ?? 0,
+		enableCancellationWindow:
+			initialData?.rules?.enableCancellationWindow ?? false,
+		cancellationCutoffHours: initialData?.rules?.cancellationCutoffHours ?? 0,
+		bufferTimeMinutes: initialData?.rules?.bufferTimeMinutes ?? 0,
+	};
+}
 
-	const [formData, setFormData] = useState<ServiceFormData>({
-		name: '',
-		duration: 0,
-		maxAttendees: undefined,
-		rules: {
-			requireAdvanceBooking: false,
-			minAdvanceHours: 0,
-			enableCancellationWindow: false,
-			cancellationCutoffHours: 0,
-			bufferTimeMinutes: 0,
-		},
+export function ServiceFormDialog({
+	isOpen,
+	onClose,
+	organizationId,
+	mode = "create",
+	initialData,
+}: ServiceFormDialogProps) {
+	// 3. Form instance
+	const form = useForm<ServiceCategoryFormValues>({
+		resolver: zodResolver(serviceCategoryFormSchema),
+		defaultValues: buildDefaultValues(initialData),
 	});
 
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const requireAdvanceBooking = form.watch("requireAdvanceBooking");
+	const enableCancellationWindow = form.watch("enableCancellationWindow");
 
+	// 4. Reset on dialog re-open with fresh initialData
 	useEffect(() => {
-		if (initialData) {
-			setFormData({
-				name: initialData.name,
-				duration: initialData.duration,
-				maxAttendees: initialData.maxAttendees,
-				rules: initialData.rules ? {
-					requireAdvanceBooking: initialData.rules.requireAdvanceBooking,
-					minAdvanceHours: initialData.rules.minAdvanceHours,
-					enableCancellationWindow: initialData.rules.enableCancellationWindow,
-					cancellationCutoffHours: initialData.rules.cancellationCutoffHours,
-					bufferTimeMinutes: initialData.rules.bufferTimeMinutes ?? 0,
-				} : {
-					requireAdvanceBooking: false,
-					minAdvanceHours: 0,
-					enableCancellationWindow: false,
-					cancellationCutoffHours: 0,
-					bufferTimeMinutes: 0,
-				},
-			});
-		} else {
-			// Reset form data when no initial data (create mode or dialog closed)
-			setFormData({
-				name: '',
-				duration: 0,
-				maxAttendees: 1,
-				rules: {
-					requireAdvanceBooking: false,
-					minAdvanceHours: 0,
-					enableCancellationWindow: false,
-					cancellationCutoffHours: 0,
-					bufferTimeMinutes: 0,
-				},
-			});
-		}
-	}, [initialData, mode]);
+		if (isOpen) form.reset(buildDefaultValues(initialData));
+	}, [isOpen, initialData, form]);
 
-	const qc = useQueryClient();
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-
-		if (!organizationId) {
-			setError('User must be part of an organization');
-			return;
-		}
-
-		setIsSubmitting(true);
-		setError(null);
-
-		try {
-			// Step 1: Create or update the service category
+	// 5. Mutation — calls serviceCategories.create/update then serviceCategoryConfig.upsert
+	const mutation = useApiMutation({
+		mutationFn: async (values: ServiceCategoryFormValues) => {
 			let categoryId: string;
-			if (mode === 'edit' && initialData?.id) {
+
+			if (mode === "edit" && initialData?.id) {
 				await client.serviceCategories.update({
 					organizationId,
 					id: initialData.id,
-					name: formData.name,
-					description: null,
-					displayOrder: 0,
-					isActive: true,
+					name: values.name,
 				});
 				categoryId = initialData.id;
 			} else {
-				const categoryResult = await client.serviceCategories.create({
+				const result = await client.serviceCategories.create({
 					organizationId,
-					name: formData.name,
+					name: values.name,
 					description: null,
 					displayOrder: 0,
 					isActive: true,
 				});
-				categoryId = (categoryResult as any).id;
+				categoryId = (result as { id: string }).id;
 			}
 
-			// Step 2: Upsert category-level config (rules only)
 			await client.serviceCategoryConfig.upsert({
 				organizationId,
 				categoryId,
-				defaultDuration: formData.duration,
-				defaultMaxAttendees: formData.maxAttendees ?? 1,
-				requireAdvanceBooking: formData.rules?.requireAdvanceBooking ?? false,
-				minAdvanceHours: formData.rules?.requireAdvanceBooking
-					? formData.rules.minAdvanceHours ?? null
+				defaultDuration: values.duration,
+				defaultMaxAttendees: values.maxAttendees ?? 1,
+				requireAdvanceBooking: values.requireAdvanceBooking,
+				minAdvanceHours: values.requireAdvanceBooking
+					? values.minAdvanceHours
 					: null,
-				enableCancellationWindow: formData.rules?.enableCancellationWindow ?? false,
-				cancellationCutoffHours: formData.rules?.enableCancellationWindow
-					? formData.rules.cancellationCutoffHours ?? null
+				enableCancellationWindow: values.enableCancellationWindow,
+				cancellationCutoffHours: values.enableCancellationWindow
+					? values.cancellationCutoffHours
 					: null,
-				bufferTimeMinutes: formData.rules?.bufferTimeMinutes ?? 0,
+				bufferTimeMinutes: values.bufferTimeMinutes,
 			});
+		},
+		successMessage:
+			mode === "create"
+				? "Service category created"
+				: "Service category updated",
+		errorMessage: (err) => err.message || "Failed to save service category",
+		invalidate: [orpc.serviceCategories.list.key()],
+		onSuccess: () => onClose(),
+	});
 
-			// Invalidate relevant queries
-			qc.invalidateQueries({ queryKey: orpc.serviceCategories.list.key() });
 
-			toast.success(`Service category ${mode === 'create' ? 'created' : 'updated'} successfully`);
-
-			// Call the onSubmit callback for parent component to refresh data
-			await onSubmit(formData, categoryId);
-			onClose();
-		} catch (err: any) {
-			const errorMessage = err?.message || err?.detail || 'An error occurred while saving';
-			setError(errorMessage);
-			toast.error(errorMessage);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-		const { name, value, type } = e.target;
-
-		setFormData(prev => {
-			// Handle nested object paths (e.g., 'rules.requireAdvanceBooking')
-			const path = name.split('.');
-			const newData = { ...prev };
-
-			// Handle top-level fields that don't have dots
-			if (path.length === 1) {
-				const fieldName = path[0];
-				if (fieldName === 'maxAttendees') {
-					newData.maxAttendees = value === '' ? undefined : (type === 'number' ? parseFloat(value) || undefined : undefined);
-					return newData;
-				}
-			}
-
-			let current: any = newData;
-			for (let i = 0; i < path.length - 1; i++) {
-				if (!(path[i] in current)) {
-					current[path[i]] = {};
-				}
-				current = current[path[i]];
-			}
-
-			const lastKey = path[path.length - 1];
-			current[lastKey] = type === 'number' ? parseFloat(value) || 0 : value;
-
-			return newData;
-		});
-	};
+	// 6. Submit handler
+	const onSubmit = (values: ServiceCategoryFormValues) =>
+		mutation.mutate(values);
 
 	return (
-		<Fragment>
-		<Transition appear show={isOpen} as={Fragment}>
-			<Dialog as="div" className="relative z-10" onClose={onClose}>
-				<Transition.Child
-					as={Fragment}
-					enter="ease-out duration-300"
-					enterFrom="opacity-0"
-					enterTo="opacity-100"
-					leave="ease-in duration-200"
-					leaveFrom="opacity-100"
-					leaveTo="opacity-0"
-				>
-					<div className="fixed inset-0 bg-brand-primary-1/50" />
-				</Transition.Child>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>
+						{mode === "create"
+							? "Add New Service Category"
+							: "Edit Service Category"}
+					</DialogTitle>
+					<DialogDescription>
+						{mode === "create"
+							? "Create a new service category with booking and cancellation rules."
+							: "Update the service category details and rules."}
+					</DialogDescription>
+				</DialogHeader>
 
-				<div className="fixed inset-0 overflow-y-auto">
-					<div className="flex min-h-full items-center justify-center p-4 text-center">
-						<Transition.Child
-							as={Fragment}
-							enter="ease-out duration-300"
-							enterFrom="opacity-0 scale-95"
-							enterTo="opacity-100 scale-100"
-							leave="ease-in duration-200"
-							leaveFrom="opacity-100 scale-100"
-							leaveTo="opacity-0 scale-95"
-						>
-							<Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-								<Dialog.Title
-									as="h1"
-									className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
-								>
-									{mode === 'create' ? 'Add New Service Category' : 'Edit Service Category'}
-								</Dialog.Title>
-
-								{error && (
-									<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
-										{error}
-									</div>
-								)}
-
-								<form onSubmit={handleSubmit} className="space-y-4">
-
-									<div>
-										<label htmlFor="name" className="block text-sm font-medium text-brand-primary-1">
-											Service Category Name *
-										</label>
-										<input
-											type="text"
-											name="name"
-											id="name"
-											required
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						{/* Name */}
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>
+										Service Category Name{" "}
+										<span className="text-destructive">*</span>
+									</FormLabel>
+									<FormControl>
+										<Input
 											placeholder="e.g., Personal Training (1-on-1)"
-											value={formData.name}
-											onChange={handleChange}
-											className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+											{...field}
 										/>
-									</div>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-									<div className="grid grid-cols-2 gap-4">
-										<div>
-											<label htmlFor="duration" className="block text-sm font-medium text-brand-primary-1">
-												Duration (minutes) *
-											</label>
-											<input
+						{/* Duration + Max Attendees */}
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="duration"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>
+											Duration (minutes){" "}
+											<span className="text-destructive">*</span>
+										</FormLabel>
+										<FormControl>
+											<Input
 												type="number"
-												name="duration"
-												id="duration"
-												required
-												min="0"
-												value={formData.duration}
-												onChange={handleChange}
-												className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+												min={0}
+												placeholder="60"
+												{...field}
+												onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
 											/>
-										</div>
-										<div>
-											<label htmlFor="maxAttendees" className="block text-sm font-medium text-brand-primary-1">
-												Maximum Attendees/Customers
-											</label>
-											<input
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="maxAttendees"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Maximum Attendees/Customers</FormLabel>
+										<FormControl>
+											<Input
 												type="number"
-												name="maxAttendees"
-												id="maxAttendees"
-												min="1"
+												min={1}
 												placeholder="No limit"
-												value={formData.maxAttendees || ''}
-												onChange={handleChange}
-												className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+												value={field.value ?? ""}
+												onChange={(e) =>
+													field.onChange(
+														e.target.value === ""
+															? undefined
+															: Number(e.target.value),
+													)
+												}
 											/>
-											<p className="text-xs text-brand-secondary-1 mt-1">
-												Leave empty for unlimited attendees
-											</p>
-										</div>
-									</div>
+										</FormControl>
+										<p className="text-xs text-muted-foreground">
+											Leave empty for unlimited attendees
+										</p>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 
-									{/* Booking & Cancellation Rules */}
-									<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
-										<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Booking & Cancellation Rules</h5>
-										<div className="grid grid-cols-2 gap-4">
-											<div className="flex items-center gap-2">
-												<input
-													type="checkbox"
-													id="requireAdvanceBooking"
-													name="rules.requireAdvanceBooking"
-													checked={formData.rules?.requireAdvanceBooking || false}
-													onChange={(e) => handleChange({
-														...e,
-														target: { ...e.target, name: 'rules.requireAdvanceBooking', value: (e.target as HTMLInputElement).checked, type: 'checkbox' }
-													} as any)}
-													className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-												/>
-												<label htmlFor="requireAdvanceBooking" className="text-sm text-brand-primary-1">Require advance booking</label>
-											</div>
-											<div className="flex items-center gap-2">
-												<input
-													type="checkbox"
-													id="enableCancellationWindow"
-													name="rules.enableCancellationWindow"
-													checked={formData.rules?.enableCancellationWindow || false}
-													onChange={(e) => handleChange({
-														...e,
-														target: { ...e.target, name: 'rules.enableCancellationWindow', value: (e.target as HTMLInputElement).checked, type: 'checkbox' }
-													} as any)}
-													className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
-												/>
-												<label htmlFor="enableCancellationWindow" className="text-sm text-brand-primary-1">Enable cancellation window</label>
-											</div>
-										</div>
-										<div className="grid grid-cols-2 gap-4 mt-3">
-											<div>
-												<label htmlFor="minAdvanceHours" className="block text-sm font-medium text-brand-primary-1">
-													Min advance booking (hours)
-												</label>
-												<input
-													type="number"
-													id="minAdvanceHours"
-													name="rules.minAdvanceHours"
-													min="0"
-													value={formData.rules?.minAdvanceHours ?? 0}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm disabled:bg-brand-secondary-3 disabled:cursor-not-allowed"
-													disabled={!formData.rules?.requireAdvanceBooking}
-													placeholder={formData.rules?.requireAdvanceBooking ? undefined : "Not required"}
-												/>
-											</div>
-											<div>
-												<label htmlFor="cancellationCutoffHours" className="block text-sm font-medium text-brand-primary-1">
-													Cancellation cutoff (hours)
-												</label>
-												<input
-													type="number"
-													id="cancellationCutoffHours"
-													name="rules.cancellationCutoffHours"
-													min="0"
-													value={formData.rules?.cancellationCutoffHours ?? 0}
-													onChange={handleChange}
-													className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm disabled:bg-brand-secondary-3 disabled:cursor-not-allowed"
-													disabled={!formData.rules?.enableCancellationWindow}
-													placeholder={formData.rules?.enableCancellationWindow ? undefined : "Not required"}
-												/>
-											</div>
-										</div>
-										<div className="mt-3">
-											<label htmlFor="bufferTimeMinutes" className="block text-sm font-medium text-brand-primary-1">
-												Buffer Time (minutes)
-											</label>
-											<input
-												type="number"
-												id="bufferTimeMinutes"
-												name="rules.bufferTimeMinutes"
-												min="0"
-												max="480"
-												value={formData.rules?.bufferTimeMinutes ?? 0}
-												onChange={handleChange}
-												className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-											/>
-											<p className="text-xs text-brand-secondary-1 mt-1">
-												Minutes required between consecutive bookings for services in this category
-											</p>
-										</div>
-									</div>
+						{/* Booking & Cancellation Rules */}
+						<div className="rounded-md border border-border bg-white p-4">
+							<h5 className="mb-3 text-sm font-medium">
+								Booking &amp; Cancellation Rules
+							</h5>
 
-									<div className="mt-6 flex justify-between space-x-3">
-										<button
-											type="button"
-											onClick={onClose}
-											className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-										>
-											Cancel
-										</button>
-										<button
-											type="submit"
-											disabled={isSubmitting}
-											className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											{isSubmitting ? (mode === 'create' ? 'Creating...' : 'Saving...') : (mode === 'create' ? 'Create Service Category' : 'Save Changes')}
-										</button>
-									</div>
-								</form>
-							</Dialog.Panel>
-						</Transition.Child>
-					</div>
-				</div>
-			</Dialog>
-		</Transition>
-		</Fragment>
+							<div className="grid grid-cols-2 gap-4">
+								{/* Require advance booking */}
+								<FormField
+									control={form.control}
+									name="requireAdvanceBooking"
+									render={({ field }) => (
+										<FormItem className="flex flex-row items-center gap-2 space-y-0">
+											<FormControl>
+												<Checkbox
+													checked={field.value}
+													onCheckedChange={field.onChange}
+												/>
+											</FormControl>
+											<FormLabel className="!mt-0 font-normal">
+												Require advance booking
+											</FormLabel>
+										</FormItem>
+									)}
+								/>
+
+								{/* Enable cancellation window */}
+								<FormField
+									control={form.control}
+									name="enableCancellationWindow"
+									render={({ field }) => (
+										<FormItem className="flex flex-row items-center gap-2 space-y-0">
+											<FormControl>
+												<Checkbox
+													checked={field.value}
+													onCheckedChange={field.onChange}
+												/>
+											</FormControl>
+											<FormLabel className="!mt-0 font-normal">
+												Enable cancellation window
+											</FormLabel>
+										</FormItem>
+									)}
+								/>
+							</div>
+
+							<div className="mt-3 grid grid-cols-2 gap-4">
+								{/* Min advance booking hours */}
+								<FormField
+									control={form.control}
+									name="minAdvanceHours"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Min advance booking (hours)</FormLabel>
+											<FormControl>
+												<Input
+													type="number"
+													min={0}
+													disabled={!requireAdvanceBooking}
+													placeholder={
+														requireAdvanceBooking ? undefined : "Not required"
+													}
+													{...field}
+													onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{/* Cancellation cutoff hours */}
+								<FormField
+									control={form.control}
+									name="cancellationCutoffHours"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Cancellation cutoff (hours)</FormLabel>
+											<FormControl>
+												<Input
+													type="number"
+													min={0}
+													disabled={!enableCancellationWindow}
+													placeholder={
+														enableCancellationWindow ? undefined : "Not required"
+													}
+													{...field}
+													onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+
+							{/* Buffer time */}
+							<div className="mt-3">
+								<FormField
+									control={form.control}
+									name="bufferTimeMinutes"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Buffer Time (minutes)</FormLabel>
+											<FormControl>
+												<Input type="number" min={0} max={480} {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
+											</FormControl>
+											<p className="text-xs text-muted-foreground">
+												Minutes required between consecutive bookings for
+												services in this category
+											</p>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
+
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onClose}
+								disabled={mutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button type="submit" disabled={mutation.isPending}>
+								{mutation.isPending
+									? mode === "create"
+										? "Creating..."
+										: "Saving..."
+									: mode === "create"
+										? "Create Service Category"
+										: "Save Changes"}
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
 	);
 }

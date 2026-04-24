@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 
 export function ClaimsWidget() {
 	const { data: userContext } = useUserContext();

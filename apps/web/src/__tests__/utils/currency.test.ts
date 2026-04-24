@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { rmToCents, centsToRm } from "@/lib/amount";
+import { rmToCents, centsToRm } from "@/lib/money";
 
 describe("rmToCents", () => {
 	test("converts whole RM to cents", () => {

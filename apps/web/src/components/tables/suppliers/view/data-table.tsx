@@ -1,3 +1,7 @@
+// NOTE: Not migrated to shared <EntityDataTable> because SupplierRow uses lowercase `id`
+// (not `ID: string` as required by BaseRow), has three action handlers (edit/deactivate/viewDetails),
+// a separate SupplierDetailsDialog slot, and uses deactivate semantics instead of delete.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
 import {
 	flexRender,
 	getCoreRowModel,
@@ -28,10 +32,7 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import {
-	SupplierFormDialog,
-	type SupplierFormData,
-} from "@/components/forms/supplier-form";
+import { SupplierFormDialog } from "@/components/forms/supplier-form";
 import { SupplierDetailsDialog } from "@/components/dialogs/supplier-details-dialog";
 import { createColumns, type SupplierRow } from "./columns";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -39,11 +40,8 @@ import { StatusCallout } from "@/components/ui/status-callout";
 
 interface DataTableProps {
 	data: SupplierRow[];
-	onCreateSupplier: (data: SupplierFormData) => Promise<void>;
-	onUpdateSupplier: (id: string, data: SupplierFormData) => Promise<void>;
+	organizationId: string;
 	onDeactivateSupplier: (id: string) => Promise<void>;
-	isCreating?: boolean;
-	isUpdating?: boolean;
 	isDeactivating?: boolean;
 	error?: unknown;
 	onRetry?: () => void;
@@ -51,15 +49,13 @@ interface DataTableProps {
 
 export function DataTable({
 	data,
-	onCreateSupplier,
-	onUpdateSupplier,
+	organizationId,
 	onDeactivateSupplier,
-	isCreating = false,
-	isUpdating = false,
 	isDeactivating = false,
 	error,
 	onRetry,
 }: DataTableProps) {
+	const qc = useQueryClient();
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -105,18 +101,7 @@ export function DataTable({
 
 	const rows = table.getRowModel().rows;
 
-	const handleCreate = async (formData: SupplierFormData) => {
-		await onCreateSupplier(formData);
-		setIsAddDialogOpen(false);
-	};
-
-	const handleUpdate = async (formData: SupplierFormData) => {
-		if (!selectedSupplier) return;
-		await onUpdateSupplier(selectedSupplier.id, formData);
-		setIsEditDialogOpen(false);
-		setSelectedSupplier(null);
-	};
-
+	// Deactivate confirmation stays here — it's a table-level action, not a form
 	const handleDeactivateConfirm = async () => {
 		if (!supplierToDeactivate) return;
 		try {
@@ -235,11 +220,8 @@ export function DataTable({
 				<SupplierFormDialog
 					isOpen={isAddDialogOpen}
 					onClose={() => setIsAddDialogOpen(false)}
+					organizationId={organizationId}
 					mode="create"
-					isLoading={isCreating}
-					onSubmit={async (payload) => {
-						await handleCreate(payload);
-					}}
 				/>
 			)}
 
@@ -251,8 +233,8 @@ export function DataTable({
 						setIsEditDialogOpen(false);
 						setSelectedSupplier(null);
 					}}
+					organizationId={organizationId}
 					mode="edit"
-					isLoading={isUpdating}
 					initialData={{
 						id: selectedSupplier.id,
 						name: selectedSupplier.name,
@@ -266,9 +248,6 @@ export function DataTable({
 						website: selectedSupplier.website ?? undefined,
 						barcode: selectedSupplier.barcode ?? undefined,
 						isActive: selectedSupplier.isActive,
-					}}
-					onSubmit={async (payload) => {
-						await handleUpdate(payload);
 					}}
 				/>
 			)}

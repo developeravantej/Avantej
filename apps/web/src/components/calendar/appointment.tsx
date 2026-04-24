@@ -9,6 +9,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
+import { useApiMutation } from "@/hooks/useApiMutation";
 
 interface Appointment {
 	id: string;
@@ -114,7 +115,7 @@ export function AppointmentCalendar({
 			}),
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (params: { start: Date; duration: number; notes?: string; userId?: string | null; staffAssignments?: { staffId: string; slotIndex: number }[] }) =>
 			client.appointments.create({
 				organizationId,
@@ -128,14 +129,10 @@ export function AppointmentCalendar({
 				userId: params.userId ?? null,
 				staffAssignments: params.staffAssignments ?? undefined,
 			}),
-		onSuccess: () => {
-			toast.success("Appointment created");
-			closeAddModal();
-			queryClient.invalidateQueries({ queryKey: ["appointments"] });
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to create appointment");
-		},
+		successMessage: "Appointment created",
+		errorMessage: (err) => err.message || "Failed to create appointment",
+		invalidate: [["appointments"]],
+		onSuccess: () => closeAddModal(),
 	});
 
 	const { startDate, endDate, dateDisplay, prevPeriod, nextPeriod } = useMemo(() => {

@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useState } from "react";
 import { client } from "@/utils/orpc";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -36,19 +35,19 @@ export function MemberActionsCell({
 }: MemberActionsCellProps) {
 	const [dialogOpen, setDialogOpen] = useState(false);
 
-	const mutation = useMutation({
+	const mutation = useApiMutation({
 		mutationFn: () =>
 			client.tenantAdmin.impersonateMember({
 				targetMemberId: member.id,
 				organizationId,
 			}),
+		errorMessage: (err) => err.message || "Failed to start impersonation session",
 		onSuccess: (result) => {
 			// Hard reload so the new session cookie is picked up by the browser
 			window.location.href = result.redirectTo;
 		},
-		onError: (err: Error) => {
+		onError: () => {
 			setDialogOpen(false);
-			toast.error(err.message ?? "Failed to start impersonation session");
 		},
 	});
 

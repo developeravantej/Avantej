@@ -35,17 +35,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ── Inferred types ─────────────────────────────────────────────────────────────
@@ -710,20 +703,20 @@ export function PackageInstallmentsPage() {
 					</TableBody>
 				</Table>
 
-			{/* ── Detail Sheet ─────────────────────────────────────────────────────── */}
-			<Sheet
+			{/* ── Detail Dialog ─────────────────────────────────────────────────────── */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 				}}
 			>
-				<SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-					<SheetHeader>
-						<SheetTitle>Installment Package Detail</SheetTitle>
-						<SheetDescription>
+				<DialogContent className="overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Installment Package Detail</DialogTitle>
+						<DialogDescription>
 							Review installments and take actions for this package instance.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					{selectedInstance && (
 						<div className="flex flex-col gap-6 px-1 py-4">
@@ -943,8 +936,8 @@ export function PackageInstallmentsPage() {
 							</div>
 						</div>
 					)}
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 
 			{/* ── Confirm Payment Dialog ───────────────────────────────────────────── */}
 			<Dialog

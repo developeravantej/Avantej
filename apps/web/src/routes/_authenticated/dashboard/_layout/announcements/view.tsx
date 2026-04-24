@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -23,14 +24,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -116,7 +109,7 @@ function capitalize(str: string): string {
 function AnnouncementsViewPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+	const announcementsKey = ["announcements", organizationId];
 
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
 	const [audienceFilter, setAudienceFilter] = useState<string>("all");
@@ -146,7 +139,7 @@ function AnnouncementsViewPage() {
 		enabled: !!organizationId,
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (values: FormState) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.announcements.create({
@@ -160,18 +153,16 @@ function AnnouncementsViewPage() {
 				isPinned: values.isPinned,
 			});
 		},
+		successMessage: "Announcement created successfully.",
+		errorMessage: (err) => err.message || "Failed to create announcement.",
+		invalidate: [announcementsKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
-			toast.success("Announcement created successfully.");
 			setSheetOpen(false);
 			setForm(EMPTY_FORM);
 		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to create announcement.");
-		},
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({ id, values }: { id: string; values: FormState }) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.announcements.update({
@@ -186,19 +177,17 @@ function AnnouncementsViewPage() {
 				isPinned: values.isPinned,
 			});
 		},
+		successMessage: "Announcement updated successfully.",
+		errorMessage: (err) => err.message || "Failed to update announcement.",
+		invalidate: [announcementsKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
-			toast.success("Announcement updated successfully.");
 			setSheetOpen(false);
 			setEditingId(null);
 			setForm(EMPTY_FORM);
 		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update announcement.");
-		},
 	});
 
-	const deactivateMutation = useMutation({
+	const deactivateMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.announcements.update({
@@ -207,27 +196,19 @@ function AnnouncementsViewPage() {
 				isActive: false,
 			});
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
-			toast.success("Announcement deactivated.");
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate announcement.");
-		},
+		successMessage: "Announcement deactivated.",
+		errorMessage: (err) => err.message || "Failed to deactivate announcement.",
+		invalidate: [announcementsKey],
 	});
 
-	const deleteMutation = useMutation({
+	const deleteMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.announcements.delete({ organizationId, id });
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["announcements", organizationId] });
-			toast.success("Announcement deleted.");
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to delete announcement.");
-		},
+		successMessage: "Announcement deleted.",
+		errorMessage: (err) => err.message || "Failed to delete announcement.",
+		invalidate: [announcementsKey],
 	});
 
 	function openCreate() {
@@ -548,25 +529,25 @@ function AnnouncementsViewPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* Create / Edit Sheet */}
-			<Sheet open={sheetOpen} onOpenChange={(open) => {
+			{/* Create / Edit Dialog */}
+			<Dialog open={sheetOpen} onOpenChange={(open) => {
 				setSheetOpen(open);
 				if (!open) {
 					setEditingId(null);
 					setForm(EMPTY_FORM);
 				}
 			}}>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
 							{editingId ? "Edit Announcement" : "Create Announcement"}
-						</SheetTitle>
-						<SheetDescription>
+						</DialogTitle>
+						<DialogDescription>
 							{editingId
 								? "Update the details of this announcement."
 								: "Fill in the details to publish a new announcement."}
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-2">
 						{/* Title */}
@@ -679,7 +660,7 @@ function AnnouncementsViewPage() {
 							</Label>
 						</div>
 
-						<SheetFooter className="px-0 pt-2">
+						<DialogFooter className="px-0 pt-2">
 							<Button
 								type="button"
 								variant="outline"
@@ -702,10 +683,10 @@ function AnnouncementsViewPage() {
 									? "Save Changes"
 									: "Create"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -17,6 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
 	Table,
 	TableBody,
@@ -33,7 +34,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -422,27 +423,12 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 
 					{/* Pagination */}
 					{total > PAGE_LIMIT && (
-						<div className="flex items-center justify-between border-t px-5 py-4 text-sm text-muted-foreground">
-							<span>Showing {showingFrom}–{showingTo} of {total}</span>
-							<div className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
-									disabled={offset === 0}
-								>
-									Previous
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setOffset(offset + PAGE_LIMIT)}
-									disabled={offset + PAGE_LIMIT >= total}
-								>
-									Next
-								</Button>
-							</div>
-						</div>
+						<TablePagination
+							page={Math.floor(offset / PAGE_LIMIT)}
+							pageSize={PAGE_LIMIT}
+							totalRows={total}
+							onPageChange={(newPage) => setOffset(newPage * PAGE_LIMIT)}
+						/>
 					)}
 
 				</div>

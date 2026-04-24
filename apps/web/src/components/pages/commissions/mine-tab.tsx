@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";

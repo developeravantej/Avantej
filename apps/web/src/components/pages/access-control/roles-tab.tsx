@@ -27,13 +27,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-	SheetDescription,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -432,7 +432,7 @@ export function RolesTabPage() {
 						</Tooltip>
 					</TooltipProvider>
 
-					<Sheet
+					<Dialog
 						open={isCreating || !!editingRole}
 						onOpenChange={(open) => {
 							if (!open) {
@@ -441,30 +441,29 @@ export function RolesTabPage() {
 							}
 						}}
 					>
-						<SheetTrigger asChild>
+						<DialogTrigger asChild>
 							<Button onClick={handleCreateRole}>
 								<Plus className="w-4 h-4 mr-2" />
 								Create Role
 							</Button>
-						</SheetTrigger>
-						<SheetContent
-							side={isMobile ? "bottom" : "right"}
+						</DialogTrigger>
+						<DialogContent
 							className={cn(
 								"sm:max-w-2xl flex flex-col",
 								isMobile && "h-[85vh]",
 							)}
 						>
-							<SheetHeader className="flex-shrink-0">
-								<SheetTitle>
+							<DialogHeader className="flex-shrink-0">
+								<DialogTitle>
 									{editingRole ? "Edit Role" : "Create New Role"}
-								</SheetTitle>
+								</DialogTitle>
 								{!editingRole && (
-									<SheetDescription>
+									<DialogDescription>
 										Create a new role to define what users can access and do in
 										your system
-									</SheetDescription>
+									</DialogDescription>
 								)}
-							</SheetHeader>
+							</DialogHeader>
 							<div className="flex-1 overflow-y-auto min-h-0 mt-6">
 								<RoleEditor
 									role={editingRole || undefined}
@@ -491,8 +490,8 @@ export function RolesTabPage() {
 									className="pb-safe"
 								/>
 							</div>
-						</SheetContent>
-					</Sheet>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</div>
 

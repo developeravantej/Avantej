@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import DataTable from "@/components/tables/service-category/view/data-table";
 import { columns } from "@/components/tables/service-category/view/columns";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -8,20 +8,15 @@ import { PageLoader } from "@/components/ui/loading-spinner";
 export function ServiceCategoriesPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const { data: categories = [], isLoading } = useQuery({
-		queryKey: ["serviceCategories", organizationId],
+		queryKey: orpc.serviceCategories.list.key({
+			input: { organizationId: organizationId! },
+		}),
 		queryFn: () =>
 			client.serviceCategories.list({ organizationId: organizationId! }),
 		enabled: !!organizationId,
 	});
-
-	function handleSuccess() {
-		queryClient.invalidateQueries({
-			queryKey: ["serviceCategories", organizationId],
-		});
-	}
 
 	if (!organizationId) {
 		return (
@@ -42,7 +37,6 @@ export function ServiceCategoriesPage() {
 				data={categories}
 				organizationId={organizationId}
 				isLoading={isLoading}
-				onSuccess={handleSuccess}
 			/>
 		</div>
 	);

@@ -1,3 +1,7 @@
+// NOTE: Partial migration — adopts TableToolbar visual primitive for the search bar and add button.
+// Full migration to EntityDataTable skipped: self-fetches with useQuery inside the component,
+// deactivation semantics (not delete), row-click detail dialog pattern,
+// and the data uses ColumnDef<any> with no typed ID field.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
 	Table,
@@ -14,23 +18,23 @@ import {
 	getFilteredRowModel,
 	getSortedRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-form";
 import { ServiceDetailDialog } from "@/components/forms/service-detail-dialog";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TableToolbar } from "@/components/ui/table-toolbar";
+import { centsToRm } from "@/lib/money";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 	organizationId: string;
 	isLoading?: boolean;
-	onSuccess: () => void;
 	emptyTitle?: string;
 	emptyDescription?: string;
 	emptyAction?: { label: string; onClick: () => void };
@@ -41,11 +45,11 @@ export default function DataTable<TData, TValue>({
 	data,
 	organizationId,
 	isLoading = false,
-	onSuccess,
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
 }: DataTableProps<TData, TValue>) {
+	const qc = useQueryClient();
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -92,11 +96,12 @@ export default function DataTable<TData, TValue>({
 					duration,
 					duration_unit,
 					expirable: editServiceData.expirable ?? false,
-					price: editServiceData.price != null ? editServiceData.price / 100 : 0,
+					// price divided by 100 here (cents → dollars); form displays dollars, zod transform converts back on submit
+					price: editServiceData.price != null ? Number(centsToRm(editServiceData.price)) : 0,
 					sessions: editServiceData.sessionCount ?? 1,
 					taxable: editServiceData.taxable ?? false,
-					tax_percentage: editServiceData.taxPercentage ?? 0,
-					category_id: editServiceData.categoryId ?? "",
+					taxPercentage: editServiceData.taxPercentage ?? 0,
+					categoryId: editServiceData.categoryId ?? "",
 					schedulingType: (editServiceData.schedulingType === "class_slot" ? "time-preset" : "appointment-based") as "appointment-based" | "time-preset",
 					sessionDurationMinutes: editServiceData.durationUnitType === "minutes"
 						? editServiceData.duration
@@ -128,36 +133,36 @@ export default function DataTable<TData, TValue>({
 					isActive: false,
 				});
 				toast.success("Service deactivated");
-				onSuccess();
+				qc.invalidateQueries({ queryKey: orpc.services.list.key() });
 			} catch (err: unknown) {
 				const message = err instanceof Error ? err.message : "Failed to deactivate service";
 				toast.error(message);
 				throw err;
 			}
 		},
-		[organizationId, onSuccess]
+		[organizationId, qc]
 	);
 
 	return (
 		<div className="flex h-full flex-col">
-			<div className="flex shrink-0 items-center justify-between border-b border-border/40 px-6 py-3">
-				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						placeholder="Search services..."
-						value={globalFilter ?? ""}
-						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="pl-9"
-					/>
-				</div>
-				<Button
-					size="sm"
-					onClick={() => setIsAddDialogOpen(true)}
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Add Service
-				</Button>
-			</div>
+			<TableToolbar
+				search={{
+					value: globalFilter,
+					onChange: setGlobalFilter,
+					placeholder: "Search services...",
+				}}
+				actions={
+					<Button
+						size="sm"
+						onClick={() => setIsAddDialogOpen(true)}
+						className="bg-black text-white hover:bg-black/90"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Service
+					</Button>
+				}
+			/>
 
 			<div className="flex-1 overflow-y-auto">
 				<Table>
@@ -230,7 +235,7 @@ export default function DataTable<TData, TValue>({
 			<ServiceFormDialog
 				isOpen={isAddDialogOpen}
 				onClose={() => setIsAddDialogOpen(false)}
-				onSubmit={async () => { onSuccess(); }}
+				organizationId={organizationId}
 				mode="create"
 			/>
 
@@ -240,7 +245,7 @@ export default function DataTable<TData, TValue>({
 					setIsEditDialogOpen(false);
 					setEditServiceId(null);
 				}}
-				onSubmit={async () => { onSuccess(); }}
+				organizationId={organizationId}
 				mode="edit"
 				initialData={editInitialData}
 			/>

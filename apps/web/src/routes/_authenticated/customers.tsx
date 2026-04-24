@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Users, Mail, Calendar, User } from "lucide-react";
 import { useUserContext } from "@/hooks/useUserContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import {
 	Dialog,
 	DialogContent,
@@ -34,7 +34,6 @@ export const Route = createFileRoute("/_authenticated/customers")({
 });
 
 function CustomersComponent() {
-	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -96,7 +95,7 @@ function CustomersComponent() {
 		[customers, searchQuery],
 	);
 
-	const upsertMutation = useMutation({
+	const upsertMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!organizationId) throw new Error("No organization");
 			return client.customerProfiles.upsert({
@@ -109,17 +108,17 @@ function CustomersComponent() {
 				notes: notes.trim() || null,
 			});
 		},
+		successMessage: "Profile updated",
+		errorMessage: (err) => err.message || "Failed to update profile",
+		invalidate: [["customer-profile", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["customer-profile", organizationId] });
-			toast.success("Profile updated");
 			setIsProfileDialogOpen(false);
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update profile");
 		},
 	});
 
-	const addCustomerMutation = useMutation({
+	const memberListKey = orpc.members.list.queryOptions({ input: { organizationId: organizationId ?? "", role: "client" } }).queryKey;
+
+	const addCustomerMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!organizationId) throw new Error("No organization");
 			const scopeId = selectedBranchId || memberHierarchyScopeId;
@@ -131,17 +130,13 @@ function CustomersComponent() {
 				hierarchyScopeId: scopeId,
 			});
 		},
+		successMessage: "Customer added",
+		errorMessage: (err) => err.message || "Failed to add customer",
+		invalidate: [memberListKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries(
-				orpc.members.list.queryOptions({ input: { organizationId: organizationId ?? "", role: "client" } }),
-			);
-			toast.success("Customer added");
 			setIsAddCustomerOpen(false);
 			setNewEmail("");
 			setSelectedBranchId("");
-		},
-		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to add customer");
 		},
 	});
 

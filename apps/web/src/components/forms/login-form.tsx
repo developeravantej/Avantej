@@ -9,16 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
 import { useEffect } from "react";
 import z from "zod";
-
-// A simple div-based spinner using Tailwind classes
-const SpinnerIcon = () => (
-	<div
-		className="animate-spin h-5 w-5 border-2 border-current border-r-transparent rounded-full mr-2 text-white"
-		role="status"
-	>
-		<span className="sr-only">Loading...</span>
-	</div>
-);
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function LoginForm({
 	className,
@@ -166,7 +157,7 @@ export default function LoginForm({
 									>
 										{state.isSubmitting || isLoading ? (
 											<>
-												<SpinnerIcon />
+												<LoadingSpinner size="sm" className="mr-2" />
 												Logging in...
 											</>
 										) : (

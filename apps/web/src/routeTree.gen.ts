@@ -51,6 +51,7 @@ import { Route as AuthenticatedDashboardLayoutSalesCreateRouteImport } from './r
 import { Route as AuthenticatedDashboardLayoutSalesIdRouteImport } from './routes/_authenticated/dashboard/_layout/sales/$id'
 import { Route as AuthenticatedDashboardLayoutRoomsViewRouteImport } from './routes/_authenticated/dashboard/_layout/rooms/view'
 import { Route as AuthenticatedDashboardLayoutRoleViewRouteImport } from './routes/_authenticated/dashboard/_layout/role/view'
+import { Route as AuthenticatedDashboardLayoutReportsViewRouteImport } from './routes/_authenticated/dashboard/_layout/reports/view'
 import { Route as AuthenticatedDashboardLayoutRefundsViewRouteImport } from './routes/_authenticated/dashboard/_layout/refunds/view'
 import { Route as AuthenticatedDashboardLayoutPurchaseOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/purchase-orders/view'
 import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/promotions/view'
@@ -322,6 +323,12 @@ const AuthenticatedDashboardLayoutRoleViewRoute =
     path: '/role/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutReportsViewRoute =
+  AuthenticatedDashboardLayoutReportsViewRouteImport.update({
+    id: '/reports/view',
+    path: '/reports/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutRefundsViewRoute =
   AuthenticatedDashboardLayoutRefundsViewRouteImport.update({
     id: '/refunds/view',
@@ -579,6 +586,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/dashboard/refunds/view': typeof AuthenticatedDashboardLayoutRefundsViewRoute
+  '/dashboard/reports/view': typeof AuthenticatedDashboardLayoutReportsViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
   '/dashboard/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/dashboard/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
@@ -655,6 +663,7 @@ export interface FileRoutesByTo {
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/dashboard/refunds/view': typeof AuthenticatedDashboardLayoutRefundsViewRoute
+  '/dashboard/reports/view': typeof AuthenticatedDashboardLayoutReportsViewRoute
   '/dashboard/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
   '/dashboard/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/dashboard/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
@@ -734,6 +743,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/_authenticated/dashboard/_layout/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   '/_authenticated/dashboard/_layout/refunds/view': typeof AuthenticatedDashboardLayoutRefundsViewRoute
+  '/_authenticated/dashboard/_layout/reports/view': typeof AuthenticatedDashboardLayoutReportsViewRoute
   '/_authenticated/dashboard/_layout/role/view': typeof AuthenticatedDashboardLayoutRoleViewRoute
   '/_authenticated/dashboard/_layout/rooms/view': typeof AuthenticatedDashboardLayoutRoomsViewRoute
   '/_authenticated/dashboard/_layout/sales/$id': typeof AuthenticatedDashboardLayoutSalesIdRoute
@@ -813,6 +823,7 @@ export interface FileRouteTypes {
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
     | '/dashboard/refunds/view'
+    | '/dashboard/reports/view'
     | '/dashboard/role/view'
     | '/dashboard/rooms/view'
     | '/dashboard/sales/$id'
@@ -889,6 +900,7 @@ export interface FileRouteTypes {
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
     | '/dashboard/refunds/view'
+    | '/dashboard/reports/view'
     | '/dashboard/role/view'
     | '/dashboard/rooms/view'
     | '/dashboard/sales/$id'
@@ -967,6 +979,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/promotions/view'
     | '/_authenticated/dashboard/_layout/purchase-orders/view'
     | '/_authenticated/dashboard/_layout/refunds/view'
+    | '/_authenticated/dashboard/_layout/reports/view'
     | '/_authenticated/dashboard/_layout/role/view'
     | '/_authenticated/dashboard/_layout/rooms/view'
     | '/_authenticated/dashboard/_layout/sales/$id'
@@ -1304,6 +1317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutRoleViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/reports/view': {
+      id: '/_authenticated/dashboard/_layout/reports/view'
+      path: '/reports/view'
+      fullPath: '/dashboard/reports/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutReportsViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/refunds/view': {
       id: '/_authenticated/dashboard/_layout/refunds/view'
       path: '/refunds/view'
@@ -1578,6 +1598,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPromotionsViewRoute: typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   AuthenticatedDashboardLayoutPurchaseOrdersViewRoute: typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
   AuthenticatedDashboardLayoutRefundsViewRoute: typeof AuthenticatedDashboardLayoutRefundsViewRoute
+  AuthenticatedDashboardLayoutReportsViewRoute: typeof AuthenticatedDashboardLayoutReportsViewRoute
   AuthenticatedDashboardLayoutRoleViewRoute: typeof AuthenticatedDashboardLayoutRoleViewRoute
   AuthenticatedDashboardLayoutRoomsViewRoute: typeof AuthenticatedDashboardLayoutRoomsViewRoute
   AuthenticatedDashboardLayoutSalesIdRoute: typeof AuthenticatedDashboardLayoutSalesIdRoute
@@ -1670,6 +1691,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPurchaseOrdersViewRoute,
     AuthenticatedDashboardLayoutRefundsViewRoute:
       AuthenticatedDashboardLayoutRefundsViewRoute,
+    AuthenticatedDashboardLayoutReportsViewRoute:
+      AuthenticatedDashboardLayoutReportsViewRoute,
     AuthenticatedDashboardLayoutRoleViewRoute:
       AuthenticatedDashboardLayoutRoleViewRoute,
     AuthenticatedDashboardLayoutRoomsViewRoute:

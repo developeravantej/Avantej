@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LayoutGrid } from "lucide-react";
@@ -14,7 +14,6 @@ import type { CategoryRow } from "@/components/tables/categories/view/columns";
 export function CategoriesTabPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// Query
 	const {
@@ -49,59 +48,19 @@ export function CategoriesTabPage() {
 		return counts;
 	}, [products]);
 
-	const invalidate = () =>
-		queryClient.invalidateQueries({
-			queryKey: [
+	// Delete mutation stays in parent
+	const deleteMutation = useApiMutation({
+		mutationFn: (id: string) =>
+			client.productCategories.delete({ organizationId: organizationId!, id }),
+		successMessage: "Category deleted successfully",
+		errorMessage: (e) => e.message,
+		invalidate: [
+			[
 				orpc.productCategories.list.key({
 					input: { organizationId: organizationId! },
 				}),
 			],
-		});
-
-	// Mutations
-	const createMutation = useMutation({
-		mutationFn: (data: {
-			name: string;
-			externalCode?: string;
-			description?: string;
-		}) =>
-			client.productCategories.create({
-				organizationId: organizationId!,
-				...data,
-			}),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Category created successfully");
-		},
-		onError: (e: Error) => toast.error(e.message),
-	});
-
-	const updateMutation = useMutation({
-		mutationFn: (data: {
-			id: string;
-			name?: string;
-			externalCode?: string;
-			description?: string;
-		}) =>
-			client.productCategories.update({
-				organizationId: organizationId!,
-				...data,
-			}),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Category updated successfully");
-		},
-		onError: (e: Error) => toast.error(e.message),
-	});
-
-	const deleteMutation = useMutation({
-		mutationFn: (id: string) =>
-			client.productCategories.delete({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			invalidate();
-			toast.success("Category deleted successfully");
-		},
-		onError: (e: Error) => toast.error(e.message),
+		],
 	});
 
 	if (!organizationId) {
@@ -153,14 +112,9 @@ export function CategoriesTabPage() {
 			<DataTable
 				columns={columns}
 				data={tableData}
-				onAdd={(data) => createMutation.mutate(data)}
-				onEdit={(id, data) => updateMutation.mutate({ id, ...data })}
+				organizationId={organizationId}
 				onDelete={(id) => deleteMutation.mutate(id)}
-				isMutating={
-					createMutation.isPending ||
-					updateMutation.isPending ||
-					deleteMutation.isPending
-				}
+				isMutating={deleteMutation.isPending}
 			/>
 		</>
 	);

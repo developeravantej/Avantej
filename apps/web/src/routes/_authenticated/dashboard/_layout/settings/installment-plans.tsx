@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -19,13 +20,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-} from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, CreditCard } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -80,7 +74,7 @@ const EMPTY_FORM: FormState = {
 function InstallmentPlansPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
+	const installmentPlansKey = ["installmentPlans", organizationId];
 
 	// Sheet state
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -106,7 +100,7 @@ function InstallmentPlansPage() {
 		enabled: !!organizationId,
 	});
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (values: FormState) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.installmentPlans.create({
@@ -120,17 +114,13 @@ function InstallmentPlansPage() {
 				isDefault: values.isDefault,
 			});
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installmentPlans", organizationId] });
-			toast.success("Installment plan created successfully.");
-			closeSheet();
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to create installment plan.");
-		},
+		successMessage: "Installment plan created successfully.",
+		errorMessage: (err) => err.message || "Failed to create installment plan.",
+		invalidate: [installmentPlansKey],
+		onSuccess: () => closeSheet(),
 	});
 
-	const updateMutation = useMutation({
+	const updateMutation = useApiMutation({
 		mutationFn: ({ id, values }: { id: string; values: FormState }) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.installmentPlans.update({
@@ -143,44 +133,34 @@ function InstallmentPlansPage() {
 				description: values.description || undefined,
 			});
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installmentPlans", organizationId] });
-			toast.success("Installment plan updated successfully.");
-			closeSheet();
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to update installment plan.");
-		},
+		successMessage: "Installment plan updated successfully.",
+		errorMessage: (err) => err.message || "Failed to update installment plan.",
+		invalidate: [installmentPlansKey],
+		onSuccess: () => closeSheet(),
 	});
 
-	const setDefaultMutation = useMutation({
+	const setDefaultMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.installmentPlans.setDefault({ organizationId, id });
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installmentPlans", organizationId] });
-			toast.success("Default installment plan updated.");
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to set default installment plan.");
-		},
+		successMessage: "Default installment plan updated.",
+		errorMessage: (err) => err.message || "Failed to set default installment plan.",
+		invalidate: [installmentPlansKey],
 	});
 
-	const deactivateMutation = useMutation({
+	const deactivateMutation = useApiMutation({
 		mutationFn: (id: string) => {
 			if (!organizationId) throw new Error("No organization selected");
 			return client.installmentPlans.deactivate({ organizationId, id });
 		},
+		successMessage: "Installment plan deactivated.",
+		errorMessage: (err) => err.message || "Failed to deactivate installment plan.",
+		invalidate: [installmentPlansKey],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installmentPlans", organizationId] });
-			toast.success("Installment plan deactivated.");
 			setDeactivateDialogOpen(false);
 			setDeactivateTarget(null);
 			setDeactivateWarning(null);
-		},
-		onError: (err) => {
-			toast.error(err instanceof Error ? err.message : "Failed to deactivate installment plan.");
 		},
 	});
 
@@ -506,25 +486,25 @@ function InstallmentPlansPage() {
 				<DataTable<InstallmentPlanRow, unknown> columns={columns} data={rows} />
 			)}
 
-			{/* Create / Edit Sheet */}
-			<Sheet
+			{/* Create / Edit Dialog */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white">
-					<SheetHeader>
-						<SheetTitle className="text-lg font-medium leading-6 text-brand-primary-1">
+				<DialogContent className="sm:max-w-lg overflow-y-auto bg-white">
+					<DialogHeader>
+						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
 							{editingId ? "Edit Installment Plan" : "Add Installment Plan"}
-						</SheetTitle>
-						<SheetDescription className="text-sm text-brand-secondary-1">
+						</DialogTitle>
+						<DialogDescription className="text-sm text-brand-secondary-1">
 							{editingId
 								? "Update the details for this installment plan. The plan code cannot be changed."
 								: "Define a new installment plan to offer on package services."}
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Code — disabled on edit */}
@@ -694,8 +674,8 @@ function InstallmentPlansPage() {
 							</button>
 						</div>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 
 			{/* Deactivate confirmation dialog */}
 			<Dialog

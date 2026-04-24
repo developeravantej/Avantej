@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { CheckCircle, DollarSign, Layers, Plus, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -16,13 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -35,7 +36,7 @@ import {
 
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -123,7 +124,6 @@ const TD = "px-5 py-4";
 export function PackageInstancesPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 	const [createOpen, setCreateOpen] = useState(false);
@@ -180,16 +180,16 @@ export function PackageInstancesPage() {
 		return map;
 	}, [allServices]);
 
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.packageInstances.create>[0]) =>
 			client.packageInstances.create(input),
+		successMessage: "Package assigned successfully.",
+		errorMessage: (err) => err.message || "Failed to assign package.",
+		invalidate: [["packageInstances", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["packageInstances", organizationId] });
-			toast.success("Package assigned successfully.");
 			setCreateOpen(false);
 			setForm(EMPTY_FORM);
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to assign package."),
 	});
 
 	function handleCreateSubmit(e: React.FormEvent) {
@@ -209,7 +209,7 @@ export function PackageInstancesPage() {
 		}
 
 		const totalPriceCents = form.totalPriceRm
-			? Math.round(parseFloat(form.totalPriceRm) * 100)
+			? rmToCents(parseFloat(form.totalPriceRm))
 			: undefined;
 
 		createMutation.mutate({
@@ -434,21 +434,21 @@ export function PackageInstancesPage() {
 					</TableBody>
 				</Table>
 
-			{/* Assign Package Sheet */}
-			<Sheet
+			{/* Assign Package Dialog */}
+			<Dialog
 				open={createOpen}
 				onOpenChange={(open) => {
 					setCreateOpen(open);
 					if (!open) setForm(EMPTY_FORM);
 				}}
 			>
-				<SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>Assign Package</SheetTitle>
-						<SheetDescription>
+				<DialogContent className="sm:max-w-lg overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Assign Package</DialogTitle>
+						<DialogDescription>
 							Assign or sell a package to a client. All fields marked * are required.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 px-4 py-4">
 						{/* Package selector */}
@@ -638,7 +638,7 @@ export function PackageInstancesPage() {
 
 						<Separator />
 
-						<SheetFooter className="px-0 pt-2">
+						<DialogFooter className="px-0 pt-2">
 							<Button
 								type="button"
 								variant="outline"
@@ -650,10 +650,10 @@ export function PackageInstancesPage() {
 							<Button type="submit" disabled={createMutation.isPending}>
 								{createMutation.isPending ? "Assigning…" : "Assign Package"}
 							</Button>
-						</SheetFooter>
+						</DialogFooter>
 					</form>
-				</SheetContent>
-			</Sheet>
+				</DialogContent>
+			</Dialog>
 		</>
 	);
 }

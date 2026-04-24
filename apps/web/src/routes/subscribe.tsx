@@ -15,12 +15,12 @@ import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Loader2,
   Check,
@@ -32,7 +32,7 @@ import {
   User
 } from "lucide-react";
 import apiClient from "@/lib/api";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/money";
 import { getServerUrl } from "@/lib/config";
 import getStripe from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
@@ -647,18 +647,18 @@ function SubscribePage() {
       )}
 
       {/* Guest Checkout Sheet */}
-      <Sheet open={isGuestSheetOpen} onOpenChange={setIsGuestSheetOpen}>
-        <SheetContent className="sm:max-w-md p-4">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+      <Dialog open={isGuestSheetOpen} onOpenChange={setIsGuestSheetOpen}>
+        <DialogContent className="sm:max-w-md p-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
               Complete Your Subscription
-            </SheetTitle>
-            <SheetDescription>
+            </DialogTitle>
+            <DialogDescription>
               Enter your details to proceed with checkout. You'll receive an
               email to complete your account setup after payment.
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
 
           <div className="mt-6 space-y-4">
             <div className="space-y-2">
@@ -746,8 +746,8 @@ function SubscribePage() {
               </Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <div className="text-center mt-16 pt-8 border-t">

@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,14 +18,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import {
 	Dialog,
 	DialogContent,
@@ -111,7 +104,6 @@ function ExpensesViewPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canCreate = hasPermission("expense_management:create");
 	const canUpdate = hasPermission("expense_management:update");
-	const queryClient = useQueryClient();
 
 	// ---- Filter state ----
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(
@@ -149,7 +141,7 @@ function ExpensesViewPage() {
 	});
 
 	// ---- Mutations ----
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: (vars: {
 			category: ExpenseCategory;
 			description: string;
@@ -165,74 +157,56 @@ function ExpensesViewPage() {
 				expenseDate: vars.expenseDate,
 				receiptUrl: vars.receiptUrl || undefined,
 			}),
+		successMessage: "Expense submitted!",
+		errorMessage: (err) =>
+			`Failed to submit expense: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [["expenses", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["expenses", organizationId],
-			});
-			toast.success("Expense submitted!");
 			setIsCreateOpen(false);
 			resetCreateForm();
 		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to submit expense: ${message}`);
-		},
 	});
 
-	const approveMutation = useMutation({
+	const approveMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.expenses.approve({ organizationId: organizationId!, id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["expenses", organizationId],
-			});
-			toast.success("Expense approved");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to approve expense: ${message}`);
-		},
+		successMessage: "Expense approved",
+		errorMessage: (err) =>
+			`Failed to approve expense: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [["expenses", organizationId]],
 	});
 
-	const rejectMutation = useMutation({
+	const rejectMutation = useApiMutation({
 		mutationFn: (vars: { id: string; rejectionReason: string }) =>
 			client.expenses.reject({
 				organizationId: organizationId!,
 				id: vars.id,
 				rejectionReason: vars.rejectionReason,
 			}),
+		successMessage: "Expense rejected",
+		errorMessage: (err) =>
+			`Failed to reject expense: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [["expenses", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["expenses", organizationId],
-			});
-			toast.success("Expense rejected");
 			setRejectTarget(null);
 			setRejectionReason("");
 		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to reject expense: ${message}`);
-		},
 	});
 
-	const markPaidMutation = useMutation({
+	const markPaidMutation = useApiMutation({
 		mutationFn: (vars: { id: string; paymentReference?: string }) =>
 			client.expenses.markPaid({
 				organizationId: organizationId!,
 				id: vars.id,
 				paymentReference: vars.paymentReference || undefined,
 			}),
+		successMessage: "Expense marked as paid",
+		errorMessage: (err) =>
+			`Failed to mark expense as paid: ${err.message || "An unexpected error occurred"}`,
+		invalidate: [["expenses", organizationId]],
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["expenses", organizationId],
-			});
-			toast.success("Expense marked as paid");
 			setPaidTarget(null);
 			setPaymentReference("");
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : "An unexpected error occurred";
-			toast.error(`Failed to mark expense as paid: ${message}`);
 		},
 	});
 
@@ -267,7 +241,7 @@ function ExpensesViewPage() {
 				return;
 			}
 		}
-		const amountCents = Math.round(rmValue * 100);
+		const amountCents = rmToCents(rmValue);
 		// Convert local date string to ISO datetime (start of day UTC)
 		const expenseDate = new Date(`${formDate}T00:00:00.000Z`).toISOString();
 		createMutation.mutate({
@@ -505,16 +479,16 @@ function ExpensesViewPage() {
 				/>
 
 			{/* ------------------------------------------------------------------ */}
-			{/* Create Expense Sheet                                                */}
+			{/* Create Expense Dialog                                               */}
 			{/* ------------------------------------------------------------------ */}
-			<Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>Submit Expense</SheetTitle>
-						<SheetDescription>
+			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Submit Expense</DialogTitle>
+						<DialogDescription>
 							Fill in the details to submit a new expense claim.
-						</SheetDescription>
-					</SheetHeader>
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="flex flex-col gap-4 px-4 py-2">
 						{/* Category */}
@@ -599,7 +573,7 @@ function ExpensesViewPage() {
 						</div>
 					</div>
 
-					<SheetFooter className="px-4">
+					<DialogFooter className="px-4">
 						<Button
 							variant="outline"
 							onClick={() => setIsCreateOpen(false)}
@@ -613,9 +587,9 @@ function ExpensesViewPage() {
 						>
 							{createMutation.isPending ? "Submitting…" : "Submit"}
 						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* ------------------------------------------------------------------ */}
 			{/* Reject Dialog                                                       */}

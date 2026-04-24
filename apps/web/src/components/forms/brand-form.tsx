@@ -1,168 +1,148 @@
-import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useState, useEffect } from "react";
+/**
+ * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * - Zod schema colocated (top of file)
+ * - organizationId is a prop, never a form field
+ * - Prices use z.number().transform((v) => Math.round(v * 100))
+ * - Error display: inline <FormMessage> + toast on mutation error
+ */
 
-export interface BrandFormData {
-	name: string;
-}
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
+import { useApiMutation } from "@/hooks/useApiMutation";
+import { client, orpc } from "@/utils/orpc";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+// 1. Schema — colocated, defines UI shape + validation. Server validates separately.
+const brandFormSchema = z.object({
+	name: z
+		.string()
+		.min(1, "Brand name is required")
+		.max(100, "Name must be 100 characters or fewer"),
+});
+
+type BrandFormValues = z.infer<typeof brandFormSchema>;
+
+// 2. Props — organizationId is a prop, NOT a form field
 interface BrandFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
+	organizationId: string;
 	mode: "create" | "edit";
-	initialData?: BrandFormData & { id?: string };
-	onSubmit: (data: BrandFormData, id?: string) => Promise<void>;
-	isLoading?: boolean;
+	initialData?: { id?: string; name?: string };
 }
 
 export function BrandFormDialog({
 	isOpen,
 	onClose,
+	organizationId,
 	mode,
 	initialData,
-	onSubmit,
-	isLoading,
 }: BrandFormDialogProps) {
-	const [formData, setFormData] = useState<BrandFormData>({
-		name: "",
+	// 3. Form instance
+	const form = useForm<BrandFormValues>({
+		resolver: zodResolver(brandFormSchema),
+		defaultValues: { name: initialData?.name ?? "" },
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
+	// 4. Reset on dialog re-open with fresh initialData
 	useEffect(() => {
-		if (initialData) {
-			setFormData({
-				name: initialData.name || "",
-			});
-		} else {
-			setFormData({
-				name: "",
-			});
-		}
-	}, [initialData, isOpen]);
+		if (isOpen) form.reset({ name: initialData?.name ?? "" });
+	}, [isOpen, initialData, form]);
 
-	if (!isOpen) return null;
+	// 5. Mutation — isPending drives submit state
+	const mutation = useApiMutation({
+		mutationFn: (values: BrandFormValues) =>
+			mode === "create"
+				? client.brands.create({ organizationId, ...values })
+				: client.brands.update({
+						organizationId,
+						id: initialData!.id!,
+						...values,
+					}),
+		successMessage: mode === "create" ? "Brand created" : "Brand updated",
+		errorMessage: (err) => err.message || "Failed to save brand",
+		invalidate: [orpc.brands.list.key()],
+		onSuccess: () => onClose(),
+	});
 
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const { name, value } = e.target;
-		setFormData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	};
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setIsSubmitting(true);
-
-		try {
-			if (!formData.name.trim()) {
-				throw new Error("Brand name is required");
-			}
-
-			await onSubmit(formData, initialData?.id);
-			onClose();
-		} catch (err) {
-			const errorMessage =
-				err instanceof Error
-					? err.message
-					: `Failed to ${mode === "create" ? "create" : "update"} brand`;
-			setError(errorMessage);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const isPending = isSubmitting || isLoading;
+	// 6. Submit handler
+	const onSubmit = (values: BrandFormValues) => mutation.mutate(values);
 
 	return (
-		<Transition appear show={isOpen} as={Fragment}>
-			<Dialog as="div" className="relative z-10" onClose={onClose}>
-				<Transition.Child
-					as={Fragment}
-					enter="ease-out duration-300"
-					enterFrom="opacity-0"
-					enterTo="opacity-100"
-					leave="ease-in duration-200"
-					leaveFrom="opacity-100"
-					leaveTo="opacity-0"
-				>
-					<div className="fixed inset-0 bg-brand-primary-1/50" />
-				</Transition.Child>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>
+						{mode === "create" ? "Add Brand" : "Edit Brand"}
+					</DialogTitle>
+					<DialogDescription>
+						{mode === "create"
+							? "Create a new brand for your product catalog."
+							: "Update the brand details."}
+					</DialogDescription>
+				</DialogHeader>
 
-				<div className="fixed inset-0 overflow-y-auto">
-					<div className="flex min-h-full items-center justify-center p-4 text-center">
-						<Transition.Child
-							as={Fragment}
-							enter="ease-out duration-300"
-							enterFrom="opacity-0 scale-95"
-							enterTo="opacity-100 scale-100"
-							leave="ease-in duration-200"
-							leaveFrom="opacity-100 scale-100"
-							leaveTo="opacity-0 scale-95"
-						>
-							<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-								<Dialog.Title
-									as="h1"
-									className="text-lg font-medium leading-6 text-brand-primary-1 mb-4"
-								>
-									{mode === "create" ? "Add Brand" : "Edit Brand"}
-								</Dialog.Title>
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>
+										Brand Name{" "}
+										<span className="text-destructive">*</span>
+									</FormLabel>
+									<FormControl>
+										<Input placeholder="Enter brand name" {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-								{error && (
-									<div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
-										{error}
-									</div>
-								)}
-
-								<form onSubmit={handleSubmit} className="space-y-4">
-									<div>
-										<label
-											htmlFor="name"
-											className="block text-sm font-medium text-brand-primary-1"
-										>
-											Brand Name *
-										</label>
-										<input
-											id="name"
-											name="name"
-											type="text"
-											required
-											value={formData.name}
-											onChange={handleChange}
-											className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-											placeholder="Enter brand name"
-										/>
-									</div>
-
-									<div className="mt-6 flex justify-end space-x-3">
-										<button
-											type="button"
-											onClick={onClose}
-											className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-										>
-											Cancel
-										</button>
-										<button
-											type="submit"
-											disabled={isPending || !formData.name.trim()}
-											className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											{isPending
-												? mode === "create"
-													? "Adding..."
-													: "Saving..."
-												: mode === "create"
-													? "Add Brand"
-													: "Save Changes"}
-										</button>
-									</div>
-								</form>
-							</Dialog.Panel>
-						</Transition.Child>
-					</div>
-				</div>
-			</Dialog>
-		</Transition>
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onClose}
+								disabled={mutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button type="submit" disabled={mutation.isPending}>
+								{mutation.isPending
+									? mode === "create"
+										? "Adding..."
+										: "Saving..."
+									: mode === "create"
+										? "Add Brand"
+										: "Save Changes"}
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
 	);
 }
