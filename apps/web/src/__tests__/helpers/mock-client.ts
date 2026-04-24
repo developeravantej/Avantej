@@ -65,9 +65,24 @@ export const mockClient = {
 	notifications: { list: vi.fn().mockResolvedValue([]) },
 	members: {
 		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ member: { id: "member-new" } }),
+		suspend: vi.fn().mockResolvedValue({}),
 		deactivate: vi.fn().mockResolvedValue({}),
 		reactivate: vi.fn().mockResolvedValue({}),
 		updateRole: vi.fn().mockResolvedValue({}),
+	},
+	memberProfiles: {
+		get: vi.fn().mockResolvedValue(null),
+		upsert: vi.fn().mockResolvedValue({}),
+	},
+	serviceMembers: {
+		listForMember: vi.fn().mockResolvedValue([]),
+		assign: vi.fn().mockResolvedValue({}),
+		remove: vi.fn().mockResolvedValue({}),
+		updateBuffer: vi.fn().mockResolvedValue({}),
+	},
+	serviceCategories: {
+		list: vi.fn().mockResolvedValue([]),
 	},
 	permissions: { list: vi.fn().mockResolvedValue([]) },
 	suppliers: {
@@ -150,6 +165,7 @@ export const mockClient = {
 		create: vi.fn().mockResolvedValue({}),
 		deactivate: vi.fn().mockResolvedValue({}),
 		reactivate: vi.fn().mockResolvedValue({}),
+		assignToMember: vi.fn().mockResolvedValue({}),
 	},
 	categoryCommission: {
 		getByCategory: vi.fn().mockResolvedValue(null),
@@ -158,6 +174,7 @@ export const mockClient = {
 	commissionSplits: {
 		approve: vi.fn().mockResolvedValue({}),
 		void: vi.fn().mockResolvedValue({}),
+		listLedger: vi.fn().mockResolvedValue({ rows: [] }),
 	},
 	installments: {
 		adminOverview: vi.fn().mockResolvedValue({ items: [], total: 0 }),
@@ -170,5 +187,17 @@ export const mockClient = {
 	},
 	installmentPlans: {
 		list: vi.fn().mockResolvedValue([]),
+	},
+	rooms: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "room-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		deactivate: vi.fn().mockResolvedValue({}),
+	},
+	classSlots: {
+		list: vi.fn().mockResolvedValue([]),
+		create: vi.fn().mockResolvedValue({ id: "slot-1" }),
+		update: vi.fn().mockResolvedValue({}),
+		cancel: vi.fn().mockResolvedValue({}),
 	},
 };
