@@ -116,151 +116,160 @@ function GoogleCalendarPage() {
 	};
 
 	return (
-		<div className="container max-w-2xl py-8 space-y-6">
-			<div>
-				<h1 className="text-2xl font-semibold tracking-tight">
-					Google Calendar Integration
-				</h1>
-				<p className="text-muted-foreground mt-1">
-					Sync your appointments to Google Calendar automatically.
-				</p>
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Calendar className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Google Calendar</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Connect your Google Calendar to sync appointments
+						</p>
+					</div>
+				</div>
 			</div>
 
-			{isLoading && (
-				<Card>
-					<CardHeader>
-						<Skeleton className="h-6 w-48" />
-						<Skeleton className="h-4 w-72 mt-1" />
-					</CardHeader>
-					<CardContent>
-						<Skeleton className="h-10 w-40" />
-					</CardContent>
-				</Card>
-			)}
-
-			{isError && (
-				<Card>
-					<CardContent className="pt-6 flex items-center gap-4">
-						<p className="text-muted-foreground text-sm">
-							Failed to load connection status. Please try again.
-						</p>
-						{/* Fix 3: Retry button so the user doesn't have to reload the page */}
-						<Button variant="outline" size="sm" onClick={() => refetch()}>
-							<RefreshCw className="size-3.5 mr-1.5" />
-							Retry
-						</Button>
-					</CardContent>
-				</Card>
-			)}
-
-			{status && !isLoading && (
-				<>
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{isLoading && (
 					<Card>
 						<CardHeader>
-							<div className="flex items-center gap-2">
-								<Calendar className="size-5 text-primary" />
-								<CardTitle>Connection Status</CardTitle>
-							</div>
-							<CardDescription>
-								{status.connected
-									? "Your Google Calendar is connected."
-									: "Connect your Google Calendar to sync appointments."}
-							</CardDescription>
+							<Skeleton className="h-6 w-48" />
+							<Skeleton className="h-4 w-72 mt-1" />
 						</CardHeader>
-						<CardContent className="space-y-4">
-							{status.connected ? (
-								<>
-									<div className="flex items-center gap-2">
-										<CheckCircle2 className="size-4 text-green-600" />
-										<span className="text-sm font-medium">Connected</span>
-										<Badge variant="secondary">
-											{status.syncScope === "all"
-												? "All appointments"
-												: "Your appointments"}
-										</Badge>
-									</div>
-
-									{status.googleEmail && (
-										<p className="text-sm text-muted-foreground">
-											Google account:{" "}
-											<span className="font-medium text-foreground">
-												{status.googleEmail}
-											</span>
-										</p>
-									)}
-
-									<p className="text-sm text-muted-foreground">
-										Last synced:{" "}
-										<span className="font-medium text-foreground">
-											{formatRelativeTime(status.lastSyncAt)}
-										</span>
-									</p>
-
-									<Button
-										variant="destructive"
-										onClick={handleDisconnect}
-										disabled={disconnectMutation.isPending}
-										className="mt-2"
-									>
-										{disconnectMutation.isPending ? (
-											<>
-												<RefreshCw className="size-4 mr-2 animate-spin" />
-												Disconnecting…
-											</>
-										) : (
-											<>
-												<XCircle className="size-4 mr-2" />
-												Disconnect
-											</>
-										)}
-									</Button>
-								</>
-							) : (
-								<>
-									<div className="flex items-center gap-2">
-										<XCircle className="size-4 text-muted-foreground" />
-										<span className="text-sm text-muted-foreground">
-											Not connected
-										</span>
-									</div>
-
-									{/* Fix 2: Disable when organizationId is empty (context still loading) */}
-									<Button
-										onClick={handleConnect}
-										disabled={!organizationId || isUserContextLoading}
-										className="mt-2"
-									>
-										<Calendar className="size-4 mr-2" />
-										{isUserContextLoading
-											? "Loading…"
-											: "Connect Google Calendar"}
-									</Button>
-								</>
-							)}
+						<CardContent>
+							<Skeleton className="h-10 w-40" />
 						</CardContent>
 					</Card>
+				)}
 
-					{status.connected && status.lastSyncError && (
-						<Alert variant="destructive">
-							<AlertTriangle className="size-4" />
-							<AlertDescription>
-								<span className="font-medium">Last sync failed: </span>
-								{status.lastSyncError}
-								{/* Fix 5: Show Reconnect for any sync error, not just "revoked" */}
-								{status.lastSyncError && (
-									<Button
-										variant="link"
-										className="ml-2 h-auto p-0 text-destructive underline"
-										onClick={handleConnect}
-									>
-										Reconnect
-									</Button>
+				{isError && (
+					<Card>
+						<CardContent className="pt-6 flex items-center gap-4">
+							<p className="text-muted-foreground text-sm">
+								Failed to load connection status. Please try again.
+							</p>
+							{/* Fix 3: Retry button so the user doesn't have to reload the page */}
+							<Button variant="outline" size="sm" onClick={() => refetch()}>
+								<RefreshCw className="size-3.5 mr-1.5" />
+								Retry
+							</Button>
+						</CardContent>
+					</Card>
+				)}
+
+				{status && !isLoading && (
+					<>
+						<Card>
+							<CardHeader>
+								<div className="flex items-center gap-2">
+									<Calendar className="size-5 text-primary" />
+									<CardTitle>Connection Status</CardTitle>
+								</div>
+								<CardDescription>
+									{status.connected
+										? "Your Google Calendar is connected."
+										: "Connect your Google Calendar to sync appointments."}
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								{status.connected ? (
+									<>
+										<div className="flex items-center gap-2">
+											<CheckCircle2 className="size-4 text-green-600" />
+											<span className="text-sm font-medium">Connected</span>
+											<Badge variant="secondary">
+												{status.syncScope === "all"
+													? "All appointments"
+													: "Your appointments"}
+											</Badge>
+										</div>
+
+										{status.googleEmail && (
+											<p className="text-sm text-muted-foreground">
+												Google account:{" "}
+												<span className="font-medium text-foreground">
+													{status.googleEmail}
+												</span>
+											</p>
+										)}
+
+										<p className="text-sm text-muted-foreground">
+											Last synced:{" "}
+											<span className="font-medium text-foreground">
+												{formatRelativeTime(status.lastSyncAt)}
+											</span>
+										</p>
+
+										<Button
+											variant="destructive"
+											onClick={handleDisconnect}
+											disabled={disconnectMutation.isPending}
+											className="mt-2"
+										>
+											{disconnectMutation.isPending ? (
+												<>
+													<RefreshCw className="size-4 mr-2 animate-spin" />
+													Disconnecting…
+												</>
+											) : (
+												<>
+													<XCircle className="size-4 mr-2" />
+													Disconnect
+												</>
+											)}
+										</Button>
+									</>
+								) : (
+									<>
+										<div className="flex items-center gap-2">
+											<XCircle className="size-4 text-muted-foreground" />
+											<span className="text-sm text-muted-foreground">
+												Not connected
+											</span>
+										</div>
+
+										{/* Fix 2: Disable when organizationId is empty (context still loading) */}
+										<Button
+											onClick={handleConnect}
+											disabled={!organizationId || isUserContextLoading}
+											className="mt-2"
+										>
+											<Calendar className="size-4 mr-2" />
+											{isUserContextLoading
+												? "Loading…"
+												: "Connect Google Calendar"}
+										</Button>
+									</>
 								)}
-							</AlertDescription>
-						</Alert>
-					)}
-				</>
-			)}
+							</CardContent>
+						</Card>
+
+						{status.connected && status.lastSyncError && (
+							<Alert variant="destructive">
+								<AlertTriangle className="size-4" />
+								<AlertDescription>
+									<span className="font-medium">Last sync failed: </span>
+									{status.lastSyncError}
+									{/* Fix 5: Show Reconnect for any sync error, not just "revoked" */}
+									{status.lastSyncError && (
+										<Button
+											variant="link"
+											className="ml-2 h-auto p-0 text-destructive underline"
+											onClick={handleConnect}
+										>
+											Reconnect
+										</Button>
+									)}
+								</AlertDescription>
+							</Alert>
+						)}
+					</>
+				)}
+			</div>
 		</div>
 	);
 }

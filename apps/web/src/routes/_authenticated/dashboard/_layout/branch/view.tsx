@@ -24,7 +24,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client, queryClient } from "@/utils/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, Store } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -721,9 +721,11 @@ function RouteComponent() {
   // Show loading state properly
   if (authLoading || isLoadingContext || isLoadingBranches) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="w-8 h-8 border-2 border-current rounded-full animate-spin border-r-transparent">
-          <span className="sr-only">Loading...</span>
+      <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+        <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+          <div className="w-8 h-8 border-2 border-current rounded-full animate-spin border-r-transparent">
+            <span className="sr-only">Loading...</span>
+          </div>
         </div>
       </div>
     );
@@ -734,48 +736,87 @@ function RouteComponent() {
     return null;
   }
 
+  const items = branchData?.items ?? [];
+  const totalBranches = items.length;
+  const activeBranches = items.filter((b: any) => b.is_active !== false).length;
+  const uniqueRegions = new Set(items.map((b: any) => b.area?.region?.name).filter(Boolean)).size;
+  const assignedPic = items.filter((b: any) => b.picUserId).length;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-heading">Branches</h1>
-          <p className="text-brand-secondary-1">Manage your organization's branches</p>
+    <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+      {/* Fixed header */}
+      <div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Store className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">Branches</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Hierarchy nodes and branch locations
+            </p>
+          </div>
         </div>
         <Link to="/dashboard/branch/create">
-          <Button className="flex items-center space-x-2">
+          <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            <span>Create Branch</span>
+            Create Branch
           </Button>
         </Link>
       </div>
 
+      {/* Scroll region */}
+      <div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total Branches</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{totalBranches}</div>
+            <div className="text-xs text-muted-foreground">in organization</div>
+          </div>
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Active</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{activeBranches}</div>
+            <div className="text-xs text-muted-foreground">branches</div>
+          </div>
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Regions</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{uniqueRegions}</div>
+            <div className="text-xs text-muted-foreground">top-level regions</div>
+          </div>
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">PIC Assigned</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{assignedPic}</div>
+            <div className="text-xs text-muted-foreground">branches with PIC</div>
+          </div>
+        </div>
 
-      {/* Empty State */}
-      {!isLoadingBranches && branchData?.items?.length === 0 && (
-        <EmptyState
-          title="No branches found"
-          description={
-            organizationId
-              ? "Create your first branch to get started."
-              : "Please ensure you're logged in and have an organization selected."
-          }
-          action={
-            organizationId
-              ? { label: "Create Branch", onClick: () => navigate({ to: "/dashboard/branch/create" }) }
-              : undefined
-          }
-        />
-      )}
+        {/* Empty State */}
+        {items.length === 0 && (
+          <EmptyState
+            title="No branches found"
+            description={
+              organizationId
+                ? "Create your first branch to get started."
+                : "Please ensure you're logged in and have an organization selected."
+            }
+            action={
+              organizationId
+                ? { label: "Create Branch", onClick: () => navigate({ to: "/dashboard/branch/create" }) }
+                : undefined
+            }
+          />
+        )}
 
-      {/* Data Table */}
-      {!isLoadingBranches && branchData?.items && branchData.items.length > 0 && (
-        <DataTable
-          columns={columns}
-          data={branchData.items}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      )}
+        {/* Data Table */}
+        {items.length > 0 && (
+          <DataTable
+            columns={columns}
+            data={items}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
 
       {/* Edit Branch Dialog */}
       <Dialog
@@ -990,6 +1031,7 @@ function RouteComponent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
