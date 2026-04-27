@@ -19,7 +19,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { inArray } from "drizzle-orm";
+import { inArray, or } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -132,17 +132,26 @@ export const appointmentsRouter = {
         }
       }
 
-      // Resolve fallback trainer names: staffId (member.userId) → members.id → memberProfiles.displayName
-      const fallbackUserIds = [...new Set([...primaryStaffByAppt.values()].map((v) => v.staffId))];
-      const memberRows = fallbackUserIds.length > 0
-        ? await context.tenantDb.select({ id: members.id, userId: members.userId }).from(members).where(inArray(members.userId, fallbackUserIds))
+      // Resolve fallback trainer names. `appointmentStaff.staffId` is written
+      // inconsistently by callers — POS sends member.userId, the appointment form
+      // sends member.id. Look up both forms in one query and translate to member.id.
+      const fallbackStaffIds = [...new Set([...primaryStaffByAppt.values()].map((v) => v.staffId))];
+      const memberRows = fallbackStaffIds.length > 0
+        ? await context.tenantDb
+            .select({ id: members.id, userId: members.userId })
+            .from(members)
+            .where(or(inArray(members.id, fallbackStaffIds), inArray(members.userId, fallbackStaffIds)))
         : [];
-      const userIdToMemberId = new Map((memberRows as { id: string; userId: string }[]).map((m) => [m.userId, m.id]));
+      const staffIdToMemberId = new Map<string, string>();
+      for (const m of memberRows as { id: string; userId: string }[]) {
+        staffIdToMemberId.set(m.id, m.id);
+        staffIdToMemberId.set(m.userId, m.id);
+      }
 
       const allTrainerMemberIds = [
         ...new Set([
           ...directTrainerIds,
-          ...[...primaryStaffByAppt.values()].map((v) => userIdToMemberId.get(v.staffId)).filter(Boolean) as string[],
+          ...[...primaryStaffByAppt.values()].map((v) => staffIdToMemberId.get(v.staffId)).filter(Boolean) as string[],
         ]),
       ];
       const profileRows = allTrainerMemberIds.length > 0
@@ -155,7 +164,7 @@ export const appointmentsRouter = {
 
       return items.map((r) => {
         const fallback = primaryStaffByAppt.get(r.id);
-        const fallbackMemberId = fallback ? userIdToMemberId.get(fallback.staffId) : undefined;
+        const fallbackMemberId = fallback ? staffIdToMemberId.get(fallback.staffId) : undefined;
         const trainerMemberId = r.trainerId ?? fallbackMemberId ?? null;
         return {
           ...r,
