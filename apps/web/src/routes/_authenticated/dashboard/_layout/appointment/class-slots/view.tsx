@@ -275,6 +275,49 @@ function ClassSlotsPage() {
 		},
 	});
 
+	// --- Enrollment ---
+	const [enrollClientUserId, setEnrollClientUserId] = useState("");
+
+	const { data: customerMembers = [] } = useQuery({
+		queryKey: ["members", organizationId, "client"],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.members.list({ organizationId, role: "client", status: "active" });
+		},
+		enabled: !!organizationId && signupsSheetOpen,
+	});
+
+	const enrollMutation = useApiMutation({
+		mutationFn: (clientUserId: string) => {
+			if (!organizationId || !viewingSignupsSlot) throw new Error("Missing context");
+			return client.classSlots.enrollClient({
+				organizationId,
+				classSlotId: viewingSignupsSlot.id,
+				clientUserId,
+			});
+		},
+		successMessage: "Customer enrolled.",
+		errorMessage: (err) => `Failed to enroll: ${err.message}`,
+		invalidate: [
+			["classSlots", organizationId],
+			["classSlotSignups", viewingSignupsSlot?.id],
+		],
+		onSuccess: () => setEnrollClientUserId(""),
+	});
+
+	const removeEnrollmentMutation = useApiMutation({
+		mutationFn: (appointmentId: string) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.classSlots.cancelEnrollment({ organizationId, appointmentId });
+		},
+		successMessage: "Enrollment cancelled.",
+		errorMessage: (err) => `Failed to cancel enrollment: ${err.message}`,
+		invalidate: [
+			["classSlots", organizationId],
+			["classSlotSignups", viewingSignupsSlot?.id],
+		],
+	});
+
 	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
@@ -413,6 +456,14 @@ function ClassSlotsPage() {
 				const slot = row.original;
 				return (
 					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handleViewSignups(slot)}
+						>
+							<Users className="h-3.5 w-3.5 mr-1" />
+							Signups
+						</Button>
 						<Button
 							variant="outline"
 							size="sm"
@@ -995,6 +1046,45 @@ function ClassSlotsPage() {
 
 					<Separator className="my-4" />
 
+					{viewingSignupsSlot &&
+						!viewingSignupsSlot.isCancelled &&
+						viewingSignupsSlot.spotsBooked < viewingSignupsSlot.capacity && (
+							<div className="mb-4 flex items-end gap-2">
+								<div className="flex-1">
+									<Label htmlFor="enroll-client" className="text-xs">
+										Enroll customer
+									</Label>
+									<Select value={enrollClientUserId} onValueChange={setEnrollClientUserId}>
+										<SelectTrigger id="enroll-client">
+											<SelectValue placeholder="Select customer..." />
+										</SelectTrigger>
+										<SelectContent>
+											{customerMembers.length === 0 ? (
+												<div className="px-2 py-1.5 text-xs text-muted-foreground">
+													No active customers — invite one first.
+												</div>
+											) : (
+												customerMembers.map(
+													(m: { id: string; userId: string; name: string }) => (
+														<SelectItem key={m.id} value={m.userId}>
+															{m.name}
+														</SelectItem>
+													),
+												)
+											)}
+										</SelectContent>
+									</Select>
+								</div>
+								<Button
+									size="sm"
+									onClick={() => enrollMutation.mutate(enrollClientUserId)}
+									disabled={!enrollClientUserId || enrollMutation.isPending}
+								>
+									{enrollMutation.isPending ? "Enrolling..." : "Enroll"}
+								</Button>
+							</div>
+						)}
+
 					{signupsLoading ? (
 						<div className="flex items-center justify-center py-12">
 							<LoadingSpinner size="md" />
@@ -1039,10 +1129,22 @@ function ClassSlotsPage() {
 											{signup.phone}
 										</p>
 									)}
-									<div className="flex items-center gap-3 text-xs text-muted-foreground">
-										<span className="capitalize">{signup.clientType === "walk_in" ? "Walk-in" : "Member"}</span>
-										<span>·</span>
-										<span className="capitalize">{signup.appointmentStatus}</span>
+									<div className="flex items-center justify-between">
+										<div className="flex items-center gap-3 text-xs text-muted-foreground">
+											<span className="capitalize">{signup.clientType === "walk_in" ? "Walk-in" : "Member"}</span>
+											<span>·</span>
+											<span className="capitalize">{signup.appointmentStatus}</span>
+										</div>
+										{signup.appointmentStatus !== "cancelled" && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => removeEnrollmentMutation.mutate(signup.appointmentId)}
+												disabled={removeEnrollmentMutation.isPending}
+											>
+												Remove
+											</Button>
+										)}
 									</div>
 								</div>
 							))}

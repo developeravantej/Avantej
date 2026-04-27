@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, Check, CreditCard, Landmark } from "lucide-react";
+import { useEffect } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +93,12 @@ export function PaymentStep({
 	const totalCents = calcTotalCents(items, discountCents, taxRateBps);
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
+
+	useEffect(() => {
+		if (method === "cash" && amountTenderedCents === 0 && totalCents > 0) {
+			onAmountTenderedChange(totalCents);
+		}
+	}, [method, amountTenderedCents, totalCents, onAmountTenderedChange]);
 
 	const changeDueCents =
 		method === "cash" && amountTenderedCents >= totalCents

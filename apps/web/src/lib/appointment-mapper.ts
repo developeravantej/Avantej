@@ -56,9 +56,11 @@ export function mapApiAppointmentToCalendar(api: ApiAppointment): CalendarAppoin
 		status,
 		clientName: api.clientName ?? (api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—"),
 		service: api.serviceName ?? (api.serviceId ? `Service (${api.serviceId.slice(0, 8)}…)` : "—"),
-		assignedTo: api.trainerId
-			? { id: api.trainerId, name: api.trainerName ?? api.trainerId.slice(0, 8) + "…" }
-			: undefined,
+		assignedTo: api.trainerName
+			? { id: api.trainerId ?? "", name: api.trainerName }
+			: api.trainerId
+				? { id: api.trainerId, name: api.trainerId.slice(0, 8) + "…" }
+				: undefined,
 	};
 }
 

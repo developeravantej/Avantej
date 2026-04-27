@@ -1,5 +1,8 @@
 import { ORPCError } from "@orpc/server";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "../index";
 import {
 	requirePermission,
@@ -93,7 +96,23 @@ export const salesOrdersRouter = {
 					message: `Sales order not found: ${input.id}`,
 				});
 			}
-			return order;
+
+			let createdByName: string | null = null;
+			if (order.createdBy) {
+				const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+					| NeonDatabase<typeof controlPanelSchema>
+					| undefined;
+				if (controlPanelDb) {
+					const { users } = await import(
+						"@avantej-core/db/schema/control-panel/users"
+					);
+					const u = await controlPanelDb.query.users.findFirst({
+						where: eq(users.id, order.createdBy),
+					});
+					createdByName = u?.name ?? u?.email ?? null;
+				}
+			}
+			return { ...order, createdByName };
 		}),
 
 	create: protectedProcedure

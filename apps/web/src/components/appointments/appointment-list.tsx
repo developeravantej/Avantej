@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Fragment, useState, useRef, useEffect } from "react";
 import { Plus, CalendarDays, Clock, ChevronLeft, ChevronRight, ClipboardCheck, CheckCircle2, XCircle, User, CalendarDays as CalendarIcon, Pencil, LayoutList, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -314,9 +314,9 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 									const todayDate = isToday(dateObj);
 
 									return (
-										<>
-										{_insertBeforeKey === key && <div key="today-anchor" ref={todayRef} />}
-										<div key={key} ref={todayDate ? todayRef : undefined}>
+										<Fragment key={key}>
+										{_insertBeforeKey === key && <div ref={todayRef} />}
+										<div ref={todayDate ? todayRef : undefined}>
 											{/* Date group header */}
 											<div className="flex items-center gap-3 mb-4">
 												<div
@@ -506,7 +506,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 												</div>
 											)}
 										</div>
-										</>
+										</Fragment>
 									);
 								})}
 								{_anchorAtEnd && <div ref={todayRef} />}

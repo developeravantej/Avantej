@@ -169,7 +169,7 @@ function SalesOrderDetailPage() {
 						</div>
 						<div>
 							<dt className="text-muted-foreground text-sm">Created By</dt>
-							<dd className="font-medium">{order.createdBy ?? "\u2014"}</dd>
+							<dd className="font-medium">{(order as { createdByName?: string | null }).createdByName ?? order.createdBy ?? "\u2014"}</dd>
 						</div>
 						<div>
 							<dt className="text-muted-foreground text-sm">Status</dt>

@@ -105,12 +105,24 @@ export function TrainerPickerStep({
 
 	// ── Render ───────────────────────────────────────────────────────────────────
 
+	const hasUnassignedItem = serviceItems.some((item) => {
+		const idx = items.indexOf(item);
+		const a = assignments[idx];
+		return !a || a.length === 0 || a.every((x) => !x.staffId);
+	});
+
 	return (
 		<div className="flex flex-col gap-4">
 			<p className="text-sm text-muted-foreground">
 				Assign trainers to commission-configured items. This step is optional —
 				skip if the trainer is not yet known.
 			</p>
+
+			{hasUnassignedItem && (
+				<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
+					No commission will be recorded for items without an assigned trainer.
+				</div>
+			)}
 
 			{serviceItems.map((item) => {
 				const itemIndex = items.indexOf(item);

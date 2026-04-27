@@ -37,6 +37,12 @@ interface CreateInvitationDialogProps {
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
 	onSuccess?: () => void;
+	/** When set, locks role to this value and hides the role selector. */
+	lockedRole?: "admin" | "trainer" | "staff" | "client";
+	/** Override the dialog title (e.g. "Add Customer"). */
+	title?: string;
+	/** Override the dialog description. */
+	description?: string;
 }
 
 interface HierarchyNode {
@@ -53,6 +59,9 @@ export function CreateInvitationDialog({
 	onOpenChange,
 	organizationId,
 	onSuccess,
+	lockedRole,
+	title,
+	description,
 }: CreateInvitationDialogProps) {
 	const {
 		register,
@@ -65,7 +74,7 @@ export function CreateInvitationDialog({
 		resolver: zodResolver(invitationSchema),
 		defaultValues: {
 			email: "",
-			role: "staff",
+			role: lockedRole ?? "staff",
 			hierarchyScopeId: "",
 		},
 	});
@@ -150,11 +159,11 @@ export function CreateInvitationDialog({
 			<DialogContent className="sm:max-w-md rounded-2xl bg-white p-6">
 				<DialogHeader className="mb-4">
 					<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
-						Invite Member
+						{title ?? "Invite Member"}
 					</DialogTitle>
 					<DialogDescription className="text-sm text-brand-secondary-1">
-						Send an invitation to join your organization. The invitee will
-						receive an email with a link to accept the invitation.
+						{description ??
+							"Send an invitation to join your organization. The invitee will receive an email with a link to accept the invitation."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -177,7 +186,8 @@ export function CreateInvitationDialog({
 						)}
 					</div>
 
-					{/* Role */}
+					{/* Role — hidden when locked */}
+					{!lockedRole && (
 					<div>
 						<Label htmlFor="role" className="block text-sm font-medium text-brand-primary-1">
 							Role <span className="text-destructive">*</span>
@@ -205,6 +215,7 @@ export function CreateInvitationDialog({
 							<p className="text-sm text-destructive">{errors.role.message}</p>
 						)}
 					</div>
+					)}
 
 					{/* Hierarchy Scope */}
 					<div>

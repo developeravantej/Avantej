@@ -22,6 +22,8 @@ import { protectedProcedure } from "../index";
 import { inArray } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
 
@@ -100,33 +102,68 @@ export const appointmentsRouter = {
 
       if (items.length === 0) return items.map((r) => ({ ...r, serviceName: null, trainerName: null, clientName: null }));
 
-      // Batch-resolve names in parallel
+      // Batch-resolve names in parallel.
+      // Trainer name resolution sources, in priority order:
+      //   1. legacy `appointments.trainerId` (member.id) → memberProfiles.displayName
+      //   2. fallback: lowest-slot row in `appointment_staff` (staffId is member.userId) → members → memberProfiles.displayName
       const serviceIds = [...new Set(items.map((r) => r.serviceId).filter(Boolean) as string[])];
-      const trainerIds = [...new Set(items.map((r) => r.trainerId).filter(Boolean) as string[])];
+      const directTrainerIds = [...new Set(items.map((r) => r.trainerId).filter(Boolean) as string[])];
       const userIds = [...new Set(items.map((r) => r.userId).filter(Boolean) as string[])];
+      const apptIds = items.map((r) => r.id);
 
-      const [serviceRows, profileRows, userRows] = await Promise.all([
+      const [serviceRows, staffAssignmentRows, userRows] = await Promise.all([
         serviceIds.length > 0
           ? context.tenantDb.select({ id: services.id, name: services.name }).from(services).where(inArray(services.id, serviceIds))
           : [],
-        trainerIds.length > 0
-          ? context.tenantDb.select({ memberId: memberProfiles.memberId, displayName: memberProfiles.displayName }).from(memberProfiles).where(inArray(memberProfiles.memberId, trainerIds))
+        apptIds.length > 0
+          ? context.tenantDb.select({ appointmentId: appointmentStaff.appointmentId, staffId: appointmentStaff.staffId, slotIndex: appointmentStaff.slotIndex }).from(appointmentStaff).where(inArray(appointmentStaff.appointmentId, apptIds))
           : [],
         userIds.length > 0
           ? (() => { try { const cpDb = getControlPanelDb(context); return cpDb.select({ id: cpUsers.id, name: cpUsers.name }).from(cpUsers).where(inArray(cpUsers.id, userIds)); } catch { return Promise.resolve([]); } })()
           : [],
       ]);
 
+      // Pick primary staff (lowest slotIndex) per appointment
+      const primaryStaffByAppt = new Map<string, { staffId: string; slotIndex: number }>();
+      for (const row of staffAssignmentRows as { appointmentId: string; staffId: string; slotIndex: number }[]) {
+        const existing = primaryStaffByAppt.get(row.appointmentId);
+        if (!existing || row.slotIndex < existing.slotIndex) {
+          primaryStaffByAppt.set(row.appointmentId, { staffId: row.staffId, slotIndex: row.slotIndex });
+        }
+      }
+
+      // Resolve fallback trainer names: staffId (member.userId) → members.id → memberProfiles.displayName
+      const fallbackUserIds = [...new Set([...primaryStaffByAppt.values()].map((v) => v.staffId))];
+      const memberRows = fallbackUserIds.length > 0
+        ? await context.tenantDb.select({ id: members.id, userId: members.userId }).from(members).where(inArray(members.userId, fallbackUserIds))
+        : [];
+      const userIdToMemberId = new Map((memberRows as { id: string; userId: string }[]).map((m) => [m.userId, m.id]));
+
+      const allTrainerMemberIds = [
+        ...new Set([
+          ...directTrainerIds,
+          ...[...primaryStaffByAppt.values()].map((v) => userIdToMemberId.get(v.staffId)).filter(Boolean) as string[],
+        ]),
+      ];
+      const profileRows = allTrainerMemberIds.length > 0
+        ? await context.tenantDb.select({ memberId: memberProfiles.memberId, displayName: memberProfiles.displayName }).from(memberProfiles).where(inArray(memberProfiles.memberId, allTrainerMemberIds))
+        : [];
+
       const serviceMap = new Map((serviceRows as { id: string; name: string }[]).map((s) => [s.id, s.name]));
       const profileMap = new Map((profileRows as { memberId: string; displayName: string | null }[]).map((p) => [p.memberId, p.displayName]));
       const userMap = new Map((userRows as { id: string; name: string }[]).map((u) => [u.id, u.name]));
 
-      return items.map((r) => ({
-        ...r,
-        serviceName: r.serviceId ? (serviceMap.get(r.serviceId) ?? null) : null,
-        trainerName: r.trainerId ? (profileMap.get(r.trainerId) ?? null) : null,
-        clientName: r.userId ? (userMap.get(r.userId) ?? null) : null,
-      }));
+      return items.map((r) => {
+        const fallback = primaryStaffByAppt.get(r.id);
+        const fallbackMemberId = fallback ? userIdToMemberId.get(fallback.staffId) : undefined;
+        const trainerMemberId = r.trainerId ?? fallbackMemberId ?? null;
+        return {
+          ...r,
+          serviceName: r.serviceId ? (serviceMap.get(r.serviceId) ?? null) : null,
+          trainerName: trainerMemberId ? (profileMap.get(trainerMemberId) ?? null) : null,
+          clientName: r.userId ? (userMap.get(r.userId) ?? null) : null,
+        };
+      });
     }),
 
   /**
