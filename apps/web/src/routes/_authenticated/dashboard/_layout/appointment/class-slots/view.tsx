@@ -3,9 +3,10 @@ import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Calendar, Plus, Users } from "lucide-react";
+import { Calendar, Clock, Grid3x3, Plus, Users } from "lucide-react";
 import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import { PageHeader } from "@/components/ui/page-header";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -442,8 +443,12 @@ function ClassSlotsPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="space-y-4">
-				<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
+			<div className="space-y-4 p-6">
+				<PageHeader
+					icon={Grid3x3}
+					title="Class Slots"
+					description="Schedule and manage group class sessions."
+				/>
 				<p className="text-muted-foreground">No organization selected.</p>
 			</div>
 		);
@@ -457,22 +462,83 @@ function ClassSlotsPage() {
 		);
 	}
 
+	// ── KPI computation (client-side, from loaded rows) ──────────────────────
+	const today = new Date();
+	const todayStr = today.toLocaleDateString("en-CA"); // YYYY-MM-DD
+	const weekFromNow = new Date(today);
+	weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+	const todayCount = classSlots.filter((s) => {
+		const slotDate = new Date(s.date).toLocaleDateString("en-CA");
+		return slotDate === todayStr && !s.isCancelled;
+	}).length;
+
+	const thisWeekCount = classSlots.filter((s) => {
+		const d = new Date(s.date);
+		return d >= today && d <= weekFromNow && !s.isCancelled;
+	}).length;
+
+	const availableCapacity = classSlots
+		.filter((s) => !s.isCancelled)
+		.reduce((sum, s) => sum + s.spotsAvailable, 0);
+
+	const fullSlotsCount = classSlots.filter(
+		(s) => !s.isCancelled && s.spotsAvailable === 0,
+	).length;
+
 	// ---------------------------------------------------------------------------
 	// Render
 	// ---------------------------------------------------------------------------
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 p-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<Calendar className="h-6 w-6 text-muted-foreground" />
-					<h1 className="text-3xl font-bold font-heading">Class Slots</h1>
+			<PageHeader
+				icon={Grid3x3}
+				title="Class Slots"
+				description="Schedule and manage group class sessions across your branches."
+				actions={
+					<Button onClick={() => setCreateSheetOpen(true)}>
+						<Plus className="mr-2 h-4 w-4" />
+						Create Class Slot
+					</Button>
+				}
+			/>
+
+			{/* KPI Strip */}
+			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<div className="flex items-center gap-1.5">
+						<Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+						<p className="text-muted-foreground text-xs uppercase tracking-wide">Today</p>
+					</div>
+					<p className="mt-1 font-bold text-2xl tabular-nums">{todayCount}</p>
+					<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
 				</div>
-				<Button onClick={() => setCreateSheetOpen(true)}>
-					<Plus className="mr-2 h-4 w-4" />
-					Create Class Slot
-				</Button>
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<div className="flex items-center gap-1.5">
+						<Clock className="h-3.5 w-3.5 text-muted-foreground" />
+						<p className="text-muted-foreground text-xs uppercase tracking-wide">This Week</p>
+					</div>
+					<p className="mt-1 font-bold text-2xl tabular-nums">{thisWeekCount}</p>
+					<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
+				</div>
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<div className="flex items-center gap-1.5">
+						<Users className="h-3.5 w-3.5 text-muted-foreground" />
+						<p className="text-muted-foreground text-xs uppercase tracking-wide">Available Spots</p>
+					</div>
+					<p className="mt-1 font-bold text-2xl tabular-nums text-green-700">{availableCapacity}</p>
+					<p className="mt-0.5 text-xs text-muted-foreground">across all slots</p>
+				</div>
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<div className="flex items-center gap-1.5">
+						<Grid3x3 className="h-3.5 w-3.5 text-muted-foreground" />
+						<p className="text-muted-foreground text-xs uppercase tracking-wide">Full Slots</p>
+					</div>
+					<p className="mt-1 font-bold text-2xl tabular-nums text-destructive">{fullSlotsCount}</p>
+					<p className="mt-0.5 text-xs text-muted-foreground">at capacity</p>
+				</div>
 			</div>
 
 			{/* Filters */}
@@ -557,13 +623,17 @@ function ClassSlotsPage() {
 			{/* Table */}
 			{isLoading ? (
 				<PageLoader />
+			) : classSlots.length === 0 ? (
+				<EmptyState
+					icon={Calendar}
+					title="No class slots scheduled"
+					description="Create your first class slot to start scheduling group sessions."
+					action={{ label: "Create Class Slot", onClick: () => setCreateSheetOpen(true) }}
+				/>
 			) : (
 				<DataTable<ClassSlotRow, unknown>
 					columns={columns}
 					data={classSlots}
-					emptyTitle="No class slots found"
-					emptyDescription="Create your first class slot to get started."
-					emptyAction={{ label: "Create Class Slot", onClick: () => setCreateSheetOpen(true) }}
 				/>
 			)}
 

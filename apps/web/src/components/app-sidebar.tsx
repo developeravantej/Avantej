@@ -13,17 +13,14 @@ import {
 	ClipboardList,
 	CreditCard,
 	DollarSign,
-	DoorOpen,
 	FileChartColumnIncreasing,
 	Grid3x3,
 	Home,
-	Layers,
 	LogOut,
 	Map,
 	Megaphone,
 	Package,
 	PackageSearch,
-	Percent,
 	Receipt,
 	Ruler,
 	ScrollText,
@@ -83,43 +80,23 @@ export type SidebarNavItem = {
 export type SidebarNavGroup = {
 	label: string;
 	items: SidebarNavItem[];
+	collapsible?: boolean;
+	defaultOpen?: boolean;
 };
 
 // ─── Navigation Structure ─────────────────────────────────────────────────────
 
 const NAV_GROUPS: SidebarNavGroup[] = [
 	{
-		label: "Overview",
+		label: "Main",
 		items: [
 			{ title: "Home", url: "/dashboard", icon: Home },
 			{
-				title: "Reports",
-				url: "/dashboard/reports/view",
-				icon: FileChartColumnIncreasing,
-				permission: "reports:read",
-			},
-		],
-	},
-	{
-		label: "Customers",
-		items: [
-			{
 				title: "Customers",
-				url: "/dashboard/customers/view",
+				url: "/dashboard/customers/v2/view",
 				icon: Users,
 				permission: "customer_management:read",
 			},
-			{
-				title: "Membership",
-				url: "/dashboard/memberships/view",
-				icon: CreditCard,
-				permission: "service_management:read",
-			},
-		],
-	},
-	{
-		label: "Scheduling",
-		items: [
 			{
 				title: "Appointments",
 				url: "/dashboard/appointment/view",
@@ -133,53 +110,17 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				permission: "appointment_management:read",
 			},
 			{
-				title: "Rooms",
-				url: "/dashboard/rooms/view",
-				icon: DoorOpen,
-				permission: "appointment_management:read",
+				title: "Services",
+				url: "/dashboard/service/view",
+				icon: PackageSearch,
 			},
-		],
-	},
-	{
-		label: "Services",
-		items: [
-			{ title: "Services", url: "/dashboard/service/view", icon: PackageSearch },
-		],
-	},
-	{
-		label: "Sales",
-		items: [
 			{ title: "POS", url: "/dashboard/sales/create", icon: ShoppingCart },
-			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-			{ title: "Promotions", url: "/dashboard/promotions/view", icon: Percent },
-			{
-				title: "Purchase Orders",
-				url: "/dashboard/purchase-orders/view",
-				icon: ClipboardList,
-			},
-		],
-	},
-	{
-		label: "Inventory",
-		items: [
-			{ title: "Products", url: "/dashboard/products/view", icon: Package },
-			{
-				title: "Inventory Options",
-				url: "/dashboard/inventory-options",
-				icon: Warehouse,
-			},
-			{ title: "Units of Measure", url: "/dashboard/uom/view", icon: Ruler },
-			{
-				title: "Stock Movement",
-				url: "/dashboard/stock-requests/view",
-				icon: ArrowLeftRight,
-			},
 		],
 	},
 	{
 		label: "Finance",
 		items: [
-			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
+			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
 			{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
 			{
 				title: "Refunds",
@@ -192,6 +133,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/commissions/view",
 				icon: TrendingUp,
 			},
+			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
+			{
+				title: "Installment Plans",
+				url: "/dashboard/settings/installment-plans",
+				icon: CreditCard,
+			},
 		],
 	},
 	{
@@ -202,12 +149,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/trainers/view",
 				icon: Users,
 				permission: "user_management:read",
-			},
-			{
-				title: "Tiers",
-				url: "/dashboard/trainers/tiers",
-				icon: Layers,
-				permission: "trainer_tier_management:read",
 			},
 			{ title: "Employees", url: "/dashboard/user/view", icon: Users },
 			{
@@ -225,7 +166,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		],
 	},
 	{
-		label: "Access & Comms",
+		label: "Access",
 		items: [
 			{
 				title: "Roles",
@@ -239,45 +180,70 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: UserPlus,
 				permission: "user_management:read",
 			},
-			{
-				title: "Announcements",
-				url: "/dashboard/announcements/view",
-				icon: Megaphone,
-			},
-			{ title: "Notifications", url: "/dashboard/notifications/view", icon: Bell },
-		],
-	},
-	{
-		label: "Organisation",
-		items: [
 			{ title: "Branches", url: "/dashboard/branch/view", icon: Store },
-		],
-	},
-	{
-		label: "Settings",
-		items: [
-			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
-			{
-				title: "Installment Plans",
-				url: "/dashboard/settings/installment-plans",
-				icon: CreditCard,
-			},
 			{
 				title: "Google Calendar",
 				url: "/dashboard/settings/google-calendar",
 				icon: Calendar,
 			},
+		],
+	},
+	{
+		label: "Coming Soon",
+		collapsible: true,
+		defaultOpen: false,
+		items: [
 			{
-				title: "Organization",
-				url: "/dashboard/settings/organization",
-				icon: Building2,
+				title: "All Memberships",
+				url: "/dashboard/memberships/view",
+				icon: CreditCard,
+				permission: "service_management:read",
+			},
+			{
+				title: "Reports",
+				url: "/dashboard/reports/view",
+				icon: FileChartColumnIncreasing,
+				permission: "reports:read",
+			},
+			{
+				title: "Announcements",
+				url: "/dashboard/announcements/view",
+				icon: Megaphone,
+			},
+			{
+				title: "Notifications",
+				url: "/dashboard/notifications/view",
+				icon: Bell,
 			},
 			{
 				title: "Notification Preferences",
 				url: "/dashboard/settings/notifications",
 				icon: Bell,
 			},
+			{
+				title: "Organization",
+				url: "/dashboard/settings/organization",
+				icon: Building2,
+			},
 			{ title: "GHL Integration", url: "/go-highlevel-integration", icon: Map },
+			{ title: "Products", url: "/dashboard/products/view", icon: Package },
+			{
+				title: "Purchase Orders",
+				url: "/dashboard/purchase-orders/view",
+				icon: ClipboardList,
+			},
+			{
+				title: "Inventory Options",
+				url: "/dashboard/inventory-options",
+				icon: Warehouse,
+			},
+			{ title: "Units of Measure", url: "/dashboard/uom/view", icon: Ruler },
+			{
+				title: "Stock Movement",
+				url: "/dashboard/stock-requests/view",
+				icon: ArrowLeftRight,
+			},
+			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
 		],
 	},
 ];
@@ -376,6 +342,7 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 	const location = useLocation();
 	const pathname = location.pathname;
 	const { hasPermission } = useUserContext();
+	const [isOpen, setIsOpen] = useState(group.defaultOpen ?? true);
 
 	const visibleItems = group.items.filter((item) => {
 		if (!item.permission) return true;
@@ -384,33 +351,56 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 
 	if (visibleItems.length === 0) return null;
 
+	const renderItems = () => (
+		<SidebarMenu>
+			{visibleItems.map((item) => {
+				const isActive =
+					item.url === "/dashboard"
+						? pathname === "/dashboard"
+						: pathname.startsWith(item.url);
+
+				return (
+					<SidebarMenuItem key={item.title}>
+						<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+							<Link to={item.url}>
+								<item.icon className="size-4" />
+								<span>{item.title}</span>
+							</Link>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				);
+			})}
+		</SidebarMenu>
+	);
+
+	if (group.collapsible) {
+		return (
+			<SidebarGroup className="py-1">
+				<button
+					type="button"
+					onClick={() => setIsOpen((v) => !v)}
+					className="flex w-full items-center justify-between px-2 py-1.5 text-left font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden"
+				>
+					<span>{group.label}</span>
+					<ChevronRight
+						className={cn(
+							"size-3 shrink-0 transition-transform",
+							isOpen && "rotate-90",
+						)}
+					/>
+				</button>
+				{isOpen && <SidebarGroupContent>{renderItems()}</SidebarGroupContent>}
+			</SidebarGroup>
+		);
+	}
+
 	return (
 		<SidebarGroup className="py-1">
 			<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 				{group.label}
 			</SidebarGroupLabel>
 
-			<SidebarGroupContent>
-				<SidebarMenu>
-					{visibleItems.map((item) => {
-						const isActive =
-							item.url === "/dashboard"
-								? pathname === "/dashboard"
-								: pathname.startsWith(item.url);
-
-						return (
-							<SidebarMenuItem key={item.title}>
-								<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-									<Link to={item.url}>
-										<item.icon className="size-4" />
-										<span>{item.title}</span>
-									</Link>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						);
-					})}
-				</SidebarMenu>
-			</SidebarGroupContent>
+			<SidebarGroupContent>{renderItems()}</SidebarGroupContent>
 		</SidebarGroup>
 	);
 }

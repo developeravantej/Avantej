@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Clock, UserCheck, XCircle } from "lucide-react";
+import type { ElementType } from "react";
 import { useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageCard } from "@/components/ui/page-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { CheckInRow } from "@/components/attendance/check-ins-log";
 import { CheckInsLog } from "@/components/attendance/check-ins-log";
@@ -36,6 +39,29 @@ function toLocalDateString(d: Date): string {
 	const month = String(d.getMonth() + 1).padStart(2, "0");
 	const day = String(d.getDate()).padStart(2, "0");
 	return `${year}-${month}-${day}`;
+}
+
+// ─── KPI card ─────────────────────────────────────────────────────────────────
+
+interface KpiCardProps {
+	icon: ElementType;
+	label: string;
+	value: number;
+	iconClass?: string;
+}
+
+function KpiCard({ icon: Icon, label, value, iconClass = "text-primary" }: KpiCardProps) {
+	return (
+		<PageCard nested padding="compact" className="flex items-center gap-4">
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+				<Icon className={`h-5 w-5 ${iconClass}`} />
+			</div>
+			<div>
+				<p className="text-2xl font-bold leading-none">{value}</p>
+				<p className="mt-1 text-xs text-muted-foreground">{label}</p>
+			</div>
+		</PageCard>
+	);
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -137,6 +163,13 @@ function AttendancePage() {
 
 	const checkInRows: CheckInRow[] = checkInsData?.rows ?? [];
 
+	// ── KPI derivations (client-side from check-in rows) ──────────────────
+
+	const kpiTotal = checkInRows.length;
+	const kpiAttended = checkInRows.filter((r) => r.outcome === "attended").length;
+	const kpiDropIns = checkInRows.filter((r) => r.source === "drop_in").length;
+	const kpiNoShows = checkInRows.filter((r) => r.outcome === "no_show").length;
+
 	// ── Guards ─────────────────────────────────────────────────────────────
 
 	if (!organizationId) {
@@ -168,7 +201,7 @@ function AttendancePage() {
 			<PageHeader
 				icon={ClipboardCheck}
 				title="Attendance"
-				description="Check in members and walk-ins for today's sessions."
+				description="Today's check-ins and drop-ins"
 			/>
 
 			{/* Top-bar filters */}
@@ -207,9 +240,7 @@ function AttendancePage() {
 				</div>
 			</div>
 
-			<Separator />
-
-			{/* No branch selected warning */}
+			{/* No branch selected */}
 			{!branchId && (
 				<div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
 					<p className="text-sm">Select a branch to load attendance data.</p>
@@ -218,6 +249,18 @@ function AttendancePage() {
 
 			{branchId && (
 				<>
+					{/* KPI row — shown once check-in data resolves */}
+					{!checkInsLoading && !checkInsError && (
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+							<KpiCard icon={ClipboardCheck} label="Total check-ins" value={kpiTotal} />
+							<KpiCard icon={UserCheck} label="Attended" value={kpiAttended} iconClass="text-green-600" />
+							<KpiCard icon={Clock} label="Drop-ins" value={kpiDropIns} iconClass="text-blue-600" />
+							<KpiCard icon={XCircle} label="No-shows" value={kpiNoShows} iconClass="text-destructive" />
+						</div>
+					)}
+
+					<Separator />
+
 					{/* Two-column layout */}
 					<div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
 						{/* Left column: Today's Bookings */}
@@ -245,7 +288,7 @@ function AttendancePage() {
 							)}
 						</section>
 
-						{/* Right column: Drop-in Check-in */}
+						{/* Right column: Drop-in Check-in form */}
 						<section>
 							<DropInForm
 								organizationId={organizationId}
@@ -280,13 +323,23 @@ function AttendancePage() {
 							</StatusCallout>
 						)}
 
-						{!checkInsLoading && !checkInsError && (
-							<CheckInsLog
-								rows={checkInRows}
-								organizationId={organizationId}
-								queryKey={checkInsQueryKey}
-								canDelete={canDelete}
+						{!checkInsLoading && !checkInsError && checkInRows.length === 0 && (
+							<EmptyState
+								icon={ClipboardCheck}
+								title="No check-ins yet today"
+								description="Walk-ins and bookings will appear here as members arrive."
 							/>
+						)}
+
+						{!checkInsLoading && !checkInsError && checkInRows.length > 0 && (
+							<PageCard padding="none">
+								<CheckInsLog
+									rows={checkInRows}
+									organizationId={organizationId}
+									queryKey={checkInsQueryKey}
+									canDelete={canDelete}
+								/>
+							</PageCard>
 						)}
 					</section>
 				</>

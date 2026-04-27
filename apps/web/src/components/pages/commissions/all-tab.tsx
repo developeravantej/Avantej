@@ -124,10 +124,12 @@ function SourceCell({ row }: { row: CommissionLedgerRow }) {
 function KpiCard({
 	label,
 	amountCents,
+	count,
 	colorClass,
 }: {
 	label: string;
 	amountCents: number;
+	count: number;
 	colorClass: string;
 }) {
 	return (
@@ -137,6 +139,9 @@ function KpiCard({
 			</p>
 			<p className={`mt-1 font-bold text-2xl tabular-nums ${colorClass}`}>
 				{formatPrice(amountCents, "MYR")}
+			</p>
+			<p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+				{count} {count === 1 ? "split" : "splits"}
 			</p>
 		</div>
 	);
@@ -347,6 +352,11 @@ export function AllCommissionsPage() {
 		paid: 0,
 	};
 
+	// Compute counts from loaded rows (client-side — no extra queries)
+	const pendingCount = rows.filter((r) => r.status === "pending").length;
+	const approvedCount = rows.filter((r) => r.status === "approved").length;
+	const paidCount = rows.filter((r) => r.status === "paid").length;
+
 	// Reset selection when tab or filters change
 	function resetSelection() {
 		setSelectedIds(new Set());
@@ -549,18 +559,21 @@ export function AllCommissionsPage() {
 			{/* KPI Strip */}
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<KpiCard
-					label="Pending Total"
+					label="Pending"
 					amountCents={totals.pending}
+					count={pendingCount}
 					colorClass="text-yellow-700"
 				/>
 				<KpiCard
-					label="Approved Total"
+					label="Approved"
 					amountCents={totals.approved}
+					count={approvedCount}
 					colorClass="text-blue-700"
 				/>
 				<KpiCard
-					label="Paid Total"
+					label="Paid"
 					amountCents={totals.paid}
+					count={paidCount}
 					colorClass="text-green-700"
 				/>
 			</div>

@@ -85,6 +85,7 @@ import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImpor
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/installments/view'
 import { Route as AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/walk-in/view'
+import { Route as AuthenticatedDashboardLayoutCustomersV2ViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/v2/view'
 import { Route as AuthenticatedDashboardLayoutAppointmentClassSlotsViewRouteImport } from './routes/_authenticated/dashboard/_layout/appointment/class-slots/view'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -527,6 +528,12 @@ const AuthenticatedDashboardLayoutCustomersWalkInViewRoute =
     path: '/customers/walk-in/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutCustomersV2ViewRoute =
+  AuthenticatedDashboardLayoutCustomersV2ViewRouteImport.update({
+    id: '/customers/v2/view',
+    path: '/customers/v2/view',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute =
   AuthenticatedDashboardLayoutAppointmentClassSlotsViewRouteImport.update({
     id: '/appointment/class-slots/view',
@@ -608,6 +615,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
+  '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
@@ -685,6 +693,7 @@ export interface FileRoutesByTo {
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
+  '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
@@ -765,6 +774,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/_authenticated/dashboard/_layout/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
   '/_authenticated/dashboard/_layout/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
+  '/_authenticated/dashboard/_layout/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/_authenticated/dashboard/_layout/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/_authenticated/dashboard/_layout/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/_authenticated/dashboard/_layout/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
@@ -845,6 +855,7 @@ export interface FileRouteTypes {
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
     | '/dashboard/appointment/class-slots/view'
+    | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
@@ -922,6 +933,7 @@ export interface FileRouteTypes {
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
     | '/dashboard/appointment/class-slots/view'
+    | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
@@ -1001,6 +1013,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/uom/view'
     | '/_authenticated/dashboard/_layout/user/view'
     | '/_authenticated/dashboard/_layout/appointment/class-slots/view'
+    | '/_authenticated/dashboard/_layout/customers/v2/view'
     | '/_authenticated/dashboard/_layout/customers/walk-in/view'
     | '/_authenticated/dashboard/_layout/packages/installments/view'
     | '/_authenticated/dashboard/_layout/packages/instances/view'
@@ -1555,6 +1568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/customers/v2/view': {
+      id: '/_authenticated/dashboard/_layout/customers/v2/view'
+      path: '/customers/v2/view'
+      fullPath: '/dashboard/customers/v2/view'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutCustomersV2ViewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/appointment/class-slots/view': {
       id: '/_authenticated/dashboard/_layout/appointment/class-slots/view'
       path: '/appointment/class-slots/view'
@@ -1620,6 +1640,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutUomViewRoute: typeof AuthenticatedDashboardLayoutUomViewRoute
   AuthenticatedDashboardLayoutUserViewRoute: typeof AuthenticatedDashboardLayoutUserViewRoute
   AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute: typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
+  AuthenticatedDashboardLayoutCustomersV2ViewRoute: typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   AuthenticatedDashboardLayoutCustomersWalkInViewRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   AuthenticatedDashboardLayoutPackagesInstancesViewRoute: typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
@@ -1735,6 +1756,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutUserViewRoute,
     AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute:
       AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute,
+    AuthenticatedDashboardLayoutCustomersV2ViewRoute:
+      AuthenticatedDashboardLayoutCustomersV2ViewRoute,
     AuthenticatedDashboardLayoutCustomersWalkInViewRoute:
       AuthenticatedDashboardLayoutCustomersWalkInViewRoute,
     AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute:

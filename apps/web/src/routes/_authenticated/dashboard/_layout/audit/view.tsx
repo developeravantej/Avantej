@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ChevronRight, ClipboardList, SearchX } from "lucide-react";
+import { ActivitySquare, CalendarDays, ChevronRight, ScrollText, SearchX, Users } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import type { ElementType } from "react";
 import { useState } from "react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { ActionCategoryBadge } from "@/components/ui/action-category-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageCard } from "@/components/ui/page-card";
+import { PageHeader } from "@/components/ui/page-header";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -27,7 +30,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
 	Tooltip,
 	TooltipContent,
@@ -144,6 +146,46 @@ function formatAbsoluteTime(date: Date | string | null): string {
 		minute: "2-digit",
 		second: "2-digit",
 	});
+}
+
+/** Returns true if `date` falls within today (local time). */
+function isToday(date: Date | string): boolean {
+	const d = date instanceof Date ? date : new Date(date);
+	const now = new Date();
+	return (
+		d.getFullYear() === now.getFullYear() &&
+		d.getMonth() === now.getMonth() &&
+		d.getDate() === now.getDate()
+	);
+}
+
+/** Returns true if `date` is within the last 7 days. */
+function isWithinLastWeek(date: Date | string): boolean {
+	const d = date instanceof Date ? date : new Date(date);
+	return Date.now() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
+}
+
+// ─── KPI card ─────────────────────────────────────────────────────────────────
+
+interface KpiCardProps {
+	icon: ElementType;
+	label: string;
+	value: number;
+	iconClass?: string;
+}
+
+function KpiCard({ icon: Icon, label, value, iconClass = "text-primary" }: KpiCardProps) {
+	return (
+		<PageCard nested padding="compact" className="flex items-center gap-4">
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+				<Icon className={`h-5 w-5 ${iconClass}`} />
+			</div>
+			<div>
+				<p className="text-2xl font-bold leading-none">{value}</p>
+				<p className="mt-1 text-xs text-muted-foreground">{label}</p>
+			</div>
+		</PageCard>
+	);
 }
 
 // ─── Changes Dialog ───────────────────────────────────────────────────────────
@@ -338,10 +380,14 @@ function AuditLogPage() {
 		enabled: !!organizationId && canRead,
 	});
 
-	const rows: AuditRowEnriched[] = listData?.rows ?? [];
+	const rows: AuditRowEnriched[] = (listData?.rows ?? []) as AuditRowEnriched[];
 	const total = listData?.total ?? 0;
-	const totalPages = Math.ceil(total / PAGE_LIMIT);
-	const currentPage = Math.floor(offset / PAGE_LIMIT) + 1;
+
+	// ── KPI derivations (client-side from current page rows) ──────────────
+
+	const kpiToday = rows.filter((r) => isToday(r.createdAt)).length;
+	const kpiWeek = rows.filter((r) => isWithinLastWeek(r.createdAt)).length;
+	const kpiActors = new Set(rows.map((r) => r.actorUserId)).size;
 
 	// ── Reset pagination when any filter changes ────────────────────────────
 
@@ -518,163 +564,162 @@ function AuditLogPage() {
 	return (
 		<div className="space-y-6 p-6">
 			{/* Header */}
-			<div className="flex items-center gap-3">
-				<div className="rounded-lg bg-primary/10 p-2">
-					<ClipboardList className="h-6 w-6 text-primary" />
-				</div>
-				<div>
-					<h1 className="font-bold font-heading text-2xl">Audit Log</h1>
-					<p className="text-muted-foreground text-sm">
-						{total > 0
-							? `${total} audit entr${total !== 1 ? "ies" : "y"}`
-							: "No audit entries found"}
-					</p>
-				</div>
+			<PageHeader
+				icon={ScrollText}
+				title="Audit Log"
+				description="Tracked actions across the organization"
+			/>
+
+			{/* KPI summary row */}
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<KpiCard icon={ActivitySquare} label="Today (this page)" value={kpiToday} />
+				<KpiCard icon={CalendarDays} label="Last 7 days (this page)" value={kpiWeek} iconClass="text-blue-600" />
+				<KpiCard icon={Users} label="Unique actors (this page)" value={kpiActors} iconClass="text-violet-600" />
 			</div>
 
-			{/* Filters */}
-			<div className="flex flex-wrap items-end gap-3">
-				{/* Actor userId — free-text (no listStaff procedure confirmed; TODO: upgrade to combobox when available) */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">Actor User ID</Label>
-					<Input
-						placeholder="Paste user ID..."
-						value={actorUserId}
-						onChange={(e) => {
-							setActorUserId(e.target.value);
-							resetOffset();
-						}}
-						className="h-9 w-56 font-mono text-xs"
-					/>
-				</div>
-
-				{/* Action — single-select */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">Action</Label>
-					<Select
-						value={action || "all"}
-						onValueChange={(v) => {
-							setAction(v === "all" ? "" : v);
-							resetOffset();
-						}}
-					>
-						<SelectTrigger className="h-9 w-52">
-							<SelectValue placeholder="All actions" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All actions</SelectItem>
-							{AUDIT_ACTIONS.map((a) => (
-								<SelectItem key={a} value={a}>
-									{a}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				{/* Entity type */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">Entity Type</Label>
-					<Select
-						value={entityType || "all"}
-						onValueChange={(v) => {
-							setEntityType(v === "all" ? "" : v);
-							resetOffset();
-						}}
-					>
-						<SelectTrigger className="h-9 w-44">
-							<SelectValue placeholder="All entities" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All entities</SelectItem>
-							{ENTITY_TYPES.map((et) => (
-								<SelectItem key={et} value={et}>
-									{et}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				{/* Branch filter */}
-				{branchOptions.length > 0 && (
+			{/* Filters — inside a card for visual separation */}
+			<PageCard padding="compact">
+				<div className="flex flex-wrap items-end gap-3">
+					{/* Actor userId — free-text (no listStaff procedure confirmed; TODO: upgrade to combobox when available) */}
 					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Branch</Label>
+						<Label className="text-xs">Actor User ID</Label>
+						<Input
+							placeholder="Paste user ID..."
+							value={actorUserId}
+							onChange={(e) => {
+								setActorUserId(e.target.value);
+								resetOffset();
+							}}
+							className="h-9 w-56 font-mono text-xs"
+						/>
+					</div>
+
+					{/* Action — single-select */}
+					<div className="flex flex-col gap-1">
+						<Label className="text-xs">Action</Label>
 						<Select
-							value={branchId || "all"}
+							value={action || "all"}
 							onValueChange={(v) => {
-								setBranchId(v === "all" ? "" : v);
+								setAction(v === "all" ? "" : v);
 								resetOffset();
 							}}
 						>
-							<SelectTrigger className="h-9 w-48">
-								<SelectValue placeholder="All branches" />
+							<SelectTrigger className="h-9 w-52">
+								<SelectValue placeholder="All actions" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="all">All branches</SelectItem>
-								{branchOptions.map((node) => (
-									<SelectItem key={node.id} value={node.id}>
-										{node.name}
+								<SelectItem value="all">All actions</SelectItem>
+								{AUDIT_ACTIONS.map((a) => (
+									<SelectItem key={a} value={a}>
+										{a}
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
-				)}
 
-				{/* Date range — applied on blur */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">From</Label>
-					<Input
-						type="datetime-local"
-						value={fromInput}
-						onChange={(e) => setFromInput(e.target.value)}
-						onBlur={() => {
-							setFromApplied(fromInput);
-							resetOffset();
-						}}
-						className="h-9 w-48"
-					/>
+					{/* Entity type */}
+					<div className="flex flex-col gap-1">
+						<Label className="text-xs">Entity Type</Label>
+						<Select
+							value={entityType || "all"}
+							onValueChange={(v) => {
+								setEntityType(v === "all" ? "" : v);
+								resetOffset();
+							}}
+						>
+							<SelectTrigger className="h-9 w-44">
+								<SelectValue placeholder="All entities" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All entities</SelectItem>
+								{ENTITY_TYPES.map((et) => (
+									<SelectItem key={et} value={et}>
+										{et}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					{/* Branch filter */}
+					{branchOptions.length > 0 && (
+						<div className="flex flex-col gap-1">
+							<Label className="text-xs">Branch</Label>
+							<Select
+								value={branchId || "all"}
+								onValueChange={(v) => {
+									setBranchId(v === "all" ? "" : v);
+									resetOffset();
+								}}
+							>
+								<SelectTrigger className="h-9 w-48">
+									<SelectValue placeholder="All branches" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All branches</SelectItem>
+									{branchOptions.map((node) => (
+										<SelectItem key={node.id} value={node.id}>
+											{node.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
+
+					{/* Date range — applied on blur */}
+					<div className="flex flex-col gap-1">
+						<Label className="text-xs">From</Label>
+						<Input
+							type="datetime-local"
+							value={fromInput}
+							onChange={(e) => setFromInput(e.target.value)}
+							onBlur={() => {
+								setFromApplied(fromInput);
+								resetOffset();
+							}}
+							className="h-9 w-48"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1">
+						<Label className="text-xs">To</Label>
+						<Input
+							type="datetime-local"
+							value={toInput}
+							onChange={(e) => setToInput(e.target.value)}
+							onBlur={() => {
+								setToApplied(toInput);
+								resetOffset();
+							}}
+							className="h-9 w-48"
+						/>
+					</div>
+
+					{/* Clear filters */}
+					{(actorUserId || action || entityType || branchId || fromApplied || toApplied) && (
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-9 self-end"
+							onClick={() => {
+								setActorUserId("");
+								setAction("");
+								setEntityType("");
+								setBranchId("");
+								setFromInput("");
+								setToInput("");
+								setFromApplied("");
+								setToApplied("");
+								resetOffset();
+							}}
+						>
+							Clear filters
+						</Button>
+					)}
 				</div>
-
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">To</Label>
-					<Input
-						type="datetime-local"
-						value={toInput}
-						onChange={(e) => setToInput(e.target.value)}
-						onBlur={() => {
-							setToApplied(toInput);
-							resetOffset();
-						}}
-						className="h-9 w-48"
-					/>
-				</div>
-
-				{/* Clear filters */}
-				{(actorUserId || action || entityType || branchId || fromApplied || toApplied) && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-9 self-end"
-						onClick={() => {
-							setActorUserId("");
-							setAction("");
-							setEntityType("");
-							setBranchId("");
-							setFromInput("");
-							setToInput("");
-							setFromApplied("");
-							setToApplied("");
-							resetOffset();
-						}}
-					>
-						Clear filters
-					</Button>
-				)}
-			</div>
-
-			<Separator />
+			</PageCard>
 
 			{/* Table or empty state */}
 			{rows.length === 0 ? (
@@ -684,7 +729,9 @@ function AuditLogPage() {
 					description="No audit log entries match the current filters."
 				/>
 			) : (
-				<DataTable<AuditRowEnriched, unknown> columns={columns} data={rows} />
+				<PageCard padding="none">
+					<DataTable<AuditRowEnriched, unknown> columns={columns} data={rows} />
+				</PageCard>
 			)}
 
 			{/* Pagination */}

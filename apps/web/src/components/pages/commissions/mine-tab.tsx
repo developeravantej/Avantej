@@ -85,6 +85,18 @@ export function MyCommissionsPage() {
 
 	const rows: MyCommissionRow[] = (data as any[] | undefined) ?? [];
 
+	// Client-side KPI computation — no extra queries
+	const pendingCount = rows.filter((r) => r.status === "pending").length;
+	const pendingTotal = rows
+		.filter((r) => r.status === "pending")
+		.reduce((sum, r) => sum + r.calculatedAmount, 0);
+	const approvedCount = rows.filter((r) => r.status === "approved").length;
+	const approvedTotal = rows
+		.filter((r) => r.status === "approved")
+		.reduce((sum, r) => sum + r.calculatedAmount, 0);
+	const activeRows = rows.filter((r) => r.status !== "void");
+	const totalEarned = activeRows.reduce((sum, r) => sum + r.calculatedAmount, 0);
+
 	// ── Columns ────────────────────────────────────────────────────────────────
 	const columns: ColumnDef<MyCommissionRow>[] = [
 		{
@@ -172,6 +184,37 @@ export function MyCommissionsPage() {
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<div className="space-y-6">
+			{/* KPI Strip */}
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<p className="text-muted-foreground text-xs uppercase tracking-wide">Pending</p>
+					<p className="mt-1 font-bold text-2xl tabular-nums text-yellow-700">
+						{formatPrice(pendingTotal, "MYR")}
+					</p>
+					<p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+						{pendingCount} {pendingCount === 1 ? "split" : "splits"}
+					</p>
+				</div>
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<p className="text-muted-foreground text-xs uppercase tracking-wide">Approved</p>
+					<p className="mt-1 font-bold text-2xl tabular-nums text-blue-700">
+						{formatPrice(approvedTotal, "MYR")}
+					</p>
+					<p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+						{approvedCount} {approvedCount === 1 ? "split" : "splits"}
+					</p>
+				</div>
+				<div className="rounded-lg border bg-card p-4 shadow-sm">
+					<p className="text-muted-foreground text-xs uppercase tracking-wide">Total Earned</p>
+					<p className="mt-1 font-bold text-2xl tabular-nums text-green-700">
+						{formatPrice(totalEarned, "MYR")}
+					</p>
+					<p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+						{activeRows.length} {activeRows.length === 1 ? "split" : "splits"}
+					</p>
+				</div>
+			</div>
+
 			<DataTable<MyCommissionRow, unknown>
 				columns={columns}
 				data={rows}
