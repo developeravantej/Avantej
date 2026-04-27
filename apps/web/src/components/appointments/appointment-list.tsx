@@ -118,7 +118,13 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 	const branchId = org?.hierarchy.member?.hierarchyScopeId ?? "";
 
 	const createMutation = useApiMutation({
-		mutationFn: (params: { start: Date; duration: number; notes?: string; userId?: string | null }) =>
+		mutationFn: (params: {
+			start: Date;
+			duration: number;
+			notes?: string;
+			userId?: string | null;
+			staffAssignments?: { staffId: string; slotIndex: number }[];
+		}) =>
 			client.appointments.create({
 				organizationId,
 				type: "private",
@@ -129,6 +135,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				pricePerClient: 0,
 				notes: params.notes ?? null,
 				userId: params.userId ?? null,
+				staffAssignments: params.staffAssignments,
 			}),
 		successMessage: "Appointment created",
 		errorMessage: (err) => err.message || "Failed to create appointment",
@@ -861,6 +868,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 						duration: appt.duration,
 						notes: appt.remarks,
 						userId: (appt as any).client?.userId ?? null,
+						staffAssignments: (appt as { staffAssignments?: { staffId: string; slotIndex: number }[] }).staffAssignments,
 					});
 				}}
 				teamMembers={[]}
