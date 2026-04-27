@@ -20,8 +20,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
-import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
 import { formatPrice } from "@/lib/money";
@@ -106,8 +107,10 @@ function formatDateTime(value: string | Date | null | undefined): string {
 }
 
 // Maps refund statuses to canonical StatusBadge equivalents.
-// "processed" is not canonical; mapped to "completed" with a label override.
-const REFUND_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+const REFUND_STATUS_MAP: Record<
+	string,
+	{ status: CanonicalStatus; label?: string }
+> = {
 	pending: { status: "pending" },
 	approved: { status: "approved" },
 	rejected: { status: "rejected" },
@@ -116,7 +119,10 @@ const REFUND_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: strin
 };
 
 function RefundStatusBadge({ status }: { status: string }) {
-	const mapped = REFUND_STATUS_MAP[status] ?? { status: "draft" as CanonicalStatus, label: status };
+	const mapped = REFUND_STATUS_MAP[status] ?? {
+		status: "draft" as CanonicalStatus,
+		label: status,
+	};
 	return <StatusBadge status={mapped.status} label={mapped.label} />;
 }
 
@@ -165,7 +171,6 @@ function RefundDetailDrawer({
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
 }) {
-	// Audit trail for this refund
 	const { data: auditData } = useQuery({
 		queryKey: ["audit-refund", organizationId, refund?.id],
 		queryFn: async () => {
@@ -183,6 +188,7 @@ function RefundDetailDrawer({
 
 	if (!refund) return null;
 
+	// biome-ignore lint/suspicious/noExplicitAny: API response shape varies
 	const auditRows = (auditData as any)?.rows ?? [];
 
 	return (
@@ -238,7 +244,7 @@ function RefundDetailDrawer({
 								<p className="text-muted-foreground">Requested By</p>
 								<p className="font-medium">
 									{refund.requestedByName ??
-										refund.requestedBy.slice(0, 8) + "…"}
+										`${refund.requestedBy.slice(0, 8)}…`}
 								</p>
 							</div>
 							<div className="col-span-2">
@@ -327,6 +333,7 @@ function RefundDetailDrawer({
 							</p>
 						) : (
 							<div className="space-y-2">
+								{/* biome-ignore lint/suspicious/noExplicitAny: dynamic audit rows */}
 								{auditRows.map((row: any) => (
 									<div
 										key={row.id}
@@ -454,6 +461,7 @@ function RefundsLedgerPage() {
 		queryKey: ["refunds", organizationId, activeTab],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
+			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
 			return (client as any).refunds.list({
 				organizationId,
 				status: activeTab === "all" ? undefined : activeTab,
@@ -464,11 +472,28 @@ function RefundsLedgerPage() {
 		enabled: !!organizationId,
 	});
 
+	// biome-ignore lint/suspicious/noExplicitAny: response shape from untyped router
 	const rows: RefundRow[] = (data as any)?.rows ?? [];
+
+	// ── KPI computations ───────────────────────────────────────────────────────
+	const pendingCount = rows.filter((r) => r.status === "pending").length;
+
+	const today = new Date().toLocaleDateString("en-MY");
+	const approvedTodayCount = rows.filter(
+		(r) =>
+			r.status === "approved" &&
+			r.reviewedAt &&
+			new Date(r.reviewedAt).toLocaleDateString("en-MY") === today,
+	).length;
+
+	const totalRefundedCents = rows
+		.filter((r) => r.status === "processed" || r.status === "approved")
+		.reduce((s, r) => s + (r.amountCents ?? 0), 0);
 
 	// ── Mutations ──────────────────────────────────────────────────────────────
 	const approveMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes?: string }) =>
+			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
 			(client as any).refunds.approve({
 				organizationId,
 				id: vars.id,
@@ -484,6 +509,7 @@ function RefundsLedgerPage() {
 
 	const rejectMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes: string }) =>
+			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
 			(client as any).refunds.reject({
 				organizationId,
 				id: vars.id,
@@ -515,7 +541,7 @@ function RefundsLedgerPage() {
 	}
 
 	// ── Columns ────────────────────────────────────────────────────────────────
-	const columns: ColumnDef<RefundRow>[] = [
+	const tableColumns: ColumnDef<RefundRow>[] = [
 		{
 			id: "requestedAt",
 			header: "Date",
@@ -647,19 +673,23 @@ function RefundsLedgerPage() {
 		},
 	];
 
-	// ── Guard ──────────────────────────────────────────────────────────────────
+	// ── Guards ─────────────────────────────────────────────────────────────────
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				Select an organization to view refunds.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+					Select an organization to view refunds.
+				</div>
 			</div>
 		);
 	}
 
 	if (!hasPermission("refund_management:read")) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				You do not have permission to view refunds.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+					You do not have permission to view refunds.
+				</div>
 			</div>
 		);
 	}
@@ -670,50 +700,122 @@ function RefundsLedgerPage() {
 
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
-		<div className="space-y-6 p-6">
-			{/* Header */}
-			<PageHeader icon={Undo2} title="Refunds" description="Review and process refund requests." />
-
-			{/* Status tabs */}
-			<div className="flex items-center gap-1 border-b">
-				{STATUS_TABS.map((tab) => {
-					const isActive = activeTab === tab.value;
-					return (
-						<button
-							key={tab.value}
-							type="button"
-							onClick={() => setActiveTab(tab.value)}
-							className={`border-b-2 px-4 py-2 font-medium text-sm transition-colors ${
-								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:border-muted hover:text-foreground"
-							}`}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Undo2 className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Refunds</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Review and process refund requests
+						</p>
+					</div>
+				</div>
 			</div>
 
-			{/* Table */}
-			<DataTable<RefundRow, unknown>
-					columns={columns}
-					data={rows}
-					emptyTitle="No refunds found"
-					error={isError ? error : undefined}
-					onRetry={() => refetch()}
-				/>
+			{/* Filter band */}
+			<div className="shrink-0 border-b border-border/40 px-6">
+				<div className="flex h-10 items-end gap-0">
+					{STATUS_TABS.map((tab) => {
+						const isActive = activeTab === tab.value;
+						return (
+							<button
+								key={tab.value}
+								type="button"
+								onClick={() => setActiveTab(tab.value)}
+								className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
+									isActive
+										? "border-foreground text-foreground"
+										: "border-transparent text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								{tab.label}
+							</button>
+						);
+					})}
+				</div>
+			</div>
+
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* KPI strip */}
+				<div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Pending</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{pendingCount}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							awaiting review
+						</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Approved today</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{approvedTodayCount}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							{today}
+						</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Total refunded</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{formatPrice(totalRefundedCents, "MYR")}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							approved + processed
+						</div>
+					</div>
+				</div>
+
+				{/* Error callout */}
+				{isError && (
+					<StatusCallout
+						variant="error"
+						title="Failed to load refunds"
+						onRetry={() => refetch()}
+					>
+						<p className="text-sm">
+							{(error as Error)?.message ??
+								"An error occurred. Please retry."}
+						</p>
+					</StatusCallout>
+				)}
+
+				{/* Table or empty state */}
+				{!isError && rows.length === 0 ? (
+					<EmptyState
+						icon={Undo2}
+						title="No refunds found"
+						description="No refund requests match the current filter."
+					/>
+				) : (
+					<DataTable<RefundRow, unknown>
+						columns={tableColumns}
+						data={rows}
+						emptyTitle="No refunds found"
+						error={isError ? error : undefined}
+						onRetry={() => refetch()}
+					/>
+				)}
+			</div>
 
 			{/* Detail drawer */}
-			<RefundDetailDrawer
-				refund={selectedRefund}
-				open={detailDrawerOpen}
-				onOpenChange={setDetailDrawerOpen}
-				organizationId={organizationId}
-			/>
+			{organizationId && (
+				<RefundDetailDrawer
+					refund={selectedRefund}
+					open={detailDrawerOpen}
+					onOpenChange={setDetailDrawerOpen}
+					organizationId={organizationId}
+				/>
+			)}
 
 			{/* Process dialog */}
-			{processRefundId && (
+			{processRefundId && organizationId && (
 				<ProcessRefundDialog
 					open={processDialogOpen}
 					onOpenChange={(open) => {

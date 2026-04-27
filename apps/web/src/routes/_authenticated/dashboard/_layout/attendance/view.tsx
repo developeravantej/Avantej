@@ -3,8 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck, Clock, UserCheck, XCircle } from "lucide-react";
 import type { ElementType } from "react";
 import { useState } from "react";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageCard } from "@/components/ui/page-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { CheckInRow } from "@/components/attendance/check-ins-log";
@@ -22,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { PageCard } from "@/components/ui/page-card";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
@@ -52,15 +51,15 @@ interface KpiCardProps {
 
 function KpiCard({ icon: Icon, label, value, iconClass = "text-primary" }: KpiCardProps) {
 	return (
-		<PageCard nested padding="compact" className="flex items-center gap-4">
-			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-				<Icon className={`h-5 w-5 ${iconClass}`} />
+		<div className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3">
+			<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+				<Icon className={`h-4 w-4 ${iconClass}`} />
 			</div>
 			<div>
-				<p className="text-2xl font-bold leading-none">{value}</p>
+				<p className="text-xl font-bold leading-none">{value}</p>
 				<p className="mt-1 text-xs text-muted-foreground">{label}</p>
 			</div>
-		</PageCard>
+		</div>
 	);
 }
 
@@ -174,20 +173,42 @@ function AttendancePage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				Select an organization to view attendance.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ClipboardCheck className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Attendance</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Today's check-ins and drop-ins</p>
+					</div>
+				</div>
+				<div className="flex flex-1 items-center justify-center text-muted-foreground">
+					<p className="text-sm">Select an organization to view attendance.</p>
+				</div>
 			</div>
 		);
 	}
 
 	if (!canRead) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				<div className="space-y-2 text-center">
-					<p className="font-medium">Permission Denied</p>
-					<p className="text-sm">
-						You don&apos;t have permission to view attendance.
-					</p>
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ClipboardCheck className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Attendance</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Today's check-ins and drop-ins</p>
+					</div>
+				</div>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="space-y-2 text-center">
+						<p className="font-medium">Permission Denied</p>
+						<p className="text-sm text-muted-foreground">
+							You don&apos;t have permission to view attendance.
+						</p>
+					</div>
 				</div>
 			</div>
 		);
@@ -196,154 +217,167 @@ function AttendancePage() {
 	// ── Render ─────────────────────────────────────────────────────────────
 
 	return (
-		<div className="space-y-6 p-6">
-			{/* Header */}
-			<PageHeader
-				icon={ClipboardCheck}
-				title="Attendance"
-				description="Today's check-ins and drop-ins"
-			/>
-
-			{/* Top-bar filters */}
-			<div className="flex flex-wrap items-end gap-3">
-				{/* Branch selector */}
-				{branchOptions.length > 0 && (
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Branch</Label>
-						<Select
-							value={branchId || ""}
-							onValueChange={(v) => setBranchId(v)}
-						>
-							<SelectTrigger className="h-9 w-56">
-								<SelectValue placeholder="Select branch..." />
-							</SelectTrigger>
-							<SelectContent>
-								{branchOptions.map((node) => (
-									<SelectItem key={node.id} value={node.id}>
-										{node.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ClipboardCheck className="h-6 w-6 text-primary" />
 					</div>
-				)}
-
-				{/* Date picker */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">Date</Label>
-					<input
-						type="date"
-						value={date}
-						onChange={(e) => setDate(e.target.value)}
-						className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-					/>
+					<div>
+						<h1 className="text-xl font-semibold">Attendance</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Today's check-ins and drop-ins
+						</p>
+					</div>
 				</div>
 			</div>
 
-			{/* No branch selected */}
-			{!branchId && (
-				<div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-					<p className="text-sm">Select a branch to load attendance data.</p>
-				</div>
-			)}
-
-			{branchId && (
-				<>
-					{/* KPI row — shown once check-in data resolves */}
-					{!checkInsLoading && !checkInsError && (
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-							<KpiCard icon={ClipboardCheck} label="Total check-ins" value={kpiTotal} />
-							<KpiCard icon={UserCheck} label="Attended" value={kpiAttended} iconClass="text-green-600" />
-							<KpiCard icon={Clock} label="Drop-ins" value={kpiDropIns} iconClass="text-blue-600" />
-							<KpiCard icon={XCircle} label="No-shows" value={kpiNoShows} iconClass="text-destructive" />
+			{/* Filters band */}
+			<div className="shrink-0 border-b border-border/40 px-6 py-3">
+				<div className="flex flex-wrap items-end gap-3">
+					{/* Branch selector */}
+					{branchOptions.length > 0 && (
+						<div className="flex flex-col gap-1">
+							<Label className="text-xs">Branch</Label>
+							<Select
+								value={branchId || ""}
+								onValueChange={(v) => setBranchId(v)}
+							>
+								<SelectTrigger className="h-9 w-56">
+									<SelectValue placeholder="Select branch..." />
+								</SelectTrigger>
+								<SelectContent>
+									{branchOptions.map((node) => (
+										<SelectItem key={node.id} value={node.id}>
+											{node.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 					)}
 
-					<Separator />
+					{/* Date picker */}
+					<div className="flex flex-col gap-1">
+						<Label className="text-xs">Date</Label>
+						<input
+							type="date"
+							value={date}
+							onChange={(e) => setDate(e.target.value)}
+							className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+						/>
+					</div>
+				</div>
+			</div>
 
-					{/* Two-column layout */}
-					<div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-						{/* Left column: Today's Bookings */}
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* No branch selected */}
+				{!branchId && (
+					<div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+						<p className="text-sm">Select a branch to load attendance data.</p>
+					</div>
+				)}
+
+				{branchId && (
+					<>
+						{/* KPI row — shown once check-in data resolves */}
+						{!checkInsLoading && !checkInsError && (
+							<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+								<KpiCard icon={ClipboardCheck} label="Total check-ins" value={kpiTotal} />
+								<KpiCard icon={UserCheck} label="Attended" value={kpiAttended} iconClass="text-green-600" />
+								<KpiCard icon={Clock} label="Drop-ins" value={kpiDropIns} iconClass="text-blue-600" />
+								<KpiCard icon={XCircle} label="No-shows" value={kpiNoShows} iconClass="text-destructive" />
+							</div>
+						)}
+
+						<Separator />
+
+						{/* Two-column layout */}
+						<div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+							{/* Left column: Today's Bookings */}
+							<section className="space-y-3">
+								<h2 className="font-semibold text-lg">Today&apos;s Bookings</h2>
+
+								{bookingsLoading && (
+									<div className="flex min-h-32 items-center justify-center">
+										<LoadingSpinner size="md" />
+									</div>
+								)}
+
+								{bookingsError && (
+									<StatusCallout variant="error" onRetry={() => refetchBookings()}>
+										Failed to load bookings. Please try again.
+									</StatusCallout>
+								)}
+
+								{!bookingsLoading && !bookingsError && (
+									<TodayBookingsSection
+										bookings={bookings}
+										organizationId={organizationId}
+										branchId={branchId}
+									/>
+								)}
+							</section>
+
+							{/* Right column: Drop-in Check-in form */}
+							<section>
+								<DropInForm
+									organizationId={organizationId}
+									branchId={branchId}
+									queryKey={checkInsQueryKey}
+								/>
+							</section>
+						</div>
+
+						<Separator />
+
+						{/* Bottom: Today's Check-ins log */}
 						<section className="space-y-3">
-							<h2 className="font-semibold text-lg">Today&apos;s Bookings</h2>
+							<h2 className="font-semibold text-lg">
+								Today&apos;s Check-ins
+								{checkInsData?.total != null && checkInsData.total > 0 && (
+									<span className="ml-2 rounded-full bg-muted px-2 py-0.5 font-normal text-muted-foreground text-sm">
+										{checkInsData.total}
+									</span>
+								)}
+							</h2>
 
-							{bookingsLoading && (
-								<div className="flex min-h-32 items-center justify-center">
+							{checkInsLoading && (
+								<div className="flex min-h-24 items-center justify-center">
 									<LoadingSpinner size="md" />
 								</div>
 							)}
 
-							{bookingsError && (
-								<StatusCallout variant="error" onRetry={() => refetchBookings()}>
-									Failed to load bookings. Please try again.
+							{checkInsError && (
+								<StatusCallout variant="error" onRetry={() => refetchCheckIns()}>
+									Failed to load check-ins. Please try again.
 								</StatusCallout>
 							)}
 
-							{!bookingsLoading && !bookingsError && (
-								<TodayBookingsSection
-									bookings={bookings}
-									organizationId={organizationId}
-									branchId={branchId}
+							{!checkInsLoading && !checkInsError && checkInRows.length === 0 && (
+								<EmptyState
+									icon={ClipboardCheck}
+									title="No check-ins yet today"
+									description="Walk-ins and bookings will appear here as members arrive."
 								/>
 							)}
-						</section>
 
-						{/* Right column: Drop-in Check-in form */}
-						<section>
-							<DropInForm
-								organizationId={organizationId}
-								branchId={branchId}
-								queryKey={checkInsQueryKey}
-							/>
-						</section>
-					</div>
-
-					<Separator />
-
-					{/* Bottom: Today's Check-ins log */}
-					<section className="space-y-3">
-						<h2 className="font-semibold text-lg">
-							Today&apos;s Check-ins
-							{checkInsData?.total != null && checkInsData.total > 0 && (
-								<span className="ml-2 rounded-full bg-muted px-2 py-0.5 font-normal text-muted-foreground text-sm">
-									{checkInsData.total}
-								</span>
+							{!checkInsLoading && !checkInsError && checkInRows.length > 0 && (
+								<PageCard padding="none">
+									<CheckInsLog
+										rows={checkInRows}
+										organizationId={organizationId}
+										queryKey={checkInsQueryKey}
+										canDelete={canDelete}
+									/>
+								</PageCard>
 							)}
-						</h2>
-
-						{checkInsLoading && (
-							<div className="flex min-h-24 items-center justify-center">
-								<LoadingSpinner size="md" />
-							</div>
-						)}
-
-						{checkInsError && (
-							<StatusCallout variant="error" onRetry={() => refetchCheckIns()}>
-								Failed to load check-ins. Please try again.
-							</StatusCallout>
-						)}
-
-						{!checkInsLoading && !checkInsError && checkInRows.length === 0 && (
-							<EmptyState
-								icon={ClipboardCheck}
-								title="No check-ins yet today"
-								description="Walk-ins and bookings will appear here as members arrive."
-							/>
-						)}
-
-						{!checkInsLoading && !checkInsError && checkInRows.length > 0 && (
-							<PageCard padding="none">
-								<CheckInsLog
-									rows={checkInRows}
-									organizationId={organizationId}
-									queryKey={checkInsQueryKey}
-									canDelete={canDelete}
-								/>
-							</PageCard>
-						)}
-					</section>
-				</>
-			)}
+						</section>
+					</>
+				)}
+			</div>
 		</div>
 	);
 }

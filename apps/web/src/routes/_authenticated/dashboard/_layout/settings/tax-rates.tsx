@@ -26,7 +26,6 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, Tag } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -110,7 +109,6 @@ function formatDate(value: string | null | undefined): string {
 	}
 }
 
-// Convert ISO date string (or Date) to "YYYY-MM-DD" for <input type="date">
 function toDateInputValue(value: string | Date | null | undefined): string {
 	if (!value) return "";
 	try {
@@ -138,7 +136,12 @@ function TaxRatesPage() {
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
 
-	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
 		queryKey: ["taxRates", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -282,21 +285,26 @@ function TaxRatesPage() {
 
 	// ─── Data processing ──────────────────────────────────────────────────────
 
-	const rows: TaxRateRow[] = apiData
-		.filter((item) => (showInactive ? true : item.isActive))
-		.map((item) => ({
-			id: item.id,
-			name: item.name,
-			code: item.code,
-			rateInBasisPoints: item.rateInBasisPoints,
-			category: item.category as TaxCategory,
-			isDefault: item.isDefault ?? false,
-			effectiveFrom: item.effectiveFrom ? String(item.effectiveFrom) : "",
-			effectiveUntil: item.effectiveUntil ? String(item.effectiveUntil) : null,
-			description: item.description ?? null,
-			isActive: item.isActive ?? true,
-			createdAt: item.createdAt ? String(item.createdAt) : "",
-		}));
+	const allRows: TaxRateRow[] = apiData.map((item) => ({
+		id: item.id,
+		name: item.name,
+		code: item.code,
+		rateInBasisPoints: item.rateInBasisPoints,
+		category: item.category as TaxCategory,
+		isDefault: item.isDefault ?? false,
+		effectiveFrom: item.effectiveFrom ? String(item.effectiveFrom) : "",
+		effectiveUntil: item.effectiveUntil ? String(item.effectiveUntil) : null,
+		description: item.description ?? null,
+		isActive: item.isActive ?? true,
+		createdAt: item.createdAt ? String(item.createdAt) : "",
+	}));
+
+	const rows = allRows.filter((item) => (showInactive ? true : item.isActive));
+
+	// KPI data — computed from allRows (not filtered) for accurate counts
+	const defaultRate = allRows.find((r) => r.isDefault && r.isActive) ?? null;
+	const activeCount = allRows.filter((r) => r.isActive).length;
+	const inactiveCount = allRows.filter((r) => !r.isActive).length;
 
 	// ─── Column definitions ───────────────────────────────────────────────────
 
@@ -330,7 +338,9 @@ function TaxRatesPage() {
 			accessorKey: "category",
 			header: "Category",
 			cell: ({ row }) => (
-				<span>{CATEGORY_LABELS[row.original.category] ?? row.original.category}</span>
+				<span>
+					{CATEGORY_LABELS[row.original.category] ?? row.original.category}
+				</span>
 			),
 		},
 		{
@@ -425,96 +435,145 @@ function TaxRatesPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to manage tax rates.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+					Select an organization to manage tax rates.
+				</div>
 			</div>
 		);
 	}
-
-	// ─── Loading state ────────────────────────────────────────────────────────
 
 	if (isLoading) {
 		return <PageLoader />;
 	}
 
-	// ─── Error state ──────────────────────────────────────────────────────────
-
-	if (isError) {
-		return (
-			<div className="p-6">
-				<StatusCallout variant="error" onRetry={() => refetch()}>
-					Failed to load tax rates. Please try again.
-				</StatusCallout>
-			</div>
-		);
-	}
-
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="p-6 space-y-6">
-			{/* Page header */}
-			<div className="flex items-center justify-between">
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<Tag className="h-6 w-6 text-brand-primary-1" />
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Tag className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">Tax Configuration</h1>
-						<p className="text-brand-secondary-1 text-sm">
-							Manage tax rates applied to sales orders and invoices.
+						<h1 className="text-xl font-semibold">Tax Rates</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Configure tax rates applied at point of sale
 						</p>
 					</div>
 				</div>
 				<Button onClick={openCreate} disabled={isMutating}>
 					<Plus className="h-4 w-4 mr-2" />
-					Add Tax Rate
+					New Tax Rate
 				</Button>
 			</div>
 
-			{/* Filters toolbar */}
-			<div className="flex items-center gap-3">
-				<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
-					<button
-						type="button"
-						onClick={() => setShowInactive(false)}
-						className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-							!showInactive
-								? "bg-background shadow-sm text-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						Active
-					</button>
-					<button
-						type="button"
-						onClick={() => setShowInactive(true)}
-						className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-							showInactive
-								? "bg-background shadow-sm text-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						All
-					</button>
+			{/* Filter band */}
+			<div className="shrink-0 border-b border-border/40 px-6 py-3">
+				<div className="flex items-center gap-3">
+					<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
+						<button
+							type="button"
+							onClick={() => setShowInactive(false)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								!showInactive
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							Active
+						</button>
+						<button
+							type="button"
+							onClick={() => setShowInactive(true)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								showInactive
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							All
+						</button>
+					</div>
+					<span className="text-sm text-muted-foreground">
+						{rows.length} {rows.length === 1 ? "rate" : "rates"}
+					</span>
 				</div>
-				<span className="text-sm text-muted-foreground">
-					{rows.length} {rows.length === 1 ? "rate" : "rates"}
-				</span>
 			</div>
 
-			<Separator />
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* KPI strip */}
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+					{/* Default rate — spans 2 cols */}
+					{defaultRate ? (
+						<div className="col-span-2 rounded-xl border bg-amber-50 border-amber-200 p-3">
+							<div className="flex items-center justify-between">
+								<div className="text-xs text-amber-700 font-medium">
+									Default Rate
+								</div>
+								<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+									<Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+									Default
+								</span>
+							</div>
+							<div className="mt-1 text-3xl font-bold tabular-nums text-amber-800">
+								{(defaultRate.rateInBasisPoints / 100).toFixed(2)}%
+							</div>
+							<div className="text-xs text-amber-700 mt-0.5">
+								{defaultRate.name}
+							</div>
+						</div>
+					) : (
+						<div className="col-span-2">
+							<StatusCallout variant="warning" title="No default tax rate set">
+								<p className="text-sm">
+									Set a default tax rate so it is pre-selected at point of sale.
+								</p>
+							</StatusCallout>
+						</div>
+					)}
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Active</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{activeCount}
+						</div>
+						<div className="text-xs text-muted-foreground">rates in use</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Inactive</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{inactiveCount}
+						</div>
+						<div className="text-xs text-muted-foreground">archived rates</div>
+					</div>
+				</div>
 
-			{/* Data table or empty state */}
-			{rows.length === 0 ? (
-				<EmptyState
-					icon={Tag}
-					title="No tax rates"
-					description="No tax rates have been configured yet. Add one to get started."
-				/>
-			) : (
-				<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
-			)}
+				{/* Error callout */}
+				{isError && (
+					<StatusCallout
+						variant="error"
+						title="Failed to load tax rates"
+						onRetry={() => refetch()}
+					>
+						<p className="text-sm">Please try again.</p>
+					</StatusCallout>
+				)}
+
+				{/* Table or empty state */}
+				{!isError && rows.length === 0 ? (
+					<EmptyState
+						icon={Tag}
+						title="No tax rates"
+						description="No tax rates have been configured yet. Add one to get started."
+						action={{ label: "New Tax Rate", onClick: openCreate }}
+					/>
+				) : (
+					<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
+				)}
+			</div>
 
 			{/* Create / Edit Dialog */}
 			<Dialog
@@ -539,7 +598,10 @@ function TaxRatesPage() {
 					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Name */}
 						<div>
-							<label htmlFor="tr-name" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="tr-name"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Name *
 							</label>
 							<Input
@@ -556,7 +618,10 @@ function TaxRatesPage() {
 
 						{/* Code */}
 						<div>
-							<label htmlFor="tr-code" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="tr-code"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Code *
 							</label>
 							<Input
@@ -579,7 +644,10 @@ function TaxRatesPage() {
 
 						{/* Rate */}
 						<div>
-							<label htmlFor="tr-rate" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="tr-rate"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Rate (%) *
 							</label>
 							<div className="relative mt-1">
@@ -600,20 +668,24 @@ function TaxRatesPage() {
 									%
 								</span>
 							</div>
-							{form.ratePercent && !Number.isNaN(parseFloat(form.ratePercent)) && (
-								<p className="text-xs text-brand-secondary-1 mt-1">
-									Stored as{" "}
-									<span className="font-mono">
-										{Math.round(parseFloat(form.ratePercent) * 100)}
-									</span>{" "}
-									basis points.
-								</p>
-							)}
+							{form.ratePercent &&
+								!Number.isNaN(parseFloat(form.ratePercent)) && (
+									<p className="text-xs text-brand-secondary-1 mt-1">
+										Stored as{" "}
+										<span className="font-mono">
+											{Math.round(parseFloat(form.ratePercent) * 100)}
+										</span>{" "}
+										basis points.
+									</p>
+								)}
 						</div>
 
 						{/* Category */}
 						<div>
-							<label htmlFor="tr-category" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="tr-category"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Category
 							</label>
 							<Select
@@ -622,7 +694,10 @@ function TaxRatesPage() {
 									setForm((f) => ({ ...f, category: v as TaxCategory }))
 								}
 							>
-								<SelectTrigger id="tr-category" className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm">
+								<SelectTrigger
+									id="tr-category"
+									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -640,7 +715,10 @@ function TaxRatesPage() {
 						{/* Date range */}
 						<div className="grid grid-cols-2 gap-4">
 							<div>
-								<label htmlFor="tr-from" className="block text-sm font-medium text-brand-primary-1">
+								<label
+									htmlFor="tr-from"
+									className="block text-sm font-medium text-brand-primary-1"
+								>
 									Effective From *
 								</label>
 								<Input
@@ -658,7 +736,10 @@ function TaxRatesPage() {
 								/>
 							</div>
 							<div>
-								<label htmlFor="tr-until" className="block text-sm font-medium text-brand-primary-1">
+								<label
+									htmlFor="tr-until"
+									className="block text-sm font-medium text-brand-primary-1"
+								>
 									Effective Until
 								</label>
 								<Input
@@ -679,7 +760,10 @@ function TaxRatesPage() {
 
 						{/* Description */}
 						<div>
-							<label htmlFor="tr-description" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="tr-description"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Description
 							</label>
 							<Textarea
@@ -733,8 +817,8 @@ function TaxRatesPage() {
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"
 									: editingId
-									? "Save Changes"
-									: "Add Tax Rate"}
+										? "Save Changes"
+										: "Add Tax Rate"}
 							</button>
 						</div>
 					</form>

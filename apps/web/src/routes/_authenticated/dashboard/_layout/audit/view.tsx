@@ -10,8 +10,6 @@ import DataTable from "@/components/tables/sales/view/data-table";
 import { ActionCategoryBadge } from "@/components/ui/action-category-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageCard } from "@/components/ui/page-card";
-import { PageHeader } from "@/components/ui/page-header";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -176,15 +174,15 @@ interface KpiCardProps {
 
 function KpiCard({ icon: Icon, label, value, iconClass = "text-primary" }: KpiCardProps) {
 	return (
-		<PageCard nested padding="compact" className="flex items-center gap-4">
-			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-				<Icon className={`h-5 w-5 ${iconClass}`} />
+		<div className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3">
+			<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+				<Icon className={`h-4 w-4 ${iconClass}`} />
 			</div>
 			<div>
-				<p className="text-2xl font-bold leading-none">{value}</p>
+				<p className="text-xl font-bold leading-none">{value}</p>
 				<p className="mt-1 text-xs text-muted-foreground">{label}</p>
 			</div>
-		</PageCard>
+		</div>
 	);
 }
 
@@ -508,20 +506,42 @@ function AuditLogPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				Select an organization to view the audit log.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ScrollText className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Audit Log</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Tracked actions across the organization</p>
+					</div>
+				</div>
+				<div className="flex flex-1 items-center justify-center text-muted-foreground">
+					<p className="text-sm">Select an organization to view the audit log.</p>
+				</div>
 			</div>
 		);
 	}
 
 	if (!canRead) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-				<div className="space-y-2 text-center">
-					<p className="font-medium">Permission Denied</p>
-					<p className="text-sm">
-						You don't have permission to view the audit log.
-					</p>
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ScrollText className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Audit Log</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Tracked actions across the organization</p>
+					</div>
+				</div>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="space-y-2 text-center">
+						<p className="font-medium">Permission Denied</p>
+						<p className="text-sm text-muted-foreground">
+							You don't have permission to view the audit log.
+						</p>
+					</div>
 				</div>
 			</div>
 		);
@@ -536,21 +556,43 @@ function AuditLogPage() {
 				error.message.toLowerCase().includes("permission"));
 		if (isForbidden) {
 			return (
-				<div className="flex min-h-96 items-center justify-center text-muted-foreground">
-					<div className="space-y-2 text-center">
-						<p className="font-medium">Permission Denied</p>
-						<p className="text-sm">
-							You don't have permission to view the audit log.
-						</p>
+				<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+					<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+						<div className="p-2 rounded-lg bg-primary/10">
+							<ScrollText className="h-6 w-6 text-primary" />
+						</div>
+						<div>
+							<h1 className="text-xl font-semibold">Audit Log</h1>
+							<p className="mt-0.5 text-sm text-muted-foreground">Tracked actions across the organization</p>
+						</div>
+					</div>
+					<div className="flex flex-1 items-center justify-center">
+						<div className="space-y-2 text-center">
+							<p className="font-medium">Permission Denied</p>
+							<p className="text-sm text-muted-foreground">
+								You don't have permission to view the audit log.
+							</p>
+						</div>
 					</div>
 				</div>
 			);
 		}
 		return (
-			<div className="p-6">
-				<StatusCallout variant="error" onRetry={() => refetch()}>
-					Failed to load audit log. Please try again.
-				</StatusCallout>
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ScrollText className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Audit Log</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Tracked actions across the organization</p>
+					</div>
+				</div>
+				<div className="p-6">
+					<StatusCallout variant="error" onRetry={() => refetch()}>
+						Failed to load audit log. Please try again.
+					</StatusCallout>
+				</div>
 			</div>
 		);
 	}
@@ -562,23 +604,24 @@ function AuditLogPage() {
 	// ── Render ─────────────────────────────────────────────────────────────
 
 	return (
-		<div className="space-y-6 p-6">
-			{/* Header */}
-			<PageHeader
-				icon={ScrollText}
-				title="Audit Log"
-				description="Tracked actions across the organization"
-			/>
-
-			{/* KPI summary row */}
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-				<KpiCard icon={ActivitySquare} label="Today (this page)" value={kpiToday} />
-				<KpiCard icon={CalendarDays} label="Last 7 days (this page)" value={kpiWeek} iconClass="text-blue-600" />
-				<KpiCard icon={Users} label="Unique actors (this page)" value={kpiActors} iconClass="text-violet-600" />
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<ScrollText className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Audit Log</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Tracked actions across the organization
+						</p>
+					</div>
+				</div>
 			</div>
 
-			{/* Filters — inside a card for visual separation */}
-			<PageCard padding="compact">
+			{/* Filters band */}
+			<div className="shrink-0 border-b border-border/40 px-6 py-3">
 				<div className="flex flex-wrap items-end gap-3">
 					{/* Actor userId — free-text (no listStaff procedure confirmed; TODO: upgrade to combobox when available) */}
 					<div className="flex flex-col gap-1">
@@ -719,30 +762,38 @@ function AuditLogPage() {
 						</Button>
 					)}
 				</div>
-			</PageCard>
+			</div>
 
-			{/* Table or empty state */}
-			{rows.length === 0 ? (
-				<EmptyState
-					icon={SearchX}
-					title="No audit events"
-					description="No audit log entries match the current filters."
-				/>
-			) : (
-				<PageCard padding="none">
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* KPI summary row */}
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+					<KpiCard icon={ActivitySquare} label="Today (this page)" value={kpiToday} />
+					<KpiCard icon={CalendarDays} label="Last 7 days (this page)" value={kpiWeek} iconClass="text-blue-600" />
+					<KpiCard icon={Users} label="Unique actors (this page)" value={kpiActors} iconClass="text-violet-600" />
+				</div>
+
+				{/* Table or empty state */}
+				{rows.length === 0 ? (
+					<EmptyState
+						icon={SearchX}
+						title="No audit events"
+						description="No audit log entries match the current filters."
+					/>
+				) : (
 					<DataTable<AuditRowEnriched, unknown> columns={columns} data={rows} />
-				</PageCard>
-			)}
+				)}
 
-			{/* Pagination */}
-			{total > PAGE_LIMIT && (
-				<TablePagination
-					page={Math.floor(offset / PAGE_LIMIT)}
-					pageSize={PAGE_LIMIT}
-					totalRows={total}
-					onPageChange={(newPage) => setOffset(newPage * PAGE_LIMIT)}
-				/>
-			)}
+				{/* Pagination */}
+				{total > PAGE_LIMIT && (
+					<TablePagination
+						page={Math.floor(offset / PAGE_LIMIT)}
+						pageSize={PAGE_LIMIT}
+						totalRows={total}
+						onPageChange={(newPage) => setOffset(newPage * PAGE_LIMIT)}
+					/>
+				)}
+			</div>
 
 			{/* Detail dialog — row expand v1 */}
 			<ChangesDialog

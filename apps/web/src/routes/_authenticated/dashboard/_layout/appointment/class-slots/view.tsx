@@ -6,7 +6,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Calendar, Clock, Grid3x3, Plus, Users } from "lucide-react";
 import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { PageHeader } from "@/components/ui/page-header";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -443,21 +442,19 @@ function ClassSlotsPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="space-y-4 p-6">
-				<PageHeader
-					icon={Grid3x3}
-					title="Class Slots"
-					description="Schedule and manage group class sessions."
-				/>
-				<p className="text-muted-foreground">No organization selected.</p>
-			</div>
-		);
-	}
-
-	if (isError) {
-		return (
-			<div className="p-6">
-				<StatusCallout variant="error" title="Couldn't load class slots" onRetry={() => refetch()} />
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Grid3x3 className="h-6 w-6 text-primary" />
+					</div>
+					<div>
+						<h1 className="text-xl font-semibold">Class Slots</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">Group classes scheduled at your branches</p>
+					</div>
+				</div>
+				<div className="flex flex-1 items-center justify-center text-muted-foreground">
+					<p className="text-sm">No organization selected.</p>
+				</div>
 			</div>
 		);
 	}
@@ -491,151 +488,166 @@ function ClassSlotsPage() {
 	// ---------------------------------------------------------------------------
 
 	return (
-		<div className="space-y-6 p-6">
-			{/* Header */}
-			<PageHeader
-				icon={Grid3x3}
-				title="Class Slots"
-				description="Schedule and manage group class sessions across your branches."
-				actions={
-					<Button onClick={() => setCreateSheetOpen(true)}>
-						<Plus className="mr-2 h-4 w-4" />
-						Create Class Slot
-					</Button>
-				}
-			/>
-
-			{/* KPI Strip */}
-			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-				<div className="rounded-lg border bg-card p-4 shadow-sm">
-					<div className="flex items-center gap-1.5">
-						<Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-						<p className="text-muted-foreground text-xs uppercase tracking-wide">Today</p>
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div className="flex items-center gap-3">
+					<div className="p-2 rounded-lg bg-primary/10">
+						<Grid3x3 className="h-6 w-6 text-primary" />
 					</div>
-					<p className="mt-1 font-bold text-2xl tabular-nums">{todayCount}</p>
-					<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
-				</div>
-				<div className="rounded-lg border bg-card p-4 shadow-sm">
-					<div className="flex items-center gap-1.5">
-						<Clock className="h-3.5 w-3.5 text-muted-foreground" />
-						<p className="text-muted-foreground text-xs uppercase tracking-wide">This Week</p>
+					<div>
+						<h1 className="text-xl font-semibold">Class Slots</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Group classes scheduled at your branches
+						</p>
 					</div>
-					<p className="mt-1 font-bold text-2xl tabular-nums">{thisWeekCount}</p>
-					<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
 				</div>
-				<div className="rounded-lg border bg-card p-4 shadow-sm">
-					<div className="flex items-center gap-1.5">
-						<Users className="h-3.5 w-3.5 text-muted-foreground" />
-						<p className="text-muted-foreground text-xs uppercase tracking-wide">Available Spots</p>
-					</div>
-					<p className="mt-1 font-bold text-2xl tabular-nums text-green-700">{availableCapacity}</p>
-					<p className="mt-0.5 text-xs text-muted-foreground">across all slots</p>
-				</div>
-				<div className="rounded-lg border bg-card p-4 shadow-sm">
-					<div className="flex items-center gap-1.5">
-						<Grid3x3 className="h-3.5 w-3.5 text-muted-foreground" />
-						<p className="text-muted-foreground text-xs uppercase tracking-wide">Full Slots</p>
-					</div>
-					<p className="mt-1 font-bold text-2xl tabular-nums text-destructive">{fullSlotsCount}</p>
-					<p className="mt-0.5 text-xs text-muted-foreground">at capacity</p>
-				</div>
+				<Button onClick={() => setCreateSheetOpen(true)}>
+					<Plus className="mr-2 h-4 w-4" />
+					Create Class Slot
+				</Button>
 			</div>
 
-			{/* Filters */}
-			<div className="flex flex-wrap items-end gap-4 rounded-lg border bg-card p-4">
-				{/* Service filter */}
-				<div className="flex flex-col gap-1.5 min-w-[180px]">
-					<Label htmlFor="filter-service">Service</Label>
-					<Select
-						value={filterServiceId}
-						onValueChange={setFilterServiceId}
-					>
-						<SelectTrigger id="filter-service" className="w-full">
-							<SelectValue placeholder="All services" />
-						</SelectTrigger>
-						<SelectContent>
-							{services.map((svc) => (
-								<SelectItem key={svc.id} value={svc.id}>
-									{svc.name}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
+			{/* Filters band */}
+			<div className="shrink-0 border-b border-border/40 px-6 py-3">
+				{isError ? (
+					<StatusCallout variant="error" title="Couldn't load class slots" onRetry={() => refetch()} />
+				) : (
+					<div className="flex flex-wrap items-end gap-4">
+						{/* Service filter */}
+						<div className="flex flex-col gap-1.5 min-w-[180px]">
+							<Label htmlFor="filter-service">Service</Label>
+							<Select
+								value={filterServiceId}
+								onValueChange={setFilterServiceId}
+							>
+								<SelectTrigger id="filter-service" className="w-full">
+									<SelectValue placeholder="All services" />
+								</SelectTrigger>
+								<SelectContent>
+									{services.map((svc) => (
+										<SelectItem key={svc.id} value={svc.id}>
+											{svc.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 
-				{/* Date from */}
-				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="filter-from">From</Label>
-					<Input
-						id="filter-from"
-						type="date"
-						value={filterFrom}
-						onChange={(e) => setFilterFrom(e.target.value)}
-						className="w-40"
-					/>
-				</div>
+						{/* Date from */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="filter-from">From</Label>
+							<Input
+								id="filter-from"
+								type="date"
+								value={filterFrom}
+								onChange={(e) => setFilterFrom(e.target.value)}
+								className="w-40"
+							/>
+						</div>
 
-				{/* Date to */}
-				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="filter-to">To</Label>
-					<Input
-						id="filter-to"
-						type="date"
-						value={filterTo}
-						onChange={(e) => setFilterTo(e.target.value)}
-						className="w-40"
-					/>
-				</div>
+						{/* Date to */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="filter-to">To</Label>
+							<Input
+								id="filter-to"
+								type="date"
+								value={filterTo}
+								onChange={(e) => setFilterTo(e.target.value)}
+								className="w-40"
+							/>
+						</div>
 
-				{/* Available only checkbox */}
-				<div className="flex items-center gap-2 pb-0.5">
-					<Checkbox
-						id="filter-available"
-						checked={filterAvailableOnly}
-						onCheckedChange={(checked) =>
-							setFilterAvailableOnly(checked === true)
-						}
-					/>
-					<Label htmlFor="filter-available" className="cursor-pointer">
-						Show available only
-					</Label>
-				</div>
+						{/* Available only checkbox */}
+						<div className="flex items-center gap-2 pb-0.5">
+							<Checkbox
+								id="filter-available"
+								checked={filterAvailableOnly}
+								onCheckedChange={(checked) =>
+									setFilterAvailableOnly(checked === true)
+								}
+							/>
+							<Label htmlFor="filter-available" className="cursor-pointer">
+								Show available only
+							</Label>
+						</div>
 
-				{/* Apply + Clear */}
-				<div className="flex items-center gap-2 pb-0.5">
-					<Button variant="secondary" onClick={handleApplyFilters}>
-						Apply
-					</Button>
-					<Button
-						variant="ghost"
-						onClick={() => {
-							setFilterServiceId("");
-							setFilterFrom("");
-							setFilterTo("");
-							setFilterAvailableOnly(false);
-						}}
-					>
-						Clear
-					</Button>
-				</div>
+						{/* Apply + Clear */}
+						<div className="flex items-center gap-2 pb-0.5">
+							<Button variant="secondary" onClick={handleApplyFilters}>
+								Apply
+							</Button>
+							<Button
+								variant="ghost"
+								onClick={() => {
+									setFilterServiceId("");
+									setFilterFrom("");
+									setFilterTo("");
+									setFilterAvailableOnly(false);
+								}}
+							>
+								Clear
+							</Button>
+						</div>
+					</div>
+				)}
 			</div>
 
-			{/* Table */}
-			{isLoading ? (
-				<PageLoader />
-			) : classSlots.length === 0 ? (
-				<EmptyState
-					icon={Calendar}
-					title="No class slots scheduled"
-					description="Create your first class slot to start scheduling group sessions."
-					action={{ label: "Create Class Slot", onClick: () => setCreateSheetOpen(true) }}
-				/>
-			) : (
-				<DataTable<ClassSlotRow, unknown>
-					columns={columns}
-					data={classSlots}
-				/>
-			)}
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* KPI Strip */}
+				<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+					<div className="rounded-xl border bg-card p-3 shadow-sm">
+						<div className="flex items-center gap-1.5">
+							<Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+							<p className="text-muted-foreground text-xs uppercase tracking-wide">Today</p>
+						</div>
+						<p className="mt-1 font-bold text-2xl tabular-nums">{todayCount}</p>
+						<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
+					</div>
+					<div className="rounded-xl border bg-card p-3 shadow-sm">
+						<div className="flex items-center gap-1.5">
+							<Clock className="h-3.5 w-3.5 text-muted-foreground" />
+							<p className="text-muted-foreground text-xs uppercase tracking-wide">This Week</p>
+						</div>
+						<p className="mt-1 font-bold text-2xl tabular-nums">{thisWeekCount}</p>
+						<p className="mt-0.5 text-xs text-muted-foreground">classes</p>
+					</div>
+					<div className="rounded-xl border bg-card p-3 shadow-sm">
+						<div className="flex items-center gap-1.5">
+							<Users className="h-3.5 w-3.5 text-muted-foreground" />
+							<p className="text-muted-foreground text-xs uppercase tracking-wide">Available Spots</p>
+						</div>
+						<p className="mt-1 font-bold text-2xl tabular-nums text-green-700">{availableCapacity}</p>
+						<p className="mt-0.5 text-xs text-muted-foreground">across all slots</p>
+					</div>
+					<div className="rounded-xl border bg-card p-3 shadow-sm">
+						<div className="flex items-center gap-1.5">
+							<Grid3x3 className="h-3.5 w-3.5 text-muted-foreground" />
+							<p className="text-muted-foreground text-xs uppercase tracking-wide">Full Slots</p>
+						</div>
+						<p className="mt-1 font-bold text-2xl tabular-nums text-destructive">{fullSlotsCount}</p>
+						<p className="mt-0.5 text-xs text-muted-foreground">at capacity</p>
+					</div>
+				</div>
+
+				{/* Table */}
+				{isLoading ? (
+					<PageLoader />
+				) : classSlots.length === 0 ? (
+					<EmptyState
+						icon={Calendar}
+						title="No class slots scheduled"
+						description="Create your first class slot to start scheduling group sessions."
+						action={{ label: "Create Class Slot", onClick: () => setCreateSheetOpen(true) }}
+					/>
+				) : (
+					<DataTable<ClassSlotRow, unknown>
+						columns={columns}
+						data={classSlots}
+					/>
+				)}
+			</div>
 
 			{/* ----------------------------------------------------------------- */}
 			{/* Create Dialog                                                      */}

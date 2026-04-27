@@ -20,10 +20,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Edit, CreditCard } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/installment-plans",
@@ -85,13 +85,21 @@ function InstallmentPlansPage() {
 	const [showInactive, setShowInactive] = useState(false);
 
 	// Deactivate confirmation dialog state
-	const [deactivateTarget, setDeactivateTarget] = useState<InstallmentPlanRow | null>(null);
-	const [deactivateWarning, setDeactivateWarning] = useState<string | null>(null);
+	const [deactivateTarget, setDeactivateTarget] =
+		useState<InstallmentPlanRow | null>(null);
+	const [deactivateWarning, setDeactivateWarning] = useState<string | null>(
+		null,
+	);
 	const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
 
-	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
 		queryKey: ["installmentPlans", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -109,7 +117,9 @@ function InstallmentPlansPage() {
 				name: values.name,
 				numInstallments: parseInt(values.numInstallments, 10),
 				defaultIntervalDays: parseInt(values.defaultIntervalDays, 10),
-				pricePremiumBps: Math.round(parseFloat(values.pricePremiumPct || "0") * 100),
+				pricePremiumBps: Math.round(
+					parseFloat(values.pricePremiumPct || "0") * 100,
+				),
 				description: values.description || undefined,
 				isDefault: values.isDefault,
 			});
@@ -129,7 +139,9 @@ function InstallmentPlansPage() {
 				name: values.name,
 				numInstallments: parseInt(values.numInstallments, 10),
 				defaultIntervalDays: parseInt(values.defaultIntervalDays, 10),
-				pricePremiumBps: Math.round(parseFloat(values.pricePremiumPct || "0") * 100),
+				pricePremiumBps: Math.round(
+					parseFloat(values.pricePremiumPct || "0") * 100,
+				),
 				description: values.description || undefined,
 			});
 		},
@@ -145,7 +157,8 @@ function InstallmentPlansPage() {
 			return client.installmentPlans.setDefault({ organizationId, id });
 		},
 		successMessage: "Default installment plan updated.",
-		errorMessage: (err) => err.message || "Failed to set default installment plan.",
+		errorMessage: (err) =>
+			err.message || "Failed to set default installment plan.",
 		invalidate: [installmentPlansKey],
 	});
 
@@ -220,7 +233,11 @@ function InstallmentPlansPage() {
 			return;
 		}
 		const pricePremiumPct = parseFloat(form.pricePremiumPct || "0");
-		if (Number.isNaN(pricePremiumPct) || pricePremiumPct < 0 || pricePremiumPct > 100) {
+		if (
+			Number.isNaN(pricePremiumPct) ||
+			pricePremiumPct < 0 ||
+			pricePremiumPct > 100
+		) {
 			toast.error("Premium must be between 0 and 100%.");
 			return;
 		}
@@ -238,12 +255,14 @@ function InstallmentPlansPage() {
 		setDeactivateTarget(row);
 		setDeactivateWarning(null);
 
-		// Check if any active service references this plan code
 		if (organizationId) {
 			try {
-				const allServices = await client.services.list({ organizationId, isActive: true });
-				const affectedCount = allServices.filter(
-					(svc) => (svc.availablePaymentPlans ?? []).includes(row.code),
+				const allServices = await client.services.list({
+					organizationId,
+					isActive: true,
+				});
+				const affectedCount = allServices.filter((svc) =>
+					(svc.availablePaymentPlans ?? []).includes(row.code),
 				).length;
 
 				if (affectedCount > 0) {
@@ -261,21 +280,35 @@ function InstallmentPlansPage() {
 
 	// ─── Data processing ──────────────────────────────────────────────────────
 
-	const rows: InstallmentPlanRow[] = apiData
-		.filter((item) => (showInactive ? true : item.isActive))
-		.map((item) => ({
-			id: item.id,
-			code: item.code,
-			name: item.name,
-			numInstallments: item.numInstallments,
-			defaultIntervalDays: item.defaultIntervalDays,
-			pricePremiumBps: item.pricePremiumBps ?? 0,
-			description: item.description ?? null,
-			isDefault: item.isDefault ?? false,
-			isActive: item.isActive ?? true,
-			sortOrder: item.sortOrder ?? 0,
-			createdAt: item.createdAt ? String(item.createdAt) : "",
-		}));
+	const allRows: InstallmentPlanRow[] = apiData.map((item) => ({
+		id: item.id,
+		code: item.code,
+		name: item.name,
+		numInstallments: item.numInstallments,
+		defaultIntervalDays: item.defaultIntervalDays,
+		pricePremiumBps: item.pricePremiumBps ?? 0,
+		description: item.description ?? null,
+		isDefault: item.isDefault ?? false,
+		isActive: item.isActive ?? true,
+		sortOrder: item.sortOrder ?? 0,
+		createdAt: item.createdAt ? String(item.createdAt) : "",
+	}));
+
+	const rows = allRows.filter((item) =>
+		showInactive ? true : item.isActive,
+	);
+
+	// KPI data — computed from allRows for accurate global counts
+	const activePlans = allRows.filter((r) => r.isActive);
+	const activeCount = activePlans.length;
+	const avgInstallments =
+		activeCount > 0
+			? activePlans.reduce((s, r) => s + r.numInstallments, 0) / activeCount
+			: null;
+	const minInstallments =
+		activeCount > 0 ? Math.min(...activePlans.map((r) => r.numInstallments)) : null;
+	const maxInstallments =
+		activeCount > 0 ? Math.max(...activePlans.map((r) => r.numInstallments)) : null;
 
 	// ─── Column definitions ───────────────────────────────────────────────────
 
@@ -307,7 +340,9 @@ function InstallmentPlansPage() {
 			accessorKey: "defaultIntervalDays",
 			header: "Default Interval (days)",
 			cell: ({ row }) => (
-				<span className="tabular-nums">{row.original.defaultIntervalDays}</span>
+				<span className="tabular-nums">
+					{row.original.defaultIntervalDays}
+				</span>
 			),
 		},
 		{
@@ -394,97 +429,154 @@ function InstallmentPlansPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to manage installment plans.
+			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+					Select an organization to manage installment plans.
+				</div>
 			</div>
 		);
 	}
-
-	// ─── Loading state ────────────────────────────────────────────────────────
 
 	if (isLoading) {
 		return <PageLoader />;
 	}
 
-	// ─── Error state ──────────────────────────────────────────────────────────
-
-	if (isError) {
-		return (
-			<div className="flex flex-col items-center justify-center min-h-96 gap-3">
-				<p className="text-destructive text-sm">Failed to load installment plans. Please try again.</p>
-				<Button onClick={() => refetch()} variant="outline" size="sm">
-					Retry
-				</Button>
-			</div>
-		);
-	}
-
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="p-6 space-y-6">
-			{/* Page header */}
-			<div className="flex items-center justify-between">
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			{/* Fixed header */}
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<CreditCard className="h-6 w-6 text-brand-primary-1" />
+					<div className="p-2 rounded-lg bg-primary/10">
+						<CreditCard className="h-6 w-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">Installment Plans</h1>
-						<p className="text-brand-secondary-1 text-sm">
-							Configure payment plan options available to customers on package services.
+						<h1 className="text-xl font-semibold">Installment Plans</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Define payment plans customers can choose at checkout
 						</p>
 					</div>
 				</div>
 				<Button onClick={openCreate} disabled={isMutating}>
 					<Plus className="h-4 w-4 mr-2" />
-					Add Plan
+					New Plan
 				</Button>
 			</div>
 
-			{/* Filters toolbar */}
-			<div className="flex items-center gap-3">
-				<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
-					<button
-						type="button"
-						onClick={() => setShowInactive(false)}
-						className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-							!showInactive
-								? "bg-background shadow-sm text-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						Active
-					</button>
-					<button
-						type="button"
-						onClick={() => setShowInactive(true)}
-						className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-							showInactive
-								? "bg-background shadow-sm text-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						All
-					</button>
+			{/* Filter band */}
+			<div className="shrink-0 border-b border-border/40 px-6 py-3">
+				<div className="flex items-center gap-3">
+					<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
+						<button
+							type="button"
+							onClick={() => setShowInactive(false)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								!showInactive
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							Active
+						</button>
+						<button
+							type="button"
+							onClick={() => setShowInactive(true)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								showInactive
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							All
+						</button>
+					</div>
+					<span className="text-sm text-muted-foreground">
+						{rows.length} {rows.length === 1 ? "plan" : "plans"}
+					</span>
 				</div>
-				<span className="text-sm text-muted-foreground">
-					{rows.length} {rows.length === 1 ? "plan" : "plans"}
-				</span>
 			</div>
 
-			<Separator />
+			{/* Scroll region */}
+			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+				{/* KPI strip */}
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">Active plans</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{activeCount}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							available at checkout
+						</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">
+							Avg installments
+						</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{avgInstallments != null
+								? avgInstallments % 1 === 0
+									? avgInstallments.toFixed(0)
+									: avgInstallments.toFixed(1)
+								: "—"}
+						</div>
+						<div className="text-xs text-muted-foreground">across active plans</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">
+							Shortest plan
+						</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{minInstallments ?? "—"}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							{minInstallments != null
+								? `${minInstallments} installment${minInstallments === 1 ? "" : "s"}`
+								: "no active plans"}
+						</div>
+					</div>
+					<div className="rounded-xl border bg-card p-3">
+						<div className="text-xs text-muted-foreground">
+							Longest plan
+						</div>
+						<div className="mt-1 text-xl font-semibold tabular-nums">
+							{maxInstallments ?? "—"}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							{maxInstallments != null
+								? `${maxInstallments} installment${maxInstallments === 1 ? "" : "s"}`
+								: "no active plans"}
+						</div>
+					</div>
+				</div>
 
-			{/* Data table or empty state */}
-			{rows.length === 0 ? (
-				<EmptyState
-					icon={CreditCard}
-					title="No installment plans"
-					description="No installment plans have been configured yet. Add one to get started."
-				/>
-			) : (
-				<DataTable<InstallmentPlanRow, unknown> columns={columns} data={rows} />
-			)}
+				{/* Error callout */}
+				{isError && (
+					<StatusCallout
+						variant="error"
+						title="Failed to load installment plans"
+						onRetry={() => refetch()}
+					>
+						<p className="text-sm">Please try again.</p>
+					</StatusCallout>
+				)}
+
+				{/* Table or empty state */}
+				{!isError && rows.length === 0 ? (
+					<EmptyState
+						icon={CreditCard}
+						title="No installment plans"
+						description="No installment plans have been configured yet. Add one to get started."
+						action={{ label: "New Plan", onClick: openCreate }}
+					/>
+				) : (
+					<DataTable<InstallmentPlanRow, unknown>
+						columns={columns}
+						data={rows}
+					/>
+				)}
+			</div>
 
 			{/* Create / Edit Dialog */}
 			<Dialog
@@ -509,7 +601,10 @@ function InstallmentPlansPage() {
 					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Code — disabled on edit */}
 						<div>
-							<label htmlFor="ip-code" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="ip-code"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Code {!editingId && "*"}
 							</label>
 							<Input
@@ -532,7 +627,10 @@ function InstallmentPlansPage() {
 
 						{/* Name */}
 						<div>
-							<label htmlFor="ip-name" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="ip-name"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Name *
 							</label>
 							<Input
@@ -550,7 +648,10 @@ function InstallmentPlansPage() {
 						{/* Number of installments + Default interval days — two col */}
 						<div className="grid grid-cols-2 gap-4">
 							<div>
-								<label htmlFor="ip-num-installments" className="block text-sm font-medium text-brand-primary-1">
+								<label
+									htmlFor="ip-num-installments"
+									className="block text-sm font-medium text-brand-primary-1"
+								>
 									Installments *
 								</label>
 								<Input
@@ -561,16 +662,24 @@ function InstallmentPlansPage() {
 									placeholder="e.g. 6"
 									value={form.numInstallments}
 									onChange={(e) =>
-										setForm((f) => ({ ...f, numInstallments: e.target.value }))
+										setForm((f) => ({
+											...f,
+											numInstallments: e.target.value,
+										}))
 									}
 									required
 									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 								/>
-								<p className="text-xs text-brand-secondary-1 mt-1">Use 1 for a full single payment.</p>
+								<p className="text-xs text-brand-secondary-1 mt-1">
+									Use 1 for a full single payment.
+								</p>
 							</div>
 
 							<div>
-								<label htmlFor="ip-interval-days" className="block text-sm font-medium text-brand-primary-1">
+								<label
+									htmlFor="ip-interval-days"
+									className="block text-sm font-medium text-brand-primary-1"
+								>
 									Interval (days) *
 								</label>
 								<Input
@@ -581,18 +690,26 @@ function InstallmentPlansPage() {
 									placeholder="e.g. 30"
 									value={form.defaultIntervalDays}
 									onChange={(e) =>
-										setForm((f) => ({ ...f, defaultIntervalDays: e.target.value }))
+										setForm((f) => ({
+											...f,
+											defaultIntervalDays: e.target.value,
+										}))
 									}
 									required
 									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 								/>
-								<p className="text-xs text-brand-secondary-1 mt-1">Services can override this.</p>
+								<p className="text-xs text-brand-secondary-1 mt-1">
+									Services can override this.
+								</p>
 							</div>
 						</div>
 
 						{/* Price Premium */}
 						<div>
-							<label htmlFor="ip-premium" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="ip-premium"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Price Premium (%)
 							</label>
 							<Input
@@ -609,13 +726,17 @@ function InstallmentPlansPage() {
 								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 							/>
 							<p className="text-xs text-brand-secondary-1 mt-1">
-								Markup added to the base price when this plan is selected. 0 = no premium.
+								Markup added to the base price when this plan is selected. 0 = no
+								premium.
 							</p>
 						</div>
 
 						{/* Description */}
 						<div>
-							<label htmlFor="ip-description" className="block text-sm font-medium text-brand-primary-1">
+							<label
+								htmlFor="ip-description"
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Description
 							</label>
 							<Textarea
@@ -669,8 +790,8 @@ function InstallmentPlansPage() {
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"
 									: editingId
-									? "Save Changes"
-									: "Add Plan"}
+										? "Save Changes"
+										: "Add Plan"}
 							</button>
 						</div>
 					</form>
@@ -690,7 +811,9 @@ function InstallmentPlansPage() {
 			>
 				<DialogContent className="sm:max-w-2xl rounded-2xl bg-white p-6">
 					<DialogHeader>
-						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1 mb-4">Deactivate Installment Plan</DialogTitle>
+						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1 mb-4">
+							Deactivate Installment Plan
+						</DialogTitle>
 						<DialogDescription className="text-sm text-brand-secondary-1">
 							Are you sure you want to deactivate{" "}
 							<strong>{deactivateTarget?.name}</strong>?
@@ -704,7 +827,8 @@ function InstallmentPlansPage() {
 					)}
 
 					<p className="text-sm text-brand-secondary-1">
-						Inactive plans are hidden from the service form. Existing installment schedules are not affected.
+						Inactive plans are hidden from the service form. Existing installment
+						schedules are not affected.
 					</p>
 
 					<DialogFooter>
