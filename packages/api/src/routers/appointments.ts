@@ -183,6 +183,7 @@ export const appointmentsRouter = {
       z.object({
         organizationId: z.string().uuid(),
         status: statusSchema.optional(),
+        statuses: z.array(statusSchema).optional(),
         startFrom: z.string().datetime().optional(),
         startTo: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(200).optional(),
@@ -206,6 +207,7 @@ export const appointmentsRouter = {
       const items = await listAppointmentsForUser(context.tenantDb, {
         userId,
         status: input.status,
+        statuses: input.statuses,
         startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
         startTo: input.startTo ? new Date(input.startTo) : undefined,
         limit: input.limit,

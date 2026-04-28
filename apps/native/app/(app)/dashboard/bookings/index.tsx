@@ -111,54 +111,67 @@ export default function BookingsScreen() {
 
 	// ─── API Queries ──────────────────────────────────────────────
 
+	// Single query: fetch the user's bookings across the relevant statuses,
+	// then split client-side by start time. This avoids two queries with
+	// overlapping coverage and makes "cancelled-future" / "pending" bookings
+	// reachable in either list.
 	const {
-		data: upcomingBookings,
-		isPending: upcomingLoading,
-		isError: upcomingError,
+		data: bookings,
+		isPending: bookingsLoading,
+		isError: bookingsError,
 	} = useQuery({
 		...orpc.appointments.listForUser.queryOptions({
 			input: {
 				organizationId,
-				status: "confirmed",
-				startFrom: new Date().toISOString(),
-				limit: 10,
+				statuses: [
+					"pending",
+					"confirmed",
+					"completed",
+					"cancelled",
+					"no-show",
+				],
+				limit: 100,
 			},
 		}),
 		enabled: !!organizationId,
 	});
 
-	const {
-		data: pastBookings,
-		isPending: pastLoading,
-		isError: pastError,
-	} = useQuery({
-		...orpc.appointments.listForUser.queryOptions({
-			input: {
-				organizationId,
-				startTo: new Date().toISOString(),
-				limit: 10,
-			},
-		}),
-		enabled: !!organizationId,
-	});
+	const upcomingLoading = bookingsLoading;
+	const pastLoading = bookingsLoading;
+	const upcomingError = bookingsError;
+	const pastError = bookingsError;
 
 	// ─── Derived Data ─────────────────────────────────────────────
 
-	const upcomingList = useMemo(() => {
-		return (upcomingBookings ?? []).filter(
-			(apt: any) =>
-				apt.status === "confirmed" || apt.status === "pending",
-		);
-	}, [upcomingBookings]);
-
-	const pastList = useMemo(() => {
-		return (pastBookings ?? []).filter(
-			(apt: any) =>
-				apt.status === "completed" ||
-				apt.status === "cancelled" ||
-				apt.status === "no-show",
-		);
-	}, [pastBookings]);
+	const { upcomingList, pastList } = useMemo(() => {
+		const now = Date.now();
+		const all = (bookings ?? []) as any[];
+		const upcoming = all
+			.filter(
+				(apt) =>
+					(apt.status === "confirmed" || apt.status === "pending") &&
+					new Date(apt.startTime).getTime() >= now,
+			)
+			.sort(
+				(a, b) =>
+					new Date(a.startTime).getTime() -
+					new Date(b.startTime).getTime(),
+			);
+		const past = all
+			.filter(
+				(apt) =>
+					apt.status === "completed" ||
+					apt.status === "cancelled" ||
+					apt.status === "no-show" ||
+					new Date(apt.startTime).getTime() < now,
+			)
+			.sort(
+				(a, b) =>
+					new Date(b.startTime).getTime() -
+					new Date(a.startTime).getTime(),
+			);
+		return { upcomingList: upcoming, pastList: past };
+	}, [bookings]);
 
 	// ─── Pull to Refresh ──────────────────────────────────────────
 
@@ -290,7 +303,12 @@ export default function BookingsScreen() {
 											className="mb-2 font-bold text-lg"
 											style={{ color: colors.primary[1] }}
 										>
-											{booking.type || "Appointment"}
+											{booking.serviceName ||
+												(booking.type === "semi-private"
+													? "Semi-Private Session"
+													: booking.type === "private"
+														? "Private Session"
+														: "Appointment")}
 										</Text>
 
 										{/* Date */}
@@ -440,7 +458,12 @@ export default function BookingsScreen() {
 											className="mb-2 font-bold text-lg"
 											style={{ color: colors.primary[1] }}
 										>
-											{booking.type || "Appointment"}
+											{booking.serviceName ||
+												(booking.type === "semi-private"
+													? "Semi-Private Session"
+													: booking.type === "private"
+														? "Private Session"
+														: "Appointment")}
 										</Text>
 
 										{/* Date */}

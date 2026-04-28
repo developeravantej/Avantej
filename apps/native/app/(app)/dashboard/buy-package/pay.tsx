@@ -9,6 +9,7 @@ import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { authClient } from "@/lib/auth-client";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
 
 const steps = [
@@ -46,8 +47,8 @@ export default function PayScreen() {
 	const taxAmount = subtotal * (taxRatePercent / 100);
 	const total = subtotal + taxAmount;
 
-	// All money is in cents on context/API; format for display in dollars
-	const fmt = (cents: number) => (cents / 100).toFixed(2);
+	// All money is in cents on context/API; formatMoney() handles symbol + decimals
+	const fmt = (cents: number) => formatMoney(cents);
 
 	const handlePayment = async () => {
 		if (!state.packageId) return;
@@ -312,7 +313,7 @@ export default function PayScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									${fmt(subtotal)}
+									{fmt(subtotal)}
 								</Text>
 							</View>
 
@@ -349,7 +350,7 @@ export default function PayScreen() {
 									className="mt-1 font-semibold text-sm"
 									style={{ color: colors.primary[1] }}
 								>
-									First installment: $
+									First installment:{" "}
 									{fmt(
 										subtotal /
 											(state.paymentPlanType === "half" ? 2 : 4),
@@ -372,7 +373,7 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.primary[1] }}
 								>
-									${fmt(subtotal)}
+									{fmt(subtotal)}
 								</Text>
 							</View>
 							<View className="mb-3 flex-row justify-between">
@@ -386,7 +387,7 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.primary[1] }}
 								>
-									${fmt(taxAmount)}
+									{fmt(taxAmount)}
 								</Text>
 							</View>
 							<View className="flex-row justify-between border-secondary-3 border-t pt-3">
@@ -400,7 +401,7 @@ export default function PayScreen() {
 									className="font-bold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									${fmt(total)}
+									{fmt(total)}
 								</Text>
 							</View>
 						</View>
@@ -445,7 +446,7 @@ export default function PayScreen() {
 							</Text>
 						) : (
 							<Text className="font-semibold text-base text-primary-2">
-								Pay ${fmt(total)}
+								Pay {fmt(total)}
 							</Text>
 						)}
 					</TouchableOpacity>

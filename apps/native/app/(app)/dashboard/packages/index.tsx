@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
@@ -14,6 +13,7 @@ import {
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
@@ -71,7 +71,6 @@ function SkeletonCard() {
 }
 
 export default function PackagesScreen() {
-	const navigation = useNavigation();
 	const { organizationId } = useOrganization();
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 	const [refreshing, setRefreshing] = useState(false);
@@ -94,55 +93,6 @@ export default function PackagesScreen() {
 		await refetch();
 		setRefreshing(false);
 	}, [refetch]);
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "explore" ||
-								r.name === "bookings" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({
-					tabBarStyle: { display: "none" },
-				});
-			}
-		}, [navigation]),
-	);
 
 	const packages = (packageInstances ?? []).map((inst: any) => ({
 		id: inst.id,
@@ -361,7 +311,7 @@ export default function PackagesScreen() {
 													className="ml-1 font-semibold text-sm"
 													style={{ color: colors.primary[1] }}
 												>
-													${pkg.price.toFixed(2)}
+													{formatMoney(pkg.price)}
 												</Text>
 											</View>
 										</View>

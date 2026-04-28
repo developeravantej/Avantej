@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
@@ -279,7 +280,7 @@ export default function PlanScreen() {
 												className="font-semibold text-sm"
 												style={{ color: colors.primary[1] }}
 											>
-												${(amountPerInstallment / 100).toFixed(2)}
+												{formatMoney(amountPerInstallment)}
 											</Text>
 										</View>
 										<View className="mt-1 flex-row items-center justify-between">

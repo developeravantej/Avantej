@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
-import { router, useNavigation } from "expo-router";
-import { useCallback, useState } from "react";
+import { router } from "expo-router";
+import { useState } from "react";
 import {
 	Image,
 	ScrollView,
@@ -15,6 +14,7 @@ import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const steps = [
@@ -43,57 +43,8 @@ function SkeletonCard() {
 }
 
 export default function SetupScreen() {
-	const navigation = useNavigation();
 	const { organizationId } = useOrganization();
 	const { state, update } = usePurchaseFlow();
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "explore" ||
-								r.name === "bookings" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({
-					tabBarStyle: { display: "none" },
-				});
-			}
-		}, [navigation]),
-	);
 
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		state.categoryId,
@@ -453,9 +404,7 @@ export default function SetupScreen() {
 											className="font-semibold text-base"
 											style={{ color: colors.primary[1] }}
 										>
-											{service.price != null
-												? `$${(service.price / 100).toFixed(2)}`
-												: "—"}
+											{service.price != null ? formatMoney(service.price) : "—"}
 										</Text>
 										{service.expiryDays && (
 											<Text

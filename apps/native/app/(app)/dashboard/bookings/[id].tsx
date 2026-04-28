@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useHideTabBar } from "@/hooks/useHideTabBar";
 import {
 	ActivityIndicator,
 	Alert,
@@ -70,8 +69,7 @@ function formatStatusLabel(status: string): string {
 }
 
 export default function BookingDetailScreen() {
-	const navigation = useNavigation();
-	const hideTabBarRef = useRef(false);
+	useHideTabBar();
 	const params = useLocalSearchParams<{ id: string }>();
 	const appointmentId = params.id ?? "";
 	const { organizationId } = useOrganization();
@@ -86,6 +84,23 @@ export default function BookingDetailScreen() {
 			input: { organizationId, id: appointmentId },
 		}),
 	);
+
+	const serviceId = (appointment as any)?.serviceId ?? null;
+	const packageInstanceId = (appointment as any)?.packageInstanceId ?? null;
+
+	const { data: service } = useQuery({
+		...orpc.services.getById.queryOptions({
+			input: { organizationId, id: serviceId! },
+		}),
+		enabled: !!serviceId && !!organizationId,
+	});
+
+	const { data: pkg } = useQuery({
+		...orpc.packageInstances.getById.queryOptions({
+			input: { organizationId, id: packageInstanceId! },
+		}),
+		enabled: !!packageInstanceId && !!organizationId,
+	});
 
 	const cancelMutation = useMutation({
 		mutationFn: () =>
@@ -117,108 +132,6 @@ export default function BookingDetailScreen() {
 			],
 		);
 	};
-
-	// Helper function to find Tabs navigator
-	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
-		if (depth > 5) return null;
-		const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-		if (!parent) return null;
-		try {
-			const state = (
-				parent as {
-					getState?: () => {
-						type?: string;
-						routes?: Array<{ name?: string }>;
-					};
-				}
-			)?.getState?.();
-			if (
-				state?.type === "tab" ||
-				state?.routes?.some(
-					(r) =>
-						r.name === "index" ||
-						r.name === "explore" ||
-						r.name === "bookings" ||
-						r.name === "profile",
-				)
-			) {
-				return parent;
-			}
-		} catch {
-			// Continue searching
-		}
-		return findTabsNavigator(parent, depth + 1);
-	}, []);
-
-	const hideTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator) {
-			hideTabBarRef.current = true;
-			(
-				tabsNavigator as {
-					setOptions?: (options: { tabBarStyle: { display: string } }) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: { display: "none" },
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	const showTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator && hideTabBarRef.current) {
-			hideTabBarRef.current = false;
-			(
-				tabsNavigator as {
-					setOptions?: (options: {
-						tabBarStyle: {
-							backgroundColor: string;
-							borderTopColor: string;
-							borderTopWidth: number;
-							height: number;
-							paddingBottom: number;
-							paddingTop: number;
-						};
-					}) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: {
-					backgroundColor: colors.primary[2],
-					borderTopColor: colors.secondary[3],
-					borderTopWidth: 1,
-					height: 80,
-					paddingBottom: 8,
-					paddingTop: 8,
-				},
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	// Hide tab bar when screen is focused
-	useFocusEffect(
-		useCallback(() => {
-			hideTabBar();
-			const timer = setTimeout(() => {
-				hideTabBar();
-			}, 50);
-			return () => {
-				clearTimeout(timer);
-				showTabBar();
-			};
-		}, [hideTabBar, showTabBar]),
-	);
-
-	// Also hide on mount
-	useEffect(() => {
-		hideTabBar();
-		const timer = setTimeout(() => {
-			hideTabBar();
-		}, 100);
-		return () => {
-			clearTimeout(timer);
-			showTabBar();
-		};
-	}, [hideTabBar, showTabBar]);
 
 	// Loading state
 	if (isLoading) {
@@ -258,17 +171,20 @@ export default function BookingDetailScreen() {
 	const isUpcoming =
 		appointment.status === "confirmed" &&
 		new Date(appointment.startTime) > new Date();
+	const svc = service as any;
+	const pkgInstance = pkg as any;
 	const title =
-		appointment.bookingNumber || appointment.type || "Appointment";
+		svc?.name ||
+		(appointment.type === "semi-private"
+			? "Semi-Private Session"
+			: appointment.type === "private"
+				? "Private Session"
+				: "Appointment");
 	const durationText = appointment.duration
 		? `${appointment.duration} minutes`
 		: null;
-	const price =
-		appointment.sessionTotal != null
-			? `$${Number(appointment.sessionTotal).toFixed(2)}`
-			: appointment.pricePerClient != null
-				? `$${Number(appointment.pricePerClient).toFixed(2)}`
-				: null;
+	const typeLabel =
+		appointment.type === "semi-private" ? "Semi-Private" : "Private";
 
 	return (
 		<Container>
@@ -330,7 +246,13 @@ export default function BookingDetailScreen() {
 						</View>
 					</View>
 
-					{/* Booking Info Cards */}
+					{/* WHEN */}
+					<Text
+						className="mb-2 font-bold text-xs uppercase tracking-wider"
+						style={{ color: colors.secondary[1] }}
+					>
+						When
+					</Text>
 					<View className="mb-4 flex-row">
 						<View className="mr-2 flex-1 rounded-xl bg-white p-3">
 							<View className="mb-1 flex-row items-center">
@@ -379,103 +301,177 @@ export default function BookingDetailScreen() {
 						</View>
 					</View>
 
-					<View className="mb-4 flex-row">
-						{durationText && (
-							<View className="mr-2 flex-1 rounded-xl bg-white p-3">
-								<View className="mb-1 flex-row items-center">
-									<Ionicons
-										name="hourglass-outline"
-										size={16}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="ml-1 text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Duration
-									</Text>
-								</View>
+					{durationText && (
+						<View className="mb-4 rounded-xl bg-white p-3">
+							<View className="mb-1 flex-row items-center">
+								<Ionicons
+									name="hourglass-outline"
+									size={16}
+									color={colors.secondary[1]}
+								/>
 								<Text
-									className="font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
+									className="ml-1 text-xs"
+									style={{ color: colors.secondary[1] }}
 								>
-									{durationText}
+									Duration
 								</Text>
 							</View>
-						)}
-						{price && (
-							<View
-								className={`flex-1 rounded-xl bg-white p-3 ${durationText ? "ml-2" : "mr-2"}`}
+							<Text
+								className="font-semibold text-sm"
+								style={{ color: colors.primary[1] }}
 							>
-								<View className="mb-1 flex-row items-center">
+								{durationText}
+							</Text>
+						</View>
+					)}
+
+					{/* SERVICE */}
+					{(svc?.name || appointment.type) && (
+						<>
+							<Text
+								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
+								style={{ color: colors.secondary[1] }}
+							>
+								Service
+							</Text>
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<Text
+									className="mb-1 font-semibold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{svc?.name ?? title}
+								</Text>
+								<View className="flex-row flex-wrap items-center gap-2">
+									<View
+										className="rounded-full px-2 py-1"
+										style={{ backgroundColor: colors.secondary[3] }}
+									>
+										<Text
+											className="font-medium text-xs"
+											style={{ color: colors.primary[1] }}
+										>
+											{typeLabel}
+										</Text>
+									</View>
+									{svc?.schedulingType === "class_slot" && (
+										<View
+											className="rounded-full px-2 py-1"
+											style={{ backgroundColor: colors.secondary[3] }}
+										>
+											<Text
+												className="font-medium text-xs"
+												style={{ color: colors.primary[1] }}
+											>
+												Class slot
+											</Text>
+										</View>
+									)}
+								</View>
+								{svc?.description && (
+									<Text
+										className="mt-2 text-sm leading-5"
+										style={{ color: colors.secondary[1] }}
+									>
+										{svc.description}
+									</Text>
+								)}
+							</View>
+						</>
+					)}
+
+					{/* PACKAGE */}
+					{pkgInstance && (
+						<>
+							<Text
+								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
+								style={{ color: colors.secondary[1] }}
+							>
+								Package
+							</Text>
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<View className="mb-2 flex-row items-center">
 									<Ionicons
-										name="cash-outline"
+										name="cube-outline"
 										size={16}
 										color={colors.secondary[1]}
 									/>
 									<Text
-										className="ml-1 text-xs"
-										style={{ color: colors.secondary[1] }}
+										className="ml-1 flex-1 font-semibold text-sm"
+										style={{ color: colors.primary[1] }}
 									>
-										Price
+										{svc?.name ?? "Package"}
 									</Text>
 								</View>
-								<Text
-									className="font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									{price}
-								</Text>
-							</View>
-						)}
-					</View>
-
-					{/* Credits Used */}
-					{appointment.creditsUsed != null &&
-						Number(appointment.creditsUsed) > 0 && (
-							<View className="mb-4 flex-row">
-								<View className="mr-2 flex-1 rounded-xl bg-white p-3">
-									<View className="mb-1 flex-row items-center">
+								<View className="flex-row items-center justify-between">
+									<View className="flex-row items-center">
 										<Ionicons
 											name="star-outline"
-											size={16}
+											size={14}
 											color={colors.secondary[1]}
 										/>
 										<Text
 											className="ml-1 text-xs"
 											style={{ color: colors.secondary[1] }}
 										>
-											Credits Used
+											{pkgInstance.creditsRemaining ?? 0} of{" "}
+											{pkgInstance.creditsTotal ?? 0} credits remaining
 										</Text>
 									</View>
+									{appointment.creditsUsed != null &&
+										Number(appointment.creditsUsed) > 0 && (
+											<Text
+												className="text-xs"
+												style={{ color: colors.primary[1] }}
+											>
+												{Number(appointment.creditsUsed)} used
+											</Text>
+										)}
+								</View>
+								{pkgInstance.expiresAt && (
 									<Text
-										className="font-semibold text-sm"
+										className="mt-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Expires{" "}
+										{new Date(pkgInstance.expiresAt).toLocaleDateString(
+											"en-US",
+											{
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											},
+										)}
+									</Text>
+								)}
+							</View>
+						</>
+					)}
+
+					{/* LOCATION */}
+					{appointment.location && (
+						<>
+							<Text
+								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
+								style={{ color: colors.secondary[1] }}
+							>
+								Location
+							</Text>
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<View className="flex-row items-center">
+									<Ionicons
+										name="location-outline"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-2 flex-1 text-sm"
 										style={{ color: colors.primary[1] }}
 									>
-										{Number(appointment.creditsUsed)}
+										{appointment.location}
 									</Text>
 								</View>
-								<View className="ml-2 flex-1" />
 							</View>
-						)}
-
-					{/* Location Card */}
-					{appointment.location && (
-						<View className="mb-4 rounded-xl bg-white p-4">
-							<View className="flex-row items-center">
-								<Ionicons
-									name="location-outline"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-								<Text
-									className="ml-2 flex-1 text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									{appointment.location}
-								</Text>
-							</View>
-						</View>
+						</>
 					)}
 
 					{/* Cancellation Info */}

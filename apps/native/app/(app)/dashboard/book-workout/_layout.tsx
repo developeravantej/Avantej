@@ -1,95 +1,9 @@
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Stack } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
 import { BookingFlowProvider } from "@/contexts/booking-flow-context";
-import { colors } from "@/lib/colors";
 
+// Tab bar is hidden via tabBarStyle on the parent <Tabs.Screen name="book-workout">
+// in dashboard/_layout.tsx — no dynamic hide needed here.
 export default function BookWorkoutLayout() {
-	const navigation = useNavigation();
-	const hideTabBarRef = useRef(false);
-
-	// Helper function to find Tabs navigator
-	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
-		if (depth > 5) return null;
-		const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-		if (!parent) return null;
-		try {
-			const state = (
-				parent as {
-					getState?: () => { type?: string; routes?: Array<{ name?: string }> };
-				}
-			)?.getState?.();
-			if (
-				state?.type === "tab" ||
-				state?.routes?.some(
-					(r) =>
-						r.name === "index" ||
-						r.name === "calendar" ||
-						r.name === "notifications" ||
-						r.name === "profile",
-				)
-			) {
-				return parent;
-			}
-		} catch {
-			// Continue searching
-		}
-		return findTabsNavigator(parent, depth + 1);
-	}, []);
-
-	const hideTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator && !hideTabBarRef.current) {
-			hideTabBarRef.current = true;
-			tabsNavigator.setOptions({
-				tabBarStyle: { display: "none" },
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	const showTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator && hideTabBarRef.current) {
-			hideTabBarRef.current = false;
-			tabsNavigator.setOptions({
-				tabBarStyle: {
-					backgroundColor: colors.primary[2],
-					borderTopColor: colors.secondary[3],
-					borderTopWidth: 1,
-					height: 80,
-					paddingBottom: 8,
-					paddingTop: 8,
-				},
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	// Hide tab bar when any screen in this stack is focused
-	useFocusEffect(
-		useCallback(() => {
-			hideTabBar();
-			return () => {
-				// Don't restore here - only when completely leaving the stack
-			};
-		}, [hideTabBar]),
-	);
-
-	// Also hide on mount and set up navigation listener
-	useEffect(() => {
-		hideTabBar();
-
-		// Listen to navigation state changes
-		const unsubscribe = navigation.addListener("state", () => {
-			hideTabBar();
-		});
-
-		return () => {
-			unsubscribe();
-			// Only restore when component unmounts (leaving the entire stack)
-			showTabBar();
-		};
-	}, [navigation, hideTabBar, showTabBar]);
-
 	return (
 		<BookingFlowProvider>
 			<Stack

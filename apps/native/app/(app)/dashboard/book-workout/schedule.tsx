@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
-import { router, useNavigation } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { router } from "expo-router";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Image,
@@ -71,7 +70,6 @@ const formatTime = (isoString: string): string => {
 };
 
 export default function ScheduleScreen() {
-	const navigation = useNavigation();
 	const { organizationId } = useOrganization();
 	const { state, update } = useBookingFlow();
 
@@ -198,62 +196,6 @@ export default function ScheduleScreen() {
 		}
 		router.push("./review");
 	};
-
-	useFocusEffect(
-		useCallback(() => {
-			// Hide tab bar when this screen is focused
-			// Try to find the Tabs navigator by going up the navigation tree
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null; // Prevent infinite loop
-
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					// Check if this is a Tabs navigator by looking for tab-specific routes
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({
-					tabBarStyle: { display: "none" },
-				});
-			}
-			// Don't restore in cleanup - layout handles it when leaving the entire stack
-		}, [navigation]),
-	);
 
 	return (
 		<Container>

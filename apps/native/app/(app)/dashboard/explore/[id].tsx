@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
 import {
 	ActivityIndicator,
 	Image,
@@ -12,17 +10,18 @@ import {
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useHideTabBar } from "@/hooks/useHideTabBar";
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
 	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
 
 export default function ServiceDetailScreen() {
-	const navigation = useNavigation();
-	const hideTabBarRef = useRef(false);
+	useHideTabBar();
 	const { organizationId } = useOrganization();
 	const params = useLocalSearchParams<{ id: string }>();
 	const serviceId = params.id;
@@ -53,102 +52,6 @@ export default function ServiceDetailScreen() {
 	const related = (relatedServices ?? [])
 		.filter((s: any) => s.id !== serviceId)
 		.slice(0, 4);
-
-	// Tab bar hiding
-	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
-		if (depth > 5) return null;
-		const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-		if (!parent) return null;
-		try {
-			const state = (
-				parent as {
-					getState?: () => {
-						type?: string;
-						routes?: Array<{ name?: string }>;
-					};
-				}
-			)?.getState?.();
-			if (
-				state?.type === "tab" ||
-				state?.routes?.some(
-					(r) =>
-						r.name === "index" ||
-						r.name === "explore" ||
-						r.name === "bookings" ||
-						r.name === "profile",
-				)
-			) {
-				return parent;
-			}
-		} catch {
-			// Continue searching
-		}
-		return findTabsNavigator(parent, depth + 1);
-	}, []);
-
-	const hideTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator) {
-			hideTabBarRef.current = true;
-			(
-				tabsNavigator as {
-					setOptions?: (options: { tabBarStyle: { display: string } }) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: { display: "none" },
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	const showTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator && hideTabBarRef.current) {
-			hideTabBarRef.current = false;
-			(
-				tabsNavigator as {
-					setOptions?: (options: {
-						tabBarStyle: {
-							backgroundColor: string;
-							borderTopColor: string;
-							borderTopWidth: number;
-							height: number;
-							paddingBottom: number;
-							paddingTop: number;
-						};
-					}) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: {
-					backgroundColor: colors.primary[2],
-					borderTopColor: colors.secondary[3],
-					borderTopWidth: 1,
-					height: 80,
-					paddingBottom: 8,
-					paddingTop: 8,
-				},
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	useFocusEffect(
-		useCallback(() => {
-			hideTabBar();
-			const timer = setTimeout(() => hideTabBar(), 50);
-			return () => {
-				clearTimeout(timer);
-				showTabBar();
-			};
-		}, [hideTabBar, showTabBar]),
-	);
-
-	useEffect(() => {
-		hideTabBar();
-		const timer = setTimeout(() => hideTabBar(), 100);
-		return () => {
-			clearTimeout(timer);
-			showTabBar();
-		};
-	}, [hideTabBar, showTabBar]);
 
 	const handleBookNow = () => {
 		if (!service) return;
@@ -264,7 +167,7 @@ export default function ServiceDetailScreen() {
 									className="font-bold text-2xl"
 									style={{ color: "#2563EB" }}
 								>
-									${svc.price ?? svc.pricePerSession ?? 0}
+									{formatMoney(svc.price)}
 								</Text>
 								<Text
 									className="ml-1 text-sm"
@@ -380,7 +283,7 @@ export default function ServiceDetailScreen() {
 											className="text-sm"
 											style={{ color: colors.secondary[1] }}
 										>
-											${relSvc.price ?? relSvc.pricePerSession ?? 0} /{" "}
+											{formatMoney(relSvc.price)} /{" "}
 											{relSvc.type === "private" ? "session" : "class"}
 										</Text>
 									</View>

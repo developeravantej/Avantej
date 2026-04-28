@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
 	RefreshControl,
 	ScrollView,
@@ -88,8 +87,6 @@ function SkeletonNotification() {
 }
 
 export default function NotificationsScreen() {
-	const navigation = useNavigation();
-	const hideTabBarRef = useRef(false);
 	const { organizationId } = useOrganization();
 	const queryClient = useQueryClient();
 	const [refreshing, setRefreshing] = useState(false);
@@ -124,102 +121,6 @@ export default function NotificationsScreen() {
 		await refetch();
 		setRefreshing(false);
 	}, [refetch]);
-
-	// Tab bar hiding
-	const findTabsNavigator = useCallback((nav: unknown, depth = 0): unknown => {
-		if (depth > 5) return null;
-		const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-		if (!parent) return null;
-		try {
-			const state = (
-				parent as {
-					getState?: () => {
-						type?: string;
-						routes?: Array<{ name?: string }>;
-					};
-				}
-			)?.getState?.();
-			if (
-				state?.type === "tab" ||
-				state?.routes?.some(
-					(r) =>
-						r.name === "index" ||
-						r.name === "explore" ||
-						r.name === "bookings" ||
-						r.name === "profile",
-				)
-			) {
-				return parent;
-			}
-		} catch {
-			// Continue searching
-		}
-		return findTabsNavigator(parent, depth + 1);
-	}, []);
-
-	const hideTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator) {
-			hideTabBarRef.current = true;
-			(
-				tabsNavigator as {
-					setOptions?: (options: { tabBarStyle: { display: string } }) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: { display: "none" },
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	const showTabBar = useCallback(() => {
-		const tabsNavigator = findTabsNavigator(navigation);
-		if (tabsNavigator && hideTabBarRef.current) {
-			hideTabBarRef.current = false;
-			(
-				tabsNavigator as {
-					setOptions?: (options: {
-						tabBarStyle: {
-							backgroundColor: string;
-							borderTopColor: string;
-							borderTopWidth: number;
-							height: number;
-							paddingBottom: number;
-							paddingTop: number;
-						};
-					}) => void;
-				}
-			)?.setOptions?.({
-				tabBarStyle: {
-					backgroundColor: colors.primary[2],
-					borderTopColor: colors.secondary[3],
-					borderTopWidth: 1,
-					height: 80,
-					paddingBottom: 8,
-					paddingTop: 8,
-				},
-			});
-		}
-	}, [navigation, findTabsNavigator]);
-
-	useFocusEffect(
-		useCallback(() => {
-			hideTabBar();
-			const timer = setTimeout(() => hideTabBar(), 50);
-			return () => {
-				clearTimeout(timer);
-				showTabBar();
-			};
-		}, [hideTabBar, showTabBar]),
-	);
-
-	useEffect(() => {
-		hideTabBar();
-		const timer = setTimeout(() => hideTabBar(), 100);
-		return () => {
-			clearTimeout(timer);
-			showTabBar();
-		};
-	}, [hideTabBar, showTabBar]);
 
 	const handleMarkRead = async (notifId: string) => {
 		try {

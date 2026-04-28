@@ -4,6 +4,7 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
@@ -282,7 +283,7 @@ export default function DoneScreen() {
 									className="font-bold text-lg"
 									style={{ color: colors.primary[1] }}
 								>
-									${(total / 100).toFixed(2)}
+									{formatMoney(total)}
 								</Text>
 							</View>
 						</View>

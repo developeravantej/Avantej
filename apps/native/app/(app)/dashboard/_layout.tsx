@@ -85,34 +85,45 @@ export default function DashboardLayout() {
 						),
 					}}
 				/>
+				{/* Hidden tabs: not in the tab bar, AND hide the tab bar itself
+				    while these routes are focused. Declared here (not dynamically
+				    via setOptions from a child layout) because the per-screen
+				    tabBarStyle override is the most reliable way Expo Router /
+				    React Navigation hides the bar — no race conditions, no
+				    safe-area drift on return. */}
 				<Tabs.Screen
 					name="book-workout"
 					options={{
-						href: null, // Hide from tab bar
+						href: null,
+						tabBarStyle: { display: "none" },
 					}}
 				/>
 				<Tabs.Screen
 					name="notifications"
 					options={{
-						href: null, // Hide from tab bar
+						href: null,
+						tabBarStyle: { display: "none" },
 					}}
 				/>
 				<Tabs.Screen
 					name="buy-package"
 					options={{
-						href: null, // Hide from tab bar
+						href: null,
+						tabBarStyle: { display: "none" },
 					}}
 				/>
 				<Tabs.Screen
 					name="packages"
 					options={{
-						href: null, // Hide from tab bar
+						href: null,
+						tabBarStyle: { display: "none" },
 					}}
 				/>
 				<Tabs.Screen
 					name="calendar"
 					options={{
-						href: null, // Hide from tab bar
+						href: null,
+						tabBarStyle: { display: "none" },
 					}}
 				/>
 			</Tabs>

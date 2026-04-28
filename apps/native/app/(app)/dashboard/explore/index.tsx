@@ -14,6 +14,7 @@ import { TabContainer, useTabBarHeight } from "@/components/container";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
@@ -234,7 +235,7 @@ export default function ExploreScreen() {
 												</Text>
 												<View className="flex-row items-baseline">
 													<Text className="font-bold text-lg text-primary-1">
-														${service.price ?? service.pricePerSession ?? 0}
+														{formatMoney(service.price)}
 													</Text>
 													<Text
 														className="ml-1 text-sm"
@@ -322,10 +323,7 @@ export default function ExploreScreen() {
 												</Text>
 												<View className="flex-row items-baseline">
 													<Text className="font-bold text-lg text-primary-1">
-														$
-														{service.price ??
-															service.pricePerSession ??
-															0}
+														{formatMoney(service.price)}
 													</Text>
 													<Text
 														className="ml-1 text-sm"

@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	RefreshControl,
@@ -18,7 +17,6 @@ import { colors } from "@/lib/colors";
 import { orpc } from "@/utils/orpc";
 
 export default function CalendarScreen() {
-	const navigation = useNavigation();
 	const { organizationId } = useOrganization();
 
 	const [selectedDate, setSelectedDate] = useState<string>(
@@ -93,57 +91,6 @@ export default function CalendarScreen() {
 				status: apt.status,
 			}));
 	}, [appointments, selectedDate]);
-
-	useFocusEffect(
-		useCallback(() => {
-			// Hide tab bar when this screen is focused
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "explore" ||
-								r.name === "bookings" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({
-					tabBarStyle: { display: "none" },
-				});
-			}
-			// Don't restore in cleanup - layout handles it when leaving the entire stack
-		}, [navigation]),
-	);
 
 	return (
 		<Container>

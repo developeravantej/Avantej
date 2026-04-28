@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import * as IntentLauncher from "expo-intent-launcher";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -46,7 +45,6 @@ const DOCUMENT_ASSETS: Record<
 };
 
 export default function TermsScreen() {
-	const navigation = useNavigation();
 	const params = useLocalSearchParams<{ pdfUrl?: string; document?: string }>();
 	const remotePdfUrl = params.pdfUrl ?? TERMS_PDF_URL;
 	const documentId = params.document ?? "agreement";
@@ -137,52 +135,6 @@ export default function TermsScreen() {
 	}, [documentId, documentConfig, isNative]);
 
 	const showPdf = Boolean(pdfViewSource || remotePdfUrl);
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-		}, [navigation]),
-	);
 
 	// Prefer local PDF (as HTML with base64); fallback to remote URL
 	const webViewSource = pdfViewSource

@@ -13,6 +13,7 @@
 
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
@@ -50,9 +51,14 @@ export type ListAppointmentsParams = {
 export type ListAppointmentsForUserParams = {
   userId: string;
   status?: string;
+  statuses?: string[];
   startFrom?: Date;
   startTo?: Date;
   limit?: number;
+};
+
+export type AppointmentForUser = typeof appointments.$inferSelect & {
+  serviceName: string | null;
 };
 
 export type CreateAppointmentParams = {
@@ -170,11 +176,13 @@ export async function listAppointments(
 export async function listAppointmentsForUser(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   params: ListAppointmentsForUserParams
-): Promise<(typeof appointments.$inferSelect)[]> {
-  const { userId, status, startFrom, startTo, limit = 50 } = params;
+): Promise<AppointmentForUser[]> {
+  const { userId, status, statuses, startFrom, startTo, limit = 50 } = params;
 
   const conditions = [eq(appointments.userId, userId)];
-  if (status) {
+  if (statuses && statuses.length > 0) {
+    conditions.push(inArray(appointments.status, statuses));
+  } else if (status) {
     conditions.push(eq(appointments.status, status));
   }
   if (startFrom) {
@@ -184,11 +192,21 @@ export async function listAppointmentsForUser(
     conditions.push(lte(appointments.startTime, startTo));
   }
 
-  return tenantDb.query.appointments.findMany({
-    where: and(...conditions),
-    orderBy: [appointments.startTime],
-    limit: Math.min(limit, 200),
-  });
+  const joined = await tenantDb
+    .select({
+      appointment: appointments,
+      serviceName: services.name,
+    })
+    .from(appointments)
+    .leftJoin(services, eq(appointments.serviceId, services.id))
+    .where(and(...conditions))
+    .orderBy(appointments.startTime)
+    .limit(Math.min(limit, 200));
+
+  return joined.map(({ appointment, serviceName }) => ({
+    ...appointment,
+    serviceName,
+  }));
 }
 
 /**

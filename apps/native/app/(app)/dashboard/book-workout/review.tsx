@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { router, useNavigation } from "expo-router";
-import { useCallback } from "react";
+import { router } from "expo-router";
 import {
 	ActivityIndicator,
 	Alert,
@@ -42,7 +40,6 @@ const formatDateTime = (isoString: string | null): string => {
 };
 
 export default function ReviewScreen() {
-	const navigation = useNavigation();
 	const { organizationId } = useOrganization();
 	const { state } = useBookingFlow();
 	const queryClient = useQueryClient();
@@ -135,53 +132,6 @@ export default function ReviewScreen() {
 			Alert.alert("Booking Failed", detail);
 		},
 	});
-
-	useFocusEffect(
-		useCallback(() => {
-			const findTabsNavigator = (nav: unknown, depth = 0): unknown => {
-				if (depth > 5) return null;
-				const parent = (nav as { getParent?: () => unknown })?.getParent?.();
-				if (!parent) return null;
-				try {
-					const state = (
-						parent as {
-							getState?: () => {
-								type?: string;
-								routes?: Array<{ name?: string }>;
-							};
-						}
-					)?.getState?.();
-					if (
-						state?.type === "tab" ||
-						state?.routes?.some(
-							(r) =>
-								r.name === "index" ||
-								r.name === "calendar" ||
-								r.name === "notifications" ||
-								r.name === "profile",
-						)
-					) {
-						return parent;
-					}
-				} catch {
-					// Continue searching
-				}
-				return findTabsNavigator(parent, depth + 1);
-			};
-
-			const tabsNavigator = findTabsNavigator(navigation);
-			if (tabsNavigator) {
-				(
-					tabsNavigator as {
-						setOptions?: (options: {
-							tabBarStyle: { display: string };
-						}) => void;
-					}
-				)?.setOptions?.({ tabBarStyle: { display: "none" } });
-			}
-			// Don't restore in cleanup - layout handles it when leaving the entire stack
-		}, [navigation]),
-	);
 
 	return (
 		<Container>

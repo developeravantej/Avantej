@@ -11,6 +11,7 @@ import {
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
@@ -54,7 +55,7 @@ function getExpiryText(expiresAt: Date | string | null | undefined) {
 
 function fmtMoneyCents(cents: number | null | undefined): string {
 	if (cents == null) return "—";
-	return `$${(cents / 100).toFixed(2)}`;
+	return formatMoney(cents);
 }
 
 // ── Local presentational helpers ──────────────────────────────────────────────
