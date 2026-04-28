@@ -46,6 +46,9 @@ export default function PayScreen() {
 	const taxAmount = subtotal * (taxRatePercent / 100);
 	const total = subtotal + taxAmount;
 
+	// All money is in cents on context/API; format for display in dollars
+	const fmt = (cents: number) => (cents / 100).toFixed(2);
+
 	const handlePayment = async () => {
 		if (!state.packageId) return;
 
@@ -309,7 +312,7 @@ export default function PayScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									${subtotal.toFixed(2)}
+									${fmt(subtotal)}
 								</Text>
 							</View>
 
@@ -347,10 +350,10 @@ export default function PayScreen() {
 									style={{ color: colors.primary[1] }}
 								>
 									First installment: $
-									{(
+									{fmt(
 										subtotal /
-										(state.paymentPlanType === "half" ? 2 : 4)
-									).toFixed(2)}{" "}
+											(state.paymentPlanType === "half" ? 2 : 4),
+									)}{" "}
 									+ tax
 								</Text>
 							</View>
@@ -369,7 +372,7 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.primary[1] }}
 								>
-									${subtotal.toFixed(2)}
+									${fmt(subtotal)}
 								</Text>
 							</View>
 							<View className="mb-3 flex-row justify-between">
@@ -383,7 +386,7 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.primary[1] }}
 								>
-									${taxAmount.toFixed(2)}
+									${fmt(taxAmount)}
 								</Text>
 							</View>
 							<View className="flex-row justify-between border-secondary-3 border-t pt-3">
@@ -397,7 +400,7 @@ export default function PayScreen() {
 									className="font-bold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									${total.toFixed(2)}
+									${fmt(total)}
 								</Text>
 							</View>
 						</View>
@@ -442,7 +445,7 @@ export default function PayScreen() {
 							</Text>
 						) : (
 							<Text className="font-semibold text-base text-primary-2">
-								Pay ${total.toFixed(2)}
+								Pay ${fmt(total)}
 							</Text>
 						)}
 					</TouchableOpacity>

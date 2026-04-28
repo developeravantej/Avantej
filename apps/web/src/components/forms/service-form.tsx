@@ -4,7 +4,7 @@
  * - organizationId is a prop, never a form field
  * - Prices use z.number().transform((v) => Math.round(v * 100))
  * - Error display: inline <FormMessage> + toast on mutation error
- * - timePresetConfig is UI-only state; it is NOT sent to the backend (backend has no such field)
+ * - timePresetConfig is persisted on the service row as a jsonb column when schedulingType = "class_slot"
  * - schedulingType maps: UI "appointment-based" → wire "appointment"; UI "time-preset" → wire "class_slot"
  * - initialData.price comes in as dollars (data-table pre-divides by 100); zod transform converts to cents on submit
  */
@@ -274,6 +274,10 @@ export function ServiceFormDialog({
 					? values.installmentIntervalDays
 					: undefined,
 				gracePeriodDays: hasInstallmentPlan ? values.gracePeriodDays : null,
+				timePresetConfig:
+					values.schedulingType === "time-preset" && values.timePresetConfig
+						? values.timePresetConfig
+						: null,
 			};
 
 			if (mode === "edit") {
@@ -370,7 +374,7 @@ export function ServiceFormDialog({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>
+					<DialogTitle className="font-heading text-2xl">
 						{mode === "create" ? "Add New Service" : "Edit Service"}
 					</DialogTitle>
 				</DialogHeader>
@@ -387,7 +391,7 @@ export function ServiceFormDialog({
 										Service Name <span className="text-destructive">*</span>
 									</FormLabel>
 									<FormControl>
-										<Input placeholder="Enter service name" {...field} />
+										<Input className="bg-white" placeholder="Enter service name" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -407,7 +411,7 @@ export function ServiceFormDialog({
 										<select
 											{...field}
 											disabled={isLoadingCategories}
-											className="mt-1 block w-full p-2 rounded-md border border-input bg-background shadow-sm focus:border-ring focus:ring-ring sm:text-sm disabled:bg-muted disabled:cursor-not-allowed"
+											className="mt-1 block w-full px-3 py-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
 										>
 											<option value="">
 												{isLoadingCategories ? "Loading categories..." : "Select a category"}
@@ -441,7 +445,7 @@ export function ServiceFormDialog({
 												{...field}
 												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
 												onWheel={(e) => e.currentTarget.blur()}
-												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -463,7 +467,7 @@ export function ServiceFormDialog({
 												{...field}
 												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
 												onWheel={(e) => e.currentTarget.blur()}
-												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -481,6 +485,7 @@ export function ServiceFormDialog({
 									<FormItem className="flex items-center gap-2 space-y-0">
 										<FormControl>
 											<Checkbox
+												className="bg-white"
 												checked={field.value}
 												onCheckedChange={field.onChange}
 											/>
@@ -554,7 +559,7 @@ export function ServiceFormDialog({
 												{...field}
 												onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
 												onWheel={(e) => e.currentTarget.blur()}
-												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -577,7 +582,7 @@ export function ServiceFormDialog({
 												{...field}
 												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
 												onWheel={(e) => e.currentTarget.blur()}
-												className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -589,13 +594,13 @@ export function ServiceFormDialog({
 						{/* Credit per session summary */}
 						<div>
 							<div className="mt-2 flex items-center">
-								<span className="text-sm font-medium text-brand-primary-1">
+								<span className="text-sm font-medium text-foreground">
 									Credit per Session: RM {sessions > 0 ? creditPerSession.toFixed(2) : "0.00"}
 								</span>
 							</div>
 							{sessions > 0 && price > 0 && (
-								<div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
-									<div className="text-sm text-brand-secondary-1">
+								<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
+									<div className="text-sm text-muted-foreground">
 										<div className="flex justify-between">
 											<span>Total Price:</span>
 											<span>RM {price.toFixed(2)}</span>
@@ -622,6 +627,7 @@ export function ServiceFormDialog({
 									<FormItem className="flex items-center gap-2 space-y-0 mt-2">
 										<FormControl>
 											<Checkbox
+												className="bg-white"
 												checked={field.value}
 												onCheckedChange={field.onChange}
 											/>
@@ -649,15 +655,15 @@ export function ServiceFormDialog({
 														value={field.value ?? ""}
 														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
 														onWheel={(e) => e.currentTarget.blur()}
-														className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+														className="bg-white w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
 												</FormControl>
 												<FormMessage />
 											</FormItem>
 										)}
 									/>
-									<div className="mt-3 p-3 bg-brand-secondary-3/50 rounded-md">
-										<div className="text-sm text-brand-secondary-1">
+									<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
+										<div className="text-sm text-muted-foreground">
 											<div className="flex justify-between">
 												<span>Base Price:</span>
 												<span>RM {price.toFixed(2)}</span>
@@ -677,12 +683,13 @@ export function ServiceFormDialog({
 						</div>
 
 						{/* Payment Plans */}
-						<div className="border-t border-brand-secondary-3 pt-4 mt-4">
-							<h3 className="text-sm font-medium text-brand-primary-1 mb-3">Payment Plans</h3>
+						<div className="border-t border-brand-secondary-3 pt-6 mt-2">
+							<h3 className="font-subheading text-base text-foreground mb-4">Payment Plans</h3>
 							<div className="space-y-2">
 								{activePlans.map((plan) => (
 									<div key={plan.code} className="flex items-center gap-2">
 										<Checkbox
+											className="bg-white"
 											id={`plan-${plan.code}`}
 											checked={availablePaymentPlans.includes(plan.code)}
 											disabled={mutation.isPending}
@@ -693,13 +700,13 @@ export function ServiceFormDialog({
 												form.setValue("availablePaymentPlans", next, { shouldDirty: true });
 											}}
 										/>
-										<label htmlFor={`plan-${plan.code}`} className="text-sm text-brand-primary-1">
+										<label htmlFor={`plan-${plan.code}`} className="text-sm text-foreground">
 											{plan.name}
 										</label>
 									</div>
 								))}
 								{activePlans.length === 0 && (
-									<p className="text-sm text-brand-secondary-1 italic">
+									<p className="text-sm text-muted-foreground italic">
 										No payment plans configured. Add plans under Settings &rarr; Installment Plans.
 									</p>
 								)}
@@ -721,7 +728,7 @@ export function ServiceFormDialog({
 														value={field.value ?? ""}
 														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
 														onWheel={(e) => e.currentTarget.blur()}
-														className="w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+														className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
 												</FormControl>
 												<FormMessage />
@@ -747,10 +754,10 @@ export function ServiceFormDialog({
 															field.onChange(val === "" ? null : parseInt(val, 10));
 														}}
 														onWheel={(e) => e.currentTarget.blur()}
-														className="w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+														className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
 												</FormControl>
-												<p className="mt-1 text-xs text-brand-secondary-1">
+												<p className="mt-1 text-xs text-muted-foreground">
 													How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
 												</p>
 												<FormMessage />
@@ -762,12 +769,12 @@ export function ServiceFormDialog({
 						</div>
 
 						{/* Scheduling Type */}
-						<div className="border-t border-brand-secondary-3 pt-4 mt-4">
-							<h3 className="text-lg font-medium text-brand-primary-1 mb-4">Scheduling Configuration</h3>
+						<div className="border-t border-brand-secondary-3 pt-6 mt-2">
+							<h3 className="font-subheading text-base text-foreground mb-4">Scheduling Configuration</h3>
 
 							<div className="space-y-4">
 								<div>
-									<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+									<label className="block text-sm font-medium text-foreground mb-2">
 										Scheduling Type <span className="text-destructive">*</span>
 									</label>
 									<div className="flex gap-4">
@@ -780,9 +787,9 @@ export function ServiceFormDialog({
 												checked={schedulingType === "appointment-based"}
 												onChange={() => handleSchedulingTypeChange("appointment-based")}
 												disabled={mutation.isPending}
-												className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
+												className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
 											/>
-											<label htmlFor="scheduling-appointment-based" className="ml-2 block text-sm text-brand-primary-1">
+											<label htmlFor="scheduling-appointment-based" className="ml-2 block text-sm text-foreground">
 												Appointment-Based
 											</label>
 										</div>
@@ -795,28 +802,28 @@ export function ServiceFormDialog({
 												checked={schedulingType === "time-preset"}
 												onChange={() => handleSchedulingTypeChange("time-preset")}
 												disabled={mutation.isPending}
-												className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3"
+												className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
 											/>
-											<label htmlFor="scheduling-time-preset" className="ml-2 block text-sm text-brand-primary-1">
+											<label htmlFor="scheduling-time-preset" className="ml-2 block text-sm text-foreground">
 												Time-Preset (Fixed Schedule)
 											</label>
 										</div>
 									</div>
-									<p className="text-sm text-brand-secondary-1 mt-1">
+									<p className="text-sm text-muted-foreground mt-1">
 										{schedulingType === "appointment-based"
 											? "Sessions are booked flexibly based on coach and client availability"
 											: "Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)"}
 									</p>
 								</div>
 
-								{/* Time-Preset Configuration — UI-only; NOT sent to backend */}
+								{/* Time-Preset Configuration */}
 								{schedulingType === "time-preset" && timePresetConfig && (
-									<div className="bg-brand-secondary-3/50 p-4 rounded-lg space-y-4">
-										<h4 className="text-md font-medium text-brand-primary-1">Time-Preset Configuration</h4>
+									<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6 space-y-4">
+										<h4 className="font-subheading text-sm text-foreground">Time-Preset Configuration</h4>
 
 										{/* Recurring Days */}
 										<div>
-											<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+											<label className="block text-sm font-medium text-foreground mb-2">
 												Recurring Days <span className="text-destructive">*</span>
 											</label>
 											<div className="grid grid-cols-7 gap-2">
@@ -828,9 +835,9 @@ export function ServiceFormDialog({
 															checked={timePresetConfig.recurringDays.includes(day)}
 															onChange={() => handleRecurringDayToggle(day)}
 															disabled={mutation.isPending}
-															className="h-4 w-4 text-black focus:ring-black border-brand-secondary-3 rounded"
+															className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3 rounded"
 														/>
-														<label htmlFor={`day-${day}`} className="ml-1 text-xs text-brand-primary-1">
+														<label htmlFor={`day-${day}`} className="ml-1 text-xs text-foreground">
 															{day.slice(0, 3)}
 														</label>
 													</div>
@@ -840,7 +847,7 @@ export function ServiceFormDialog({
 
 										{/* Time Slots per Day */}
 										<div>
-											<label className="block text-sm font-medium text-brand-primary-1 mb-2">
+											<label className="block text-sm font-medium text-foreground mb-2">
 												Time Slots per Day <span className="text-destructive">*</span>
 											</label>
 											<div className="space-y-4">
@@ -849,12 +856,12 @@ export function ServiceFormDialog({
 													.map((day) => (
 														<div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
 															<div className="flex items-center justify-between mb-2">
-																<h5 className="text-sm font-medium text-brand-primary-1">{day}</h5>
+																<h5 className="text-sm font-medium text-foreground">{day}</h5>
 																<button
 																	type="button"
 																	onClick={() => addTimeSlot(day)}
 																	disabled={mutation.isPending}
-																	className="inline-flex items-center px-2 py-1 border border-brand-secondary-3 shadow-sm text-xs leading-4 font-medium rounded-md text-brand-primary-1 bg-white hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+																	className="inline-flex items-center px-2 py-1 border border-brand-secondary-3 shadow-xs text-xs leading-4 font-medium rounded-md text-foreground bg-background hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 																>
 																	<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
 																		<path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -870,13 +877,13 @@ export function ServiceFormDialog({
 																			value={time}
 																			onChange={(e) => updateTimeSlot(day, index, e.target.value)}
 																			disabled={mutation.isPending}
-																			className="p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+																			className="p-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm"
 																		/>
 																		<button
 																			type="button"
 																			onClick={() => removeTimeSlot(day, index)}
 																			disabled={mutation.isPending || (timePresetConfig.timeSlotsPerDay[day] || []).length === 1}
-																			className="p-2 text-brand-secondary-1 hover:text-brand-secondary-1 disabled:opacity-40"
+																			className="p-2 text-muted-foreground hover:text-muted-foreground disabled:opacity-40"
 																		>
 																			<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
 																				<path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -885,13 +892,13 @@ export function ServiceFormDialog({
 																	</div>
 																))}
 																{(!timePresetConfig.timeSlotsPerDay[day] || timePresetConfig.timeSlotsPerDay[day].length === 0) && (
-																	<p className="text-sm text-brand-secondary-1 italic">No time slots configured for {day}</p>
+																	<p className="text-sm text-muted-foreground italic">No time slots configured for {day}</p>
 																)}
 															</div>
 														</div>
 													))}
 												{timePresetConfig.recurringDays.length === 0 && (
-													<p className="text-sm text-brand-secondary-1 italic">
+													<p className="text-sm text-muted-foreground italic">
 														Select recurring days above to configure time slots
 													</p>
 												)}

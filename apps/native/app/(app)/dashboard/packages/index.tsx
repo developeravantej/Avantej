@@ -419,7 +419,7 @@ export default function PackagesScreen() {
 									<TouchableOpacity
 										onPress={() => {
 											router.push({
-												pathname: "/dashboard/bookings/[id]" as never,
+												pathname: "/dashboard/packages/[id]" as never,
 												params: { id: pkg.id },
 											});
 										}}

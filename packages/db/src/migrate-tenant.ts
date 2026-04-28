@@ -2239,6 +2239,10 @@ ALTER TABLE "expenses" ALTER COLUMN "currency" SET DEFAULT 'myr';
 ALTER TABLE "package_instances" ADD COLUMN "allow_credit_overdraft" boolean DEFAULT false NOT NULL;
 `;
 
+const MIGRATION_0017_JAZZY_HERCULES = `
+ALTER TABLE "services" ADD COLUMN "time_preset_config" jsonb;
+`;
+
 const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
@@ -2363,6 +2367,10 @@ const TENANT_MIGRATIONS = [
   {
     hash: "0016_worried_wolfpack",
     sql: MIGRATION_0016_WORRIED_WOLFPACK,
+  },
+  {
+    hash: "0017_jazzy_hercules",
+    sql: MIGRATION_0017_JAZZY_HERCULES,
   },
 ] as const;
 

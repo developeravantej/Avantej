@@ -320,31 +320,43 @@ export const appointmentsRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "appointment_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      // Clients can self-book without staff permission, but only:
+      //  - for themselves (input.userId === their session user id)
+      //  - at their own branch (input.branchId === their member.hierarchyScopeId)
+      const sessionUserId = context.session?.user?.id;
+      const isClientSelfBooking =
+        context.member.role === "client" &&
+        !!sessionUserId &&
+        input.userId === sessionUserId &&
+        input.branchId === context.member.hierarchyScopeId;
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (!accessibleNodeIds.includes(input.branchId)) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this branch",
-        });
+      if (!isClientSelfBooking) {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "appointment_management",
+            "create"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(
+                context.tenantDb,
+                context.member.hierarchyScopeId
+              )
+            : []);
+        if (!accessibleNodeIds.includes(input.branchId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to this branch",
+          });
+        }
       }
 
       try {

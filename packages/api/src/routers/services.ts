@@ -24,6 +24,13 @@ const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);
 const priceUnitSchema = z.enum(["session", "class", "package"]);
 const durationUnitSchema = z.enum(["seconds", "minutes", "hours"]);
 
+const timePresetConfigSchema = z
+  .object({
+    recurringDays: z.array(z.string()).min(1),
+    timeSlotsPerDay: z.record(z.string(), z.array(z.string()).min(1)),
+  })
+  .nullable();
+
 export const servicesRouter = {
   list: protectedProcedure
     .input(
@@ -50,17 +57,20 @@ export const servicesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
+      // Clients can read services in their tenant; staff need service_management:read.
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
       }
 
       const accessibleNodeIds =
@@ -105,17 +115,20 @@ export const servicesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
+      // Clients can read services in their tenant; staff need service_management:read.
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
       }
 
       const service = await getServiceById(context.tenantDb, input.id);
@@ -173,6 +186,7 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
+        timePresetConfig: timePresetConfigSchema.optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -264,6 +278,7 @@ export const servicesRouter = {
           ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
           ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
           ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+          ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
         } as Parameters<typeof createService>[1]);
         return created;
       } catch (error) {
@@ -305,6 +320,7 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
+        timePresetConfig: timePresetConfigSchema.optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -414,6 +430,7 @@ export const servicesRouter = {
             ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
             ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
             ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+            ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
             } as Parameters<typeof updateService>[2]
         );
         return updated;

@@ -75,7 +75,8 @@ export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = useBookingFlow();
 
-	const isPrivate = state.serviceType === "private";
+	const isClassSlot = state.schedulingType === "class_slot";
+	const isPrivate = !isClassSlot && state.serviceType === "private";
 
 	const currentStep = 2;
 	const totalSteps = 4;
@@ -87,9 +88,34 @@ export default function ScheduleScreen() {
 	const [selectedClassSlotId, setSelectedClassSlotId] = useState<
 		string | null
 	>(null);
+	// Class-slot recurring picker state
+	const [selectedRecurringDay, setSelectedRecurringDay] = useState<
+		string | null
+	>(null);
 
 	const dates = generateDates();
 	const privateTimeSlots = generatePrivateTimeSlots();
+
+	// Resolve the next upcoming concrete date (>= today) for a given day name
+	// like "Monday" so downstream review/done can show a real date.
+	const nextDateForDayName = (dayName: string): Date | null => {
+		const map: Record<string, number> = {
+			sunday: 0,
+			monday: 1,
+			tuesday: 2,
+			wednesday: 3,
+			thursday: 4,
+			friday: 5,
+			saturday: 6,
+		};
+		const target = map[dayName.toLowerCase()];
+		if (target === undefined) return null;
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		const diff = (target - d.getDay() + 7) % 7;
+		d.setDate(d.getDate() + diff);
+		return d;
+	};
 
 	// Build ISO date range for class slots query
 	const selectedDateISO = useMemo(() => {
@@ -120,10 +146,29 @@ export default function ScheduleScreen() {
 				to: nextDayISO,
 			},
 		}),
-		enabled: !isPrivate && !!selectedDate && !!state.serviceId,
+		enabled: !isPrivate && !isClassSlot && !!selectedDate && !!state.serviceId,
 	});
 
 	const handleContinue = () => {
+		// Class-slot path: pick a recurring day + preset time, then resolve the
+		// next upcoming concrete date for that day.
+		if (isClassSlot) {
+			if (!selectedRecurringDay || !selectedTime) return;
+			const dt = nextDateForDayName(selectedRecurringDay);
+			if (!dt) return;
+			const [hours, minutes] = parseTime(selectedTime);
+			dt.setHours(hours, minutes, 0, 0);
+
+			update({
+				date: dt.toISOString().split("T")[0],
+				startTime: dt.toISOString(),
+				duration: state.serviceDuration ?? 60,
+				classSlotId: null,
+			});
+			router.push("./review");
+			return;
+		}
+
 		if (!selectedDate || !selectedTime) return;
 
 		if (isPrivate) {
@@ -367,7 +412,135 @@ export default function ScheduleScreen() {
 					</View>
 
 					{/* Schedule Selection Section */}
-					{isPrivate ? (
+					{isClassSlot ? (
+						/* Class-slot: pick from preset recurring day + time */
+						<View className="mb-4">
+							<Text
+								className="mb-4 font-bold text-sm uppercase tracking-wide"
+								style={{ color: colors.primary[1] }}
+							>
+								SELECT DAY & TIME
+							</Text>
+
+							{!state.timePresetConfig ||
+							state.timePresetConfig.recurringDays.length === 0 ? (
+								<View className="rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+									<Text className="text-center text-secondary-1 text-sm">
+										No recurring schedule configured for this class.
+									</Text>
+								</View>
+							) : (
+								<>
+									{/* Recurring days */}
+									<View className="mb-4">
+										<Text
+											className="mb-2 text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											Select Day
+										</Text>
+										<ScrollView
+											horizontal
+											showsHorizontalScrollIndicator={false}
+										>
+											{state.timePresetConfig.recurringDays.map((day) => {
+												const isSelected = selectedRecurringDay === day;
+												return (
+													<TouchableOpacity
+														key={day}
+														onPress={() => {
+															setSelectedRecurringDay(day);
+															setSelectedTime(null);
+														}}
+														className={`mr-3 rounded-2xl p-3 ${
+															isSelected ? "" : "border border-secondary-3"
+														}`}
+														style={{
+															backgroundColor: isSelected
+																? colors.primary[1]
+																: colors.primary[2],
+															minWidth: 96,
+															alignItems: "center",
+														}}
+													>
+														<Text
+															className="font-semibold text-sm"
+															style={{
+																color: isSelected
+																	? colors.primary[2]
+																	: colors.primary[1],
+															}}
+														>
+															{day}
+														</Text>
+													</TouchableOpacity>
+												);
+											})}
+										</ScrollView>
+									</View>
+
+									{/* Time slots for selected day */}
+									<View>
+										<Text
+											className="mb-3 text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											Select Time
+										</Text>
+										{!selectedRecurringDay ? (
+											<View className="rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+												<Text className="text-center text-secondary-1 text-sm">
+													Please select a day first
+												</Text>
+											</View>
+										) : (state.timePresetConfig.timeSlotsPerDay[
+												selectedRecurringDay
+											]?.length ?? 0) === 0 ? (
+											<View className="rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+												<Text className="text-center text-secondary-1 text-sm">
+													No time slots configured for {selectedRecurringDay}
+												</Text>
+											</View>
+										) : (
+											<View className="flex-row flex-wrap">
+												{state.timePresetConfig.timeSlotsPerDay[
+													selectedRecurringDay
+												]!.map((time) => {
+													const isSelected = selectedTime === time;
+													return (
+														<TouchableOpacity
+															key={time}
+															onPress={() => setSelectedTime(time)}
+															className={`mr-3 mb-3 rounded-xl p-3 ${
+																isSelected
+																	? "border-2"
+																	: "border border-secondary-3"
+															}`}
+															style={{
+																backgroundColor: colors.primary[2],
+																borderColor: isSelected
+																	? colors.primary[1]
+																	: "transparent",
+																width: "30%",
+																minWidth: 100,
+															}}
+														>
+															<Text
+																className="text-center text-sm"
+																style={{ color: colors.primary[1] }}
+															>
+																{time}
+															</Text>
+														</TouchableOpacity>
+													);
+												})}
+											</View>
+										)}
+									</View>
+								</>
+							)}
+						</View>
+					) : isPrivate ? (
 						/* 1-on-1 Service: Date and Time Picker */
 						<View className="mb-4">
 							<Text
@@ -732,8 +905,10 @@ export default function ScheduleScreen() {
 				</View>
 			</ScrollView>
 
-			{/* Continue Button - Only shows when date and time are selected */}
-			{selectedDate && selectedTime && (
+			{/* Continue Button — gate depends on schedulingType */}
+			{(isClassSlot
+				? !!selectedRecurringDay && !!selectedTime
+				: !!selectedDate && !!selectedTime) && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"

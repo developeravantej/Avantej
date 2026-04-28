@@ -50,12 +50,16 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
+		// Clients can browse class slots in their tenant without the staff
+		// permission. Staff still need class_slot_management:read.
+		if (context.member.role !== "client") {
+			try {
+				await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
 		}
 
 		return listClassSlots(context.tenantDb, {
@@ -90,12 +94,15 @@ const getById = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
+		// Clients can read class slots; staff need class_slot_management:read.
+		if (context.member.role !== "client") {
+			try {
+				await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
 		}
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);

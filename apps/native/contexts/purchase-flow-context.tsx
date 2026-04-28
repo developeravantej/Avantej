@@ -14,6 +14,11 @@ export interface PurchaseFlowState {
 	serviceId: string | null;
 	serviceName: string | null;
 	serviceType: "private" | "semi_private" | null;
+	schedulingType: "appointment" | "class_slot" | null;
+	timePresetConfig: {
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	} | null;
 	packageId: string | null;
 	packageName: string | null;
 	creditsTotal: number | null;
@@ -43,6 +48,8 @@ const initialState: PurchaseFlowState = {
 	serviceId: null,
 	serviceName: null,
 	serviceType: null,
+	schedulingType: null,
+	timePresetConfig: null,
 	packageId: null,
 	packageName: null,
 	creditsTotal: null,

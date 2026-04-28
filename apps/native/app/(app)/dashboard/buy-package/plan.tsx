@@ -279,7 +279,7 @@ export default function PlanScreen() {
 												className="font-semibold text-sm"
 												style={{ color: colors.primary[1] }}
 											>
-												${amountPerInstallment.toFixed(2)}
+												${(amountPerInstallment / 100).toFixed(2)}
 											</Text>
 										</View>
 										<View className="mt-1 flex-row items-center justify-between">

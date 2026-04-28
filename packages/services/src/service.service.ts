@@ -11,10 +11,15 @@
  * ```
  */
 
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
+import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+export type ServiceWithCategory = typeof services.$inferSelect & {
+  service_category_name: string | null;
+};
 
 export type ListServicesParams = {
   categoryId?: string | null;
@@ -50,6 +55,10 @@ export type CreateServiceParams = {
   expirable?: boolean;
   expiryDays?: number | null;
   expiryDate?: Date | null;
+  timePresetConfig?: {
+    recurringDays: string[];
+    timeSlotsPerDay: Record<string, string[]>;
+  } | null;
 };
 
 export type UpdateServiceParams = Partial<CreateServiceParams>;
@@ -61,7 +70,7 @@ export type UpdateServiceParams = Partial<CreateServiceParams>;
 export async function listServices(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   params: ListServicesParams = {}
-): Promise<(typeof services.$inferSelect)[]> {
+): Promise<ServiceWithCategory[]> {
   const {
     categoryId,
     branchId,
@@ -88,10 +97,30 @@ export async function listServices(
     conditions.push(eq(services.schedulingType, schedulingType));
   }
 
-  const rows = await tenantDb.query.services.findMany({
+  const baseRows = await tenantDb.query.services.findMany({
     where: conditions.length > 0 ? and(...conditions) : undefined,
     orderBy: [asc(services.name)],
   });
+
+  const categoryIds = Array.from(
+    new Set(baseRows.map((r) => r.categoryId).filter((id): id is string => !!id))
+  );
+
+  const categoryNameById = new Map<string, string>();
+  if (categoryIds.length > 0) {
+    const cats = await tenantDb
+      .select({ id: serviceCategories.id, name: serviceCategories.name })
+      .from(serviceCategories)
+      .where(inArray(serviceCategories.id, categoryIds));
+    for (const c of cats) categoryNameById.set(c.id, c.name);
+  }
+
+  const rows: ServiceWithCategory[] = baseRows.map((row) => ({
+    ...row,
+    service_category_name: row.categoryId
+      ? categoryNameById.get(row.categoryId) ?? null
+      : null,
+  }));
 
   if (accessibleNodeIds && accessibleNodeIds.length > 0) {
     return rows.filter(
@@ -149,6 +178,7 @@ export async function createService(
       expirable: params.expirable ?? false,
       expiryDays: params.expiryDays ?? null,
       expiryDate: params.expiryDate ?? null,
+      timePresetConfig: params.timePresetConfig ?? null,
     })
     .returning();
 
@@ -203,6 +233,9 @@ export async function updateService(
       ...(params.expirable !== undefined && { expirable: params.expirable }),
       ...(params.expiryDays !== undefined && { expiryDays: params.expiryDays }),
       ...(params.expiryDate !== undefined && { expiryDate: params.expiryDate }),
+      ...(params.timePresetConfig !== undefined && {
+        timePresetConfig: params.timePresetConfig,
+      }),
       updatedAt: new Date(),
     })
     .where(eq(services.id, id))

@@ -112,6 +112,8 @@ export default function DataTable<TData, TValue>({
 					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as string[],
 					installmentIntervalDays: editServiceData.installmentIntervalDays ?? 30,
 					gracePeriodDays: (editServiceData as any).gracePeriodDays ?? null,
+					timePresetConfig:
+						(editServiceData as any).timePresetConfig ?? undefined,
 				};
 			})()
 		: undefined;

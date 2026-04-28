@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+	Alert,
 	Image,
 	ScrollView,
 	Text,
@@ -47,9 +48,6 @@ export default function BookWorkoutScreen() {
 	const [selectedPackageInstanceId, setSelectedPackageInstanceId] = useState<
 		string | null
 	>(state.packageInstanceId);
-	const [selectedTrainer, setSelectedTrainer] = useState<
-		string | "auto" | null
-	>(state.trainerId ?? null);
 
 	const currentStep = 1;
 	const totalSteps = 4;
@@ -62,6 +60,30 @@ export default function BookWorkoutScreen() {
 		}),
 	);
 
+	// Fetch all services once so we can hydrate each package card with
+	// the linked service's name / type / duration.
+	const { data: services } = useQuery(
+		orpc.services.list.queryOptions({
+			input: { organizationId },
+		}),
+	);
+
+	const serviceById = useMemo(() => {
+		const map = new Map<string, any>();
+		for (const s of (services as any[]) ?? []) map.set(s.id, s);
+		return map;
+	}, [services]);
+
+	// Fallback branchId for the booking — the API requires a non-null branchId
+	// on appointments.create. If the selected service has no branchId
+	// (e.g. created via the web form which sets branchId: null), we pick the
+	// first non-null branchId found across the org's services.
+	const fallbackBranchId = useMemo(() => {
+		const list = (services as any[]) ?? [];
+		for (const s of list) if (s?.branchId) return s.branchId as string;
+		return null;
+	}, [services]);
+
 	const selectedPackage = useMemo(() => {
 		if (!selectedPackageInstanceId || !packageInstances) return null;
 		return (packageInstances as any[]).find(
@@ -69,39 +91,41 @@ export default function BookWorkoutScreen() {
 		);
 	}, [packageInstances, selectedPackageInstanceId]);
 
-	// Fetch trainers
-	const { data: trainers, isLoading: trainersLoading } = useQuery({
-		...orpc.members.list.queryOptions({
-			input: { organizationId, role: "trainer", status: "active" },
-		}),
-		enabled: !!selectedPackageInstanceId,
-	});
-
 	const handleContinue = () => {
-		const selectedTrn =
-			selectedTrainer !== "auto"
-				? trainers?.find((t: any) => t.id === selectedTrainer)
+		const svc =
+			selectedPackage?.serviceId != null
+				? serviceById.get(selectedPackage.serviceId)
 				: null;
 
-		const apptType = selectedPackage?.package?.appointmentType;
+		// Visible diagnostics if the linked service is missing fields the API
+		// will reject (instead of silently doing nothing).
+		if (!svc) {
+			Alert.alert(
+				"Service unavailable",
+				"The service linked to this package could not be loaded. Try again in a moment, or contact support.",
+			);
+			return;
+		}
+
 		const serviceType: "private" | "semi-private" =
-			apptType === "semi-private" ? "semi-private" : "private";
+			svc?.type === "semi_private" ? "semi-private" : "private";
 
 		update({
 			packageInstanceId: selectedPackageInstanceId,
-			packageName: selectedPackage?.package?.name ?? null,
-			categoryId: null,
+			packageName: svc?.name ?? null,
+			categoryId: svc?.categoryId ?? null,
 			categoryName: null,
-			serviceId: null,
-			serviceName: null,
+			serviceId: svc?.id ?? null,
+			serviceName: svc?.name ?? null,
 			serviceType,
-			serviceDuration: 60,
-			trainerId: selectedTrainer === "auto" ? null : selectedTrainer,
-			trainerName:
-				selectedTrainer === "auto"
-					? "Auto-assign"
-					: (selectedTrn?.user?.name ?? null),
-			branchId: null,
+			schedulingType:
+				svc?.schedulingType === "class_slot" ? "class_slot" : "appointment",
+			timePresetConfig: svc?.timePresetConfig ?? null,
+			serviceDuration: svc?.duration ?? 60,
+			// Provider is auto-assigned now; trainer step removed.
+			trainerId: null,
+			trainerName: "Auto-assign",
+			branchId: svc?.branchId ?? fallbackBranchId ?? null,
 		});
 		router.push("./schedule");
 	};
@@ -308,27 +332,55 @@ export default function BookWorkoutScreen() {
 								</Text>
 							</View>
 						) : (
-							(packageInstances as any[]).map((inst) => (
-								<TouchableOpacity
-									key={inst.id}
-									onPress={() => {
-										setSelectedPackageInstanceId(inst.id);
-										setSelectedTrainer(null);
-									}}
-									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedPackageInstanceId === inst.id
-											? "border-primary-1"
-											: "border-secondary-3"
-									} shadow-sm`}
-								>
-									<View className="mb-2 flex-row items-start justify-between">
-										<Text
-											className="flex-1 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{inst.package?.name ?? "Package"}
-										</Text>
-										{inst.package?.appointmentType && (
+							(packageInstances as any[]).map((inst) => {
+								const svc = serviceById.get(inst.serviceId);
+								const total: number = inst.creditsTotal ?? 0;
+								const remaining: number = inst.creditsRemaining ?? 0;
+								const used = Math.max(total - remaining, 0);
+								const progressPercent =
+									total > 0 ? (used / total) * 100 : 0;
+
+								// Expiry text
+								let expiryText: string | null = null;
+								let expiryUrgent = false;
+								if (inst.expiresAt) {
+									const expiry = new Date(inst.expiresAt);
+									const diffDays = Math.ceil(
+										(expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+									);
+									if (diffDays < 0) expiryText = "Expired";
+									else if (diffDays === 0) expiryText = "Expires today";
+									else if (diffDays === 1) expiryText = "Expires tomorrow";
+									else expiryText = `Expires in ${diffDays} days`;
+									expiryUrgent = diffDays >= 0 && diffDays <= 14;
+								}
+
+								const typeLabel =
+									svc?.type === "semi_private"
+										? "Semi-Private"
+										: svc?.type === "both"
+											? "All Types"
+											: "Private";
+
+								return (
+									<TouchableOpacity
+										key={inst.id}
+										onPress={() => {
+											setSelectedPackageInstanceId(inst.id);
+										}}
+										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
+											selectedPackageInstanceId === inst.id
+												? "border-primary-1"
+												: "border-secondary-3"
+										} shadow-sm`}
+									>
+										<View className="mb-2 flex-row items-start justify-between">
+											<Text
+												className="flex-1 font-bold text-lg"
+												style={{ color: colors.primary[1] }}
+											>
+												{svc?.name ?? "Package"}
+											</Text>
 											<View
 												className="ml-2 rounded-full px-2 py-1"
 												style={{ backgroundColor: colors.secondary[3] }}
@@ -337,147 +389,129 @@ export default function BookWorkoutScreen() {
 													className="font-medium text-xs"
 													style={{ color: colors.primary[1] }}
 												>
-													{inst.package.appointmentType === "semi-private"
-														? "Semi-Private"
-														: inst.package.appointmentType === "both"
-															? "All Types"
-															: "Private"}
+													{typeLabel}
 												</Text>
 											</View>
+										</View>
+
+										{/* Description (when available) */}
+										{svc?.description && (
+											<Text
+												className="mb-2 text-sm"
+												style={{ color: colors.secondary[1] }}
+											>
+												{svc.description}
+											</Text>
 										)}
-									</View>
-									<Text
-										className="mb-2 text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
-										{inst.creditsRemaining} / {inst.creditsTotal} sessions
-										remaining
-									</Text>
-									{inst.expiresAt && (
-										<Text
-											className="text-xs"
-											style={{ color: colors.secondary[1] }}
-										>
-											Expires{" "}
-											{new Date(inst.expiresAt).toLocaleDateString("en-US", {
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											})}
-										</Text>
-									)}
-								</TouchableOpacity>
-							))
-						)}
-					</View>
 
-					{/* Trainer Selection Section */}
-					<View className="mb-4">
-						<Text
-							className="mb-2 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
-						>
-							SELECT PROVIDER
-						</Text>
-
-						{selectedPackageInstanceId ? (
-							trainersLoading ? (
-								<>
-									<SkeletonCard />
-									<SkeletonCard />
-									<SkeletonCard />
-								</>
-							) : (
-								<>
-									{/* Auto-assign Option */}
-									<TouchableOpacity
-										onPress={() => setSelectedTrainer("auto")}
-										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-											selectedTrainer === "auto"
-												? "border-primary-1"
-												: "border-secondary-3"
-										} relative shadow-sm`}
-									>
-										<View className="flex-row items-start justify-between">
-											<View className="mr-2 flex-1">
+										{/* Credits row + progress bar */}
+										<View className="mb-2 flex-row items-center justify-between">
+											<View className="flex-row items-center">
+												<Ionicons
+													name="star-outline"
+													size={14}
+													color={colors.secondary[1]}
+												/>
 												<Text
-													className="mb-1 font-bold text-lg"
-													style={{ color: colors.primary[1] }}
-												>
-													Auto-assign best available
-												</Text>
-												<Text
-													className="text-sm"
+													className="ml-1 text-sm"
 													style={{ color: colors.secondary[1] }}
 												>
-													We'll match you with the best trainer for your needs
+													{remaining} of {total} credits remaining
 												</Text>
 											</View>
-											{selectedTrainer === "auto" && (
-												<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
+											<Text
+												className="font-semibold text-xs"
+												style={{ color: colors.primary[1] }}
+											>
+												{used} used
+											</Text>
+										</View>
+										<View
+											className="mb-3 h-2 overflow-hidden rounded-full"
+											style={{ backgroundColor: colors.secondary[3] }}
+										>
+											<View
+												className="h-full rounded-full"
+												style={{
+													width: `${Math.min(progressPercent, 100)}%`,
+													backgroundColor: "#2563EB",
+												}}
+											/>
+										</View>
+
+										{/* Meta row: duration, price, expiry */}
+										<View className="flex-row flex-wrap items-center gap-3">
+											{svc?.duration != null && (
+												<View className="flex-row items-center">
 													<Ionicons
-														name="checkmark"
-														size={16}
-														color={colors.primary[2]}
+														name="time-outline"
+														size={14}
+														color={colors.secondary[1]}
 													/>
+													<Text
+														className="ml-1 text-xs"
+														style={{ color: colors.secondary[1] }}
+													>
+														{svc.duration} min/session
+													</Text>
+												</View>
+											)}
+											{inst.totalPrice != null && (
+												<View className="flex-row items-center">
+													<Ionicons
+														name="cash-outline"
+														size={14}
+														color={colors.secondary[1]}
+													/>
+													<Text
+														className="ml-1 text-xs"
+														style={{ color: colors.primary[1] }}
+													>
+														${(inst.totalPrice / 100).toFixed(2)}
+													</Text>
+												</View>
+											)}
+											{inst.expiresAt && (
+												<View className="flex-row items-center">
+													<Ionicons
+														name="calendar-outline"
+														size={14}
+														color={
+															expiryUrgent ? "#D97706" : colors.secondary[1]
+														}
+													/>
+													<Text
+														className="ml-1 text-xs"
+														style={{
+															color: expiryUrgent
+																? "#D97706"
+																: colors.secondary[1],
+														}}
+													>
+														{expiryText ??
+															new Date(inst.expiresAt).toLocaleDateString(
+																"en-US",
+																{
+																	month: "short",
+																	day: "numeric",
+																	year: "numeric",
+																},
+															)}
+													</Text>
 												</View>
 											)}
 										</View>
 									</TouchableOpacity>
-
-									{/* Trainer Cards */}
-									{trainers?.map((trainer: any) => (
-										<TouchableOpacity
-											key={trainer.id}
-											onPress={() => setSelectedTrainer(trainer.id)}
-											className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-												selectedTrainer === trainer.id
-													? "border-primary-1"
-													: "border-secondary-3"
-											} relative shadow-sm`}
-										>
-											<View className="flex-row items-start justify-between">
-												<View className="mr-2 flex-1">
-													<Text
-														className="mb-1 font-bold text-lg"
-														style={{ color: colors.primary[1] }}
-													>
-														{trainer.user?.name ?? "Unknown"}
-													</Text>
-													<Text
-														className="text-sm"
-														style={{ color: colors.secondary[1] }}
-													>
-														{trainer.role}
-													</Text>
-												</View>
-												{selectedTrainer === trainer.id && (
-													<View className="h-6 w-6 items-center justify-center rounded-full bg-primary-1">
-														<Ionicons
-															name="checkmark"
-															size={16}
-															color={colors.primary[2]}
-														/>
-													</View>
-												)}
-											</View>
-										</TouchableOpacity>
-									))}
-								</>
-							)
-						) : (
-							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
-								<Text className="text-center text-secondary-1 text-sm">
-									Please select a package first
-								</Text>
-							</View>
+								);
+							})
 						)}
 					</View>
+
 				</View>
 			</ScrollView>
 
-			{/* Continue Button - Only shows when category, service and trainer are selected */}
-			{selectedPackageInstanceId && selectedTrainer && (
+			{/* Continue Button — enabled once a package is selected */}
+			{selectedPackageInstanceId && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"

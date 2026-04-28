@@ -40,17 +40,20 @@ export const serviceCategoriesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
+      // Clients can read service categories in their tenant; staff need service_management:read.
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
       }
 
       const accessibleNodeIds =
@@ -101,17 +104,20 @@ export const serviceCategoriesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
+      // Clients can read service categories in their tenant; staff need service_management:read.
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
       }
 
       const category = await getServiceCategoryById(context.tenantDb, input.id);

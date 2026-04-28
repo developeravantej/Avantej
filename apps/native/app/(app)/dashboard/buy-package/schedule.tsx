@@ -321,7 +321,9 @@ type PreferredTime = {
 export default function ScheduleScreen() {
 	const { state, update } = usePurchaseFlow();
 
-	const isPersonalTraining = state.serviceType === "private";
+	// Appointment-style services let the user pick preferred days/times.
+	// Class-slot services have a fixed recurring schedule on the service row.
+	const isAppointment = state.schedulingType !== "class_slot";
 
 	const currentStep = 2;
 	const totalSteps = 7;
@@ -501,8 +503,8 @@ export default function ScheduleScreen() {
 					</View>
 
 					{/* Schedule Selection */}
-					{isPersonalTraining ? (
-						/* Personal Training: Select up to 4 preferred day and time combinations */
+					{isAppointment ? (
+						/* Appointment: select up to 4 preferred day and time combinations */
 						<View className="mb-4">
 							<Text
 								className="mb-2 font-bold text-sm uppercase tracking-wide"
@@ -773,7 +775,7 @@ export default function ScheduleScreen() {
 							)}
 						</View>
 					) : (
-						/* Classes: Fixed Schedule Display */
+						/* Class slot: read-only display of the preset time slots */
 						<View className="mb-4">
 							<Text
 								className="mb-4 font-bold text-sm uppercase tracking-wide"
@@ -789,13 +791,60 @@ export default function ScheduleScreen() {
 								>
 									{state.serviceName ?? "Class"}
 								</Text>
-								<Text
-									className="mt-2 text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									This class has a fixed schedule. Your package will include all
-									scheduled sessions.
-								</Text>
+
+								{state.timePresetConfig &&
+								state.timePresetConfig.recurringDays.length > 0 ? (
+									<View className="mt-3">
+										{state.timePresetConfig.recurringDays.map((day) => {
+											const slots =
+												state.timePresetConfig?.timeSlotsPerDay[day] ?? [];
+											return (
+												<View
+													key={day}
+													className="mb-3 border-secondary-3 border-b pb-3 last:border-b-0 last:mb-0 last:pb-0"
+												>
+													<Text
+														className="mb-2 font-semibold text-sm uppercase tracking-wide"
+														style={{ color: colors.primary[1] }}
+													>
+														{day}
+													</Text>
+													<View className="flex-row flex-wrap gap-2">
+														{slots.length > 0 ? (
+															slots.map((time, i) => (
+																<View
+																	key={`${day}-${i}`}
+																	className="rounded-full border border-secondary-3 bg-secondary-3 px-3 py-1.5"
+																>
+																	<Text
+																		className="font-medium text-xs"
+																		style={{ color: colors.primary[1] }}
+																	>
+																		{time}
+																	</Text>
+																</View>
+															))
+														) : (
+															<Text
+																className="text-xs italic"
+																style={{ color: colors.secondary[1] }}
+															>
+																No slots configured
+															</Text>
+														)}
+													</View>
+												</View>
+											);
+										})}
+									</View>
+								) : (
+									<Text
+										className="mt-2 text-sm italic"
+										style={{ color: colors.secondary[1] }}
+									>
+										No recurring schedule configured for this class.
+									</Text>
+								)}
 							</View>
 						</View>
 					)}
@@ -803,7 +852,7 @@ export default function ScheduleScreen() {
 			</ScrollView>
 
 			{/* Continue Button */}
-			{(isPersonalTraining ? preferredTimes.length > 0 : true) && (
+			{(isAppointment ? preferredTimes.length > 0 : true) && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"

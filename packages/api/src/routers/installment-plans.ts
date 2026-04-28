@@ -34,18 +34,21 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read installment plans (needed during purchase); staff need service_management:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"service_management",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			return listInstallmentPlans(context.tenantDb, {
@@ -74,18 +77,21 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read installment plans (needed during purchase); staff need service_management:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"service_management",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			const plan = await getInstallmentPlanById(context.tenantDb, input.id);
@@ -118,18 +124,21 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read installment plans (needed during purchase); staff need service_management:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"service_management",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			return getInstallmentPlanByCode(context.tenantDb, input.code);

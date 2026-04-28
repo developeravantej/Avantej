@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -12,6 +11,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 
@@ -37,6 +37,42 @@ function formatDate(date: Date | string | null | undefined): string {
 	} catch {
 		return "N/A";
 	}
+}
+
+// ── Local presentational helpers ──────────────────────────────────────────────
+
+function Field({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div>
+			<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+				{label}
+			</p>
+			<div className="mt-1 text-sm text-foreground">{children}</div>
+		</div>
+	);
+}
+
+function Section({
+	title,
+	children,
+}: {
+	title: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6">
+			<h3 className="font-subheading text-base text-foreground mb-4">
+				{title}
+			</h3>
+			{children}
+		</div>
+	);
 }
 
 export function ServiceCategoryDetailDialog({
@@ -129,8 +165,10 @@ export function ServiceCategoryDetailDialog({
 			<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 				<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<div className="flex items-center justify-between gap-4">
-							<DialogTitle>Service Category Details</DialogTitle>
+						<div className="flex items-center justify-between gap-3 pr-8">
+							<DialogTitle className="font-heading text-2xl">
+								Service Category Details
+							</DialogTitle>
 							{category && (
 								<div className="flex items-center gap-2">
 									{onEdit && (
@@ -143,7 +181,7 @@ export function ServiceCategoryDetailDialog({
 												onEdit(categoryId!);
 											}}
 										>
-											<Pencil className="h-4 w-4 mr-1" />
+											<Pencil className="mr-1 size-4" />
 											Edit
 										</Button>
 									)}
@@ -154,7 +192,7 @@ export function ServiceCategoryDetailDialog({
 											size="sm"
 											onClick={() => setShowDeleteConfirm(true)}
 										>
-											<Trash2 className="h-4 w-4 mr-1" />
+											<Trash2 className="mr-1 size-4" />
 											Deactivate
 										</Button>
 									)}
@@ -172,85 +210,66 @@ export function ServiceCategoryDetailDialog({
 					{error && <StatusCallout variant="error" message={error} />}
 
 					{category && !isLoading && (
-						<div className="space-y-4">
-							<div>
-								<label className="block text-sm font-medium text-brand-primary-1">Name</label>
-								<p className="mt-1 text-sm text-brand-secondary-1">{category.name}</p>
-							</div>
-							<div>
-								<label className="block text-sm font-medium text-brand-primary-1">Description</label>
-								<p className="mt-1 text-sm text-brand-secondary-1">{category.description ?? "—"}</p>
-							</div>
-							<div>
-								<label className="block text-sm font-medium text-brand-primary-1">Display order</label>
-								<p className="mt-1 text-sm text-brand-secondary-1">{category.displayOrder}</p>
-							</div>
-							<div>
-								<label className="block text-sm font-medium text-brand-primary-1">Status</label>
-								<div className="mt-1">
-									{category.isActive ? (
-										<Badge variant="default">Active</Badge>
-									) : (
-										<Badge variant="secondary">Inactive</Badge>
-									)}
+						<div className="space-y-6">
+							<Section title="Overview">
+								<div className="space-y-4">
+									<Field label="Name">{category.name}</Field>
+									<Field label="Description">
+										{category.description ?? "—"}
+									</Field>
+									<div className="grid grid-cols-2 gap-4">
+										<Field label="Display order">
+											{category.displayOrder}
+										</Field>
+										<Field label="Status">
+											<StatusBadge
+												status={category.isActive ? "active" : "inactive"}
+											/>
+										</Field>
+									</div>
 								</div>
-							</div>
+							</Section>
+
 							{config && (
 								<>
-									<div className="border-t border-brand-secondary-3 pt-4 mt-4">
-										<h3 className="text-lg font-medium text-brand-primary-1 mb-4">Category Configuration</h3>
-										<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
-											<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Timing</h5>
-											<div className="grid grid-cols-2 gap-4">
-												<div>
-													<label className="block text-sm font-medium text-brand-primary-1">Default Duration</label>
-													<p className="mt-1 text-sm text-brand-secondary-1">{config.defaultDuration ? `${config.defaultDuration} min` : "—"}</p>
-												</div>
-												<div>
-													<label className="block text-sm font-medium text-brand-primary-1">Max Attendees</label>
-													<p className="mt-1 text-sm text-brand-secondary-1">{config.defaultMaxAttendees ?? "—"}</p>
-												</div>
-											</div>
-										</div>
-									</div>
-									<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
-										<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Booking &amp; Cancellation Rules</h5>
+									<Section title="Timing">
 										<div className="grid grid-cols-2 gap-4">
-											<div>
-												<label className="block text-sm font-medium text-brand-primary-1">Advance Booking</label>
-												<p className="mt-1 text-sm text-brand-secondary-1">
-													{config.requireAdvanceBooking
-														? `Required (${config.minAdvanceHours ?? 0}h ahead)`
-														: "Not required"}
-												</p>
-											</div>
-											<div>
-												<label className="block text-sm font-medium text-brand-primary-1">Cancellation Window</label>
-												<p className="mt-1 text-sm text-brand-secondary-1">
-													{config.enableCancellationWindow
-														? `${config.cancellationCutoffHours ?? 0}h before start`
-														: "No window"}
-												</p>
-											</div>
-											<div>
-												<label className="block text-sm font-medium text-brand-primary-1">Buffer Time</label>
-												<p className="mt-1 text-sm text-brand-secondary-1">
-													{config.bufferTimeMinutes ? `${config.bufferTimeMinutes} min` : "None"}
-												</p>
-											</div>
+											<Field label="Default Duration">
+												{config.defaultDuration
+													? `${config.defaultDuration} min`
+													: "—"}
+											</Field>
+											<Field label="Max Attendees">
+												{config.defaultMaxAttendees ?? "—"}
+											</Field>
 										</div>
-									</div>
+									</Section>
+
+									<Section title="Booking & Cancellation Rules">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Advance Booking">
+												{config.requireAdvanceBooking
+													? `Required (${config.minAdvanceHours ?? 0}h ahead)`
+													: "Not required"}
+											</Field>
+											<Field label="Cancellation Window">
+												{config.enableCancellationWindow
+													? `${config.cancellationCutoffHours ?? 0}h before start`
+													: "No window"}
+											</Field>
+											<Field label="Buffer Time">
+												{config.bufferTimeMinutes
+													? `${config.bufferTimeMinutes} min`
+													: "None"}
+											</Field>
+										</div>
+									</Section>
 								</>
 							)}
-							<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4 mt-4">
-								<div>
-									<label className="block text-sm font-medium text-brand-primary-1">Created</label>
-									<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(category.createdAt)}</p>
-								</div>
-								<div>
-									<label className="block text-sm font-medium text-brand-primary-1">Updated</label>
-									<p className="mt-1 text-sm text-brand-secondary-1">{formatDate(category.updatedAt)}</p>
-								</div>
+
+							<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4">
+								<Field label="Created">{formatDate(category.createdAt)}</Field>
+								<Field label="Updated">{formatDate(category.updatedAt)}</Field>
 							</div>
 						</div>
 					)}
@@ -269,10 +288,13 @@ export function ServiceCategoryDetailDialog({
 			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle>Deactivate category</DialogTitle>
+						<DialogTitle className="font-heading text-2xl">
+							Deactivate category
+						</DialogTitle>
 					</DialogHeader>
 					<p className="text-sm text-muted-foreground">
-						Deactivate &quot;{category?.name}&quot;? It will be hidden from active lists. You can reactivate it later by editing.
+						Deactivate &quot;{category?.name}&quot;? It will be hidden from
+						active lists. You can reactivate it later by editing.
 					</p>
 					<DialogFooter>
 						<Button
@@ -289,7 +311,7 @@ export function ServiceCategoryDetailDialog({
 							onClick={handleDelete}
 							disabled={isDeleting}
 						>
-							{isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+							{isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
 							Deactivate
 						</Button>
 					</DialogFooter>

@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useBookingFlow } from "@/contexts/booking-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
+import { authClient } from "@/lib/auth-client";
 import { colors } from "@/lib/colors";
 import { client } from "@/utils/orpc";
 
@@ -45,20 +46,35 @@ export default function ReviewScreen() {
 	const { organizationId } = useOrganization();
 	const { state } = useBookingFlow();
 	const queryClient = useQueryClient();
+	const { data: session } = authClient.useSession();
+	const userId = session?.user?.id ?? null;
 
 	const currentStep = 3;
 	const totalSteps = 4;
 	const progressPercentage = 75;
 
 	const confirmMutation = useMutation({
-		mutationFn: () =>
-			client.appointments.create({
+		mutationFn: () => {
+			// Pre-flight: surface obvious missing fields with a clear message
+			// instead of letting them hit the server's "Input validation failed".
+			const missing: string[] = [];
+			if (!state.startTime) missing.push("startTime");
+			if (!state.branchId) missing.push("branchId");
+			if (!state.duration) missing.push("duration");
+			if (!state.packageInstanceId) missing.push("packageInstanceId");
+			if (missing.length > 0) {
+				throw new Error(
+					`Missing booking field(s): ${missing.join(", ")}. Please go back and re-select the package and time.`,
+				);
+			}
+
+			const payload = {
 				organizationId,
-				type:
-					state.serviceType === "semi-private" ||
-					state.serviceType === "semi_private"
-						? "semi-private"
-						: "private",
+				userId,
+				type: (state.serviceType === "semi-private" ||
+				state.serviceType === "semi_private"
+					? "semi-private"
+					: "private") as "private" | "semi-private",
 				startTime: state.startTime!,
 				duration: state.duration ?? 60,
 				branchId: state.branchId!,
@@ -67,10 +83,13 @@ export default function ReviewScreen() {
 				classSlotId: state.classSlotId ?? undefined,
 				packageInstanceId: state.packageInstanceId ?? undefined,
 				creditsUsed: 1,
-				status: "confirmed",
+				status: "confirmed" as const,
 				sessionTotal: 1,
 				pricePerClient: 0,
-			}),
+			};
+			console.log("appointments.create payload:", JSON.stringify(payload, null, 2));
+			return client.appointments.create(payload);
+		},
 		onSuccess: (data: any) => {
 			queryClient.invalidateQueries({
 				predicate: (q) =>
@@ -88,11 +107,32 @@ export default function ReviewScreen() {
 				},
 			});
 		},
-		onError: (error: Error) => {
-			Alert.alert(
-				"Booking Failed",
-				error.message || "Could not create booking. Please try again.",
+		onError: (error: any) => {
+			// Deep-print the error so RN console shows code + data + issues, not just message
+			console.error(
+				"appointments.create failed (serialized):",
+				JSON.stringify(
+					{
+						message: error?.message,
+						code: error?.code,
+						status: error?.status,
+						data: error?.data,
+					},
+					null,
+					2,
+				),
 			);
+			const issues =
+				(error?.data?.issues as Array<{ path?: any[]; message?: string }>) ??
+				[];
+			const detail =
+				issues.length > 0
+					? issues
+							.map((i) => `${i.path?.join(".") ?? "?"}: ${i.message}`)
+							.join("\n")
+					: error?.message ||
+						"Could not create booking. Please try again.";
+			Alert.alert("Booking Failed", detail);
 		},
 	});
 
@@ -412,10 +452,10 @@ export default function ReviewScreen() {
 				<View className="px-4 py-4">
 					<TouchableOpacity
 						onPress={() => confirmMutation.mutate()}
-						disabled={confirmMutation.isPending}
+						disabled={confirmMutation.isPending || !userId}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						style={{
-							opacity: confirmMutation.isPending ? 0.6 : 1,
+							opacity: confirmMutation.isPending || !userId ? 0.6 : 1,
 						}}
 					>
 						{confirmMutation.isPending ? (

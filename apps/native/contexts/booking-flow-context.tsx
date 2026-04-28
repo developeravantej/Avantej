@@ -8,6 +8,11 @@ export interface BookingFlowState {
 	serviceId: string | null;
 	serviceName: string | null;
 	serviceType: "private" | "semi-private" | "semi_private";
+	schedulingType: "appointment" | "class_slot" | null;
+	timePresetConfig: {
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	} | null;
 	serviceDuration: number | null;
 	trainerId: string | null;
 	trainerName: string | null;
@@ -27,6 +32,8 @@ const initialState: BookingFlowState = {
 	serviceId: null,
 	serviceName: null,
 	serviceType: "private",
+	schedulingType: null,
+	timePresetConfig: null,
 	serviceDuration: null,
 	trainerId: null,
 	trainerName: null,

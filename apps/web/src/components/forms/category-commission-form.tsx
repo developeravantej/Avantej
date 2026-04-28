@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Plus, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -235,7 +235,7 @@ export function CategoryCommissionForm({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-2xl overflow-y-auto">
+			<DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 				<DialogHeader className="mb-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
@@ -255,7 +255,7 @@ export function CategoryCommissionForm({
 						Loading...
 					</div>
 				) : (
-					<div className="flex flex-col gap-5 pb-24">
+					<div className="flex flex-col gap-5 overflow-y-auto -mx-6 px-6">
 						<div className="rounded-lg border bg-card p-4 flex flex-col gap-3">
 							<Label className="text-sm font-medium">Payment Type</Label>
 							<RadioGroup
@@ -577,14 +577,14 @@ export function CategoryCommissionForm({
 					</div>
 				)}
 
-				<div className="absolute bottom-0 left-0 right-0 flex justify-end gap-2 border-t bg-background px-6 py-4">
+				<DialogFooter>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button onClick={handleSubmit} disabled={upsertMutation.isPending || isLoadingConfig}>
 						{upsertMutation.isPending ? "Saving..." : "Save Config"}
 					</Button>
-				</div>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

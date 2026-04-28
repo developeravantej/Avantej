@@ -48,7 +48,9 @@ describe("listServices", () => {
 
 		const result = await listServices(mockTenantDb);
 
-		expect(result).toEqual(fakeServices);
+		expect(result).toEqual(
+			fakeServices.map((s) => ({ ...s, service_category_name: null })),
+		);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		const callArg = mockFindMany.mock.calls[0][0];
 		expect(callArg.where).toBeUndefined();

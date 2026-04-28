@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
@@ -283,48 +282,43 @@ export default function DoneScreen() {
 									className="font-bold text-lg"
 									style={{ color: colors.primary[1] }}
 								>
-									${total.toFixed(2)}
+									${(total / 100).toFixed(2)}
 								</Text>
 							</View>
 						</View>
 					</View>
+
+					{/* Action Buttons (inline; scroll with content) */}
+					<View className="mt-6 w-full">
+						<TouchableOpacity
+							onPress={handleViewPackages}
+							className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
+						>
+							<Text className="font-semibold text-base text-primary-2">
+								View My Packages
+							</Text>
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							onPress={handleStartBooking}
+							className="mb-3 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"
+						>
+							<Text className="font-semibold text-base text-primary-1">
+								Start Booking
+							</Text>
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							onPress={handleGoHome}
+							className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
+						>
+							<Text className="font-semibold text-base text-primary-1">
+								Back to Home
+							</Text>
+						</TouchableOpacity>
+					</View>
 				</View>
 			</ScrollView>
-
-			{/* Action Buttons */}
-			<SafeAreaView
-				edges={["bottom"]}
-				className="border-secondary-3 border-t bg-white"
-			>
-				<View className="px-4 py-4">
-					<TouchableOpacity
-						onPress={handleViewPackages}
-						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
-					>
-						<Text className="font-semibold text-base text-primary-2">
-							View My Packages
-						</Text>
-					</TouchableOpacity>
-
-					<TouchableOpacity
-						onPress={handleStartBooking}
-						className="mb-3 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"
-					>
-						<Text className="font-semibold text-base text-primary-1">
-							Start Booking
-						</Text>
-					</TouchableOpacity>
-
-					<TouchableOpacity
-						onPress={handleGoHome}
-						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
-					>
-						<Text className="font-semibold text-base text-primary-1">
-							Back to Home
-						</Text>
-					</TouchableOpacity>
-				</View>
-			</SafeAreaView>
 		</Container>
 	);
 }

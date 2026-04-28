@@ -101,9 +101,6 @@ export default function SetupScreen() {
 	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
 		state.serviceId,
 	);
-	const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
-		state.packageId,
-	);
 
 	const currentStep = 1;
 	const totalSteps = 7;
@@ -116,7 +113,7 @@ export default function SetupScreen() {
 		}),
 	);
 
-	// Fetch services for selected category
+	// Fetch services for selected category — only package-style (sessionCount != null)
 	const { data: services, isLoading: servicesLoading } = useQuery({
 		...orpc.services.list.queryOptions({
 			input: { organizationId, categoryId: selectedCategoryId! },
@@ -124,46 +121,53 @@ export default function SetupScreen() {
 		enabled: !!selectedCategoryId,
 	});
 
-	const selectedService = services?.find((s: any) => s.id === selectedServiceId);
-	const serviceType = selectedService?.type as "private" | "semi_private" | undefined;
-
-	const { data: allServices, isLoading: packagesLoading } = useQuery({
-		...orpc.services.list.queryOptions({
-			input: { organizationId },
-		}),
-		enabled: !!selectedServiceId,
-	});
-
-	// Services with sessionCount are packages; filter to those compatible with the selected service type
-	const availablePackages = allServices?.filter((s: any) =>
-		s.sessionCount != null &&
-		(!serviceType || s.type === serviceType || s.type === "both"),
+	const purchasableServices = (services ?? []).filter(
+		(s: any) => s.sessionCount != null,
 	);
+
+	const selectedService = purchasableServices.find(
+		(s: any) => s.id === selectedServiceId,
+	);
+	const serviceType = selectedService?.type as
+		| "private"
+		| "semi_private"
+		| undefined;
 
 	const handleContinue = () => {
 		const selectedCat = categories?.find(
 			(c: any) => c.id === selectedCategoryId,
 		);
-		const selectedSvc = services?.find(
-			(s: any) => s.id === selectedServiceId,
-		);
-		const selectedPkg = (availablePackages as any[])?.find(
-			(p: any) => p.id === selectedPackageId,
-		);
+		const selectedSvc = selectedService;
+		if (!selectedSvc) return;
 
 		update({
 			categoryId: selectedCategoryId,
 			categoryName: selectedCat?.name ?? null,
 			serviceId: selectedServiceId,
-			serviceName: selectedSvc?.name ?? null,
+			serviceName: selectedSvc.name ?? null,
 			serviceType: (serviceType as "private" | "semi_private") ?? null,
-			packageId: selectedPackageId,
-			packageName: selectedPkg?.name ?? null,
-			creditsTotal: selectedPkg?.sessionCount ?? null,
-			price: selectedPkg?.price ?? null,
-			validityDays: selectedPkg?.expiryDays ?? null,
-			availablePaymentPlans: (selectedSvc as any)?.availablePaymentPlans ?? [],
-			installmentIntervalDays: (selectedSvc as any)?.installmentIntervalDays ?? 30,
+			schedulingType:
+				((selectedSvc as any).schedulingType as
+					| "appointment"
+					| "class_slot"
+					| null) ?? "appointment",
+			timePresetConfig:
+				((selectedSvc as any).timePresetConfig as
+					| {
+							recurringDays: string[];
+							timeSlotsPerDay: Record<string, string[]>;
+					  }
+					| null) ?? null,
+			// Service IS the package — store same id/name in package fields so
+			// downstream screens (pay.tsx) continue to read state.packageId etc.
+			packageId: selectedServiceId,
+			packageName: selectedSvc.name ?? null,
+			creditsTotal: selectedSvc.sessionCount ?? null,
+			price: selectedSvc.price ?? null,
+			validityDays: selectedSvc.expiryDays ?? null,
+			availablePaymentPlans: (selectedSvc as any).availablePaymentPlans ?? [],
+			installmentIntervalDays:
+				(selectedSvc as any).installmentIntervalDays ?? 30,
 		});
 		router.push("./schedule");
 	};
@@ -319,7 +323,6 @@ export default function SetupScreen() {
 									onPress={() => {
 										setSelectedCategoryId(category.id);
 										setSelectedServiceId(null);
-										setSelectedPackageId(null);
 									}}
 									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 										selectedCategoryId === category.id
@@ -377,7 +380,7 @@ export default function SetupScreen() {
 								<SkeletonCard />
 								<SkeletonCard />
 							</>
-						) : (services ?? []).length === 0 ? (
+						) : purchasableServices.length === 0 ? (
 							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
 								<Text
 									className="text-center text-sm"
@@ -387,12 +390,11 @@ export default function SetupScreen() {
 								</Text>
 							</View>
 						) : (
-							(services ?? []).map((service: any) => (
+							purchasableServices.map((service: any) => (
 								<TouchableOpacity
 									key={service.id}
 									onPress={() => {
 										setSelectedServiceId(service.id);
-										setSelectedPackageId(null);
 									}}
 									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
 										selectedServiceId === service.id
@@ -407,137 +409,72 @@ export default function SetupScreen() {
 										>
 											{service.name}
 										</Text>
-										{service.type && (
-											<View
-												className="ml-2 rounded-full px-2 py-1"
-												style={{ backgroundColor: colors.secondary[3] }}
-											>
-												<Text
-													className="font-medium text-xs"
-													style={{ color: colors.primary[1] }}
+										<View className="ml-2 flex-row gap-1">
+											{service.sessionCount != null && (
+												<View
+													className="rounded-full px-2 py-1"
+													style={{ backgroundColor: colors.secondary[3] }}
 												>
-													{service.type === "semi_private"
-														? "Semi-Private"
-														: "Private"}
-												</Text>
-											</View>
-										)}
+													<Text
+														className="font-medium text-xs"
+														style={{ color: colors.primary[1] }}
+													>
+														{service.sessionCount} credits
+													</Text>
+												</View>
+											)}
+											{service.type && (
+												<View
+													className="rounded-full px-2 py-1"
+													style={{ backgroundColor: colors.secondary[3] }}
+												>
+													<Text
+														className="font-medium text-xs"
+														style={{ color: colors.primary[1] }}
+													>
+														{service.type === "semi_private"
+															? "Semi-Private"
+															: "Private"}
+													</Text>
+												</View>
+											)}
+										</View>
 									</View>
 									{service.description && (
 										<Text
-											className="text-sm"
+											className="mb-2 text-sm"
 											style={{ color: colors.secondary[1] }}
 										>
 											{service.description}
 										</Text>
 									)}
+									<View className="flex-row items-center justify-between">
+										<Text
+											className="font-semibold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											{service.price != null
+												? `$${(service.price / 100).toFixed(2)}`
+												: "—"}
+										</Text>
+										{service.expiryDays && (
+											<Text
+												className="text-xs"
+												style={{ color: colors.secondary[1] }}
+											>
+												Valid for {service.expiryDays} days
+											</Text>
+										)}
+									</View>
 								</TouchableOpacity>
 							))
 						)}
 					</View>
-
-					{/* Package Selection Section */}
-					{selectedServiceId && (
-						<View className="mb-4">
-							<Text
-								className="mb-2 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.primary[1] }}
-							>
-								SELECT PACKAGE
-							</Text>
-							<Text
-								className="mb-4 text-base"
-								style={{ color: colors.primary[1] }}
-							>
-								Choose a package that suits your needs
-							</Text>
-
-							{packagesLoading ? (
-								<>
-									<SkeletonCard />
-									<SkeletonCard />
-								</>
-							) : (availablePackages as any[] ?? []).length === 0 ? (
-								<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
-									<Text
-										className="text-center text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
-										No packages available for this service type
-									</Text>
-								</View>
-							) : (
-								(availablePackages as any[] ?? []).map((pkg: any) => {
-									const totalPrice = pkg.price ?? 0;
-
-									return (
-										<TouchableOpacity
-											key={pkg.id}
-											onPress={() => setSelectedPackageId(pkg.id)}
-											className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-												selectedPackageId === pkg.id
-													? "border-primary-1"
-													: "border-secondary-3"
-											} shadow-sm`}
-										>
-											<View className="mb-2 flex-row items-start justify-between">
-												<Text
-													className="flex-1 font-bold text-lg"
-													style={{ color: colors.primary[1] }}
-												>
-													{pkg.name}
-												</Text>
-												{pkg.sessionCount && (
-													<View
-														className="ml-2 rounded-full px-2 py-1"
-														style={{
-															backgroundColor: colors.secondary[3],
-														}}
-													>
-														<Text
-															className="font-medium text-xs"
-															style={{ color: colors.primary[1] }}
-														>
-															{pkg.sessionCount} credits
-														</Text>
-													</View>
-												)}
-											</View>
-											{pkg.description && (
-												<Text
-													className="mb-2 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													{pkg.description}
-												</Text>
-											)}
-											<View className="flex-row items-center justify-between">
-												<Text
-													className="font-semibold text-base"
-													style={{ color: colors.primary[1] }}
-												>
-													${totalPrice.toFixed(2)}
-												</Text>
-												{pkg.expiryDays && (
-													<Text
-														className="text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														Valid for {pkg.expiryDays} days
-													</Text>
-												)}
-											</View>
-										</TouchableOpacity>
-									);
-								})
-							)}
-						</View>
-					)}
 				</View>
 			</ScrollView>
 
 			{/* Continue Button */}
-			{selectedCategoryId && selectedServiceId && selectedPackageId && (
+			{selectedCategoryId && selectedServiceId && (
 				<SafeAreaView
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"

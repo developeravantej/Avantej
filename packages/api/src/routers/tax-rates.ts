@@ -35,18 +35,21 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"tax_configuration",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			return listTaxRates(context.tenantDb, {
@@ -76,18 +79,21 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"tax_configuration",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			const taxRate = await getTaxRateById(context.tenantDb, input.id);
@@ -119,18 +125,21 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
+			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
+			if (context.member.role !== "client") {
+				try {
+					await requirePermission(
+						context.tenantDb,
+						context.member,
+						"tax_configuration",
+						"read",
+					);
+				} catch (error) {
+					throw new ORPCError("FORBIDDEN", {
+						message:
+							error instanceof Error ? error.message : "Permission denied",
+					});
+				}
 			}
 
 			const taxRate = await getDefaultTaxRate(context.tenantDb);

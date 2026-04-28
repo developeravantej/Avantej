@@ -12,7 +12,7 @@
  * - Attendance threshold allows services to require minimum attendees
  */
 
-import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { serviceCategories } from "./service-categories";
 
@@ -80,6 +80,13 @@ export const services = pgTable("services", {
 	availablePaymentPlans: text("available_payment_plans").array().default([]),
 	installmentIntervalDays: integer("installment_interval_days").default(30),
 	gracePeriodDays: integer("grace_period_days"),
+
+	// Recurring class-slot template (only used when schedulingType = "class_slot")
+	// Shape: { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> }
+	timePresetConfig: jsonb("time_preset_config").$type<{
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	} | null>(),
 
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),

@@ -171,7 +171,7 @@ export function ServiceFormDialog({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>
+					<DialogTitle className="font-heading text-2xl">
 						{mode === "create"
 							? "Add New Service Category"
 							: "Edit Service Category"}
@@ -184,7 +184,7 @@ export function ServiceFormDialog({
 				</DialogHeader>
 
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 						{/* Name */}
 						<FormField
 							control={form.control}
@@ -197,6 +197,7 @@ export function ServiceFormDialog({
 									</FormLabel>
 									<FormControl>
 										<Input
+											className="bg-white"
 											placeholder="e.g., Personal Training (1-on-1)"
 											{...field}
 										/>
@@ -219,6 +220,7 @@ export function ServiceFormDialog({
 										</FormLabel>
 										<FormControl>
 											<Input
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 												type="number"
 												min={0}
 												placeholder="60"
@@ -226,6 +228,12 @@ export function ServiceFormDialog({
 												onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
 											/>
 										</FormControl>
+										<p
+											className="text-xs invisible"
+											aria-hidden="true"
+										>
+											spacer
+										</p>
 										<FormMessage />
 									</FormItem>
 								)}
@@ -238,6 +246,7 @@ export function ServiceFormDialog({
 										<FormLabel>Maximum Attendees/Customers</FormLabel>
 										<FormControl>
 											<Input
+												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 												type="number"
 												min={1}
 												placeholder="No limit"
@@ -261,10 +270,10 @@ export function ServiceFormDialog({
 						</div>
 
 						{/* Booking & Cancellation Rules */}
-						<div className="rounded-md border border-border bg-white p-4">
-							<h5 className="mb-3 text-sm font-medium">
+						<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6">
+							<h3 className="mb-4 font-subheading text-base text-foreground">
 								Booking &amp; Cancellation Rules
-							</h5>
+							</h3>
 
 							<div className="grid grid-cols-2 gap-4">
 								{/* Require advance booking */}
@@ -275,6 +284,7 @@ export function ServiceFormDialog({
 										<FormItem className="flex flex-row items-center gap-2 space-y-0">
 											<FormControl>
 												<Checkbox
+													className="bg-white"
 													checked={field.value}
 													onCheckedChange={field.onChange}
 												/>
@@ -294,6 +304,7 @@ export function ServiceFormDialog({
 										<FormItem className="flex flex-row items-center gap-2 space-y-0">
 											<FormControl>
 												<Checkbox
+													className="bg-white"
 													checked={field.value}
 													onCheckedChange={field.onChange}
 												/>
@@ -316,6 +327,7 @@ export function ServiceFormDialog({
 											<FormLabel>Min advance booking (hours)</FormLabel>
 											<FormControl>
 												<Input
+													className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													type="number"
 													min={0}
 													disabled={!requireAdvanceBooking}
@@ -340,6 +352,7 @@ export function ServiceFormDialog({
 											<FormLabel>Cancellation cutoff (hours)</FormLabel>
 											<FormControl>
 												<Input
+													className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													type="number"
 													min={0}
 													disabled={!enableCancellationWindow}
@@ -365,7 +378,7 @@ export function ServiceFormDialog({
 										<FormItem>
 											<FormLabel>Buffer Time (minutes)</FormLabel>
 											<FormControl>
-												<Input type="number" min={0} max={480} {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
+												<Input className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" min={0} max={480} {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
 											</FormControl>
 											<p className="text-xs text-muted-foreground">
 												Minutes required between consecutive bookings for

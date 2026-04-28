@@ -206,7 +206,7 @@ export default function ReviewScreen() {
 							</View>
 						)}
 
-						{/* Service */}
+						{/* Service (carries credits, price, validity) */}
 						{state.serviceName && (
 							<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 								<View className="mb-2 flex-row items-center">
@@ -228,55 +228,32 @@ export default function ReviewScreen() {
 								>
 									{state.serviceName}
 								</Text>
+								{state.creditsTotal && (
+									<Text
+										className="mt-1 text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										{state.creditsTotal} credits
+									</Text>
+								)}
+								{state.price != null && (
+									<Text
+										className="mt-1 font-semibold text-sm"
+										style={{ color: colors.primary[1] }}
+									>
+										${(state.price / 100).toFixed(2)}
+									</Text>
+								)}
+								{state.validityDays && (
+									<Text
+										className="mt-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Valid for {state.validityDays} days
+									</Text>
+								)}
 							</View>
 						)}
-
-						{/* Package */}
-						<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-							<View className="mb-2 flex-row items-center">
-								<Ionicons
-									name="cube-outline"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-								<Text
-									className="ml-2 text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									Package
-								</Text>
-							</View>
-							<Text
-								className="font-semibold text-base"
-								style={{ color: colors.primary[1] }}
-							>
-								{state.packageName ?? "Not selected"}
-							</Text>
-							{state.creditsTotal && (
-								<Text
-									className="mt-1 text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									{state.creditsTotal} credits
-								</Text>
-							)}
-							{state.price != null && (
-								<Text
-									className="mt-1 font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									${state.price.toFixed(2)}
-								</Text>
-							)}
-							{state.validityDays && (
-								<Text
-									className="mt-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									Valid for {state.validityDays} days
-								</Text>
-							)}
-						</View>
 
 						{/* Preferred Times (Personal Training only) */}
 						{state.serviceType === "private" &&

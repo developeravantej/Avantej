@@ -117,6 +117,7 @@ export default function PackagesLayout() {
 			}}
 		>
 			<Stack.Screen name="index" />
+			<Stack.Screen name="[id]" />
 		</Stack>
 	);
 }
