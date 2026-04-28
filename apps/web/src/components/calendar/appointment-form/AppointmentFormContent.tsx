@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { TestDataDialog, type TestAppointmentData } from "./TestDataDialog";
+import { type TestAppointmentData } from "./TestDataDialog";
 import { ClientPicker } from "./ClientPicker";
 import { ServicePicker } from "./ServicePicker";
 import { DateTimePicker } from "./DateTimePicker";
@@ -819,38 +819,33 @@ export function AppointmentFormContent({
 				</CardContent>
 			</Card>
 
-			{/* Test Dialog */}
-			{isTestDialogOpen && testAppointmentData && (
-				<TestDataDialog
-					data={testAppointmentData}
-					onClose={() => {
-						setIsTestDialogOpen(false);
-						setTestAppointmentData(null);
-					}}
-					onConfirm={(data) => {
-						if (data.type === "SINGLE APPOINTMENT" || data.type === "RECURRING APPOINTMENT") {
-							onSubmit(data.appointment);
-							resetForm();
-							onClose();
-						} else if (data.type === "BLOCKED TIMING" || data.type === "BLOCKED TIME") {
-							onSubmit(data.appointment);
-							setIsBlockedTiming(false);
-							resetForm();
-							onClose();
-						} else if (data.type === "MULTIPLE APPOINTMENTS") {
-							data.appointments.forEach((appointment: unknown) => {
-								onSubmit(appointment as Parameters<typeof onSubmit>[0]);
-							});
-							setAppointmentSlots([]);
-							setSelectedAppointmentId(null);
-							setIsMultiAppointment(false);
-							onClose();
-						}
-						setIsTestDialogOpen(false);
-						setTestAppointmentData(null);
-					}}
-				/>
-			)}
+			{/* Auto-submit instead of showing the dev TestDataDialog */}
+			{isTestDialogOpen && testAppointmentData && (() => {
+				const data = testAppointmentData;
+				queueMicrotask(() => {
+					if (data.type === "SINGLE APPOINTMENT" || data.type === "RECURRING APPOINTMENT") {
+						onSubmit(data.appointment);
+						resetForm();
+						onClose();
+					} else if (data.type === "BLOCKED TIMING" || data.type === "BLOCKED TIME") {
+						onSubmit(data.appointment);
+						setIsBlockedTiming(false);
+						resetForm();
+						onClose();
+					} else if (data.type === "MULTIPLE APPOINTMENTS") {
+						data.appointments.forEach((appointment: unknown) => {
+							onSubmit(appointment as Parameters<typeof onSubmit>[0]);
+						});
+						setAppointmentSlots([]);
+						setSelectedAppointmentId(null);
+						setIsMultiAppointment(false);
+						onClose();
+					}
+					setIsTestDialogOpen(false);
+					setTestAppointmentData(null);
+				});
+				return null;
+			})()}
 		</div>
 	);
 }

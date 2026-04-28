@@ -115,17 +115,22 @@ export function CreateInvitationDialog({
 				hierarchyScopeId: data.hierarchyScopeId,
 			});
 
-			// Send email via oRPC
-			await client.invitations.sendEmail({
-				invitation: {
-					token: result.invitation.token,
-					email: result.invitation.email,
-					role: result.invitation.role,
-				},
-				organizationId: result.organizationId,
-				organizationName: result.organizationName,
-				inviterName: result.inviterName,
-			});
+			// Email send is best-effort — if it fails (e.g. RESEND not configured in dev)
+			// we still consider the invitation creation a success.
+			try {
+				await client.invitations.sendEmail({
+					invitation: {
+						token: result.invitation.token,
+						email: result.invitation.email,
+						role: result.invitation.role,
+					},
+					organizationId: result.organizationId,
+					organizationName: result.organizationName,
+					inviterName: result.inviterName,
+				});
+			} catch (e) {
+				console.warn("Invitation email failed to send (invitation still created):", e);
+			}
 
 			return result;
 		},
@@ -134,6 +139,7 @@ export function CreateInvitationDialog({
 		onSuccess: () => {
 			reset();
 			onSuccess?.();
+			onOpenChange(false);
 		},
 	});
 
