@@ -10,15 +10,12 @@
     "start": "vite",
     "check-types": "tsc --noEmit",
     "wrangler:dev": "wrangler dev --port=3001",
-    "deploy": "bun run build && wrangler deploy",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "check:mutations": "bun scripts/check-no-raw-mutation-toast.ts"
+    "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",
     "@avantej-core/auth": "workspace:*",
+    "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.1.1",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
@@ -61,18 +58,17 @@
     "@tanstack/router-plugin": "^1.114.27",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.13.13",
     "@types/react": "~19.1.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.0.15",
     "typescript": "catalog:",
     "vite": "^6.2.2",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.0.18",
+    "vitest": "^4.1.5",
     "wrangler": "^4.40.3"
   }
 }
