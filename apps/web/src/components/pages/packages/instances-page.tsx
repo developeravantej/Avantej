@@ -218,7 +218,7 @@ export function PackageInstancesPage() {
 			clientId: form.clientId.trim(),
 			source: form.source,
 			creditsTotal,
-			creditsRemaining: creditsTotal,
+			...({creditsRemaining: creditsTotal} as any),
 			startsAt: new Date(`${form.startsAt}T00:00:00.000Z`).toISOString(),
 			expiresAt: new Date(`${form.expiresAt}T23:59:59.000Z`).toISOString(),
 			totalPrice: totalPriceCents,

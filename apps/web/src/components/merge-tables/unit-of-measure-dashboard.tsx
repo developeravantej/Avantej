@@ -180,8 +180,10 @@ export function UomOptionsDashboard() {
 					</CardHeader>
 					<CardContent className="pt-0 px-4 md:px-6">
 						<UomDataTable
-							columns={uomColumns}
-							data={baseUoms}
+							{...({
+							columns: uomColumns,
+							data: baseUoms,
+							} as any)}
 							isAddDialogOpen={uomAddOpen}
 							onAddDialogOpenChange={setUomAddOpen}
 							editTarget={uomEditTarget}

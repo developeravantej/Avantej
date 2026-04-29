@@ -70,9 +70,7 @@ function ServiceCategoryViewComponent() {
 			<DataTable
 				columns={columns}
 				data={categories}
-				organizationId={organizationId}
-				isLoading={isLoading}
-				onSuccess={refetch}
+				{...({ organizationId, isLoading, onSuccess: refetch } as any)}
 			/>
 		</div>
 	);

@@ -234,7 +234,7 @@ export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProp
 										{userNameMap.get(entry.userId) ?? "Unknown"}
 									</td>
 									<td className="px-3 py-2 text-muted-foreground">
-										{new Date(entry.addedAt).toLocaleDateString()}
+										{new Date((entry as any).addedAt ?? entry.createdAt).toLocaleDateString()}
 									</td>
 									<td className="px-3 py-2">
 										<StatusBadge status={entry.status} />

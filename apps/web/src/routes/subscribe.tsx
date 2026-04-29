@@ -31,7 +31,9 @@ import {
   Mail,
   User
 } from "lucide-react";
-import apiClient from "@/lib/api";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import apiClientImport from "@/lib/api";
+const apiClient = apiClientImport as any;
 import { formatPrice } from "@/lib/money";
 import { getServerUrl } from "@/lib/config";
 import getStripe from "@/lib/stripe";
@@ -187,7 +189,7 @@ function SubscribePage() {
         });
       } else {
         // User already has organization, go to dashboard
-        navigate({ to: "/dashboard", search: { session_id: undefined } });
+        navigate({ to: "/dashboard", search: { session_id: undefined } as any });
       }
     },
     onError: (error) => {

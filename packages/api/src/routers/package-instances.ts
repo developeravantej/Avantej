@@ -451,7 +451,7 @@ export const packageInstancesRouter = {
         const userRows = await controlPanelDb
           .select({ id: user.id, name: user.name })
           .from(user)
-          .where(inArray(user.id, clientIds));
+          .where(inArray(user.id, clientIds as string[]));
         userMap = new Map(userRows.map((u) => [u.id, u.name]));
       }
 

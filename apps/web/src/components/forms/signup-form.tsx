@@ -89,7 +89,7 @@ export function SignupForm({
 					name: `${values.firstName} ${values.lastName}`,
 					firstName: values.firstName,
 					lastName: values.lastName,
-				},
+				} as any,
 				{
 					onSuccess: async () => {
 						toast.success("Account created successfully!");

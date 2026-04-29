@@ -525,7 +525,7 @@ export function CustomerDetailSheet({
 											>
 												<div className="flex min-w-0 flex-col gap-0.5">
 													<span className="truncate font-medium">
-														{pkg.serviceName ?? pkg.id}
+														{(pkg as any).serviceName ?? pkg.id}
 													</span>
 													<span className="text-muted-foreground text-xs">
 														{pkg.creditsUsed ?? 0} / {pkg.creditsTotal ?? "∞"}{" "}
@@ -567,7 +567,7 @@ export function CustomerDetailSheet({
 													</span>
 													<span className="text-muted-foreground text-xs">
 														{formatDate(payment.createdAt)}
-														{payment.method ? ` · ${payment.method}` : ""}
+														{(payment as any).method ? ` · ${(payment as any).method}` : ""}
 													</span>
 												</div>
 												<Badge

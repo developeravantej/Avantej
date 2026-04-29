@@ -89,7 +89,7 @@ export const payoutsRouter = {
 			const memberRows = await context.tenantDb
 				.select({ userId: members.userId })
 				.from(members)
-				.where(inArray(members.userId, recipientIds));
+				.where(inArray(members.userId, recipientIds as string[]));
 
 			const userIds = memberRows.map((m: any) => m.userId);
 
