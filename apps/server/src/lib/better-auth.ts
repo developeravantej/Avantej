@@ -335,7 +335,7 @@ function createBetterAuth(c?: Context) {
           const databaseUrl = getEnvVar("DATABASE_URL");
           if (databaseUrl) {
             const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool }) as any;
+            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),

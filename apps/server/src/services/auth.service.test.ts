@@ -20,13 +20,13 @@ import { controlPanelDb } from "@/lib/db";
 
 // Mock Better-Auth API
 const mockSendVerificationEmail = mock(() => Promise.resolve());
-const mockForgetPassword = mock(() => Promise.resolve());
+const mockRequestPasswordReset = mock(() => Promise.resolve());
 const mockResetPassword = mock(() => Promise.resolve({ status: "success" }));
 
 // Mock auth.api
 const mockAuthApi = {
 	sendVerificationEmail: mockSendVerificationEmail,
-	forgetPassword: mockForgetPassword,
+	requestPasswordReset: mockRequestPasswordReset,
 	resetPassword: mockResetPassword,
 };
 
@@ -52,7 +52,7 @@ const mockQuery = {
 beforeEach(() => {
 	// Reset mocks
 	mockSendVerificationEmail.mockClear();
-	mockForgetPassword.mockClear();
+	mockRequestPasswordReset.mockClear();
 	mockResetPassword.mockClear();
 	mockFindFirst.mockClear();
 	mockUpdate.mockClear();
@@ -202,8 +202,8 @@ describe("Auth Service - sendPasswordResetEmail", () => {
 
 		await sendPasswordResetEmail("test@example.com");
 
-		expect(mockForgetPassword).toHaveBeenCalledTimes(1);
-		expect(mockForgetPassword).toHaveBeenCalledWith({
+		expect(mockRequestPasswordReset).toHaveBeenCalledTimes(1);
+		expect(mockRequestPasswordReset).toHaveBeenCalledWith({
 			body: {
 				email: "test@example.com",
 			},
@@ -219,7 +219,7 @@ describe("Auth Service - sendPasswordResetEmail", () => {
 
 	test("does not reveal if email exists (security)", async () => {
 		(auth as any).api = {
-			forgetPassword: mock(() => Promise.reject(new Error("User not found"))),
+			requestPasswordReset: mock(() => Promise.reject(new Error("User not found"))),
 		};
 
 		// Should not throw error (security best practice)

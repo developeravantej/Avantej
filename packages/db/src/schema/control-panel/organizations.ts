@@ -8,6 +8,7 @@
  */
 
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { subscriptions } from "./subscriptions";
 import { users } from "./users";
 
@@ -37,5 +38,16 @@ export const organizations = pgTable("organizations", {
 	subscriptionIdIdx: index("organizations_subscription_idx").on(table.subscriptionId),
 	paymentStatusIdx: index("organizations_payment_status_idx").on(table.paymentStatus),
 	stripeConnectAccountIdIdx: index("organizations_stripe_connect_idx").on(table.stripeConnectAccountId),
+}));
+
+export const organizationsRelations = relations(organizations, ({ one }) => ({
+	subscription: one(subscriptions, {
+		fields: [organizations.subscriptionId],
+		references: [subscriptions.id],
+	}),
+	owner: one(users, {
+		fields: [organizations.ownerUserId],
+		references: [users.id],
+	}),
 }));
 
