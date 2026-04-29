@@ -11,7 +11,7 @@ import {
 	markExpensePaid,
 } from "@avantej-core/services/expenses.service";
 
-let mockDb: ReturnType<typeof createMockTenantDb>;
+let mockDb: any;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 
@@ -49,7 +49,7 @@ describe("listExpenses", () => {
 
 		const result = await listExpenses(mockDb, {});
 
-		expect(result).toEqual(fakeExpenses);
+		expect(result).toEqual(fakeExpenses as any);
 		expect(mockDb.select).toHaveBeenCalledTimes(1);
 	});
 
@@ -70,7 +70,7 @@ describe("getExpenseById", () => {
 
 		const result = await getExpenseById(mockDb, expense.id);
 
-		expect(result).toEqual(expense);
+		expect(result).toEqual(expense as any);
 	});
 
 	test("returns undefined when expense does not exist", async () => {

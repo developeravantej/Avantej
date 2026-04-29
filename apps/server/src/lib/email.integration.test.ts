@@ -43,7 +43,7 @@ function loadDevVars(): Record<string, string> {
 		const match = trimmed.match(/^([^=]+)=(.*)$/);
 		if (match) {
 			const [, key, value] = match;
-			vars[key] = value;
+			vars[key!] = value!;
 		}
 	}
 

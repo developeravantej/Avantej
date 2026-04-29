@@ -72,7 +72,7 @@ describe("listActiveAnnouncements", () => {
 		});
 
 		expect(result).toHaveLength(1);
-		expect(result[0].targetAudience).toBe("staff");
+		expect(result[0]!.targetAudience).toBe("staff");
 	});
 });
 

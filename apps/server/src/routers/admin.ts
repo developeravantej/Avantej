@@ -48,7 +48,7 @@ import { getBetterAuth } from "@/lib/better-auth";
 function requirePlatformAdmin(
 	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">
 ) {
-	return protectedProcedure.middleware(async ({ context, next }) => {
+	return (protectedProcedure as any).middleware(async ({ context, next }: { context: any; next: any }) => {
 		if (!context.session?.user) {
 			throw new ORPCError("UNAUTHORIZED", {
 				message: "Authentication required",
@@ -699,7 +699,7 @@ export const adminRouter = {
 			const offset = (input.page - 1) * input.limit;
 
 			// Get organizations with subscription info
-			const orgs = await controlPanelDb.query.organizations.findMany({
+			const orgs = (await controlPanelDb.query.organizations.findMany({
 				where: whereClause,
 				limit: input.limit,
 				offset,
@@ -707,11 +707,11 @@ export const adminRouter = {
 					subscription: true,
 				},
 				orderBy: (orgs, { desc }) => [desc(orgs.createdAt)],
-			});
+			})) as any[];
 
 			// Get member counts for each organization
 			const orgsWithMemberCounts = await Promise.all(
-				orgs.map(async (org) => {
+				orgs.map(async (org: any) => {
 					// Count members in control panel registry
 					const memberCountResult = await controlPanelDb
 						.select({ count: count() })
@@ -768,13 +768,13 @@ export const adminRouter = {
 				});
 			}
 
-			const org = await controlPanelDb.query.organizations.findFirst({
+			const org = (await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
 				with: {
 					subscription: true,
 					owner: true,
 				},
-			});
+			})) as any;
 
 			if (!org) {
 				throw new ORPCError("NOT_FOUND", {
@@ -876,12 +876,12 @@ export const adminRouter = {
 				.where(eq(organizations.id, input.id));
 
 			// Get updated org with member count
-			const updatedOrg = await controlPanelDb.query.organizations.findFirst({
+			const updatedOrg = (await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
 				with: {
 					subscription: true,
 				},
-			});
+			})) as any;
 
 			const memberCountResult = await controlPanelDb
 				.select({ count: count() })
@@ -949,12 +949,12 @@ export const adminRouter = {
 				.where(eq(organizations.id, input.id));
 
 			// Get updated org with member count
-			const updatedOrg = await controlPanelDb.query.organizations.findFirst({
+			const updatedOrg = (await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
 				with: {
 					subscription: true,
 				},
-			});
+			})) as any;
 
 			const memberCountResult = await controlPanelDb
 				.select({ count: count() })

@@ -23,7 +23,6 @@ import {
 	services,
 } from "@avantej-core/db/schema/tenant/index";
 import { neonConfig, Pool } from "@neondatabase/serverless";
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
@@ -468,7 +467,7 @@ async function main() {
 			}
 
 			for (let i = 0; i < notifDefs.length; i++) {
-				const notif = notifDefs[i];
+				const notif = notifDefs[i]!;
 				const createdAt = new Date(now.getTime() - (i + 1) * 3600000); // stagger by hours
 
 				try {

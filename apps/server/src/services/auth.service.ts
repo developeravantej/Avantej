@@ -201,7 +201,7 @@ export async function sendPasswordResetEmail(
     // Better-Auth handles password reset token generation and uses Resend for email sending
     // (configured in better-auth.ts email provider)
     const auth = getBetterAuth(c);
-    await auth.api.forgetPassword({
+    await (auth.api as any).forgetPassword({
       body: {
         email,
       },

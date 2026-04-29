@@ -10,7 +10,6 @@
 
 import { Hono } from "hono";
 import { authMiddleware } from "@/middleware/auth.middleware";
-import { tenantMiddleware } from "@/middleware/tenant.middleware";
 import { sendInvitationEmail } from "@/lib/email";
 
 export const invitationRoutes = new Hono();

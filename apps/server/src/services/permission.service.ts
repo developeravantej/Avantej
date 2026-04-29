@@ -40,8 +40,8 @@ export type Action = "create" | "read" | "update" | "delete";
  */
 export function hasPermission(
   member: Member,
-  resource: Resource,
-  action: Action
+  _resource: Resource,
+  _action: Action
 ): boolean {
   // Admin role has all permissions
   if (member.role === "admin") {

@@ -39,8 +39,8 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 		}
 
 		// Set user and session in Hono context
-		c.set("user", session.user);
-		c.set("session", session.session);
+		c.set("user" as any, session.user);
+		c.set("session" as any, session.session);
 
 		await next();
 	} catch (error) {

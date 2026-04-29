@@ -201,7 +201,7 @@ describe("evaluateAndLockIfOverdue", () => {
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
-		expect(result).toEqual(pkg);
+		expect(result).toEqual(pkg as any);
 		// No update should have been issued
 		expect(mockUpdate).not.toHaveBeenCalled();
 	});
@@ -213,7 +213,7 @@ describe("evaluateAndLockIfOverdue", () => {
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
-		expect(result).toEqual(pkg);
+		expect(result).toEqual(pkg as any);
 		expect(mockUpdate).not.toHaveBeenCalled();
 	});
 
@@ -225,7 +225,7 @@ describe("evaluateAndLockIfOverdue", () => {
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
-		expect(result).toEqual(pkg);
+		expect(result).toEqual(pkg as any);
 		expect(mockUpdate).not.toHaveBeenCalled();
 	});
 
@@ -573,7 +573,7 @@ describe("setPackageOverdraft", () => {
 		// insert was called twice: installmentEvents + auditLog
 		expect(mockInsert).toHaveBeenCalledTimes(2);
 		// first insert values contain overdraft_enabled eventType
-		const firstInsertArg = mockInsertValues.mock.calls[0]?.[0] as any;
+		const firstInsertArg = ((mockInsertValues as any).mock.calls[0] ?? [])[0]! as any;
 		expect(firstInsertArg?.eventType).toBe("overdraft_enabled");
 	});
 
@@ -639,7 +639,7 @@ describe("setPackageOverdraft", () => {
 		expect(result.allowCreditOverdraft).toBe(false);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 		// event row written with overdraft_disabled
-		const firstInsertArg = mockInsertValues.mock.calls[0]?.[0] as any;
+		const firstInsertArg = ((mockInsertValues as any).mock.calls[0] ?? [])[0]! as any;
 		expect(firstInsertArg?.eventType).toBe("overdraft_disabled");
 	});
 

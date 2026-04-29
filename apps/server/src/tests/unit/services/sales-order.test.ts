@@ -11,12 +11,12 @@ import {
 const MOCK_ACTOR = { userId: "user-1", memberId: "member-1", role: "admin" };
 
 // Shared mocks
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
+const mockFindFirst = mock((..._args: any[]) => Promise.resolve(null as any));
+const mockReturning = mock(() => Promise.resolve([] as any[]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock(() => ({ values: mockValues }));
 const mockUpdate = mock(() => ({
-	set: mock(() => ({
+	set: mock((..._args: any[]) => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
 }));
@@ -35,7 +35,7 @@ const mockOrderBy = mock(() => ({ limit: mockLimit }));
 // where() is used both as terminal (count queries resolve immediately) and as
 // the start of orderBy chain. We give it a dual-return: the Promise also has
 // .orderBy on it so the chain works. We handle this via mockImplementation per test.
-const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
+const mockSelectWhere = mock((..._args: any[]): any => Promise.resolve([{ total: 0 }]));
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
 
@@ -111,7 +111,7 @@ describe("listSalesOrders", () => {
 
 		const result = await listSalesOrders(mockTenantDb);
 
-		expect(result.rows).toEqual(fakeOrders);
+		expect(result.rows).toEqual(fakeOrders as any);
 		expect(result.total).toBe(1);
 	});
 
@@ -195,7 +195,7 @@ describe("listSalesOrders", () => {
 		const result = await listSalesOrders(mockTenantDb, { limit: 2, offset: 4 });
 
 		expect(result.total).toBe(10);
-		expect(result.rows).toEqual(fakeRows);
+		expect(result.rows).toEqual(fakeRows as any);
 		expect(mockLimitCapture).toHaveBeenCalledWith(2);
 		expect(mockOffsetCapture).toHaveBeenCalledWith(4);
 	});
@@ -224,7 +224,7 @@ describe("getSalesOrderById", () => {
 
 		const result = await getSalesOrderById(mockTenantDb, "so1");
 
-		expect(result).toEqual(fakeOrder);
+		expect(result).toEqual(fakeOrder as any);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -259,11 +259,11 @@ describe("createSalesOrder", () => {
 			totalAmount: 100,
 		});
 
-		expect(result).toEqual(fakeOrder);
+		expect(result).toEqual(fakeOrder as any);
 		expect(mockSelect).toHaveBeenCalledTimes(1);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.salesOrderNumber).toBe("SO-20260227-0004");
 		expect(valuesArg.status).toBe("draft");
 	});
@@ -282,7 +282,7 @@ describe("createSalesOrder", () => {
 			totalAmount: 50,
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0001/);
 	});
 
@@ -312,7 +312,7 @@ describe("updateSalesOrder", () => {
 
 		const result = await updateSalesOrder(mockTenantDb, "so1", { customerName: "Alice Updated", status: "confirmed" });
 
-		expect(result).toEqual(updatedOrder);
+		expect(result).toEqual(updatedOrder as any);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 

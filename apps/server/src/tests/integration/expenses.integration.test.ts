@@ -13,7 +13,6 @@ import {
 	approveExpense,
 	rejectExpense,
 	markExpensePaid,
-	getExpenseById,
 } from "@avantej-core/services";
 import { expenses } from "@avantej-core/db/schema/tenant/expenses";
 

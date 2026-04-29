@@ -250,9 +250,10 @@ describe("setDefaultTaxRate", () => {
 			});
 
 			// writeAudit insert
-			const auditValuesChain = {
+			const _auditValuesChain = {
 				returning: mock(() => Promise.resolve([])),
 			};
+			void _auditValuesChain;
 			tx.insert.mockReturnValueOnce({
 				values: mock(() => Promise.resolve()),
 			});

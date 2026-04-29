@@ -27,7 +27,7 @@ describe("Neon Service - createTenantProject", () => {
 		if (originalEnv) {
 			process.env.NEON_API_KEY = originalEnv;
 		} else {
-			delete process.env.NEON_API_KEY;
+			delete (process.env as any).NEON_API_KEY;
 		}
 	});
 
@@ -44,7 +44,7 @@ describe("Neon Service - createTenantProject", () => {
 		};
 
 		// Mock fetch to handle both project creation and branches API calls
-		globalThis.fetch = mock((url: string) => {
+		(globalThis as any).fetch = mock((url: string) => {
 			if (typeof url === "string" && url.includes("/branches")) {
 				// Mock branches API response
 				return Promise.resolve({
@@ -100,7 +100,7 @@ describe("Neon Service - createTenantProject", () => {
 			},
 		};
 
-		globalThis.fetch = mock(() =>
+		(globalThis as any).fetch = mock(() =>
 			Promise.resolve({
 				ok: true,
 				status: 201,
@@ -129,7 +129,7 @@ describe("Neon Service - createTenantProject", () => {
 	});
 
 	test("throws error when API returns non-ok response", async () => {
-		globalThis.fetch = mock(() =>
+		(globalThis as any).fetch = mock(() =>
 			Promise.resolve({
 				ok: false,
 				status: 400,
@@ -162,7 +162,7 @@ describe("Neon Service - createTenantProject", () => {
 			},
 		};
 
-		globalThis.fetch = mock(() =>
+		(globalThis as any).fetch = mock(() =>
 			Promise.resolve({
 				ok: true,
 				status: 201,
@@ -189,7 +189,7 @@ describe("Neon Service - createTenantProject", () => {
 		};
 
 		// Mock fetch to handle branches API call (will return empty branches, then fail to get connection URI)
-		globalThis.fetch = mock((url: string) => {
+		(globalThis as any).fetch = mock((url: string) => {
 			if (typeof url === "string" && url.includes("/branches")) {
 				return Promise.resolve({
 					ok: true,
@@ -229,7 +229,7 @@ describe("Neon Service - createTenantProject", () => {
 		};
 
 		// Mock fetch to handle branches API call (will return empty branches, then fail to get connection URI)
-		globalThis.fetch = mock((url: string) => {
+		(globalThis as any).fetch = mock((url: string) => {
 			if (typeof url === "string" && url.includes("/branches")) {
 				return Promise.resolve({
 					ok: true,
@@ -261,7 +261,7 @@ describe("Neon Service - createTenantProject", () => {
 	});
 
 	test("handles network errors gracefully", async () => {
-		globalThis.fetch = mock(() => Promise.reject(new Error("Network error")));
+		(globalThis as any).fetch = mock(() => Promise.reject(new Error("Network error")));
 
 		await expect(
 			createTenantProject(
@@ -274,7 +274,7 @@ describe("Neon Service - createTenantProject", () => {
 	});
 
 	test("handles invalid JSON response gracefully", async () => {
-		globalThis.fetch = mock(() =>
+		(globalThis as any).fetch = mock(() =>
 			Promise.resolve({
 				ok: false,
 				status: 500,
@@ -282,7 +282,7 @@ describe("Neon Service - createTenantProject", () => {
 				json: async () => {
 					throw new Error("Invalid JSON");
 				},
-			} as Response)
+			} as unknown as Response)
 		);
 
 		await expect(
@@ -307,7 +307,7 @@ describe("Neon Service - createTenantProject", () => {
 			},
 		};
 
-		globalThis.fetch = mock(() =>
+		(globalThis as any).fetch = mock(() =>
 			Promise.resolve({
 				ok: true,
 				status: 201,

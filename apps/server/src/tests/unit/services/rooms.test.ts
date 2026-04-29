@@ -7,14 +7,14 @@ import {
 	deleteRoom,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
-const mockUpdate = mock(() => ({
-	set: mock(() => ({
-		where: mock(() => ({ returning: mockReturning })),
+const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
+const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
+const mockUpdate = mock((..._args: any[]) => ({
+	set: mock((..._args: any[]) => ({
+		where: mock((..._args: any[]) => ({ returning: mockReturning })),
 	})),
 }));
 
@@ -48,11 +48,11 @@ describe("listRooms", () => {
 
 		const result = await listRooms(mockTenantDb);
 
-		expect(result).toEqual(fakeRooms);
+		expect(result as any).toEqual(fakeRooms);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		// No filters provided — service does not default isActive, so where is undefined
 		// (drizzle's and(...[]) returns undefined when conditions array is empty)
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -62,8 +62,8 @@ describe("listRooms", () => {
 
 		const result = await listRooms(mockTenantDb, { branchId: "br1" });
 
-		expect(result).toEqual(fakeRooms);
-		const callArg = mockFindMany.mock.calls[0][0];
+		expect(result as any).toEqual(fakeRooms);
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -73,7 +73,7 @@ describe("listRooms", () => {
 
 		const result = await listRooms(mockTenantDb, { isActive: false });
 
-		expect(result).toEqual(fakeRooms);
+		expect(result as any).toEqual(fakeRooms);
 	});
 
 	test("post-filters by accessibleNodeIds when provided", async () => {
@@ -99,7 +99,7 @@ describe("listRooms", () => {
 		// Empty accessibleNodeIds means no post-filter — all rows returned
 		const result = await listRooms(mockTenantDb, { accessibleNodeIds: [] });
 
-		expect(result).toEqual(allRooms);
+		expect(result as any).toEqual(allRooms);
 	});
 });
 
@@ -110,7 +110,7 @@ describe("getRoomById", () => {
 
 		const result = await getRoomById(mockTenantDb, "r1");
 
-		expect(result).toEqual(fakeRoom);
+		expect(result as any).toEqual(fakeRoom);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -142,9 +142,9 @@ describe("createRoom", () => {
 			branchId: "br1",
 		});
 
-		expect(result).toEqual(fakeRoom);
+		expect(result as any).toEqual(fakeRoom);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.isActive).toBe(true);
 	});
 
@@ -160,7 +160,7 @@ describe("createRoom", () => {
 			isActive: false,
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.isActive).toBe(false);
 	});
 
@@ -176,21 +176,21 @@ describe("createRoom", () => {
 describe("updateRoom", () => {
 	test("updates and returns the room", async () => {
 		const updatedRoom = { id: "r1", name: "Updated Room A", isActive: true };
-		const mockReturningUpd = mock(() => Promise.resolve([updatedRoom]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([updatedRoom]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await updateRoom(mockTenantDb, "r1", { name: "Updated Room A" });
 
-		expect(result).toEqual(updatedRoom);
+		expect(result as any).toEqual(updatedRoom);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 
 	test("throws 'Room not found' when update returns empty", async () => {
-		const mockReturningUpd = mock(() => Promise.resolve([]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		await expect(updateRoom(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow("Room not found");
@@ -200,9 +200,9 @@ describe("updateRoom", () => {
 describe("deleteRoom (soft delete)", () => {
 	test("sets isActive=false via update — does NOT call db.delete", async () => {
 		const deactivatedRoom = { id: "r1", name: "Room A", isActive: false };
-		const mockReturningUpd = mock(() => Promise.resolve([deactivatedRoom]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([deactivatedRoom]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await deleteRoom(mockTenantDb, "r1");
@@ -211,14 +211,14 @@ describe("deleteRoom (soft delete)", () => {
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 		expect(result.isActive).toBe(false);
 		// Verify the set call included isActive: false
-		const setArg = mockSetUpd.mock.calls[0][0];
+		const setArg = mockSetUpd.mock.calls[0]![0];
 		expect(setArg.isActive).toBe(false);
 	});
 
 	test("throws 'Room not found' when soft delete update returns empty", async () => {
-		const mockReturningUpd = mock(() => Promise.resolve([]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		await expect(deleteRoom(mockTenantDb, "nonexistent")).rejects.toThrow("Room not found");

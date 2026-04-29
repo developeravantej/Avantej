@@ -92,6 +92,9 @@ export async function createInvitation(params: {
     })
     .returning();
 
+  if (!invitation) {
+    throw new Error("Failed to create invitation");
+  }
   return invitation;
 }
 

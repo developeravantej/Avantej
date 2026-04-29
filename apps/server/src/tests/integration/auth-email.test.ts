@@ -63,7 +63,7 @@ function loadDevVars(): Record<string, string> {
 		const match = trimmed.match(/^([^=]+)=(.*)$/);
 		if (match) {
 			const [, key, value] = match;
-			vars[key] = value;
+			vars[key!] = value!;
 		}
 	}
 
@@ -82,14 +82,16 @@ function createControlPanelDb(databaseUrl: string) {
 	return drizzle({ client: pool, schema: controlPanelSchema });
 }
 
-type CapturedEmail = ReturnType<typeof __getCapturedEmails>[number];
+type _CapturedEmail = ReturnType<typeof __getCapturedEmails>[number];
+const __keepCapturedEmail: _CapturedEmail | undefined = undefined;
+void __keepCapturedEmail;
 
 function getLatestCapturedToken(
 	to: string,
 	type: "verification" | "password-reset"
 ): string | undefined {
 	const emails = __getCapturedEmails(type).filter((email) => email.to === to);
-	return emails.length ? emails[emails.length - 1].metadata?.token : undefined;
+	return emails.length ? emails[emails.length - 1]!.metadata?.token : undefined;
 }
 
 function wait(ms: number): Promise<void> {
@@ -147,7 +149,7 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		process.env.BETTER_AUTH_SECRET = vars.BETTER_AUTH_SECRET;
 		process.env.BETTER_AUTH_URL = vars.BETTER_AUTH_URL || "http://localhost:3000";
 		process.env.RESEND_API_KEY = vars.RESEND_API_KEY;
-		process.env.RESEND_FROM_EMAIL = vars.RESEND_FROM_EMAIL;
+		process.env.RESEND_FROM_EMAIL = vars.RESEND_FROM_EMAIL!;
 		process.env.RESEND_FROM_NAME = vars.RESEND_FROM_NAME || "Avantej Core";
 
 		const pool = new Pool({ connectionString: databaseUrl });
@@ -214,7 +216,7 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 					password: testPassword,
 					name: `${testName} ${testTimestamp}`,
 					firstName: testName,
-					lastName: testTimestamp,
+					lastName: String(testTimestamp),
 				},
 				headers: new Headers(),
 			});

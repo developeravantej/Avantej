@@ -6,7 +6,6 @@ import {
 	listPromotions,
 	validatePromoCode,
 	applyPromotion,
-	createPromotion,
 	updatePromotion,
 	deactivatePromotion,
 } from "@avantej-core/services/promotions.service";
@@ -36,7 +35,7 @@ describe("listPromotions", () => {
 
 		const result = await listPromotions(mockDb, {});
 
-		expect(result).toEqual(promos);
+		expect(result as any).toEqual(promos);
 	});
 
 	test("returns empty array when no promotions exist", async () => {
@@ -278,7 +277,7 @@ describe("applyPromotion", () => {
 		});
 
 		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
-		expect(result.usageCount).toBe(1);
+		expect(result!.usageCount).toBe(1);
 	});
 });
 

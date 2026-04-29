@@ -21,11 +21,8 @@ import { createMiddleware } from "hono/factory";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { decrypt } from "@avantej-core/db";
 import { getBetterAuth } from "@/lib/better-auth";
-import type { Context } from "hono";
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env

@@ -17,7 +17,6 @@ import {
 } from "./auth.service";
 import { auth } from "@/lib/better-auth";
 import { controlPanelDb } from "@/lib/db";
-import { verification, user } from "@avantej-core/db/schema/auth";
 
 // Mock Better-Auth API
 const mockSendVerificationEmail = mock(() => Promise.resolve());
@@ -32,7 +31,7 @@ const mockAuthApi = {
 };
 
 // Mock controlPanelDb
-const mockFindFirst = mock(() => Promise.resolve(null));
+const mockFindFirst = mock((): Promise<any> => Promise.resolve(null));
 const mockUpdate = mock(() => ({
 	set: mock(() => ({
 		where: mock(() => Promise.resolve([])),
@@ -78,21 +77,18 @@ describe("Auth Service - sendVerificationEmail", () => {
 
 	test("throws error when userId is missing", async () => {
 		await expect(
-			// @ts-expect-error - Testing invalid input
 			sendVerificationEmail("", "test@example.com")
 		).rejects.toThrow("User ID and email are required");
 	});
 
 	test("throws error when email is missing", async () => {
 		await expect(
-			// @ts-expect-error - Testing invalid input
 			sendVerificationEmail("user-123", "")
 		).rejects.toThrow("User ID and email are required");
 	});
 
 	test("handles Better-Auth API errors", async () => {
-		// @ts-expect-error - Mocking auth.api
-		auth.api = {
+		(auth as any).api = {
 			sendVerificationEmail: mock(() =>
 				Promise.reject(new Error("API Error"))
 			),
@@ -222,8 +218,7 @@ describe("Auth Service - sendPasswordResetEmail", () => {
 	});
 
 	test("does not reveal if email exists (security)", async () => {
-		// @ts-expect-error - Mocking auth.api
-		auth.api = {
+		(auth as any).api = {
 			forgetPassword: mock(() => Promise.reject(new Error("User not found"))),
 		};
 
@@ -272,8 +267,7 @@ describe("Auth Service - resetPassword", () => {
 	});
 
 	test("throws error when token is invalid", async () => {
-		// @ts-expect-error - Mocking auth.api
-		auth.api = {
+		(auth as any).api = {
 			resetPassword: mock(() => Promise.resolve({ status: false })),
 		};
 

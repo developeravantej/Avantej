@@ -61,7 +61,7 @@ describe("listCommissionSplits", () => {
 
 		const result = await listCommissionSplits(mockDb, {});
 
-		expect(result).toEqual(splits);
+		expect(result as any).toEqual(splits);
 		expect(mockDb.select).toHaveBeenCalledTimes(1);
 	});
 
@@ -95,7 +95,7 @@ describe("getCommissionsByAppointment", () => {
 
 		const result = await getCommissionsByAppointment(mockDb, appointmentId);
 
-		expect(result).toEqual(splits);
+		expect(result as any).toEqual(splits);
 		expect(mockDb.select).toHaveBeenCalledTimes(1);
 	});
 
@@ -119,7 +119,7 @@ describe("getMyCommissions", () => {
 
 		const result = await getMyCommissions(mockDb, MEMBER_ID);
 
-		expect(result.splits).toEqual(splits);
+		expect(result.splits as any).toEqual(splits);
 		expect(result.totalAmount).toBe(8000);
 	});
 

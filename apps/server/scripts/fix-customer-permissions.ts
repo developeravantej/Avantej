@@ -78,7 +78,7 @@ async function main() {
 		if (!adminRole) throw new Error("admin role missing after seed");
 
 		const grantedCustomer = await tenantDb.query.permissions.findMany({
-			where: (p, { eq: eqFn, inArray: inArrayFn }) =>
+			where: (p, { inArray: inArrayFn }) =>
 				inArrayFn(p.resource, ["customer_management", "walk_in_customer_management"]),
 		});
 		console.log(`\nCatalog rows for customer_management + walk_in_customer_management: ${grantedCustomer.length}`);

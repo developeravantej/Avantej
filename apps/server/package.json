@@ -45,10 +45,11 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "tsdown": "catalog:",
-    "wrangler": "^4.40.3",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/bun": "^1.3.13",
     "@types/node": "^22.13.11",
-    "@types/bcryptjs": "^3.0.0"
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "^4.40.3"
   }
 }

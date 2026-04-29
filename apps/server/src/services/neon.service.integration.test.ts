@@ -33,8 +33,8 @@ function loadDevVars(): void {
       if (match) {
         const [, key, value] = match;
         // Only set if not already in process.env (allows override)
-        if (!process.env[key]) {
-          process.env[key] = value;
+        if (!process.env[key!]) {
+          process.env[key!] = value;
         }
       }
     }
@@ -50,6 +50,7 @@ describe("Neon Service Integration Tests", () => {
   const testSlug = `test-integration-${Date.now()}`; // Unique slug per test run
   let createdProjectId: string | undefined;
   let createdConnectionString: string | undefined;
+  void createdConnectionString;
 
   beforeAll(() => {
     if (process.env.SKIP_INTEGRATION_TESTS === "true") {

@@ -32,7 +32,6 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import type { Context } from "hono";
-import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import * as schema from "@avantej-core/db/schema/auth";
 
@@ -336,7 +335,7 @@ function createBetterAuth(c?: Context) {
           const databaseUrl = getEnvVar("DATABASE_URL");
           if (databaseUrl) {
             const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool });
+            const tempDb = drizzle({ client: tempPool }) as any;
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),

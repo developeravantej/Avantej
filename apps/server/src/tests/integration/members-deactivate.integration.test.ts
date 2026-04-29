@@ -4,8 +4,9 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_USER_ID,
 } from "../helpers/integration-setup";
+
+const TEST_ACTOR = { userId: "test-user", memberId: "test-member", role: "admin" };
 import { deactivateMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 
@@ -48,7 +49,7 @@ async function createTestMember(
 			status: "active",
 			hierarchyScopeId: null,
 			...overrides,
-		})
+		} as any)
 		.returning();
 
 	if (!member) {
@@ -70,7 +71,7 @@ describe("Members Deactivate Integration", () => {
 		expect(testMember.status).toBe("active");
 
 		// Deactivate
-		const updated = await deactivateMember(tenantDb, testMember.id);
+		const updated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// CRITICAL: Status should be 'inactive', NOT 'suspended'
 		expect(updated.status).toBe("inactive");
@@ -82,7 +83,7 @@ describe("Members Deactivate Integration", () => {
 			.from(members)
 			.where(eq(members.id, testMember.id));
 
-		expect(fromDb.status).toBe("inactive");
+		expect(fromDb!.status).toBe("inactive");
 	}, 30000);
 
 	test("deactivate non-existent member throws error", async () => {
@@ -90,7 +91,7 @@ describe("Members Deactivate Integration", () => {
 
 		const fakeId = "00000000-0000-4000-8000-000000000099";
 
-		await expect(deactivateMember(tenantDb, fakeId)).rejects.toThrow(
+		await expect(deactivateMember(tenantDb, fakeId, TEST_ACTOR)).rejects.toThrow(
 			`Member not found: ${fakeId}`,
 		);
 	}, 15000);
@@ -105,10 +106,10 @@ describe("Members Deactivate Integration", () => {
 		createdMemberIds.push(testMember.id);
 
 		// Deactivate first time
-		await deactivateMember(tenantDb, testMember.id);
+		await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// Deactivate second time - should still succeed (idempotent)
-		const updated = await deactivateMember(tenantDb, testMember.id);
+		const updated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 		expect(updated.status).toBe("inactive");
 	}, 30000);
 
@@ -121,7 +122,7 @@ describe("Members Deactivate Integration", () => {
 		});
 		createdMemberIds.push(testMember.id);
 
-		const deactivated = await deactivateMember(tenantDb, testMember.id);
+		const deactivated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// Role and other fields should be preserved
 		expect(deactivated.role).toBe("admin");

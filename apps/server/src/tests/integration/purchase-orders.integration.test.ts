@@ -9,7 +9,6 @@ import {
 } from "../helpers/integration-setup";
 import {
 	createPurchaseOrder,
-	listPurchaseOrders,
 	getPurchaseOrderById,
 	approvePurchaseOrder,
 	receiveItems,
@@ -171,7 +170,7 @@ describe("Purchase Orders Integration", () => {
 		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
 
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
-		const itemId = detail!.items[0].id;
+		const itemId = detail!.items[0]!.id;
 
 		await receiveItems(tenantDb, po.id, [{ itemId, receivedQty: 1 }]);
 

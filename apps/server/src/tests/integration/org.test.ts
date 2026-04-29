@@ -51,8 +51,8 @@ function loadDevVars(): void {
       if (match) {
         const [, key, value] = match;
         // Only set if not already in process.env (allows override)
-        if (!process.env[key]) {
-          process.env[key] = value;
+        if (!process.env[key!]) {
+          process.env[key!] = value;
         }
       }
     }
@@ -76,7 +76,8 @@ loadDevVars();
 describe("Organization Lifecycle Integration Tests (T102)", () => {
   const testTimestamp = Date.now();
   const testEmail = `test-org-${testTimestamp}@example.com`;
-  const testPassword = "TestPassword123!";
+  const _testPassword = "TestPassword123!";
+  void _testPassword;
   const testName = "Test User";
   const orgName = `Test Org ${testTimestamp}`;
   const orgSlug = `test-org-${testTimestamp}`;
@@ -281,20 +282,20 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
     // Step 8: Verify default hierarchy node exists
     const hierarchyNodesList = await tenantDb.query.hierarchyNodes.findMany();
     expect(hierarchyNodesList.length).toBe(1);
-    const orgNode = hierarchyNodesList[0];
-    expect(orgNode.name).toBe(orgName);
-    expect(orgNode.type).toBe("organization");
-    expect(orgNode.depth).toBe(0);
-    expect(orgNode.parentId).toBeNull();
+    const orgNode = hierarchyNodesList[0]!;
+    expect(orgNode!.name).toBe(orgName);
+    expect(orgNode!.type).toBe("organization");
+    expect(orgNode!.depth).toBe(0);
+    expect(orgNode!.parentId).toBeNull();
 
     // Step 9: Verify user is added as admin member in tenant DB
     const tenantMembers = await tenantDb.query.members.findMany();
     expect(tenantMembers.length).toBe(1);
-    const tenantMember = tenantMembers[0];
-    expect(tenantMember.userId).toBe(testUserId);
-    expect(tenantMember.role).toBe("admin");
-    expect(tenantMember.status).toBe("active");
-    expect(tenantMember.hierarchyScopeId).toBe(orgNode.id);
+    const tenantMember = tenantMembers[0]!;
+    expect(tenantMember!.userId).toBe(testUserId);
+    expect(tenantMember!.role).toBe("admin");
+    expect(tenantMember!.status).toBe("active");
+    expect(tenantMember!.hierarchyScopeId).toBe(orgNode!.id);
 
     // Step 10: Verify user is in organization_members registry (control panel)
     const controlPanelMember = await controlPanelDb.query.organizationMembers.findFirst({
@@ -309,8 +310,8 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
     expect(controlPanelMember?.status).toBe("active");
 
     // Step 11: Verify dual-write sync: both databases have consistent data
-    expect(tenantMember.role).toBe(controlPanelMember!.role);
-    expect(tenantMember.status).toBe(controlPanelMember!.status);
+    expect(tenantMember!.role).toBe(controlPanelMember!.role);
+    expect(tenantMember!.status).toBe(controlPanelMember!.status);
 
     // Step 12: Verify Neon project exists
     const projectResponse = await fetch(
@@ -324,7 +325,7 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
     );
 
     expect(projectResponse.ok).toBe(true);
-    const projectData = await projectResponse.json();
+    const projectData = (await projectResponse.json()) as any;
     expect(projectData.project?.id).toBe(testNeonProjectId);
     expect(projectData.project?.name).toBe(`tenant-${orgSlug}`);
 

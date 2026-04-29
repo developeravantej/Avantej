@@ -4,12 +4,10 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_BRANCH_NODE_ID,
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
 import {
 	createPromotion,
-	listPromotions,
 	validatePromoCode,
 	applyPromotion,
 	updatePromotion,
@@ -22,6 +20,7 @@ import {
 
 const createdPromoIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+const TEST_ACTOR = { userId: "test-user", memberId: TEST_MEMBER_ID, role: "admin" };
 
 beforeAll(() => {
 	if (shouldSkipIntegration()) return;
@@ -51,7 +50,7 @@ describe("Promotions Integration", () => {
 			value: 1000, // 10.00% in basis points
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.code).toBe("ITEST10PCT");
@@ -85,7 +84,7 @@ describe("Promotions Integration", () => {
 			value: 500, // RM 5.00 off
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.usageCount).toBe(0);
@@ -119,7 +118,7 @@ describe("Promotions Integration", () => {
 			usageLimit: 1,
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		// First validation succeeds
@@ -161,7 +160,7 @@ describe("Promotions Integration", () => {
 			perCustomerLimit: 1, // 1 per customer
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		const customerId = "test-customer-percust";
@@ -199,7 +198,7 @@ describe("Promotions Integration", () => {
 			minimumOrderAmount: 5000, // minimum RM 50.00
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		// Order amount too low
@@ -228,7 +227,7 @@ describe("Promotions Integration", () => {
 			value: 1000,
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		const updated = await updatePromotion(tenantDb, promo.id, {
@@ -254,12 +253,12 @@ describe("Promotions Integration", () => {
 			value: 100,
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.isActive).toBe(true);
 
-		const deactivated = await deactivatePromotion(tenantDb, promo.id);
+		const deactivated = await deactivatePromotion(tenantDb, promo.id, TEST_ACTOR);
 		expect(deactivated.isActive).toBe(false);
 
 		// Validate should fail on inactive promo
@@ -281,7 +280,7 @@ describe("Promotions Integration", () => {
 			value: 5000, // RM 50.00 discount
 			validFrom: new Date("2025-01-01"),
 			createdBy: TEST_MEMBER_ID,
-		});
+		}, TEST_ACTOR);
 		createdPromoIds.push(promo.id);
 
 		// Order amount less than discount value

@@ -39,26 +39,6 @@ interface NeonProjectResponse {
 }
 
 /**
- * Neon API response type for project details
- */
-interface NeonProjectDetailsResponse {
-  project: {
-    id: string;
-    default_branch_id: string;
-  };
-}
-
-/**
- * Neon API response type for branch connection details
- */
-interface BranchConnectionDetailsResponse {
-  connection_uri: string;
-  connection_uris?: Array<{
-    connection_uri: string;
-  }>;
-}
-
-/**
  * Environment interface for Cloudflare Workers compatibility
  */
 interface Env {
@@ -77,7 +57,6 @@ function getWorkersEnv(): Env | undefined {
   }
   
   try {
-    // @ts-expect-error - cloudflare:workers is only available in Workers runtime
     const { env } = require("cloudflare:workers");
     workersEnvCache = env;
     return env;
@@ -171,8 +150,8 @@ export async function createTenantProject(
 
     // First, check if connection_uris is in the initial response (for unit tests/mocked responses)
     // This handles cases where the mock response includes connection_uris
-    if (data.project?.connection_uris?.[0]?.connection_uri) {
-      connectionUri = data.project.connection_uris[0].connection_uri;
+    if ((data.project as any)?.connection_uris?.[0]?.connection_uri) {
+      connectionUri = (data.project as any).connection_uris[0].connection_uri;
     }
 
     // If not in initial response, fetch it via API
@@ -261,7 +240,7 @@ export async function createTenantProject(
       );
 
       if (projectConnectionResponse.ok) {
-        const connectionData = await projectConnectionResponse.json();
+        const connectionData = (await projectConnectionResponse.json()) as any;
         connectionUri = connectionData.connection_uris?.[0]?.connection_uri || connectionData.connection_uri;
       }
     }

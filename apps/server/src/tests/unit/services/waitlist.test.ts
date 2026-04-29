@@ -9,7 +9,7 @@ import {
 	promoteFromWaitlist,
 } from "@avantej-core/services/waitlist.service";
 
-let mockDb: ReturnType<typeof createMockTenantDb>;
+let mockDb: any;
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
@@ -23,7 +23,7 @@ describe("listWaitlistEntries", () => {
 
 		const result = await listWaitlistEntries(mockDb, {});
 
-		expect(result).toEqual(entries);
+		expect(result).toEqual(entries as any);
 		expect(mockDb.query.waitlistEntries.findMany).toHaveBeenCalledTimes(1);
 	});
 
@@ -183,7 +183,7 @@ describe("promoteFromWaitlist", () => {
 
 		const result = await promoteFromWaitlist(mockDb, "slot-id");
 
-		expect(result.status).toBe("promoted");
+		expect(result!.status).toBe("promoted");
 		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 	});
 
