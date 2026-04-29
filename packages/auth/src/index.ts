@@ -1,3 +1,4 @@
+/// <reference path="./cloudflare-env.d.ts" />
 import { expo } from "@better-auth/expo";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";

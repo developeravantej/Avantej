@@ -228,7 +228,7 @@ export function PackageInstancesPage() {
 		});
 	}
 
-	const data: PackageInstanceRow[] = apiData.map((item) => ({
+	const data: PackageInstanceRow[] = apiData.map((item: any) => ({
 		id: item.id,
 		serviceId: item.serviceId,
 		serviceName: serviceNameById.get(item.serviceId) ?? `${item.serviceId.slice(0, 8)}…`,

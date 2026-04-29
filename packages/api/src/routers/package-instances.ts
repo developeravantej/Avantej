@@ -446,7 +446,7 @@ export const packageInstancesRouter = {
       // Cross-DB: batch-lookup client names from control panel
       const controlPanelDb = getControlPanelDb(context);
       let userMap = new Map<string, string>();
-      const clientIds = [...new Set(rows.map((r) => r.clientId).filter((id): id is string => id != null))];
+      const clientIds = [...new Set(rows.map((r: any) => r.clientId).filter((id: any): id is string => id != null))];
       if (clientIds.length > 0) {
         const userRows = await controlPanelDb
           .select({ id: user.id, name: user.name })
@@ -455,7 +455,7 @@ export const packageInstancesRouter = {
         userMap = new Map(userRows.map((u) => [u.id, u.name]));
       }
 
-      return rows.map((row) => ({
+      return rows.map((row: any) => ({
         ...row,
         clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
       }));

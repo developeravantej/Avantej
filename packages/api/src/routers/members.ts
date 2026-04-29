@@ -113,7 +113,7 @@ export const memberRouter = {
       let userMap = new Map<string, { name: string; email: string }>();
 
       if (controlPanelDb) {
-        const userIds = memberRows.map((m) => m.userId);
+        const userIds = memberRows.map((m: any) => m.userId);
         const userRows = await controlPanelDb
           .select({ id: user.id, name: user.name, email: user.email })
           .from(user)
@@ -124,7 +124,7 @@ export const memberRouter = {
         }
       }
 
-      return memberRows.map((m) => {
+      return memberRows.map((m: any) => {
         const userDetails = userMap.get(m.userId);
         return {
           id: m.id,

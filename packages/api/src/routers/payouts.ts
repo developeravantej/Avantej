@@ -82,7 +82,7 @@ export const payoutsRouter = {
 			// Enrich with recipient names:
 			// 1. Get member records by recipientId (which is members.userId)
 			const recipientIds = [
-				...new Set(payoutRows.map((p) => p.recipientId)),
+				...new Set(payoutRows.map((p: any) => p.recipientId)),
 			];
 
 			// recipientId references members.userId, so find member records
@@ -91,7 +91,7 @@ export const payoutsRouter = {
 				.from(members)
 				.where(inArray(members.userId, recipientIds));
 
-			const userIds = memberRows.map((m) => m.userId);
+			const userIds = memberRows.map((m: any) => m.userId);
 
 			// 2. Batch-fetch user names from control panel
 			const controlPanelDb = context.honoContext?.get(
@@ -111,7 +111,7 @@ export const payoutsRouter = {
 				}
 			}
 
-			return payoutRows.map((p) => ({
+			return payoutRows.map((p: any) => ({
 				id: p.id,
 				recipientId: p.recipientId,
 				recipientName: userMap.get(p.recipientId) ?? "Unknown",

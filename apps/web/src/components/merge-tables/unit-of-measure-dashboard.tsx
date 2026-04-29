@@ -186,8 +186,8 @@ export function UomOptionsDashboard() {
 							onAddDialogOpenChange={setUomAddOpen}
 							editTarget={uomEditTarget}
 							onEditTargetChange={setUomEditTarget}
-							onCreate={(vars) => createUomMutation.mutate(vars)}
-							onUpdate={(vars) => updateUomMutation.mutate(vars)}
+							onCreate={(vars: any) => createUomMutation.mutate(vars)}
+							onUpdate={(vars: any) => updateUomMutation.mutate(vars)}
 							onDelete={(id) => deleteUomMutation.mutate(id)}
 							isCreating={createUomMutation.isPending}
 							isUpdating={updateUomMutation.isPending}

@@ -81,13 +81,13 @@ function CustomersComponent() {
 		}),
 	});
 	const branchNodes = (hierarchyData?.nodes ?? []).filter(
-		(n) => n.type === "branch",
+		(n: any) => n.type === "branch",
 	);
 
 	const filteredCustomers = useMemo(
 		() =>
 			customers.filter(
-				(c) =>
+				(c: any) =>
 					!searchQuery ||
 					c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
 					c.email?.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -237,7 +237,7 @@ function CustomersComponent() {
 									: "No customers yet. Click \"Add Customer\" to add one."}
 							</p>
 						) : (
-							filteredCustomers.map((customer) => (
+							filteredCustomers.map((customer: any) => (
 								<div key={customer.id} className="border rounded-lg p-4">
 									<div className="flex items-center justify-between">
 										<div className="flex items-center space-x-4">
@@ -390,7 +390,7 @@ function CustomersComponent() {
 										<SelectValue placeholder="Select a branch…" />
 									</SelectTrigger>
 									<SelectContent>
-										{branchNodes.map((node) => (
+										{branchNodes.map((node: any) => (
 											<SelectItem key={node.id} value={node.id}>
 												{node.name}
 											</SelectItem>
