@@ -105,12 +105,12 @@ describe("createPurchaseOrder — PO number generation", () => {
 			items: [{ productId: "prod-1", orderedQty: 10, unitCost: 5000 }],
 		});
 
-		expect((result as any).poNumber).toMatch(/^PO-\d{8}-\d{4}$/);
+		expect((result as any).purchaseOrderNumber).toMatch(/^PO-\d{8}-\d{4}$/);
 		expect(result.status).toBe("draft");
 	});
 
 	test("increments sequence number for subsequent POs on the same day", async () => {
-		const createdPO = makePurchaseOrder({ poNumber: "PO-20260227-0006" });
+		const createdPO = makePurchaseOrder({ purchaseOrderNumber: "PO-20260227-0006" });
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
@@ -130,7 +130,7 @@ describe("createPurchaseOrder — PO number generation", () => {
 			items: [{ productId: "p1", orderedQty: 1, unitCost: 100 }],
 		});
 
-		expect((result as any).poNumber).toContain("0006");
+		expect((result as any).purchaseOrderNumber).toContain("0006");
 	});
 });
 
