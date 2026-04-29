@@ -9,6 +9,8 @@
     "serve": "vite preview",
     "start": "vite",
     "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "wrangler:dev": "wrangler dev --port=3001",
     "deploy": "bun run build && wrangler deploy"
   },
