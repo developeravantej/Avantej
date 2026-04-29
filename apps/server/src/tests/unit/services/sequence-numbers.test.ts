@@ -2,14 +2,13 @@
  * Sequence Number Generation Tests
  *
  * Tests the document number generation helpers indirectly via public create functions.
- * Each document type uses the pattern: PREFIX-YYYYMMDD-NNNN (zero-padded 4 digits).
  *
- * Document types:
- *  - SO   (Sales Orders)       → createSalesOrder
- *  - CAN  (Cancelled Sales)    → cancelSalesOrder (via the cancellation number)
- *  - INV  (Invoices)           → createInvoice
- *  - SR   (Stock Requests)     → createStockRequest
- *  - TO   (Transfer Orders)    → createTransferOrder
+ * Document types and their generation strategies:
+ *  - SO   (Sales Orders)       → count(LIKE prefix) + 1, 4-digit padding
+ *  - CAN  (Cancelled Sales)    → count(LIKE prefix) + 1, 4-digit padding (via cancelSalesOrder)
+ *  - INV  (Invoices)           → nextval('tenant_invoice_seq'), 6-digit padding
+ *  - SR   (Stock Requests)     → count(LIKE prefix) + 1, 4-digit padding
+ *  - TO   (Transfer Orders)    → count(LIKE prefix) + 1, 4-digit padding
  */
 import { describe, test, expect, mock, beforeEach } from "bun:test";
 import {
@@ -37,6 +36,9 @@ const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
 
+// execute mock for raw SQL: tenantDb.execute(sql`SELECT nextval(...)`) → { rows: [{ seq }] }
+const mockExecute = mock(() => Promise.resolve({ rows: [{ seq: "1" }] }));
+
 const mockTransaction = mock(async (fn: any) => fn(mockTx));
 const mockTx = {
 	insert: mockInsert,
@@ -48,6 +50,7 @@ const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
 	select: mockSelect,
+	execute: mockExecute,
 	query: {
 		salesOrders: { findMany: mockFindMany, findFirst: mockFindFirst },
 		cancelledSales: { findMany: mockFindMany, findFirst: mockFindFirst },
@@ -70,6 +73,7 @@ beforeEach(() => {
 	mockSelectWhere.mockClear();
 	mockSelectFrom.mockClear();
 	mockSelect.mockClear();
+	mockExecute.mockClear();
 	mockTransaction.mockClear();
 });
 
@@ -172,39 +176,69 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 				};
 			}),
 		}));
+		// Insert mock for tx.insert(auditLogs).values(...) in writeAudit
+		const canInsert = mock(() => ({
+			values: mock(() => Promise.resolve([])),
+		}));
+
+		// tx passed into transaction callback — needs update/insert/select
+		// for: update salesOrders, writeAudit insert, voidCommissionSplitsForSalesOrder select
+		const tx = {
+			update: canUpdate,
+			insert: canInsert,
+			select: canSelect,
+		};
+		const canTransaction = mock(async (fn: any) => fn(tx));
 
 		const db = {
-			insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })),
+			insert: canInsert,
 			update: canUpdate,
 			select: canSelect,
 			query: {
 				salesOrders: { findMany: mock(() => Promise.resolve([])), findFirst: canFindFirst },
 			},
+			transaction: canTransaction,
 		} as any;
 
 		return { db, capturedSetArgs };
 	}
 
+	const actor = { userId: "u1", memberId: "m1", role: "admin" };
+
 	test("total=0 → CAN number ends in 0001", async () => {
-		const mockOrder = { id: "so1", customerName: "Alice", customerId: null, totalAmount: 500 };
+		const mockOrder = {
+			id: "so1",
+			salesOrderNumber: "SO-20260227-0001",
+			branchId: "br1",
+			customerName: "Alice",
+			customerId: null,
+			totalAmount: 500,
+		};
 		const { db, capturedSetArgs } = buildCanMocks(0, mockOrder);
 
-		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 100 });
+		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 100 }, actor);
 
 		expect(capturedSetArgs[0].cancellationNumber).toMatch(/^CAN-\d{8}-0001$/);
 	});
 
 	test("total=9 → CAN number ends in 0010", async () => {
-		const mockOrder = { id: "so1", customerName: "Alice", customerId: null, totalAmount: 500 };
+		const mockOrder = {
+			id: "so1",
+			salesOrderNumber: "SO-20260227-0001",
+			branchId: "br1",
+			customerName: "Alice",
+			customerId: null,
+			totalAmount: 500,
+		};
 		const { db, capturedSetArgs } = buildCanMocks(9, mockOrder);
 
-		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 50 });
+		await cancelSalesOrder(db, "so1", { cancelledBy: "user-1", refundAmount: 50 }, actor);
 
 		expect(capturedSetArgs[0].cancellationNumber).toMatch(/^CAN-\d{8}-0010$/);
 	});
 });
 
-describe("INV — Invoice number generation", () => {
+describe("INV — Invoice number generation (nextval-based, 6-digit padding)", () => {
 	const baseParams = {
 		date: new Date("2026-02-27"),
 		customerName: "Test Customer",
@@ -213,52 +247,62 @@ describe("INV — Invoice number generation", () => {
 		status: "draft" as const,
 	};
 
-	test("total=0 → INV number ends in 0001", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		setupInsertReturning("invoiceNumber", "INV-20260227-0001");
+	test("seq=1 → INV number ends in 000001", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		setupInsertReturning("invoiceNumber", "INV-20260227-000001");
 
 		await createInvoice(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-0001$/);
+		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-000001$/);
 	});
 
-	test("total=8 → INV number ends in 0009", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 8 }]);
-		setupInsertReturning("invoiceNumber", "INV-20260227-0009");
+	test("seq=9 → INV number ends in 000009", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "9" }] });
+		setupInsertReturning("invoiceNumber", "INV-20260227-000009");
 
 		await createInvoice(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-0009$/);
+		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-000009$/);
 	});
 
-	test("total=9 → INV number ends in 0010", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 9 }]);
-		setupInsertReturning("invoiceNumber", "INV-20260227-0010");
+	test("seq=10 → INV number ends in 000010", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "10" }] });
+		setupInsertReturning("invoiceNumber", "INV-20260227-000010");
 
 		await createInvoice(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-0010$/);
+		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-000010$/);
 	});
 
-	test("total=98 → INV number ends in 0099", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 98 }]);
-		setupInsertReturning("invoiceNumber", "INV-20260227-0099");
+	test("seq=99 → INV number ends in 000099", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "99" }] });
+		setupInsertReturning("invoiceNumber", "INV-20260227-000099");
 
 		await createInvoice(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-0099$/);
+		expect(valuesArg.invoiceNumber).toMatch(/^INV-\d{8}-000099$/);
 	});
 
-	test("does NOT call select when invoiceNumber is explicitly provided", async () => {
+	test("date portion is embedded correctly (YYYYMMDD)", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		setupInsertReturning("invoiceNumber", "INV-20260227-000001");
+
+		await createInvoice(mockTenantDb, { ...baseParams, date: new Date("2026-02-27") });
+
+		const valuesArg = mockValues.mock.calls[0][0];
+		expect(valuesArg.invoiceNumber).toMatch(/^INV-20260227-/);
+	});
+
+	test("does NOT call execute when invoiceNumber is explicitly provided", async () => {
 		setupInsertReturning("invoiceNumber", "INV-MANUAL-001");
 
 		await createInvoice(mockTenantDb, { ...baseParams, invoiceNumber: "INV-MANUAL-001" });
 
-		expect(mockSelect).not.toHaveBeenCalled();
+		expect(mockExecute).not.toHaveBeenCalled();
 	});
 });
 

@@ -17,15 +17,13 @@ const mockUpdate = mock(() => ({
 	})),
 }));
 
-// select chain for count queries: select({total}).from(table).where(...) → [{total: N}]
-const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
-const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
-const mockSelect = mock(() => ({ from: mockSelectFrom }));
+// execute mock for raw SQL: tenantDb.execute(sql`SELECT nextval(...)`) → { rows: [{ seq }] }
+const mockExecute = mock(() => Promise.resolve({ rows: [{ seq: "1" }] }));
 
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
-	select: mockSelect,
+	execute: mockExecute,
 	query: {
 		invoices: {
 			findMany: mockFindMany,
@@ -41,9 +39,7 @@ beforeEach(() => {
 	mockValues.mockClear();
 	mockInsert.mockClear();
 	mockUpdate.mockClear();
-	mockSelectWhere.mockClear();
-	mockSelectFrom.mockClear();
-	mockSelect.mockClear();
+	mockExecute.mockClear();
 });
 
 describe("listInvoices", () => {
@@ -134,12 +130,12 @@ describe("getInvoiceById", () => {
 });
 
 describe("createInvoice", () => {
-	test("auto-generates invoice number when invoiceNumber not provided (total=0 → 0001)", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+	test("auto-generates invoice number when invoiceNumber not provided (seq=1 → 000001)", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
 
 		const fakeInvoice = {
 			id: "inv1",
-			invoiceNumber: "INV-20260227-0001",
+			invoiceNumber: "INV-20260227-000001",
 			customerName: "Alice",
 			status: "draft",
 		};
@@ -154,11 +150,11 @@ describe("createInvoice", () => {
 		});
 
 		expect(result).toEqual(fakeInvoice);
-		// select was called to generate the number
-		expect(mockSelect).toHaveBeenCalledTimes(1);
+		// execute was called to generate the number
+		expect(mockExecute).toHaveBeenCalledTimes(1);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/INV-\d{8}-0001/);
+		expect(valuesArg.invoiceNumber).toMatch(/INV-\d{8}-000001/);
 	});
 
 	test("skips number generation when invoiceNumber is explicitly provided", async () => {
@@ -180,15 +176,15 @@ describe("createInvoice", () => {
 		});
 
 		expect(result).toEqual(fakeInvoice);
-		// select should NOT be called when invoiceNumber is provided
-		expect(mockSelect).not.toHaveBeenCalled();
+		// execute should NOT be called when invoiceNumber is provided
+		expect(mockExecute).not.toHaveBeenCalled();
 		const valuesArg = mockValues.mock.calls[0][0];
 		expect(valuesArg.invoiceNumber).toBe("INV-CUSTOM-001");
 	});
 
 	test("uses amountPaid=0 when not provided", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		const fakeInvoice = { id: "inv3", invoiceNumber: "INV-20260227-0001" };
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		const fakeInvoice = { id: "inv3", invoiceNumber: "INV-20260227-000001" };
 		mockReturning.mockResolvedValueOnce([fakeInvoice]);
 
 		await createInvoice(mockTenantDb, {
@@ -204,7 +200,7 @@ describe("createInvoice", () => {
 	});
 
 	test("throws 'Failed to create invoice' when insert returns empty", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(

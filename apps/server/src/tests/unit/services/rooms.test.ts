@@ -50,9 +50,10 @@ describe("listRooms", () => {
 
 		expect(result).toEqual(fakeRooms);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		// Always has a where clause (isActive defaults to true)
+		// No filters provided — service does not default isActive, so where is undefined
+		// (drizzle's and(...[]) returns undefined when conditions array is empty)
 		const callArg = mockFindMany.mock.calls[0][0];
-		expect(callArg.where).toBeDefined();
+		expect(callArg.where).toBeUndefined();
 	});
 
 	test("filters by branchId when provided", async () => {

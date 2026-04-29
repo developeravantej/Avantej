@@ -306,10 +306,20 @@ describe("updatePromotion", () => {
 describe("deactivatePromotion", () => {
 	test("sets isActive to false", async () => {
 		const deactivated = makePromotion({ isActive: false });
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deactivated])) })) };
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await deactivatePromotion(mockDb, deactivated.id);
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deactivated])) })) };
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
+
+		const result = await deactivatePromotion(mockDb, deactivated.id, {
+			userId: "user-1",
+			memberId: "member-1",
+			role: "admin",
+		});
 
 		expect(result.isActive).toBe(false);
 	});
