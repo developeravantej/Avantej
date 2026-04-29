@@ -25,15 +25,15 @@ export default function ProfileScreen() {
 	const queryClient = useQueryClient();
 	const tabBarHeight = useTabBarHeight();
 
-	const [isEditing, setIsEditing] = useState(false);
-	const [isSaving, setIsSaving] = useState(false);
 	const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-	// Fetch customer profile
+	// Fetch customer profile (gated on organizationId — first paint after sign-in
+	// can have a brief undefined org).
 	const { data: profile } = useQuery({
 		...orpc.customerProfiles.get.queryOptions({
 			input: { organizationId },
 		}),
+		enabled: !!organizationId,
 	});
 
 	// Fetch notification preferences
@@ -41,20 +41,16 @@ export default function ProfileScreen() {
 		...orpc.notificationPreferences.get.queryOptions({
 			input: { organizationId },
 		}),
+		enabled: !!organizationId,
 	});
 
-	// Form state
-	const [formData, setFormData] = useState({
-		fullName: user?.name ?? "",
-		email: user?.email ?? "",
-		phone: "",
-	});
-
-	// Sync profile data into form when loaded
-	const profilePhone = (profile as any)?.phone ?? "";
-	if (profilePhone && !formData.phone && !isEditing) {
-		setFormData((prev) => ({ ...prev, phone: profilePhone }));
-	}
+	// Phone lives on the Better-Auth user row (configured as an additional
+	// field). Fall back to customer_profiles.phone for legacy data.
+	const userPhone =
+		((user as unknown as { phone?: string | null })?.phone ?? "") ||
+		((profile as any)?.phone ?? "");
+	const userName = user?.name ?? "";
+	const userEmail = user?.email ?? "";
 
 	const memberSince = user?.createdAt
 		? new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -62,36 +58,6 @@ export default function ProfileScreen() {
 				year: "numeric",
 			})
 		: "";
-
-	const handleSaveChanges = async () => {
-		setIsSaving(true);
-		try {
-			// Update customer profile (phone, etc.)
-			await client.customerProfiles.upsert({
-				organizationId,
-				phone: formData.phone,
-			});
-			queryClient.invalidateQueries({ queryKey: ["customerProfiles"] });
-
-			// Update name via Better-Auth if changed
-			if (formData.fullName !== user?.name) {
-				try {
-					await authClient.updateUser({
-						name: formData.fullName,
-					});
-				} catch {
-					// Name update may not be supported
-				}
-			}
-
-			setIsEditing(false);
-			Alert.alert("Success", "Profile updated");
-		} catch {
-			Alert.alert("Error", "Failed to update profile");
-		} finally {
-			setIsSaving(false);
-		}
-	};
 
 	const handleToggleNotifPref = async (
 		key: "emailEnabled" | "pushEnabled" | "smsEnabled",
@@ -103,7 +69,8 @@ export default function ProfileScreen() {
 				[key]: value,
 			});
 			queryClient.invalidateQueries({
-				queryKey: ["notificationPreferences"],
+				predicate: (q) =>
+					JSON.stringify(q.queryKey).includes("notificationPreferences"),
 			});
 		} catch {
 			Alert.alert("Error", "Failed to update preference");
@@ -147,102 +114,59 @@ export default function ProfileScreen() {
 							</View>
 							<View className="flex-1">
 								<Text className="mb-1 font-bold text-primary-1 text-xl">
-									{formData.fullName || "User"}
+									{userName || "User"}
 								</Text>
 								<Text className="text-secondary-1 text-sm">
 									Member since {memberSince}
 								</Text>
 							</View>
-							<TouchableOpacity
-								onPress={() => setIsEditing(!isEditing)}
-							>
-								<Ionicons
-									name={isEditing ? "close" : "create-outline"}
-									size={24}
-									color={colors.primary[1]}
-								/>
-							</TouchableOpacity>
 						</View>
 					</View>
 
-					{/* Personal Information Section */}
+					{/* Personal Information Section (read-only) */}
 					<View className="mb-4">
 						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
 							PERSONAL INFORMATION
 						</Text>
 						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 							{/* Full Name */}
-							<View className="mb-4">
-								<Text className="mb-2 font-medium text-base text-primary-1">
+							<View className="mb-4 border-secondary-3 border-b pb-4">
+								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
 									Full Name
 								</Text>
-								<TextInput
-									value={formData.fullName}
-									onChangeText={(text) =>
-										setFormData({ ...formData, fullName: text })
-									}
-									editable={isEditing}
-									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-									style={{
-										color: colors.primary[1],
-										fontSize: 16,
-										opacity: isEditing ? 1 : 0.7,
-									}}
-								/>
+								<Text
+									className="text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{userName || "—"}
+								</Text>
 							</View>
 
 							{/* Email */}
-							<View className="mb-4">
-								<Text className="mb-2 font-medium text-base text-primary-1">
+							<View className="mb-4 border-secondary-3 border-b pb-4">
+								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
 									Email
 								</Text>
-								<TextInput
-									value={formData.email}
-									editable={false}
-									keyboardType="email-address"
-									autoCapitalize="none"
-									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-									style={{
-										color: colors.primary[1],
-										fontSize: 16,
-										opacity: 0.5,
-									}}
-								/>
+								<Text
+									className="text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{userEmail || "—"}
+								</Text>
 							</View>
 
 							{/* Phone Number */}
-							<View className="mb-4">
-								<Text className="mb-2 font-medium text-base text-primary-1">
+							<View>
+								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
 									Phone Number
 								</Text>
-								<TextInput
-									value={formData.phone}
-									onChangeText={(text) =>
-										setFormData({ ...formData, phone: text })
-									}
-									editable={isEditing}
-									keyboardType="phone-pad"
-									className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-									style={{
-										color: colors.primary[1],
-										fontSize: 16,
-										opacity: isEditing ? 1 : 0.7,
-									}}
-								/>
-							</View>
-
-							{/* Save Changes Button */}
-							{isEditing && (
-								<TouchableOpacity
-									onPress={handleSaveChanges}
-									disabled={isSaving}
-									className={`mt-2 items-center justify-center rounded-xl bg-primary-1 py-4 ${isSaving ? "opacity-50" : ""}`}
+								<Text
+									className="text-base"
+									style={{ color: colors.primary[1] }}
 								>
-									<Text className="font-semibold text-base text-primary-2">
-										{isSaving ? "Saving..." : "Save Changes"}
-									</Text>
-								</TouchableOpacity>
-							)}
+									{userPhone || "—"}
+								</Text>
+							</View>
 						</View>
 					</View>
 

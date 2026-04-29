@@ -74,18 +74,35 @@ export const customerProfilesRouter = {
 				});
 			}
 
+			// Pass through ONLY the fields the client actually sent. The service
+			// distinguishes undefined (skip) from null (clear); collapsing them
+			// to null here would wipe untouched columns on every partial update.
 			const updated = await upsertCustomerProfile(context.tenantDb, {
 				userId,
-				phone: input.phone ?? null,
-				dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-				gender: input.gender ?? null,
-				address: input.address ?? null,
-				emergencyContactName: input.emergencyContactName ?? null,
-				emergencyContactPhone: input.emergencyContactPhone ?? null,
-				medicalNotes: input.medicalNotes ?? null,
-				fitnessGoals: input.fitnessGoals ?? null,
-				creditPoints: input.creditPoints,
-				notes: input.notes ?? null,
+				...(input.phone !== undefined && { phone: input.phone }),
+				...(input.dateOfBirth !== undefined && {
+					dateOfBirth: input.dateOfBirth
+						? new Date(input.dateOfBirth)
+						: null,
+				}),
+				...(input.gender !== undefined && { gender: input.gender }),
+				...(input.address !== undefined && { address: input.address }),
+				...(input.emergencyContactName !== undefined && {
+					emergencyContactName: input.emergencyContactName,
+				}),
+				...(input.emergencyContactPhone !== undefined && {
+					emergencyContactPhone: input.emergencyContactPhone,
+				}),
+				...(input.medicalNotes !== undefined && {
+					medicalNotes: input.medicalNotes,
+				}),
+				...(input.fitnessGoals !== undefined && {
+					fitnessGoals: input.fitnessGoals,
+				}),
+				...(input.creditPoints !== undefined && {
+					creditPoints: input.creditPoints,
+				}),
+				...(input.notes !== undefined && { notes: input.notes }),
 			});
 			return updated;
 		}),
