@@ -24,6 +24,12 @@ function getNotificationIcon(type: string): string {
 			return "gift";
 		case "system":
 			return "information-circle";
+		case "package_assigned":
+			return "checkmark-circle";
+		case "package_rejected":
+			return "close-circle";
+		case "package_pending_review":
+			return "hourglass";
 		default:
 			return "notifications";
 	}
@@ -39,6 +45,12 @@ function getNotificationColor(type: string): string {
 			return "#10B981";
 		case "system":
 			return "#6B7280";
+		case "package_assigned":
+			return "#16A34A";
+		case "package_rejected":
+			return "#DC2626";
+		case "package_pending_review":
+			return "#D97706";
 		default:
 			return "#6B7280";
 	}
@@ -111,7 +123,7 @@ export default function NotificationsScreen() {
 		read: notif.isRead ?? false,
 		icon: getNotificationIcon(notif.type ?? "system"),
 		color: getNotificationColor(notif.type ?? "system"),
-		referenceId: notif.referenceId,
+		referenceId: notif.relatedId ?? notif.referenceId,
 	}));
 
 	const unreadCount = notificationList.filter((n) => !n.read).length;
@@ -135,6 +147,8 @@ export default function NotificationsScreen() {
 		try {
 			await client.notifications.markAllRead({ organizationId });
 			queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			// Also refresh package data in case assignments/rejections changed status
+			queryClient.invalidateQueries({ queryKey: ["packageInstances"] });
 		} catch {
 			// Silently fail
 		}
@@ -143,6 +157,10 @@ export default function NotificationsScreen() {
 	const handleNotificationPress = (notification: (typeof notificationList)[0]) => {
 		if (!notification.read) {
 			handleMarkRead(notification.id);
+		}
+		// Refresh package data when tapping package-related notifications
+		if (notification.type.startsWith("package_")) {
+			queryClient.invalidateQueries({ queryKey: ["packageInstances"] });
 		}
 		switch (notification.type) {
 			case "booking":
@@ -158,6 +176,20 @@ export default function NotificationsScreen() {
 				break;
 			case "promotion":
 				router.push("/dashboard/explore" as never);
+				break;
+			case "package_assigned":
+			case "package_rejected":
+				if (notification.referenceId) {
+					router.push({
+						pathname: "/dashboard/packages/[id]" as never,
+						params: { id: notification.referenceId },
+					});
+				} else {
+					router.push("/dashboard/packages" as never);
+				}
+				break;
+			case "package_pending_review":
+				router.push("/dashboard/packages" as never);
 				break;
 		}
 	};

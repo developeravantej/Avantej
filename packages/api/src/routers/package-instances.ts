@@ -146,11 +146,13 @@ export const packageInstancesRouter = {
       const isClient = clientId && instance.clientId === clientId;
       const isStaff = context.member;
 
-      if (isClient) {
-        return instance;
+      if (!isClient && !isStaff) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Access denied",
+        });
       }
 
-      if (isStaff) {
+      if (isStaff && !isClient) {
         try {
           await requirePermission(
             context.tenantDb,
@@ -163,12 +165,31 @@ export const packageInstancesRouter = {
             message: error instanceof Error ? error.message : "Permission denied",
           });
         }
-        return instance;
       }
 
-      throw new ORPCError("FORBIDDEN", {
-        message: "Access denied",
-      });
+      // Enrich with assigned trainer name when present
+      let assignedTrainerName: string | null = null;
+      if (instance.assignedTrainerId) {
+        try {
+          const controlPanelDb = getControlPanelDb(context);
+          // Resolve member → userId → user.name
+          const [trainerMember] = await context.tenantDb
+            .select({ userId: members.userId })
+            .from(members)
+            .where(eq(members.id, instance.assignedTrainerId));
+          if (trainerMember) {
+            const [trainerUser] = await controlPanelDb
+              .select({ name: user.name })
+              .from(user)
+              .where(eq(user.id, trainerMember.userId));
+            assignedTrainerName = trainerUser?.name ?? null;
+          }
+        } catch {
+          // Non-critical — proceed without name
+        }
+      }
+
+      return { ...instance, assignedTrainerName };
     }),
 
   create: protectedProcedure

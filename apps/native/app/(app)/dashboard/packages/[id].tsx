@@ -499,6 +499,30 @@ export default function PackageDetailScreen() {
 								</Section>
 							)}
 
+							{/* Assigned Trainer — shown when a trainer has been assigned */}
+							{inst.assignedTrainerName && status !== "pending" && (
+								<Section title="Your Trainer">
+									<View className="flex-row items-center">
+										<View
+											className="mr-3 h-10 w-10 items-center justify-center rounded-full"
+											style={{ backgroundColor: "#DCFCE7" }}
+										>
+											<Ionicons
+												name="person"
+												size={20}
+												color="#16A34A"
+											/>
+										</View>
+										<Text
+											className="font-semibold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											{inst.assignedTrainerName}
+										</Text>
+									</View>
+								</Section>
+							)}
+
 							{/* Pending Approval callout — shown instead of Book CTA */}
 							{status === "pending" && (
 								<View className="mt-2 mb-4 rounded-2xl border border-yellow-300 bg-yellow-50 p-4">
@@ -522,6 +546,34 @@ export default function PackageDetailScreen() {
 											>
 												You'll be notified once a trainer has been assigned to
 												your package. After that you can start booking sessions.
+											</Text>
+										</View>
+									</View>
+								</View>
+							)}
+
+							{/* Rejected callout */}
+							{status === "cancelled" && inst.cancellationReason && (
+								<View className="mt-2 mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+									<View className="flex-row items-start">
+										<Ionicons
+											name="close-circle-outline"
+											size={20}
+											color="#DC2626"
+											style={{ marginTop: 2 }}
+										/>
+										<View className="ml-3 flex-1">
+											<Text
+												className="mb-1 font-semibold text-sm"
+												style={{ color: "#DC2626" }}
+											>
+												Package rejected
+											</Text>
+											<Text
+												className="text-xs leading-5"
+												style={{ color: "#991B1B" }}
+											>
+												{inst.cancellationReason}
 											</Text>
 										</View>
 									</View>
