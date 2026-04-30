@@ -28,6 +28,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Settings } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/organization",
@@ -41,6 +42,7 @@ const orgSettingsSchema = z.object({
 	gracePeriodDays: z.coerce.number().int().min(1).max(365),
 	commissionPct: z.coerce.number().min(0).max(100),
 	locale: z.enum(["en-MY", "en-US"]),
+	packageApprovalRequired: z.boolean(),
 });
 
 type OrgSettingsValues = z.infer<typeof orgSettingsSchema>;
@@ -49,6 +51,7 @@ const DEFAULT_VALUES: OrgSettingsValues = {
 	gracePeriodDays: 7,
 	commissionPct: 0,
 	locale: "en-MY",
+	packageApprovalRequired: true,
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -101,7 +104,17 @@ function OrganizationSettingsPage() {
 		staleTime: 60_000,
 	});
 
-	const isLoading = l1 || l2 || l3;
+	const { data: packageApprovalData, isLoading: l4 } = useQuery({
+		queryKey: ["organizationSettings", organizationId, "package_approval.required"],
+		queryFn: () =>
+			organizationId
+				? client.organizationSettings.get({ organizationId, key: "package_approval.required" })
+				: Promise.resolve(null),
+		enabled: !!organizationId,
+		staleTime: 60_000,
+	});
+
+	const isLoading = l1 || l2 || l3 || l4;
 
 	// ─── Form ─────────────────────────────────────────────────────────────────
 
@@ -121,8 +134,10 @@ function OrganizationSettingsPage() {
 				? parseFloat(commissionData.value) || DEFAULT_VALUES.commissionPct
 				: DEFAULT_VALUES.commissionPct,
 			locale: (localeData?.value as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
+			packageApprovalRequired:
+				(packageApprovalData?.value ?? "true") === "true",
 		});
-	}, [isLoading, gracePeriodData, commissionData, localeData, form]);
+	}, [isLoading, gracePeriodData, commissionData, localeData, packageApprovalData, form]);
 
 	// ─── Save handler ─────────────────────────────────────────────────────────
 
@@ -145,6 +160,11 @@ function OrganizationSettingsPage() {
 					organizationId,
 					key: "locale",
 					value: values.locale,
+				}),
+				client.organizationSettings.upsert({
+					organizationId,
+					key: "package_approval.required",
+					value: String(values.packageApprovalRequired),
 				}),
 			]);
 			toast.success("Settings saved");
@@ -293,6 +313,33 @@ function OrganizationSettingsPage() {
 												organization.
 											</FormDescription>
 											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{/* Package Approval Required */}
+								<FormField
+									control={form.control}
+									name="packageApprovalRequired"
+									render={({ field }) => (
+										<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 max-w-lg">
+											<div className="space-y-0.5">
+												<FormLabel className="text-brand-primary-1 text-base">
+													Require Package Approval
+												</FormLabel>
+												<FormDescription className="text-brand-secondary-1">
+													When enabled, customer-purchased packages start as
+													"Pending" and require a trainer to be assigned before
+													sessions can be booked.
+												</FormDescription>
+											</div>
+											<FormControl>
+												<Switch
+													checked={field.value}
+													onCheckedChange={field.onChange}
+													disabled={!isAdmin}
+												/>
+											</FormControl>
 										</FormItem>
 									)}
 								/>
