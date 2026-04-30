@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_BRANCH_NODE_ID,
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
 import {
@@ -18,40 +17,122 @@ import {
 	purchaseOrders,
 	purchaseOrderItems,
 } from "@avantej-core/db/schema/tenant/purchase-orders";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { suppliers } from "@avantej-core/db/schema/tenant/suppliers";
+import { products } from "@avantej-core/db/schema/tenant/products";
+import { unitsOfMeasure } from "@avantej-core/db/schema/tenant/units-of-measure";
 
 const createdPoIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let testBranchNodeId: string;
+let testSupplierId: string;
+let testUomId: string;
+const testProductIds: string[] = [];
 
-beforeAll(() => {
+async function createTestProduct(suffix: string): Promise<string> {
+	const [p] = await tenantDb
+		.insert(products)
+		.values({
+			sku: `INT-PO-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+			name: `Test Product ${suffix}`,
+			uomId: testUomId,
+			price: 100,
+		} as any)
+		.returning();
+	if (!p) throw new Error("Failed to create test product");
+	testProductIds.push(p.id);
+	return p.id;
+}
+
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+
+	const [node] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Test Branch for PO ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.returning();
+	if (!node) throw new Error("Failed to create test hierarchy node");
+	testBranchNodeId = node.id;
+
+	const [supplier] = await tenantDb
+		.insert(suppliers)
+		.values({
+			name: `Test Supplier PO ${Date.now()}`,
+		} as any)
+		.returning();
+	if (!supplier) throw new Error("Failed to create test supplier");
+	testSupplierId = supplier.id;
+
+	const [uom] = await tenantDb
+		.insert(unitsOfMeasure)
+		.values({
+			name: `unit-po-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+		} as any)
+		.returning();
+	if (!uom) throw new Error("Failed to create test UoM");
+	testUomId = uom.id;
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdPoIds.length === 0) return;
-	// Clean up items first (FK constraint), then orders
-	await tenantDb
-		.delete(purchaseOrderItems)
-		.where(inArray(purchaseOrderItems.purchaseOrderId, createdPoIds));
-	await tenantDb
-		.delete(purchaseOrders)
-		.where(inArray(purchaseOrders.id, createdPoIds));
+	if (shouldSkipIntegration()) return;
+	if (createdPoIds.length > 0) {
+		await tenantDb
+			.delete(purchaseOrderItems)
+			.where(inArray(purchaseOrderItems.purchaseOrderId, createdPoIds));
+		await tenantDb
+			.delete(purchaseOrders)
+			.where(inArray(purchaseOrders.id, createdPoIds));
+	}
+	if (testProductIds.length > 0) {
+		try {
+			await tenantDb
+				.delete(products)
+				.where(inArray(products.id, testProductIds));
+		} catch {}
+	}
+	if (testSupplierId) {
+		try {
+			await tenantDb.delete(suppliers).where(eq(suppliers.id, testSupplierId));
+		} catch {}
+	}
+	if (testUomId) {
+		try {
+			await tenantDb
+				.delete(unitsOfMeasure)
+				.where(eq(unitsOfMeasure.id, testUomId));
+		} catch {}
+	}
+	if (testBranchNodeId) {
+		try {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, testBranchNodeId));
+		} catch {}
+	}
 });
 
 describe("Purchase Orders Integration", () => {
 	test("create PO -> approve -> receive partial -> receive remaining (full lifecycle)", async () => {
 		if (shouldSkipIntegration()) return;
 
+		const productId1 = await createTestProduct("int-1");
+		const productId2 = await createTestProduct("int-2");
+
 		// Step 1: Create PO with 2 line items
 		const created = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-integration",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
 			items: [
-				{ productId: "prod-int-1", orderedQty: 10, unitCost: 1000 },
-				{ productId: "prod-int-2", orderedQty: 5, unitCost: 2000 },
+				{ productId: productId1, orderedQty: 10, unitCost: 1000 },
+				{ productId: productId2, orderedQty: 5, unitCost: 2000 },
 			],
 		});
 		createdPoIds.push(created.id);
@@ -74,8 +155,8 @@ describe("Purchase Orders Integration", () => {
 		expect(detail).toBeTruthy();
 		expect(detail!.items.length).toBe(2);
 
-		const item1 = detail!.items.find((i) => i.productId === "prod-int-1")!;
-		const item2 = detail!.items.find((i) => i.productId === "prod-int-2")!;
+		const item1 = detail!.items.find((i) => i.productId === productId1)!;
+		const item2 = detail!.items.find((i) => i.productId === productId2)!;
 
 		// Receive item1 partially (5 of 10)
 		const partial = await receiveItems(tenantDb, created.id, [
@@ -94,12 +175,13 @@ describe("Purchase Orders Integration", () => {
 	test("PO number format matches PO-YYYYMMDD-NNNN", async () => {
 		if (shouldSkipIntegration()) return;
 
+		const productId = await createTestProduct("ponum");
 		const po = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-ponum",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-ponum", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po.id);
 
@@ -109,21 +191,23 @@ describe("Purchase Orders Integration", () => {
 	test("PO number increments across multiple POs created same day", async () => {
 		if (shouldSkipIntegration()) return;
 
+		const productSeq1 = await createTestProduct("seq-1");
+		const productSeq2 = await createTestProduct("seq-2");
 		const po1 = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-seq-1",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-seq-1", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId: productSeq1, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po1.id);
 
 		const po2 = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-seq-2",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-seq-2", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId: productSeq2, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po2.id);
 
@@ -136,12 +220,13 @@ describe("Purchase Orders Integration", () => {
 	test("only draft POs can be approved", async () => {
 		if (shouldSkipIntegration()) return;
 
+		const productId = await createTestProduct("guard");
 		const po = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-approve-guard",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-guard", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po.id);
 
@@ -158,12 +243,13 @@ describe("Purchase Orders Integration", () => {
 		if (shouldSkipIntegration()) return;
 
 		// Create -> approve -> fully receive
+		const productId = await createTestProduct("cancel");
 		const po = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-cancel-guard",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-cancel", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po.id);
 
@@ -183,12 +269,13 @@ describe("Purchase Orders Integration", () => {
 	test("cancel draft PO succeeds", async () => {
 		if (shouldSkipIntegration()) return;
 
+		const productId = await createTestProduct("cancel-ok");
 		const po = await createPurchaseOrder(tenantDb, {
-			supplierId: "test-supplier-cancel-ok",
-			branchId: TEST_BRANCH_NODE_ID,
+			supplierId: testSupplierId,
+			branchId: testBranchNodeId,
 			orderDate: new Date(),
 			createdBy: TEST_MEMBER_ID,
-			items: [{ productId: "prod-cancel-ok", orderedQty: 1, unitCost: 100 }],
+			items: [{ productId, orderedQty: 1, unitCost: 100 }],
 		});
 		createdPoIds.push(po.id);
 

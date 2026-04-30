@@ -235,6 +235,14 @@ describe("Installment Plans Integration", () => {
 	test("seeded plans (full, half, quarterly) exist if tenant was provisioned via runTenantMigrations", async () => {
 		if (shouldSkipIntegration()) return;
 
+		// Earlier tests in this suite flip the default flag away from "full" via
+		// setDefaultInstallmentPlan. Restore it before asserting seeded state so
+		// these assertions reflect post-migration invariants, not test pollution.
+		const fullSeedRestore = await getInstallmentPlanByCode(tenantDb, "full");
+		if (fullSeedRestore && !fullSeedRestore.isDefault) {
+			await setDefaultInstallmentPlan(tenantDb, fullSeedRestore.id);
+		}
+
 		// NOTE: Seed rows are inserted by MIGRATION_0017_INSTALLMENT_PLANS in migrate-tenant.ts.
 		// They are applied via the programmatic tenant migrator (runTenantMigrations), NOT by
 		// `bun db:push`. If running against a dev DB that was set up via push only, these may

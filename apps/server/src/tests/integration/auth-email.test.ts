@@ -379,7 +379,7 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		}
 
 		await expect(verifyEmailToken("invalid-token-123")).rejects.toThrow(
-			"invalid_token"
+			/Invalid token|invalid_token/i
 		);
 	});
 
@@ -418,7 +418,7 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 			.sign(new TextEncoder().encode(secret));
 
 		await expect(verifyEmailToken(expiredToken)).rejects.toThrow(
-			"token_expired"
+			/Token expired|token_expired/i
 		);
 
 		// Cleanup

@@ -20,13 +20,15 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 	TEST_MEMBER_ID,
-	TEST_BRANCH_NODE_ID,
 } from "../helpers/integration-setup";
 import { listInvitations, requirePermission } from "@avantej-core/services";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 const createdIds: string[] = [];
+const createdBranchNodeIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let TEST_BRANCH_NODE_ID: string;
 
 // Two distinct "inviter" user IDs to simulate Admin A and Admin B
 const INVITER_A_USER_ID = "aaaaaaaa-0000-4000-8000-aaaaaaaaaaaa";
@@ -60,17 +62,36 @@ async function insertInvitation(
 	return row;
 }
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+
+	const [branchNode] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Invitations Scope Test Branch ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		})
+		.returning();
+	if (!branchNode) throw new Error("Failed to create branch node");
+	TEST_BRANCH_NODE_ID = branchNode.id;
+	createdBranchNodeIds.push(branchNode.id);
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdIds.length === 0) return;
-	await tenantDb
-		.delete(invitations)
-		.where(inArray(invitations.id, createdIds));
+	if (shouldSkipIntegration()) return;
+	if (createdIds.length > 0) {
+		await tenantDb
+			.delete(invitations)
+			.where(inArray(invitations.id, createdIds));
+	}
+	if (createdBranchNodeIds.length > 0) {
+		await tenantDb
+			.delete(hierarchyNodes)
+			.where(inArray(hierarchyNodes.id, createdBranchNodeIds));
+	}
 });
 
 describe("Invitations — org-wide scope (Ticket B fix)", () => {

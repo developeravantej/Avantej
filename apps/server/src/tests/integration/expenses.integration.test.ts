@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_BRANCH_NODE_ID,
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
 import {
@@ -15,19 +14,42 @@ import {
 	markExpensePaid,
 } from "@avantej-core/services";
 import { expenses } from "@avantej-core/db/schema/tenant/expenses";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 const createdIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let testBranchNodeId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+	const [node] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Test Branch for Expenses ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.returning();
+	if (!node) throw new Error("Failed to create test hierarchy node");
+	testBranchNodeId = node.id;
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdIds.length === 0) return;
-	await tenantDb.delete(expenses).where(inArray(expenses.id, createdIds));
+	if (shouldSkipIntegration()) return;
+	if (createdIds.length > 0) {
+		await tenantDb.delete(expenses).where(inArray(expenses.id, createdIds));
+	}
+	if (testBranchNodeId) {
+		try {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, testBranchNodeId));
+		} catch {
+			// Ignore cleanup errors
+		}
+	}
 });
 
 describe("Expenses Integration", () => {
@@ -36,7 +58,7 @@ describe("Expenses Integration", () => {
 
 		// Step 1: Create
 		const created = await createExpense(tenantDb, {
-			branchId: TEST_BRANCH_NODE_ID,
+			branchId: testBranchNodeId,
 			submittedBy: TEST_MEMBER_ID,
 			category: "travel",
 			description: "Integration test expense - full lifecycle",
@@ -77,7 +99,7 @@ describe("Expenses Integration", () => {
 		if (shouldSkipIntegration()) return;
 
 		const created = await createExpense(tenantDb, {
-			branchId: TEST_BRANCH_NODE_ID,
+			branchId: testBranchNodeId,
 			submittedBy: TEST_MEMBER_ID,
 			category: "equipment",
 			description: "Integration test - reject flow",
@@ -106,7 +128,7 @@ describe("Expenses Integration", () => {
 		if (shouldSkipIntegration()) return;
 
 		const created = await createExpense(tenantDb, {
-			branchId: TEST_BRANCH_NODE_ID,
+			branchId: testBranchNodeId,
 			submittedBy: TEST_MEMBER_ID,
 			category: "supplies",
 			description: "Integration test - skip approve guard",
@@ -125,7 +147,7 @@ describe("Expenses Integration", () => {
 		if (shouldSkipIntegration()) return;
 
 		const created = await createExpense(tenantDb, {
-			branchId: TEST_BRANCH_NODE_ID,
+			branchId: testBranchNodeId,
 			submittedBy: TEST_MEMBER_ID,
 			category: "other",
 			description: "Integration test - RBAC filter",
@@ -147,7 +169,7 @@ describe("Expenses Integration", () => {
 
 		// Staff view with matching branch
 		const matchingList = await listExpenses(tenantDb, {
-			accessibleNodeIds: [TEST_BRANCH_NODE_ID],
+			accessibleNodeIds: [testBranchNodeId],
 		});
 		expect(matchingList.some((e) => e.id === created.id)).toBe(true);
 	}, 30000);

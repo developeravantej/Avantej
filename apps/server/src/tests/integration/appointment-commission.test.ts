@@ -26,10 +26,13 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_BRANCH_NODE_ID,
 	TEST_USER_ID,
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+
+let TEST_BRANCH_NODE_ID: string;
+const createdBranchNodeIds: string[] = [];
 import {
 	createTrainerTier,
 	upsertCategoryCommissionConfig,
@@ -122,6 +125,19 @@ beforeAll(async () => {
 	loadDevVars();
 	tenantDb = createTenantDb();
 
+	// Seed a hierarchy node for FK compliance
+	const [branchNode] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `AC Test Branch ${TS}`,
+			type: "branch",
+			depth: 4,
+		})
+		.returning();
+	if (!branchNode) throw new Error("Failed to create branch node");
+	TEST_BRANCH_NODE_ID = branchNode.id;
+	createdBranchNodeIds.push(branchNode.id);
+
 	// Trainer tier
 	const { tier } = await createTrainerTier(tenantDb, {
 		name: `AC Integration Tier ${TS}`,
@@ -190,6 +206,13 @@ afterAll(async () => {
 		await tenantDb
 			.delete(trainerTiers)
 			.where(inArray(trainerTiers.id, createdTierIds));
+	}
+
+	// 6. Delete branch hierarchy nodes
+	if (createdBranchNodeIds.length > 0) {
+		await tenantDb
+			.delete(hierarchyNodes)
+			.where(inArray(hierarchyNodes.id, createdBranchNodeIds));
 	}
 });
 

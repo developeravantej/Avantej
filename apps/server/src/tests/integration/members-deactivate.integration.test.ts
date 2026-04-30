@@ -6,27 +6,52 @@ import {
 	createTenantDb,
 } from "../helpers/integration-setup";
 
-const TEST_ACTOR = { userId: "test-user", memberId: "test-member", role: "admin" };
+const TEST_ACTOR = {
+	userId: "test-user",
+	memberId: "00000000-0000-4000-8000-000000000001",
+	role: "admin",
+};
 import { deactivateMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 const createdMemberIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let testHierarchyNodeId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+	const [node] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Test Branch for Members Deactivate ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.returning();
+	if (!node) throw new Error("Failed to create test hierarchy node");
+	testHierarchyNodeId = node.id;
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdMemberIds.length === 0) return;
+	if (shouldSkipIntegration()) return;
 	// Restore test members to active status and clean up
 	for (const id of createdMemberIds) {
 		try {
 			await tenantDb
 				.delete(members)
 				.where(eq(members.id, id));
+		} catch {
+			// Ignore cleanup errors
+		}
+	}
+	if (testHierarchyNodeId) {
+		try {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, testHierarchyNodeId));
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -47,7 +72,7 @@ async function createTestMember(
 			userId: `test-user-deactivate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 			role: "staff",
 			status: "active",
-			hierarchyScopeId: null,
+			hierarchyScopeId: testHierarchyNodeId,
 			...overrides,
 		} as any)
 		.returning();

@@ -361,15 +361,15 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
       if (testSubscriptionId) {
         console.log(`   Test Subscription ID: ${testSubscriptionId}`);
       }
-      console.log("\n⏸️  Waiting 60 seconds before cleanup...");
-      console.log("   You can now inspect the data in:");
-      console.log("   - Neon Console: https://console.neon.tech");
-      console.log("   - Control Panel DB: Check organizations, users, subscriptions tables");
-      console.log("   - Or run: bun run inspect-test-data:inspect-only");
+      console.log("   (Inspection wait disabled in test runs — use INSPECT_TEST_DATA=true to enable.)");
       console.log("=".repeat(60) + "\n");
-      
-      // Wait 60 seconds before cleanup (allows time for inspection)
-      await new Promise((resolve) => setTimeout(resolve, 60000));
+
+      // Optional inspection wait: only when explicitly opted in via env var.
+      // Default behaviour cleans up immediately so the afterAll hook stays
+      // within bun:test's default 5s hook timeout.
+      if (process.env.INSPECT_TEST_DATA === "true") {
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+      }
     }
 
     // Cleanup: Delete Neon project
@@ -427,6 +427,6 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
         console.error(`⚠️  Failed to close pool:`, error);
       }
     }
-  });
+  }, 120000);
 });
 
