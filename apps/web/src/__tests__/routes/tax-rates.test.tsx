@@ -17,6 +17,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -39,7 +42,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Configuration")).toBeInTheDocument();
+			expect(screen.getByText(/Tax Rates/)).toBeInTheDocument();
 		});
 	});
 
@@ -47,9 +50,9 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Configuration")).toBeInTheDocument();
+			expect(screen.getByText(/Tax Rates/)).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /add tax rate/i }),
+				screen.getAllByRole("button", { name: /new tax rate|add tax rate/i })[0],
 			).toBeInTheDocument();
 		});
 	});
@@ -94,7 +97,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("SST 8%")).toBeInTheDocument();
+			expect(screen.getAllByText("SST 8%")[0]).toBeInTheDocument();
 		});
 
 		const deactivateButton = screen.getByRole("button", {

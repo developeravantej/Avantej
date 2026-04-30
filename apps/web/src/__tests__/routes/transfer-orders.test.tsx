@@ -3,12 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
-let TransferOrdersViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		TransferOrdersViewPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
@@ -18,17 +13,17 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			user: { id: "member-1" },
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/transfer-orders/view"
-	);
-});
+import { TransferOrdersTabPage } from "@/components/pages/stock/transfers-tab";
+const TransferOrdersViewPage = TransferOrdersTabPage;
 
 describe("Transfer Orders page", () => {
 	beforeEach(() => {

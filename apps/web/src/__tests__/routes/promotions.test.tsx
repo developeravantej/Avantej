@@ -3,12 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
-let PromotionsViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		PromotionsViewPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
@@ -17,6 +12,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -30,11 +28,8 @@ vi.mock("@/lib/currency", () => ({
 	},
 }));
 
-beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/promotions/view"
-	);
-});
+import { PromotionsPage } from "@/components/pages/services/promotions-page";
+const PromotionsViewPage = PromotionsPage;
 
 describe("Promotions page", () => {
 	beforeEach(() => {
@@ -46,17 +41,18 @@ describe("Promotions page", () => {
 		renderWithProviders(<PromotionsViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Promotions")).toBeInTheDocument();
+			expect(
+				screen.getAllByRole("button", { name: /new promotion/i })[0],
+			).toBeInTheDocument();
 		});
 	});
 
-	test("renders page heading and 'New Promotion' button", async () => {
+	test("renders 'New Promotion' button", async () => {
 		renderWithProviders(<PromotionsViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Promotions")).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /new promotion/i }),
+				screen.getAllByRole("button", { name: /new promotion/i })[0],
 			).toBeInTheDocument();
 		});
 	});

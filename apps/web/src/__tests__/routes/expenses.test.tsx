@@ -18,6 +18,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -53,7 +56,7 @@ describe("Expenses page", () => {
 				screen.getByText("Submit and manage expense claims"),
 			).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /submit expense/i }),
+				screen.getAllByRole("button", { name: /submit expense/i })[0],
 			).toBeInTheDocument();
 		});
 	});

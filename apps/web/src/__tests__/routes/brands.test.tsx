@@ -7,13 +7,7 @@ const mockBrandsCreate = vi.fn().mockResolvedValue({ id: "brand-1" });
 const mockBrandsUpdate = vi.fn().mockResolvedValue({});
 const mockBrandsDelete = vi.fn().mockResolvedValue({});
 
-// Capture the component registered by createFileRoute
-let BrandsViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		BrandsViewPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -38,6 +32,9 @@ vi.mock("@/utils/orpc", () => ({
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 
@@ -45,9 +42,8 @@ vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/brands/view");
-});
+import { BrandsTabPage } from "@/components/pages/inventory/brands-tab";
+const BrandsViewPage = BrandsTabPage;
 
 describe("Brands page", () => {
 	beforeEach(() => {
@@ -59,7 +55,7 @@ describe("Brands page", () => {
 		renderWithProviders(<BrandsViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("No results.")).toBeInTheDocument();
+			expect(screen.getByText(/No brands yet/i)).toBeInTheDocument();
 		});
 	});
 
@@ -73,12 +69,12 @@ describe("Brands page", () => {
 		});
 	});
 
-	test("renders Filter brands input", async () => {
+	test("renders search brands input", async () => {
 		renderWithProviders(<BrandsViewPage />);
 
 		await waitFor(() => {
 			expect(
-				screen.getByPlaceholderText("Filter brands..."),
+				screen.getByPlaceholderText(/search brands/i),
 			).toBeInTheDocument();
 		});
 	});

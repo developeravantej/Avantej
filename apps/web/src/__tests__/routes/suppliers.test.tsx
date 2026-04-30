@@ -3,12 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
-let SuppliersViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		SuppliersViewPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/utils/orpc", () => ({
@@ -24,17 +19,17 @@ vi.mock("@/utils/orpc", () => ({
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/suppliers/view"
-	);
-});
+import { SuppliersTabPage } from "@/components/pages/inventory/suppliers-tab";
+const SuppliersViewPage = SuppliersTabPage;
 
 describe("Suppliers page", () => {
 	beforeEach(() => {

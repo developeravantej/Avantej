@@ -4,13 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
-let TrainerTiersPage: React.ComponentType;
-
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		TrainerTiersPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
@@ -19,15 +13,16 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/trainers/tiers");
-});
+import { TrainerTiersPage } from "@/components/pages/trainers/trainer-tiers-page";
 
 describe("TrainerTiersPage", () => {
 	beforeEach(() => {

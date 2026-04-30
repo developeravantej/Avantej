@@ -7,14 +7,28 @@ let RouteComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		RouteComponent = opts.component;
-		return { component: opts.component };
+		return {
+			component: opts.component,
+			useSearch: () => ({ tab: "units" }),
+			useNavigate: () => () => {},
+		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: () => () => {},
+	useSearch: () => ({ tab: "units" }),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {
+		unitsOfMeasure: { list: { key: () => ["unitsOfMeasure", "list"] } },
+	},
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({

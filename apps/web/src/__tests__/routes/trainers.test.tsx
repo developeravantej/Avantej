@@ -7,9 +7,15 @@ let TrainersViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		TrainersViewPage = opts.component;
-		return { component: opts.component };
+		return {
+			component: opts.component,
+			useSearch: () => ({}),
+			useNavigate: () => () => {},
+		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: () => () => {},
+	useSearch: () => ({}),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -18,6 +24,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			organizations: [],
 		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -37,7 +46,7 @@ describe("Trainers page", () => {
 	test("renders without crashing (empty state)", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			expect(screen.getByText("Trainers")).toBeInTheDocument();
+			expect(screen.getAllByText("Trainers")[0]).toBeInTheDocument();
 		});
 	});
 

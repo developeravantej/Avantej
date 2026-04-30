@@ -7,13 +7,7 @@ const mockProductCategoriesCreate = vi.fn().mockResolvedValue({ id: "cat-1" });
 const mockProductCategoriesUpdate = vi.fn().mockResolvedValue({});
 const mockProductCategoriesDelete = vi.fn().mockResolvedValue({});
 
-// Capture the component registered by createFileRoute
-let CategoriesViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		CategoriesViewPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -38,6 +32,9 @@ vi.mock("@/utils/orpc", () => ({
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 
@@ -45,9 +42,8 @@ vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/categories/view");
-});
+import { CategoriesTabPage } from "@/components/pages/inventory/categories-tab";
+const CategoriesViewPage = CategoriesTabPage;
 
 describe("Categories page", () => {
 	beforeEach(() => {
@@ -59,7 +55,7 @@ describe("Categories page", () => {
 		renderWithProviders(<CategoriesViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("No results.")).toBeInTheDocument();
+			expect(screen.getByText(/No categories yet/i)).toBeInTheDocument();
 		});
 	});
 
