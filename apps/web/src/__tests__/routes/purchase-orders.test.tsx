@@ -129,7 +129,7 @@ describe("Purchase Orders page", () => {
 		).not.toBeInTheDocument();
 	});
 
-	test.skip("displays total amount in RM (cents to RM)", async () => {
+	test("displays total amount in RM (cents to RM)", async () => {
 		mockClient.purchaseOrders.list.mockResolvedValue([
 			{
 				id: "po-1",
@@ -145,8 +145,9 @@ describe("Purchase Orders page", () => {
 
 		renderWithProviders(<PurchaseOrdersPage />);
 
+		// formatPrice(250000, "MYR") → "RM 2,500.00" (en-MY locale w/ thousands sep).
 		await waitFor(() => {
-			expect(screen.getByText(/2500\.00/)).toBeInTheDocument();
+			expect(screen.getByText(/2,500\.00/)).toBeInTheDocument();
 		});
 	});
 

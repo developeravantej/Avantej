@@ -11,37 +11,8 @@
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { loadDevVars, createControlPanelDb, shouldSkipIntegration } from "../helpers/integration-setup";
-
-/**
- * Force-load .dev.vars from apps/server/.dev.vars with override semantics.
- * The shared `loadDevVars` helper in tests/helpers/integration-setup.ts
- * resolves the path one level too deep and silently skips on miss, leaving
- * DATABASE_URL unset. This local loader patches that for this test only.
- */
-function forceLoadServerDevVars(): void {
-	const devVarsPath = join(import.meta.dir, "../../../.dev.vars");
-	try {
-		const content = readFileSync(devVarsPath, "utf-8");
-		for (const line of content.split("\n")) {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith("#")) continue;
-			const eqIdx = trimmed.indexOf("=");
-			if (eqIdx === -1) continue;
-			const key = trimmed.slice(0, eqIdx).trim();
-			const value = trimmed.slice(eqIdx + 1).trim();
-			// Only set if missing (don't override values explicitly provided to the run)
-			if (!process.env[key]) {
-				process.env[key] = value;
-			}
-		}
-	} catch {
-		// Fall back silently — the helper's loadDevVars warning will print.
-	}
-}
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { user } from "@avantej-core/db/schema/auth";
 import {
@@ -67,7 +38,6 @@ let regularUserId: string;
 
 beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
-	forceLoadServerDevVars();
 	loadDevVars();
 	controlPanelDb = createControlPanelDb();
 

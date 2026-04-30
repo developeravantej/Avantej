@@ -17,7 +17,7 @@ export const TEST_USER_ID = "cccccccc-0000-4000-8000-000000000001";
  * Must be called before any DB connections are created.
  */
 export function loadDevVars(): void {
-	const devVarsPath = join(import.meta.dir, "../../../../.dev.vars");
+	const devVarsPath = join(import.meta.dir, "../../../.dev.vars");
 	try {
 		const content = readFileSync(devVarsPath, "utf-8");
 		for (const line of content.split("\n")) {

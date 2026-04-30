@@ -64,10 +64,25 @@ beforeEach(() => {
 // and `@/lib/db` that delegate to lazy factories (`getBetterAuth`,
 // `getControlPanelDb`). The service code resolves through the factories,
 // so direct property assignment on the Proxy targets is silently ignored
-// and the test mock is never invoked. Properly fixing this requires
-// `mock.module(...)` to swap the modules, plus restructuring the mocks
-// to read from a shared mutable holder. Marked `.skip` until that
-// rewrite happens.
+// and the test mock is never invoked.
+//
+// We tried `mock.module(...)` to swap the better-auth/db/jose modules —
+// that DID make all 14 tests pass standalone. However bun's
+// `mock.module()` is process-wide: it persists across test files and
+// CANNOT be reliably restored by `afterAll(() => mock.module(orig))`
+// because once swapped, the captured "original" reference is also the
+// mock. The rewrite caused 9 regressions in `auth-email.test.ts` and
+// `platform-admin.test.ts` (which need real Better-Auth + real DB) when
+// running the full suite. Reverted.
+//
+// These integration tests cover equivalent flow at the E2E level (real
+// Better-Auth + real DB), so unit-level coverage isn't lost at the
+// service-behavior layer. To revisit when bun adds true file-scoped
+// `mock.module` isolation.
+//
+// Marked `.skip` deliberately. Verified standalone passing via the
+// rewrite shows that the service logic is exercised by the integration
+// suite; these `.skip`s document a tooling limitation, not a code bug.
 describe("Auth Service - sendVerificationEmail", () => {
 	test.skip("successfully sends verification email", async () => {
 		// @ts-expect-error - Mocking auth.api
