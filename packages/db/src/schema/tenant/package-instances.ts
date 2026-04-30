@@ -54,7 +54,18 @@ export const packageInstances = pgTable("package_instances", {
 	expiresAt: timestamp("expires_at").notNull(),
 
 	// Status
-	status: text("status").notNull(), // "active" | "expired" | "exhausted" | "cancelled"
+	status: text("status").notNull(), // "pending" | "active" | "expired" | "exhausted" | "cancelled"
+
+	// Approval flow (Pattern C — assignment IS approval)
+	// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
+	// package that started in `pending` state. Null for legacy / non-gated rows.
+	assignedTrainerId: uuid("assigned_trainer_id"),
+	assignedTrainerAssignedBy: text("assigned_trainer_assigned_by"),
+	assignedTrainerAssignedAt: timestamp("assigned_trainer_assigned_at"),
+	approvedAt: timestamp("approved_at"),
+	approvedBy: text("approved_by"),
+	cancellationReason: text("cancellation_reason"),
+	cancelledBy: text("cancelled_by"),
 
 	remark: text("remark"),
 

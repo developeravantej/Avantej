@@ -1,16 +1,14 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-04-23
-**Sessions audited:** 3
-**Clean:** 1 · **Needs attention:** 2 · **Critical:** 0
+**Last run:** 2026-04-29 21:30
+**Sessions audited:** 1
+**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
 
 ## Sessions
 
 | Status | Session | Summary | Report |
 |--------|---------|---------|--------|
-| 🟡 needs-attention | `04-23_12-38_installment-enhancements` | 8/8 sections, 0 broken refs, 4 open questions (OQ#1 blocks Phase 3), not executed | [report](04-23_12-38_installment-enhancements/audit/report.md) |
-| 🟡 needs-attention | `04-22_20-59_design-guidelines-rollout` | 8/8 sections, 0 broken refs (all 7 patched), 7 unresolved decisions/risks, not executed | [report](04-22_20-59_design-guidelines-rollout/audit/report.md) |
-| 🟢 clean | `04-21_19-53_service-category-commission` | 8/8 sections, 0 broken refs, 0 missing impact, 0 open TODOs, not executed | [report](04-21_19-53_service-category-commission/audit/report.md) |
+| 🟡 needs-attention | `04-29_20-57_package-approval-flow` | 8/8 sections, 8 broken/wrong-path refs, 6 unlisted callers, not executed | [report](04-29_20-57_package-approval-flow/audit/report.md) |
 
 ## How to act on this
 

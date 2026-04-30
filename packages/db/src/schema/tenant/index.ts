@@ -41,6 +41,7 @@ export * from "./notification-preferences";
 export * from "./notifications";
 export * from "./organization-settings";
 export * from "./package-instances";
+export * from "./package-instance-staff";
 export * from "./partner-stripe-accounts";
 export * from "./payment-items";
 export * from "./payments";

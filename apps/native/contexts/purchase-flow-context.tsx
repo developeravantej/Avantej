@@ -40,6 +40,9 @@ export interface PurchaseFlowState {
 	paymentMethod: string | null;
 	// Result
 	packageInstanceId: string | null;
+	// Status the server actually wrote — may be "pending" if the org has the
+	// approval gate on (see PACKAGE_APPROVAL_REQUIRED_KEY in the server).
+	packageInstanceStatus: string | null;
 }
 
 const initialState: PurchaseFlowState = {
@@ -65,6 +68,7 @@ const initialState: PurchaseFlowState = {
 	termsAgreedAt: null,
 	paymentMethod: null,
 	packageInstanceId: null,
+	packageInstanceStatus: null,
 };
 
 interface PurchaseFlowContextValue {

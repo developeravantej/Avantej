@@ -36,7 +36,7 @@ const STATUS_BADGE: Record<
 	expired: { bg: "#FEE2E2", text: "#DC2626", label: "Expired" },
 	exhausted: { bg: "#FEF3C7", text: "#D97706", label: "Exhausted" },
 	cancelled: { bg: "#F3F4F6", text: "#6B7280", label: "Cancelled" },
-	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending" },
+	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending Approval" },
 };
 
 function SkeletonCard() {

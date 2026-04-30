@@ -25,7 +25,7 @@ const STATUS_BADGE: Record<
 	expired: { bg: "#FEE2E2", text: "#DC2626", label: "Expired" },
 	exhausted: { bg: "#FEF3C7", text: "#D97706", label: "Exhausted" },
 	cancelled: { bg: "#F3F4F6", text: "#6B7280", label: "Cancelled" },
-	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending" },
+	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending Approval" },
 };
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -499,20 +499,51 @@ export default function PackageDetailScreen() {
 								</Section>
 							)}
 
+							{/* Pending Approval callout — shown instead of Book CTA */}
+							{status === "pending" && (
+								<View className="mt-2 mb-4 rounded-2xl border border-yellow-300 bg-yellow-50 p-4">
+									<View className="flex-row items-start">
+										<Ionicons
+											name="hourglass-outline"
+											size={20}
+											color="#D97706"
+											style={{ marginTop: 2 }}
+										/>
+										<View className="ml-3 flex-1">
+											<Text
+												className="mb-1 font-semibold text-sm"
+												style={{ color: "#D97706" }}
+											>
+												Awaiting trainer assignment
+											</Text>
+											<Text
+												className="text-xs leading-5"
+												style={{ color: "#A16207" }}
+											>
+												You'll be notified once a trainer has been assigned to
+												your package. After that you can start booking sessions.
+											</Text>
+										</View>
+									</View>
+								</View>
+							)}
+
 							{/* Action Buttons */}
 							<View className="mt-2 mb-4">
-								<TouchableOpacity
-									onPress={() =>
-										router.push(
-											"/dashboard/book-workout/book-workout" as never,
-										)
-									}
-									className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
-								>
-									<Text className="font-semibold text-base text-primary-2">
-										Start Booking
-									</Text>
-								</TouchableOpacity>
+								{status !== "pending" && (
+									<TouchableOpacity
+										onPress={() =>
+											router.push(
+												"/dashboard/book-workout/book-workout" as never,
+											)
+										}
+										className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
+									>
+										<Text className="font-semibold text-base text-primary-2">
+											Start Booking
+										</Text>
+									</TouchableOpacity>
+								)}
 								<TouchableOpacity
 									onPress={() => router.back()}
 									className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"

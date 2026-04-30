@@ -19,7 +19,8 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { inArray, or } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -357,6 +358,21 @@ export const appointmentsRouter = {
         if (!accessibleNodeIds.includes(input.branchId)) {
           throw new ORPCError("FORBIDDEN", {
             message: "User does not have access to this branch",
+          });
+        }
+      }
+
+      // Defensive guard: a booking against a `pending` package_instance is
+      // never allowed (package is awaiting trainer assignment / approval).
+      // The booking transaction in package-instance.service.ts also enforces
+      // this — this router-level check just returns a friendlier error.
+      if (input.packageInstanceId) {
+        const pkg = await context.tenantDb.query.packageInstances.findFirst({
+          where: eq(packageInstances.id, input.packageInstanceId),
+        });
+        if (pkg && pkg.status === "pending") {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Package is awaiting trainer assignment.",
           });
         }
       }

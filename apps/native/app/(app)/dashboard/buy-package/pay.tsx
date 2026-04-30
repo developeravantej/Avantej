@@ -116,6 +116,7 @@ export default function PayScreen() {
 			update({
 				paymentMethod: "pending",
 				packageInstanceId: instance?.id ?? null,
+				packageInstanceStatus: (instance as any)?.status ?? null,
 			});
 
 			router.push("./done");

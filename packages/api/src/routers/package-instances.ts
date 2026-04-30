@@ -13,6 +13,7 @@ import {
   requirePermission,
 } from "@avantej-core/services";
 import { listMemberships } from "@avantej-core/services/package-instance.service";
+import { getSetting } from "@avantej-core/services/organization-settings.service";
 import { listExpiringMemberships } from "@avantej-core/services/memberships.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
@@ -25,7 +26,18 @@ import { getControlPanelDb } from "../lib/context-helpers";
 
 const sourceSchema = z.enum(["assigned", "purchased"]);
 const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded"]);
-const statusSchema = z.enum(["active", "expired", "exhausted", "cancelled"]);
+const statusSchema = z.enum([
+  "pending",
+  "active",
+  "expired",
+  "exhausted",
+  "cancelled",
+]);
+
+// Org setting that gates customer-purchased packages behind an admin/trainer
+// approval. When "true" (default), `source: "purchased"` packages start in
+// `status: "pending"` and require trainer assignment before being usable.
+const PACKAGE_APPROVAL_REQUIRED_KEY = "package_approval.required";
 
 export const packageInstancesRouter = {
   /**
@@ -240,6 +252,21 @@ export const packageInstancesRouter = {
             ? { walkInCustomerId: input.walkInCustomerId }
             : { clientId: input.clientId! };
 
+        // Approval gate: customer-purchased packages start in `pending` status
+        // when the org setting is enabled. Staff-assigned packages bypass.
+        // Default: gate ON ("true") if the setting hasn't been written yet.
+        let resolvedStatus = input.status;
+        if (input.source === "purchased") {
+          const gateValue = await getSetting(
+            context.tenantDb,
+            PACKAGE_APPROVAL_REQUIRED_KEY,
+          );
+          const gateEnabled = (gateValue ?? "true") === "true";
+          if (gateEnabled) {
+            resolvedStatus = "pending";
+          }
+        }
+
         const created = await createPackageInstance(context.tenantDb, {
           serviceId: input.serviceId,
           ...ownerField,
@@ -259,7 +286,7 @@ export const packageInstancesRouter = {
           creditsUsed: input.creditsUsed ?? 0,
           startsAt: new Date(input.startsAt),
           expiresAt: new Date(input.expiresAt),
-          status: input.status,
+          status: resolvedStatus,
           remark: input.remark ?? null,
           paymentPlanType: input.paymentPlanType ?? null,
           installmentsTotal: resolvedInstallmentsTotal,

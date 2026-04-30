@@ -157,15 +157,18 @@ export default function DoneScreen() {
 							className="mb-2 text-center font-bold text-2xl"
 							style={{ color: colors.primary[1] }}
 						>
-							Package Purchased!
+							{state.packageInstanceStatus === "pending"
+								? "Package Submitted!"
+								: "Package Purchased!"}
 						</Text>
 
 						<Text
 							className="mb-6 text-center text-base"
 							style={{ color: colors.secondary[1] }}
 						>
-							Your package has been successfully purchased. You'll receive a
-							confirmation email shortly.
+							{state.packageInstanceStatus === "pending"
+								? "Your package is being reviewed. You'll be notified once a trainer is assigned and you can start booking sessions."
+								: "Your package has been successfully purchased. You'll receive a confirmation email shortly."}
 						</Text>
 
 						{/* Package Summary Card */}
