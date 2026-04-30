@@ -1,6 +1,6 @@
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { user } from "@avantej-core/db/schema/auth";
-import { ghlLocationLinks } from "@avantej-core/db/schema/control-panel/ghl-location-links";
+import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { and, eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { createHash } from "node:crypto";
@@ -416,10 +416,10 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		args;
 	const controlPanelDb = getControlPanelDb(c);
 
-	const locationLink = await controlPanelDb.query.ghlLocationLinks.findFirst({
+	const locationLink = await controlPanelDb.query.ghlBranchLinks.findFirst({
 		where: and(
-			eq(ghlLocationLinks.locationId, locationId),
-			eq(ghlLocationLinks.isActive, true)
+			eq(ghlBranchLinks.ghlLocationId, locationId),
+			eq(ghlBranchLinks.isActive, true)
 		),
 	});
 
@@ -684,10 +684,10 @@ export async function markGhlWebhookFailed(args: {
 }) {
 	const { c, locationId, payload, rawBody, errorMessage, eventType, contactId, email } = args;
 	const controlPanelDb = getControlPanelDb(c);
-	const locationLink = await controlPanelDb.query.ghlLocationLinks.findFirst({
+	const locationLink = await controlPanelDb.query.ghlBranchLinks.findFirst({
 		where: and(
-			eq(ghlLocationLinks.locationId, locationId),
-			eq(ghlLocationLinks.isActive, true)
+			eq(ghlBranchLinks.ghlLocationId, locationId),
+			eq(ghlBranchLinks.isActive, true)
 		),
 	});
 
