@@ -41,7 +41,7 @@ import { client } from "@/utils/orpc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type InstanceStatus = "active" | "expired" | "exhausted" | "cancelled";
+type InstanceStatus = "active" | "expired" | "exhausted" | "cancelled" | "pending";
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 interface PackageInstanceRow {
@@ -103,6 +103,7 @@ function formatDate(value: string | null | undefined): string {
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
 	active: "default",
+	pending: "secondary",
 	expired: "outline",
 	exhausted: "secondary",
 	cancelled: "destructive",
@@ -111,6 +112,7 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "des
 const STATUS_TABS = [
 	{ value: undefined, label: "All" },
 	{ value: "active", label: "Active" },
+	{ value: "pending", label: "Pending" },
 	{ value: "expired", label: "Expired" },
 	{ value: "exhausted", label: "Exhausted" },
 	{ value: "cancelled", label: "Cancelled" },

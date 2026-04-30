@@ -15,6 +15,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { QuickInsight } from "@/components/dashboard/quick-insight";
 import { ExpiringMembershipsWidget } from "@/components/dashboard/expiring-memberships-widget";
+import { PendingApprovalsWidget } from "@/components/dashboard/pending-approvals-widget";
 
 const dashboardSearchSchema = z.object({
 	period: z
@@ -401,13 +402,16 @@ function DashboardComponent() {
 
 			<SectionHeader>Activity</SectionHeader>
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-				<div className="lg:col-span-4">
+				<div className="lg:col-span-3">
+					<PendingApprovalsWidget />
+				</div>
+				<div className="lg:col-span-3">
 					<AppointmentsWidget />
 				</div>
-				<div className="lg:col-span-4">
+				<div className="lg:col-span-3">
 					<ExpiringMembershipsWidget />
 				</div>
-				<div className="lg:col-span-4">
+				<div className="lg:col-span-3">
 					<AnnouncementsWidget />
 				</div>
 			</div>
