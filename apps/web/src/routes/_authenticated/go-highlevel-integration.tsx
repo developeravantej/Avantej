@@ -32,6 +32,7 @@ type BranchLink = {
 	isActive: boolean;
 	createdAt: Date;
 	updatedAt: Date;
+	errorCount: number;
 };
 
 type HierarchyNode = {
@@ -107,6 +108,23 @@ function GoHighLevelIntegrationPage() {
 		invalidate: [["ghlBranchLinks", organizationId]],
 	});
 
+	const retryMutation = useApiMutation({
+		mutationFn: async (vars: { tenantBranchId: string }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.retryFailedSyncs({
+				organizationId,
+				tenantBranchId: vars.tenantBranchId,
+			});
+		},
+		successMessage: (result: {
+			attempted: number;
+			recovered: number;
+			stillFailing: number;
+		}) =>
+			`Retried ${result.attempted}: ${result.recovered} recovered, ${result.stillFailing} still failing`,
+		invalidate: [["ghlBranchLinks", organizationId]],
+	});
+
 	const isLoading = nodesLoading || linksLoading;
 
 	const handleConnect = () => {
@@ -121,6 +139,10 @@ function GoHighLevelIntegrationPage() {
 	const handleDisconnect = (branchId: string) => {
 		if (!window.confirm("Disconnect GHL for this branch?")) return;
 		disconnectMutation.mutate({ tenantBranchId: branchId });
+	};
+
+	const handleRetry = (branchId: string) => {
+		retryMutation.mutate({ tenantBranchId: branchId });
 	};
 
 	return (
@@ -151,6 +173,7 @@ function GoHighLevelIntegrationPage() {
 										<th className="py-2 pr-4 font-medium">Branch</th>
 										<th className="py-2 pr-4 font-medium">GHL Location ID</th>
 										<th className="py-2 pr-4 font-medium">Status</th>
+										<th className="py-2 pr-4 font-medium">Sync Errors</th>
 										<th className="py-2 font-medium">Action</th>
 									</tr>
 								</thead>
@@ -160,6 +183,7 @@ function GoHighLevelIntegrationPage() {
 											(l) => l.tenantBranchId === branch.id,
 										);
 										const connected = link?.isActive === true;
+										const errorCount = link?.errorCount ?? 0;
 										return (
 											<tr key={branch.id} className="border-b last:border-0">
 												<td className="py-3 pr-4 font-medium">{branch.name}</td>
@@ -175,24 +199,45 @@ function GoHighLevelIntegrationPage() {
 														<Badge variant="secondary">Not connected</Badge>
 													)}
 												</td>
-												<td className="py-3">
-													{connected ? (
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => handleDisconnect(branch.id)}
-															disabled={disconnectMutation.isPending}
-														>
-															Disconnect
-														</Button>
+												<td className="py-3 pr-4">
+													{errorCount > 0 ? (
+														<Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+															{errorCount} failed
+														</Badge>
 													) : (
-														<Button
-															size="sm"
-															onClick={() => setConnectBranchId(branch.id)}
-														>
-															Connect
-														</Button>
+														<span className="text-muted-foreground">—</span>
 													)}
+												</td>
+												<td className="py-3">
+													<div className="flex gap-2">
+														{connected && errorCount > 0 && (
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => handleRetry(branch.id)}
+																disabled={retryMutation.isPending}
+															>
+																{retryMutation.isPending ? "Retrying…" : "Retry"}
+															</Button>
+														)}
+														{connected ? (
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => handleDisconnect(branch.id)}
+																disabled={disconnectMutation.isPending}
+															>
+																Disconnect
+															</Button>
+														) : (
+															<Button
+																size="sm"
+																onClick={() => setConnectBranchId(branch.id)}
+															>
+																Connect
+															</Button>
+														)}
+													</div>
 												</td>
 											</tr>
 										);

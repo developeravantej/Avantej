@@ -6,6 +6,13 @@
  *   encrypts and upserts the row in ghl_branch_links.
  * - disconnectBranch: marks ghl_branch_links.is_active = false. Keeps
  *   the row + encrypted key for re-activation; does not delete history.
+ * - listBranchLinks: read-only listing per organization, with errorCount
+ *   per branch (count of ghl_contact_links rows in error state).
+ * - retryFailedSyncs: re-fires syncCustomerToGhl for every errored link
+ *   on a branch, capped at 50 rows per call.
+ *
+ * connectBranch + disconnectBranch are gated by user_management:update
+ * (matches the route guard on the admin page).
  *
  * connectBranch hits the live GHL API. Failures during custom-field
  * bootstrap are logged but non-fatal (the connection still completes;
@@ -13,16 +20,22 @@
  */
 
 import { protectedProcedure } from "@avantej-core/api";
-import { encrypt } from "@avantej-core/db";
+import { decrypt, encrypt } from "@avantej-core/db";
+import { user as userTable } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
+import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { requirePermission } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { getControlPanelDb } from "@/lib/db";
 import {
 	ensureCustomFieldsExist,
 	validateGhlApiKey,
 } from "@/services/ghl/setup";
+import { syncCustomerToGhl } from "@/services/ghl/sync-customer";
 
 export const ghlRouter = {
 	connectBranch: protectedProcedure
@@ -35,6 +48,18 @@ export const ghlRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Tenant context required",
+				});
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"update",
+			);
+
 			const controlPanelDb = getControlPanelDb(context.honoContext);
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -95,6 +120,18 @@ export const ghlRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Tenant context required",
+				});
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"update",
+			);
+
 			const controlPanelDb = getControlPanelDb(context.honoContext);
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -126,6 +163,7 @@ export const ghlRouter = {
 					message: "Control panel DB not available",
 				});
 			}
+
 			const rows = await controlPanelDb
 				.select({
 					id: ghlBranchLinks.id,
@@ -137,6 +175,163 @@ export const ghlRouter = {
 				})
 				.from(ghlBranchLinks)
 				.where(eq(ghlBranchLinks.organizationId, input.organizationId));
-			return rows;
+
+			// Cross-DB error count: rows come from control panel; counts come
+			// from tenant DB (per-org). One grouped query, then merge.
+			const tenantDb = context.tenantDb;
+			let errorCounts: Map<string, number> = new Map();
+			if (tenantDb && rows.length > 0) {
+				const branchIds = rows.map((r) => r.tenantBranchId);
+				const errorRows = await tenantDb
+					.select({
+						branchNodeId: ghlContactLinks.branchNodeId,
+						n: count(),
+					})
+					.from(ghlContactLinks)
+					.where(
+						and(
+							inArray(ghlContactLinks.branchNodeId, branchIds),
+							eq(ghlContactLinks.syncStatus, "error"),
+						),
+					)
+					.groupBy(ghlContactLinks.branchNodeId);
+				errorCounts = new Map(
+					errorRows.map((r) => [r.branchNodeId, Number(r.n)]),
+				);
+			}
+
+			return rows.map((r) => ({
+				...r,
+				errorCount: errorCounts.get(r.tenantBranchId) ?? 0,
+			}));
+		}),
+
+	retryFailedSyncs: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Tenant context required",
+				});
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"update",
+			);
+
+			const controlPanelDb = getControlPanelDb(context.honoContext);
+			if (!controlPanelDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel DB not available",
+				});
+			}
+
+			// Resolve branch link (must be active to retry)
+			const link = await controlPanelDb.query.ghlBranchLinks.findFirst({
+				where: and(
+					eq(ghlBranchLinks.organizationId, input.organizationId),
+					eq(ghlBranchLinks.tenantBranchId, input.tenantBranchId),
+					eq(ghlBranchLinks.isActive, true),
+				),
+			});
+			if (!link) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Branch is not connected to GHL",
+				});
+			}
+
+			// Fetch errored contact links (cap 50 per call)
+			const tenantDb = context.tenantDb;
+			const errored = await tenantDb
+				.select()
+				.from(ghlContactLinks)
+				.where(
+					and(
+						eq(ghlContactLinks.branchNodeId, input.tenantBranchId),
+						eq(ghlContactLinks.syncStatus, "error"),
+					),
+				)
+				.limit(50);
+
+			let recovered = 0;
+			let stillFailing = 0;
+
+			for (const row of errored) {
+				if (!row.customerProfileId) {
+					stillFailing++;
+					continue;
+				}
+				const profile = await tenantDb.query.customerProfiles.findFirst({
+					where: eq(customerProfiles.id, row.customerProfileId),
+				});
+				const userRecord = (
+					await controlPanelDb
+						.select()
+						.from(userTable)
+						.where(eq(userTable.id, row.userId))
+						.limit(1)
+				)[0];
+				const member = await tenantDb.query.members.findFirst({
+					where: and(
+						eq(members.userId, row.userId),
+						eq(members.role, "client"),
+					),
+				});
+				if (!profile || !userRecord || !member) {
+					stillFailing++;
+					continue;
+				}
+
+				const result = await syncCustomerToGhl({
+					controlPanelDb,
+					tenantDb,
+					organizationId: input.organizationId,
+					branchNodeId: input.tenantBranchId,
+					customerProfile: {
+						id: profile.id,
+						userId: profile.userId,
+						phone: profile.phone ?? null,
+						dateOfBirth: profile.dateOfBirth ?? null,
+						gender: profile.gender ?? null,
+						address: profile.address ?? null,
+						emergencyContactName: profile.emergencyContactName ?? null,
+						emergencyContactPhone: profile.emergencyContactPhone ?? null,
+						medicalNotes: profile.medicalNotes ?? null,
+						fitnessGoals: profile.fitnessGoals ?? null,
+						creditPoints: profile.creditPoints ?? 0,
+						notes: profile.notes ?? null,
+						isDeleted: profile.isDeleted ?? false,
+						deletedAt: profile.deletedAt ?? null,
+						deletedSource: profile.deletedSource ?? null,
+					},
+					user: {
+						id: userRecord.id,
+						email: userRecord.email,
+						firstName: userRecord.firstName,
+						lastName: userRecord.lastName,
+						name: userRecord.name,
+					},
+					memberStatus: member.status === "active" ? "active" : "inactive",
+					operation: "update",
+					decryptApiKey: decrypt,
+				});
+
+				if (result.status === "synced") recovered++;
+				else stillFailing++;
+			}
+
+			return {
+				attempted: errored.length,
+				recovered,
+				stillFailing,
+				cappedAt: 50,
+			};
 		}),
 };

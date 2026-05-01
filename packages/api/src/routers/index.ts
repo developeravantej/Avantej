@@ -535,7 +535,26 @@ const ghlRouterType = {
 				isActive: boolean;
 				createdAt: Date;
 				updatedAt: Date;
+				errorCount: number;
 			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	retryFailedSyncs: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				attempted: number;
+				recovered: number;
+				stillFailing: number;
+				cappedAt: number;
+			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
