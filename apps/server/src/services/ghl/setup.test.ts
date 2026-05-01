@@ -1,5 +1,5 @@
 // apps/server/src/services/ghl/setup.test.ts
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { validateGhlApiKey, ensureCustomFieldsExist } from "./setup";
 
 describe("validateGhlApiKey", () => {

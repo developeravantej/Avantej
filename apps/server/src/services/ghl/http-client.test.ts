@@ -1,7 +1,6 @@
 // apps/server/src/services/ghl/http-client.test.ts
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { ghlFetch } from "./http-client";
-import { GhlApiError } from "./types";
 
 describe("ghlFetch", () => {
 	beforeEach(() => {
@@ -23,9 +22,9 @@ describe("ghlFetch", () => {
 		});
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
-		const callArgs = fetchMock.mock.calls[0]!;
-		const url = callArgs[0] as string;
-		const init = callArgs[1] as RequestInit;
+		const callArgs = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		const url = callArgs[0];
+		const init = callArgs[1];
 		expect(url).toBe("https://services.leadconnectorhq.com/contacts/abc");
 		const headers = init.headers as Record<string, string>;
 		expect(headers["Authorization"]).toBe("Bearer key_xyz");
@@ -108,7 +107,7 @@ describe("ghlFetch", () => {
 			query: { locationId: "loc_1", email: "a@b.com" },
 		});
 
-		const url = fetchMock.mock.calls[0]![0] as string;
+		const url = (fetchMock.mock.calls[0] as unknown as [string])[0];
 		expect(url).toContain("?locationId=loc_1");
 		expect(url).toContain("&email=a%40b.com");
 	});

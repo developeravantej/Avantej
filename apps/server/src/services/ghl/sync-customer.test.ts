@@ -1,5 +1,5 @@
 // apps/server/src/services/ghl/sync-customer.test.ts
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { syncCustomerToGhl } from "./sync-customer";
 
 describe("syncCustomerToGhl", () => {
@@ -36,6 +36,7 @@ describe("syncCustomerToGhl", () => {
 		},
 		memberStatus: "active" as const,
 		operation: "create" as const,
+		decryptApiKey: (s: string) => s,
 	};
 
 	test("returns status='skipped' when no ghl_branch_links row exists", async () => {
