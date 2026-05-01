@@ -12,6 +12,7 @@ import { serverInvitationRouter } from "@/routers/invitations";
 import { serverCustomerProfilesRouter } from "@/routers/customer-profiles";
 import { adminRouter } from "@/routers/admin";
 import { tenantAdminRouter } from "@/routers/tenant-admin";
+import { ghlRouter } from "@/routers/ghl";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -43,6 +44,7 @@ const appRouter = {
 	},
 	admin: adminRouter,
 	tenantAdmin: tenantAdminRouter,
+	ghl: ghlRouter,
 };
 
 const app = new Hono();
