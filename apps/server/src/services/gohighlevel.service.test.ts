@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
+	applyAlphaCanonical,
 	buildGhlEventKey,
 	buildGhlResponseData,
 	detectGhlEventType,
@@ -326,5 +327,60 @@ describe("GoHighLevel Service", () => {
 				webhookSecret: "super-secret",
 			})
 		).rejects.toThrow("Missing or invalid webhook authorization");
+	});
+});
+
+describe("applyAlphaCanonical (α strict canonical)", () => {
+	test("skips with 'avantej-canonical' on update for linked contact", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("skips with 'avantej-canonical' on delete for linked contact", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "delete",
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("skips with 'already-linked' on create for linked contact (echo / dedup)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+		});
+		expect(result).toEqual({ skip: true, reason: "already-linked" });
+	});
+
+	test("does not skip on create for unlinked contact (form-submission flow)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: null,
+			eventType: "create",
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("does not skip on update for unlinked contact (legacy upsert path)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: null,
+			eventType: "update",
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("does not skip on custom event regardless of link state", () => {
+		const linked = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "custom",
+		});
+		const unlinked = applyAlphaCanonical({
+			existingLink: null,
+			eventType: "custom",
+		});
+		expect(linked).toEqual({ skip: false });
+		expect(unlinked).toEqual({ skip: false });
 	});
 });

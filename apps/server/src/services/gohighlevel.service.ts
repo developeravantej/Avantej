@@ -76,6 +76,32 @@ export function detectGhlEventType(payload: AnyRecord): GhlEventType {
 	return "update";
 }
 
+/**
+ * α strict canonical: Avantej is source of truth for any contact that's
+ * been linked once. Returns null if the webhook should proceed normally,
+ * or a skip reason if it must be ignored.
+ *
+ * Pure function — easy to unit-test without DB.
+ */
+export type AlphaCanonicalSkip =
+	| { skip: true; reason: "avantej-canonical" | "already-linked" }
+	| { skip: false };
+
+export function applyAlphaCanonical(args: {
+	existingLink: { id: string } | null | undefined;
+	eventType: GhlEventType;
+}): AlphaCanonicalSkip {
+	const { existingLink, eventType } = args;
+	if (!existingLink) return { skip: false };
+	if (eventType === "update" || eventType === "delete") {
+		return { skip: true, reason: "avantej-canonical" };
+	}
+	if (eventType === "create") {
+		return { skip: true, reason: "already-linked" };
+	}
+	return { skip: false }; // "custom" event type — let existing logic run
+}
+
 export function extractGhlContactPayload(
 	payload: AnyRecord
 ): ExtractedGhlContactPayload {
@@ -488,6 +514,20 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		.from(ghlContactLinks)
 		.where(eq(ghlContactLinks.ghlContactId, extracted.contactId))
 		.limit(1);
+
+	// α strict canonical: ignore GHL-initiated mutations on linked contacts.
+	const canonical = applyAlphaCanonical({ existingLink, eventType });
+	if (canonical.skip) {
+		await updateEventStatus(tenantDb, eventKey, "skipped", canonical.reason);
+		return {
+			status: "skipped",
+			eventType,
+			contactId: extracted.contactId,
+			eventKey,
+			message: `Skipped (${canonical.reason})`,
+			responseData,
+		};
+	}
 
 	if (eventType === "delete") {
 		if (!existingLink) {
