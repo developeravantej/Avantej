@@ -11,6 +11,8 @@
     "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e:test": "playwright test --config playwright.config.ts",
+    "e2e:install": "playwright install chromium",
     "wrangler:dev": "wrangler dev --port=3001",
     "deploy": "bun run build && wrangler deploy"
   },
