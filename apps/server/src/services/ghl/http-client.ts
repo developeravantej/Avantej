@@ -28,6 +28,10 @@ export interface GhlFetchArgs {
 export async function ghlFetch<T = unknown>(
 	args: GhlFetchArgs,
 ): Promise<T> {
+	if (process.env.MOCK_GHL === "1") {
+		return mockGhlResponse(args) as T;
+	}
+
 	const { method, path, apiKey, body, query, timeoutMs = DEFAULT_TIMEOUT_MS } =
 		args;
 
@@ -122,4 +126,72 @@ export async function ghlFetch<T = unknown>(
 		`GHL API ${response.status} on ${path}`,
 		bodyText,
 	);
+}
+
+function mockGhlResponse(args: GhlFetchArgs): unknown {
+	const { method, path } = args;
+
+	// GET /locations/:id  → validateGhlApiKey
+	if (method === "GET" && /^\/locations\/[^/]+$/.test(path)) {
+		const id = path.split("/")[2];
+		return { id, name: "Mock Location", companyId: "mock_company" };
+	}
+
+	// GET /locations/:id/customFields  → ensureCustomFieldsExist read
+	if (method === "GET" && /^\/locations\/[^/]+\/customFields$/.test(path)) {
+		return { customFields: [] };
+	}
+
+	// POST /locations/:id/customFields  → ensureCustomFieldsExist create
+	if (method === "POST" && /^\/locations\/[^/]+\/customFields$/.test(path)) {
+		const body = args.body as { name?: string; fieldKey?: string } | undefined;
+		const idSeed = body?.fieldKey ?? body?.name ?? Math.random().toString(36).slice(2);
+		return { id: `mock_cf_${idSeed}`, name: body?.name, fieldKey: body?.fieldKey };
+	}
+
+	// POST /contacts/  → syncCustomerToGhl create
+	if (method === "POST" && path === "/contacts/") {
+		const body = args.body as { locationId?: string; email?: string } | undefined;
+		return {
+			id: `mock_contact_${Math.random().toString(36).slice(2, 10)}`,
+			locationId: body?.locationId ?? "mock_location",
+			email: body?.email,
+		};
+	}
+
+	// PUT /contacts/:id  → syncCustomerToGhl update
+	if (method === "PUT" && /^\/contacts\/[^/]+$/.test(path)) {
+		const id = path.split("/")[2];
+		const body = args.body as { locationId?: string; email?: string } | undefined;
+		return { id, locationId: body?.locationId, email: body?.email };
+	}
+
+	// DELETE /contacts/:id  → syncCustomerToGhl delete
+	if (method === "DELETE" && /^\/contacts\/[^/]+$/.test(path)) {
+		return undefined;
+	}
+
+	// POST /users/  → syncStaffToGhl create
+	if (method === "POST" && path === "/users/") {
+		const body = args.body as { email?: string; firstName?: string; lastName?: string } | undefined;
+		return {
+			id: `mock_user_${Math.random().toString(36).slice(2, 10)}`,
+			email: body?.email,
+			firstName: body?.firstName,
+			lastName: body?.lastName,
+		};
+	}
+
+	// PUT /users/:id  → syncStaffToGhl update
+	if (method === "PUT" && /^\/users\/[^/]+$/.test(path)) {
+		const id = path.split("/")[2];
+		return { id };
+	}
+
+	// DELETE /users/:id  → syncStaffToGhl delete
+	if (method === "DELETE" && /^\/users\/[^/]+$/.test(path)) {
+		return undefined;
+	}
+
+	throw new Error(`MOCK_GHL: unhandled path ${method} ${path}`);
 }
