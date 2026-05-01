@@ -9,6 +9,7 @@ import { webhookRoutes } from "@/routes/webhooks.routes";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
+import { serverCustomerProfilesRouter } from "@/routers/customer-profiles";
 import { adminRouter } from "@/routers/admin";
 import { tenantAdminRouter } from "@/routers/tenant-admin";
 
@@ -34,6 +35,11 @@ const appRouter = {
 	invitations: {
 		...baseRouter.invitations,
 		...serverInvitationRouter,
+	},
+	// Extend customerProfiles router with GHL sync-enabled overrides + softDelete
+	customerProfiles: {
+		...baseRouter.customerProfiles,
+		...serverCustomerProfilesRouter,
 	},
 	admin: adminRouter,
 	tenantAdmin: tenantAdminRouter,
