@@ -627,6 +627,8 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			ghlContactId: extracted.contactId,
 			userId: userRecord.id,
 			customerProfileId: customerProfileId || null,
+			branchNodeId: locationLink.tenantBranchId,
+			ghlLocationId: locationLink.ghlLocationId,
 			syncStatus: "active",
 			lastSyncedAt: now,
 			createdAt: now,
