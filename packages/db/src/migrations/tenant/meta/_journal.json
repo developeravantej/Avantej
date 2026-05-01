@@ -127,6 +127,13 @@
       "when": 1777348514456,
       "tag": "0017_jazzy_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1777620907530,
+      "tag": "0018_ghl_per_branch_sync",
+      "breakpoints": true
     }
   ]
 }
