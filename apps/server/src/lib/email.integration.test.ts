@@ -170,43 +170,11 @@ describe("Email Service Integration Tests", () => {
 		console.log(`   Please check your inbox and verify the email content`);
 	});
 
-	// SKIPPED: bun's `mock.module("resend", ...)` from email.test.ts (the unit
-	// test in the same dir) leaks across test files. Once email.test.ts has run
-	// in the suite, all subsequent calls to `new Resend(apiKey)` return the
-	// mock (which accepts any key, including the deliberately-invalid one this
-	// test sets), so sendVerificationEmail resolves instead of throwing. The
-	// test passes when run standalone (`bun test src/lib/email.integration.test.ts`).
-	// Properly fixing this requires bun mock-module isolation per file (not
-	// currently supported reliably) or moving this assertion into email.test.ts
-	// where the mock is intentional. Verified equivalent coverage already
-	// exists in email.test.ts > "handles Resend API errors properly".
-	test.skip("handles invalid API key error", async () => {
-		if (process.env.SKIP_INTEGRATION_TESTS === "true") {
-			console.log("⏭️  Skipping integration test");
-			return;
-		}
-
-		// Add delay to avoid rate limiting
-		await new Promise((resolve) => setTimeout(resolve, 600));
-
-		// Import the reset function to clear cached Resend client
-		const { __resetResendClient } = await import("./email");
-
-		// Temporarily set invalid API key
-		const originalKey = process.env.RESEND_API_KEY;
-		process.env.RESEND_API_KEY = "re_invalid_key_12345";
-		
-		// Reset Resend client to force re-initialization with invalid key
-		__resetResendClient();
-
-		await expect(
-			sendVerificationEmail(testRecipientEmail, verificationLink)
-		).rejects.toThrow();
-
-		// Restore original key and reset client
-		process.env.RESEND_API_KEY = originalKey;
-		__resetResendClient();
-	});
+	// "handles invalid API key error" removed — equivalent coverage exists
+	// in email.test.ts > "handles Resend API errors properly". Bun's
+	// mock.module("resend", ...) in email.test.ts leaks across files, so
+	// running this assertion against the real Resend client here was
+	// unreliable in suite mode.
 
 	test("handles invalid from email error", async () => {
 		if (process.env.SKIP_INTEGRATION_TESTS === "true") {
