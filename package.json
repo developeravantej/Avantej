@@ -31,10 +31,13 @@
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
-    "db:push": "turbo -F @avantej-core/db db:push",
-    "db:studio": "turbo -F @avantej-core/db db:studio",
-    "db:generate": "turbo -F @avantej-core/db db:generate",
-    "db:migrate": "turbo -F @avantej-core/db db:migrate"
+    "db:generate:control-panel": "turbo -F @avantej-core/db db:generate:control-panel",
+    "db:generate:tenant": "turbo -F @avantej-core/db db:generate:tenant",
+    "db:migrate:control-panel": "turbo -F @avantej-core/db db:migrate:control-panel",
+    "db:migrate:tenant": "turbo -F @avantej-core/db db:migrate:tenant",
+    "db:studio:control-panel": "turbo -F @avantej-core/db db:studio:control-panel",
+    "db:studio:tenant": "turbo -F @avantej-core/db db:studio:tenant",
+    "db:migrate-all-tenants": "turbo -F @avantej-core/db db:migrate-all-tenants"
   },
   "dependencies": {
     "dotenv": "^17.2.2",

@@ -17,21 +17,28 @@
 			"cache": false,
 			"persistent": true
 		},
-		"db:push": {
+		"db:generate:control-panel": {
+			"cache": false
+		},
+		"db:generate:tenant": {
+			"cache": false
+		},
+		"db:migrate:control-panel": {
+			"cache": false
+		},
+		"db:migrate:tenant": {
+			"cache": false
+		},
+		"db:studio:control-panel": {
 			"cache": false,
 			"persistent": true
 		},
-		"db:studio": {
+		"db:studio:tenant": {
 			"cache": false,
 			"persistent": true
 		},
-		"db:migrate": {
-			"cache": false,
-			"persistent": true
-		},
-		"db:generate": {
-			"cache": false,
-			"persistent": true
+		"db:migrate-all-tenants": {
+			"cache": false
 		}
 	}
 }
