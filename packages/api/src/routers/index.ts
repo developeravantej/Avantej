@@ -497,6 +497,50 @@ const tenantAdminRouterType = {
 	),
 };
 
+// GHL router type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/ghl.ts
+// (server-only: uses encrypted API key, Neon control panel DB).
+const ghlRouterType = {
+	connectBranch: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+				ghlLocationId: z.string().min(1),
+				ghlApiKey: z.string().min(10),
+			}),
+		)
+		.handler((): { status: "connected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	disconnectBranch: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+			}),
+		)
+		.handler((): { status: "disconnected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	listBranchLinks: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): Array<{
+				id: string;
+				tenantBranchId: string;
+				ghlLocationId: string;
+				isActive: boolean;
+				createdAt: Date;
+				updatedAt: Date;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -508,6 +552,7 @@ export const appRouter = {
 	},
 	admin: adminRouterType,
 	tenantAdmin: tenantAdminRouterType,
+	ghl: ghlRouterType,
 };
 
 export type AppRouter = typeof appRouter;

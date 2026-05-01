@@ -112,4 +112,31 @@ export const ghlRouter = {
 				);
 			return { status: "disconnected" as const };
 		}),
+
+	listBranchLinks: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			const controlPanelDb = getControlPanelDb(context.honoContext);
+			if (!controlPanelDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel DB not available",
+				});
+			}
+			const rows = await controlPanelDb
+				.select({
+					id: ghlBranchLinks.id,
+					tenantBranchId: ghlBranchLinks.tenantBranchId,
+					ghlLocationId: ghlBranchLinks.ghlLocationId,
+					isActive: ghlBranchLinks.isActive,
+					createdAt: ghlBranchLinks.createdAt,
+					updatedAt: ghlBranchLinks.updatedAt,
+				})
+				.from(ghlBranchLinks)
+				.where(eq(ghlBranchLinks.organizationId, input.organizationId));
+			return rows;
+		}),
 };
