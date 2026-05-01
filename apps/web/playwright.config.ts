@@ -23,7 +23,6 @@ export default defineConfig({
 		command:
 			'(cd apps/server && bunx wrangler dev --port=3000 --local-protocol=http --ip=0.0.0.0 --var MOCK_GHL:1) & (cd apps/web && bun run dev) & wait',
 		cwd: "../..",
-		cwd: "../..",
 		url: "http://localhost:3001",
 		timeout: 120_000,
 		reuseExistingServer: !process.env.CI,
