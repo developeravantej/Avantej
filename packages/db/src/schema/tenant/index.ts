@@ -24,6 +24,7 @@ export * from "./dashboard-snapshots";
 export * from "./expenses";
 export * from "./ghl-contact-links";
 export * from "./ghl-sync-events";
+export * from "./ghl-user-links";
 export * from "./google-calendar-connections";
 export * from "./google-calendar-event-mappings";
 export * from "./hierarchy";
