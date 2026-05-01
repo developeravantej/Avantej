@@ -37,14 +37,17 @@ export default async function globalSetup() {
 		if (eqIdx === -1) continue;
 		const key = trimmed.slice(0, eqIdx).trim();
 		const value = trimmed.slice(eqIdx + 1).trim();
-		// Only set DATABASE_URL and TENANT_DATABASE_URL — don't clobber other env
+		// Only load env keys our fixtures need — don't clobber unrelated env
 		if (
 			key === "DATABASE_URL" ||
-			key === "TENANT_DATABASE_URL"
+			key === "TENANT_DATABASE_URL" ||
+			key === "ENCRYPTION_KEY"
 		) {
-			process.env[key] = value;
+			// Strip surrounding quotes if present (.env files often quote values)
+			const unquoted = value.replace(/^["']|["']$/g, "");
+			process.env[key] = unquoted;
 		}
 	}
 
-	console.log("[global-setup] Loaded DATABASE_URL and TENANT_DATABASE_URL from apps/server/.env");
+	console.log("[global-setup] Loaded DATABASE_URL, TENANT_DATABASE_URL, ENCRYPTION_KEY from apps/server/.env");
 }

@@ -17,9 +17,12 @@ export default defineConfig({
 		{ name: "chromium", use: { ...devices["Desktop Chrome"] } },
 	],
 	webServer: {
-		// Run from repo root so turbo/bun workspace resolves correctly.
-		// MOCK_GHL=1 short-circuits GHL HTTP calls in apps/server/src/services/ghl/http-client.ts.
-		command: "MOCK_GHL=1 bun dev",
+		// Boot web (vite) and server (wrangler dev) in parallel from repo root.
+		// Server uses --var to bind MOCK_GHL=1 inside the Worker (process.env
+		// in Workers comes from wrangler bindings, not OS env).
+		command:
+			'(cd apps/server && bunx wrangler dev --port=3000 --local-protocol=http --ip=0.0.0.0 --var MOCK_GHL:1) & (cd apps/web && bun run dev) & wait',
+		cwd: "../..",
 		cwd: "../..",
 		url: "http://localhost:3001",
 		timeout: 120_000,

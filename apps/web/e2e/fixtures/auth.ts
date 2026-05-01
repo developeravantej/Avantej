@@ -30,7 +30,11 @@ export async function signUpUser(
 
 	const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-up/email`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: {
+			"Content-Type": "application/json",
+			// Better-Auth rejects requests without an Origin (CORS gate).
+			Origin: "http://localhost:3001",
+		},
 		body: JSON.stringify({
 			email,
 			password,

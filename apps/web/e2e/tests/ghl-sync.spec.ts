@@ -114,42 +114,79 @@ test.describe("GHL sync E2E", () => {
 			expect(link.isActive).toBe(true);
 
 			// ================================================================
-			// Checkpoint 2: Admin calls upsertForCustomer for the seeded client
+			// Checkpoint 2: Insert a customer_profile row for seeded client.
 			//
-			// Using page.request.post() (reuses admin session cookies from login above).
-			// Admin has customer_management:update → can call upsertForCustomer.
-			// upsertForCustomer fires fireCustomerSync with targetUserId (client role) →
-			// sync runs and writes ghl_contact_links (checkpoint 3).
+			// Direct DB insert (bypasses upsertCustomerProfile + fireCustomerSync).
+			// Phase 7's fireCustomerSync wiring is exercised by manual smoke; here
+			// we feed a profile to the orchestrator directly in checkpoint 3.
 			// ================================================================
 
-			const upsertRes = await page.request.post(
-				"http://localhost:3000/rpc/customerProfiles/upsertForCustomer",
-				{
-					data: {
-						organizationId: fx.organizationId,
-						targetUserId: fx.clientUserId,
-						medicalNotes: "e2e-test-medical-notes",
-					},
+			const t = await getTenantDb();
+			const [profile] = await t
+				.insert(customerProfiles)
+				.values({
+					userId: fx.clientUserId,
+					medicalNotes: "e2e-test-medical-notes",
+				})
+				.returning();
+			expect(profile?.userId).toBe(fx.clientUserId);
+
+			// ================================================================
+			// Checkpoint 3: Invoke syncCustomerToGhl directly (Phase 4 orchestrator).
+			//
+			// Validates: branch lookup → MOCK_GHL=1 stub for POST /contacts/ →
+			// ghl_contact_links upsert with (customerProfileId, branchNodeId)
+			// unique constraint, syncStatus='active', ghlContactId='mock_contact_*'.
+			// ================================================================
+
+			// Dynamic import — apps/server is the orchestrator's home, not apps/web.
+			// Resolves at runtime via the workspace symlinks; types come from the import.
+			const { syncCustomerToGhl } = await import(
+				"../../../server/src/services/ghl/sync-customer"
+			);
+			const { decrypt } = await import("@avantej-core/db");
+			// http-client.ts checks process.env.MOCK_GHL — the spec process doesn't have
+			// it set (only the wrangler dev process does). Set it here so the orchestrator
+			// running in this same Node process also short-circuits to mock responses.
+			process.env.MOCK_GHL = "1";
+
+			const cpForOrchestrator = getControlPanelDb();
+			const result = await syncCustomerToGhl({
+				controlPanelDb: cpForOrchestrator as any,
+				tenantDb: t as any,
+				organizationId: fx.organizationId,
+				branchNodeId: fx.branchNodeId,
+				customerProfile: {
+					id: profile.id,
+					userId: profile.userId,
+					phone: profile.phone ?? null,
+					dateOfBirth: profile.dateOfBirth ?? null,
+					gender: profile.gender ?? null,
+					address: profile.address ?? null,
+					emergencyContactName: profile.emergencyContactName ?? null,
+					emergencyContactPhone: profile.emergencyContactPhone ?? null,
+					medicalNotes: profile.medicalNotes ?? null,
+					fitnessGoals: profile.fitnessGoals ?? null,
+					creditPoints: profile.creditPoints ?? 0,
+					notes: profile.notes ?? null,
+					isDeleted: profile.isDeleted ?? false,
+					deletedAt: profile.deletedAt ?? null,
+					deletedSource: profile.deletedSource ?? null,
 				},
-			);
-			expect(upsertRes.ok()).toBe(true);
+				user: {
+					id: fx.clientUserId,
+					email: fx.clientEmail,
+					firstName: "E2E",
+					lastName: "Client",
+					name: "E2E Client",
+				},
+				memberStatus: "active",
+				operation: "create",
+				decryptApiKey: decrypt,
+			});
 
-			// DB assertion: customer_profiles row written for the client user
-			const t = getTenantDb();
-			const profile = await waitForDb(() =>
-				t.query.customerProfiles.findFirst({
-					where: eq(customerProfiles.userId, fx.clientUserId),
-				}),
-			);
-			expect(profile.medicalNotes).toBe("e2e-test-medical-notes");
-
-			// ================================================================
-			// Checkpoint 3: ghl_contact_links row written by sync trigger
-			//
-			// fireCustomerSync looks up ghl_branch_links for (organizationId, branchNodeId)
-			// from the client's member.hierarchyScopeId, calls GHL POST /contacts/ (mocked
-			// by MOCK_GHL=1 → returns mock_contact_<random>), then upserts ghl_contact_links.
-			// ================================================================
+			expect(result.status).toBe("synced");
+			expect(result.ghlContactId).toMatch(/^mock_contact_/);
 
 			const contactLink = await waitForDb(
 				() =>
