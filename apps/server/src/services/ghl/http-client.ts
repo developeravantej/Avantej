@@ -28,7 +28,7 @@ export interface GhlFetchArgs {
 export async function ghlFetch<T = unknown>(
 	args: GhlFetchArgs,
 ): Promise<T> {
-	if (process.env.MOCK_GHL === "1") {
+	if (process.env.MOCK_GHL === "1" && process.env.NODE_ENV !== "production") {
 		return mockGhlResponse(args) as T;
 	}
 
@@ -50,9 +50,10 @@ export async function ghlFetch<T = unknown>(
 	const controller = new AbortController();
 
 	let response: Response;
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	try {
 		const timeoutPromise = new Promise<Response>((_, reject) => {
-			setTimeout(() => {
+			timeoutId = setTimeout(() => {
 				controller.abort();
 				const err = new Error(`Timed out after ${timeoutMs}ms`);
 				err.name = "AbortError";
@@ -73,7 +74,9 @@ export async function ghlFetch<T = unknown>(
 			}),
 			timeoutPromise,
 		]);
+		if (timeoutId) clearTimeout(timeoutId);
 	} catch (error) {
+		if (timeoutId) clearTimeout(timeoutId);
 		if (error instanceof Error && error.name === "AbortError") {
 			throw new GhlApiError(
 				"timeout",
