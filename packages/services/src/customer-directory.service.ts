@@ -104,6 +104,7 @@ export async function listCustomerDirectory(
 		LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
+			AND (cp.is_deleted IS NULL OR cp.is_deleted = false)
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
 		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone
@@ -117,6 +118,7 @@ export async function listCustomerDirectory(
 		LEFT JOIN customer_profiles cp ON cp.user_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
+			AND (cp.is_deleted IS NULL OR cp.is_deleted = false)
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
 	`;

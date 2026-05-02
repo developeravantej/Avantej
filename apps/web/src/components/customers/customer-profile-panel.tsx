@@ -186,11 +186,14 @@ interface CustomerProfilePanelProps {
 	memberId: string;
 	/** Show a "Back to Customers" link above the header. Default true. */
 	showBackLink?: boolean;
+	/** Fired after a successful soft-delete so the parent can clear selection. */
+	onDeleted?: () => void;
 }
 
 export function CustomerProfilePanel({
 	memberId,
 	showBackLink = true,
+	onDeleted,
 }: CustomerProfilePanelProps) {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -248,6 +251,23 @@ export function CustomerProfilePanel({
 		// what's actually in the DB (was [memberId]-only, which left form
 		// empty on initial async load and after save invalidation).
 	}, [detail, memberId]);
+
+	const deleteMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.softDelete({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+			});
+		},
+		successMessage: "Customer deleted",
+		errorMessage: (err) => err.message || "Failed to delete customer",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			["customerDirectory", organizationId],
+		],
+		onSuccess: () => onDeleted?.(),
+	});
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
@@ -609,6 +629,33 @@ export function CustomerProfilePanel({
 									disabled={!formDirty || upsertMutation.isPending}
 								>
 									{upsertMutation.isPending ? "Saving..." : "Save Profile"}
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-base text-destructive">Danger zone</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="flex items-center justify-between gap-4">
+								<p className="text-muted-foreground text-sm">
+									Delete this customer. Soft-deletes in Avantej and removes the
+									contact from GoHighLevel.
+								</p>
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									data-testid="delete-customer-btn"
+									onClick={() => {
+										if (!window.confirm("Delete this customer? This will also remove them from GoHighLevel.")) return;
+										deleteMutation.mutate();
+									}}
+									disabled={deleteMutation.isPending}
+								>
+									{deleteMutation.isPending ? "Deleting…" : "Delete customer"}
 								</Button>
 							</div>
 						</CardContent>

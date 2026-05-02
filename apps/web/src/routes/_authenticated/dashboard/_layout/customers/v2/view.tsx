@@ -168,6 +168,7 @@ function CustomersV2Page() {
 							<CustomerProfilePanel
 								memberId={selectedMemberId}
 								showBackLink={false}
+								onDeleted={() => setSelectedMemberId(null)}
 							/>
 						) : activeTab === "new-sale" ? (
 							<PosWorkflow
