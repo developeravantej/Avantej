@@ -2275,7 +2275,7 @@ CREATE INDEX "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING b
 CREATE INDEX "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");
 `;
 
-const TENANT_MIGRATIONS = [
+export const TENANT_MIGRATIONS = [
   {
     hash: "0000_noisy_aqueduct",
     sql: MIGRATION_0000_NOISY_AQUEDUCT,
