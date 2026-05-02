@@ -67,7 +67,10 @@ export const tenantAdminRouter = {
 	 * swap and clears the stashed cookie before throwing 500.
 	 */
 	impersonateMember: protectedProcedure
-		.input(z.object({ targetMemberId: z.string().uuid() }))
+		.input(z.object({
+			organizationId: z.string().uuid(),
+			targetMemberId: z.string().uuid(),
+		}))
 		.handler(async ({ input, context }) => {
 			const session = context.session;
 			if (!session?.user) {
@@ -210,7 +213,9 @@ export const tenantAdminRouter = {
 	 * somehow the scope classification resolves to 'tenant' for a platform session —
 	 * the UPDATE becomes a no-op).
 	 */
-	stopImpersonating: protectedProcedure.handler(async ({ context }) => {
+	stopImpersonating: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ context }) => {
 		const session = context.session;
 		if (!session?.user) {
 			throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });

@@ -490,11 +490,13 @@ const tenantAdminRouterType = {
 		),
 
 	/** Stop an active tenant-admin impersonation session. */
-	stopImpersonating: protectedProcedure.handler(
-		(): { success: true; redirectTo: string } => {
-			throw new Error("Not implemented - this is only for type inference");
-		},
-	),
+	stopImpersonating: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): { success: true; redirectTo: string } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // GHL router type definition for client type inference.
@@ -546,6 +548,7 @@ const ghlRouterType = {
 			z.object({
 				organizationId: z.string().uuid(),
 				tenantBranchId: z.string().uuid(),
+				limit: z.number().int().min(1).max(200).default(50),
 			}),
 		)
 		.handler(
