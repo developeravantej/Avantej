@@ -15,12 +15,16 @@ export async function validateGhlApiKey(
 	locationId: string,
 ): Promise<boolean> {
 	try {
-		const loc = await ghlFetch<GhlLocation>({
+		const raw = await ghlFetch<unknown>({
 			method: "GET",
 			path: `/locations/${locationId}`,
 			apiKey,
 		});
-		return loc.id === locationId;
+		// GHL wraps in { location: { id, ... } }; accept bare too for safety.
+		const loc =
+			(raw as { location?: GhlLocation }).location ??
+			(raw as GhlLocation);
+		return loc?.id === locationId;
 	} catch (error) {
 		if (error instanceof GhlApiError) return false;
 		throw error;

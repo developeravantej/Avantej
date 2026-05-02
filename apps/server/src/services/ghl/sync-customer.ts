@@ -84,6 +84,64 @@ export async function syncCustomerToGhl(
 	const apiKey = decryptApiKey(link.ghlApiKey);
 	const locationId = link.ghlLocationId;
 
+	// GHL contact endpoints wrap the contact in `{ contact: {...} }`.
+	const unwrap = (raw: unknown): GhlContact => {
+		if (raw && typeof raw === "object" && "contact" in raw) {
+			return (raw as { contact: GhlContact }).contact;
+		}
+		return raw as GhlContact;
+	};
+
+	/**
+	 * POST /contacts/ but adopt the existing contact id when GHL replies with
+	 * 400 "duplicated contacts" — the response body includes meta.contactId.
+	 * Returns the id (new or adopted).
+	 */
+	const createOrAdoptContact = async (
+		body: ReturnType<typeof buildContactPayload>,
+	): Promise<string> => {
+		try {
+			const raw = await ghlFetch<unknown>({
+				method: "POST",
+				path: "/contacts/",
+				apiKey,
+				body,
+			});
+			const created = unwrap(raw);
+			if (!created?.id) {
+				throw new GhlApiError(
+					"unknown",
+					undefined,
+					`GHL POST /contacts/ returned no contact id; raw=${JSON.stringify(raw).slice(0, 200)}`,
+				);
+			}
+			return created.id;
+		} catch (e) {
+			if (e instanceof GhlApiError && e.httpStatus === 400 && e.responseBody) {
+				const rb = e.responseBody as {
+					meta?: { contactId?: string };
+					message?: string;
+				};
+				if (rb?.meta?.contactId) {
+					console.log(
+						"[syncCustomerToGhl] adopting existing GHL contact id =",
+						rb.meta.contactId,
+					);
+					return rb.meta.contactId;
+				}
+			}
+			throw e;
+		}
+	};
+
+	/** Build PUT payload — GHL rejects `locationId` in PUT body. */
+	const stripLocationId = (
+		p: ReturnType<typeof buildContactPayload>,
+	): Omit<ReturnType<typeof buildContactPayload>, "locationId"> => {
+		const { locationId: _, ...rest } = p;
+		return rest;
+	};
+
 	// 2. Look up existing contact link for this (customer, branch)
 	const existing = await tenantDb.query.ghlContactLinks.findFirst({
 		where: and(
@@ -94,23 +152,30 @@ export async function syncCustomerToGhl(
 
 	// 3. Dispatch by operation
 	try {
-		if (operation === "create") {
-			const payload = buildContactPayload({
+		const buildPayload = () =>
+			buildContactPayload({
 				locationId,
 				user,
 				profile: customerProfile,
 				memberStatus,
 				customFieldIds,
 			});
-			const created = await ghlFetch<GhlContact>({
-				method: "POST",
-				path: "/contacts/",
+
+		if (operation === "create") {
+			const payload = buildPayload();
+			const ghlContactId = await createOrAdoptContact(payload);
+			// We may have adopted an existing GHL contact (duplicate email) —
+			// If we adopted an existing GHL contact, immediately PUT to apply
+			// our payload (the adopted contact may have stale/different fields).
+			await ghlFetch<unknown>({
+				method: "PUT",
+				path: `/contacts/${ghlContactId}`,
 				apiKey,
-				body: payload,
+				body: stripLocationId(payload),
 			});
 			await upsertLink({
 				tenantDb,
-				ghlContactId: created.id,
+				ghlContactId,
 				userId: user.id,
 				customerProfileId: customerProfile.id,
 				branchNodeId,
@@ -118,27 +183,23 @@ export async function syncCustomerToGhl(
 				syncStatus: "active",
 				lastError: null,
 			});
-			return { status: "synced", ghlContactId: created.id };
+			return { status: "synced", ghlContactId };
 		}
 
 		if (operation === "update") {
 			if (!existing) {
-				const payload = buildContactPayload({
-					locationId,
-					user,
-					profile: customerProfile,
-					memberStatus,
-					customFieldIds,
-				});
-				const created = await ghlFetch<GhlContact>({
-					method: "POST",
-					path: "/contacts/",
+				const payload = buildPayload();
+				const ghlContactId = await createOrAdoptContact(payload);
+				// If adopted, PUT to apply our payload to the adopted contact.
+				await ghlFetch<unknown>({
+					method: "PUT",
+					path: `/contacts/${ghlContactId}`,
 					apiKey,
-					body: payload,
+					body: stripLocationId(payload),
 				});
 				await upsertLink({
 					tenantDb,
-					ghlContactId: created.id,
+					ghlContactId,
 					userId: user.id,
 					customerProfileId: customerProfile.id,
 					branchNodeId,
@@ -146,20 +207,14 @@ export async function syncCustomerToGhl(
 					syncStatus: "active",
 					lastError: null,
 				});
-				return { status: "synced", ghlContactId: created.id };
+				return { status: "synced", ghlContactId };
 			}
-			const payload = buildContactPayload({
-				locationId,
-				user,
-				profile: customerProfile,
-				memberStatus,
-				customFieldIds,
-			});
-			await ghlFetch<GhlContact>({
+			const payload = buildPayload();
+			await ghlFetch<unknown>({
 				method: "PUT",
 				path: `/contacts/${existing.ghlContactId}`,
 				apiKey,
-				body: payload,
+				body: stripLocationId(payload),
 			});
 			await upsertLink({
 				tenantDb,
@@ -201,16 +256,26 @@ export async function syncCustomerToGhl(
 				: error instanceof Error
 					? error.message
 					: String(error);
-		await upsertLink({
-			tenantDb,
-			ghlContactId: existing?.ghlContactId ?? "pending",
-			userId: user.id,
-			customerProfileId: customerProfile.id,
-			branchNodeId,
-			ghlLocationId: locationId,
-			syncStatus: "error",
-			lastError: message,
-		});
+		// Only persist failure to ghl_contact_links when we have a REAL existing
+		// ghlContactId — writing a "pending" placeholder breaks subsequent attempts
+		// because the orchestrator would try to PUT /contacts/pending on retry.
+		if (existing?.ghlContactId) {
+			await upsertLink({
+				tenantDb,
+				ghlContactId: existing.ghlContactId,
+				userId: user.id,
+				customerProfileId: customerProfile.id,
+				branchNodeId,
+				ghlLocationId: locationId,
+				syncStatus: "error",
+				lastError: message,
+			});
+		} else {
+			// No prior link — log + return; user can re-trigger by saving again.
+			console.error(
+				`[syncCustomerToGhl] create failed for customerProfile=${customerProfile.id}: ${message}`,
+			);
+		}
 		return { status: "error", error: message };
 	}
 }
