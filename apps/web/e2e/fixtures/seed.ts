@@ -22,6 +22,7 @@ import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { encrypt } from "@avantej-core/db";
 import { getControlPanelDb, getTenantDb } from "./db";
 import { signUpUser } from "./auth";
 
@@ -131,6 +132,36 @@ export async function seedE2EFixture(): Promise<E2ETestFixture> {
 		clientPassword: clientUser.password,
 		clientMemberId: clientMember.id,
 	};
+}
+
+/**
+ * Insert a ghl_branch_links row directly (bypasses the UI connect flow).
+ * Used by specs 2-5 to pre-condition the branch as connected without
+ * repeating the connect-dialog UI walkthrough in every test.
+ *
+ * Cleanup: teardownE2EFixture already deletes ghlBranchLinks for the
+ * seeded branch — no extra teardown needed.
+ */
+export async function connectBranchDirect(fixture: E2ETestFixture): Promise<void> {
+	const cp = getControlPanelDb();
+	await cp
+		.insert(ghlBranchLinks)
+		.values({
+			organizationId: fixture.organizationId,
+			tenantBranchId: fixture.branchNodeId,
+			ghlLocationId: "test_loc_1",
+			ghlApiKey: encrypt("pit-test-key-xxxxxxxxxx"),
+			isActive: true,
+		})
+		.onConflictDoUpdate({
+			target: [ghlBranchLinks.organizationId, ghlBranchLinks.tenantBranchId],
+			set: {
+				ghlLocationId: "test_loc_1",
+				ghlApiKey: encrypt("pit-test-key-xxxxxxxxxx"),
+				isActive: true,
+				updatedAt: new Date(),
+			},
+		});
 }
 
 export async function teardownE2EFixture(fixture: E2ETestFixture): Promise<void> {

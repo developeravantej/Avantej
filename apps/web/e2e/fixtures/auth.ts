@@ -8,6 +8,8 @@
  * The response body has shape: { user: { id: string; email: string; ... }, session: {...} }
  */
 
+import type { Page } from "@playwright/test";
+
 const AUTH_BASE_URL = "http://localhost:3000";
 
 export interface SignedUpUser {
@@ -51,4 +53,22 @@ export async function signUpUser(
 
 	const json = (await res.json()) as { user: { id: string } };
 	return { email, password, userId: json.user.id };
+}
+
+/**
+ * Log in as the dev admin via browser UI and wait for the post-login redirect.
+ * Reusable across all GHL E2E demo specs.
+ */
+export async function loginAsAdmin(
+	page: Page,
+	email: string,
+	password: string,
+): Promise<void> {
+	await page.goto("/login");
+	await page.fill('input[type="email"]', email);
+	await page.fill('input[type="password"]', password);
+	await page.click('button[type="submit"]');
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding)/, {
+		timeout: 15_000,
+	});
 }

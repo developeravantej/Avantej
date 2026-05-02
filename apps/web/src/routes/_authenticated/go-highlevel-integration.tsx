@@ -214,6 +214,7 @@ function GoHighLevelIntegrationPage() {
 															<Button
 																variant="outline"
 																size="sm"
+																data-testid={`retry-btn-${branch.id}`}
 																onClick={() => handleRetry(branch.id)}
 																disabled={retryMutation.isPending}
 															>
@@ -224,6 +225,7 @@ function GoHighLevelIntegrationPage() {
 															<Button
 																variant="outline"
 																size="sm"
+																data-testid={`disconnect-btn-${branch.id}`}
 																onClick={() => handleDisconnect(branch.id)}
 																disabled={disconnectMutation.isPending}
 															>
@@ -232,6 +234,7 @@ function GoHighLevelIntegrationPage() {
 														) : (
 															<Button
 																size="sm"
+																data-testid={`connect-btn-${branch.id}`}
 																onClick={() => setConnectBranchId(branch.id)}
 															>
 																Connect

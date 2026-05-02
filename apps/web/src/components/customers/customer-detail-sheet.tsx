@@ -522,6 +522,7 @@ export function CustomerDetailSheet({
 									<div className="flex justify-end">
 										<Button
 											type="button"
+											data-testid="save-profile-btn"
 											onClick={() => upsertMutation.mutate()}
 											disabled={!formDirty || upsertMutation.isPending}
 										>
@@ -640,6 +641,7 @@ export function CustomerDetailSheet({
 							<Button
 								type="button"
 								variant="destructive"
+								data-testid="delete-customer-btn"
 								onClick={() => {
 									if (
 										!window.confirm(
