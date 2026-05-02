@@ -499,6 +499,22 @@ const tenantAdminRouterType = {
 		),
 };
 
+// Server-side customerProfiles overrides type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/customer-profiles.ts
+// (server-only: imports fireCustomerSync which requires server-only GHL deps).
+const serverCustomerProfilesRouterType = {
+	softDelete: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler((): { ok: boolean; profileId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -571,6 +587,11 @@ export const appRouter = {
 	invitations: {
 		...invitationRouter,
 		...serverInvitationRouterType,
+	},
+	// Extend customerProfiles router with server-specific softDelete procedure type
+	customerProfiles: {
+		...customerProfilesRouter,
+		...serverCustomerProfilesRouterType,
 	},
 	admin: adminRouterType,
 	tenantAdmin: tenantAdminRouterType,
