@@ -26,7 +26,19 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-const ALLOWED_ORIGIN = (typeof env !== "undefined" && env?.CORS_ORIGIN) || "http://localhost:3001";
+// Worker env bindings are request-scoped, so we can't read env.CORS_ORIGIN at
+// module load time. We allow a fixed list of localhost origins for dev (E2E
+// runs on alternate ports to avoid worktree conflicts) and let env.CORS_ORIGIN
+// add a prod origin via the function form below.
+const ALLOWED_ORIGINS = new Set<string>([
+	"http://localhost:3001",
+	"http://localhost:4001",
+]);
+const ALLOWED_ORIGIN = (origin: string) => {
+	if (ALLOWED_ORIGINS.has(origin)) return origin;
+	if (typeof env !== "undefined" && env?.CORS_ORIGIN === origin) return origin;
+	return null;
+};
 
 // Combine base router with server-specific routers
 const appRouter = {
@@ -70,11 +82,11 @@ app.use("/*", orpcTenantMiddleware);
 
 // Better-Auth handler for internal auth routes (e.g., /api/auth/get-session, sign-in, sign-up)
 // OPTIONS: respond to CORS preflight so browser allows GET/POST from web origin
-app.on(["OPTIONS"], "/api/auth/*", (_c) => {
+app.on(["OPTIONS"], "/api/auth/*", (c) => {
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Access-Control-Allow-Origin": ALLOWED_ORIGIN(c.req.header("Origin") ?? "") ?? "",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Max-Age": "86400",
@@ -106,7 +118,8 @@ app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 
   // Ensure CORS headers on auth response (browser requires them for cross-origin requests)
   const newHeaders = new Headers(response.headers);
-  newHeaders.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  const reqOrigin = c.req.header("Origin") ?? "";
+  newHeaders.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN(reqOrigin) ?? "");
   newHeaders.set("Access-Control-Allow-Credentials", "true");
 
   return new Response(response.body, {

@@ -15,23 +15,15 @@ export default defineConfig({
 	server: {
 		// In local dev the API (Wrangler) runs on :3000 while the web app runs on :3001.
 		// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
-		proxy: {
-			"/rpc": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/api": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/auth": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/api-reference": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-		},
+		// Override server port via SERVER_PORT env (used by E2E to avoid worktree port conflicts).
+		proxy: (() => {
+			const target = `http://localhost:${process.env.SERVER_PORT ?? 3000}`;
+			return {
+				"/rpc": { target, changeOrigin: true },
+				"/api": { target, changeOrigin: true },
+				"/auth": { target, changeOrigin: true },
+				"/api-reference": { target, changeOrigin: true },
+			};
+		})(),
 	},
 });

@@ -26,8 +26,8 @@ import { user as userTable } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb, getTenantDb } from "../fixtures/db";
 import { DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD } from "../fixtures/seed";
 
-const SERVER = "http://localhost:3000";
-const ORIGIN = "http://localhost:3001";
+const SERVER = process.env.E2E_SERVER_BASE_URL ?? "http://localhost:3000";
+const ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
 
 test.describe("Tenant admin impersonation — full HTTP flow", () => {
 	test("impersonateMember + stopImpersonating round-trip", async () => {

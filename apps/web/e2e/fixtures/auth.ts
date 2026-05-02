@@ -10,7 +10,8 @@
 
 import type { Page } from "@playwright/test";
 
-const AUTH_BASE_URL = "http://localhost:3000";
+const AUTH_BASE_URL = process.env.E2E_SERVER_BASE_URL ?? "http://localhost:3000";
+const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
 
 export interface SignedUpUser {
 	email: string;
@@ -35,7 +36,7 @@ export async function signUpUser(
 		headers: {
 			"Content-Type": "application/json",
 			// Better-Auth rejects requests without an Origin (CORS gate).
-			Origin: "http://localhost:3001",
+			Origin: WEB_ORIGIN,
 		},
 		body: JSON.stringify({
 			email,

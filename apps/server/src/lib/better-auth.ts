@@ -182,6 +182,7 @@ function createBetterAuth(c?: Context) {
   },
   trustedOrigins: [
     getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+    "http://localhost:4001", // E2E alt port
     "mybettertapp://",
     "exp://",
   ],

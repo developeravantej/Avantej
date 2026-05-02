@@ -21,7 +21,7 @@ export default defineConfig({
 		// Server uses --var to bind MOCK_GHL=1 inside the Worker (process.env
 		// in Workers comes from wrangler bindings, not OS env).
 		command:
-			'(cd apps/server && bunx wrangler dev --port=3000 --local-protocol=http --ip=0.0.0.0 --var MOCK_GHL:1) & (cd apps/web && bun run dev) & wait',
+			'export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.bun/bin:$PATH"; (cd apps/server && node ../../node_modules/wrangler/bin/wrangler.js dev --port=3000 --local-protocol=http --ip=0.0.0.0 --var MOCK_GHL:1) & (cd apps/web && bun run dev) & wait',
 		cwd: "../..",
 		url: "http://localhost:3001",
 		timeout: 120_000,
