@@ -244,29 +244,34 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [memberId]);
+		// Re-runs whenever detail loads or refetches so the form reflects
+		// what's actually in the DB (was [memberId]-only, which left form
+		// empty on initial async load and after save invalidation).
+	}, [detail, memberId]);
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
 			if (!detail) throw new Error("No customer data loaded");
+			// Empty string / cleared field => null (clear in DB).
+			// Non-empty => the value. (Never send undefined here — the field
+			// IS dirty either way; undefined would be "skip".)
+			const orNull = (s: string) => (s.trim() ? s : null);
+			const goals = profileForm.fitnessGoals
+				.split(",")
+				.map((g) => g.trim())
+				.filter(Boolean);
 			return client.customerProfiles.upsertForCustomer({
 				organizationId: organizationId!,
 				targetUserId: detail.member.userId,
-				phone: profileForm.phone || undefined,
-				dateOfBirth: profileForm.dateOfBirth || undefined,
-				gender: (profileForm.gender as Gender) || undefined,
-				address: profileForm.address || undefined,
-				emergencyContactName: profileForm.emergencyContactName || undefined,
-				emergencyContactPhone: profileForm.emergencyContactPhone || undefined,
-				medicalNotes: profileForm.medicalNotes || undefined,
-				fitnessGoals: profileForm.fitnessGoals
-					? profileForm.fitnessGoals
-							.split(",")
-							.map((s) => s.trim())
-							.filter(Boolean)
-					: undefined,
-				notes: profileForm.notes || undefined,
+				phone: orNull(profileForm.phone),
+				dateOfBirth: orNull(profileForm.dateOfBirth),
+				gender: orNull(profileForm.gender),
+				address: orNull(profileForm.address),
+				emergencyContactName: orNull(profileForm.emergencyContactName),
+				emergencyContactPhone: orNull(profileForm.emergencyContactPhone),
+				medicalNotes: orNull(profileForm.medicalNotes),
+				fitnessGoals: goals.length > 0 ? goals : null,
+				notes: orNull(profileForm.notes),
 			});
 		},
 		successMessage: "Profile updated successfully.",

@@ -90,15 +90,16 @@ export const serverCustomerProfilesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				targetUserId: z.string(),
-				phone: z.string().optional(),
-				dateOfBirth: z.string().optional(),
-				gender: z.string().optional(),
-				address: z.string().optional(),
-				emergencyContactName: z.string().optional(),
-				emergencyContactPhone: z.string().optional(),
-				medicalNotes: z.string().optional(),
-				fitnessGoals: z.array(z.string()).optional(),
-				notes: z.string().optional(),
+				// nullable so callers can clear a field (null) vs. leave unchanged (undefined)
+				phone: z.string().nullable().optional(),
+				dateOfBirth: z.string().nullable().optional(),
+				gender: z.string().nullable().optional(),
+				address: z.string().nullable().optional(),
+				emergencyContactName: z.string().nullable().optional(),
+				emergencyContactPhone: z.string().nullable().optional(),
+				medicalNotes: z.string().nullable().optional(),
+				fitnessGoals: z.array(z.string()).nullable().optional(),
+				notes: z.string().nullable().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -135,7 +136,12 @@ export const serverCustomerProfilesRouter = {
 			const updated = await upsertCustomerProfile(context.tenantDb, {
 				userId: input.targetUserId,
 				phone: input.phone,
-				dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : undefined,
+				dateOfBirth:
+					input.dateOfBirth === undefined
+						? undefined
+						: input.dateOfBirth === null
+							? null
+							: new Date(input.dateOfBirth),
 				gender: input.gender,
 				address: input.address,
 				emergencyContactName: input.emergencyContactName,
