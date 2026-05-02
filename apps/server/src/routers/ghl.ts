@@ -28,7 +28,7 @@ import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-link
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { requirePermission } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getControlPanelDb } from "@/lib/db";
 import {
@@ -181,19 +181,13 @@ export const ghlRouter = {
 			const tenantDb = context.tenantDb;
 			let errorCounts: Map<string, number> = new Map();
 			if (tenantDb && rows.length > 0) {
-				const branchIds = rows.map((r) => r.tenantBranchId);
 				const errorRows = await tenantDb
 					.select({
 						branchNodeId: ghlContactLinks.branchNodeId,
 						n: count(),
 					})
 					.from(ghlContactLinks)
-					.where(
-						and(
-							inArray(ghlContactLinks.branchNodeId, branchIds),
-							eq(ghlContactLinks.syncStatus, "error"),
-						),
-					)
+					.where(eq(ghlContactLinks.syncStatus, "error"))
 					.groupBy(ghlContactLinks.branchNodeId);
 				errorCounts = new Map(
 					errorRows.map((r) => [r.branchNodeId, Number(r.n)]),
@@ -211,6 +205,7 @@ export const ghlRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				tenantBranchId: z.string().uuid(),
+				limit: z.number().int().min(1).max(200).default(50),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -258,7 +253,7 @@ export const ghlRouter = {
 						eq(ghlContactLinks.syncStatus, "error"),
 					),
 				)
-				.limit(50);
+				.limit(input.limit);
 
 			let recovered = 0;
 			let stillFailing = 0;
@@ -331,7 +326,7 @@ export const ghlRouter = {
 				attempted: errored.length,
 				recovered,
 				stillFailing,
-				cappedAt: 50,
+				cappedAt: input.limit,
 			};
 		}),
 };
