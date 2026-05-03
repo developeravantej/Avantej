@@ -33,6 +33,7 @@ export interface CustomerDirectoryRow {
 	appointmentCount: number;
 	lastVisitAt: Date | null;
 	createdAt: Date;
+	isDeleted: boolean | null;
 }
 
 /**
@@ -54,6 +55,7 @@ export async function listCustomerDirectory(
 		accessibleNodeIds: string[];
 		limit?: number;
 		offset?: number;
+		includeDeleted?: boolean;
 	},
 ): Promise<{ rows: CustomerDirectoryRow[]; total: number }> {
 	const {
@@ -62,6 +64,7 @@ export async function listCustomerDirectory(
 		accessibleNodeIds,
 		limit = 50,
 		offset = 0,
+		includeDeleted = false,
 	} = params;
 
 	if (accessibleNodeIds.length === 0) {
@@ -82,6 +85,7 @@ export async function listCustomerDirectory(
 			m.hierarchy_scope_id                                       AS hierarchy_scope_id,
 			m.joined_at                                                AS joined_at,
 			cp.phone                                                   AS phone,
+			cp.is_deleted                                              AS is_deleted,
 			CAST(
 				COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active')
 			AS INTEGER)                                                AS active_package_count,
@@ -104,10 +108,10 @@ export async function listCustomerDirectory(
 		LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
-			AND (cp.is_deleted IS NULL OR cp.is_deleted = false)
+			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
-		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone
+		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted
 		ORDER BY m.joined_at DESC
 		LIMIT ${limit} OFFSET ${offset}
 	`;
@@ -118,7 +122,7 @@ export async function listCustomerDirectory(
 		LEFT JOIN customer_profiles cp ON cp.user_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
-			AND (cp.is_deleted IS NULL OR cp.is_deleted = false)
+			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
 	`;
@@ -134,6 +138,7 @@ export async function listCustomerDirectory(
 		hierarchy_scope_id: string;
 		joined_at: Date;
 		phone: string | null;
+		is_deleted: boolean | null;
 		active_package_count: number;
 		lifetime_value_cents: number;
 		outstanding_balance_cents: number;
@@ -188,6 +193,7 @@ export async function listCustomerDirectory(
 			appointmentCount: r.appointment_count,
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
+			isDeleted: r.is_deleted ?? null,
 		};
 	});
 

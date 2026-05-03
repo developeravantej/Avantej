@@ -9,6 +9,7 @@ interface CustomerOption {
 	id: string;
 	name: string;
 	email?: string | null;
+	isDeleted?: boolean | null;
 }
 
 interface CustomersFilterSidebarProps {
@@ -86,20 +87,28 @@ function CustomersFilterSidebarImpl({
 									isSelected
 										? "border-blue-500 border-l-2 bg-blue-50 pl-[calc(0.5rem-2px)]"
 										: "hover:bg-gray-50",
+									customer.isDeleted && "opacity-60",
 								)}
 							>
 								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-500 text-xs">
 									{getInitials(customer.name) || "?"}
 								</div>
 								<div className="min-w-0 flex-1">
-									<p
-										className={cn(
-											"truncate font-medium text-sm",
-											isSelected ? "text-blue-700" : "text-gray-900",
+									<div className="flex items-center gap-1.5">
+										<p
+											className={cn(
+												"truncate font-medium text-sm",
+												isSelected ? "text-blue-700" : "text-gray-900",
+											)}
+										>
+											{customer.name}
+										</p>
+										{customer.isDeleted && (
+											<span className="shrink-0 rounded px-1 py-0.5 bg-gray-200 text-gray-500 text-[10px] leading-none">
+												deleted
+											</span>
 										)}
-									>
-										{customer.name}
-									</p>
+									</div>
 									<p className="truncate text-gray-400 text-xs">
 										{customer.email ?? "Customer"}
 									</p>

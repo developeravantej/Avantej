@@ -269,6 +269,22 @@ export function CustomerProfilePanel({
 		onSuccess: () => onDeleted?.(),
 	});
 
+	const restoreMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.restore({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+			});
+		},
+		successMessage: "Customer restored",
+		errorMessage: (err) => err.message || "Failed to restore customer",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			["customerDirectory", organizationId],
+		],
+	});
+
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
 			if (!detail) throw new Error("No customer data loaded");
@@ -638,25 +654,58 @@ export function CustomerProfilePanel({
 						<CardHeader className="pb-3">
 							<CardTitle className="text-base text-destructive">Danger zone</CardTitle>
 						</CardHeader>
-						<CardContent>
-							<div className="flex items-center justify-between gap-4">
-								<p className="text-muted-foreground text-sm">
-									Delete this customer. Soft-deletes in Avantej and removes the
-									contact from GoHighLevel.
-								</p>
-								<Button
-									type="button"
-									variant="destructive"
-									size="sm"
-									data-testid="delete-customer-btn"
-									onClick={() => {
-										if (!window.confirm("Delete this customer? This will also remove them from GoHighLevel.")) return;
-										deleteMutation.mutate();
-									}}
-									disabled={deleteMutation.isPending}
+						<CardContent className="space-y-3">
+							{profile?.isDeleted && (
+								<p
+									className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 text-sm"
+									data-testid="deleted-customer-banner"
 								>
-									{deleteMutation.isPending ? "Deleting…" : "Delete customer"}
-								</Button>
+									Deleted by {profile.deletedSource ?? "unknown"} on{" "}
+									{formatDate(profile.deletedAt)}
+								</p>
+							)}
+							<div className="flex items-center justify-between gap-4">
+								{profile?.isDeleted ? (
+									<>
+										<p className="text-muted-foreground text-sm">
+											Restore this customer. Re-creates their GoHighLevel contact.
+										</p>
+										<Button
+											type="button"
+											variant="default"
+											size="sm"
+											className="bg-green-600 hover:bg-green-700"
+											data-testid="restore-customer-btn"
+											onClick={() => {
+												if (!window.confirm("Restore this customer? This will re-create their GoHighLevel contact.")) return;
+												restoreMutation.mutate();
+											}}
+											disabled={restoreMutation.isPending}
+										>
+											{restoreMutation.isPending ? "Restoring…" : "Restore customer"}
+										</Button>
+									</>
+								) : (
+									<>
+										<p className="text-muted-foreground text-sm">
+											Delete this customer. Soft-deletes in Avantej and removes the
+											contact from GoHighLevel.
+										</p>
+										<Button
+											type="button"
+											variant="destructive"
+											size="sm"
+											data-testid="delete-customer-btn"
+											onClick={() => {
+												if (!window.confirm("Delete this customer? This will also remove them from GoHighLevel.")) return;
+												deleteMutation.mutate();
+											}}
+											disabled={deleteMutation.isPending}
+										>
+											{deleteMutation.isPending ? "Deleting…" : "Delete customer"}
+										</Button>
+									</>
+								)}
 							</div>
 						</CardContent>
 					</Card>
