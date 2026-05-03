@@ -215,6 +215,41 @@ const serverInvitationRouterType = {
 		.handler((): { success: boolean; message: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	// Server override of base accept — adds post-acceptance GHL sync for clients.
+	accept: protectedProcedure
+		.input(
+			z.object({
+				token: z.string(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): { success: boolean; message: string; organizationId: string } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	// Atomic sign-up + accept + GHL sync (public — token+email match = auth proof).
+	acceptWithSignup: publicProcedure
+		.input(
+			z.object({
+				token: z.string().min(1),
+				organizationId: z.string().uuid(),
+				email: z.string().email(),
+				password: z.string().min(8),
+				firstName: z.string().min(1),
+				lastName: z.string().min(1),
+			}),
+		)
+		.handler(
+			(): {
+				success: boolean;
+				message: string;
+				organizationId: string;
+				userId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Admin router type definition for client type inference
@@ -511,6 +546,16 @@ const serverCustomerProfilesRouterType = {
 			}),
 		)
 		.handler((): { ok: boolean; profileId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	restore: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler((): Promise<{ ok: boolean; profileId: string }> => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 };

@@ -236,4 +236,88 @@ export const serverCustomerProfilesRouter = {
 
 			return { ok: true, profileId: updated.id };
 		}),
+
+	/**
+	 * Restore a soft-deleted customer. Flips is_deleted=false and re-fires
+	 * syncCustomerToGhl with operation='update' so a fresh GHL contact gets
+	 * created (the orchestrator's deleted-link guard ensures a POST, not a
+	 * PUT to the already-deleted GHL contact).
+	 */
+	restore: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(eq(members.userId, input.targetUserId), eq(members.role, "client")),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Target customer not found" });
+			}
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Target customer is outside your accessible scope",
+				});
+			}
+
+			// Verify the profile exists and is actually deleted before restoring
+			const existingProfile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.userId, input.targetUserId),
+			});
+			if (!existingProfile) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+			if (!existingProfile.isDeleted) {
+				throw new ORPCError("BAD_REQUEST", { message: "not-deleted" });
+			}
+
+			const now = new Date();
+			const [updated] = await context.tenantDb
+				.update(customerProfiles)
+				.set({
+					isDeleted: false,
+					deletedAt: null,
+					deletedSource: null,
+					updatedAt: now,
+				})
+				.where(eq(customerProfiles.userId, input.targetUserId))
+				.returning();
+
+			if (!updated) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+
+			if (context.organizationId) {
+				await fireCustomerSync({
+					honoContext: context.honoContext,
+					tenantDb: context.tenantDb,
+					organizationId: context.organizationId,
+					userId: input.targetUserId,
+					customerProfile: updated,
+					operation: "update",
+				});
+			}
+
+			return { ok: true, profileId: updated.id };
+		}),
 };

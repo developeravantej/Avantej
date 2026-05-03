@@ -123,7 +123,67 @@ describe("syncCustomerToGhl", () => {
 		const result = await syncCustomerToGhl(args);
 		expect(result.status).toBe("error");
 		expect(result.error).toContain("rate_limited");
-		// Avantej write does NOT throw — failure recorded in ghl_contact_links
+		// Avantej write does NOT throw — caller never sees an exception.
+		// When there's no prior link AND the create fails, we deliberately
+		// SKIP writing a placeholder row (writing 'pending' there broke
+		// retry: orchestrator would then PUT /contacts/pending → 400).
+		// User can re-trigger by saving again.
+		expect(tenantInsert).not.toHaveBeenCalled();
+	});
+
+	test("treats existing link with syncStatus='deleted' as no-existing on update (post-restore POST flow)", async () => {
+		(globalThis as any).fetch = mock(() =>
+			Promise.resolve(
+				new Response(
+					JSON.stringify({ contact: { id: "ct_new_after_restore", email: "a@b.com" } }),
+					{ status: 200 },
+				),
+			),
+		);
+		const tenantInsert = mock(() => Promise.resolve());
+		const args = {
+			...baseArgs,
+			operation: "update" as const,
+			controlPanelDb: {
+				query: {
+					ghlBranchLinks: {
+						findFirst: mock(() =>
+							Promise.resolve({
+								id: "lnk_1",
+								organizationId: "org_1",
+								tenantBranchId: "branch_1",
+								ghlLocationId: "loc_1",
+								ghlApiKey: "encrypted_key",
+								isActive: true,
+							}),
+						),
+					},
+				},
+			} as any,
+			tenantDb: {
+				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
+				query: {
+					ghlContactLinks: {
+						findFirst: mock(() =>
+							Promise.resolve({
+								id: "link_old",
+								ghlContactId: "ct_old_deleted",
+								customerProfileId: "cp_1",
+								branchNodeId: "branch_1",
+								ghlLocationId: "loc_1",
+								syncStatus: "deleted",  // ← key: link exists but marked deleted
+							}),
+						),
+					},
+				},
+			} as any,
+			decryptApiKey: (s: string) => s,
+		};
+
+		const result = await syncCustomerToGhl(args);
+		expect(result.status).toBe("synced");
+		// POST path was taken (new contact id), NOT PUT to old deleted contact
+		expect(result.ghlContactId).toBe("ct_new_after_restore");
 		expect(tenantInsert).toHaveBeenCalled();
 	});
 

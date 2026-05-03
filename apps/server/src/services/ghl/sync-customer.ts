@@ -150,6 +150,10 @@ export async function syncCustomerToGhl(
 		),
 	});
 
+	// A 'deleted' link points at a GHL contact that's already gone — treat
+	// as no-existing so a follow-up update/create creates a fresh contact.
+	const effectiveExisting = existing?.syncStatus === "deleted" ? null : existing;
+
 	// 3. Dispatch by operation
 	try {
 		const buildPayload = () =>
@@ -187,7 +191,7 @@ export async function syncCustomerToGhl(
 		}
 
 		if (operation === "update") {
-			if (!existing) {
+			if (!effectiveExisting) {
 				const payload = buildPayload();
 				const ghlContactId = await createOrAdoptContact(payload);
 				// If adopted, PUT to apply our payload to the adopted contact.
@@ -212,13 +216,13 @@ export async function syncCustomerToGhl(
 			const payload = buildPayload();
 			await ghlFetch<unknown>({
 				method: "PUT",
-				path: `/contacts/${existing.ghlContactId}`,
+				path: `/contacts/${effectiveExisting.ghlContactId}`,
 				apiKey,
 				body: stripLocationId(payload),
 			});
 			await upsertLink({
 				tenantDb,
-				ghlContactId: existing.ghlContactId,
+				ghlContactId: effectiveExisting.ghlContactId,
 				userId: user.id,
 				customerProfileId: customerProfile.id,
 				branchNodeId,
@@ -226,21 +230,21 @@ export async function syncCustomerToGhl(
 				syncStatus: "active",
 				lastError: null,
 			});
-			return { status: "synced", ghlContactId: existing.ghlContactId };
+			return { status: "synced", ghlContactId: effectiveExisting.ghlContactId };
 		}
 
 		// operation === "delete"
-		if (!existing) {
+		if (!effectiveExisting) {
 			return { status: "skipped", reason: "no-existing-contact-on-update" };
 		}
 		await ghlFetch<unknown>({
 			method: "DELETE",
-			path: `/contacts/${existing.ghlContactId}`,
+			path: `/contacts/${effectiveExisting.ghlContactId}`,
 			apiKey,
 		});
 		await upsertLink({
 			tenantDb,
-			ghlContactId: existing.ghlContactId,
+			ghlContactId: effectiveExisting.ghlContactId,
 			userId: user.id,
 			customerProfileId: customerProfile.id,
 			branchNodeId,
@@ -248,7 +252,7 @@ export async function syncCustomerToGhl(
 			syncStatus: "deleted",
 			lastError: null,
 		});
-		return { status: "synced", ghlContactId: existing.ghlContactId };
+		return { status: "synced", ghlContactId: effectiveExisting.ghlContactId };
 	} catch (error) {
 		const message =
 			error instanceof GhlApiError
@@ -259,10 +263,10 @@ export async function syncCustomerToGhl(
 		// Only persist failure to ghl_contact_links when we have a REAL existing
 		// ghlContactId — writing a "pending" placeholder breaks subsequent attempts
 		// because the orchestrator would try to PUT /contacts/pending on retry.
-		if (existing?.ghlContactId) {
+		if (effectiveExisting?.ghlContactId) {
 			await upsertLink({
 				tenantDb,
-				ghlContactId: existing.ghlContactId,
+				ghlContactId: effectiveExisting.ghlContactId,
 				userId: user.id,
 				customerProfileId: customerProfile.id,
 				branchNodeId,
@@ -271,7 +275,7 @@ export async function syncCustomerToGhl(
 				lastError: message,
 			});
 		} else {
-			// No prior link — log + return; user can re-trigger by saving again.
+			// No prior link (or link was deleted) — log + return; user can re-trigger by saving again.
 			console.error(
 				`[syncCustomerToGhl] create failed for customerProfile=${customerProfile.id}: ${message}`,
 			);
