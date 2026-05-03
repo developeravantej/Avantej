@@ -116,12 +116,40 @@ export const invitationRouter = {
         });
       }
 
-      // Check if user is already a member (by checking control panel users)
-      // Note: We can't directly check by email in tenant DB, so we check control panel
+      // Hoist controlPanelDb fetch so both the soft-delete check and the
+      // existing-org-member check can share the same connection.
       const controlPanelDb = context.honoContext?.get("controlPanelDb") as
         | NeonDatabase<typeof controlPanelSchema>
         | undefined;
 
+      // Pre-flight: block re-invitation of a previously soft-deleted customer.
+      // If the email maps to an existing user who is a client member with
+      // is_deleted=true on their customer_profile, direct the admin to the
+      // "Restore customer" flow instead of creating a broken invitation.
+      if (controlPanelDb) {
+        const { checkSoftDeletedCustomerBlock } = await import(
+          "@avantej-core/services"
+        );
+        const blockCheck = await checkSoftDeletedCustomerBlock({
+          tenantDb: context.tenantDb,
+          controlPanelDb,
+          email: input.email,
+        });
+        if (blockCheck.blocked) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "This person was deleted as a customer. Restore them instead of inviting.",
+            data: {
+              userId: blockCheck.userId,
+              profileId: blockCheck.profileId,
+              code: "ALREADY_DELETED",
+            },
+          });
+        }
+      }
+
+      // Check if user is already a member (by checking control panel users)
+      // Note: We can't directly check by email in tenant DB, so we check control panel
       if (controlPanelDb) {
         const { users } = await import(
           "@avantej-core/db/schema/control-panel/users"

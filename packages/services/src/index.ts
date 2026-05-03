@@ -158,6 +158,7 @@ export {
 export * from "./installment-plan.service";
 // Invitation services - for invitation management
 export {
+	checkSoftDeletedCustomerBlock,
 	createInvitation,
 	getInvitationByToken,
 	listInvitations,
