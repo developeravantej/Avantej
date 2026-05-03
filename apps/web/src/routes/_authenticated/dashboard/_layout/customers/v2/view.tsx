@@ -159,6 +159,8 @@ function CustomersV2Page() {
 							onSelectCustomer={setSelectedMemberId}
 							search={search}
 							onSearchChange={setSearch}
+							showDeleted={showDeleted}
+							onShowDeletedChange={setShowDeleted}
 						/>
 					</div>
 

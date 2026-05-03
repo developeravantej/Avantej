@@ -20,6 +20,8 @@ interface CustomersFilterSidebarProps {
 	onSelectCustomer: (customerId: string) => void;
 	search: string;
 	onSearchChange: (value: string) => void;
+	showDeleted?: boolean;
+	onShowDeletedChange?: (value: boolean) => void;
 }
 
 function getInitials(name: string) {
@@ -39,6 +41,8 @@ function CustomersFilterSidebarImpl({
 	onSelectCustomer,
 	search,
 	onSearchChange,
+	showDeleted = false,
+	onShowDeletedChange,
 }: CustomersFilterSidebarProps) {
 	return (
 		<div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -63,6 +67,18 @@ function CustomersFilterSidebarImpl({
 						className="h-9 rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm placeholder:text-gray-400 focus:bg-white"
 					/>
 				</div>
+				{onShowDeletedChange && (
+					<label className="mt-2 flex cursor-pointer select-none items-center gap-2 text-xs text-gray-600">
+						<input
+							type="checkbox"
+							className="h-3.5 w-3.5 rounded border-gray-300"
+							checked={showDeleted}
+							onChange={(e) => onShowDeletedChange(e.target.checked)}
+							data-testid="show-deleted-toggle"
+						/>
+						<span>Show deleted</span>
+					</label>
+				)}
 			</div>
 
 			<div className="flex-1 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1">
