@@ -64,7 +64,7 @@ function CustomersV2Page() {
 		});
 	};
 
-	const { data: listData, isLoading } = useQuery({
+	const { data: listData, isLoading, isFetching } = useQuery({
 		queryKey: ["customerDirectory", organizationId, debouncedSearch, showDeleted],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
@@ -101,7 +101,12 @@ function CustomersV2Page() {
 
 	// Auto-select the first customer once data arrives, OR re-pick the first
 	// if the current URL selection drops out of the filtered list.
+	// IMPORTANT: skip while data is fetching — placeholderData keeps stale rows
+	// visible during refetch (e.g., after toggling Show deleted), and the user
+	// may click a row that's not yet in the stale set. Without this gate the
+	// effect would override the click and navigate back to rows[0].
 	useEffect(() => {
+		if (isFetching) return;
 		if (rows.length === 0) return;
 		if (selectedMemberId && rows.some((r) => r.memberId === selectedMemberId)) {
 			return;
@@ -110,7 +115,7 @@ function CustomersV2Page() {
 			search: (prev) => ({ ...prev, customer: rows[0].memberId }),
 			replace: true,
 		});
-	}, [rows, selectedMemberId, navigate]);
+	}, [rows, selectedMemberId, navigate, isFetching]);
 
 	const selectedCustomer = rows.find((r) => r.memberId === selectedMemberId);
 	const selectedUserId = selectedCustomer?.userId ?? null;
