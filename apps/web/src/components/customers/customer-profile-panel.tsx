@@ -430,9 +430,13 @@ export function CustomerProfilePanel({
 				<div className="min-w-0 flex-1 space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<h1 className="font-bold text-2xl leading-tight">{user.name}</h1>
-						<Badge variant={memberStatusVariant(member.status ?? "")}>
-							{member.status ?? "unknown"}
-						</Badge>
+						{profile?.isDeleted ? (
+							<Badge variant="destructive">deleted</Badge>
+						) : (
+							<Badge variant={memberStatusVariant(member.status ?? "")}>
+								{member.status ?? "unknown"}
+							</Badge>
+						)}
 					</div>
 					<p className="text-muted-foreground text-sm">{user.email}</p>
 					{profile?.phone && (
