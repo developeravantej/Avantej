@@ -18,6 +18,9 @@ export const Route = createFileRoute(
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "customers",
 		customer: (search.customer as string | undefined) ?? undefined,
+		showDeleted: search.showDeleted === true || search.showDeleted === "true"
+			? true
+			: undefined,
 	}),
 	component: CustomersV2Page,
 });
@@ -39,7 +42,7 @@ type DirectoryRow = {
 };
 
 function CustomersV2Page() {
-	const { tab, customer } = Route.useSearch();
+	const { tab, customer, showDeleted: showDeletedSearch } = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const activeTab = NAV_TABS.some((t) => t.id === tab) ? tab : "customers";
 
@@ -53,7 +56,17 @@ function CustomersV2Page() {
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, 300);
-	const [showDeleted, setShowDeleted] = useState(false);
+	// showDeleted lives in URL so it survives route remounts triggered by
+	// other search-param changes (e.g. ?customer=X). Local useState reset
+	// to false on remount, which then refetched the active-only list and
+	// kicked the auto-select fallback before the user's row landed.
+	const showDeleted = showDeletedSearch === true;
+	const setShowDeleted = (value: boolean) => {
+		navigate({
+			search: (prev) => ({ ...prev, showDeleted: value || undefined }),
+			replace: true,
+		});
+	};
 
 	// Selected customer lives in the URL so it survives any remount.
 	const selectedMemberId = customer ?? null;
