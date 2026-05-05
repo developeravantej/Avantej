@@ -19,6 +19,17 @@ import { MembershipService } from "@avantej-core/db/services/membership.service"
 import { deactivateMember } from "@avantej-core/services/member.service";
 import { writeAudit } from "@avantej-core/services/audit-log.service";
 
+// Shared GHL staff sync dispatcher result type (Phase 7.4 wiring). The
+// dispatcher itself is env-bound by `dbMiddleware` in apps/server and looked
+// up via `context.honoContext.get("dispatchStaffSync")`. The function type is
+// declared locally per handler since it references `typeof context.tenantDb`.
+type GhlSyncResult = {
+  status: "synced" | "skipped" | "error";
+  reason?: string;
+  ghlUserId?: string;
+  error?: string;
+};
+
 export const memberRouter = {
   /**
    * List members in the organization
@@ -268,12 +279,6 @@ export const memberRouter = {
       // env-bound by `dbMiddleware` in apps/server. It's optional — older
       // clients / environments without GHL configured simply skip.
       // The dispatcher itself is soft-fail; the .catch is defense-in-depth.
-      type GhlSyncResult = {
-        status: "synced" | "skipped" | "error";
-        reason?: string;
-        ghlUserId?: string;
-        error?: string;
-      };
       type DispatchStaffSyncFn = (args: {
         controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
         tenantDb: typeof context.tenantDb;
@@ -543,6 +548,34 @@ export const memberRouter = {
         changes: { from: previousRole, to: input.newRole },
       });
 
+      // Best-effort GHL staff sync (Phase 7.4 wiring). See members.create for
+      // the rationale; same defensive pattern applies here.
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "update",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -553,6 +586,7 @@ export const memberRouter = {
           status: updatedMember!.status,
           joinedAt: updatedMember!.joinedAt,
         },
+        ghlSync,
       };
     }),
 
