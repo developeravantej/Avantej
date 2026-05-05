@@ -11,10 +11,13 @@
  */
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { users } from "@avantej-core/db/schema/control-panel/users";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export type StaffSyncOperation = "create" | "update" | "delete";
@@ -70,6 +73,32 @@ export async function dispatchStaffSync(
 		return { status: "skipped", reason: "deactivate-skip" };
 	}
 
-	// TODO: subsequent tasks add branch resolution, sync call, error capture.
+	const node = await tenantDb.query.hierarchyNodes.findFirst({
+		where: eq(hierarchyNodes.id, member.hierarchyScopeId),
+	});
+	if (!node || node.type !== "branch") {
+		return { status: "skipped", reason: "non-branch-scope" };
+	}
+	const branchNodeId = node.id;
+
+	const user = await args.controlPanelDb.query.users.findFirst({
+		where: eq(users.id, member.userId),
+	});
+	if (!user) return { status: "error", error: "control panel user not found" };
+
+	const branchLink = await args.controlPanelDb.query.ghlBranchLinks.findFirst({
+		where: and(
+			eq(ghlBranchLinks.organizationId, args.organizationId),
+			eq(ghlBranchLinks.tenantBranchId, branchNodeId),
+			eq(ghlBranchLinks.isActive, true),
+		),
+	});
+	if (!branchLink) {
+		return { status: "skipped", reason: "branch-not-connected" };
+	}
+
+	// TODO Task 4: branch reassignment detection + syncStaffToGhl call
+	// biome-ignore lint/correctness/noUnusedVariables: consumed in Task 4
+	const _bound = { branchNodeId, user, branchLink };
 	return { status: "error", error: "not implemented" };
 }
