@@ -613,7 +613,7 @@ export function MembersTabPage() {
 					.map((r) => r.id)
 			: [],
 		isActive: m.status === "active",
-		ghlSync: (m as any).ghlSync ?? null,
+		ghlSync: m.ghlSync ?? null,
 	}));
 
 	const [users, setUsers] = useState<UserForAssignment[]>([]);

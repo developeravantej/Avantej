@@ -9,7 +9,7 @@ export interface UserForAssignment {
   department?: string;
   lastLogin?: string;
   ghlSync?: {
-    syncStatus: string;
+    syncStatus: "active" | "inactive" | "skipped" | "error";
     lastError: string | null;
     lastSyncedAt: Date | string | null;
     ghlUserId: string;
