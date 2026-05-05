@@ -1,5 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
-import { dispatchStaffSync } from "./ghl-staff-sync.service";
+import {
+	dispatchProfileSync,
+	dispatchStaffSync,
+} from "./ghl-staff-sync.service";
 
 // biome-ignore lint/suspicious/noExplicitAny: shared test stubs
 const noopSyncStaffToGhl = mock((_args: any) =>
@@ -363,5 +366,84 @@ describe("dispatchStaffSync", () => {
 		expect(putCall.payload).toEqual({ locationIds: ["loc-NEW"] });
 		expect(updateMock).toHaveBeenCalledTimes(1);
 		expect(result).toEqual({ status: "synced", ghlUserId: "g-existing" });
+	});
+});
+
+describe("dispatchProfileSync", () => {
+	it("dispatchProfileSync iterates orgs, opens tenant DBs, dispatches per link", async () => {
+		const links = [
+			{
+				id: "l-A",
+				memberId: "m-A",
+				branchNodeId: "b-A",
+				ghlUserId: "g-A",
+				ghlLocationId: "loc-A",
+				syncStatus: "active",
+				userId: "u-1",
+			},
+			{
+				id: "l-B",
+				memberId: "m-B",
+				branchNodeId: "b-B",
+				ghlUserId: "g-B",
+				ghlLocationId: "loc-B",
+				syncStatus: "active",
+				userId: "u-1",
+			},
+		];
+		const dispatch = mock(() => Promise.resolve({ status: "synced" as const }));
+		const tenantDbStub = {
+			query: {
+				ghlUserLinks: { findMany: mock(() => Promise.resolve(links)) },
+			},
+		};
+		const openTenantDb = mock(() => Promise.resolve(tenantDbStub));
+		let orgCallCount = 0;
+		const findFirst = mock(() => {
+			orgCallCount++;
+			return Promise.resolve(
+				orgCallCount === 1
+					? { id: "org-1", connectionString: "enc-1" }
+					: { id: "org-2", connectionString: "enc-2" },
+			);
+		});
+		const controlPanelDb = {
+			query: {
+				organizationMembers: {
+					findMany: mock(() =>
+						Promise.resolve([
+							{ organizationId: "org-1" },
+							{ organizationId: "org-2" },
+						]),
+					),
+				},
+				organizations: {
+					findFirst,
+				},
+			},
+		};
+
+		const results = await dispatchProfileSync({
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+			controlPanelDb: controlPanelDb as any,
+			userId: "u-1",
+			env: { GHL_AGENCY_ID: "agency-1" },
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+			openTenantDb: openTenantDb as any,
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+			dispatchStaffSync: dispatch as any,
+			decryptConnectionString: (e) => `dec(${e})`,
+			decryptApiKey: (e) => `dec(${e})`,
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+			syncStaffToGhl: mock(() =>
+				Promise.resolve({ status: "synced" as const }),
+			) as any,
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+			putGhlUser: mock(() => Promise.resolve({ id: "x" })) as any,
+		});
+
+		expect(openTenantDb).toHaveBeenCalledTimes(2);
+		expect(dispatch).toHaveBeenCalledTimes(4);
+		expect(results).toHaveLength(4);
 	});
 });

@@ -13,6 +13,8 @@
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
@@ -205,4 +207,75 @@ export async function dispatchStaffSync(
 			error: err instanceof Error ? err.message : String(err),
 		};
 	}
+}
+
+export interface DispatchProfileSyncArgs {
+	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+	userId: string;
+	env: { GHL_AGENCY_ID: string };
+	openTenantDb: (
+		connectionString: string,
+	) => Promise<NeonDatabase<typeof tenantSchema>>;
+	dispatchStaffSync: typeof dispatchStaffSync;
+	decryptConnectionString: (encrypted: string) => string;
+	decryptApiKey: (encrypted: string) => string;
+	syncStaffToGhl: SyncStaffOrchestrator;
+	putGhlUser: DispatchStaffSyncArgs["putGhlUser"];
+}
+
+/**
+ * Cross-org profile sync. Called from the better-auth user.update hook to
+ * propagate name/email changes to all GHL users this person has across the
+ * organizations they belong to. Iterates the user's organizations, opens each
+ * tenant DB, and dispatches a staff-sync update per ghl_user_links row.
+ */
+export async function dispatchProfileSync(
+	args: DispatchProfileSyncArgs,
+): Promise<StaffSyncResult[]> {
+	const orgMembers =
+		await args.controlPanelDb.query.organizationMembers.findMany({
+			where: eq(organizationMembers.userId, args.userId),
+		});
+	const results: StaffSyncResult[] = [];
+
+	for (const om of orgMembers) {
+		const org = await args.controlPanelDb.query.organizations.findFirst({
+			where: eq(organizations.id, om.organizationId),
+		});
+		if (!org) continue;
+
+		let tenantDb: NeonDatabase<typeof tenantSchema>;
+		try {
+			const conn = args.decryptConnectionString(org.connectionString);
+			tenantDb = await args.openTenantDb(conn);
+		} catch (err) {
+			results.push({
+				status: "error",
+				error: `tenant connect: ${(err as Error).message}`,
+			});
+			continue;
+		}
+
+		const links = await tenantDb.query.ghlUserLinks.findMany({
+			where: eq(ghlUserLinks.userId, args.userId),
+		});
+
+		for (const link of links) {
+			if (link.syncStatus !== "active" && link.syncStatus !== "error")
+				continue;
+			const r = await args.dispatchStaffSync({
+				controlPanelDb: args.controlPanelDb,
+				tenantDb,
+				organizationId: org.id,
+				memberId: link.memberId,
+				operation: "update",
+				env: args.env,
+				syncStaffToGhl: args.syncStaffToGhl,
+				decryptApiKey: args.decryptApiKey,
+				putGhlUser: args.putGhlUser,
+			});
+			results.push(r);
+		}
+	}
+	return results;
 }
