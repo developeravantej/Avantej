@@ -264,6 +264,42 @@ export const memberRouter = {
         });
       }
 
+      // Best-effort GHL staff sync (Phase 7.4 wiring). The dispatcher is
+      // env-bound by `dbMiddleware` in apps/server. It's optional — older
+      // clients / environments without GHL configured simply skip.
+      // The dispatcher itself is soft-fail; the .catch is defense-in-depth.
+      type GhlSyncResult = {
+        status: "synced" | "skipped" | "error";
+        reason?: string;
+        ghlUserId?: string;
+        error?: string;
+      };
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: createdMember.id,
+          operation: "create",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -274,6 +310,7 @@ export const memberRouter = {
           status: createdMember.status,
           joinedAt: createdMember.joinedAt,
         },
+        ghlSync,
       };
     }),
 
