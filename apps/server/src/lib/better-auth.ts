@@ -287,16 +287,20 @@ function createBetterAuth(c?: Context) {
             // hook signature does not surface the Hono context. A short-lived
             // pool is acceptable since dispatchProfileSync awaits its work.
             const pool = new Pool({ connectionString: databaseUrl });
-            const controlPanelDb = drizzle({
-              client: pool,
-              schema: controlPanelSchema,
-            }) as NeonDatabase<typeof controlPanelSchema>;
+            try {
+              const controlPanelDb = drizzle({
+                client: pool,
+                schema: controlPanelSchema,
+              }) as NeonDatabase<typeof controlPanelSchema>;
 
-            await dispatchProfileSync({
-              controlPanelDb,
-              userId: user.id,
-              env: { GHL_AGENCY_ID: ghlAgencyId },
-            });
+              await dispatchProfileSync({
+                controlPanelDb,
+                userId: user.id,
+                env: { GHL_AGENCY_ID: ghlAgencyId },
+              });
+            } finally {
+              await pool.end();
+            }
           } catch (err) {
             console.error(
               "dispatchProfileSync failed in user.update.after hook:",

@@ -40,9 +40,13 @@ const putGhlUser = async (args: {
 
 const openTenantDb = async (
 	connectionString: string,
-): Promise<NeonDatabase<typeof tenantSchema>> => {
+): Promise<{
+	db: NeonDatabase<typeof tenantSchema>;
+	close: () => Promise<void>;
+}> => {
 	const pool = new Pool({ connectionString });
-	return drizzle({ client: pool, schema: tenantSchema });
+	const db = drizzle({ client: pool, schema: tenantSchema });
+	return { db, close: () => pool.end() };
 };
 
 export interface ServerDispatchStaffSyncArgs {

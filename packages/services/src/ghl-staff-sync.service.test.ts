@@ -397,7 +397,10 @@ describe("dispatchProfileSync", () => {
 				ghlUserLinks: { findMany: mock(() => Promise.resolve(links)) },
 			},
 		};
-		const openTenantDb = mock(() => Promise.resolve(tenantDbStub));
+		const close = mock(() => Promise.resolve());
+		const openTenantDb = mock(() =>
+			Promise.resolve({ db: tenantDbStub, close }),
+		);
 		let orgCallCount = 0;
 		const findFirst = mock(() => {
 			orgCallCount++;
@@ -445,5 +448,6 @@ describe("dispatchProfileSync", () => {
 		expect(openTenantDb).toHaveBeenCalledTimes(2);
 		expect(dispatch).toHaveBeenCalledTimes(4);
 		expect(results).toHaveLength(4);
+		expect(close).toHaveBeenCalledTimes(2);
 	});
 });

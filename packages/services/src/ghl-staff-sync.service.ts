@@ -213,9 +213,10 @@ export interface DispatchProfileSyncArgs {
 	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
 	userId: string;
 	env: { GHL_AGENCY_ID: string };
-	openTenantDb: (
-		connectionString: string,
-	) => Promise<NeonDatabase<typeof tenantSchema>>;
+	openTenantDb: (connectionString: string) => Promise<{
+		db: NeonDatabase<typeof tenantSchema>;
+		close: () => Promise<void>;
+	}>;
 	dispatchStaffSync: typeof dispatchStaffSync;
 	decryptConnectionString: (encrypted: string) => string;
 	decryptApiKey: (encrypted: string) => string;
@@ -245,9 +246,12 @@ export async function dispatchProfileSync(
 		if (!org) continue;
 
 		let tenantDb: NeonDatabase<typeof tenantSchema>;
+		let close: () => Promise<void>;
 		try {
 			const conn = args.decryptConnectionString(org.connectionString);
-			tenantDb = await args.openTenantDb(conn);
+			const opened = await args.openTenantDb(conn);
+			tenantDb = opened.db;
+			close = opened.close;
 		} catch (err) {
 			results.push({
 				status: "error",
@@ -256,25 +260,29 @@ export async function dispatchProfileSync(
 			continue;
 		}
 
-		const links = await tenantDb.query.ghlUserLinks.findMany({
-			where: eq(ghlUserLinks.userId, args.userId),
-		});
-
-		for (const link of links) {
-			if (link.syncStatus !== "active" && link.syncStatus !== "error")
-				continue;
-			const r = await args.dispatchStaffSync({
-				controlPanelDb: args.controlPanelDb,
-				tenantDb,
-				organizationId: org.id,
-				memberId: link.memberId,
-				operation: "update",
-				env: args.env,
-				syncStaffToGhl: args.syncStaffToGhl,
-				decryptApiKey: args.decryptApiKey,
-				putGhlUser: args.putGhlUser,
+		try {
+			const links = await tenantDb.query.ghlUserLinks.findMany({
+				where: eq(ghlUserLinks.userId, args.userId),
 			});
-			results.push(r);
+
+			for (const link of links) {
+				if (link.syncStatus !== "active" && link.syncStatus !== "error")
+					continue;
+				const r = await args.dispatchStaffSync({
+					controlPanelDb: args.controlPanelDb,
+					tenantDb,
+					organizationId: org.id,
+					memberId: link.memberId,
+					operation: "update",
+					env: args.env,
+					syncStaffToGhl: args.syncStaffToGhl,
+					decryptApiKey: args.decryptApiKey,
+					putGhlUser: args.putGhlUser,
+				});
+				results.push(r);
+			}
+		} finally {
+			await close();
 		}
 	}
 	return results;
