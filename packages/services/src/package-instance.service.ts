@@ -54,6 +54,7 @@ export type CreatePackageInstanceParams = ClientOwner & {
   installmentsTotal?: number;
   installmentsPaid?: number;
   creditsUnlocked?: number | null;
+  preferredTrainerId?: string | null;
 };
 
 export type UpdatePackageInstanceParams = {
@@ -140,6 +141,7 @@ export async function createPackageInstance(
       installmentsTotal: params.installmentsTotal ?? 1,
       installmentsPaid: params.installmentsPaid ?? 0,
       creditsUnlocked: params.creditsUnlocked ?? null,
+      preferredTrainerId: params.preferredTrainerId ?? null,
     })
     .returning();
 

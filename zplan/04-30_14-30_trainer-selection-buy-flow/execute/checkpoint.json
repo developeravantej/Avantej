@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/04-30_14-30_trainer-selection-buy-flow",
+  "planPath": "zplan/04-30_14-30_trainer-selection-buy-flow/plan/plan.md",
+  "updatedAt": "2026-04-30T16:10:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "c3e5141396451fcf1fceaf64d0c1519caf9b946b",
+  "lastCompletedPhase": 4,
+  "currentPhase": null,
+  "totalPhases": 4,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "1": [{ "role": "Agent A (backend)", "logWritten": true }],
+    "2": [{ "role": "Agent B (native)", "logWritten": true }],
+    "3": [{ "role": "Agent C (web-avail)", "logWritten": true }],
+    "4": [{ "role": "Agent D (web-approvals)", "logWritten": true }]
+  },
+  "taskCoverage": {
+    "1": { "total": 6, "done": 6, "missed": 0 },
+    "2": { "total": 5, "done": 5, "missed": 0 },
+    "3": { "total": 3, "done": 3, "missed": 0 },
+    "4": { "total": 3, "done": 3, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "FIX-1", "title": "trainer.tsx permission failure", "decision": "Switch from members.list to trainerAvailability.listByBranch", "reason": "members.list requires user_management.read which customers lack" }
+  ],
+  "openQuestions": [],
+  "nextActions": ["User runs browser/device verification, then /done"],
+  "subagentRetryLog": [
+    { "phase": 1, "agentRole": "Agent A (backend)", "attempt": 1, "outcome": "model_error_400", "fallback": "general-purpose" }
+  ]
+}

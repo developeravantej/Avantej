@@ -523,6 +523,40 @@ export default function PackageDetailScreen() {
 								</Section>
 							)}
 
+							{/* Preferred Trainer — shown only when pending and no assigned trainer */}
+							{status === "pending" &&
+								inst.preferredTrainerName &&
+								!inst.assignedTrainerName && (
+									<Section title="Preferred Trainer">
+										<View className="flex-row items-center">
+											<View
+												className="mr-3 h-10 w-10 items-center justify-center rounded-full"
+												style={{ backgroundColor: "#E0E7FF" }}
+											>
+												<Ionicons
+													name="person-outline"
+													size={20}
+													color="#4F46E5"
+												/>
+											</View>
+											<View className="flex-1">
+												<Text
+													className="font-semibold text-base"
+													style={{ color: colors.primary[1] }}
+												>
+													{inst.preferredTrainerName}
+												</Text>
+												<Text
+													className="text-xs"
+													style={{ color: colors.secondary[1] }}
+												>
+													Your preferred trainer
+												</Text>
+											</View>
+										</View>
+									</Section>
+								)}
+
 							{/* Pending Approval callout — shown instead of Book CTA */}
 							{status === "pending" && (
 								<View className="mt-2 mb-4 rounded-2xl border border-yellow-300 bg-yellow-50 p-4">

@@ -189,7 +189,28 @@ export const packageInstancesRouter = {
         }
       }
 
-      return { ...instance, assignedTrainerName };
+      // Enrich with preferred trainer name when present
+      let preferredTrainerName: string | null = null;
+      if (instance.preferredTrainerId) {
+        try {
+          const controlPanelDb = getControlPanelDb(context);
+          const [prefMember] = await context.tenantDb
+            .select({ userId: members.userId })
+            .from(members)
+            .where(eq(members.id, instance.preferredTrainerId));
+          if (prefMember) {
+            const [prefUser] = await controlPanelDb
+              .select({ name: user.name })
+              .from(user)
+              .where(eq(user.id, prefMember.userId));
+            preferredTrainerName = prefUser?.name ?? null;
+          }
+        } catch {
+          // Non-critical — proceed without name
+        }
+      }
+
+      return { ...instance, assignedTrainerName, preferredTrainerName };
     }),
 
   create: protectedProcedure
@@ -217,6 +238,7 @@ export const packageInstancesRouter = {
         remark: z.string().nullable().optional(),
         paymentPlanType: z.string().nullable().optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
+        preferredTrainerId: z.string().uuid().nullable().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -323,6 +345,7 @@ export const packageInstancesRouter = {
           installmentsTotal: resolvedInstallmentsTotal,
           installmentsPaid: 0,
           creditsUnlocked: isInstallmentPlan ? 0 : null,
+          preferredTrainerId: input.preferredTrainerId ?? null,
         });
 
         // Installment schedule uses created.totalPrice which already includes any plan price premium
@@ -894,6 +917,7 @@ export const packageInstancesRouter = {
           totalPrice: packageInstances.totalPrice,
           creditsTotal: packageInstances.creditsTotal,
           createdAt: packageInstances.createdAt,
+          preferredTrainerId: packageInstances.preferredTrainerId,
           serviceName: services.name,
           branchId: services.branchId,
         })
@@ -951,6 +975,36 @@ export const packageInstancesRouter = {
             })
           : rows;
 
+      // Batch-resolve preferred trainer names: members.id → members.userId → user.name
+      const preferredTrainerIds = [
+        ...new Set(
+          filtered
+            .map((r) => r.preferredTrainerId)
+            .filter((id): id is string => !!id),
+        ),
+      ];
+      const preferredTrainerNameMap = new Map<string, string>();
+      if (preferredTrainerIds.length > 0) {
+        const trainerMemberRows = await context.tenantDb
+          .select({ id: members.id, userId: members.userId })
+          .from(members)
+          .where(inArray(members.id, preferredTrainerIds));
+        const trainerUserIds = trainerMemberRows.map((m) => m.userId);
+        if (trainerUserIds.length > 0) {
+          const trainerUserRows = await controlPanelDb
+            .select({ id: user.id, name: user.name })
+            .from(user)
+            .where(inArray(user.id, trainerUserIds));
+          const userIdToName = new Map(
+            trainerUserRows.map((u) => [u.id, u.name]),
+          );
+          for (const m of trainerMemberRows) {
+            const name = userIdToName.get(m.userId);
+            if (name) preferredTrainerNameMap.set(m.id, name);
+          }
+        }
+      }
+
       return filtered.map((r) => ({
         ...r,
         customerName: r.clientId
@@ -958,6 +1012,9 @@ export const packageInstancesRouter = {
           : null,
         customerEmail: r.clientId
           ? (customerMap.get(r.clientId)?.email ?? null)
+          : null,
+        preferredTrainerName: r.preferredTrainerId
+          ? (preferredTrainerNameMap.get(r.preferredTrainerId) ?? null)
           : null,
       }));
     }),

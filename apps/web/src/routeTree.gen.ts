@@ -37,6 +37,7 @@ import { Route as AuthenticatedDashboardLayoutUomConversionsViewRouteImport } fr
 import { Route as AuthenticatedDashboardLayoutTransferOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/transfer-orders/view'
 import { Route as AuthenticatedDashboardLayoutTrainersViewRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/view'
 import { Route as AuthenticatedDashboardLayoutTrainersTiersRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/tiers'
+import { Route as AuthenticatedDashboardLayoutTrainersAvailabilityRouteImport } from './routes/_authenticated/dashboard/_layout/trainers/availability'
 import { Route as AuthenticatedDashboardLayoutSuppliersViewRouteImport } from './routes/_authenticated/dashboard/_layout/suppliers/view'
 import { Route as AuthenticatedDashboardLayoutStockRequestsViewRouteImport } from './routes/_authenticated/dashboard/_layout/stock-requests/view'
 import { Route as AuthenticatedDashboardLayoutSettingsTaxRatesRouteImport } from './routes/_authenticated/dashboard/_layout/settings/tax-rates'
@@ -239,6 +240,12 @@ const AuthenticatedDashboardLayoutTrainersTiersRoute =
   AuthenticatedDashboardLayoutTrainersTiersRouteImport.update({
     id: '/trainers/tiers',
     path: '/trainers/tiers',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutTrainersAvailabilityRoute =
+  AuthenticatedDashboardLayoutTrainersAvailabilityRouteImport.update({
+    id: '/trainers/availability',
+    path: '/trainers/availability',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutSuppliersViewRoute =
@@ -616,6 +623,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/availability': typeof AuthenticatedDashboardLayoutTrainersAvailabilityRoute
   '/dashboard/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
@@ -695,6 +703,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/dashboard/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/dashboard/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/dashboard/trainers/availability': typeof AuthenticatedDashboardLayoutTrainersAvailabilityRoute
   '/dashboard/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/dashboard/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/dashboard/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
@@ -777,6 +786,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/settings/tax-rates': typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   '/_authenticated/dashboard/_layout/stock-requests/view': typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   '/_authenticated/dashboard/_layout/suppliers/view': typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  '/_authenticated/dashboard/_layout/trainers/availability': typeof AuthenticatedDashboardLayoutTrainersAvailabilityRoute
   '/_authenticated/dashboard/_layout/trainers/tiers': typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   '/_authenticated/dashboard/_layout/trainers/view': typeof AuthenticatedDashboardLayoutTrainersViewRoute
   '/_authenticated/dashboard/_layout/transfer-orders/view': typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
@@ -859,6 +869,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/availability'
     | '/dashboard/trainers/tiers'
     | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
@@ -938,6 +949,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings/tax-rates'
     | '/dashboard/stock-requests/view'
     | '/dashboard/suppliers/view'
+    | '/dashboard/trainers/availability'
     | '/dashboard/trainers/tiers'
     | '/dashboard/trainers/view'
     | '/dashboard/transfer-orders/view'
@@ -1019,6 +1031,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/settings/tax-rates'
     | '/_authenticated/dashboard/_layout/stock-requests/view'
     | '/_authenticated/dashboard/_layout/suppliers/view'
+    | '/_authenticated/dashboard/_layout/trainers/availability'
     | '/_authenticated/dashboard/_layout/trainers/tiers'
     | '/_authenticated/dashboard/_layout/trainers/view'
     | '/_authenticated/dashboard/_layout/transfer-orders/view'
@@ -1243,6 +1256,13 @@ declare module '@tanstack/react-router' {
       path: '/trainers/tiers'
       fullPath: '/dashboard/trainers/tiers'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutTrainersTiersRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/trainers/availability': {
+      id: '/_authenticated/dashboard/_layout/trainers/availability'
+      path: '/trainers/availability'
+      fullPath: '/dashboard/trainers/availability'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutTrainersAvailabilityRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/suppliers/view': {
@@ -1654,6 +1674,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutSettingsTaxRatesRoute: typeof AuthenticatedDashboardLayoutSettingsTaxRatesRoute
   AuthenticatedDashboardLayoutStockRequestsViewRoute: typeof AuthenticatedDashboardLayoutStockRequestsViewRoute
   AuthenticatedDashboardLayoutSuppliersViewRoute: typeof AuthenticatedDashboardLayoutSuppliersViewRoute
+  AuthenticatedDashboardLayoutTrainersAvailabilityRoute: typeof AuthenticatedDashboardLayoutTrainersAvailabilityRoute
   AuthenticatedDashboardLayoutTrainersTiersRoute: typeof AuthenticatedDashboardLayoutTrainersTiersRoute
   AuthenticatedDashboardLayoutTrainersViewRoute: typeof AuthenticatedDashboardLayoutTrainersViewRoute
   AuthenticatedDashboardLayoutTransferOrdersViewRoute: typeof AuthenticatedDashboardLayoutTransferOrdersViewRoute
@@ -1765,6 +1786,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutStockRequestsViewRoute,
     AuthenticatedDashboardLayoutSuppliersViewRoute:
       AuthenticatedDashboardLayoutSuppliersViewRoute,
+    AuthenticatedDashboardLayoutTrainersAvailabilityRoute:
+      AuthenticatedDashboardLayoutTrainersAvailabilityRoute,
     AuthenticatedDashboardLayoutTrainersTiersRoute:
       AuthenticatedDashboardLayoutTrainersTiersRoute,
     AuthenticatedDashboardLayoutTrainersViewRoute:

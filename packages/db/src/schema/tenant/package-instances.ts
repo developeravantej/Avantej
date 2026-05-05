@@ -9,6 +9,7 @@
 
 import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { members } from "./members";
 import { payments } from "./payments";
 import { services } from "./services";
 import { walkInCustomers } from "./walk-in-customers";
@@ -60,6 +61,7 @@ export const packageInstances = pgTable("package_instances", {
 	// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
 	// package that started in `pending` state. Null for legacy / non-gated rows.
 	assignedTrainerId: uuid("assigned_trainer_id"),
+	preferredTrainerId: uuid("preferred_trainer_id").references(() => members.id),
 	assignedTrainerAssignedBy: text("assigned_trainer_assigned_by"),
 	assignedTrainerAssignedAt: timestamp("assigned_trainer_assigned_at"),
 	approvedAt: timestamp("approved_at"),

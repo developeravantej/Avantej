@@ -7,6 +7,7 @@ import { appointmentsRouter } from "./appointments";
 import { auditLogsRouter } from "./audit-logs";
 import { brandsRouter } from "./brands";
 import { cancelledSalesRouter } from "./cancelled-sales";
+import { coachIntakeRouter } from "./coach-intake";
 import { checkInsRouter } from "./check-ins";
 import { classSlotsRouter } from "./class-slots";
 import { categoryCommissionRouter } from "./category-commission";
@@ -107,6 +108,7 @@ export const baseRouter = {
 	taxRates: taxRatesRouter,
 	analytics: analyticsRouter,
 	registration: registrationRouter,
+	coachIntake: coachIntakeRouter,
 	trainerAvailability: trainerAvailabilityRouter,
 	trainerTiers: trainerTiersRouter,
 	serviceMembers: serviceMembersRouter,

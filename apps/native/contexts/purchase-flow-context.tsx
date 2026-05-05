@@ -24,7 +24,10 @@ export interface PurchaseFlowState {
 	creditsTotal: number | null;
 	price: number | null;
 	validityDays: number | null;
-	// Step 2 - Schedule
+	// Step 2 - Trainer (optional, appointment services only)
+	preferredTrainerId: string | null;
+	preferredTrainerName: string | null;
+	// Step 3 - Schedule
 	preferredTimes: Array<{ day: string; time: string }>;
 	// Step 3 - Info
 	remark: string | null;
@@ -58,6 +61,8 @@ const initialState: PurchaseFlowState = {
 	creditsTotal: null,
 	price: null,
 	validityDays: null,
+	preferredTrainerId: null,
+	preferredTrainerName: null,
 	preferredTimes: [],
 	remark: null,
 	paymentPlanType: null,

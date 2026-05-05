@@ -285,11 +285,28 @@ export * from "./suppliers.service";
 export * from "./tax-rates.service";
 // Tenant admin services
 export * from "./tenant-admin.service";
+// Coach intake services
+export {
+	claimIntakeSlot,
+	type CoachIntakeByBranchRow,
+	computeOpenIntakeSlots,
+	type IntakeSlot,
+	listCoachIntakeByBranch,
+	listCoachIntakeSlots,
+	listIntakeExceptions,
+	type OpenIntakeDay,
+	unclaimIntakeSlot,
+	upsertCoachIntakeSlots,
+} from "./coach-intake.service";
 // Trainer availability services
 export {
 	type AvailabilitySlot,
+	type ComputedDayAvailability,
+	computeAvailableSlots,
 	deleteTrainerAvailabilitySlot,
 	listTrainerAvailability,
+	listTrainerAvailabilityByBranch,
+	type TrainerAvailabilityByBranchRow,
 	upsertTrainerAvailability,
 } from "./trainer-availability.service";
 // Trainer tier services

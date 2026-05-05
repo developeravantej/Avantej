@@ -80,6 +80,7 @@ export default function PayScreen() {
 				remark: state.remark,
 				paymentPlanType: state.paymentPlanType ?? "full",
 				installmentIntervalDays: state.installmentIntervalDays ?? 30,
+				preferredTrainerId: state.preferredTrainerId ?? undefined,
 			});
 
 			// Save preferred times if any

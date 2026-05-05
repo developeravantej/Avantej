@@ -8,6 +8,7 @@ import {
 	Briefcase,
 	Building2,
 	Calendar,
+	CalendarRange,
 	ChevronRight,
 	ClipboardCheck,
 	ClipboardList,
@@ -113,6 +114,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/appointment/class-slots/view",
 				icon: Grid3x3,
 				permission: "appointment_management:read",
+			},
+			{
+				title: "Trainer Availability",
+				url: "/dashboard/trainers/availability",
+				icon: CalendarRange,
 			},
 			{
 				title: "Services",

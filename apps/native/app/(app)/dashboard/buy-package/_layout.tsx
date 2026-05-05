@@ -12,6 +12,7 @@ export default function BuyPackageLayout() {
 				}}
 			>
 				<Stack.Screen name="setup" />
+				<Stack.Screen name="trainer" />
 				<Stack.Screen name="schedule" />
 				<Stack.Screen name="info" />
 				<Stack.Screen name="plan" />

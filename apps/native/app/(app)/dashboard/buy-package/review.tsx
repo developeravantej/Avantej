@@ -256,6 +256,31 @@ export default function ReviewScreen() {
 							</View>
 						)}
 
+						{/* Preferred Trainer (optional) */}
+						{state.preferredTrainerName && (
+							<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+								<View className="mb-2 flex-row items-center">
+									<Ionicons
+										name="person-outline"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-2 text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										Preferred Trainer
+									</Text>
+								</View>
+								<Text
+									className="font-semibold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{state.preferredTrainerName}
+								</Text>
+							</View>
+						)}
+
 						{/* Preferred Times (Personal Training only) */}
 						{state.serviceType === "private" &&
 							state.preferredTimes.length > 0 && (

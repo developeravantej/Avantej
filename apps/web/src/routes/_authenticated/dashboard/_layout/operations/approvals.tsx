@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageLoader } from "@/components/ui/loading-spinner";
@@ -38,6 +39,8 @@ type PendingRow = {
 	createdAt: string | Date;
 	customerName: string | null;
 	customerEmail: string | null;
+	preferredTrainerId: string | null;
+	preferredTrainerName: string | null;
 };
 
 function formatDate(value: string | Date | null | undefined): string {
@@ -164,8 +167,15 @@ function ApprovalsPage() {
 							{list.map((row) => (
 								<TableRow key={row.id}>
 									<TableCell>
-										<div className="font-medium text-foreground">
-											{row.customerName ?? "—"}
+										<div className="flex items-center gap-2">
+											<span className="font-medium text-foreground">
+												{row.customerName ?? "—"}
+											</span>
+											{row.preferredTrainerName && (
+												<Badge variant="outline" className="text-xs">
+													Preferred: {row.preferredTrainerName}
+												</Badge>
+											)}
 										</div>
 										<div className="text-muted-foreground text-xs">
 											{row.customerEmail ?? ""}
@@ -237,7 +247,9 @@ function ApprovalsPage() {
 				organizationId={organizationId}
 				pkg={drawerPkg}
 				defaultTrainerMemberId={
-					drawerSelfAssign && callerMemberId ? callerMemberId : undefined
+					drawerSelfAssign && callerMemberId
+						? callerMemberId
+						: (drawerPkg?.preferredTrainerId ?? undefined)
 				}
 				lockTrainer={drawerSelfAssign}
 				onAssigned={() => refetch()}

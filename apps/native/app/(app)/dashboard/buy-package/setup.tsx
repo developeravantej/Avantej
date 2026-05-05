@@ -120,7 +120,16 @@ export default function SetupScreen() {
 			installmentIntervalDays:
 				(selectedSvc as any).installmentIntervalDays ?? 30,
 		});
-		router.push("./schedule");
+		const nextSchedulingType =
+			((selectedSvc as any).schedulingType as
+				| "appointment"
+				| "class_slot"
+				| null) ?? "appointment";
+		if (nextSchedulingType === "appointment") {
+			router.push("./trainer");
+		} else {
+			router.push("./schedule");
+		}
 	};
 
 	return (

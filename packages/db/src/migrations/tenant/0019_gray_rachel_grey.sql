@@ -1,0 +1,2 @@
+ALTER TABLE "package_instances" ADD COLUMN "preferred_trainer_id" uuid;--> statement-breakpoint
+ALTER TABLE "package_instances" ADD CONSTRAINT "package_instances_preferred_trainer_id_members_id_fk" FOREIGN KEY ("preferred_trainer_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;

@@ -1,5 +1,7 @@
 import {
+	computeAvailableSlots,
 	listTrainerAvailability,
+	listTrainerAvailabilityByBranch,
 	upsertTrainerAvailability,
 	deleteTrainerAvailabilitySlot,
 	requirePermission,
@@ -7,6 +9,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
 	"monday",
@@ -33,6 +36,52 @@ export const trainerAvailabilityRouter = {
 				});
 			}
 			return listTrainerAvailability(context.tenantDb, input.trainerId);
+		}),
+
+	listByBranch: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid().optional(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			const controlPanelDb = getControlPanelDb(context);
+			return listTrainerAvailabilityByBranch(
+				controlPanelDb,
+				context.tenantDb,
+				{ branchId: input.branchId },
+			);
+		}),
+
+	getComputedSlots: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				trainerId: z.string().uuid(),
+				startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+				endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			const startDate = new Date(`${input.startDate}T00:00:00`);
+			const endDate = new Date(`${input.endDate}T23:59:59`);
+			return computeAvailableSlots(
+				context.tenantDb,
+				input.trainerId,
+				startDate,
+				endDate,
+			);
 		}),
 
 	upsert: protectedProcedure
