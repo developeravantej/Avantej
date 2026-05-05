@@ -367,6 +367,100 @@ describe("dispatchStaffSync", () => {
 		expect(updateMock).toHaveBeenCalledTimes(1);
 		expect(result).toEqual({ status: "synced", ghlUserId: "g-existing" });
 	});
+
+	it("on branch reassignment with existingBranchCustomFieldId set, includes customFields in PUT payload with branch name", async () => {
+		const putGhlUser = mock(() => Promise.resolve({ id: "g-existing" }));
+		const whereMock = mock(() => Promise.resolve(undefined));
+		const setMock = mock(() => ({ where: whereMock }));
+		const updateMock = mock(() => ({ set: setMock }));
+		const syncStaffToGhl = mock(() =>
+			Promise.resolve({ status: "synced" as const }),
+		);
+
+		const tenantDb = {
+			query: {
+				members: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "m-1",
+							userId: "u-1",
+							role: "staff",
+							status: "active",
+							hierarchyScopeId: "b-NEW",
+						}),
+					),
+				},
+				hierarchyNodes: {
+					findFirst: mock(() =>
+						Promise.resolve({ id: "b-NEW", type: "branch", name: "Sabah" }),
+					),
+				},
+				ghlUserLinks: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "l-1",
+							memberId: "m-1",
+							branchNodeId: "b-OLD",
+							ghlUserId: "g-existing",
+							ghlLocationId: "loc-OLD",
+						}),
+					),
+				},
+			},
+			update: updateMock,
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+		const controlPanelDb = {
+			query: {
+				users: {
+					findFirst: mock(() =>
+						Promise.resolve({ id: "u-1", email: "a@b.com" }),
+					),
+				},
+				ghlBranchLinks: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "bl-NEW",
+							ghlLocationId: "loc-NEW",
+							ghlApiKey: "enc-NEW",
+							isActive: true,
+							tenantBranchId: "b-NEW",
+							existingBranchCustomFieldId: "cf-existing-branch",
+						}),
+					),
+				},
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+
+		const result = await dispatchStaffSync({
+			controlPanelDb,
+			tenantDb,
+			organizationId: "org-1",
+			memberId: "m-1",
+			operation: "update",
+			env: { GHL_AGENCY_ID: "agency-1" },
+			syncStaffToGhl,
+			decryptApiKey: (e) => `dec(${e})`,
+			putGhlUser,
+		});
+
+		expect(syncStaffToGhl).not.toHaveBeenCalled();
+		expect(putGhlUser).toHaveBeenCalledTimes(1);
+		const putCall = putGhlUser.mock.calls[0][0] as {
+			apiKey: string;
+			ghlUserId: string;
+			payload: {
+				locationIds: string[];
+				customFields?: Array<{ id: string; value: string }>;
+			};
+		};
+		expect(putCall.payload.locationIds).toEqual(["loc-NEW"]);
+		expect(putCall.payload.customFields).toEqual([
+			{ id: "cf-existing-branch", value: "Sabah" },
+		]);
+		expect(result).toEqual({ status: "synced", ghlUserId: "g-existing" });
+	});
 });
 
 describe("dispatchProfileSync", () => {

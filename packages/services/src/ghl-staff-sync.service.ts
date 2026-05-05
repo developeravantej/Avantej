@@ -84,7 +84,10 @@ export interface DispatchStaffSyncArgs {
 	putGhlUser: (args: {
 		apiKey: string;
 		ghlUserId: string;
-		payload: { locationIds: string[] };
+		payload: {
+			locationIds: string[];
+			customFields?: Array<{ id: string; value: string }>;
+		};
 	}) => Promise<{ id: string }>;
 }
 
@@ -155,12 +158,24 @@ export async function dispatchStaffSync(
 			existingLink.branchNodeId !== branchNodeId
 		) {
 			const apiKey = args.decryptApiKey(branchLink.ghlApiKey);
+			// If the branch link has an `existingBranchCustomFieldId` configured,
+			// set the GHL custom field on the user to the new branch name so the
+			// downstream GHL workflows know which branch this person came from.
+			const customFields = branchLink.existingBranchCustomFieldId
+				? [
+						{
+							id: branchLink.existingBranchCustomFieldId,
+							value: node.name,
+						},
+					]
+				: undefined;
 			await args.putGhlUser({
 				apiKey,
 				ghlUserId: existingLink.ghlUserId,
-				payload: { locationIds: [branchLink.ghlLocationId] },
-				// TODO(ghl-existingBranch-custom-field): also set the "existingBranch"
-				// custom field once its field id is configured per location.
+				payload: {
+					locationIds: [branchLink.ghlLocationId],
+					...(customFields ? { customFields } : {}),
+				},
 			});
 			await tenantDb
 				.update(ghlUserLinks)

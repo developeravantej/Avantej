@@ -28,7 +28,10 @@ import type { GhlUser } from "./types";
 const putGhlUser = async (args: {
 	apiKey: string;
 	ghlUserId: string;
-	payload: { locationIds: string[] };
+	payload: {
+		locationIds: string[];
+		customFields?: Array<{ id: string; value: string }>;
+	};
 }): Promise<{ id: string }> => {
 	return ghlFetch<GhlUser>({
 		method: "PUT",
