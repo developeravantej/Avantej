@@ -1,0 +1,1 @@
+ALTER TABLE "ghl_branch_links" ADD COLUMN "existing_branch_custom_field_id" text;

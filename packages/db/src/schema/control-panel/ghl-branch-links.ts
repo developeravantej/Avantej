@@ -32,6 +32,7 @@ export const ghlBranchLinks = pgTable(
 		ghlLocationId: text("ghl_location_id").notNull(),
 		ghlApiKey: text("ghl_api_key").notNull(),
 		webhookSecret: text("webhook_secret"),
+		existingBranchCustomFieldId: text("existing_branch_custom_field_id"),
 		isActive: boolean("is_active").default(true).notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
