@@ -15,6 +15,7 @@ import {
 	Trash2,
 	Mail,
 	Calendar,
+	RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { UserForAssignment, RoleResponse } from "@/types/user-assignment";
@@ -56,9 +63,89 @@ interface UserCardProps {
 	onEditRoles: () => void;
 	onEditDetails: () => void;
 	onDeactivate: () => void;
+	onRetryGhlSync: () => void;
 	onSelect?: (selected: boolean) => void;
 	isSelected?: boolean;
 	isLoading?: boolean;
+	isRetryingGhlSync?: boolean;
+}
+
+function GhlSyncBadge({
+	user,
+	onRetry,
+	isRetrying,
+}: {
+	user: UserForAssignment;
+	onRetry: () => void;
+	isRetrying: boolean;
+}) {
+	const ghl = user.ghlSync;
+
+	if (!ghl) {
+		return <span className="text-xs text-muted-foreground">—</span>;
+	}
+
+	const status = ghl.syncStatus;
+	const variantClass =
+		status === "active"
+			? "bg-emerald-100 text-emerald-800 border-emerald-300"
+			: status === "error"
+				? "bg-destructive/10 text-destructive border-destructive/30"
+				: "bg-muted text-muted-foreground border-border";
+
+	const label =
+		status === "active"
+			? "Synced"
+			: status === "error"
+				? "Error"
+				: status === "inactive"
+					? "Inactive"
+					: status === "skipped"
+						? "Skipped"
+						: status;
+
+	const badge = (
+		<Badge
+			variant="outline"
+			className={cn("text-xs capitalize", variantClass)}
+		>
+			{label}
+		</Badge>
+	);
+
+	return (
+		<div className="flex items-center gap-2">
+			{status === "error" && ghl.lastError ? (
+				<TooltipProvider delayDuration={150}>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="cursor-help">{badge}</span>
+						</TooltipTrigger>
+						<TooltipContent className="max-w-xs break-words">
+							{ghl.lastError}
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
+			) : (
+				badge
+			)}
+			{status === "error" && (
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-6 px-2 text-xs"
+					onClick={onRetry}
+					disabled={isRetrying}
+					aria-label="Retry GHL sync"
+				>
+					<RefreshCw
+						className={cn("w-3 h-3 mr-1", isRetrying && "animate-spin")}
+					/>
+					{isRetrying ? "Retrying" : "Retry"}
+				</Button>
+			)}
+		</div>
+	);
 }
 
 function UserCard({
@@ -67,9 +154,11 @@ function UserCard({
 	onEditRoles,
 	onEditDetails,
 	onDeactivate,
+	onRetryGhlSync,
 	onSelect,
 	isSelected,
 	isLoading: _isLoading,
+	isRetryingGhlSync,
 }: UserCardProps) {
 	const userRoles = roles.filter((role) => user.roles.includes(role.id));
 	const highestRole = userRoles.reduce(
@@ -223,6 +312,15 @@ function UserCard({
 								</span>
 							)}
 						</div>
+					</div>
+
+					<div className="flex items-center justify-between text-sm pt-1">
+						<span className="text-muted-foreground">GHL Sync</span>
+						<GhlSyncBadge
+							user={user}
+							onRetry={onRetryGhlSync}
+							isRetrying={!!isRetryingGhlSync}
+						/>
 					</div>
 				</div>
 			</CardContent>
@@ -515,10 +613,14 @@ export function MembersTabPage() {
 					.map((r) => r.id)
 			: [],
 		isActive: m.status === "active",
+		ghlSync: (m as any).ghlSync ?? null,
 	}));
 
 	const [users, setUsers] = useState<UserForAssignment[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
+	const [retryingGhlSyncMemberId, setRetryingGhlSyncMemberId] = useState<
+		string | null
+	>(null);
 
 	useEffect(() => {
 		setUsers(initialUsers);
@@ -678,6 +780,42 @@ export function MembersTabPage() {
 			);
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleRetryGhlSync = async (memberId: string) => {
+		if (!organizationId) return;
+		setRetryingGhlSyncMemberId(memberId);
+		try {
+			const result = await client.members.retryGhlSync({
+				organizationId,
+				memberId,
+			});
+			const status = result?.ghlSync?.status;
+			if (status === "synced") {
+				toast.success("GHL sync succeeded");
+			} else if (status === "skipped") {
+				toast.info(
+					`GHL sync skipped${
+						result?.ghlSync?.reason ? `: ${result.ghlSync.reason}` : ""
+					}`,
+				);
+			} else {
+				toast.error(
+					`GHL sync failed${
+						result?.ghlSync?.error ? `: ${result.ghlSync.error}` : ""
+					}`,
+				);
+			}
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to retry GHL sync",
+			);
+		} finally {
+			setRetryingGhlSyncMemberId(null);
 		}
 	};
 
@@ -914,7 +1052,9 @@ export function MembersTabPage() {
 						onEditRoles={() => handleEditUserRoles(user)}
 						onEditDetails={() => handleOpenEditUser(user)}
 						onDeactivate={() => handleDeactivateUser(user.id)}
+						onRetryGhlSync={() => handleRetryGhlSync(user.id)}
 						isLoading={isSaving}
+						isRetryingGhlSync={retryingGhlSyncMemberId === user.id}
 					/>
 				))}
 			</div>

@@ -7,8 +7,9 @@
 
 import { createMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, inArray, asc, type SQL } from "drizzle-orm";
+import { desc, eq, and, inArray, asc, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -135,8 +136,49 @@ export const memberRouter = {
         }
       }
 
+      // GHL sync enrichment: fetch the most recent ghl_user_links row per
+      // member (a member may have one link per branch; we surface the latest
+      // updated entry as a representative status for the row).
+      const memberIds = memberRows.map((m: any) => m.id);
+      const ghlLinkRows = memberIds.length
+        ? await context.tenantDb
+            .select({
+              memberId: ghlUserLinks.memberId,
+              syncStatus: ghlUserLinks.syncStatus,
+              lastError: ghlUserLinks.lastError,
+              lastSyncedAt: ghlUserLinks.lastSyncedAt,
+              ghlUserId: ghlUserLinks.ghlUserId,
+              updatedAt: ghlUserLinks.updatedAt,
+            })
+            .from(ghlUserLinks)
+            .where(inArray(ghlUserLinks.memberId, memberIds))
+            .orderBy(desc(ghlUserLinks.updatedAt))
+        : [];
+
+      // Keep only the first (most recent by updatedAt) row per memberId.
+      const ghlByMember = new Map<
+        string,
+        {
+          syncStatus: string;
+          lastError: string | null;
+          lastSyncedAt: Date | null;
+          ghlUserId: string;
+        }
+      >();
+      for (const row of ghlLinkRows) {
+        if (!ghlByMember.has(row.memberId)) {
+          ghlByMember.set(row.memberId, {
+            syncStatus: row.syncStatus,
+            lastError: row.lastError,
+            lastSyncedAt: row.lastSyncedAt,
+            ghlUserId: row.ghlUserId,
+          });
+        }
+      }
+
       return memberRows.map((m: any) => {
         const userDetails = userMap.get(m.userId);
+        const ghl = ghlByMember.get(m.id);
         return {
           id: m.id,
           userId: m.userId,
@@ -147,6 +189,14 @@ export const memberRouter = {
           trainerTierId: m.trainerTierId,
           name: userDetails?.name ?? "Unknown",
           email: userDetails?.email ?? "Unknown",
+          ghlSync: ghl
+            ? {
+                syncStatus: ghl.syncStatus,
+                lastError: ghl.lastError,
+                lastSyncedAt: ghl.lastSyncedAt,
+                ghlUserId: ghl.ghlUserId,
+              }
+            : null,
         };
       });
     }),
