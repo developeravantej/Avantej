@@ -12,6 +12,7 @@
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -56,6 +57,19 @@ export async function dispatchStaffSync(
 		return { status: "skipped", reason: "non-staff-role" };
 	}
 
-	// TODO: subsequent tasks add deactivate-skip, branch resolution, sync call, error capture.
+	if (args.operation === "delete") {
+		const existing = await tenantDb.query.ghlUserLinks.findFirst({
+			where: eq(ghlUserLinks.memberId, memberId),
+		});
+		if (existing) {
+			await tenantDb
+				.update(ghlUserLinks)
+				.set({ syncStatus: "inactive", updatedAt: new Date() })
+				.where(eq(ghlUserLinks.id, existing.id));
+		}
+		return { status: "skipped", reason: "deactivate-skip" };
+	}
+
+	// TODO: subsequent tasks add branch resolution, sync call, error capture.
 	return { status: "error", error: "not implemented" };
 }
