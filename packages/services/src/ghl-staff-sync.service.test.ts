@@ -1,6 +1,19 @@
 import { describe, expect, it, mock } from "bun:test";
 import { dispatchStaffSync } from "./ghl-staff-sync.service";
 
+// biome-ignore lint/suspicious/noExplicitAny: shared test stubs
+const noopSyncStaffToGhl = mock((_args: any) =>
+	Promise.resolve({ status: "synced" as const }),
+);
+const noopDecryptApiKey = (e: string) => e;
+const noopPutGhlUser = mock(() => Promise.resolve({ id: "x" }));
+
+const baseInjected = {
+	syncStaffToGhl: noopSyncStaffToGhl,
+	decryptApiKey: noopDecryptApiKey,
+	putGhlUser: noopPutGhlUser,
+};
+
 describe("dispatchStaffSync", () => {
 	it("returns skipped/non-staff-role when member.role is not admin/staff/trainer", async () => {
 		const tenantDb = {
@@ -27,7 +40,8 @@ describe("dispatchStaffSync", () => {
 			organizationId: "org-1",
 			memberId: "m-1",
 			operation: "create",
-			env: { GHL_AGENCY_ID: "agency", ENCRYPTION_KEY: "key" },
+			env: { GHL_AGENCY_ID: "agency" },
+			...baseInjected,
 		});
 
 		expect(result).toEqual({ status: "skipped", reason: "non-staff-role" });
@@ -76,7 +90,8 @@ describe("dispatchStaffSync", () => {
 			organizationId: "org-1",
 			memberId: "m-1",
 			operation: "delete",
-			env: { GHL_AGENCY_ID: "agency", ENCRYPTION_KEY: "key" },
+			env: { GHL_AGENCY_ID: "agency" },
+			...baseInjected,
 		});
 
 		expect(result).toEqual({ status: "skipped", reason: "deactivate-skip" });
@@ -113,7 +128,8 @@ describe("dispatchStaffSync", () => {
 			organizationId: "org-1",
 			memberId: "m-1",
 			operation: "create",
-			env: { GHL_AGENCY_ID: "agency", ENCRYPTION_KEY: "key" },
+			env: { GHL_AGENCY_ID: "agency" },
+			...baseInjected,
 		});
 
 		expect(result).toEqual({ status: "skipped", reason: "non-branch-scope" });
@@ -162,12 +178,190 @@ describe("dispatchStaffSync", () => {
 			organizationId: "org-1",
 			memberId: "m-1",
 			operation: "create",
-			env: { GHL_AGENCY_ID: "agency", ENCRYPTION_KEY: "key" },
+			env: { GHL_AGENCY_ID: "agency" },
+			...baseInjected,
 		});
 
 		expect(result).toEqual({
 			status: "skipped",
 			reason: "branch-not-connected",
 		});
+	});
+
+	it("on create, calls syncStaffToGhl with resolved branch + companyId", async () => {
+		const syncStaffToGhl = mock(() =>
+			Promise.resolve({ status: "synced" as const, ghlUserId: "g-new" }),
+		);
+		const tenantDb = {
+			query: {
+				members: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "m-1",
+							userId: "u-1",
+							role: "trainer",
+							status: "active",
+							hierarchyScopeId: "b-1",
+						}),
+					),
+				},
+				hierarchyNodes: {
+					findFirst: mock(() =>
+						Promise.resolve({ id: "b-1", type: "branch", name: "KL" }),
+					),
+				},
+				ghlUserLinks: {
+					findFirst: mock(() => Promise.resolve(null)),
+				},
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+		const controlPanelDb = {
+			query: {
+				users: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "u-1",
+							email: "a@b.com",
+							firstName: "A",
+							lastName: "B",
+						}),
+					),
+				},
+				ghlBranchLinks: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "bl-1",
+							ghlLocationId: "loc-1",
+							ghlApiKey: "enc",
+							isActive: true,
+							tenantBranchId: "b-1",
+						}),
+					),
+				},
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+
+		const result = await dispatchStaffSync({
+			controlPanelDb,
+			tenantDb,
+			organizationId: "org-1",
+			memberId: "m-1",
+			operation: "create",
+			env: { GHL_AGENCY_ID: "agency-1" },
+			syncStaffToGhl,
+			decryptApiKey: (e) => `dec(${e})`,
+			putGhlUser: mock(() => Promise.resolve({ id: "x" })),
+		});
+
+		expect(syncStaffToGhl).toHaveBeenCalledTimes(1);
+		const call = syncStaffToGhl.mock.calls[0][0] as {
+			organizationId: string;
+			branchNodeId: string;
+			companyId: string;
+			operation: string;
+			user: { id: string; email: string };
+			member: { id: string; role: string };
+		};
+		expect(call.organizationId).toBe("org-1");
+		expect(call.branchNodeId).toBe("b-1");
+		expect(call.companyId).toBe("agency-1");
+		expect(call.operation).toBe("create");
+		expect(call.user.id).toBe("u-1");
+		expect(call.user.email).toBe("a@b.com");
+		expect(call.member.id).toBe("m-1");
+		expect(call.member.role).toBe("trainer");
+		expect(result).toEqual({ status: "synced", ghlUserId: "g-new" });
+	});
+
+	it("on update with branch reassignment, PUTs to new location and updates link row (without calling syncStaffToGhl)", async () => {
+		const putGhlUser = mock(() => Promise.resolve({ id: "g-existing" }));
+		const whereMock = mock(() => Promise.resolve(undefined));
+		const setMock = mock(() => ({ where: whereMock }));
+		const updateMock = mock(() => ({ set: setMock }));
+		const syncStaffToGhl = mock(() =>
+			Promise.resolve({ status: "synced" as const }),
+		);
+
+		const tenantDb = {
+			query: {
+				members: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "m-1",
+							userId: "u-1",
+							role: "staff",
+							status: "active",
+							hierarchyScopeId: "b-NEW",
+						}),
+					),
+				},
+				hierarchyNodes: {
+					findFirst: mock(() =>
+						Promise.resolve({ id: "b-NEW", type: "branch", name: "Sabah" }),
+					),
+				},
+				ghlUserLinks: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "l-1",
+							memberId: "m-1",
+							branchNodeId: "b-OLD",
+							ghlUserId: "g-existing",
+							ghlLocationId: "loc-OLD",
+						}),
+					),
+				},
+			},
+			update: updateMock,
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+		const controlPanelDb = {
+			query: {
+				users: {
+					findFirst: mock(() =>
+						Promise.resolve({ id: "u-1", email: "a@b.com" }),
+					),
+				},
+				ghlBranchLinks: {
+					findFirst: mock(() =>
+						Promise.resolve({
+							id: "bl-NEW",
+							ghlLocationId: "loc-NEW",
+							ghlApiKey: "enc-NEW",
+							isActive: true,
+							tenantBranchId: "b-NEW",
+						}),
+					),
+				},
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+
+		const result = await dispatchStaffSync({
+			controlPanelDb,
+			tenantDb,
+			organizationId: "org-1",
+			memberId: "m-1",
+			operation: "update",
+			env: { GHL_AGENCY_ID: "agency-1" },
+			syncStaffToGhl,
+			decryptApiKey: (e) => `dec(${e})`,
+			putGhlUser,
+		});
+
+		expect(syncStaffToGhl).not.toHaveBeenCalled();
+		expect(putGhlUser).toHaveBeenCalledTimes(1);
+		const putCall = putGhlUser.mock.calls[0][0] as {
+			apiKey: string;
+			ghlUserId: string;
+			payload: { locationIds: string[] };
+		};
+		expect(putCall.apiKey).toBe("dec(enc-NEW)");
+		expect(putCall.ghlUserId).toBe("g-existing");
+		expect(putCall.payload).toEqual({ locationIds: ["loc-NEW"] });
+		expect(updateMock).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({ status: "synced", ghlUserId: "g-existing" });
 	});
 });

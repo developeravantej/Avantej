@@ -3,11 +3,12 @@
  *
  * Single source of truth for dispatching staff sync to GoHighLevel.
  * Owns skip-rule decisions (non-staff role, non-branch scope, branch not connected,
- * deactivate skip) and orchestrates calls to the underlying syncStaffToGhl routine.
+ * deactivate skip), branch-reassignment handling (PUT-only, preserves ghlUserId),
+ * and delegation to the injected `syncStaffToGhl` orchestrator for standard
+ * create/update flows. The orchestrator + GHL HTTP client + decryption helpers
+ * are dependency-injected so this package stays decoupled from apps/server.
  *
- * This file currently scaffolds the dispatcher and implements the non-staff-role
- * skip rule only. Subsequent tasks add deactivate-skip, branch resolution,
- * syncStaffToGhl invocation, and dispatchProfileSync.
+ * Never throws — all errors surface as `{ status: "error", error }`.
  */
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -35,13 +36,54 @@ export interface StaffSyncResult {
 	error?: string;
 }
 
+/**
+ * Structural alias for `apps/server/src/services/ghl/sync-staff.ts#syncStaffToGhl`.
+ * Kept here to avoid importing from apps/server.
+ */
+export type SyncStaffOrchestrator = (args: {
+	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+	tenantDb: NeonDatabase<typeof tenantSchema>;
+	organizationId: string;
+	branchNodeId: string;
+	companyId: string;
+	user: {
+		id: string;
+		email: string;
+		firstName?: string | null;
+		lastName?: string | null;
+		name?: string | null;
+	};
+	member: {
+		id: string;
+		userId: string;
+		role: string;
+		status: string;
+		hierarchyScopeId: string;
+	};
+	operation: "create" | "update" | "delete";
+	decryptApiKey: (encrypted: string) => string;
+}) => Promise<{
+	status: "synced" | "skipped" | "error";
+	ghlUserId?: string;
+	error?: string;
+	reason?: string;
+}>;
+
 export interface DispatchStaffSyncArgs {
 	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
 	tenantDb: NeonDatabase<typeof tenantSchema>;
 	organizationId: string;
 	memberId: string;
 	operation: StaffSyncOperation;
-	env: { GHL_AGENCY_ID: string; ENCRYPTION_KEY: string };
+	env: { GHL_AGENCY_ID: string };
+	syncStaffToGhl: SyncStaffOrchestrator;
+	decryptApiKey: (encrypted: string) => string;
+	/** GHL PUT /users/:id — invoked only on branch reassignment to preserve ghlUserId. */
+	putGhlUser: (args: {
+		apiKey: string;
+		ghlUserId: string;
+		payload: { locationIds: string[] };
+	}) => Promise<{ id: string }>;
 }
 
 const STAFF_ROLES = new Set(["admin", "staff", "trainer"]);
@@ -97,8 +139,70 @@ export async function dispatchStaffSync(
 		return { status: "skipped", reason: "branch-not-connected" };
 	}
 
-	// TODO Task 4: branch reassignment detection + syncStaffToGhl call
-	// biome-ignore lint/correctness/noUnusedVariables: consumed in Task 4
-	const _bound = { branchNodeId, user, branchLink };
-	return { status: "error", error: "not implemented" };
+	try {
+		const existingLink = await tenantDb.query.ghlUserLinks.findFirst({
+			where: eq(ghlUserLinks.memberId, memberId),
+		});
+
+		// Branch reassignment path: existing link points at a different branch.
+		// Reassign by PUT-ing new locationIds to GHL and updating the link row.
+		// Skips the standard orchestrator (which would create a new GHL user).
+		if (
+			args.operation === "update" &&
+			existingLink &&
+			existingLink.branchNodeId !== branchNodeId
+		) {
+			const apiKey = args.decryptApiKey(branchLink.ghlApiKey);
+			await args.putGhlUser({
+				apiKey,
+				ghlUserId: existingLink.ghlUserId,
+				payload: { locationIds: [branchLink.ghlLocationId] },
+				// TODO(ghl-existingBranch-custom-field): also set the "existingBranch"
+				// custom field once its field id is configured per location.
+			});
+			await tenantDb
+				.update(ghlUserLinks)
+				.set({
+					branchNodeId,
+					ghlLocationId: branchLink.ghlLocationId,
+					syncStatus: "active",
+					lastError: null,
+					lastSyncedAt: new Date(),
+					updatedAt: new Date(),
+				})
+				.where(eq(ghlUserLinks.id, existingLink.id));
+			return { status: "synced", ghlUserId: existingLink.ghlUserId };
+		}
+
+		// Standard create/update — delegate to the injected orchestrator.
+		const result = await args.syncStaffToGhl({
+			controlPanelDb: args.controlPanelDb,
+			tenantDb,
+			organizationId: args.organizationId,
+			branchNodeId,
+			companyId: args.env.GHL_AGENCY_ID,
+			user: {
+				id: user.id,
+				email: user.email,
+				firstName: user.firstName ?? null,
+				lastName: user.lastName ?? null,
+				name: user.name ?? null,
+			},
+			member: {
+				id: member.id,
+				userId: member.userId,
+				role: member.role,
+				status: member.status,
+				hierarchyScopeId: member.hierarchyScopeId,
+			},
+			operation: args.operation,
+			decryptApiKey: args.decryptApiKey,
+		});
+		return result as StaffSyncResult;
+	} catch (err) {
+		return {
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
 }
