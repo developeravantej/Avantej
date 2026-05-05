@@ -106,6 +106,17 @@ export {
 } from "./customer-profile.service";
 // Expense services
 export * from "./expenses.service";
+// GHL staff sync services
+export {
+	type DispatchProfileSyncArgs,
+	type DispatchStaffSyncArgs,
+	dispatchProfileSync,
+	dispatchStaffSync,
+	type StaffSyncOperation,
+	type StaffSyncResult,
+	type StaffSyncSkipReason,
+	type SyncStaffOrchestrator,
+} from "./ghl-staff-sync.service";
 // Google Calendar services
 export * from "./google-calendar.service";
 export * from "./google-calendar-sync.service";

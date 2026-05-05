@@ -7,8 +7,9 @@
 
 import { createMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, inArray, asc, type SQL } from "drizzle-orm";
+import { desc, eq, and, inArray, asc, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -18,6 +19,17 @@ import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { deactivateMember } from "@avantej-core/services/member.service";
 import { writeAudit } from "@avantej-core/services/audit-log.service";
+
+// Shared GHL staff sync dispatcher result type (Phase 7.4 wiring). The
+// dispatcher itself is env-bound by `dbMiddleware` in apps/server and looked
+// up via `context.honoContext.get("dispatchStaffSync")`. The function type is
+// declared locally per handler since it references `typeof context.tenantDb`.
+type GhlSyncResult = {
+  status: "synced" | "skipped" | "error";
+  reason?: string;
+  ghlUserId?: string;
+  error?: string;
+};
 
 export const memberRouter = {
   /**
@@ -124,8 +136,49 @@ export const memberRouter = {
         }
       }
 
+      // GHL sync enrichment: fetch the most recent ghl_user_links row per
+      // member (a member may have one link per branch; we surface the latest
+      // updated entry as a representative status for the row).
+      const memberIds = memberRows.map((m: any) => m.id);
+      const ghlLinkRows = memberIds.length
+        ? await context.tenantDb
+            .select({
+              memberId: ghlUserLinks.memberId,
+              syncStatus: ghlUserLinks.syncStatus,
+              lastError: ghlUserLinks.lastError,
+              lastSyncedAt: ghlUserLinks.lastSyncedAt,
+              ghlUserId: ghlUserLinks.ghlUserId,
+              updatedAt: ghlUserLinks.updatedAt,
+            })
+            .from(ghlUserLinks)
+            .where(inArray(ghlUserLinks.memberId, memberIds))
+            .orderBy(desc(ghlUserLinks.updatedAt))
+        : [];
+
+      // Keep only the first (most recent by updatedAt) row per memberId.
+      const ghlByMember = new Map<
+        string,
+        {
+          syncStatus: string;
+          lastError: string | null;
+          lastSyncedAt: Date | null;
+          ghlUserId: string;
+        }
+      >();
+      for (const row of ghlLinkRows) {
+        if (!ghlByMember.has(row.memberId)) {
+          ghlByMember.set(row.memberId, {
+            syncStatus: row.syncStatus,
+            lastError: row.lastError,
+            lastSyncedAt: row.lastSyncedAt,
+            ghlUserId: row.ghlUserId,
+          });
+        }
+      }
+
       return memberRows.map((m: any) => {
         const userDetails = userMap.get(m.userId);
+        const ghl = ghlByMember.get(m.id);
         return {
           id: m.id,
           userId: m.userId,
@@ -136,6 +189,14 @@ export const memberRouter = {
           trainerTierId: m.trainerTierId,
           name: userDetails?.name ?? "Unknown",
           email: userDetails?.email ?? "Unknown",
+          ghlSync: ghl
+            ? {
+                syncStatus: ghl.syncStatus,
+                lastError: ghl.lastError,
+                lastSyncedAt: ghl.lastSyncedAt,
+                ghlUserId: ghl.ghlUserId,
+              }
+            : null,
         };
       });
     }),
@@ -264,6 +325,36 @@ export const memberRouter = {
         });
       }
 
+      // Best-effort GHL staff sync (Phase 7.4 wiring). The dispatcher is
+      // env-bound by `dbMiddleware` in apps/server. It's optional — older
+      // clients / environments without GHL configured simply skip.
+      // The dispatcher itself is soft-fail; the .catch is defense-in-depth.
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: createdMember.id,
+          operation: "create",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -274,6 +365,7 @@ export const memberRouter = {
           status: createdMember.status,
           joinedAt: createdMember.joinedAt,
         },
+        ghlSync,
       };
     }),
 
@@ -506,6 +598,34 @@ export const memberRouter = {
         changes: { from: previousRole, to: input.newRole },
       });
 
+      // Best-effort GHL staff sync (Phase 7.4 wiring). See members.create for
+      // the rationale; same defensive pattern applies here.
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "update",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -516,6 +636,7 @@ export const memberRouter = {
           status: updatedMember!.status,
           joinedAt: updatedMember!.joinedAt,
         },
+        ghlSync,
       };
     }),
 
@@ -924,14 +1045,115 @@ export const memberRouter = {
         role: context.member.role,
       };
 
+      let result: Awaited<ReturnType<typeof deactivateMember>>;
       try {
-        return await deactivateMember(context.tenantDb, input.memberId, actor);
+        result = await deactivateMember(context.tenantDb, input.memberId, actor);
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
           throw new ORPCError("NOT_FOUND", { message: error.message });
         }
         throw error;
       }
+
+      // Best-effort GHL staff sync (Phase 7.4 wiring). Operation=delete; the
+      // dispatcher itself enforces the deactivate-skip rule (e.g. when GHL
+      // policy is to keep the user but revoke access). Soft-fail like create.
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync && controlPanelDb) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "delete",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
+      return { ...result, ghlSync };
+    }),
+
+  // TODO(GHL): Branch reassignment (changing a member's hierarchyScopeId) is
+  // not yet exposed as its own oRPC procedure. When it lands, wire it to
+  // `dispatchStaffSync({ ..., operation: "update" })` after the reassignment
+  // commits — the dispatcher routes branch changes via the GHL PUT path.
+
+  /**
+   * Manually retry GHL staff sync for a member (Phase 7.4 wiring).
+   *
+   * Useful when the original create/update/delete dispatched but the GHL side
+   * errored, and an operator wants to retry without re-saving the member row.
+   * Always dispatches with operation=update; the dispatcher resolves the
+   * member's current state in tenant + control-panel and reconciles.
+   */
+  retryGhlSync: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      if (!controlPanelDb || !dispatchStaffSync) {
+        return {
+          ghlSync: {
+            status: "error" as const,
+            error: "GHL sync not configured",
+          },
+        };
+      }
+
+      const ghlSync = await dispatchStaffSync({
+        controlPanelDb,
+        tenantDb: context.tenantDb,
+        organizationId: input.organizationId,
+        memberId: input.memberId,
+        operation: "update",
+      }).catch((err: unknown) => ({
+        status: "error" as const,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+
+      return { ghlSync };
     }),
 };
 

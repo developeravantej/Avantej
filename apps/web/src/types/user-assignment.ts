@@ -8,6 +8,12 @@ export interface UserForAssignment {
   isActive: boolean;
   department?: string;
   lastLogin?: string;
+  ghlSync?: {
+    syncStatus: string;
+    lastError: string | null;
+    lastSyncedAt: Date | string | null;
+    ghlUserId: string;
+  } | null;
 }
 
 export interface RoleResponse {
