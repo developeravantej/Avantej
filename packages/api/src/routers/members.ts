@@ -995,14 +995,54 @@ export const memberRouter = {
         role: context.member.role,
       };
 
+      let result: Awaited<ReturnType<typeof deactivateMember>>;
       try {
-        return await deactivateMember(context.tenantDb, input.memberId, actor);
+        result = await deactivateMember(context.tenantDb, input.memberId, actor);
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
           throw new ORPCError("NOT_FOUND", { message: error.message });
         }
         throw error;
       }
+
+      // Best-effort GHL staff sync (Phase 7.4 wiring). Operation=delete; the
+      // dispatcher itself enforces the deactivate-skip rule (e.g. when GHL
+      // policy is to keep the user but revoke access). Soft-fail like create.
+      type DispatchStaffSyncFn = (args: {
+        controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+        tenantDb: typeof context.tenantDb;
+        organizationId: string;
+        memberId: string;
+        operation: "create" | "update" | "delete";
+      }) => Promise<GhlSyncResult>;
+
+      const controlPanelDb = context.honoContext?.get(
+        "controlPanelDb"
+      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync && controlPanelDb) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "delete",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
+      return { ...result, ghlSync };
     }),
+
+  // TODO(GHL): Branch reassignment (changing a member's hierarchyScopeId) is
+  // not yet exposed as its own oRPC procedure. When it lands, wire it to
+  // `dispatchStaffSync({ ..., operation: "update" })` after the reassignment
+  // commits — the dispatcher routes branch changes via the GHL PUT path.
 };
 
