@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { getBetterAuth } from "@/lib/better-auth";
 import { sendInvitationEmail } from "@/lib/email";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
+import { dispatchStaffSync } from "@/services/ghl/dispatch-staff-sync";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -361,7 +362,38 @@ export const acceptWithSignup = o
 			tenantDb: context.tenantDb,
 		});
 
-		// 6. Client invitations: stub customer_profile + fire GHL sync
+		// 6. GHL staff sync (best-effort). Dispatcher applies skip rules
+		// internally — customer/client roles return `skipped`. Errors are
+		// caught so they never break invite acceptance.
+		const ghlAgencyId = getEnvVar("GHL_AGENCY_ID") ?? "";
+		let ghlSync:
+			| {
+					status: "synced" | "skipped" | "error";
+					reason?: string;
+					ghlUserId?: string;
+					error?: string;
+			  }
+			| undefined;
+		if (ghlAgencyId) {
+			const newMember = await context.tenantDb.query.members.findFirst({
+				where: eq(members.userId, newUser.id),
+			});
+			if (newMember) {
+				ghlSync = await dispatchStaffSync({
+					controlPanelDb,
+					tenantDb: context.tenantDb,
+					organizationId: input.organizationId,
+					memberId: newMember.id,
+					operation: "create",
+					env: { GHL_AGENCY_ID: ghlAgencyId },
+				}).catch((err) => ({
+					status: "error" as const,
+					error: err instanceof Error ? err.message : String(err),
+				}));
+			}
+		}
+
+		// 7. Client invitations: stub customer_profile + fire GHL sync
 		if (invitation!.role === "client") {
 			try {
 				await context.tenantDb
@@ -394,6 +426,7 @@ export const acceptWithSignup = o
 			message: "Successfully joined organization",
 			organizationId: input.organizationId,
 			userId: newUser.id,
+			ghlSync,
 		};
 	});
 
