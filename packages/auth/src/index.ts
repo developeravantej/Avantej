@@ -95,6 +95,13 @@ export const auth = betterAuth<BetterAuthOptions>({
   emailAndPassword: {
     enabled: true,
   },
+  // NOTE: this `auth` export is consumed only as a TYPE by web/native clients
+  // (`import type { auth } from "@avantej-core/auth"`). The runtime
+  // Better-Auth instance with its full `databaseHooks` lives in
+  // `apps/server/src/lib/better-auth.ts`. Hooks added here will NOT fire at
+  // runtime — add server-side hooks there instead. In particular, the GHL
+  // profile sync hook (`user.update.after` → `dispatchProfileSync`) lives in
+  // the server's better-auth.ts.
   databaseHooks: {
     user: {
       create: {

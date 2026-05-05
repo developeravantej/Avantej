@@ -42,6 +42,9 @@ import {
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
 } from "@/lib/email";
+import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
+import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env (for Node.js/test environments)
@@ -265,6 +268,41 @@ function createBetterAuth(c?: Context) {
       create: {
         before: async (user) => {
           return { data: { ...user, role: null } };
+        },
+      },
+      update: {
+        // Fire GHL profile sync after a user record changes. The dispatcher is
+        // idempotent and soft-fails — it is safe to invoke on every update
+        // (it short-circuits when the user has no GHL link rows or when
+        // GHL_AGENCY_ID is unset).
+        after: async (user) => {
+          try {
+            const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
+            if (!ghlAgencyId) return;
+            const databaseUrl = getEnvVar("DATABASE_URL");
+            if (!databaseUrl) return;
+
+            // Build a control-panel db scoped to this hook invocation. We
+            // can't reuse the request-scoped pool here because the betterAuth
+            // hook signature does not surface the Hono context. A short-lived
+            // pool is acceptable since dispatchProfileSync awaits its work.
+            const pool = new Pool({ connectionString: databaseUrl });
+            const controlPanelDb = drizzle({
+              client: pool,
+              schema: controlPanelSchema,
+            }) as NeonDatabase<typeof controlPanelSchema>;
+
+            await dispatchProfileSync({
+              controlPanelDb,
+              userId: user.id,
+              env: { GHL_AGENCY_ID: ghlAgencyId },
+            });
+          } catch (err) {
+            console.error(
+              "dispatchProfileSync failed in user.update.after hook:",
+              err,
+            );
+          }
         },
       },
     },
