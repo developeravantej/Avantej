@@ -16,6 +16,7 @@ import {
 	Mail,
 	Calendar,
 	RefreshCw,
+	MoveRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +53,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BranchCombobox } from "@/components/ui/branch-combobox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { UserForAssignment, RoleResponse } from "@/types/user-assignment";
@@ -60,8 +62,10 @@ import { toast } from "sonner";
 interface UserCardProps {
 	user: UserForAssignment;
 	roles: RoleResponse[];
+	canMoveBranch?: boolean;
 	onEditRoles: () => void;
 	onEditDetails: () => void;
+	onMoveBranch?: () => void;
 	onDeactivate: () => void;
 	onRetryGhlSync: () => void;
 	onSelect?: (selected: boolean) => void;
@@ -151,8 +155,10 @@ function GhlSyncBadge({
 function UserCard({
 	user,
 	roles,
+	canMoveBranch,
 	onEditRoles,
 	onEditDetails,
+	onMoveBranch,
 	onDeactivate,
 	onRetryGhlSync,
 	onSelect,
@@ -257,6 +263,16 @@ function UserCard({
 								<Edit className="w-4 h-4 mr-2" />
 								Edit User
 							</DropdownMenuItem>
+							{canMoveBranch && onMoveBranch && (
+								<DropdownMenuItem
+									onClick={onMoveBranch}
+									className="cursor-pointer"
+									aria-label={`Move ${user.name} to a different branch`}
+								>
+									<MoveRight className="w-4 h-4 mr-2" />
+									Move to branch
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={onDeactivate}
@@ -637,6 +653,10 @@ export function MembersTabPage() {
 		useState<UserForAssignment | null>(null);
 	const [editRole, setEditRole] = useState<SystemRole>("staff");
 	const [editHierarchyScopeId, setEditHierarchyScopeId] = useState<string>("");
+	const [movingUser, setMovingUser] = useState<UserForAssignment | null>(null);
+	const [moveBranchId, setMoveBranchId] = useState<string>("");
+	const [moveCurrentBranchId, setMoveCurrentBranchId] = useState<string>("");
+	const [isMovingBranch, setIsMovingBranch] = useState(false);
 
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
@@ -816,6 +836,78 @@ export function MembersTabPage() {
 			);
 		} finally {
 			setRetryingGhlSyncMemberId(null);
+		}
+	};
+
+	const getMemberRole = (
+		userId: string,
+	): "admin" | "trainer" | "staff" | "client" | undefined => {
+		const memberRaw = (membersApiData as MemberApiItem[]).find(
+			(m) => m.id === userId,
+		);
+		return (memberRaw as { role?: "admin" | "trainer" | "staff" | "client" })
+			?.role;
+	};
+
+	const canMoveBranch = (userId: string) => {
+		const role = getMemberRole(userId);
+		return role === "admin" || role === "trainer" || role === "staff";
+	};
+
+	const handleOpenMoveBranch = (user: UserForAssignment) => {
+		const memberRaw = (membersApiData as MemberApiItem[]).find(
+			(m) => m.id === user.id,
+		);
+		const currentScope =
+			(memberRaw as { hierarchyScopeId?: string })?.hierarchyScopeId ?? "";
+		setMovingUser(user);
+		setMoveCurrentBranchId(currentScope);
+		setMoveBranchId(currentScope);
+	};
+
+	const handleCloseMoveBranch = () => {
+		if (isMovingBranch) return;
+		setMovingUser(null);
+		setMoveBranchId("");
+		setMoveCurrentBranchId("");
+	};
+
+	const handleConfirmMoveBranch = async () => {
+		if (!movingUser || !organizationId || !moveBranchId) return;
+		if (moveBranchId === moveCurrentBranchId) return;
+		setIsMovingBranch(true);
+		try {
+			const result = await client.members.updateScope({
+				organizationId,
+				memberId: movingUser.id,
+				newHierarchyScopeId: moveBranchId,
+			});
+
+			const branchName =
+				hierarchyNodes.find((n) => n.id === moveBranchId)?.name ?? "branch";
+			toast.success(`${movingUser.name} moved to ${branchName}`);
+
+			if (result?.ghlSync?.status === "error") {
+				toast.warning(
+					`GHL sync failed${
+						result.ghlSync.error ? `: ${result.ghlSync.error}` : ""
+					}`,
+					{ duration: 8000 },
+				);
+			}
+
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+			setMovingUser(null);
+			setMoveBranchId("");
+			setMoveCurrentBranchId("");
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to move member",
+			);
+		} finally {
+			setIsMovingBranch(false);
 		}
 	};
 
@@ -1048,9 +1140,11 @@ export function MembersTabPage() {
 						user={user}
 						roles={roles}
 						isSelected={selectedUsers.has(user.id)}
+						canMoveBranch={canMoveBranch(user.id)}
 						onSelect={(selected) => handleUserSelect(user.id, selected)}
 						onEditRoles={() => handleEditUserRoles(user)}
 						onEditDetails={() => handleOpenEditUser(user)}
+						onMoveBranch={() => handleOpenMoveBranch(user)}
 						onDeactivate={() => handleDeactivateUser(user.id)}
 						onRetryGhlSync={() => handleRetryGhlSync(user.id)}
 						isLoading={isSaving}
@@ -1171,6 +1265,60 @@ export function MembersTabPage() {
 						</Button>
 						<Button onClick={handleSaveUserDetails} disabled={isSaving}>
 							{isSaving ? "Saving..." : "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Move to Branch Dialog */}
+			<Dialog
+				open={!!movingUser}
+				onOpenChange={(open) => {
+					if (!open) handleCloseMoveBranch();
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>
+							Move {movingUser?.name ?? "member"} to a different branch
+						</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-3 py-2">
+						<Label htmlFor="move-branch-picker">Destination branch</Label>
+						{organizationId && (
+							<BranchCombobox
+								organizationId={organizationId}
+								value={moveBranchId}
+								onChange={setMoveBranchId}
+								placeholder="Select branch..."
+								disabled={isMovingBranch}
+							/>
+						)}
+						<p className="text-xs text-muted-foreground">
+							The member will be reassigned to the selected branch. GHL sync
+							runs automatically.
+						</p>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={handleCloseMoveBranch}
+							disabled={isMovingBranch}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleConfirmMoveBranch}
+							disabled={
+								isMovingBranch ||
+								!moveBranchId ||
+								moveBranchId === moveCurrentBranchId
+							}
+							aria-label="Confirm move to branch"
+						>
+							{isMovingBranch ? "Moving..." : "Move member"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
