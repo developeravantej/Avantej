@@ -29,6 +29,7 @@ type BranchLink = {
 	id: string;
 	tenantBranchId: string;
 	ghlLocationId: string;
+	existingBranchCustomFieldId: string | null;
 	isActive: boolean;
 	createdAt: Date;
 	updatedAt: Date;
@@ -52,6 +53,8 @@ function GoHighLevelIntegrationPage() {
 	const [connectBranchId, setConnectBranchId] = useState<string | null>(null);
 	const [locationId, setLocationId] = useState("");
 	const [apiKey, setApiKey] = useState("");
+	const [existingBranchCustomFieldId, setExistingBranchCustomFieldId] =
+		useState("");
 
 	const { data: hierarchyData, isLoading: nodesLoading } = useQuery({
 		...orpc.hierarchy.listNodes.queryOptions({
@@ -78,6 +81,7 @@ function GoHighLevelIntegrationPage() {
 			tenantBranchId: string;
 			ghlLocationId: string;
 			ghlApiKey: string;
+			existingBranchCustomFieldId: string | null;
 		}) => {
 			if (!organizationId) throw new Error("No organization");
 			return client.ghl.connectBranch({
@@ -85,6 +89,7 @@ function GoHighLevelIntegrationPage() {
 				tenantBranchId: vars.tenantBranchId,
 				ghlLocationId: vars.ghlLocationId,
 				ghlApiKey: vars.ghlApiKey,
+				existingBranchCustomFieldId: vars.existingBranchCustomFieldId,
 			});
 		},
 		successMessage: "GHL connected for branch",
@@ -93,6 +98,7 @@ function GoHighLevelIntegrationPage() {
 			setConnectBranchId(null);
 			setLocationId("");
 			setApiKey("");
+			setExistingBranchCustomFieldId("");
 		},
 	});
 
@@ -129,10 +135,12 @@ function GoHighLevelIntegrationPage() {
 
 	const handleConnect = () => {
 		if (!connectBranchId || !locationId.trim() || !apiKey.trim()) return;
+		const trimmedFieldId = existingBranchCustomFieldId.trim();
 		connectMutation.mutate({
 			tenantBranchId: connectBranchId,
 			ghlLocationId: locationId.trim(),
 			ghlApiKey: apiKey.trim(),
+			existingBranchCustomFieldId: trimmedFieldId.length > 0 ? trimmedFieldId : null,
 		});
 	};
 
@@ -235,7 +243,13 @@ function GoHighLevelIntegrationPage() {
 															<Button
 																size="sm"
 																data-testid={`connect-btn-${branch.id}`}
-																onClick={() => setConnectBranchId(branch.id)}
+																onClick={() => {
+																	setConnectBranchId(branch.id);
+																	setLocationId(link?.ghlLocationId ?? "");
+																	setExistingBranchCustomFieldId(
+																		link?.existingBranchCustomFieldId ?? "",
+																	);
+																}}
 															>
 																Connect
 															</Button>
@@ -259,6 +273,7 @@ function GoHighLevelIntegrationPage() {
 						setConnectBranchId(null);
 						setLocationId("");
 						setApiKey("");
+						setExistingBranchCustomFieldId("");
 					}
 				}}
 			>
@@ -291,6 +306,24 @@ function GoHighLevelIntegrationPage() {
 								className="mt-1"
 							/>
 						</div>
+						<div>
+							<Label htmlFor="ghlExistingBranchCustomFieldId">
+								Existing Branch custom field ID (optional)
+							</Label>
+							<Input
+								id="ghlExistingBranchCustomFieldId"
+								value={existingBranchCustomFieldId}
+								onChange={(e) =>
+									setExistingBranchCustomFieldId(e.target.value)
+								}
+								placeholder="e.g. abc123CustomFieldId"
+								className="mt-1"
+							/>
+							<p className="mt-1 text-xs text-muted-foreground">
+								GHL custom field ID to receive the new branch name when a
+								staff member is reassigned. Leave blank to skip.
+							</p>
+						</div>
 					</div>
 					<DialogFooter>
 						<Button
@@ -299,6 +332,7 @@ function GoHighLevelIntegrationPage() {
 								setConnectBranchId(null);
 								setLocationId("");
 								setApiKey("");
+								setExistingBranchCustomFieldId("");
 							}}
 						>
 							Cancel
