@@ -558,6 +558,26 @@ const serverCustomerProfilesRouterType = {
 		.handler((): Promise<{ ok: boolean; profileId: string }> => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	retryGhlSync: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				ghlSync:
+					| {
+							status: "synced" | "skipped" | "error";
+							ghlContactId?: string;
+							error?: string;
+							reason?: string;
+					  };
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // GHL router type definition for client type inference.

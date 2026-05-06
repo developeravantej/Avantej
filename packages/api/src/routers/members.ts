@@ -8,6 +8,8 @@
 import { createMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
+import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { user } from "@avantej-core/db/schema/auth";
 import { desc, eq, and, inArray, asc, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
@@ -156,18 +158,18 @@ export const memberRouter = {
         : [];
 
       // Keep only the first (most recent by updatedAt) row per memberId.
-      const ghlByMember = new Map<
-        string,
-        {
-          syncStatus: string;
-          lastError: string | null;
-          lastSyncedAt: Date | null;
-          ghlUserId: string;
-        }
-      >();
+      type StaffSync = {
+        kind: "staff";
+        syncStatus: string;
+        lastError: string | null;
+        lastSyncedAt: Date | null;
+        ghlUserId: string;
+      };
+      const ghlByMember = new Map<string, StaffSync>();
       for (const row of ghlLinkRows) {
         if (!ghlByMember.has(row.memberId)) {
           ghlByMember.set(row.memberId, {
+            kind: "staff",
             syncStatus: row.syncStatus,
             lastError: row.lastError,
             lastSyncedAt: row.lastSyncedAt,
@@ -176,9 +178,91 @@ export const memberRouter = {
         }
       }
 
+      // Customer-side GHL enrichment: for client members, join through
+      // customer_profiles (userId) to ghl_contact_links (customerProfileId).
+      // A customer may have one Contact per branch — surface the most recent
+      // by updatedAt as the representative status for the row.
+      type CustomerSync = {
+        kind: "customer";
+        syncStatus: string;
+        lastError: string | null;
+        lastSyncedAt: Date | null;
+        ghlContactId: string;
+        customerProfileId: string;
+      };
+      const customerSyncByUserId = new Map<string, CustomerSync>();
+      const clientUserIds = memberRows
+        .filter((m: any) => m.role === "client")
+        .map((m: any) => m.userId as string);
+
+      if (clientUserIds.length > 0) {
+        const profileRows = await context.tenantDb
+          .select({
+            id: customerProfiles.id,
+            userId: customerProfiles.userId,
+          })
+          .from(customerProfiles)
+          .where(inArray(customerProfiles.userId, clientUserIds));
+
+        const profileIds = profileRows.map((p: { id: string; userId: string }) => p.id);
+        const profileIdToUserId = new Map<string, string>(
+          profileRows.map((p: { id: string; userId: string }) => [p.id, p.userId]),
+        );
+
+        if (profileIds.length > 0) {
+          const contactLinkRows = await context.tenantDb
+            .select({
+              customerProfileId: ghlContactLinks.customerProfileId,
+              syncStatus: ghlContactLinks.syncStatus,
+              lastError: ghlContactLinks.lastError,
+              lastSyncedAt: ghlContactLinks.lastSyncedAt,
+              ghlContactId: ghlContactLinks.ghlContactId,
+              updatedAt: ghlContactLinks.updatedAt,
+            })
+            .from(ghlContactLinks)
+            .where(inArray(ghlContactLinks.customerProfileId, profileIds))
+            .orderBy(desc(ghlContactLinks.updatedAt));
+
+          for (const row of contactLinkRows) {
+            if (!row.customerProfileId) continue;
+            const uid = profileIdToUserId.get(row.customerProfileId);
+            if (!uid) continue;
+            if (!customerSyncByUserId.has(uid)) {
+              customerSyncByUserId.set(uid, {
+                kind: "customer",
+                syncStatus: row.syncStatus,
+                lastError: row.lastError,
+                lastSyncedAt: row.lastSyncedAt,
+                ghlContactId: row.ghlContactId,
+                customerProfileId: row.customerProfileId,
+              });
+            }
+          }
+        }
+
+        // Surface customerProfileId on rows even when no contact-link row
+        // exists yet — needed so the UI can wire `retryGhlSync` for clients
+        // whose first sync attempt has not yet created a link row.
+        for (const p of profileRows as Array<{ id: string; userId: string }>) {
+          if (!customerSyncByUserId.has(p.userId)) {
+            customerSyncByUserId.set(p.userId, {
+              kind: "customer",
+              syncStatus: "inactive",
+              lastError: null,
+              lastSyncedAt: null,
+              ghlContactId: "",
+              customerProfileId: p.id,
+            });
+          }
+        }
+      }
+
       return memberRows.map((m: any) => {
         const userDetails = userMap.get(m.userId);
-        const ghl = ghlByMember.get(m.id);
+        const staff = ghlByMember.get(m.id);
+        const customer =
+          m.role === "client" ? customerSyncByUserId.get(m.userId) : undefined;
+        const ghlSync = customer ?? staff ?? null;
         return {
           id: m.id,
           userId: m.userId,
@@ -189,14 +273,7 @@ export const memberRouter = {
           trainerTierId: m.trainerTierId,
           name: userDetails?.name ?? "Unknown",
           email: userDetails?.email ?? "Unknown",
-          ghlSync: ghl
-            ? {
-                syncStatus: ghl.syncStatus,
-                lastError: ghl.lastError,
-                lastSyncedAt: ghl.lastSyncedAt,
-                ghlUserId: ghl.ghlUserId,
-              }
-            : null,
+          ghlSync,
         };
       });
     }),

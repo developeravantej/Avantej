@@ -15,9 +15,9 @@ import {
 	Trash2,
 	Mail,
 	Calendar,
-	RefreshCw,
 	MoveRight,
 } from "lucide-react";
+import { GhlSyncBadge } from "@/components/ghl-sync-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,12 +47,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { BranchCombobox } from "@/components/ui/branch-combobox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -72,84 +66,6 @@ interface UserCardProps {
 	isSelected?: boolean;
 	isLoading?: boolean;
 	isRetryingGhlSync?: boolean;
-}
-
-function GhlSyncBadge({
-	user,
-	onRetry,
-	isRetrying,
-}: {
-	user: UserForAssignment;
-	onRetry: () => void;
-	isRetrying: boolean;
-}) {
-	const ghl = user.ghlSync;
-
-	if (!ghl) {
-		return <span className="text-xs text-muted-foreground">—</span>;
-	}
-
-	const status = ghl.syncStatus;
-	const variantClass =
-		status === "active"
-			? "bg-emerald-100 text-emerald-800 border-emerald-300"
-			: status === "error"
-				? "bg-destructive/10 text-destructive border-destructive/30"
-				: "bg-muted text-muted-foreground border-border";
-
-	const label =
-		status === "active"
-			? "Synced"
-			: status === "error"
-				? "Error"
-				: status === "inactive"
-					? "Inactive"
-					: status === "skipped"
-						? "Skipped"
-						: status;
-
-	const badge = (
-		<Badge
-			variant="outline"
-			className={cn("text-xs capitalize", variantClass)}
-		>
-			{label}
-		</Badge>
-	);
-
-	return (
-		<div className="flex items-center gap-2">
-			{status === "error" && ghl.lastError ? (
-				<TooltipProvider delayDuration={150}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span className="cursor-help">{badge}</span>
-						</TooltipTrigger>
-						<TooltipContent className="max-w-xs break-words">
-							{ghl.lastError}
-						</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
-			) : (
-				badge
-			)}
-			{status === "error" && (
-				<Button
-					variant="ghost"
-					size="sm"
-					className="h-6 px-2 text-xs"
-					onClick={onRetry}
-					disabled={isRetrying}
-					aria-label="Retry GHL sync"
-				>
-					<RefreshCw
-						className={cn("w-3 h-3 mr-1", isRetrying && "animate-spin")}
-					/>
-					{isRetrying ? "Retrying" : "Retry"}
-				</Button>
-			)}
-		</div>
-	);
 }
 
 function UserCard({
@@ -333,7 +249,7 @@ function UserCard({
 					<div className="flex items-center justify-between text-sm pt-1">
 						<span className="text-muted-foreground">GHL Sync</span>
 						<GhlSyncBadge
-							user={user}
+							ghlSync={user.ghlSync}
 							onRetry={onRetryGhlSync}
 							isRetrying={!!isRetryingGhlSync}
 						/>

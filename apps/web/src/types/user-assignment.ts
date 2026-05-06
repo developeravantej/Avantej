@@ -12,7 +12,12 @@ export interface UserForAssignment {
     syncStatus: "active" | "inactive" | "skipped" | "error";
     lastError: string | null;
     lastSyncedAt: Date | string | null;
-    ghlUserId: string;
+    // Discriminator: staff rows have `ghlUserId`, client rows have
+    // `ghlContactId` + `customerProfileId`.
+    kind?: "staff" | "customer";
+    ghlUserId?: string;
+    ghlContactId?: string;
+    customerProfileId?: string;
   } | null;
 }
 
