@@ -27,6 +27,11 @@ export type UpsertCustomerProfileParams = {
   fitnessGoals?: string[] | null;
   creditPoints?: number;
   notes?: string | null;
+  // === 3.2 lead source / attribution ===
+  leadSourceId?: string | null;
+  referrerMemberId?: string | null;
+  campaignId?: string | null;
+  // === /3.2 ===
 };
 
 /**
@@ -66,6 +71,13 @@ export async function upsertCustomerProfile(
     ...(params.fitnessGoals !== undefined && { fitnessGoals: params.fitnessGoals }),
     ...(params.creditPoints !== undefined && { creditPoints: params.creditPoints }),
     ...(params.notes !== undefined && { notes: params.notes }),
+    // === 3.2 lead source / attribution ===
+    ...(params.leadSourceId !== undefined && { leadSourceId: params.leadSourceId }),
+    ...(params.referrerMemberId !== undefined && {
+      referrerMemberId: params.referrerMemberId,
+    }),
+    ...(params.campaignId !== undefined && { campaignId: params.campaignId }),
+    // === /3.2 ===
     updatedAt: new Date(),
   };
 
@@ -93,6 +105,11 @@ export async function upsertCustomerProfile(
       fitnessGoals: params.fitnessGoals ?? null,
       creditPoints: params.creditPoints ?? 0,
       notes: params.notes ?? null,
+      // === 3.2 lead source / attribution ===
+      leadSourceId: params.leadSourceId ?? null,
+      referrerMemberId: params.referrerMemberId ?? null,
+      campaignId: params.campaignId ?? null,
+      // === /3.2 ===
     })
     .returning();
   if (!row) throw new Error("Failed to create customer profile");

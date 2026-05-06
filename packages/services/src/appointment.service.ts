@@ -23,6 +23,7 @@ import { evaluateAndExpireIfOverdue, evaluateAndLockIfOverdue } from "./installm
 import { assertValidTransition } from "./utils/appointment-status-machine";
 import { writeAudit } from "./audit-log.service";
 import { calculateCommissionForAppointment } from "./commission-calculator.service";
+import { appendAppointmentStatusHistory } from "./status-history.helper";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -532,6 +533,17 @@ export async function updateAppointment(
           entityId: id,
           summary: `Appointment ${id} status changed from '${existing.status}' to '${params.status}'`,
           changes: { from: existing.status, to: params.status },
+        });
+      }
+
+      // D.2.3 — Status history (Agent 2.7): append on every status change,
+      // even when no actor is supplied (system / cron transitions).
+      if (params.status !== undefined && params.status !== existing.status) {
+        await appendAppointmentStatusHistory(tx, id, {
+          fromStatus: existing.status,
+          toStatus: params.status,
+          changedBy: params.actor?.userId ?? "system",
+          reason: params.cancellationReason ?? null,
         });
       }
 

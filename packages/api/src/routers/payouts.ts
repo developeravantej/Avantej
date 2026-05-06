@@ -120,6 +120,8 @@ export const payoutsRouter = {
 				paidAt: p.paidAt,
 				appointmentId: p.appointmentId,
 				createdAt: p.createdAt,
+				// Agent 2.5 — J5 commission audit: surface batch grouping
+				batchId: p.batchId,
 			}));
 		}),
 };

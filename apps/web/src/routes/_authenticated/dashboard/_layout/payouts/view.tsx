@@ -67,6 +67,7 @@ function PayoutsViewPage() {
 			paidAt: Date | null;
 			appointmentId: string | null;
 			createdAt: Date;
+			batchId?: string | null;
 		}) => ({
 			id: item.id,
 			recipientId: item.recipientId,
@@ -76,6 +77,7 @@ function PayoutsViewPage() {
 			paidAt: item.paidAt ? String(item.paidAt) : null,
 			appointmentId: item.appointmentId,
 			createdAt: item.createdAt ? String(item.createdAt) : null,
+			batchId: item.batchId ?? null,
 		}),
 	);
 

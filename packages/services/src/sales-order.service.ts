@@ -4,6 +4,7 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { voidCommissionSplitsForSalesOrder } from "./commission-splits.service";
+import { appendSalesOrderStatusHistory } from "./status-history.helper";
 
 export type CreateSalesOrderParams = {
 	date: Date;
@@ -168,8 +169,19 @@ export async function createSalesOrder(
 export async function updateSalesOrder(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateSalesOrderParams
+	params: UpdateSalesOrderParams,
+	actor?: { userId: string; reason?: string; notes?: string },
 ): Promise<typeof salesOrders.$inferSelect> {
+	// Capture previous status for history if status is changing.
+	let previousStatus: string | null = null;
+	if (params.status !== undefined) {
+		const [existing] = await tenantDb
+			.select({ status: salesOrders.status })
+			.from(salesOrders)
+			.where(eq(salesOrders.id, id));
+		previousStatus = existing?.status ?? null;
+	}
+
 	const [row] = await tenantDb
 		.update(salesOrders)
 		.set({
@@ -186,6 +198,17 @@ export async function updateSalesOrder(
 
 	if (!row) {
 		throw new Error("Sales order not found");
+	}
+
+	// Append status history if status actually changed.
+	if (params.status !== undefined && params.status !== previousStatus) {
+		await appendSalesOrderStatusHistory(tenantDb, id, {
+			fromStatus: previousStatus,
+			toStatus: params.status,
+			changedBy: actor?.userId ?? "system",
+			reason: actor?.reason,
+			notes: actor?.notes,
+		});
 	}
 	return row;
 }
@@ -247,6 +270,14 @@ export async function cancelSalesOrder(
 			"Sale cancelled: " + (params.reason ?? "no reason given"),
 			actor,
 		);
+
+		// Status history: same tx as the status mutation
+		await appendSalesOrderStatusHistory(tx, id, {
+			fromStatus: existing.status,
+			toStatus: "cancelled",
+			changedBy: params.cancelledBy,
+			reason: params.reason ?? null,
+		});
 
 		return updatedOrder;
 	});

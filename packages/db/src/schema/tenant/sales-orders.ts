@@ -23,6 +23,10 @@ export const salesOrders = pgTable("sales_orders", {
 	cancellationReason: text("cancellation_reason"),
 	cancelledBy: text("cancelled_by"),
 	cancelledAmount: integer("cancelled_amount"), // Partial or full refund amount in cents
+	// Agent 3.3 — Phase 3 §5: comp tracking. When non-null, the order is
+	// complimentary (manager-marked on POS) and all lines are excluded from
+	// commission split creation. Free-form reason for audit/visibility.
+	complimentaryReason: text("complimentary_reason"),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),

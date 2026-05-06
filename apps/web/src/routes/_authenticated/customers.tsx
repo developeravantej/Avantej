@@ -50,6 +50,10 @@ function CustomersComponent() {
 	const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 	const [newEmail, setNewEmail] = useState("");
 	const [selectedBranchId, setSelectedBranchId] = useState("");
+	// === 3.2 lead source ===
+	const [newLeadSourceId, setNewLeadSourceId] = useState("");
+	const [newCampaignId, setNewCampaignId] = useState("");
+	// === /3.2 ===
 
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
@@ -118,17 +122,45 @@ function CustomersComponent() {
 
 	const memberListKey = orpc.members.list.queryOptions({ input: { organizationId: organizationId ?? "", role: "client" } }).queryKey;
 
+	// === 3.2 lead source — picker options for the Add Customer dialog ===
+	const { data: leadSources = [] } = useQuery({
+		queryKey: ["leadSources", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.customerProfiles.listLeadSources({ organizationId });
+		},
+		enabled: !!organizationId,
+		staleTime: 5 * 60 * 1000,
+	});
+	// === /3.2 ===
+
 	const addCustomerMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!organizationId) throw new Error("No organization");
 			const scopeId = selectedBranchId || memberHierarchyScopeId;
 			if (!scopeId) throw new Error("No hierarchy scope");
-			return client.members.create({
+			const result = await client.members.create({
 				organizationId,
 				email: newEmail.trim(),
 				role: "client",
 				hierarchyScopeId: scopeId,
 			});
+			// === 3.2 lead source — attach attribution if provided ===
+			// Best-effort: failure here doesn't roll back the member create.
+			if (newLeadSourceId || newCampaignId.trim()) {
+				try {
+					await client.customerProfiles.upsertForCustomer({
+						organizationId,
+						targetUserId: result.member.userId,
+						leadSourceId: newLeadSourceId || null,
+						campaignId: newCampaignId.trim() || null,
+					});
+				} catch (err) {
+					console.warn("Failed to record lead source on new customer", err);
+				}
+			}
+			// === /3.2 ===
+			return result;
 		},
 		successMessage: "Customer added",
 		errorMessage: (err) => err.message || "Failed to add customer",
@@ -137,6 +169,10 @@ function CustomersComponent() {
 			setIsAddCustomerOpen(false);
 			setNewEmail("");
 			setSelectedBranchId("");
+			// === 3.2 lead source ===
+			setNewLeadSourceId("");
+			setNewCampaignId("");
+			// === /3.2 ===
 		},
 	});
 
@@ -399,6 +435,43 @@ function CustomersComponent() {
 								</Select>
 							</div>
 						)}
+						{/* === 3.2 lead source === */}
+						<div>
+							<Label htmlFor="leadSource">Lead source (optional)</Label>
+							<Select
+								value={newLeadSourceId}
+								onValueChange={setNewLeadSourceId}
+							>
+								<SelectTrigger className="mt-1">
+									<SelectValue placeholder="How did they hear about us?" />
+								</SelectTrigger>
+								<SelectContent>
+									{leadSources.length === 0 ? (
+										<SelectItem value="__none__" disabled>
+											No sources configured
+										</SelectItem>
+									) : (
+										leadSources.map((s) => (
+											<SelectItem key={s.id} value={s.id}>
+												{s.name}
+												{s.category ? ` · ${s.category}` : ""}
+											</SelectItem>
+										))
+									)}
+								</SelectContent>
+							</Select>
+						</div>
+						<div>
+							<Label htmlFor="campaign">Campaign tag (optional)</Label>
+							<Input
+								id="campaign"
+								value={newCampaignId}
+								onChange={(e) => setNewCampaignId(e.target.value)}
+								placeholder="e.g. spring-2026"
+								className="mt-1"
+							/>
+						</div>
+						{/* === /3.2 === */}
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setIsAddCustomerOpen(false)}>

@@ -7,6 +7,8 @@ export const productCategories = pgTable("product_categories", {
 	description: text("description"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	createdBy: text("created_by"),
+	updatedBy: text("updated_by"),
 }, (table) => ({
 	nameUnique: unique("product_categories_name_unique").on(table.name),
 	externalCodeUnique: unique("product_categories_external_code_unique").on(table.externalCode),

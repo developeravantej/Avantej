@@ -29,6 +29,8 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
 import { calculateInstallmentAmounts, calculateCreditsUnlocked } from "./installment.service";
+// Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
+import { resolveTaxRate } from "./tax.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 // Drizzle transaction type — structurally compatible with TenantDb for inserts/selects
@@ -322,6 +324,10 @@ export async function recordPosSale(
 		}
 
 		// Step 5: Compute tax
+		// Agent 2.3 — J2: when caller passes taxRateId, honor it (back-compat).
+		// Otherwise fall back to resolveTaxRate(branchId, now) so the active
+		// org-wide rate is captured automatically. The resolved id is later
+		// snapshotted on each sales_order_item + the payment_item type='tax'.
 		let taxRate: typeof taxRates.$inferSelect | undefined;
 		if (input.taxRateId) {
 			taxRate = await tx.query.taxRates.findFirst({
@@ -332,7 +338,19 @@ export async function recordPosSale(
 					message: `Tax rate not found: ${input.taxRateId}`,
 				});
 			}
+		} else {
+			const resolved = await resolveTaxRate(
+				tx as unknown as TenantDb,
+				input.branchId,
+				now,
+			);
+			if (resolved) {
+				taxRate = await tx.query.taxRates.findFirst({
+					where: eq(taxRates.id, resolved.id),
+				});
+			}
 		}
+		const resolvedTaxRateId: string | null = taxRate?.id ?? null;
 
 		const taxBase = Math.max(0, subtotalCents - discountCents);
 		const taxCents = Math.floor((taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000);
@@ -364,6 +382,8 @@ export async function recordPosSale(
 		if (!salesOrder) throw new Error("Failed to insert sales_order");
 
 		// Step 8: Insert N sales_order_items
+		// Agent 2.3 — J2: snapshot the active tax rate id on every line so
+		// historical orders reproduce the correct rate after rate edits.
 		for (const item of input.items) {
 			await tx.insert(salesOrderItems).values({
 				salesOrderId: salesOrder.id,
@@ -371,6 +391,7 @@ export async function recordPosSale(
 					(item.type === "service" || item.type === "package") && item.refId
 						? item.refId
 						: null,
+				taxRateId: resolvedTaxRateId,
 				description: item.description,
 				quantity: item.quantity,
 				unitPrice: item.unitPriceCents,
@@ -432,11 +453,12 @@ export async function recordPosSale(
 			});
 		}
 
-		// Tax item
+		// Tax item — Agent 2.3 — J2: snapshot the rate id on the type='tax' row.
 		if (taxCents > 0 && taxRate) {
 			await tx.insert(paymentItems).values({
 				paymentId: payment.id,
 				itemType: "tax",
+				taxRateId: taxRate.id,
 				description: `${taxRate.name} (${(taxRate.rateInBasisPoints / 100).toFixed(2)}%)`,
 				quantity: 1,
 				unitPrice: taxCents,

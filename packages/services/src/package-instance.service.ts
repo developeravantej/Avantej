@@ -17,6 +17,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { user } from "@avantej-core/db/schema/auth";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { appendPackageInstanceStatusHistory } from "./status-history.helper";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -376,7 +377,18 @@ export async function updatePackageInstance(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   id: string,
   params: UpdatePackageInstanceParams,
+  actor?: { userId: string; reason?: string; notes?: string },
 ): Promise<typeof packageInstances.$inferSelect> {
+  // Capture prior status for history if status is changing.
+  let previousStatus: string | null = null;
+  if (params.status !== undefined) {
+    const [existing] = await tenantDb
+      .select({ status: packageInstances.status })
+      .from(packageInstances)
+      .where(eq(packageInstances.id, id));
+    previousStatus = existing?.status ?? null;
+  }
+
   const [row] = await tenantDb
     .update(packageInstances)
     .set({
@@ -398,6 +410,17 @@ export async function updatePackageInstance(
 
   if (!row) {
     throw new Error("Package instance not found");
+  }
+
+  // Append status history if status actually changed.
+  if (params.status !== undefined && params.status !== previousStatus) {
+    await appendPackageInstanceStatusHistory(tenantDb, id, {
+      fromStatus: previousStatus,
+      toStatus: params.status,
+      changedBy: actor?.userId ?? "system",
+      reason: actor?.reason,
+      notes: actor?.notes,
+    });
   }
   return row;
 }

@@ -78,3 +78,50 @@ export * from "./units-of-measure";
 export * from "./user-activity-log";
 export * from "./waitlist-entries";
 export * from "./walk-in-customers";
+
+// #region Agent 2.7 — per-entity status_history (Phase 2 Wave 3a)
+export * from "./sales-order-status-history";
+export * from "./payment-status-history";
+export * from "./package-instance-status-history";
+export * from "./appointment-status-history";
+// #endregion
+
+// #region Agent 2.2 — branch pricing (Phase 2 Wave 3b — J2)
+export * from "./service-prices";
+export * from "./product-prices";
+// #endregion
+
+// #region Agent 2.5 — commission audit (Phase 2 Wave 3c — J5)
+export * from "./payout-batches";
+export * from "./category-commission-config-versions";
+// #endregion
+
+// #region Agent 2.8 — refund items (Phase 2 Wave 3d — J5)
+export * from "./refund-items";
+// #endregion
+
+// #region Agent 2.9 — commission reversal chain (Phase 2 Wave 3e — J5)
+export * from "./commission-split-reversals";
+// #endregion
+
+// #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
+export * from "./goods-receipts";
+export * from "./goods-receipt-items";
+export * from "./supplier-invoices";
+// #endregion
+
+// #region Agent 2.10 — promotion FK + waitlist polymorphic + announcement scopes (audit §8.5)
+export * from "./announcement-scopes";
+// #endregion
+
+// #region Agent 3.1 — membership freeze/resume (Phase 3 — J4)
+export * from "./membership-holds";
+// #endregion
+
+// #region Agent 3.2 — lead source attribution (Phase 3)
+export * from "./lead-sources";
+// #endregion
+
+// #region Agent 3.6 — household linking (Phase 3)
+export * from "./households";
+// #endregion

@@ -111,6 +111,7 @@ export const brandsRouter = {
 			return createBrand(context.tenantDb, {
 				name: input.name,
 				description: input.description,
+				createdBy: context.session?.user?.id ?? null,
 			});
 		}),
 
@@ -147,6 +148,7 @@ export const brandsRouter = {
 			return updateBrand(context.tenantDb, input.id, {
 				name: input.name,
 				description: input.description,
+				updatedBy: context.session?.user?.id ?? null,
 			});
 		}),
 

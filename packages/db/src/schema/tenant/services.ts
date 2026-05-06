@@ -43,6 +43,10 @@ export const services = pgTable("services", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 
+	// Audit
+	createdBy: text("created_by"),
+	updatedBy: text("updated_by"),
+
 	// ========== NEW FIELDS ==========
 
 	// Display info

@@ -13,6 +13,8 @@ export interface PayoutRow {
 	paidAt?: string | null;
 	appointmentId?: string | null;
 	createdAt?: string | null;
+	// Agent 2.5 — J5 commission audit
+	batchId?: string | null;
 }
 
 function getStatusVariant(
@@ -112,5 +114,21 @@ export const columns: ColumnDef<PayoutRow>[] = [
 		cell: ({ getValue }) => formatDate(getValue<string>()),
 		enableSorting: true,
 		enableHiding: false,
+	},
+	{
+		accessorKey: "batchId",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Batch" />
+		),
+		cell: ({ getValue }) => {
+			const id = getValue<string | null>();
+			return id ? (
+				<CopyableCell value={id} displayText={id.slice(0, 8)} />
+			) : (
+				<span className="text-muted-foreground">—</span>
+			);
+		},
+		enableSorting: true,
+		enableHiding: true,
 	},
 ];

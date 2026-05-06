@@ -534,6 +534,8 @@ export function MembersTabPage() {
 	const [editingUserDetails, setEditingUserDetails] =
 		useState<UserForAssignment | null>(null);
 	const [editRole, setEditRole] = useState<SystemRole>("staff");
+	// Wave 3a Agent 2.1 (Journey J1): tracks selected custom role row id (or "" = none/legacy text only).
+	const [editRoleId, setEditRoleId] = useState<string>("");
 	const [editHierarchyScopeId, setEditHierarchyScopeId] = useState<string>("");
 
 	const filteredUsers = users.filter((user) => {
@@ -686,11 +688,13 @@ export function MembersTabPage() {
 			(m) => m.id === user.id,
 		);
 		const currentRole = (memberRaw as any)?.role as SystemRole | undefined;
+		const currentRoleId = (memberRaw as any)?.roleId as string | null | undefined;
 		const currentScope = (memberRaw as any)?.hierarchyScopeId as
 			| string
 			| undefined;
 		setEditingUserDetails(user);
 		setEditRole(currentRole ?? "staff");
+		setEditRoleId(currentRoleId ?? "");
 		setEditHierarchyScopeId(currentScope ?? "");
 	};
 
@@ -702,6 +706,9 @@ export function MembersTabPage() {
 				organizationId,
 				memberId: editingUserDetails.id,
 				newRole: editRole,
+				// Wave 3a Agent 2.1 (Journey J1): pass the selected custom role row id
+				// alongside the legacy text role. Empty string == clear FK (null).
+				roleId: editRoleId || null,
 			});
 
 			if (editHierarchyScopeId) {
@@ -990,6 +997,52 @@ export function MembersTabPage() {
 									))}
 								</SelectContent>
 							</Select>
+						</div>
+
+						{/* Wave 3a Agent 2.1 (Journey J1): custom-role assignment.
+							 The legacy "Role" select above sets the text fast-path; this select
+							 binds the member to a row in the `roles` table so custom roles
+							 (e.g. "Yoga Lead") created on the roles page are actually
+							 assignable end-to-end. "None" clears the FK. */}
+						<div className="space-y-2">
+							<Label htmlFor="edit-custom-role">Custom Role (optional)</Label>
+							<Select
+								value={editRoleId || "__none__"}
+								onValueChange={(value) =>
+									setEditRoleId(value === "__none__" ? "" : value)
+								}
+							>
+								<SelectTrigger id="edit-custom-role">
+									<SelectValue placeholder="None — use system role only" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__none__">
+										<div>
+											<div className="font-medium">None</div>
+											<div className="text-xs text-muted-foreground">
+												Use legacy system role only
+											</div>
+										</div>
+									</SelectItem>
+									{roles.map((r) => (
+										<SelectItem key={r.id} value={r.id}>
+											<div>
+												<div className="font-medium">{r.name}</div>
+												{r.description && (
+													<div className="text-xs text-muted-foreground">
+														{r.description}
+													</div>
+												)}
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<p className="text-xs text-muted-foreground">
+								Custom roles are managed on the Roles tab. Assigning one here
+								grants its specific permissions (in addition to the system role
+								above).
+							</p>
 						</div>
 
 						<div className="space-y-2">

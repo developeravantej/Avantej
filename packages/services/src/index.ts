@@ -90,6 +90,11 @@ export {
 	markCommissionSplitsPaid,
 	voidCommissionSplit,
 	voidCommissionSplitsForSalesOrder,
+	// Agent 2.5 — J5 commission audit
+	getLatestConfigVersionForCategory,
+	getOrCreatePayoutBatch,
+	attachPayoutsToBatch,
+	type GetOrCreatePayoutBatchParams,
 } from "./commission-splits.service";
 // Customer directory services
 export {
@@ -241,6 +246,10 @@ export {
 	type ApproveRefundParams,
 	approveRefund,
 	computeRemainingRefundable,
+	// Agent 2.8 — J5 partial-package refund
+	type CreatePartialRefundParams,
+	type CreatePartialRefundResult,
+	createPartialRefund,
 	getRefundById,
 	type ListRefundsParams,
 	listRefunds,
@@ -333,3 +342,30 @@ export {
 } from "./user-activity-log.service";
 // Waitlist services
 export * from "./waitlist.service";
+
+// #region Agent 2.7 — status history helper (Phase 2 Wave 3a)
+export * from "./status-history.helper";
+// #endregion
+
+// #region Agent 2.2 — branch pricing (Phase 2 Wave 3b — J2)
+export * from "./pricing.service";
+// #endregion
+
+// #region Agent 2.3 — tax-rate snapshot resolver (Phase 2 Wave 3b — J2)
+export {
+	type ResolvedTaxRate,
+	resolveTaxRate,
+} from "./tax.service";
+// #endregion
+
+// #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
+export * from "./goods-receipt.service";
+// #endregion
+
+// #region Agent 3.5 — walk-in payment → package conversion (schema-relationship-fixes §5 Phase 3)
+export * from "./walk-in.service";
+// #endregion
+
+// #region Agent 3.1 — membership freeze/resume (Phase 3 — J4)
+export * from "./membership.service";
+// #endregion

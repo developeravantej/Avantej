@@ -6,6 +6,7 @@
  * - `upsertForCustomer`: admin-scoped, allows managers to edit any client's profile.
  */
 
+import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getCustomerProfile,
@@ -13,7 +14,7 @@ import {
 	upsertCustomerProfile,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 
@@ -57,6 +58,11 @@ export const customerProfilesRouter = {
 				fitnessGoals: z.array(z.string()).nullable().optional(),
 				creditPoints: z.number().int().min(0).optional(),
 				notes: z.string().nullable().optional(),
+				// === 3.2 lead source / attribution ===
+				leadSourceId: z.string().uuid().nullable().optional(),
+				referrerMemberId: z.string().uuid().nullable().optional(),
+				campaignId: z.string().nullable().optional(),
+				// === /3.2 ===
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -103,6 +109,15 @@ export const customerProfilesRouter = {
 					creditPoints: input.creditPoints,
 				}),
 				...(input.notes !== undefined && { notes: input.notes }),
+				// === 3.2 lead source / attribution ===
+				...(input.leadSourceId !== undefined && {
+					leadSourceId: input.leadSourceId,
+				}),
+				...(input.referrerMemberId !== undefined && {
+					referrerMemberId: input.referrerMemberId,
+				}),
+				...(input.campaignId !== undefined && { campaignId: input.campaignId }),
+				// === /3.2 ===
 			});
 			return updated;
 		}),
@@ -128,6 +143,11 @@ export const customerProfilesRouter = {
 				medicalNotes: z.string().optional(),
 				fitnessGoals: z.array(z.string()).optional(),
 				notes: z.string().optional(),
+				// === 3.2 lead source / attribution ===
+				leadSourceId: z.string().uuid().nullable().optional(),
+				referrerMemberId: z.string().uuid().nullable().optional(),
+				campaignId: z.string().nullable().optional(),
+				// === /3.2 ===
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -184,6 +204,39 @@ export const customerProfilesRouter = {
 				medicalNotes: input.medicalNotes,
 				fitnessGoals: input.fitnessGoals,
 				notes: input.notes,
+				// === 3.2 lead source / attribution ===
+				leadSourceId: input.leadSourceId,
+				referrerMemberId: input.referrerMemberId,
+				campaignId: input.campaignId,
+				// === /3.2 ===
 			});
 		}),
+
+	// === 3.2 lead source / attribution ===
+	/**
+	 * Lookup of acquisition channels for the create-customer / customer-360 pickers.
+	 * Returns active rows by default; pass `includeInactive=true` for admin views.
+	 */
+	listLeadSources: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				includeInactive: z.boolean().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message:
+						"Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			const rows = await context.tenantDb
+				.select()
+				.from(leadSources)
+				.where(input.includeInactive ? undefined : eq(leadSources.isActive, true))
+				.orderBy(asc(leadSources.name));
+			return rows;
+		}),
+	// === /3.2 ===
 };

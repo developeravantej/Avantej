@@ -33,7 +33,7 @@ export async function getProductCategoryById(
 
 export async function createProductCategory(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { name: string; externalCode?: string; description?: string }
+	params: { name: string; externalCode?: string; description?: string; createdBy?: string | null }
 ): Promise<typeof productCategories.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(productCategories)
@@ -41,6 +41,8 @@ export async function createProductCategory(
 			name: params.name,
 			externalCode: params.externalCode ?? null,
 			description: params.description ?? null,
+			createdBy: params.createdBy ?? null,
+			updatedBy: params.createdBy ?? null,
 		})
 		.returning();
 
@@ -53,7 +55,7 @@ export async function createProductCategory(
 export async function updateProductCategory(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { name?: string; externalCode?: string; description?: string }
+	params: { name?: string; externalCode?: string; description?: string; updatedBy?: string | null }
 ): Promise<typeof productCategories.$inferSelect> {
 	const [row] = await tenantDb
 		.update(productCategories)
@@ -61,6 +63,7 @@ export async function updateProductCategory(
 			...(params.name !== undefined && { name: params.name }),
 			...(params.externalCode !== undefined && { externalCode: params.externalCode }),
 			...(params.description !== undefined && { description: params.description }),
+			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
 			updatedAt: new Date(),
 		})
 		.where(eq(productCategories.id, id))

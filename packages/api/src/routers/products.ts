@@ -9,6 +9,9 @@ import {
 	updateProduct,
 	getProductStock,
 	adjustStock as adjustProductStock,
+	resolveProductPrice,
+	listProductPriceOverrides,
+	setProductPrice,
 } from "@avantej-core/services";
 
 const productTypeEnum = z.enum(["product", "service_item"]);
@@ -143,6 +146,7 @@ export const productsRouter = {
 				conversionFactor: input.conversionFactor,
 				price: input.price,
 				status: input.status,
+				createdBy: context.session?.user?.id ?? null,
 			});
 		}),
 
@@ -197,6 +201,7 @@ export const productsRouter = {
 				conversionFactor: input.conversionFactor,
 				price: input.price,
 				status: input.status,
+				updatedBy: context.session?.user?.id ?? null,
 			});
 		}),
 
@@ -264,4 +269,108 @@ export const productsRouter = {
 
 			return adjustProductStock(context.tenantDb, input.productId, input.branchId, input.delta);
 		}),
+
+	// #region Agent 2.2 — branch pricing (J2)
+	resolvePrice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				productId: z.string().uuid(),
+				branchId: z.string().uuid().nullable().optional(),
+				customerType: z.string().nullable().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+			const priceCents = await resolveProductPrice(
+				context.tenantDb,
+				input.productId,
+				input.branchId ?? null,
+				input.customerType ?? null,
+			);
+			return { priceCents };
+		}),
+
+	listPriceOverrides: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				productId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+			try {
+				await requirePermission(context.tenantDb, context.member, "inventory", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+			return listProductPriceOverrides(context.tenantDb, input.productId);
+		}),
+
+	setBranchPrice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				productId: z.string().uuid(),
+				branchId: z.string().uuid().nullable(),
+				customerType: z.string().nullable().optional(),
+				priceCents: z.number().int().min(0),
+				effectiveFrom: z.string().datetime().optional(),
+				effectiveUntil: z.string().datetime().nullable().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+			try {
+				await requirePermission(context.tenantDb, context.member, "inventory", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+			return setProductPrice(context.tenantDb, {
+				productId: input.productId,
+				branchId: input.branchId,
+				customerType: input.customerType ?? null,
+				priceCents: input.priceCents,
+				effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : undefined,
+				effectiveUntil:
+					input.effectiveUntil === undefined
+						? undefined
+						: input.effectiveUntil === null
+							? null
+							: new Date(input.effectiveUntil),
+			});
+		}),
+	// #endregion
 };

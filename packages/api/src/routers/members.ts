@@ -130,6 +130,9 @@ export const memberRouter = {
           id: m.id,
           userId: m.userId,
           role: m.role,
+          // Wave 3a Agent 2.1 (Journey J1): expose nullable custom-role FK so the UI
+          // can pre-select it in the edit dialog.
+          roleId: m.roleId,
           hierarchyScopeId: m.hierarchyScopeId,
           status: m.status,
           joinedAt: m.joinedAt,
@@ -402,6 +405,10 @@ export const memberRouter = {
         organizationId: z.string().uuid(),
         memberId: z.string().uuid(),
         newRole: z.enum(["admin", "trainer", "staff", "client"]),
+        // Wave 3a Agent 2.1 (Journey J1): optional FK to custom/system role row.
+        // When provided, written to members.role_id alongside the legacy text role.
+        // Pass null to explicitly clear the FK (revert to text-role only).
+        roleId: z.string().uuid().nullable().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -475,6 +482,7 @@ export const memberRouter = {
       }
 
       const previousRole = member.role;
+      const previousRoleId = member.roleId;
 
       // Update role using MembershipService (dual-writes controlPanel + tenant)
       const membershipService = new MembershipService(controlPanelDb);
@@ -485,10 +493,27 @@ export const memberRouter = {
         tenantDb: context.tenantDb,
       });
 
+      // Wave 3a Agent 2.1 (Journey J1): MembershipService only writes the legacy
+      // text `role` column. Write the new nullable `roleId` FK separately when the
+      // caller supplies it (or explicit null to clear). Skipped when undefined so
+      // legacy callers are unaffected.
+      if (input.roleId !== undefined) {
+        await context.tenantDb
+          .update(members)
+          .set({ roleId: input.roleId })
+          .where(eq(members.id, input.memberId));
+      }
+
       // Get updated member
       const updatedMember = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
       });
+
+      if (!updatedMember) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Member not found after role update",
+        });
+      }
 
       // DEVIATION from §4.8: MembershipService does a dual-write (controlPanel + tenant)
       // and does not expose a tx hook. Audit is written after the fact on a separate query.
@@ -503,18 +528,25 @@ export const memberRouter = {
         entityId: input.memberId,
         branchId: member.hierarchyScopeId,
         summary: `Changed member role from "${previousRole}" to "${input.newRole}"`,
-        changes: { from: previousRole, to: input.newRole },
+        changes: {
+          from: previousRole,
+          to: input.newRole,
+          ...(input.roleId !== undefined
+            ? { roleIdFrom: previousRoleId, roleIdTo: input.roleId }
+            : {}),
+        },
       });
 
       return {
         success: true,
         member: {
-          id: updatedMember!.id,
-          userId: updatedMember!.userId,
-          role: updatedMember!.role,
-          hierarchyScopeId: updatedMember!.hierarchyScopeId,
-          status: updatedMember!.status,
-          joinedAt: updatedMember!.joinedAt,
+          id: updatedMember.id,
+          userId: updatedMember.userId,
+          role: updatedMember.role,
+          roleId: updatedMember.roleId,
+          hierarchyScopeId: updatedMember.hierarchyScopeId,
+          status: updatedMember.status,
+          joinedAt: updatedMember.joinedAt,
         },
       };
     }),
@@ -615,6 +647,12 @@ export const memberRouter = {
         where: eq(members.id, input.memberId),
       });
 
+      if (!updatedMember) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Member not found after status update",
+        });
+      }
+
       // DEVIATION from §4.8: MembershipService does a dual-write and does not expose a tx hook.
       // Audit is written after the fact. Rare orphan window if process dies between writes.
       await writeAudit(context.tenantDb, {
@@ -632,12 +670,12 @@ export const memberRouter = {
       return {
         success: true,
         member: {
-          id: updatedMember!.id,
-          userId: updatedMember!.userId,
-          role: updatedMember!.role,
-          hierarchyScopeId: updatedMember!.hierarchyScopeId,
-          status: updatedMember!.status,
-          joinedAt: updatedMember!.joinedAt,
+          id: updatedMember.id,
+          userId: updatedMember.userId,
+          role: updatedMember.role,
+          hierarchyScopeId: updatedMember.hierarchyScopeId,
+          status: updatedMember.status,
+          joinedAt: updatedMember.joinedAt,
         },
       };
     }),
@@ -738,6 +776,12 @@ export const memberRouter = {
         where: eq(members.id, input.memberId),
       });
 
+      if (!updatedMember) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Member not found after status update",
+        });
+      }
+
       // DEVIATION from §4.8: MembershipService does a dual-write and does not expose a tx hook.
       // Audit is written after the fact. Rare orphan window if process dies between writes.
       await writeAudit(context.tenantDb, {
@@ -755,12 +799,12 @@ export const memberRouter = {
       return {
         success: true,
         member: {
-          id: updatedMember!.id,
-          userId: updatedMember!.userId,
-          role: updatedMember!.role,
-          hierarchyScopeId: updatedMember!.hierarchyScopeId,
-          status: updatedMember!.status,
-          joinedAt: updatedMember!.joinedAt,
+          id: updatedMember.id,
+          userId: updatedMember.userId,
+          role: updatedMember.role,
+          hierarchyScopeId: updatedMember.hierarchyScopeId,
+          status: updatedMember.status,
+          joinedAt: updatedMember.joinedAt,
         },
       };
     }),

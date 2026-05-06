@@ -210,6 +210,9 @@ export function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 		userId: randomUUID(),
 		organizationId: ORG_ID,
 		role: "staff",
+		// Wave 3a Agent 2.1 (Journey J1): nullable FK to roles table.
+		// Default null so existing fixture consumers keep legacy text-role behaviour.
+		roleId: null,
 		status: "active",
 		hierarchyScopeId: BRANCH_NODE_ID,
 		createdAt: new Date(),

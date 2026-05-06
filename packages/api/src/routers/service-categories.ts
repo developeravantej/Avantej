@@ -217,6 +217,7 @@ export const serviceCategoriesRouter = {
           displayOrder: input.displayOrder,
           branchId: input.branchId ?? null,
           isActive: input.isActive,
+          createdBy: context.session?.user?.id ?? null,
         });
         return {
           id: category.id,
@@ -316,6 +317,7 @@ export const serviceCategoriesRouter = {
             displayOrder: input.displayOrder,
             branchId: input.branchId,
             isActive: input.isActive,
+            updatedBy: context.session?.user?.id ?? null,
           }
         );
         return {

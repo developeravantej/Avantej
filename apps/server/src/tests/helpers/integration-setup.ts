@@ -17,31 +17,49 @@ export const TEST_USER_ID = "cccccccc-0000-4000-8000-000000000001";
  * Must be called before any DB connections are created.
  */
 export function loadDevVars(): void {
-	const devVarsPath = join(import.meta.dir, "../../../../.dev.vars");
-	try {
-		const content = readFileSync(devVarsPath, "utf-8");
-		for (const line of content.split("\n")) {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith("#")) continue;
-			const eqIdx = trimmed.indexOf("=");
-			if (eqIdx === -1) continue;
-			const key = trimmed.slice(0, eqIdx).trim();
-			const value = trimmed.slice(eqIdx + 1).trim();
-			if (!process.env[key]) {
-				process.env[key] = value;
+	// Try multiple candidate paths so loader works whether tests run from
+	// project root, apps/server, or via dist/ compiled output.
+	const candidates = [
+		join(import.meta.dir, "../../../.dev.vars"), // apps/server/src/tests/helpers → apps/server/.dev.vars
+		join(import.meta.dir, "../../../../.dev.vars"),
+		join(process.cwd(), ".dev.vars"),
+		join(process.cwd(), "apps/server/.dev.vars"),
+	];
+	for (const devVarsPath of candidates) {
+		try {
+			const content = readFileSync(devVarsPath, "utf-8");
+			for (const line of content.split("\n")) {
+				const trimmed = line.trim();
+				if (!trimmed || trimmed.startsWith("#")) continue;
+				const eqIdx = trimmed.indexOf("=");
+				if (eqIdx === -1) continue;
+				const key = trimmed.slice(0, eqIdx).trim();
+				const value = trimmed.slice(eqIdx + 1).trim().replace(/^"(.*)"$/, "$1");
+				if (!process.env[key]) {
+					process.env[key] = value;
+				}
 			}
+			return;
+		} catch {
+			// try next candidate
 		}
-	} catch {
-		console.warn("[integration-setup] .dev.vars not found; using process.env as-is");
 	}
+	console.warn("[integration-setup] .dev.vars not found in any candidate path; using process.env as-is");
 }
 
 /**
  * Returns true if integration tests should be skipped.
- * Controlled via SKIP_INTEGRATION_TESTS=true env var.
+ * Skips when SKIP_INTEGRATION_TESTS=true OR when TENANT_DATABASE_URL is missing.
+ * Auto-loads .dev.vars first so callers don't need to remember.
  */
 export function shouldSkipIntegration(): boolean {
-	return process.env.SKIP_INTEGRATION_TESTS === "true";
+	if (process.env.SKIP_INTEGRATION_TESTS === "true") return true;
+	if (!process.env.TENANT_DATABASE_URL) {
+		// Try loading .dev.vars on demand before declaring skip
+		loadDevVars();
+		if (!process.env.TENANT_DATABASE_URL) return true;
+	}
+	return false;
 }
 
 /**

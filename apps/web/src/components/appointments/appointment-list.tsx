@@ -138,7 +138,16 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				staffAssignments: params.staffAssignments,
 			}),
 		successMessage: "Appointment created",
-		errorMessage: (err) => err.message || "Failed to create appointment",
+		// J3 — DB exclusion constraint surfaces overlap conflicts as a typed
+		// CONFLICT error from the oRPC mapper. We detect it by message prefix
+		// (the oRPC client serialises the code into the error message envelope
+		// in some paths) so the user sees the precise reason instead of a
+		// generic "failed to create" toast.
+		errorMessage: (err) => {
+			const msg = err.message || "Failed to create appointment";
+			if (msg.startsWith("Conflict:")) return msg;
+			return msg;
+		},
 		invalidate: [["appointments"]],
 		onSuccess: () => {
 			setShowAddModal(false);

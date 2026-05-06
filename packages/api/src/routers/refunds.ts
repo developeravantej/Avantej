@@ -11,6 +11,7 @@
 import { requirePermission } from "@avantej-core/services";
 import {
 	approveRefund,
+	createPartialRefund,
 	getRefundById,
 	listRefunds,
 	processRefund,
@@ -289,6 +290,64 @@ export const refundsRouter = {
 			try {
 				return await rejectRefund(context.tenantDb, input.id, {
 					reviewNotes: input.reviewNotes,
+					actor: {
+						userId: context.session.user.id,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") {
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
+				}
+				if (e?.code === "NOT_FOUND") {
+					throw new ORPCError("NOT_FOUND", { message: e.message });
+				}
+				throw err;
+			}
+		}),
+
+	/**
+	 * Create a partial refund against a package instance — refunds a specific
+	 * number of session credits. Locks the package_instances row via SELECT FOR
+	 * UPDATE; rolls back on any validation failure. Agent 2.8 — J5.
+	 */
+	createPartial: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				packageInstanceId: z.string().uuid(),
+				creditsRefunded: z.number().int().positive(),
+				reason: z.string().min(1).max(1000),
+				branchId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"create",
+			);
+
+			try {
+				return await createPartialRefund(context.tenantDb, {
+					packageInstanceId: input.packageInstanceId,
+					creditsRefunded: input.creditsRefunded,
+					reason: input.reason,
+					branchId: input.branchId,
 					actor: {
 						userId: context.session.user.id,
 						memberId: context.member.id,

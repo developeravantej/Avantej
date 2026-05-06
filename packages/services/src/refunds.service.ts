@@ -16,6 +16,7 @@ import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-ev
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
+import { refundItems } from "@avantej-core/db/schema/tenant/refund-items";
 import { refunds } from "@avantej-core/db/schema/tenant/refunds";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -34,6 +35,7 @@ import {
 } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { reverseForRefund } from "./commission-splits.service";
 
 // ---------------------------------------------------------------------------
 // Internal type aliases
@@ -519,6 +521,15 @@ export async function approveRefund(
 
 		if (!updated) throw new Error("Failed to update refund row");
 
+		// Agent 2.9 — J5: chain refund approval to commission reversal.
+		// Reversals are created inside the same tx so we either reverse + approve atomically,
+		// or roll back both.
+		const reversalResult = await reverseForRefund(tx, id, {
+			reason: `Refund ${existing.refundNumber} approved: ${existing.reason}`,
+			initiatedBy: params.actor.userId,
+			actor: params.actor,
+		});
+
 		await writeAudit(tx, {
 			actorUserId: params.actor.userId,
 			actorMemberId: params.actor.memberId,
@@ -527,8 +538,11 @@ export async function approveRefund(
 			entityType: "refund",
 			entityId: id,
 			branchId: existing.branchId ?? undefined,
-			summary: `Refund ${existing.refundNumber} approved`,
-			changes: { reviewNotes: params.reviewNotes },
+			summary: `Refund ${existing.refundNumber} approved${reversalResult.reversalIds.length > 0 ? ` (${reversalResult.reversalIds.length} commission reversal(s))` : ""}`,
+			changes: {
+				reviewNotes: params.reviewNotes,
+				reversalIds: reversalResult.reversalIds,
+			},
 		});
 
 		return updated;
@@ -961,4 +975,192 @@ export async function getRefundById(
 		where: (r, { eq: eqFn }) => eqFn(r.id, id),
 	});
 	return row ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// createPartialRefund — Agent 2.8 (Phase 2 Wave 3d — J5)
+// ---------------------------------------------------------------------------
+
+export interface CreatePartialRefundParams {
+	packageInstanceId: string;
+	creditsRefunded: number;
+	reason: string;
+	branchId?: string;
+	actor: { userId: string; memberId: string; role: string };
+}
+
+export interface CreatePartialRefundResult {
+	refundId: string;
+	refundItemId: string;
+	refundNumber: string;
+	amountCents: number;
+}
+
+/**
+ * Create a partial refund against a package instance, refunding a specific
+ * number of session credits.
+ *
+ * Concurrency safety:
+ *   * SELECT FOR UPDATE locks the package_instances row inside a transaction
+ *   * UPDATE ... credits_used = credits_used + N (the generated column
+ *     creditsRemaining is automatically recomputed; do NOT write to it)
+ *   * Validate `credits_used <= COALESCE(credits_unlocked, credits_total)`
+ *     after the update, throw BAD_REQUEST if violated (rolls back tx)
+ *
+ * Per-credit refund amount is derived from the instance's totalPrice / creditsTotal.
+ * If totalPrice is null or creditsTotal is 0/null, throws BAD_REQUEST.
+ *
+ * Writes:
+ *   * 1 row in refunds (status='pending', target=packageInstance)
+ *   * 1 row in refund_items (creditsRefunded=N, amountCents=perCredit*N)
+ *   * 1 audit row (sale.refund.request — partial)
+ */
+export async function createPartialRefund(
+	tenantDb: TenantDb,
+	params: CreatePartialRefundParams,
+): Promise<CreatePartialRefundResult> {
+	if (params.creditsRefunded <= 0 || !Number.isInteger(params.creditsRefunded)) {
+		throw {
+			code: "BAD_REQUEST",
+			message: "creditsRefunded must be a positive integer",
+		};
+	}
+	if (!params.reason?.trim()) {
+		throw { code: "BAD_REQUEST", message: "reason is required" };
+	}
+
+	return tenantDb.transaction(async (tx) => {
+		const now = new Date();
+
+		// 1. Lock the package_instances row
+		const [instance] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.packageInstanceId))
+			.for("update");
+
+		if (!instance) {
+			throw {
+				code: "NOT_FOUND",
+				message: `Package instance ${params.packageInstanceId} not found`,
+			};
+		}
+
+		const totalPrice = instance.totalPrice ?? 0;
+		const creditsTotal = instance.creditsTotal ?? 0;
+		if (totalPrice <= 0 || creditsTotal <= 0) {
+			throw {
+				code: "BAD_REQUEST",
+				message:
+					"Package instance has no totalPrice or creditsTotal; cannot derive per-credit refund amount",
+			};
+		}
+
+		// Per-credit amount (integer cents). For the last credit refunded against
+		// a package, callers may want to round-up to fully zero out totalPrice;
+		// for v1 we use floor and accept residual cents.
+		const perCreditCents = Math.floor(totalPrice / creditsTotal);
+		if (perCreditCents <= 0) {
+			throw {
+				code: "BAD_REQUEST",
+				message: "Per-credit refund amount resolves to 0 cents",
+			};
+		}
+		const amountCents = perCreditCents * params.creditsRefunded;
+
+		// 2. Increment credits_used
+		const newCreditsUsed = (instance.creditsUsed ?? 0) + params.creditsRefunded;
+		const cap = instance.creditsUnlocked ?? instance.creditsTotal;
+		if (newCreditsUsed > cap) {
+			throw {
+				code: "BAD_REQUEST",
+				message: `Refund of ${params.creditsRefunded} credits exceeds remaining (used=${instance.creditsUsed}, cap=${cap})`,
+			};
+		}
+
+		await tx
+			.update(packageInstances)
+			.set({ creditsUsed: newCreditsUsed, updatedAt: now })
+			.where(eq(packageInstances.id, params.packageInstanceId));
+
+		// 3. Auto-fill customer + branch from instance (clientId is the customer)
+		const customerId = instance.clientId ?? "";
+		const customerName = instance.clientId ?? "(unknown)"; // package_instances has no name
+		const branchId = params.branchId ?? null;
+
+		if (!customerId) {
+			throw {
+				code: "BAD_REQUEST",
+				message: "Package instance has no clientId; cannot create refund",
+			};
+		}
+
+		// 4. Generate refund number, insert parent refund row
+		const refundNumber = await generateRefundNumber(tx, now);
+
+		const [refund] = await tx
+			.insert(refunds)
+			.values({
+				refundNumber,
+				status: "pending",
+				packageInstanceId: params.packageInstanceId,
+				amountCents,
+				taxAmountCents: 0,
+				reason: params.reason,
+				requestedBy: params.actor.userId,
+				requestedAt: now,
+				branchId,
+				customerId,
+				customerName,
+				metadata: {
+					partial: true,
+					creditsRefunded: params.creditsRefunded,
+					perCreditCents,
+				},
+			})
+			.returning();
+
+		if (!refund) throw new Error("Failed to insert refund row");
+
+		// 5. Insert refund_items line
+		const [item] = await tx
+			.insert(refundItems)
+			.values({
+				refundId: refund.id,
+				packageInstanceId: params.packageInstanceId,
+				salesOrderItemId: null,
+				creditsRefunded: params.creditsRefunded,
+				amountCents,
+			})
+			.returning();
+
+		if (!item) throw new Error("Failed to insert refund_items row");
+
+		// 6. Audit
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "sale.refund.request",
+			entityType: "refund",
+			entityId: refund.id,
+			branchId: branchId ?? undefined,
+			summary: `Partial refund ${refundNumber} requested — ${params.creditsRefunded} credits @ ${(perCreditCents / 100).toFixed(2)} = ${(amountCents / 100).toFixed(2)} MYR — ${params.reason}`,
+			changes: {
+				partial: true,
+				packageInstanceId: params.packageInstanceId,
+				creditsRefunded: params.creditsRefunded,
+				perCreditCents,
+				amountCents,
+				newCreditsUsed,
+			},
+		});
+
+		return {
+			refundId: refund.id,
+			refundItemId: item.id,
+			refundNumber,
+			amountCents,
+		};
+	});
 }

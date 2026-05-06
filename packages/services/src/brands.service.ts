@@ -33,13 +33,15 @@ export async function getBrandById(
 
 export async function createBrand(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { name: string; description?: string }
+	params: { name: string; description?: string; createdBy?: string | null }
 ): Promise<typeof brands.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(brands)
 		.values({
 			name: params.name,
 			description: params.description ?? null,
+			createdBy: params.createdBy ?? null,
+			updatedBy: params.createdBy ?? null,
 		})
 		.returning();
 
@@ -52,13 +54,14 @@ export async function createBrand(
 export async function updateBrand(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { name?: string; description?: string }
+	params: { name?: string; description?: string; updatedBy?: string | null }
 ): Promise<typeof brands.$inferSelect> {
 	const [row] = await tenantDb
 		.update(brands)
 		.set({
 			...(params.name !== undefined && { name: params.name }),
 			...(params.description !== undefined && { description: params.description }),
+			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
 			updatedAt: new Date(),
 		})
 		.where(eq(brands.id, id))

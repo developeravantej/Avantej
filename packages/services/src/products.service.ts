@@ -16,9 +16,12 @@ export type CreateProductParams = {
 	conversionFactor?: string;
 	price: number;
 	status?: "active" | "inactive" | "discontinued";
+	createdBy?: string | null;
 };
 
-export type UpdateProductParams = Partial<CreateProductParams>;
+export type UpdateProductParams = Partial<CreateProductParams> & {
+	updatedBy?: string | null;
+};
 
 export async function listProducts(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
@@ -89,6 +92,8 @@ export async function createProduct(
 			conversionFactor: params.conversionFactor ?? "1",
 			price: params.price,
 			status: params.status ?? "active",
+			createdBy: params.createdBy ?? null,
+			updatedBy: params.createdBy ?? null,
 		})
 		.returning();
 
@@ -117,6 +122,7 @@ export async function updateProduct(
 			...(params.conversionFactor !== undefined && { conversionFactor: params.conversionFactor }),
 			...(params.price !== undefined && { price: params.price }),
 			...(params.status !== undefined && { status: params.status }),
+			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
 			updatedAt: new Date(),
 		})
 		.where(eq(products.id, id))

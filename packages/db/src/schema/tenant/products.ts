@@ -21,6 +21,8 @@ export const products = pgTable("products", {
 	status: text("status").default("active").notNull(), // "active" | "inactive" | "discontinued"
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	createdBy: text("created_by"),
+	updatedBy: text("updated_by"),
 }, (table) => ({
 	skuUnique: unique("products_sku_unique").on(table.sku),
 	skuIdx: index("products_sku_idx").on(table.sku),

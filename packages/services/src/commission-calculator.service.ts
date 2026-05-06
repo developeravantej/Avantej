@@ -13,6 +13,8 @@
 import { eq, and, asc } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
 import { commissionCoachSlots } from "@avantej-core/db/schema/tenant/commission-coach-slots";
 import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
@@ -20,6 +22,7 @@ import { commissionConditions } from "@avantej-core/db/schema/tenant/commission-
 import { commissionConditionRates } from "@avantej-core/db/schema/tenant/commission-condition-rates";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { writeAudit } from "./audit-log.service";
+import { applyCommissionCaps } from "./commission-splits.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -334,6 +337,32 @@ async function _buildSplits(
 		return results;
 	}
 
+	// Pre-step B2: comp-order / commission-excluded guard (mirrors Agent 3.3 in createCommissionSplit).
+	// Bail before any per-staff work when the whole order is commission-ineligible.
+	if (p.salesOrderId) {
+		const [orderRow] = await db
+			.select({ complimentaryReason: salesOrders.complimentaryReason })
+			.from(salesOrders)
+			.where(eq(salesOrders.id, p.salesOrderId))
+			.limit(1);
+		if (orderRow?.complimentaryReason) {
+			return results;
+		}
+		const [activeLine] = await db
+			.select({ id: salesOrderItems.id })
+			.from(salesOrderItems)
+			.where(
+				and(
+					eq(salesOrderItems.salesOrderId, p.salesOrderId),
+					eq(salesOrderItems.commissionExcluded, false),
+				),
+			)
+			.limit(1);
+		if (!activeLine) {
+			return results;
+		}
+	}
+
 	// Pre-step C: compute unclaimed weightage from absent slots and distribute
 	// it evenly across present coaches (per plan §3.11 algorithm step h).
 	const presentSlotIndices = new Set(validAssignments.map((a) => a.slotIndex));
@@ -463,6 +492,20 @@ async function _buildSplits(
 				? 0
 				: Math.round((rateAmount * effectiveWeightage) / 1_000_000);
 
+		// 4h: per-cycle cap (mirrors Agent 3.4 in createCommissionSplit)
+		const capDecision = await applyCommissionCaps(db, {
+			appointmentId: p.appointmentId ?? null,
+			salesOrderId: p.salesOrderId ?? null,
+			packageInstanceId: null,
+			staffId: assignment.staffId,
+			amountCents: finalAmount,
+			earnedAt: p.earnedAt,
+		});
+		if (capDecision.skip) {
+			continue;
+		}
+		const cappedAmount = capDecision.amountCents;
+
 		// Insert directly into commission_splits (snapshot effective, not raw, weightage)
 		const [inserted] = await db
 			.insert(commissionSplits)
@@ -471,7 +514,7 @@ async function _buildSplits(
 				...(p.salesOrderId ? { salesOrderId: p.salesOrderId } : {}),
 				staffId: assignment.staffId,
 				splitPercentage,
-				calculatedAmount: finalAmount,
+				calculatedAmount: cappedAmount,
 				status: "pending",
 				splitType: "automatic",
 				slotIndex: assignment.slotIndex,
@@ -480,6 +523,7 @@ async function _buildSplits(
 				weightageBasisPoints: effectiveWeightage,
 				baseAmountCents,
 				earnedAt: p.earnedAt,
+				...(capDecision.reason ? { notes: capDecision.reason } : {}),
 			})
 			.returning();
 
@@ -492,12 +536,14 @@ async function _buildSplits(
 				action: "commission.create",
 				entityType: "commission_split",
 				entityId: inserted.id,
-				summary: `Commission split created for staff ${assignment.staffId}: ${finalAmount} cents (${p.config.paymentType})`,
+				summary: `Commission split created for staff ${assignment.staffId}: ${cappedAmount} cents (${p.config.paymentType})${capDecision.reason ? ` [${capDecision.reason}]` : ""}`,
 				changes: {
 					staffId: assignment.staffId,
 					slotIndex: assignment.slotIndex,
 					splitPercentage,
-					calculatedAmount: finalAmount,
+					requestedAmountCents: finalAmount,
+					calculatedAmount: cappedAmount,
+					capReason: capDecision.reason,
 					baseAmountCents,
 					weightageBasisPoints: effectiveWeightage,
 					paymentType: p.config.paymentType,

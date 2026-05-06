@@ -96,10 +96,21 @@ export async function hasPermission(
 	resource: Resource,
 	action: Action,
 ): Promise<boolean> {
-	// Get member's role
-	const role = await tenantDb.query.roles.findFirst({
-		where: (roles, { eq }) => eq(roles.name, member.role),
-	});
+	// Wave 3a Agent 2.1 (Journey J1): when member has a custom roleId set, resolve
+	// permissions via that role's role_permissions joins. Falls through to the
+	// legacy text-role path if roleId is null OR the referenced role no longer exists.
+	let role = member.roleId
+		? await tenantDb.query.roles.findFirst({
+			where: (roles, { eq }) => eq(roles.id, member.roleId as string),
+		})
+		: undefined;
+
+	if (!role) {
+		// Fast-path / fallback: look up role by legacy text name.
+		role = await tenantDb.query.roles.findFirst({
+			where: (roles, { eq }) => eq(roles.name, member.role),
+		});
+	}
 
 	if (!role) {
 		// Role not found in RBAC tables - fallback to simple check

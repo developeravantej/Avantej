@@ -27,6 +27,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
+import { mapPgError } from "../lib/orpc-error-mapper";
 
 const appointmentTypeSchema = z.enum(["private", "semi-private"]);
 const statusSchema = z.enum([
@@ -412,6 +413,11 @@ export const appointmentsRouter = {
 
         return created;
       } catch (error) {
+        // J3 — translate PG exclusion / FK violations into typed ORPCError so
+        // the UI can show a "trainer/room already booked" toast instead of a
+        // generic "Failed to create appointment" message.
+        const mapped = mapPgError(error);
+        if (mapped) throw mapped;
         throw new ORPCError("BAD_REQUEST", {
           message: error instanceof Error ? error.message : "Failed to create appointment",
         });

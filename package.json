@@ -34,7 +34,9 @@
     "db:push": "turbo -F @avantej-core/db db:push",
     "db:studio": "turbo -F @avantej-core/db db:studio",
     "db:generate": "turbo -F @avantej-core/db db:generate",
-    "db:migrate": "turbo -F @avantej-core/db db:migrate"
+    "db:migrate": "turbo -F @avantej-core/db db:migrate",
+    "gen:migrations": "bun scripts/gen-tenant-migrations.ts",
+    "verify:migrations": "bun scripts/verify-migrations-generated.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.2",

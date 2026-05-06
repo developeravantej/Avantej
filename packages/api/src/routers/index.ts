@@ -34,6 +34,7 @@ import { preferredTimesRouter } from "./preferred-times";
 import { productCategoriesRouter } from "./product-categories";
 import { productsRouter } from "./products";
 import { promotionsRouter } from "./promotions";
+import { goodsReceiptsRouter } from "./goods-receipts";
 import { purchaseOrdersRouter } from "./purchase-orders";
 import { refundsRouter } from "./refunds";
 import { registrationRouter } from "./registration";
@@ -55,6 +56,12 @@ import { unitsOfMeasureRouter } from "./units-of-measure";
 import { userActivityLogRouter } from "./user-activity-log";
 import { waitlistRouter } from "./waitlist";
 import { walkInCustomersRouter } from "./walk-in-customers";
+// #region Agent 3.1 — membership freeze/resume (Phase 3 — J4)
+import { membershipsRouter } from "./memberships";
+// #endregion
+// #region Agent 3.6 — household linking (Phase 3)
+import { householdsRouter } from "./households";
+// #endregion
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -103,6 +110,7 @@ export const baseRouter = {
 	commissionSplits: commissionSplitsRouter,
 	categoryCommission: categoryCommissionRouter,
 	purchaseOrders: purchaseOrdersRouter,
+	goodsReceipts: goodsReceiptsRouter,
 	promotions: promotionsRouter,
 	walkInCustomers: walkInCustomersRouter,
 	taxRates: taxRatesRouter,
@@ -121,6 +129,12 @@ export const baseRouter = {
 	checkIns: checkInsRouter,
 	pos: posRouter,
 	refunds: refundsRouter,
+	// #region Agent 3.1 — membership freeze/resume (Phase 3 — J4)
+	memberships: membershipsRouter,
+	// #endregion
+	// #region Agent 3.6 — household linking (Phase 3)
+	households: householdsRouter,
+	// #endregion
 };
 
 // Auth router type definition for client type inference

@@ -27,11 +27,19 @@ import {
 	sql,
 } from "drizzle-orm";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import { commissionSplitReversals } from "@avantej-core/db/schema/tenant/commission-split-reversals";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
+import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
+import { promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { payoutBatches } from "@avantej-core/db/schema/tenant/payout-batches";
+import { payouts } from "@avantej-core/db/schema/tenant/payouts";
+import { refundItems } from "@avantej-core/db/schema/tenant/refund-items";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -144,13 +152,251 @@ export async function getMyCommissions(
 }
 
 // ---------------------------------------------------------------------------
+// Agent 3.4 — Commission caps/floors (Phase 3 §5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the categoryId for a split's source. The category drives which
+ * commission-config row applies (and therefore which caps).
+ *
+ * Resolution priority — at most one source is set per split (CHECK constraint):
+ *   appointmentId      → appointments.serviceId      → services.categoryId
+ *   packageInstanceId  → package_instances.serviceId → services.categoryId
+ *   salesOrderId       → first sales_order_items row with a serviceId →
+ *                        services.categoryId. (Sales orders may bundle multiple
+ *                        services across categories. We take the first commission-
+ *                        eligible line; if cap-tuning per line is needed later it
+ *                        belongs in commission-calculator.service.ts which is
+ *                        out of scope here.)
+ */
+async function resolveCategoryIdForSplit(
+	db: TenantDb | TenantTx,
+	source: { appointmentId?: string | null; salesOrderId?: string | null; packageInstanceId?: string | null },
+): Promise<string | null> {
+	const tdb = db as TenantDb;
+	if (source.appointmentId) {
+		const [row] = await tdb
+			.select({ categoryId: services.categoryId })
+			.from(appointments)
+			.innerJoin(services, eq(appointments.serviceId, services.id))
+			.where(eq(appointments.id, source.appointmentId))
+			.limit(1);
+		return row?.categoryId ?? null;
+	}
+	if (source.packageInstanceId) {
+		const [row] = await tdb
+			.select({ categoryId: services.categoryId })
+			.from(packageInstances)
+			.innerJoin(services, eq(packageInstances.serviceId, services.id))
+			.where(eq(packageInstances.id, source.packageInstanceId))
+			.limit(1);
+		return row?.categoryId ?? null;
+	}
+	if (source.salesOrderId) {
+		const [row] = await tdb
+			.select({ categoryId: services.categoryId })
+			.from(salesOrderItems)
+			.innerJoin(services, eq(salesOrderItems.serviceId, services.id))
+			.where(
+				and(
+					eq(salesOrderItems.salesOrderId, source.salesOrderId),
+					eq(salesOrderItems.commissionExcluded, false),
+				),
+			)
+			.limit(1);
+		return row?.categoryId ?? null;
+	}
+	return null;
+}
+
+/**
+ * Sum the discount applied to a sales order via promotion_usages and compute
+ * the discount fraction in basis points relative to the gross order total
+ * (gross = totalAmount + sum(discountAmount)). Returns 0 when no promotions
+ * were applied or the order is missing.
+ */
+async function computeOrderDiscountBps(
+	db: TenantDb | TenantTx,
+	salesOrderId: string,
+): Promise<number> {
+	const tdb = db as TenantDb;
+	const [order] = await tdb
+		.select({ totalAmount: salesOrders.totalAmount })
+		.from(salesOrders)
+		.where(eq(salesOrders.id, salesOrderId))
+		.limit(1);
+	if (!order) return 0;
+
+	const [agg] = await tdb
+		.select({
+			discountTotal:
+				sql<number>`COALESCE(SUM(${promotionUsages.discountAmount}), 0)`.mapWith(
+					Number,
+				),
+		})
+		.from(promotionUsages)
+		.where(eq(promotionUsages.salesOrderId, salesOrderId));
+
+	const discountCents = agg?.discountTotal ?? 0;
+	if (discountCents <= 0) return 0;
+	const grossCents = order.totalAmount + discountCents;
+	if (grossCents <= 0) return 0;
+	return Math.round((discountCents / grossCents) * 10_000); // basis points
+}
+
+/**
+ * Inclusive monthly cycle bounds [start, end) anchored to the split's earnedAt.
+ * Same convention used by `getOrCreatePayoutBatch` callers when finance closes
+ * a calendar-month period. (Custom cycle definitions live with the batch row;
+ * at split-creation time we do not yet know which batch will absorb the row,
+ * so we use the canonical month boundary.)
+ */
+function getCycleBoundsForDate(d: Date): { start: Date; end: Date } {
+	const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0));
+	const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+	return { start, end };
+}
+
+export interface CommissionCapDecision {
+	/** True when the split must be skipped entirely (e.g. order discount above threshold). */
+	skip: boolean;
+	/** Final commission amount after cycle cap. May equal input when no cap applied. */
+	amountCents: number;
+	/** Reason string when capped/skipped — useful for audit notes. null when unchanged. */
+	reason: string | null;
+}
+
+/**
+ * Apply commission caps for a pending split.
+ *
+ * Steps:
+ *   1. Resolve the effective config via categoryId (skips silently if unresolvable).
+ *   2. excludeIfDiscountAbovePct (basis points): if the parent sales order's
+ *      effective discount % exceeds the threshold → skip split.
+ *   3. maxPerCycleCents: sum of pending+approved+paid splits for the trainer in
+ *      the same calendar-month cycle (excluding void). New amount is reduced so
+ *      total ≤ cap. If cap already met, returned amount is 0 and skip=true.
+ *
+ * Returns a decision object the caller acts on. Pure read operation; safe to
+ * call inside the same transaction as the eventual insert.
+ */
+export async function applyCommissionCaps(
+	db: TenantDb | TenantTx,
+	params: {
+		appointmentId?: string | null;
+		salesOrderId?: string | null;
+		packageInstanceId?: string | null;
+		staffId: string;
+		amountCents: number;
+		earnedAt: Date;
+	},
+): Promise<CommissionCapDecision> {
+	const tdb = db as TenantDb;
+
+	const categoryId = await resolveCategoryIdForSplit(db, {
+		appointmentId: params.appointmentId,
+		salesOrderId: params.salesOrderId,
+		packageInstanceId: params.packageInstanceId,
+	});
+	if (!categoryId) {
+		// Cannot resolve config without a category — fall through with no cap.
+		return { skip: false, amountCents: params.amountCents, reason: null };
+	}
+
+	const [config] = await tdb
+		.select({
+			maxPerCycleCents: categoryCommissionConfigs.maxPerCycleCents,
+			excludeIfDiscountAbovePct:
+				categoryCommissionConfigs.excludeIfDiscountAbovePct,
+		})
+		.from(categoryCommissionConfigs)
+		.where(
+			and(
+				eq(categoryCommissionConfigs.categoryId, categoryId),
+				eq(categoryCommissionConfigs.isActive, true),
+			),
+		)
+		.limit(1);
+
+	if (!config) {
+		return { skip: false, amountCents: params.amountCents, reason: null };
+	}
+
+	// 1) Discount-threshold opt-out (sales order path only — appointments and
+	//    package instances are not promotion-discounted in the current model).
+	if (
+		params.salesOrderId &&
+		config.excludeIfDiscountAbovePct !== null &&
+		config.excludeIfDiscountAbovePct !== undefined
+	) {
+		const discountBps = await computeOrderDiscountBps(db, params.salesOrderId);
+		if (discountBps > config.excludeIfDiscountAbovePct) {
+			return {
+				skip: true,
+				amountCents: 0,
+				reason: `Commission excluded: order discount ${(discountBps / 100).toFixed(2)}% exceeds category threshold ${(config.excludeIfDiscountAbovePct / 100).toFixed(2)}%`,
+			};
+		}
+	}
+
+	// 2) Per-cycle cap. Sum non-void splits for trainer in the calendar month
+	//    that contains earnedAt; cap the new amount so the running total ≤ cap.
+	if (
+		config.maxPerCycleCents !== null &&
+		config.maxPerCycleCents !== undefined &&
+		config.maxPerCycleCents >= 0
+	) {
+		const { start, end } = getCycleBoundsForDate(params.earnedAt);
+		const [agg] = await tdb
+			.select({
+				total:
+					sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
+						Number,
+					),
+			})
+			.from(commissionSplits)
+			.where(
+				and(
+					eq(commissionSplits.staffId, params.staffId),
+					ne(commissionSplits.status, "void"),
+					gte(commissionSplits.earnedAt, start),
+					sql`${commissionSplits.earnedAt} < ${end}`,
+				),
+			);
+
+		const alreadyCents = agg?.total ?? 0;
+		const remaining = config.maxPerCycleCents - alreadyCents;
+		if (remaining <= 0) {
+			return {
+				skip: true,
+				amountCents: 0,
+				reason: `Commission skipped: trainer reached per-cycle cap of ${config.maxPerCycleCents} cents (already ${alreadyCents})`,
+			};
+		}
+		if (params.amountCents > remaining) {
+			return {
+				skip: false,
+				amountCents: remaining,
+				reason: `Commission capped from ${params.amountCents} to ${remaining} cents — per-cycle limit ${config.maxPerCycleCents}`,
+			};
+		}
+	}
+
+	return { skip: false, amountCents: params.amountCents, reason: null };
+}
+
+// ---------------------------------------------------------------------------
 // Write helpers — new in Phase 6
 // ---------------------------------------------------------------------------
 
 export interface CreateSplitParams {
-	/** Exactly one of appointmentId or salesOrderId must be set */
+	/** Exactly one of appointmentId, salesOrderId, or packageInstanceId must be set */
 	appointmentId?: string;
 	salesOrderId?: string;
+	/** Agent 2.5 — third source for J5 commission audit */
+	packageInstanceId?: string;
+	/** Agent 2.5 — frozen config version snapshot at split creation time */
+	configVersionId?: string;
 	/**
 	 * staffId = members.userId (cross-DB user ID), NOT the tenant member table PK.
 	 * Consistent with appointmentStaff.staffId and payouts.recipientId conventions.
@@ -181,10 +427,12 @@ export interface CreateSplitParams {
 export async function createCommissionSplit(
 	db: TenantDb | TenantTx,
 	params: CreateSplitParams,
-): Promise<CommissionSplit> {
+): Promise<CommissionSplit | null> {
 	const {
 		appointmentId,
 		salesOrderId,
+		packageInstanceId,
+		configVersionId,
 		staffId,
 		splitPercentage,
 		calculatedAmountCents,
@@ -200,28 +448,87 @@ export async function createCommissionSplit(
 		manualNote,
 	} = params;
 
-	if (!appointmentId && !salesOrderId) {
+	// Agent 3.3 — Phase 3 §5: comp-order / commission-excluded guard.
+	// Skip split creation when the parent sales order is complimentary
+	// (sales_orders.complimentary_reason IS NOT NULL) or when every line on
+	// the order is opted out via sales_order_items.commission_excluded.
+	// NOTE: the hot POS path goes through commission-calculator.service.ts
+	// (_buildSplits) and bypasses this function via direct insert. Mirror
+	// guard there is a follow-up (read-only in this scope).
+	if (salesOrderId) {
+		const [orderRow] = await (db as TenantDb)
+			.select({ complimentaryReason: salesOrders.complimentaryReason })
+			.from(salesOrders)
+			.where(eq(salesOrders.id, salesOrderId))
+			.limit(1);
+		if (orderRow?.complimentaryReason) {
+			return null;
+		}
+		const [activeLine] = await (db as TenantDb)
+			.select({ id: salesOrderItems.id })
+			.from(salesOrderItems)
+			.where(
+				and(
+					eq(salesOrderItems.salesOrderId, salesOrderId),
+					eq(salesOrderItems.commissionExcluded, false),
+				),
+			)
+			.limit(1);
+		if (!activeLine) {
+			// Either no items at all, or every item is commission-excluded.
+			return null;
+		}
+	}
+
+	const sourceCount =
+		(appointmentId ? 1 : 0) + (salesOrderId ? 1 : 0) + (packageInstanceId ? 1 : 0);
+	if (sourceCount === 0) {
 		throw new ORPCError("BAD_REQUEST", {
-			message: "createCommissionSplit: exactly one of appointmentId or salesOrderId is required",
+			message:
+				"createCommissionSplit: exactly one of appointmentId, salesOrderId, or packageInstanceId is required",
 		});
 	}
-	if (appointmentId && salesOrderId) {
+	if (sourceCount > 1) {
 		throw new ORPCError("BAD_REQUEST", {
-			message: "createCommissionSplit: cannot set both appointmentId and salesOrderId",
+			message:
+				"createCommissionSplit: cannot set more than one of appointmentId, salesOrderId, packageInstanceId",
 		});
 	}
+
+	// Agent 3.4 — Phase 3 §5: discount-threshold opt-out + per-cycle cap.
+	// Comp / commission-excluded skip is already evaluated above; if we reach
+	// here the line is commission-eligible. Cap evaluation is read-only and
+	// safe to share the surrounding transaction.
+	const splitEarnedAt = earnedAt ?? new Date();
+	const capDecision = await applyCommissionCaps(db, {
+		appointmentId: appointmentId ?? null,
+		salesOrderId: salesOrderId ?? null,
+		packageInstanceId: packageInstanceId ?? null,
+		staffId,
+		amountCents: calculatedAmountCents,
+		earnedAt: splitEarnedAt,
+	});
+	if (capDecision.skip) {
+		return null;
+	}
+	const finalAmountCents = capDecision.amountCents;
+	const capNoteSuffix = capDecision.reason
+		? (notes ? `${notes} | ${capDecision.reason}` : capDecision.reason)
+		: notes ?? null;
 
 	const [inserted] = await (db as TenantDb)
 		.insert(commissionSplits)
 		.values({
 			appointmentId: appointmentId ?? null,
 			salesOrderId: salesOrderId ?? null,
+			packageInstanceId: packageInstanceId ?? null,
+			configVersionId: configVersionId ?? null,
 			staffId,
 			splitPercentage,
-			calculatedAmount: calculatedAmountCents,
-			notes: notes ?? null,
+			calculatedAmount: finalAmountCents,
+			notes: capNoteSuffix,
 			status: "pending",
-			earnedAt: earnedAt ?? new Date(),
+			earnedAt: splitEarnedAt,
 			slotIndex: slotIndex ?? null,
 			conditionId: conditionId ?? null,
 			trainerTierId: trainerTierId ?? null,
@@ -243,13 +550,15 @@ export async function createCommissionSplit(
 			entityType: "commission_split",
 			entityId: inserted.id,
 			branchId: undefined,
-			summary: `Commission split created for staff ${staffId} — ${calculatedAmountCents} cents (${splitPercentage}%)`,
+			summary: `Commission split created for staff ${staffId} — ${finalAmountCents} cents (${splitPercentage}%)${capDecision.reason ? ` [${capDecision.reason}]` : ""}`,
 			changes: {
 				appointmentId: appointmentId ?? null,
 				salesOrderId: salesOrderId ?? null,
 				staffId,
 				splitPercentage,
-				calculatedAmountCents,
+				requestedAmountCents: calculatedAmountCents,
+				calculatedAmountCents: finalAmountCents,
+				capReason: capDecision.reason,
 			},
 		});
 		return inserted;
@@ -1013,3 +1322,338 @@ export async function listCommissionLedger(
 		},
 	};
 }
+
+// ---------------------------------------------------------------------------
+// Agent 2.5 — Commission audit helpers (J5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the latest `category_commission_config_versions.id` for a given
+ * categoryId. Returns null if no version row exists yet (i.e. the config has
+ * never been saved since the trigger was installed).
+ *
+ * Callers should pass the returned id to createCommissionSplit so the split
+ * is anchored to the immutable snapshot of the config that was live at split
+ * creation time. Disputes mid-cycle can then be reproduced from the frozen
+ * version + the per-split snapshot fields already stored on commissionSplits
+ * (weightageBasisPoints, baseAmountCents, conditionId, trainerTierId,
+ * slotIndex).
+ */
+export async function getLatestConfigVersionForCategory(
+	tenantDb: TenantDb,
+	categoryId: string,
+): Promise<string | null> {
+	const [row] = await tenantDb
+		.select({ id: categoryCommissionConfigVersions.id })
+		.from(categoryCommissionConfigVersions)
+		.where(eq(categoryCommissionConfigVersions.categoryId, categoryId))
+		.orderBy(desc(categoryCommissionConfigVersions.versionNumber))
+		.limit(1);
+	return row?.id ?? null;
+}
+
+export interface GetOrCreatePayoutBatchParams {
+	branchId: string | null;
+	periodStart: Date;
+	periodEnd: Date;
+	createdBy: string; // members.userId
+}
+
+/**
+ * Idempotent payout batch resolver. Returns an existing batch matching
+ * (branchId, periodStart, periodEnd) if one is already pending or
+ * processing; otherwise creates a new pending batch.
+ */
+export async function getOrCreatePayoutBatch(
+	tenantDb: TenantDb,
+	params: GetOrCreatePayoutBatchParams,
+): Promise<typeof payoutBatches.$inferSelect> {
+	const { branchId, periodStart, periodEnd, createdBy } = params;
+
+	const branchCondition = branchId
+		? eq(payoutBatches.branchId, branchId)
+		: sql`${payoutBatches.branchId} IS NULL`;
+
+	const [existing] = await tenantDb
+		.select()
+		.from(payoutBatches)
+		.where(
+			and(
+				branchCondition,
+				eq(payoutBatches.periodStart, periodStart),
+				eq(payoutBatches.periodEnd, periodEnd),
+				inArray(payoutBatches.status, ["pending", "processing"]),
+			),
+		)
+		.limit(1);
+
+	if (existing) return existing;
+
+	const [created] = await tenantDb
+		.insert(payoutBatches)
+		.values({
+			branchId,
+			periodStart,
+			periodEnd,
+			createdBy,
+			status: "pending",
+			totalCents: 0,
+		})
+		.returning();
+
+	if (!created) {
+		throw new Error("getOrCreatePayoutBatch: insert returned no row");
+	}
+	return created;
+}
+
+/**
+ * Wire one or more payouts to a payout batch. Idempotent: payouts already
+ * linked to the batch are silently re-set (no-op).
+ */
+export async function attachPayoutsToBatch(
+	tenantDb: TenantDb,
+	payoutIds: string[],
+	batchId: string,
+): Promise<{ updatedCount: number }> {
+	if (payoutIds.length === 0) return { updatedCount: 0 };
+	const updated = await tenantDb
+		.update(payouts)
+		.set({ batchId, updatedAt: new Date() })
+		.where(inArray(payouts.id, payoutIds))
+		.returning({ id: payouts.id });
+	return { updatedCount: updated.length };
+}
+
+// ---------------------------------------------------------------------------
+// Agent 2.9 — Refund → commission reversal chain (J5)
+// ---------------------------------------------------------------------------
+
+export interface ReverseForRefundParams {
+	reason: string;
+	initiatedBy: string; // members.userId
+	actor?: { userId: string; memberId: string; role: string };
+}
+
+export interface ReverseForRefundResult {
+	reversalIds: string[];
+}
+
+/**
+ * Reverse commission splits tied to a refund.
+ *
+ * Strategy:
+ *   1. Resolve the set of commission_splits linked to the refund's targets:
+ *      - refund.salesOrderId          → splits with salesOrderId
+ *      - refund.packageInstanceId     → splits with packageInstanceId
+ *      - refund_items.salesOrderItemId → resolve to splits via the item's salesOrderId
+ *      - refund_items.packageInstanceId (partial) → splits with that packageInstanceId
+ *   2. For each candidate split, compute the reversal amount:
+ *      - Full refund (amount >= total / refund has no items): -split.calculatedAmount
+ *      - Partial refund (creditsRefunded < creditsTotal): pro-rate by
+ *        creditsRefunded / creditsTotal of the package instance, capped at split amount
+ *   3. Skip splits already fully reversed (sum of prior reversals == -split.calculatedAmount).
+ *      Subsequent reversals against the same split (e.g. multi-step refunds) are allowed
+ *      up to the unreversed remainder.
+ *   4. Insert commission_split_reversals rows in the same transaction. The self-FK is
+ *      DEFERRABLE so reversal-of-reversal chains can be inserted in any order.
+ *   5. Caller (refunds.service) wraps this in its own tx; we accept either tenantDb or tx.
+ *
+ * Returns the list of inserted reversal IDs. No payout adjustment row is created here —
+ * the next payout batch run picks up unsettled reversals via payout_adjustment_id IS NULL.
+ */
+export async function reverseForRefund(
+	db: TenantDb | TenantTx,
+	refundId: string,
+	params: ReverseForRefundParams,
+): Promise<ReverseForRefundResult> {
+	const tdb = db as TenantDb;
+
+	// 1. Load the refund + its items
+	const refund = await tdb.query.refunds.findFirst({
+		where: (r, { eq: eqFn }) => eqFn(r.id, refundId),
+	});
+	if (!refund) {
+		throw new ORPCError("NOT_FOUND", {
+			message: `reverseForRefund: refund ${refundId} not found`,
+		});
+	}
+
+	const items = await tdb
+		.select()
+		.from(refundItems)
+		.where(eq(refundItems.refundId, refundId));
+
+	// 2. Build the candidate split set
+	const candidateSplits = new Map<string, typeof commissionSplits.$inferSelect>();
+
+	const addSplits = (rows: (typeof commissionSplits.$inferSelect)[]) => {
+		for (const row of rows) {
+			// Skip already-void splits — nothing to reverse
+			if (row.status === "void") continue;
+			candidateSplits.set(row.id, row);
+		}
+	};
+
+	if (refund.salesOrderId) {
+		const rows = await tdb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.salesOrderId, refund.salesOrderId));
+		addSplits(rows);
+	}
+
+	if (refund.packageInstanceId) {
+		const rows = await tdb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.packageInstanceId, refund.packageInstanceId));
+		addSplits(rows);
+	}
+
+	// Resolve refund_items → underlying splits
+	const itemSalesOrderItemIds = items
+		.map((i) => i.salesOrderItemId)
+		.filter((id): id is string => id !== null);
+	const itemPackageInstanceIds = items
+		.map((i) => i.packageInstanceId)
+		.filter((id): id is string => id !== null);
+
+	if (itemSalesOrderItemIds.length > 0) {
+		// Resolve sales_order_items → salesOrderId → splits
+		const soiRows = await tdb
+			.select({
+				id: salesOrderItems.id,
+				salesOrderId: salesOrderItems.salesOrderId,
+			})
+			.from(salesOrderItems)
+			.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
+		const orderIds = [...new Set(soiRows.map((r) => r.salesOrderId))];
+		if (orderIds.length > 0) {
+			const rows = await tdb
+				.select()
+				.from(commissionSplits)
+				.where(inArray(commissionSplits.salesOrderId, orderIds));
+			addSplits(rows);
+		}
+	}
+
+	if (itemPackageInstanceIds.length > 0) {
+		const rows = await tdb
+			.select()
+			.from(commissionSplits)
+			.where(
+				inArray(commissionSplits.packageInstanceId, itemPackageInstanceIds),
+			);
+		addSplits(rows);
+	}
+
+	if (candidateSplits.size === 0) {
+		return { reversalIds: [] };
+	}
+
+	// 3. Find the set of credits-refunded info for partial pro-rating.
+	// For each refund_item with creditsRefunded > 0, look up the package instance to
+	// derive the proration ratio. Multi-item refunds aggregate per packageInstanceId.
+	const partialRatios = new Map<string, number>(); // packageInstanceId → 0..1
+	for (const item of items) {
+		if (
+			item.packageInstanceId &&
+			item.creditsRefunded !== null &&
+			item.creditsRefunded > 0
+		) {
+			// Need creditsTotal for the instance — best-effort via packageInstances query
+			const inst = await tdb.query.packageInstances.findFirst({
+				where: (pi, { eq: eqFn }) =>
+					eqFn(pi.id, item.packageInstanceId as string),
+			});
+			const creditsTotal = inst?.creditsTotal ?? 0;
+			if (creditsTotal > 0) {
+				const ratio = Math.min(1, item.creditsRefunded / creditsTotal);
+				const prev = partialRatios.get(item.packageInstanceId) ?? 0;
+				partialRatios.set(
+					item.packageInstanceId,
+					Math.min(1, prev + ratio),
+				);
+			}
+		}
+	}
+
+	// 4. Sum prior reversals per split to compute the unreversed remainder
+	const splitIds = [...candidateSplits.keys()];
+	const priorRows = await tdb
+		.select({
+			splitId: commissionSplitReversals.reversedSplitId,
+			total: sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`.mapWith(
+				Number,
+			),
+		})
+		.from(commissionSplitReversals)
+		.where(inArray(commissionSplitReversals.reversedSplitId, splitIds))
+		.groupBy(commissionSplitReversals.reversedSplitId);
+	const priorReversedBySplit = new Map<string, number>();
+	for (const r of priorRows) {
+		priorReversedBySplit.set(r.splitId, r.total ?? 0);
+	}
+
+	// 5. Build reversal rows
+	type InsertRow = typeof commissionSplitReversals.$inferInsert;
+	const toInsert: InsertRow[] = [];
+	for (const split of candidateSplits.values()) {
+		const priorReversed = priorReversedBySplit.get(split.id) ?? 0;
+		// priorReversed is negative (clawback); the unreversed positive amount remaining is:
+		const unreversed = split.calculatedAmount + priorReversed;
+		if (unreversed <= 0) continue;
+
+		// Determine reversal amount
+		let reversalCents: number;
+		if (split.packageInstanceId && partialRatios.has(split.packageInstanceId)) {
+			const ratio = partialRatios.get(split.packageInstanceId) ?? 1;
+			reversalCents = -Math.min(
+				unreversed,
+				Math.round(split.calculatedAmount * ratio),
+			);
+		} else {
+			// Full reversal
+			reversalCents = -unreversed;
+		}
+
+		if (reversalCents === 0) continue;
+
+		toInsert.push({
+			reversedSplitId: split.id,
+			refundId,
+			amountCents: reversalCents,
+			reason: params.reason,
+			createdBy: params.initiatedBy,
+		});
+	}
+
+	if (toInsert.length === 0) {
+		return { reversalIds: [] };
+	}
+
+	const inserted = await tdb
+		.insert(commissionSplitReversals)
+		.values(toInsert)
+		.returning({ id: commissionSplitReversals.id });
+
+	// Audit (best-effort — only if actor is provided)
+	if (params.actor) {
+		for (const row of inserted) {
+			await writeAudit(tdb, {
+				actorUserId: params.actor.userId,
+				actorMemberId: params.actor.memberId,
+				actorRole: params.actor.role,
+				action: "commission.reverse",
+				entityType: "commission_split_reversal",
+				entityId: row.id,
+				summary: `Commission reversal created for refund ${refundId}: ${params.reason}`,
+				changes: { refundId, reason: params.reason },
+			});
+		}
+	}
+
+	return { reversalIds: inserted.map((r) => r.id) };
+}
+

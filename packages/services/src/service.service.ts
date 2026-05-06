@@ -59,9 +59,12 @@ export type CreateServiceParams = {
     recurringDays: string[];
     timeSlotsPerDay: Record<string, string[]>;
   } | null;
+  createdBy?: string | null;
 };
 
-export type UpdateServiceParams = Partial<CreateServiceParams>;
+export type UpdateServiceParams = Partial<CreateServiceParams> & {
+  updatedBy?: string | null;
+};
 
 /**
  * List services, optionally filtered by category, branch, type, etc.
@@ -179,6 +182,8 @@ export async function createService(
       expiryDays: params.expiryDays ?? null,
       expiryDate: params.expiryDate ?? null,
       timePresetConfig: params.timePresetConfig ?? null,
+      createdBy: params.createdBy ?? null,
+      updatedBy: params.createdBy ?? null,
     })
     .returning();
 
@@ -236,6 +241,7 @@ export async function updateService(
       ...(params.timePresetConfig !== undefined && {
         timePresetConfig: params.timePresetConfig,
       }),
+      ...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
       updatedAt: new Date(),
     })
     .where(eq(services.id, id))

@@ -23,7 +23,7 @@ export const organizations = pgTable("organizations", {
 	paymentStatus: text("payment_status").notNull(), // active, suspended, failed
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-	ownerUserId: text("owner_user_id").references(() => users.id),
+	ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "restrict" }),
 	// Stripe Connect fields for franchiser accounts
 	stripeConnectAccountId: text("stripe_connect_account_id").unique(),
 	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected

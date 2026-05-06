@@ -12,6 +12,9 @@ import {
   updateService,
   getDescendantNodeIds,
   requirePermission,
+  resolveServicePrice,
+  listServicePriceOverrides,
+  setServicePrice,
 } from "@avantej-core/services";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { and, eq } from "drizzle-orm";
@@ -279,6 +282,7 @@ export const servicesRouter = {
           ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
           ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
           ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
+          createdBy: context.session?.user?.id ?? null,
         } as Parameters<typeof createService>[1]);
         return created;
       } catch (error) {
@@ -431,6 +435,7 @@ export const servicesRouter = {
             ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
             ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
             ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
+            updatedBy: context.session?.user?.id ?? null,
             } as Parameters<typeof updateService>[2]
         );
         return updated;
@@ -440,4 +445,136 @@ export const servicesRouter = {
         });
       }
     }),
+
+  // #region Agent 2.2 — branch pricing (J2)
+  resolvePrice: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        serviceId: z.string().uuid(),
+        branchId: z.string().uuid().nullable().optional(),
+        customerType: z.string().nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      const priceCents = await resolveServicePrice(
+        context.tenantDb,
+        input.serviceId,
+        input.branchId ?? null,
+        input.customerType ?? null,
+      );
+      return { priceCents };
+    }),
+
+  listPriceOverrides: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        serviceId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read",
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+      }
+      return listServicePriceOverrides(context.tenantDb, input.serviceId);
+    }),
+
+  setBranchPrice: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        serviceId: z.string().uuid(),
+        branchId: z.string().uuid().nullable(),
+        customerType: z.string().nullable().optional(),
+        priceCents: z.number().int().min(0),
+        effectiveFrom: z.string().datetime().optional(),
+        effectiveUntil: z.string().datetime().nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "update",
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+      // Branch-access check when scoped to a branch
+      if (input.branchId) {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(
+                context.tenantDb,
+                context.member.hierarchyScopeId,
+              )
+            : []);
+        if (!accessibleNodeIds.includes(input.branchId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "User does not have access to this branch",
+          });
+        }
+      }
+      return setServicePrice(context.tenantDb, {
+        serviceId: input.serviceId,
+        branchId: input.branchId,
+        customerType: input.customerType ?? null,
+        priceCents: input.priceCents,
+        effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : undefined,
+        effectiveUntil:
+          input.effectiveUntil === undefined
+            ? undefined
+            : input.effectiveUntil === null
+              ? null
+              : new Date(input.effectiveUntil),
+      });
+    }),
+  // #endregion
 };

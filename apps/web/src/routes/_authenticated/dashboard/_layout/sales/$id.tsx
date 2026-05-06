@@ -4,6 +4,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { useState } from "react";
 import type { ReceiptData } from "@/components/pos/receipt-view";
 import { ReceiptView } from "@/components/pos/receipt-view";
+import { PartialRefundDialog } from "@/components/refunds/partial-refund-dialog";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ function SalesOrderDetailPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const [printDialogOpen, setPrintDialogOpen] = useState(false);
 	const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+	const [partialRefundDialogOpen, setPartialRefundDialogOpen] = useState(false);
 	const canRequestRefund = hasPermission("refund_management:create");
 
 	const {
@@ -138,6 +140,15 @@ function SalesOrderDetailPage() {
 							onClick={() => setRefundDialogOpen(true)}
 						>
 							Request Refund
+						</Button>
+					)}
+					{canRequestRefund && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setPartialRefundDialogOpen(true)}
+						>
+							Partial Refund
 						</Button>
 					)}
 					<Button
@@ -233,6 +244,16 @@ function SalesOrderDetailPage() {
 					salesOrderId={id}
 					customerName={order?.customerName ?? undefined}
 					suggestedAmountCents={order?.totalAmount ?? undefined}
+				/>
+			)}
+
+			{/* Partial Refund dialog (Agent 2.8 — J5) */}
+			{organizationId && canRequestRefund && (
+				<PartialRefundDialog
+					open={partialRefundDialogOpen}
+					onOpenChange={setPartialRefundDialogOpen}
+					organizationId={organizationId}
+					branchId={(order as { branchId?: string | null })?.branchId ?? undefined}
 				/>
 			)}
 

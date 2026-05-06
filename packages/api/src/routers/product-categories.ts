@@ -113,6 +113,7 @@ export const productCategoriesRouter = {
 				name: input.name,
 				externalCode: input.externalCode,
 				description: input.description,
+				createdBy: context.session?.user?.id ?? null,
 			});
 		}),
 
@@ -151,6 +152,7 @@ export const productCategoriesRouter = {
 				name: input.name,
 				externalCode: input.externalCode,
 				description: input.description,
+				updatedBy: context.session?.user?.id ?? null,
 			});
 		}),
 

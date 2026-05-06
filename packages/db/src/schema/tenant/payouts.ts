@@ -14,6 +14,7 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
 import { commissionSplits } from "./commission-splits";
+import { payoutBatches } from "./payout-batches";
 
 export const payouts = pgTable("payouts", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -32,6 +33,10 @@ export const payouts = pgTable("payouts", {
 		.references(() => appointments.id, { onDelete: "restrict" }),
 	commissionSplitId: uuid("commission_split_id")
 		.references(() => commissionSplits.id, { onDelete: "set null" }),
+
+	// Agent 2.5 — payout batch grouping (J5 commission audit)
+	batchId: uuid("batch_id")
+		.references(() => payoutBatches.id, { onDelete: "set null" }),
 	
 	// Amount details
 	amount: integer("amount").notNull(), // Amount in cents (pre-tax commission)
@@ -64,5 +69,6 @@ export const payouts = pgTable("payouts", {
 	statusIdx: index("payouts_status_idx").on(table.status),
 	payoutMethodIdx: index("payouts_payout_method_idx").on(table.payoutMethod),
 	recipientStatusIdx: index("payouts_recipient_status_idx").on(table.recipientId, table.status),
+	batchIdIdx: index("payouts_batch_id_idx").on(table.batchId),
 }));
 

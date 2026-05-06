@@ -28,9 +28,12 @@ export type CreateServiceCategoryParams = {
   displayOrder?: number;
   branchId?: string | null;
   isActive?: boolean;
+  createdBy?: string | null;
 };
 
-export type UpdateServiceCategoryParams = Partial<CreateServiceCategoryParams>;
+export type UpdateServiceCategoryParams = Partial<CreateServiceCategoryParams> & {
+  updatedBy?: string | null;
+};
 
 /**
  * List service categories, optionally filtered by branch and active status.
@@ -94,6 +97,8 @@ export async function createServiceCategory(
       displayOrder: params.displayOrder ?? 0,
       branchId: params.branchId ?? null,
       isActive: params.isActive ?? true,
+      createdBy: params.createdBy ?? null,
+      updatedBy: params.createdBy ?? null,
     })
     .returning();
 
@@ -119,6 +124,7 @@ export async function updateServiceCategory(
       ...(params.displayOrder !== undefined && { displayOrder: params.displayOrder }),
       ...(params.branchId !== undefined && { branchId: params.branchId }),
       ...(params.isActive !== undefined && { isActive: params.isActive }),
+      ...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
       updatedAt: new Date(),
     })
     .where(eq(serviceCategories.id, id))

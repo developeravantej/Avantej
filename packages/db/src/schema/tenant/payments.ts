@@ -74,6 +74,11 @@ export const payments = pgTable("payments", {
 	refundAmount: integer("refund_amount"),
 	failureReason: text("failure_reason"),
 
+	// Agent 3.5 — walk-in → package conversion link (self-ref)
+	// Set when a walk-in drop-in payment is converted to a package payment
+	// (e.g. customer pays RM50 drop-in, then upgrades to a 10-pack mid-session).
+	convertedFromPaymentId: uuid("converted_from_payment_id").references((): any => payments.id, { onDelete: "set null" }),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -88,5 +93,6 @@ export const payments = pgTable("payments", {
 	paymentMethodIdx: index("payments_payment_method_idx").on(table.paymentMethod),
 	invoiceIdIdx: index("payments_invoice_idx").on(table.invoiceId),
 	eInvoiceStatusIdx: index("payments_e_invoice_status_idx").on(table.eInvoiceStatus),
+	convertedFromIdx: index("payments_converted_from_idx").on(table.convertedFromPaymentId),
 }));
 

@@ -21,11 +21,16 @@
 import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { trainerTiers } from "./trainer-tiers";
+import { roles } from "./roles";
 
 export const members = pgTable("members", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	userId: text("user_id").notNull(), // References control panel users.id (text, no FK constraint due to cross-database)
-	role: text("role").notNull(), // admin, trainer, staff, client
+	role: text("role").notNull(), // admin, trainer, staff, client (legacy text role; superseded by roleId when set)
+	// Wave 3a Agent 2.1 (Journey J1): nullable FK to custom/system roles. When set,
+	// permission.service.ts resolves permissions via this role's role_permissions joins.
+	// When null, falls through to text-role fast-path. ON DELETE SET NULL preserves member.
+	roleId: uuid("role_id").references(() => roles.id, { onDelete: "set null" }),
 	hierarchyScopeId: uuid("hierarchy_scope_id")
 		.notNull()
 		.references(() => hierarchyNodes.id, { onDelete: "restrict" }),
@@ -38,6 +43,7 @@ export const members = pgTable("members", {
 	// Indexes for performance
 	hierarchyScopeIdIdx: index("members_hierarchy_idx").on(table.hierarchyScopeId),
 	roleIdx: index("members_role_idx").on(table.role),
+	roleIdIdx: index("members_role_id_idx").on(table.roleId),
 	statusIdx: index("members_status_idx").on(table.status),
 	trainerTierIdx: index("members_trainer_tier_idx").on(table.trainerTierId),
 }));

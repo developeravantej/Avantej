@@ -27,6 +27,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
 import { salesOrders } from "./sales-orders";
+import { packageInstances } from "./package-instances";
+import { categoryCommissionConfigVersions } from "./category-commission-config-versions";
 
 export const commissionSplits = pgTable(
 	"commission_splits",
@@ -40,6 +42,16 @@ export const commissionSplits = pgTable(
 		salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, {
 			onDelete: "restrict",
 		}),
+		// Agent 2.5 — third source: package instance (J5 commission audit)
+		packageInstanceId: uuid("package_instance_id").references(
+			() => packageInstances.id,
+			{ onDelete: "set null" },
+		),
+		// Agent 2.5 — frozen commission config snapshot (J5 commission audit)
+		configVersionId: uuid("config_version_id").references(
+			() => categoryCommissionConfigVersions.id,
+			{ onDelete: "restrict" },
+		),
 
 		// Staff
 		staffId: text("staff_id").notNull(), // References members.userId (cross-DB — no FK)
@@ -94,5 +106,11 @@ export const commissionSplits = pgTable(
 			table.salesOrderId,
 		),
 		earnedAtIdx: index("commission_splits_earned_at_idx").on(table.earnedAt),
+		packageInstanceIdx: index("commission_splits_package_instance_idx").on(
+			table.packageInstanceId,
+		),
+		configVersionIdx: index("commission_splits_config_version_idx").on(
+			table.configVersionId,
+		),
 	}),
 );
