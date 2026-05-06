@@ -10,11 +10,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -203,6 +212,9 @@ export function CustomerProfilePanel({
 	const [profileForm, setProfileForm] =
 		useState<ProfileFormState>(EMPTY_PROFILE_FORM);
 	const [formDirty, setFormDirty] = useState(false);
+	const [confirmAction, setConfirmAction] = useState<"delete" | "restore" | null>(
+		null,
+	);
 
 	const {
 		data: detail,
@@ -252,6 +264,24 @@ export function CustomerProfilePanel({
 		// empty on initial async load and after save invalidation).
 	}, [detail, memberId]);
 
+	const handleGhlToast = (
+		ghlSync: { status?: string; reason?: string; error?: string } | undefined,
+		baseMessage: string,
+	) => {
+		const status = ghlSync?.status;
+		if (!status || status === "synced") {
+			toast.success(baseMessage);
+		} else if (status === "skipped") {
+			toast.info(
+				`${baseMessage} (GHL sync skipped${ghlSync?.reason ? `: ${ghlSync.reason}` : ""})`,
+			);
+		} else {
+			toast.warning(
+				`${baseMessage} (GHL sync failed${ghlSync?.error ? `: ${ghlSync.error}` : ""})`,
+			);
+		}
+	};
+
 	const deleteMutation = useApiMutation({
 		mutationFn: () => {
 			if (!detail) throw new Error("No customer data loaded");
@@ -260,13 +290,22 @@ export function CustomerProfilePanel({
 				targetUserId: detail.member.userId,
 			});
 		},
-		successMessage: "Customer deleted",
+		successMessage: false,
 		errorMessage: (err) => err.message || "Failed to delete customer",
 		invalidate: [
 			["customerDirectory", "detail", organizationId, memberId],
 			["customerDirectory", organizationId],
 		],
-		onSuccess: () => onDeleted?.(),
+		onSuccess: (result) => {
+			handleGhlToast(
+				(result as { ghlSync?: Record<string, unknown> } | undefined)?.ghlSync as
+					| { status?: string; reason?: string; error?: string }
+					| undefined,
+				"Customer deleted",
+			);
+			setConfirmAction(null);
+			onDeleted?.();
+		},
 	});
 
 	const restoreMutation = useApiMutation({
@@ -277,12 +316,21 @@ export function CustomerProfilePanel({
 				targetUserId: detail.member.userId,
 			});
 		},
-		successMessage: "Customer restored",
+		successMessage: false,
 		errorMessage: (err) => err.message || "Failed to restore customer",
 		invalidate: [
 			["customerDirectory", "detail", organizationId, memberId],
 			["customerDirectory", organizationId],
 		],
+		onSuccess: (result) => {
+			handleGhlToast(
+				(result as { ghlSync?: Record<string, unknown> } | undefined)?.ghlSync as
+					| { status?: string; reason?: string; error?: string }
+					| undefined,
+				"Customer restored",
+			);
+			setConfirmAction(null);
+		},
 	});
 
 	const upsertMutation = useApiMutation({
@@ -680,10 +728,7 @@ export function CustomerProfilePanel({
 											size="sm"
 											className="bg-green-600 hover:bg-green-700"
 											data-testid="restore-customer-btn"
-											onClick={() => {
-												if (!window.confirm("Restore this customer? This will re-create their GoHighLevel contact.")) return;
-												restoreMutation.mutate();
-											}}
+											onClick={() => setConfirmAction("restore")}
 											disabled={restoreMutation.isPending}
 										>
 											{restoreMutation.isPending ? "Restoring…" : "Restore customer"}
@@ -700,10 +745,7 @@ export function CustomerProfilePanel({
 											variant="destructive"
 											size="sm"
 											data-testid="delete-customer-btn"
-											onClick={() => {
-												if (!window.confirm("Delete this customer? This will also remove them from GoHighLevel.")) return;
-												deleteMutation.mutate();
-											}}
+											onClick={() => setConfirmAction("delete")}
 											disabled={deleteMutation.isPending}
 										>
 											{deleteMutation.isPending ? "Deleting…" : "Delete customer"}
@@ -941,6 +983,67 @@ export function CustomerProfilePanel({
 					</Card>
 				</TabsContent>
 			</Tabs>
+
+			<Dialog
+				open={confirmAction !== null}
+				onOpenChange={(open) => {
+					if (!open) setConfirmAction(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>
+							{confirmAction === "restore"
+								? "Restore customer?"
+								: "Delete customer?"}
+						</DialogTitle>
+						<DialogDescription>
+							{confirmAction === "restore" ? (
+								<>
+									<span className="font-medium text-foreground">{user.name}</span>{" "}
+									will be restored and re-synced to GoHighLevel.
+								</>
+							) : (
+								<>
+									<span className="font-medium text-foreground">{user.name}</span>{" "}
+									will be marked deleted in Avantej and removed from GoHighLevel.
+								</>
+							)}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="gap-2 sm:gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setConfirmAction(null)}
+							disabled={deleteMutation.isPending || restoreMutation.isPending}
+						>
+							Cancel
+						</Button>
+						{confirmAction === "restore" ? (
+							<Button
+								type="button"
+								className="bg-green-600 hover:bg-green-700"
+								onClick={() => restoreMutation.mutate()}
+								disabled={restoreMutation.isPending}
+								data-testid="confirm-restore-btn"
+							>
+								{restoreMutation.isPending ? "Restoring…" : "Restore"}
+							</Button>
+						) : (
+							<Button
+								type="button"
+								variant="destructive"
+								onClick={() => deleteMutation.mutate()}
+								disabled={deleteMutation.isPending}
+								data-testid="confirm-delete-btn"
+							>
+								{deleteMutation.isPending ? "Deleting…" : "Delete"}
+							</Button>
+						)}
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
