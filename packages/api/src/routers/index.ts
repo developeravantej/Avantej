@@ -591,6 +591,12 @@ const ghlRouterType = {
 				tenantBranchId: z.string().uuid(),
 				ghlLocationId: z.string().min(1),
 				ghlApiKey: z.string().min(10),
+				existingBranchCustomFieldId: z
+					.string()
+					.trim()
+					.min(1)
+					.optional()
+					.nullable(),
 			}),
 		)
 		.handler((): { status: "connected" } => {
@@ -615,6 +621,7 @@ const ghlRouterType = {
 				id: string;
 				tenantBranchId: string;
 				ghlLocationId: string;
+				existingBranchCustomFieldId: string | null;
 				isActive: boolean;
 				createdAt: Date;
 				updatedAt: Date;

@@ -45,6 +45,12 @@ export const ghlRouter = {
 				tenantBranchId: z.string().uuid(),
 				ghlLocationId: z.string().min(1),
 				ghlApiKey: z.string().min(10),
+				existingBranchCustomFieldId: z
+					.string()
+					.trim()
+					.min(1)
+					.optional()
+					.nullable(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -88,6 +94,7 @@ export const ghlRouter = {
 
 			// 3. Encrypt + upsert the link
 			const encryptedKey = encrypt(input.ghlApiKey);
+			const normalizedFieldId = input.existingBranchCustomFieldId ?? null;
 			await controlPanelDb
 				.insert(ghlBranchLinks)
 				.values({
@@ -95,6 +102,7 @@ export const ghlRouter = {
 					tenantBranchId: input.tenantBranchId,
 					ghlLocationId: input.ghlLocationId,
 					ghlApiKey: encryptedKey,
+					existingBranchCustomFieldId: normalizedFieldId,
 					isActive: true,
 				})
 				.onConflictDoUpdate({
@@ -105,6 +113,7 @@ export const ghlRouter = {
 					set: {
 						ghlLocationId: input.ghlLocationId,
 						ghlApiKey: encryptedKey,
+						existingBranchCustomFieldId: normalizedFieldId,
 						isActive: true,
 						updatedAt: new Date(),
 					},
@@ -169,6 +178,8 @@ export const ghlRouter = {
 					id: ghlBranchLinks.id,
 					tenantBranchId: ghlBranchLinks.tenantBranchId,
 					ghlLocationId: ghlBranchLinks.ghlLocationId,
+					existingBranchCustomFieldId:
+						ghlBranchLinks.existingBranchCustomFieldId,
 					isActive: ghlBranchLinks.isActive,
 					createdAt: ghlBranchLinks.createdAt,
 					updatedAt: ghlBranchLinks.updatedAt,
