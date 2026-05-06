@@ -71,18 +71,22 @@ export const serverCustomerProfilesRouter = {
 			});
 
 			// Outbound GHL sync — best-effort, never throws (failure mode B).
+			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
 			if (context.organizationId) {
-				await fireCustomerSync({
+				ghlSync = await fireCustomerSync({
 					honoContext: context.honoContext,
 					tenantDb: context.tenantDb,
 					organizationId: context.organizationId,
 					userId,
 					customerProfile: updated,
 					operation: "update",
-				});
+				}).catch((err: unknown) => ({
+					status: "error" as const,
+					error: err instanceof Error ? err.message : String(err),
+				}));
 			}
 
-			return updated;
+			return { ...updated, ghlSync };
 		}),
 
 	upsertForCustomer: protectedProcedure
@@ -151,18 +155,22 @@ export const serverCustomerProfilesRouter = {
 				notes: input.notes,
 			});
 
+			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
 			if (context.organizationId) {
-				await fireCustomerSync({
+				ghlSync = await fireCustomerSync({
 					honoContext: context.honoContext,
 					tenantDb: context.tenantDb,
 					organizationId: context.organizationId,
 					userId: input.targetUserId,
 					customerProfile: updated,
 					operation: "update",
-				});
+				}).catch((err: unknown) => ({
+					status: "error" as const,
+					error: err instanceof Error ? err.message : String(err),
+				}));
 			}
 
-			return updated;
+			return { ...updated, ghlSync };
 		}),
 
 	/**
@@ -223,18 +231,22 @@ export const serverCustomerProfilesRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
 			}
 
+			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
 			if (context.organizationId) {
-				await fireCustomerSync({
+				ghlSync = await fireCustomerSync({
 					honoContext: context.honoContext,
 					tenantDb: context.tenantDb,
 					organizationId: context.organizationId,
 					userId: input.targetUserId,
 					customerProfile: updated,
 					operation: "delete",
-				});
+				}).catch((err: unknown) => ({
+					status: "error" as const,
+					error: err instanceof Error ? err.message : String(err),
+				}));
 			}
 
-			return { ok: true, profileId: updated.id };
+			return { ok: true, profileId: updated.id, ghlSync };
 		}),
 
 	/**
@@ -307,17 +319,88 @@ export const serverCustomerProfilesRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
 			}
 
+			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
 			if (context.organizationId) {
-				await fireCustomerSync({
+				ghlSync = await fireCustomerSync({
 					honoContext: context.honoContext,
 					tenantDb: context.tenantDb,
 					organizationId: context.organizationId,
 					userId: input.targetUserId,
 					customerProfile: updated,
 					operation: "update",
+				}).catch((err: unknown) => ({
+					status: "error" as const,
+					error: err instanceof Error ? err.message : String(err),
+				}));
+			}
+
+			return { ok: true, profileId: updated.id, ghlSync };
+		}),
+
+	/**
+	 * Manually retry GHL customer sync for a customer profile.
+	 *
+	 * Mirrors `members.retryGhlSync`. Resolves the customer profile, then
+	 * re-fires `fireCustomerSync` with operation='update' (the dispatcher
+	 * reconciles existing vs. missing GHL contact via the deleted-link
+	 * guard in the orchestrator). Permission-gated by customer_management:update.
+	 */
+	retryGhlSync: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const profile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.id, input.customerProfileId),
+			});
+			if (!profile) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(eq(members.userId, profile.userId), eq(members.role, "client")),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer member not found" });
+			}
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Target customer is outside your accessible scope",
 				});
 			}
 
-			return { ok: true, profileId: updated.id };
+			const ghlSync = await fireCustomerSync({
+				honoContext: context.honoContext,
+				tenantDb: context.tenantDb,
+				organizationId: input.organizationId,
+				userId: profile.userId,
+				customerProfile: profile,
+				operation: profile.isDeleted ? "delete" : "update",
+			}).catch((err: unknown) => ({
+				status: "error" as const,
+				error: err instanceof Error ? err.message : String(err),
+			}));
+
+			return { ghlSync };
 		}),
 };
