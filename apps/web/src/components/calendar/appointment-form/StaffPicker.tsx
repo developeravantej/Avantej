@@ -26,6 +26,10 @@ type StaffPickerProps = {
 	/** When true, disable the trainer select (e.g. no room chosen yet) */
 	disableWhenNoRoom?: boolean;
 	roomId?: string;
+	/** True when trainer list is filtered to service-qualified trainers */
+	trainerFilterActive?: boolean;
+	/** True when no qualified trainers found — showing full list as fallback */
+	trainerFilterFallback?: boolean;
 };
 
 export function StaffPicker({
@@ -38,6 +42,8 @@ export function StaffPicker({
 	trainerPlaceholder,
 	disableWhenNoRoom = false,
 	roomId,
+	trainerFilterActive = false,
+	trainerFilterFallback = false,
 }: StaffPickerProps) {
 	const isRoomMissing = disableWhenNoRoom && !roomId;
 
@@ -46,6 +52,16 @@ export function StaffPicker({
 			<Label className="text-sm font-medium text-brand-primary-1">
 				{commissionSlots.length > 1 ? "Staff Slots" : "Trainer"}
 			</Label>
+			{trainerFilterActive && (
+				<p className="text-xs text-muted-foreground">
+					Showing trainers qualified for the selected service.
+				</p>
+			)}
+			{trainerFilterFallback && (
+				<p className="text-xs text-amber-600">
+					No trainers assigned to this service — showing all trainers.
+				</p>
+			)}
 
 			{commissionSlots.length > 1 ? (
 				// Slot-based picker: one row per commission slot

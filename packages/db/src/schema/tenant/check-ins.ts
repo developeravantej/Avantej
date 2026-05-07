@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appointmentClients } from "./appointment-clients";
 import { hierarchyNodes } from "./hierarchy";
+import { packageInstances } from "./package-instances";
 
 export const checkIns = pgTable(
 	"check_ins",
@@ -47,7 +48,11 @@ export const checkIns = pgTable(
 		outcome: text("outcome").notNull().default("attended"),
 
 		// Optional credit consumption tracking
-		packageInstanceId: uuid("package_instance_id"), // null if no credit consumed
+		// Migration 0046: FK added to package_instances (ON DELETE SET NULL preserves check-in history)
+		packageInstanceId: uuid("package_instance_id").references(
+			() => packageInstances.id,
+			{ onDelete: "set null" },
+		), // null if no credit consumed
 		creditsConsumed: integer("credits_consumed").default(0).notNull(),
 
 		// Metadata
@@ -80,5 +85,6 @@ export const checkIns = pgTable(
 			table.appointmentClientId,
 		),
 		checkedInAtIdx: index("check_ins_checked_in_at_idx").on(table.checkedInAt),
+		packageInstanceIdx: index("check_ins_package_instance_idx").on(table.packageInstanceId),
 	}),
 );

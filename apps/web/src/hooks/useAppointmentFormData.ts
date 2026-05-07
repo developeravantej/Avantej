@@ -57,6 +57,7 @@ export type RoomRow = {
 
 export type TrainerRow = {
 	id: string;
+	userId: string;
 	name: string;
 	role: string;
 	department: string;
@@ -133,6 +134,7 @@ export function useAppointmentFormData(): UseAppointmentFormDataResult {
 
 	const trainers: TrainerRow[] = (trainersData as MemberListItem[]).map((m) => ({
 		id: m.id,
+		userId: m.userId,
 		name: m.name ?? m.email ?? m.userId,
 		role: m.role ?? "",
 		department: "",

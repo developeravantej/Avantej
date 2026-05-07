@@ -23,6 +23,7 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import { serviceCategoryConfig } from "@avantej-core/db/schema/tenant/service-category-config";
 import { memberServiceBufferOverrides } from "@avantej-core/db/schema/tenant/member-service-buffer-overrides";
+import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 
 export const serviceMembersRouter = {
 	/**
@@ -378,5 +379,52 @@ export const serviceMembersRouter = {
 
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			return { serviceId: input.serviceId, bufferTimeMinutes: result!.bufferTimeMinutes };
+		}),
+
+	/**
+	 * List all members assigned to a specific service, with their profile info.
+	 * Requires user_management:read, service_management:read, or appointment_management:read.
+	 */
+	listForService: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN");
+			}
+
+			let hasPermission = false;
+			for (const resource of ["user_management", "service_management", "appointment_management"] as const) {
+				try {
+					await requirePermission(context.tenantDb, context.member, resource, "read");
+					hasPermission = true;
+					break;
+				} catch { /* try next */ }
+			}
+			if (!hasPermission) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires user_management, service_management, or appointment_management read permission.",
+				});
+			}
+
+			const rows = await context.tenantDb
+				.select({
+					memberId: serviceMembers.memberId,
+					isPrimary: serviceMembers.isPrimary,
+					displayName: memberProfiles.displayName,
+				})
+				.from(serviceMembers)
+				.leftJoin(memberProfiles, eq(memberProfiles.memberId, serviceMembers.memberId))
+				.where(eq(serviceMembers.serviceId, input.serviceId));
+
+			return rows.map((r) => ({
+				memberId: r.memberId,
+				isPrimary: r.isPrimary,
+				displayName: r.displayName ?? r.memberId,
+			}));
 		}),
 };

@@ -5,10 +5,13 @@ import {
 	cancelReceipt,
 	createReceipt,
 	createSupplierInvoice,
+	disputeInvoice,
+	getInvoicePreview,
 	getReceiptById,
 	listReceiptsForPo,
 	listSupplierInvoices,
 	markInvoiceMatched,
+	markInvoicePaid,
 	requirePermission,
 } from "@avantej-core/services";
 
@@ -255,6 +258,9 @@ export const goodsReceiptsRouter = {
 				organizationId: z.string().uuid(),
 				supplierId: z.string().uuid().optional(),
 				status: z.string().optional(),
+				purchaseOrderId: z.string().uuid().optional(),
+				limit: z.number().int().min(1).max(200).optional(),
+				offset: z.number().int().nonnegative().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -285,6 +291,9 @@ export const goodsReceiptsRouter = {
 			return listSupplierInvoices(context.tenantDb, {
 				supplierId: input.supplierId,
 				status: input.status,
+				purchaseOrderId: input.purchaseOrderId,
+				limit: input.limit,
+				offset: input.offset,
 			});
 		}),
 
@@ -334,6 +343,74 @@ export const goodsReceiptsRouter = {
 							? error.message
 							: "Failed to match invoice",
 				});
+			}
+		}),
+
+	disputeInvoice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().uuid(),
+				reason: z.string().min(1, "Dispute reason is required"),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+			try {
+				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+			}
+			try {
+				return await disputeInvoice(context.tenantDb, { invoiceId: input.invoiceId, disputeReason: input.reason });
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to dispute invoice" });
+			}
+		}),
+
+	markInvoicePaid: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().uuid(),
+				paymentReference: z.string().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+			try {
+				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+			}
+			try {
+				return await markInvoicePaid(context.tenantDb, input.invoiceId, context.member.userId, input.paymentReference);
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to mark invoice as paid" });
+			}
+		}),
+
+	getInvoicePreview: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
+			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+			try {
+				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
+			}
+			try {
+				return await getInvoicePreview(context.tenantDb, input.invoiceId);
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to get invoice preview" });
 			}
 		}),
 };

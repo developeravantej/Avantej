@@ -7,6 +7,7 @@
  */
 
 import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte, inArray, sql } from "drizzle-orm";
+import { appendPackageInstanceStatusHistory } from "./status-history.helper";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -422,6 +423,13 @@ export async function evaluateAndExpireIfOverdue(
 		.update(packageInstances)
 		.set({ status: "expired", updatedAt: now })
 		.where(eq(packageInstances.id, packageInstanceId));
+
+	await appendPackageInstanceStatusHistory(tenantDb, packageInstanceId, {
+		fromStatus: pkg.status,
+		toStatus: "expired",
+		changedBy: "system",
+		reason: "Package expired (installment overdue evaluation)",
+	});
 }
 
 // ---------------------------------------------------------------------------

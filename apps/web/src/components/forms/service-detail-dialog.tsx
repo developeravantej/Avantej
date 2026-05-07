@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -9,10 +10,23 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { toast } from "sonner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 
 interface ServiceDetailDialogProps {
@@ -80,6 +94,148 @@ function Section({
 		</div>
 	);
 }
+
+// ── Trainers Tab ──────────────────────────────────────────────────────────────
+
+interface TrainersTabProps {
+	serviceId: string;
+	organizationId: string;
+}
+
+function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
+	const queryClient = useQueryClient();
+
+	// Current assigned trainers
+	const { data: assigned, isLoading: loadingAssigned } = useQuery(
+		orpc.serviceMembers.listForService.queryOptions({
+			organizationId,
+			serviceId,
+		})
+	);
+
+	// All members — for the assign dropdown
+	const { data: allMembers, isLoading: loadingMembers } = useQuery(
+		orpc.members.list.queryOptions({ organizationId })
+	);
+
+	const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+
+	const assignedIds = new Set((assigned ?? []).map((m) => m.memberId));
+
+	const unassigned = (allMembers ?? []).filter(
+		(m) => !assignedIds.has(m.id)
+	);
+
+	const assignMutation = useMutation({
+		mutationFn: (memberId: string) =>
+			client.serviceMembers.assign({ organizationId, serviceId, memberId }),
+		onSuccess: () => {
+			setSelectedMemberId("");
+			queryClient.invalidateQueries({
+				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+			});
+			toast.success("Trainer assigned");
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Failed to assign trainer");
+		},
+	});
+
+	const removeMutation = useMutation({
+		mutationFn: (memberId: string) =>
+			client.serviceMembers.remove({ organizationId, serviceId, memberId }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+			});
+			toast.success("Trainer removed");
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Failed to remove trainer");
+		},
+	});
+
+	if (loadingAssigned || loadingMembers) {
+		return (
+			<div className="flex items-center justify-center py-8">
+				<Loader2 className="size-6 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			{/* Assign row */}
+			<div className="flex gap-2">
+				<Select
+					value={selectedMemberId}
+					onValueChange={setSelectedMemberId}
+					disabled={unassigned.length === 0}
+				>
+					<SelectTrigger className="flex-1">
+						<SelectValue
+							placeholder={
+								unassigned.length === 0
+									? "All members assigned"
+									: "Select a trainer to assign…"
+							}
+						/>
+					</SelectTrigger>
+					<SelectContent>
+						{unassigned.map((m) => (
+							<SelectItem key={m.id} value={m.id}>
+								{m.name ?? m.email ?? m.id}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<Button
+					type="button"
+					size="sm"
+					disabled={!selectedMemberId || assignMutation.isPending}
+					onClick={() => selectedMemberId && assignMutation.mutate(selectedMemberId)}
+				>
+					{assignMutation.isPending ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<UserPlus className="size-4" />
+					)}
+					<span className="ml-1">Assign</span>
+				</Button>
+			</div>
+
+			{/* Assigned list */}
+			{assigned && assigned.length === 0 ? (
+				<p className="text-sm text-muted-foreground italic py-4 text-center">
+					No trainers assigned to this service.
+				</p>
+			) : (
+				<ul className="space-y-2">
+					{(assigned ?? []).map((m) => (
+						<li
+							key={m.memberId}
+							className="flex items-center justify-between rounded-lg border border-brand-secondary-3 bg-card px-4 py-3"
+						>
+							<span className="text-sm font-medium">{m.displayName}</span>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="size-7 shrink-0"
+								disabled={removeMutation.isPending}
+								onClick={() => removeMutation.mutate(m.memberId)}
+							>
+								<X className="size-4" />
+							</Button>
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	);
+}
+
+// ── Main Dialog ───────────────────────────────────────────────────────────────
 
 export function ServiceDetailDialog({
 	isOpen,
@@ -217,155 +373,173 @@ export function ServiceDetailDialog({
 					{error && <StatusCallout variant="error" message={error} />}
 
 					{service && !isLoading && (
-						<div className="space-y-6">
-							{/* Header card: name + status + recommended */}
-							<Section title="Overview">
-								<div className="space-y-4">
-									<Field label="Name">{service.name}</Field>
-									{service.description && (
-										<Field label="Description">{service.description}</Field>
-									)}
-									<div className="grid grid-cols-2 gap-4">
-										<Field label="Status">
-											<StatusBadge
-												status={service.isActive ? "active" : "inactive"}
-											/>
-										</Field>
-										{service.isRecommended && (
-											<Field label="Recommended">
-												<Badge variant="default">Yes</Badge>
-											</Field>
-										)}
-									</div>
-								</div>
-							</Section>
+						<Tabs defaultValue="details">
+							<TabsList className="mb-4">
+								<TabsTrigger value="details">Details</TabsTrigger>
+								<TabsTrigger value="trainers">Trainers</TabsTrigger>
+							</TabsList>
 
-							<Section title="Scheduling">
-								<div className="grid grid-cols-2 gap-4">
-									<Field label="Duration">
-										{formatDuration(service.duration, service.durationUnitType)}
-									</Field>
-									<Field label="Max attendees">{service.maxAttendees}</Field>
-									<Field label="Scheduling type">
-										<Badge variant="outline">
-											{service.schedulingType === "class_slot"
-												? "Class slot"
-												: "Appointment"}
-										</Badge>
-									</Field>
-									<Field label="Type">
-										<Badge variant="outline" className="capitalize">
-											{service.type ?? "—"}
-										</Badge>
-									</Field>
-								</div>
-							</Section>
-
-							{service.schedulingType === "class_slot" && (
-							<Section title="Time-Preset Schedule">
-								{service.timePresetConfig &&
-								service.timePresetConfig.recurringDays.length > 0 ? (
-									<div className="space-y-4">
-										<Field label="Recurring Days">
-											<div className="flex flex-wrap gap-1">
-												{service.timePresetConfig.recurringDays.map((day) => (
-													<Badge key={day} variant="outline">
-														{day}
-													</Badge>
-												))}
+							<TabsContent value="details">
+								<div className="space-y-6">
+									{/* Header card: name + status + recommended */}
+									<Section title="Overview">
+										<div className="space-y-4">
+											<Field label="Name">{service.name}</Field>
+											{service.description && (
+												<Field label="Description">{service.description}</Field>
+											)}
+											<div className="grid grid-cols-2 gap-4">
+												<Field label="Status">
+													<StatusBadge
+														status={service.isActive ? "active" : "inactive"}
+													/>
+												</Field>
+												{service.isRecommended && (
+													<Field label="Recommended">
+														<Badge variant="default">Yes</Badge>
+													</Field>
+												)}
 											</div>
-										</Field>
-										<Field label="Time Slots per Day">
-											<div className="space-y-2">
-												{service.timePresetConfig.recurringDays.map((day) => {
-													const slots =
-														service.timePresetConfig?.timeSlotsPerDay[day] ?? [];
-													return (
-														<div
-															key={day}
-															className="flex flex-wrap items-center gap-2"
-														>
-															<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground w-20 shrink-0">
-																{day}
-															</span>
-															{slots.length > 0 ? (
-																slots.map((time, i) => (
-																	<Badge key={i} variant="secondary">
-																		{time}
-																	</Badge>
-																))
-															) : (
-																<span className="text-sm text-muted-foreground italic">
-																	No slots configured
-																</span>
-															)}
+										</div>
+									</Section>
+
+									<Section title="Scheduling">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Duration">
+												{formatDuration(service.duration, service.durationUnitType)}
+											</Field>
+											<Field label="Max attendees">{service.maxAttendees}</Field>
+											<Field label="Scheduling type">
+												<Badge variant="outline">
+													{service.schedulingType === "class_slot"
+														? "Class slot"
+														: "Appointment"}
+												</Badge>
+											</Field>
+											<Field label="Type">
+												<Badge variant="outline" className="capitalize">
+													{service.type ?? "—"}
+												</Badge>
+											</Field>
+										</div>
+									</Section>
+
+									{service.schedulingType === "class_slot" && (
+										<Section title="Time-Preset Schedule">
+											{service.timePresetConfig &&
+											service.timePresetConfig.recurringDays.length > 0 ? (
+												<div className="space-y-4">
+													<Field label="Recurring Days">
+														<div className="flex flex-wrap gap-1">
+															{service.timePresetConfig.recurringDays.map((day) => (
+																<Badge key={day} variant="outline">
+																	{day}
+																</Badge>
+															))}
 														</div>
-													);
-												})}
-											</div>
-										</Field>
-									</div>
-								) : (
-									<p className="text-sm text-muted-foreground italic">
-										No recurring schedule configured.
-									</p>
-								)}
-							</Section>
-						)}
-
-						<Section title="Pricing & Tax">
-								<div className="grid grid-cols-2 gap-4">
-									<Field label="Price">
-										{service.price != null
-											? formatPrice(service.price, "MYR")
-											: "—"}
-									</Field>
-									<Field label="Taxable">
-										{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
-									</Field>
-								</div>
-							</Section>
-
-							<Section title="Sessions & Expiry">
-								<div className="grid grid-cols-2 gap-4">
-									<Field label="Sessions">{service.sessionCount ?? "—"}</Field>
-									{service.expirable && (
-										<Field label="Expiry">
-											{service.expiryDays
-												? `${service.expiryDays} days`
-												: "—"}
-										</Field>
-									)}
-								</div>
-							</Section>
-
-							{(service.location ||
-								(service.features && service.features.length > 0)) && (
-								<Section title="Details">
-									<div className="space-y-4">
-										{service.location && (
-											<Field label="Location">{service.location}</Field>
-										)}
-										{service.features && service.features.length > 0 && (
-											<Field label="Features">
-												<div className="flex flex-wrap gap-1">
-													{service.features.map((f, i) => (
-														<Badge key={i} variant="secondary">
-															{f}
-														</Badge>
-													))}
+													</Field>
+													<Field label="Time Slots per Day">
+														<div className="space-y-2">
+															{service.timePresetConfig.recurringDays.map((day) => {
+																const slots =
+																	service.timePresetConfig?.timeSlotsPerDay[day] ?? [];
+																return (
+																	<div
+																		key={day}
+																		className="flex flex-wrap items-center gap-2"
+																	>
+																		<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground w-20 shrink-0">
+																			{day}
+																		</span>
+																		{slots.length > 0 ? (
+																			slots.map((time, i) => (
+																				<Badge key={i} variant="secondary">
+																					{time}
+																				</Badge>
+																			))
+																		) : (
+																			<span className="text-sm text-muted-foreground italic">
+																				No slots configured
+																			</span>
+																		)}
+																	</div>
+																);
+															})}
+														</div>
+													</Field>
 												</div>
-											</Field>
-										)}
-									</div>
-								</Section>
-							)}
+											) : (
+												<p className="text-sm text-muted-foreground italic">
+													No recurring schedule configured.
+												</p>
+											)}
+										</Section>
+									)}
 
-							<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4">
-								<Field label="Created">{formatDate(service.createdAt)}</Field>
-								<Field label="Updated">{formatDate(service.updatedAt)}</Field>
-							</div>
-						</div>
+									<Section title="Pricing & Tax">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Price">
+												{service.price != null
+													? formatPrice(service.price, "MYR")
+													: "—"}
+											</Field>
+											<Field label="Taxable">
+												{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
+											</Field>
+										</div>
+									</Section>
+
+									<Section title="Sessions & Expiry">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Sessions">{service.sessionCount ?? "—"}</Field>
+											{service.expirable && (
+												<Field label="Expiry">
+													{service.expiryDays
+														? `${service.expiryDays} days`
+														: "—"}
+												</Field>
+											)}
+										</div>
+									</Section>
+
+									{(service.location ||
+										(service.features && service.features.length > 0)) && (
+										<Section title="Details">
+											<div className="space-y-4">
+												{service.location && (
+													<Field label="Location">{service.location}</Field>
+												)}
+												{service.features && service.features.length > 0 && (
+													<Field label="Features">
+														<div className="flex flex-wrap gap-1">
+															{service.features.map((f, i) => (
+																<Badge key={i} variant="secondary">
+																	{f}
+																</Badge>
+															))}
+														</div>
+													</Field>
+												)}
+											</div>
+										</Section>
+									)}
+
+									<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4">
+										<Field label="Created">{formatDate(service.createdAt)}</Field>
+										<Field label="Updated">{formatDate(service.updatedAt)}</Field>
+									</div>
+								</div>
+							</TabsContent>
+
+							<TabsContent value="trainers">
+								{organizationId && serviceId ? (
+									<TrainersTab
+										serviceId={serviceId}
+										organizationId={organizationId}
+									/>
+								) : null}
+							</TabsContent>
+						</Tabs>
 					)}
 
 					<DialogFooter>

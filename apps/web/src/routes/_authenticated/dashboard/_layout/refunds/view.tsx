@@ -725,6 +725,8 @@ function RefundsLedgerPage() {
 							<button
 								key={tab.value}
 								type="button"
+								role="tab"
+								aria-selected={isActive}
 								onClick={() => setActiveTab(tab.value)}
 								className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
 									isActive

@@ -158,7 +158,10 @@ export function ServiceFormDialog({
 				? "Service category created"
 				: "Service category updated",
 		errorMessage: (err) => err.message || "Failed to save service category",
-		invalidate: [orpc.serviceCategories.list.key()],
+		invalidate: [
+				orpc.serviceCategories.list.key(),
+				orpc.serviceCategoryConfig.getByCategoryId.key(),
+			],
 		onSuccess: () => onClose(),
 	});
 

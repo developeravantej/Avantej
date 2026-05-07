@@ -1,5 +1,6 @@
-import { pgTable, uuid, text, timestamp, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
+import { walkInCustomers } from "./walk-in-customers";
 
 export const salesOrders = pgTable("sales_orders", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -27,6 +28,17 @@ export const salesOrders = pgTable("sales_orders", {
 	// complimentary (manager-marked on POS) and all lines are excluded from
 	// commission split creation. Free-form reason for audit/visibility.
 	complimentaryReason: text("complimentary_reason"),
+	// Migration 0046 — structured complimentary flag + approval tracking.
+	// isComplimentary: boolean flag (quick filter without null-check on complimentaryReason).
+	// complimentaryApprovedBy: members.userId who authorised the comp order.
+	// walkInCustomerId: explicit FK to walk_in_customers for walk-in sales orders
+	//   (supplements the text customerType/"walk_in" pattern with a typed FK).
+	isComplimentary: boolean("is_complimentary").notNull().default(false),
+	complimentaryApprovedBy: text("complimentary_approved_by"),
+	walkInCustomerId: uuid("walk_in_customer_id").references(
+		() => walkInCustomers.id,
+		{ onDelete: "restrict" },
+	),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -40,4 +52,7 @@ export const salesOrders = pgTable("sales_orders", {
 	customerTypeIdx: index("sales_orders_customer_type_idx").on(table.customerType),
 	cancellationNumberIdx: index("sales_orders_cancellation_number_idx").on(table.cancellationNumber),
 	cancellationDateIdx: index("sales_orders_cancellation_date_idx").on(table.cancellationDate),
+	walkInCustomerIdx: index("sales_orders_walk_in_customer_idx").on(table.walkInCustomerId),
+	// Composite: customer 360 view — customer orders sorted by date
+	customerCreatedIdx: index("sales_orders_customer_created_idx").on(table.customerId, table.createdAt),
 }));

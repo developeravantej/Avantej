@@ -32,6 +32,11 @@ export const paymentItems = pgTable("payment_items", {
 	// Captured at payment creation so historical receipts reproduce the applied rate
 	// even after the underlying tax_rates row is edited or deactivated.
 	taxRateId: uuid("tax_rate_id").references(() => taxRates.id, { onDelete: "set null" }),
+	// Migration 0046 — denormalised rate snapshot cols for receipt rendering without joins.
+	// taxRateBps: rate in basis points at time of payment (e.g. 800 = 8.00%).
+	// taxRateCode: human-readable code string (e.g. "SST-6").
+	taxRateBps: integer("tax_rate_bps"),
+	taxRateCode: text("tax_rate_code"),
 
 	description: text("description").notNull(),
 	quantity: integer("quantity").default(1).notNull(),
@@ -45,4 +50,6 @@ export const paymentItems = pgTable("payment_items", {
 	itemIdIdx: index("payment_items_item_idx").on(table.itemId),
 	promotionIdIdx: index("payment_items_promotion_idx").on(table.promotionId),
 	taxRateIdIdx: index("payment_items_tax_rate_idx").on(table.taxRateId),
+	// Composite: payment breakdown query — items by payment grouped by type
+	paymentTypeIdx: index("payment_items_payment_type_idx").on(table.paymentId, table.itemType),
 }));

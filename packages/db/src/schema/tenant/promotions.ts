@@ -24,6 +24,7 @@ import {
 	jsonb,
 } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
+import { salesOrders } from "./sales-orders";
 
 export const promotionTypeEnum = pgEnum("promotion_type", [
 	"percentage",
@@ -111,8 +112,11 @@ export const promotionUsages = pgTable(
 		// Either member.userId (for member customers) or walk_in_customers.id (for walk-ins)
 		customerId: text("customer_id").notNull(),
 
-		// The sales order this promotion was applied to (uuid stored as text for flexibility)
-		salesOrderId: text("sales_order_id").notNull(),
+		// Migration 0046: migrated from text → uuid with FK to sales_orders.
+		// ON DELETE RESTRICT: prevent deleting a sales order that has promotion usages.
+		salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, {
+			onDelete: "restrict",
+		}),
 
 		// How much discount was actually applied (in cents, post cap)
 		discountAmount: integer("discount_amount").notNull(),
@@ -124,8 +128,9 @@ export const promotionUsages = pgTable(
 	(table) => ({
 		promotionIdIdx: index("promo_usages_promo_idx").on(table.promotionId),
 		customerIdx: index("promo_usages_customer_idx").on(table.customerId),
-		salesOrderIdx: index("promo_usages_order_idx").on(table.salesOrderId),
-		// One promotion per customer per sales order
+		// Non-unique lookup index (migration 0046)
+		salesOrderLookupIdx: index("promotion_usages_sales_order_idx").on(table.salesOrderId),
+		// One promotion per customer per sales order (unique index recreated in 0046 with uuid type)
 		uniqueCustomerOrderPromo: uniqueIndex(
 			"promo_usages_unique_customer_order"
 		).on(table.promotionId, table.customerId, table.salesOrderId),

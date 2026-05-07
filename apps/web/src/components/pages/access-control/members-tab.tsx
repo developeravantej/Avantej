@@ -5,6 +5,8 @@ import { client } from "@/utils/orpc";
 
 type MemberApiItem = Awaited<ReturnType<typeof client.members.list>>[number];
 type RoleApiItem = Awaited<ReturnType<typeof client.roles.list>>[number];
+const EMPTY_MEMBERS: MemberApiItem[] = [];
+const EMPTY_ROLES: RoleApiItem[] = [];
 import {
 	Search,
 	Users,
@@ -461,7 +463,7 @@ export function MembersTabPage() {
 	const inviterHierarchyScopeId =
 		currentOrg?.hierarchy.member?.hierarchyScopeId ?? null;
 
-	const { data: membersApiData = [], isLoading: membersLoading } = useQuery({
+	const { data: membersApiData = EMPTY_MEMBERS, isLoading: membersLoading } = useQuery({
 		queryKey: ["members", organizationId],
 		queryFn: (): Promise<Awaited<ReturnType<typeof client.members.list>>> => {
 			if (!organizationId) return Promise.resolve([]);
@@ -470,7 +472,7 @@ export function MembersTabPage() {
 		enabled: !!organizationId,
 	});
 
-	const { data: rolesApiData = [], isLoading: rolesLoading } = useQuery({
+	const { data: rolesApiData = EMPTY_ROLES, isLoading: rolesLoading } = useQuery({
 		queryKey: ["roles", organizationId],
 		queryFn: (): Promise<Awaited<ReturnType<typeof client.roles.list>>> => {
 			if (!organizationId) return Promise.resolve([]);

@@ -193,6 +193,7 @@ export const refundsRouter = {
 					},
 				});
 			} catch (err) {
+				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
@@ -200,7 +201,7 @@ export const refundsRouter = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw err;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
 		}),
 
@@ -244,6 +245,7 @@ export const refundsRouter = {
 					},
 				});
 			} catch (err) {
+				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
@@ -251,7 +253,7 @@ export const refundsRouter = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw err;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
 		}),
 
@@ -297,6 +299,7 @@ export const refundsRouter = {
 					},
 				});
 			} catch (err) {
+				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
@@ -304,7 +307,7 @@ export const refundsRouter = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw err;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
 		}),
 
@@ -355,6 +358,7 @@ export const refundsRouter = {
 					},
 				});
 			} catch (err) {
+				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
@@ -362,7 +366,7 @@ export const refundsRouter = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw err;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
 		}),
 
@@ -417,6 +421,7 @@ export const refundsRouter = {
 					},
 				});
 			} catch (err) {
+				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
@@ -424,7 +429,7 @@ export const refundsRouter = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw err;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
 		}),
 };

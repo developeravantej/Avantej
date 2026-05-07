@@ -83,7 +83,7 @@ export function MyCommissionsPage() {
 		enabled: !!organizationId,
 	});
 
-	const rows: MyCommissionRow[] = (data as any[] | undefined) ?? [];
+	const rows: MyCommissionRow[] = (data as any)?.splits ?? [];
 
 	// Client-side KPI computation — no extra queries
 	const pendingCount = rows.filter((r) => r.status === "pending").length;

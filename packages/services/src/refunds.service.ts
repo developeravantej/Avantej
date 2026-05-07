@@ -36,6 +36,7 @@ import {
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { reverseForRefund } from "./commission-splits.service";
+import { appendPaymentStatusHistory } from "./status-history.helper";
 
 // ---------------------------------------------------------------------------
 // Internal type aliases
@@ -66,6 +67,13 @@ export interface RequestRefundInput {
 	customerId?: string;
 	customerName?: string;
 	branchId?: string;
+	// Optional line-item breakdown for the refund (Phase 3 Task 3.2)
+	items?: {
+		salesOrderItemId: string;
+		quantity: number;
+		amountCents: number;
+		reason?: string;
+	}[];
 	actor: { userId: string; memberId: string; role: string };
 }
 
@@ -450,6 +458,20 @@ export async function requestRefund(
 
 		if (!inserted) throw new Error("Failed to insert refund row");
 
+		// Phase 3 Task 3.2: Insert optional line-item breakdown rows.
+		// refund_items schema has: refundId, salesOrderItemId, amountCents, creditsRefunded.
+		// quantity and reason fields from the input type are not stored at the row level —
+		// amountCents already incorporates quantity (unitPrice × quantity).
+		if (input.items && input.items.length > 0) {
+			await tx.insert(refundItems).values(
+				input.items.map((item) => ({
+					refundId: inserted.id,
+					salesOrderItemId: item.salesOrderItemId,
+					amountCents: item.amountCents,
+				})),
+			);
+		}
+
 		// ------------------------------------------------------------------
 		// Audit
 		// ------------------------------------------------------------------
@@ -785,6 +807,16 @@ export async function processRefund(
 						updatedAt: now,
 					})
 					.where(eq(payments.id, existing.paymentId));
+
+				// Phase 3 Task 3.3: append payment status history row when status changes
+				if (newStatus !== payment.status) {
+					await appendPaymentStatusHistory(tx, existing.paymentId, {
+						fromStatus: payment.status,
+						toStatus: newStatus,
+						changedBy: params.actor.userId,
+						reason: "Refund processed",
+					});
+				}
 			}
 		}
 

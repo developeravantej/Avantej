@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import {
@@ -12,7 +13,10 @@ import {
 	resolveProductPrice,
 	listProductPriceOverrides,
 	setProductPrice,
+	expireProductPrice,
+	deleteProductPrice,
 } from "@avantej-core/services";
+import { productPrices } from "@avantej-core/db/schema/tenant/product-prices";
 
 const productTypeEnum = z.enum(["product", "service_item"]);
 const productStatusEnum = z.enum(["active", "inactive", "discontinued"]);
@@ -371,6 +375,93 @@ export const productsRouter = {
 							? null
 							: new Date(input.effectiveUntil),
 			});
+		}),
+
+	expireBranchPrice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				priceId: z.string().uuid(),
+				effectiveUntil: z.string().datetime().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+			try {
+				await requirePermission(context.tenantDb, context.member, "inventory", "update");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+			const [priceRow] = await context.tenantDb
+				.select({ id: productPrices.id, productId: productPrices.productId })
+				.from(productPrices)
+				.where(eq(productPrices.id, input.priceId))
+				.limit(1);
+			if (!priceRow) {
+				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+			}
+			const product = await getProductById(context.tenantDb, priceRow.productId);
+			if (!product) {
+				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+			}
+			await expireProductPrice(
+				context.tenantDb,
+				input.priceId,
+				input.effectiveUntil ? new Date(input.effectiveUntil) : undefined,
+			);
+			return { success: true };
+		}),
+
+	deleteBranchPrice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				priceId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+			try {
+				await requirePermission(context.tenantDb, context.member, "inventory", "delete");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+			const [priceRow] = await context.tenantDb
+				.select({ id: productPrices.id, productId: productPrices.productId })
+				.from(productPrices)
+				.where(eq(productPrices.id, input.priceId))
+				.limit(1);
+			if (!priceRow) {
+				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+			}
+			const product = await getProductById(context.tenantDb, priceRow.productId);
+			if (!product) {
+				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+			}
+			await deleteProductPrice(context.tenantDb, input.priceId);
+			return { success: true };
 		}),
 	// #endregion
 };

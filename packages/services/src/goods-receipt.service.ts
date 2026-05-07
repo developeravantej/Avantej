@@ -18,7 +18,7 @@
  * (unit cost is frozen on the PO, not the product).
  */
 
-import { and, eq, sql, count } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, count } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
@@ -317,8 +317,8 @@ export async function markInvoiceMatched(
 		.where(eq(supplierInvoices.id, invoiceId))
 		.then((r) => r[0]);
 	if (!invoice) throw new Error("Supplier invoice not found");
-	if (invoice.status !== "pending") {
-		throw new Error("Only pending invoices can be matched");
+	if (!["pending", "disputed"].includes(invoice.status)) {
+		throw new Error("Only pending or disputed invoices can be matched");
 	}
 	if (!invoice.purchaseOrderId || !invoice.goodsReceiptId) {
 		throw new Error(
@@ -361,9 +361,15 @@ export async function markInvoiceMatched(
 			matchedAt: new Date(),
 			matchedBy,
 		})
-		.where(eq(supplierInvoices.id, invoiceId))
+		.where(
+			and(
+				eq(supplierInvoices.id, invoiceId),
+				inArray(supplierInvoices.status, ["pending", "disputed"]),
+			),
+		)
 		.returning();
 
+	if (!updated) throw new Error("Invoice status changed by another user (concurrent update)");
 	return updated;
 }
 
@@ -401,13 +407,169 @@ export async function createSupplierInvoice(
 
 export async function listSupplierInvoices(
 	tenantDb: TenantDb,
-	filters: { supplierId?: string; status?: string } = {},
+	filters: {
+		supplierId?: string;
+		status?: string;
+		purchaseOrderId?: string;
+		limit?: number;
+		offset?: number;
+	} = {},
 ) {
 	const conditions = [];
 	if (filters.supplierId)
 		conditions.push(eq(supplierInvoices.supplierId, filters.supplierId));
 	if (filters.status)
 		conditions.push(eq(supplierInvoices.status, filters.status));
+	if (filters.purchaseOrderId)
+		conditions.push(eq(supplierInvoices.purchaseOrderId, filters.purchaseOrderId));
+	const limit = Math.min(filters.limit ?? 50, 200);
+	const offset = filters.offset ?? 0;
 	const q = tenantDb.select().from(supplierInvoices);
-	return conditions.length ? q.where(and(...conditions)) : q;
+	const withWhere = conditions.length ? q.where(and(...conditions)) : q;
+	return withWhere.orderBy(desc(supplierInvoices.createdAt)).limit(limit).offset(offset);
+}
+
+export type DisputeInvoiceParams = {
+	invoiceId: string;
+	disputeReason: string;
+};
+
+export async function disputeInvoice(
+	tenantDb: TenantDb,
+	params: DisputeInvoiceParams,
+) {
+	const invoice = await tenantDb
+		.select()
+		.from(supplierInvoices)
+		.where(eq(supplierInvoices.id, params.invoiceId))
+		.then((r) => r[0]);
+	if (!invoice) throw new Error("Supplier invoice not found");
+	if (!["pending", "matched"].includes(invoice.status)) {
+		throw new Error("Only pending or matched invoices can be disputed");
+	}
+
+	const [updated] = await tenantDb
+		.update(supplierInvoices)
+		.set({
+			status: "disputed",
+			disputeReason: params.disputeReason,
+			disputedAt: new Date(),
+		})
+		.where(
+			and(
+				eq(supplierInvoices.id, params.invoiceId),
+				inArray(supplierInvoices.status, ["pending", "matched"]),
+			),
+		)
+		.returning();
+
+	if (!updated) throw new Error("Invoice status changed by another user (concurrent update) or invalid status");
+	return updated;
+}
+
+export async function markInvoicePaid(
+	tenantDb: TenantDb,
+	invoiceId: string,
+	paidBy: string,
+	paymentReference?: string,
+) {
+	const invoice = await tenantDb
+		.select()
+		.from(supplierInvoices)
+		.where(eq(supplierInvoices.id, invoiceId))
+		.then((r) => r[0]);
+	if (!invoice) throw new Error("Supplier invoice not found");
+	if (invoice.status !== "matched") {
+		throw new Error("Only matched invoices can be marked as paid");
+	}
+
+	const [updated] = await tenantDb
+		.update(supplierInvoices)
+		.set({
+			status: "paid",
+			paidAt: new Date(),
+			paidBy,
+			paymentReference: paymentReference ?? null,
+		})
+		.where(and(eq(supplierInvoices.id, invoiceId), eq(supplierInvoices.status, "matched")))
+		.returning();
+
+	if (!updated) throw new Error("Invoice was already marked paid by another user (concurrent update)");
+	return updated;
+}
+
+export type InvoicePreviewResult = {
+	poTotalCents: number | null;
+	receiptTotalCents: number | null;
+	invoiceTotalCents: number;
+	toleranceCents: number;
+	isWithinTolerance: boolean;
+	mismatches: string[];
+};
+
+export async function getInvoicePreview(
+	tenantDb: TenantDb,
+	invoiceId: string,
+): Promise<InvoicePreviewResult> {
+	const invoice = await tenantDb
+		.select()
+		.from(supplierInvoices)
+		.where(eq(supplierInvoices.id, invoiceId))
+		.then((r) => r[0]);
+	if (!invoice) throw new Error("Supplier invoice not found");
+
+	let poTotalCents: number | null = null;
+	let receiptTotalCents: number | null = null;
+
+	if (invoice.purchaseOrderId) {
+		const po = await tenantDb
+			.select({ totalAmount: purchaseOrders.totalAmount })
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, invoice.purchaseOrderId))
+			.then((r) => r[0]);
+		poTotalCents = po?.totalAmount ?? null;
+	}
+
+	if (invoice.goodsReceiptId) {
+		receiptTotalCents = await computeReceiptTotalCents(tenantDb, invoice.goodsReceiptId);
+	}
+
+	const tol = Math.max(
+		DEFAULT_MATCH_TOLERANCE_CENTS,
+		poTotalCents !== null
+			? Math.floor((poTotalCents * DEFAULT_MATCH_TOLERANCE_BPS) / 10_000)
+			: 0,
+	);
+
+	const within = (a: number, b: number) => Math.abs(a - b) <= tol;
+	const mismatches: string[] = [];
+
+	if (poTotalCents !== null && receiptTotalCents !== null) {
+		if (!within(poTotalCents, receiptTotalCents)) {
+			mismatches.push(`PO (${poTotalCents}¢) vs Receipt (${receiptTotalCents}¢) differ by ${Math.abs(poTotalCents - receiptTotalCents)}¢`);
+		}
+		if (!within(poTotalCents, invoice.totalCents)) {
+			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+		}
+		if (!within(receiptTotalCents, invoice.totalCents)) {
+			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+		}
+	} else if (poTotalCents !== null) {
+		if (!within(poTotalCents, invoice.totalCents)) {
+			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+		}
+	} else if (receiptTotalCents !== null) {
+		if (!within(receiptTotalCents, invoice.totalCents)) {
+			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+		}
+	}
+
+	return {
+		poTotalCents,
+		receiptTotalCents,
+		invoiceTotalCents: invoice.totalCents,
+		toleranceCents: tol,
+		isWithinTolerance: mismatches.length === 0,
+		mismatches,
+	};
 }

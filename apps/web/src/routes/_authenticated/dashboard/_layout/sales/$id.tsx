@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, Clock } from "lucide-react";
 import { useState } from "react";
 import type { ReceiptData } from "@/components/pos/receipt-view";
 import { ReceiptView } from "@/components/pos/receipt-view";
@@ -8,6 +8,7 @@ import { PartialRefundDialog } from "@/components/refunds/partial-refund-dialog"
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
@@ -43,6 +44,75 @@ function SalesStatusBadge({ status }: { status?: string | null }) {
 	if (!status) return <StatusBadge status="draft" label="Unknown" />;
 	const mapped = STATUS_MAP[status] ?? { status: "draft" as CanonicalStatus, label: status };
 	return <StatusBadge status={mapped.status} label={mapped.label} />;
+}
+
+function StatusHistoryCard({
+	organizationId,
+	salesOrderId,
+}: {
+	organizationId: string;
+	salesOrderId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["salesOrders", "statusHistory", salesOrderId],
+		queryFn: () =>
+			client.salesOrders.statusHistory({ organizationId, salesOrderId }),
+	});
+
+	return (
+		<Card className="mt-6">
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<Clock className="h-4 w-4" />
+					Status History
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				{isLoading ? (
+					<div className="space-y-3">
+						{[1, 2, 3].map((i) => (
+							<Skeleton key={i} className="h-14 w-full" />
+						))}
+					</div>
+				) : !data?.rows.length ? (
+					<p className="text-muted-foreground text-sm">No history available.</p>
+				) : (
+					<ol className="relative border-l border-muted ml-3 space-y-4">
+						{data.rows.map((entry) => (
+							<li key={entry.id} className="ml-4">
+								<div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-muted-foreground" />
+								<div className="flex flex-wrap items-center gap-2">
+									{entry.fromStatus !== null ? (
+										<span className="text-muted-foreground text-sm">
+											<SalesStatusBadge status={entry.fromStatus} />
+											{" → "}
+										</span>
+									) : (
+										<span className="text-muted-foreground italic text-sm">Initial state → </span>
+									)}
+									<SalesStatusBadge status={entry.toStatus} />
+								</div>
+								<p className="mt-0.5 text-xs text-muted-foreground">
+									{entry.changedByName} &middot;{" "}
+									{new Date(entry.changedAt).toLocaleString()}
+								</p>
+								{entry.reason && (
+									<p className="mt-0.5 text-xs text-muted-foreground">
+										Reason: {entry.reason}
+									</p>
+								)}
+								{entry.notes && (
+									<p className="mt-0.5 text-xs text-muted-foreground">
+										Notes: {entry.notes}
+									</p>
+								)}
+							</li>
+						))}
+					</ol>
+				)}
+			</CardContent>
+		</Card>
+	);
 }
 
 function SalesOrderDetailPage() {
@@ -233,6 +303,10 @@ function SalesOrderDetailPage() {
 						</div>
 					</CardContent>
 				</Card>
+			)}
+
+			{organizationId && (
+				<StatusHistoryCard organizationId={organizationId} salesOrderId={id} />
 			)}
 
 			{/* Request Refund dialog */}

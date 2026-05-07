@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useRef, useEffect } from "react";
-import { Plus, CalendarDays, Clock, ChevronLeft, ChevronRight, ClipboardCheck, CheckCircle2, XCircle, User, CalendarDays as CalendarIcon, Pencil, LayoutList, LayoutGrid } from "lucide-react";
+import { Plus, CalendarDays, Clock, ChevronLeft, ChevronRight, ClipboardCheck, CheckCircle2, XCircle, User, CalendarDays as CalendarIcon, Pencil, LayoutList, LayoutGrid, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { AddAppointmentModal } from "@/components/calendar/add-appointment-modal";
 import type { CalendarAppointment } from "@/lib/appointment-mapper";
+import { useQuery } from "@tanstack/react-query";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 
 interface AppointmentListProps {
 	appointments: CalendarAppointment[];
@@ -99,6 +101,23 @@ function groupByDate(appointments: CalendarAppointment[]): Map<string, CalendarA
 		map.get(key)!.push(appt);
 	}
 	return map;
+}
+
+function AppointmentStatusHistory({
+	organizationId,
+	appointmentId,
+}: {
+	organizationId: string;
+	appointmentId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["appointments", "statusHistory", appointmentId],
+		queryFn: () =>
+			client.appointments.statusHistory({ organizationId, appointmentId }),
+	});
+	return (
+		<StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />
+	);
 }
 
 export function AppointmentList({ appointments, isLoading, defaultTrainerId }: AppointmentListProps) {
@@ -620,6 +639,20 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 										</div>
 									)}
 								</div>
+
+								{/* Status History */}
+								{organizationId && (
+									<div className="px-5 pt-3 pb-3 border-t border-gray-100 bg-white">
+										<p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+											<History className="h-3.5 w-3.5" />
+											Status History
+										</p>
+										<AppointmentStatusHistory
+											organizationId={organizationId}
+											appointmentId={appt.id}
+										/>
+									</div>
+								)}
 
 								{/* Footer actions */}
 								<div className="px-5 pb-5 pt-0 bg-white flex flex-col gap-2">

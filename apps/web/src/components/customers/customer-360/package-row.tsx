@@ -5,12 +5,18 @@
  * When expanded it fetches installments and preferred times for that instance.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { centsToRm } from "@/lib/money";
 import { client } from "@/utils/orpc";
+import {
+	PreferredTimesEditor,
+	type PreferredTimeItem,
+} from "./preferred-times-editor";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -171,20 +177,14 @@ function InstallmentsSection({
 	);
 }
 
+// Accepts pre-fetched data so the query can be lifted into PackageRow
 function PreferredTimesSection({
-	packageInstanceId,
-	organizationId,
+	data,
+	isLoading,
 }: {
-	packageInstanceId: string;
-	organizationId: string;
+	data: Array<{ id: string; dayOfWeek: string; time: string; priority: number }> | undefined;
+	isLoading: boolean;
 }) {
-	const { data, isLoading } = useQuery({
-		queryKey: ["preferredTimes", organizationId, packageInstanceId],
-		queryFn: () =>
-			client.preferredTimes.list({ organizationId, packageInstanceId }),
-		staleTime: 60_000,
-	});
-
 	if (isLoading) {
 		return (
 			<p className="py-2 text-muted-foreground text-xs">
@@ -226,6 +226,36 @@ function PreferredTimesSection({
 
 export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 	const [expanded, setExpanded] = useState(false);
+	const [editingPreferred, setEditingPreferred] = useState(false);
+	const [draftTimes, setDraftTimes] = useState<PreferredTimeItem[]>([]);
+
+	const queryClient = useQueryClient();
+
+	// Preferred times query — lifted here so edit mode can access the data
+	const { data: preferredData, isLoading: preferredLoading } = useQuery({
+		queryKey: ["preferredTimes", organizationId, pkg.id],
+		queryFn: () =>
+			client.preferredTimes.list({ organizationId, packageInstanceId: pkg.id }),
+		staleTime: 60_000,
+		enabled: expanded,
+	});
+
+	const upsertPreferredMutation = useMutation({
+		mutationFn: (items: PreferredTimeItem[]) =>
+			client.preferredTimes.upsert({
+				organizationId,
+				packageInstanceId: pkg.id,
+				items,
+			}),
+		onSuccess: () => {
+			toast.success("Preferred times updated");
+			setEditingPreferred(false);
+			queryClient.invalidateQueries({
+				queryKey: ["preferredTimes", organizationId, pkg.id],
+			});
+		},
+		onError: () => toast.error("Failed to update preferred times"),
+	});
 
 	const label = pkg.serviceName ?? pkg.id.slice(0, 8) + "…";
 	const credits =
@@ -283,13 +313,45 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 
 					{/* Preferred Times */}
 					<div>
-						<p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-							Preferred Times
-						</p>
-						<PreferredTimesSection
-							packageInstanceId={pkg.id}
-							organizationId={organizationId}
-						/>
+						<div className="flex items-center justify-between mb-2">
+							<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+								Preferred Times
+							</p>
+							{!editingPreferred && (
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-6 px-2 text-xs"
+									onClick={() => {
+										setDraftTimes(
+											(preferredData ?? []).map((t) => ({
+												dayOfWeek: t.dayOfWeek as PreferredTimeItem["dayOfWeek"],
+												time: t.time,
+												priority: t.priority,
+											})),
+										);
+										setEditingPreferred(true);
+									}}
+								>
+									Edit
+								</Button>
+							)}
+						</div>
+
+						{editingPreferred ? (
+							<PreferredTimesEditor
+								items={draftTimes}
+								onChange={setDraftTimes}
+								onSave={() => upsertPreferredMutation.mutate(draftTimes)}
+								onCancel={() => setEditingPreferred(false)}
+								isSaving={upsertPreferredMutation.isPending}
+							/>
+						) : (
+							<PreferredTimesSection
+								data={preferredData}
+								isLoading={preferredLoading}
+							/>
+						)}
 					</div>
 				</div>
 			)}

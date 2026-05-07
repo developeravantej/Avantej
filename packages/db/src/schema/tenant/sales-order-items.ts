@@ -25,6 +25,12 @@ export const salesOrderItems = pgTable("sales_order_items", {
 	// line never produces a commission_split row (regardless of whether the
 	// parent sales_order is complimentary).
 	commissionExcluded: boolean("commission_excluded").default(false).notNull(),
+	// Migration 0046 — tax snapshot cols. Captured at line creation so receipts
+	// reproduce the applied rate even after the tax_rates row is edited.
+	// taxRateBps: the rate in basis points at time of sale (e.g. 800 = 8.00%).
+	// taxRateCode: human-readable code string (e.g. "SST-6").
+	taxRateBps: integer("tax_rate_bps"),
+	taxRateCode: text("tax_rate_code"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
 	salesOrderIdIdx: index("sales_order_items_order_idx").on(table.salesOrderId),

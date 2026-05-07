@@ -57,6 +57,7 @@ type AnnouncementRow = {
 	isPinned: boolean;
 	isActive: boolean;
 	createdAt: string;
+	scopedBranchIds?: string[];
 };
 
 type FormState = {
@@ -67,6 +68,7 @@ type FormState = {
 	startDate: string;
 	endDate: string;
 	isPinned: boolean;
+	scopedBranchIds: string[];
 };
 
 const EMPTY_FORM: FormState = {
@@ -77,6 +79,7 @@ const EMPTY_FORM: FormState = {
 	startDate: "",
 	endDate: "",
 	isPinned: false,
+	scopedBranchIds: [],
 };
 
 function priorityBadge(priority: Priority) {
@@ -139,6 +142,24 @@ function AnnouncementsViewPage() {
 		enabled: !!organizationId,
 	});
 
+	type HierarchyNode = { id: string; name: string; depth: number };
+
+	const { data: hierarchyNodes } = useQuery<HierarchyNode[]>({
+		queryKey: ["hierarchy", "listNodes", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			const result = await client.hierarchy.listNodes({ organizationId });
+			return result.nodes as HierarchyNode[];
+		},
+		enabled: !!organizationId,
+		staleTime: 5 * 60 * 1000,
+	});
+
+	const nodeNameMap: Record<string, string> = {};
+	for (const node of hierarchyNodes ?? []) {
+		nodeNameMap[node.id] = node.name;
+	}
+
 	const createMutation = useApiMutation({
 		mutationFn: (values: FormState) => {
 			if (!organizationId) throw new Error("No organization selected");
@@ -151,6 +172,7 @@ function AnnouncementsViewPage() {
 				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
 				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
 				isPinned: values.isPinned,
+				scopedBranchIds: values.scopedBranchIds,
 			});
 		},
 		successMessage: "Announcement created successfully.",
@@ -175,6 +197,7 @@ function AnnouncementsViewPage() {
 				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
 				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
 				isPinned: values.isPinned,
+				scopedBranchIds: values.scopedBranchIds,
 			});
 		},
 		successMessage: "Announcement updated successfully.",
@@ -233,6 +256,7 @@ function AnnouncementsViewPage() {
 			startDate: toDatetimeLocal(row.startDate),
 			endDate: toDatetimeLocal(row.endDate),
 			isPinned: row.isPinned,
+			scopedBranchIds: row.scopedBranchIds ?? [],
 		});
 		setSheetOpen(true);
 	}
@@ -272,6 +296,7 @@ function AnnouncementsViewPage() {
 			isPinned: item.isPinned ?? false,
 			isActive: item.isActive ?? true,
 			createdAt: item.createdAt ? String(item.createdAt) : "",
+			scopedBranchIds: item.scopedBranchIds ?? [],
 		}));
 
 	const isMutating =
@@ -299,11 +324,23 @@ function AnnouncementsViewPage() {
 			cell: ({ row }) => <span>{capitalize(row.original.targetAudience)}</span>,
 		},
 		{
-			accessorKey: "branchId",
+			id: "scope",
 			header: "Scope",
-			cell: ({ row }) => (
-				<span>{row.original.branchId == null ? "Org-wide" : row.original.branchId}</span>
-			),
+			cell: ({ row }) => {
+				const ids = row.original.scopedBranchIds ?? [];
+				if (ids.length === 0) {
+					return <Badge variant="outline" className="text-muted-foreground">Org-wide</Badge>;
+				}
+				const names = ids.map((id) => nodeNameMap[id] ?? id);
+				if (names.length <= 2) {
+					return <span className="text-sm">{names.join(", ")}</span>;
+				}
+				return (
+					<span className="text-sm" title={names.join(", ")}>
+						{names.slice(0, 2).join(", ")} (+{names.length - 2})
+					</span>
+				);
+			},
 		},
 		{
 			accessorKey: "startDate",
@@ -618,6 +655,44 @@ function AnnouncementsViewPage() {
 									<SelectItem value="clients">Clients</SelectItem>
 								</SelectContent>
 							</Select>
+						</div>
+
+						{/* Branch Scope */}
+						<div className="flex flex-col gap-1.5">
+							<Label>Branch Scope</Label>
+							<p className="text-xs text-muted-foreground">
+								Leave empty to show org-wide to all branches.
+							</p>
+							<div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+								{(hierarchyNodes ?? []).map((node) => (
+									<div key={node.id} className="flex items-center gap-2">
+										<Checkbox
+											id={`scope-${node.id}`}
+											checked={form.scopedBranchIds.includes(node.id)}
+											onCheckedChange={(checked) =>
+												setForm((f) => ({
+													...f,
+													scopedBranchIds: checked
+														? [...f.scopedBranchIds, node.id]
+														: f.scopedBranchIds.filter((id) => id !== node.id),
+												}))
+											}
+										/>
+										<Label
+											htmlFor={`scope-${node.id}`}
+											className="cursor-pointer font-normal text-sm"
+											style={{ paddingLeft: `${node.depth * 12}px` }}
+										>
+											{node.name}
+										</Label>
+									</div>
+								))}
+								{(hierarchyNodes ?? []).length === 0 && (
+									<p className="text-xs text-muted-foreground py-2 text-center">
+										No branches available.
+									</p>
+								)}
+							</div>
 						</div>
 
 						{/* Date range */}

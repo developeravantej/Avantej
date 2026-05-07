@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
-import { useId } from "react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { centsToRm, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
-import type { CartItem, LineItemType } from "./types";
+import type { CartItem, LineItemType, SelectedCustomer } from "./types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,11 +33,12 @@ function parsePriceCents(raw: string): number {
 interface ServiceOption {
 	id: string;
 	name: string;
-	price: number | null; // cents
+	price: number | null; // cents — used only as a last-resort fallback
 }
 
 interface ItemsStepProps {
 	organizationId: string;
+	selectedCustomer?: SelectedCustomer | null;
 	items: CartItem[];
 	onAddItem: (item: CartItem) => void;
 	onUpdateItem: (id: string, patch: Partial<CartItem>) => void;
@@ -49,23 +50,53 @@ interface ItemsStepProps {
 interface RowProps {
 	item: CartItem;
 	services: ServiceOption[];
+	organizationId: string;
+	selectedCustomer?: SelectedCustomer | null;
 	onUpdate: (patch: Partial<CartItem>) => void;
 	onRemove: () => void;
 }
 
-function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
+function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, onRemove }: RowProps) {
 	const priceRm = centsToRm(item.unitPriceCents);
-
 	const isLookup = item.type === "service";
 
-	function handleServiceSelect(serviceId: string) {
+	const [isPriceLoading, setIsPriceLoading] = useState(false);
+	const [noPriceWarning, setNoPriceWarning] = useState(false);
+	const pendingServiceIdRef = useRef<string | null>(null);
+
+	async function handleServiceSelect(serviceId: string) {
 		const svc = services.find((s) => s.id === serviceId);
 		if (!svc) return;
+
+		pendingServiceIdRef.current = serviceId;
+		setIsPriceLoading(true);
+		setNoPriceWarning(false);
+
 		onUpdate({
 			refId: svc.id,
 			description: svc.name,
-			unitPriceCents: svc.price ?? 0,
+			unitPriceCents: 0,
 		});
+
+		try {
+			const { priceCents } = await client.services.resolvePrice({
+				organizationId,
+				serviceId: svc.id,
+				branchId: selectedCustomer?.branchId ?? null,
+				customerType: selectedCustomer?.type ?? null,
+			});
+
+			if (pendingServiceIdRef.current !== serviceId) return;
+
+			const resolved = priceCents ?? 0;
+			onUpdate({ unitPriceCents: resolved });
+			if (resolved === 0) setNoPriceWarning(true);
+		} catch {
+			if (pendingServiceIdRef.current !== serviceId) return;
+			onUpdate({ unitPriceCents: svc.price ?? 0 });
+		} finally {
+			if (pendingServiceIdRef.current === serviceId) setIsPriceLoading(false);
+		}
 	}
 
 	return (
@@ -82,7 +113,9 @@ function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
 				{isLookup ? (
 					<Select
 						value={item.refId ?? ""}
-						onValueChange={handleServiceSelect}
+						onValueChange={(id) => {
+							void handleServiceSelect(id);
+						}}
 					>
 						<SelectTrigger className="w-full">
 							<SelectValue placeholder="Select service..." />
@@ -142,18 +175,29 @@ function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
 					<span className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground text-sm">
 						RM
 					</span>
-					<Input
-						type="number"
-						min="0"
-						step="0.01"
-						className="pl-9"
-						value={priceRm}
-						onChange={(e) =>
-							onUpdate({ unitPriceCents: parsePriceCents(e.target.value) })
-						}
-						disabled={isLookup && !!item.refId && item.type !== "custom"}
-					/>
+					{isPriceLoading ? (
+						<div className="flex h-9 items-center pl-9">
+							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+						</div>
+					) : (
+						<Input
+							type="number"
+							min="0"
+							step="0.01"
+							className="pl-9"
+							value={priceRm}
+							onChange={(e) =>
+								onUpdate({ unitPriceCents: parsePriceCents(e.target.value) })
+							}
+							disabled={isLookup && !!item.refId && item.type !== "custom"}
+						/>
+					)}
 				</div>
+				{noPriceWarning && !isPriceLoading && (
+					<p className="mt-1 text-amber-600 text-xs">
+						No price configured for this service at this branch.
+					</p>
+				)}
 			</div>
 
 			{/* Remove */}
@@ -177,6 +221,7 @@ function ItemRow({ item, services, onUpdate, onRemove }: RowProps) {
 
 export function ItemsStep({
 	organizationId,
+	selectedCustomer,
 	items,
 	onAddItem,
 	onUpdateItem,
@@ -228,6 +273,8 @@ export function ItemsStep({
 							key={item.id}
 							item={item}
 							services={services}
+							organizationId={organizationId}
+							selectedCustomer={selectedCustomer}
 							onUpdate={(patch) => onUpdateItem(item.id, patch)}
 							onRemove={() => onRemoveItem(item.id)}
 						/>

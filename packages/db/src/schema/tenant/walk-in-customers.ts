@@ -23,6 +23,7 @@ import {
 	index,
 } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
+import { customerProfiles } from "./customer-profiles";
 
 export const walkInCustomers = pgTable(
 	"walk_in_customers",
@@ -59,6 +60,14 @@ export const walkInCustomers = pgTable(
 		// General notes
 		notes: text("notes"),
 
+		// Migration 0046 — conversion tracking to full customer profile
+		// Populated when a walk-in is promoted to a registered customer.
+		customerProfileId: uuid("customer_profile_id").references(
+			() => customerProfiles.id,
+			{ onDelete: "set null" },
+		),
+		convertedAt: timestamp("converted_at", { withTimezone: true }),
+
 		// Soft-delete via isActive flag
 		isActive: boolean("is_active").notNull().default(true),
 
@@ -78,5 +87,6 @@ export const walkInCustomers = pgTable(
 		emailIdx: index("walk_in_customers_email_idx").on(table.email),
 		branchIdx: index("walk_in_customers_branch_idx").on(table.branchId),
 		isActiveIdx: index("walk_in_customers_active_idx").on(table.isActive),
+		customerProfileIdx: index("walk_in_customers_customer_profile_idx").on(table.customerProfileId),
 	})
 );

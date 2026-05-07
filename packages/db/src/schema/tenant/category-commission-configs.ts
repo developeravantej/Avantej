@@ -18,6 +18,11 @@ export const categoryCommissionConfigs = pgTable("category_commission_configs", 
 	// exceeds this value, no commission split is created for the line.
 	// NULL = no exclusion (default).
 	excludeIfDiscountAbovePct: integer("exclude_if_discount_above_pct"),
+	// Migration 0046 — per-split cap/floor in cents.
+	// capAmountCents: individual split ceiling per transaction (null = uncapped).
+	// floorAmountCents: individual split minimum per transaction (null = no floor).
+	capAmountCents: integer("cap_amount_cents"),
+	floorAmountCents: integer("floor_amount_cents"),
 	isActive: boolean("is_active").notNull().default(true),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

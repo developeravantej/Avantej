@@ -21,6 +21,7 @@ import { packageInstances } from "@avantej-core/db/schema/tenant/package-instanc
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
+import { appendPaymentStatusHistory } from "./status-history.helper";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -136,6 +137,15 @@ export async function convertWalkInPaymentToPackage(
 				}),
 			})
 			.where(eq(payments.id, walkInPaymentId));
+
+		// Append payment status history for the succeeded → converted transition.
+		// The guard above (status !== "succeeded") already ensures the status changes.
+		await appendPaymentStatusHistory(tx, walkInPaymentId, {
+			fromStatus: walkIn.status,
+			toStatus: "converted",
+			changedBy: actorUserId,
+			reason: "Walk-in conversion",
+		});
 
 		return {
 			newPaymentId: newPayment.id,

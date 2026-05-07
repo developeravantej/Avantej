@@ -15,7 +15,10 @@ import {
   resolveServicePrice,
   listServicePriceOverrides,
   setServicePrice,
+  expireServicePrice,
+  deleteServicePrice,
 } from "@avantej-core/services";
+import { servicePrices } from "@avantej-core/db/schema/tenant/service-prices";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
@@ -575,6 +578,123 @@ export const servicesRouter = {
               ? null
               : new Date(input.effectiveUntil),
       });
+    }),
+
+  expireBranchPrice: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        priceId: z.string().uuid(),
+        effectiveUntil: z.string().datetime().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "update",
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+      const [priceRow] = await context.tenantDb
+        .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
+        .from(servicePrices)
+        .where(eq(servicePrices.id, input.priceId))
+        .limit(1);
+      if (!priceRow) {
+        throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+      }
+      const svc = await getServiceById(context.tenantDb, priceRow.serviceId);
+      if (!svc) {
+        throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+      }
+      if (svc.branchId) {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
+            : []);
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+        }
+      }
+      await expireServicePrice(
+        context.tenantDb,
+        input.priceId,
+        input.effectiveUntil ? new Date(input.effectiveUntil) : undefined,
+      );
+      return { success: true };
+    }),
+
+  deleteBranchPrice: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        priceId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "delete",
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+      const [priceRow] = await context.tenantDb
+        .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
+        .from(servicePrices)
+        .where(eq(servicePrices.id, input.priceId))
+        .limit(1);
+      if (!priceRow) {
+        throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+      }
+      const svc = await getServiceById(context.tenantDb, priceRow.serviceId);
+      if (!svc) {
+        throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+      }
+      if (svc.branchId) {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (context.member
+            ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
+            : []);
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+        }
+      }
+      await deleteServicePrice(context.tenantDb, input.priceId);
+      return { success: true };
     }),
   // #endregion
 };

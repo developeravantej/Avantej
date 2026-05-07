@@ -7,7 +7,6 @@
  */
 
 import {
-  listAppointments,
   listAppointmentsForUser,
   getAppointmentById,
   createAppointment,
@@ -15,16 +14,22 @@ import {
   getDescendantNodeIds,
   requirePermission,
   syncAppointmentToGoogleCalendar,
+  getAppointmentStatusHistory,
+  listAppointmentsWithRecurrence,
+  isVirtualId,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
+import { parseCursor, encodeCursor } from "../lib/cursor";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { mapPgError } from "../lib/orpc-error-mapper";
@@ -91,34 +96,55 @@ export const appointmentsRouter = {
             )
           : []);
 
-      const items = await listAppointments(context.tenantDb, {
-        branchId: input.branchId,
-        serviceId: input.serviceId ?? undefined,
+      // Use recurrence-aware list which returns virtual occurrences for recurring series.
+      // Note: status filter is not passed to listAppointmentsWithRecurrence — virtual
+      // occurrences inherit the parent's status so we filter post-expansion below.
+      const startFrom = input.startFrom ? new Date(input.startFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const startTo = input.startTo ? new Date(input.startTo) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+      let items = await listAppointmentsWithRecurrence(context.tenantDb, {
+        organizationId: input.organizationId,
         trainerId: input.trainerId,
-        status: input.status,
-        startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
-        startTo: input.startTo ? new Date(input.startTo) : undefined,
+        startFrom,
+        startTo,
         accessibleNodeIds,
-        limit: input.limit,
       });
 
-      if (items.length === 0) return items.map((r) => ({ ...r, serviceName: null, trainerName: null, clientName: null }));
+      // Apply post-expansion filters that couldn't be pushed into the DB query
+      if (input.status) {
+        items = items.filter((r) => r.status === input.status);
+      }
+      if (input.serviceId !== undefined && input.serviceId !== null) {
+        items = items.filter((r) => r.serviceId === input.serviceId);
+      }
+      if (input.branchId) {
+        items = items.filter((r) => r.branchId === input.branchId);
+      }
+      if (input.limit) {
+        items = items.slice(0, input.limit);
+      }
+
+      if (items.length === 0) return items.map((r) => ({ ...r, isVirtual: r.isVirtual, parentId: r.parentId, serviceName: null, trainerName: null, clientName: null }));
 
       // Batch-resolve names in parallel.
-      // Trainer name resolution sources, in priority order:
-      //   1. legacy `appointments.trainerId` (member.id) → memberProfiles.displayName
-      //   2. fallback: lowest-slot row in `appointment_staff` (staffId is member.userId) → members → memberProfiles.displayName
+      // For virtual occurrences: id is synthetic ("virtual__...") but parentId + trainerId/serviceId/userId
+      // are all inherited from the parent row, so service/user lookups work transparently.
+      // For appointmentStaff: virtual rows don't have their own staff rows — we must look up by parentId.
       const serviceIds = [...new Set(items.map((r) => r.serviceId).filter(Boolean) as string[])];
       const directTrainerIds = [...new Set(items.map((r) => r.trainerId).filter(Boolean) as string[])];
       const userIds = [...new Set(items.map((r) => r.userId).filter(Boolean) as string[])];
-      const apptIds = items.map((r) => r.id);
+
+      // For appointmentStaff lookup: use real appt ids (non-virtual) OR parentId (for virtual rows)
+      const realApptIds = items.filter((r) => !isVirtualId(r.id)).map((r) => r.id);
+      const virtualParentIds = [...new Set(items.filter((r) => isVirtualId(r.id)).map((r) => r.parentId).filter(Boolean) as string[])];
+      const staffQueryIds = [...new Set([...realApptIds, ...virtualParentIds])];
 
       const [serviceRows, staffAssignmentRows, userRows] = await Promise.all([
         serviceIds.length > 0
           ? context.tenantDb.select({ id: services.id, name: services.name }).from(services).where(inArray(services.id, serviceIds))
           : [],
-        apptIds.length > 0
-          ? context.tenantDb.select({ appointmentId: appointmentStaff.appointmentId, staffId: appointmentStaff.staffId, slotIndex: appointmentStaff.slotIndex }).from(appointmentStaff).where(inArray(appointmentStaff.appointmentId, apptIds))
+        staffQueryIds.length > 0
+          ? context.tenantDb.select({ appointmentId: appointmentStaff.appointmentId, staffId: appointmentStaff.staffId, slotIndex: appointmentStaff.slotIndex }).from(appointmentStaff).where(inArray(appointmentStaff.appointmentId, staffQueryIds))
           : [],
         userIds.length > 0
           ? (() => { try { const cpDb = getControlPanelDb(context); return cpDb.select({ id: cpUsers.id, name: cpUsers.name }).from(cpUsers).where(inArray(cpUsers.id, userIds)); } catch { return Promise.resolve([]); } })()
@@ -165,11 +191,15 @@ export const appointmentsRouter = {
       const userMap = new Map((userRows as { id: string; name: string }[]).map((u) => [u.id, u.name]));
 
       return items.map((r) => {
-        const fallback = primaryStaffByAppt.get(r.id);
+        // For virtual occurrences, staff is stored on the parent; look up by parentId
+        const staffLookupId = isVirtualId(r.id) ? (r.parentId ?? r.id) : r.id;
+        const fallback = primaryStaffByAppt.get(staffLookupId);
         const fallbackMemberId = fallback ? staffIdToMemberId.get(fallback.staffId) : undefined;
         const trainerMemberId = r.trainerId ?? fallbackMemberId ?? null;
         return {
           ...r,
+          isVirtual: r.isVirtual,
+          parentId: r.parentId,
           serviceName: r.serviceId ? (serviceMap.get(r.serviceId) ?? null) : null,
           trainerName: trainerMemberId ? (profileMap.get(trainerMemberId) ?? null) : null,
           clientName: r.userId ? (userMap.get(r.userId) ?? null) : null,
@@ -308,6 +338,17 @@ export const appointmentsRouter = {
           staffId: z.string().uuid(),
           slotIndex: z.number().int().min(0),
         })).optional(),
+        recurrence: z.object({
+          frequencyValue: z.number().int().min(1),
+          timeUnit: z.enum(["day", "week", "month"]),
+          repeatOn: z.array(z.number().int().min(0).max(6)).optional(),
+          monthlyType: z.enum(["day_of_month", "day_of_week"]).optional(),
+          monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
+          monthlyWeekOfMonth: z.number().int().min(-1).max(5).optional(),
+          endsType: z.enum(["never", "on_date", "after_occurrences"]),
+          endsAfterOccurrences: z.number().int().min(1).optional(),
+          endsOn: z.string().datetime().optional(),
+        }).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -400,6 +441,12 @@ export const appointmentsRouter = {
           notes: input.notes ?? null,
           bookingNumber: input.bookingNumber ?? null,
           staffAssignments: input.staffAssignments,
+          recurrence: input.recurrence
+            ? {
+                ...input.recurrence,
+                endsOn: input.recurrence.endsOn ? new Date(input.recurrence.endsOn) : undefined,
+              }
+            : undefined,
         });
 
         // Fire-and-forget Google Calendar sync — never blocks the response
@@ -424,6 +471,371 @@ export const appointmentsRouter = {
       }
     }),
 
+  /**
+   * Materialize a virtual occurrence into a real child appointment.
+   * Copies all fields from the parent and applies any provided updates.
+   * The unique constraint (recurringParentId, startTime) prevents race conditions.
+   */
+  materializeOccurrence: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        parentId: z.string().uuid(),
+        occurrenceDate: z.string(), // ISO date "YYYY-MM-DD"
+        updates: z.object({
+          status: statusSchema.optional(),
+          duration: z.number().int().min(1).optional(),
+          trainerId: z.string().uuid().nullable().optional(),
+          location: z.string().nullable().optional(),
+          notes: z.string().nullable().optional(),
+          description: z.string().nullable().optional(),
+          imageUrl: z.string().nullable().optional(),
+          cancellationReason: z.string().nullable().optional(),
+        }).optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb || !context.member) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
+      }
+
+      try {
+        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
+      } catch {
+        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+      }
+
+      const parent = await context.tenantDb.query.appointments.findFirst({
+        where: eq(appointments.id, input.parentId),
+      });
+      if (!parent) {
+        throw new ORPCError("NOT_FOUND", { message: "Parent appointment not found" });
+      }
+
+      // Compute startTime for this occurrence: combine date from input + time-of-day from parent
+      const [datePart] = input.occurrenceDate.split("T");
+      const parentTime = parent.startTime.toISOString().split("T")[1] ?? "00:00:00.000Z";
+      const occurrenceStartTime = new Date(`${datePart}T${parentTime}`);
+      const duration = input.updates?.duration ?? parent.duration;
+      const occurrenceEndTime = new Date(occurrenceStartTime.getTime() + duration * 60 * 1000);
+
+      const status = input.updates?.status ?? parent.status;
+      const cancelledAt = status === "cancelled" ? new Date() : parent.cancelledAt;
+
+      try {
+        const [child] = await context.tenantDb
+          .insert(appointments)
+          .values({
+            type: parent.type,
+            startTime: occurrenceStartTime,
+            duration,
+            endTime: occurrenceEndTime,
+            serviceId: parent.serviceId,
+            branchId: parent.branchId,
+            status,
+            sessionTotal: parent.sessionTotal,
+            pricePerClient: parent.pricePerClient,
+            createdBy: context.member.userId,
+            userId: parent.userId,
+            trainerId: input.updates?.trainerId !== undefined ? input.updates.trainerId : parent.trainerId,
+            packageInstanceId: parent.packageInstanceId,
+            creditsUsed: parent.creditsUsed ?? 1,
+            location: input.updates?.location !== undefined ? input.updates.location : parent.location,
+            classSlotId: parent.classSlotId,
+            description: input.updates?.description !== undefined ? input.updates.description : parent.description,
+            imageUrl: input.updates?.imageUrl !== undefined ? input.updates.imageUrl : parent.imageUrl,
+            notes: input.updates?.notes !== undefined ? input.updates.notes : parent.notes,
+            bookingNumber: null, // each occurrence gets its own booking number if needed
+            isRecurring: false,
+            recurringParentId: parent.id,
+            cancelledAt,
+            cancellationReason: input.updates?.cancellationReason ?? parent.cancellationReason,
+          })
+          .returning();
+
+        if (!child) throw new Error("Failed to create occurrence");
+        return child;
+      } catch (err: unknown) {
+        // PG unique violation on (recurring_parent_id, start_time)
+        if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505") {
+          throw new ORPCError("CONFLICT", {
+            message: "An occurrence for this date already exists (concurrent creation).",
+          });
+        }
+        throw new ORPCError("BAD_REQUEST", {
+          message: err instanceof Error ? err.message : "Failed to materialize occurrence",
+        });
+      }
+    }),
+
+  /**
+   * Split a recurring series at a given date.
+   * Occurrences from `fromDate` onward are moved to a new series with optional updates.
+   */
+  splitSeries: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        parentId: z.string().uuid(),
+        fromDate: z.string(), // ISO date "YYYY-MM-DD"
+        updates: z.object({
+          status: statusSchema.optional(),
+          trainerId: z.string().uuid().nullable().optional(),
+          location: z.string().nullable().optional(),
+          notes: z.string().nullable().optional(),
+          description: z.string().nullable().optional(),
+          imageUrl: z.string().nullable().optional(),
+        }).optional(),
+        recurrence: z.object({
+          frequencyValue: z.number().int().min(1),
+          timeUnit: z.enum(["day", "week", "month"]),
+          repeatOn: z.array(z.number().int().min(0).max(6)).optional(),
+          monthlyType: z.enum(["day_of_month", "day_of_week"]).optional(),
+          monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
+          monthlyWeekOfMonth: z.number().int().min(-1).max(5).optional(),
+          endsType: z.enum(["never", "on_date", "after_occurrences"]),
+          endsAfterOccurrences: z.number().int().min(1).optional(),
+          endsOn: z.string().datetime().optional(),
+        }).optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb || !context.member) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
+      }
+
+      try {
+        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
+      } catch {
+        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+      }
+
+      return context.tenantDb.transaction(async (tx) => {
+        // Fetch old parent + its rule
+        const oldParent = await tx.query.appointments.findFirst({
+          where: eq(appointments.id, input.parentId),
+        });
+        if (!oldParent) throw new ORPCError("NOT_FOUND", { message: "Parent appointment not found" });
+
+        const oldRule = await tx.query.recurrenceRules.findFirst({
+          where: eq(recurrenceRules.appointmentId, input.parentId),
+        });
+
+        // Compute new end date for old series: end-of-day of (fromDate - 1 day).
+        // Using T23:59:59.999Z ensures occurrences on the day before fromDate
+        // (which carry a time-of-day, e.g. 09:00) are still within range.
+        const fromDateObj = new Date(input.fromDate + "T00:00:00.000Z");
+        const prevDay = new Date(fromDateObj);
+        prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+        const newEndDateForOld = new Date(
+          Date.UTC(prevDay.getUTCFullYear(), prevDay.getUTCMonth(), prevDay.getUTCDate(), 23, 59, 59, 999)
+        );
+
+        // Update old parent's recurringEndDate
+        await tx
+          .update(appointments)
+          .set({ recurringEndDate: newEndDateForOld, updatedAt: new Date() })
+          .where(eq(appointments.id, input.parentId));
+
+        // Update old rule to use endsType = 'on_date'
+        if (oldRule) {
+          await tx
+            .update(recurrenceRules)
+            .set({
+              endsType: "on_date",
+              endsAfterOccurrences: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(recurrenceRules.appointmentId, input.parentId));
+        }
+
+        // Compute new series start time (fromDate + parent time-of-day)
+        const parentTime = oldParent.startTime.toISOString().split("T")[1] ?? "00:00:00.000Z";
+        const newStartTime = new Date(`${input.fromDate}T${parentTime}`);
+        const newEndTime = new Date(newStartTime.getTime() + oldParent.duration * 60 * 1000);
+
+        // Insert new parent
+        const [newParent] = await tx
+          .insert(appointments)
+          .values({
+            type: oldParent.type,
+            startTime: newStartTime,
+            duration: oldParent.duration,
+            endTime: newEndTime,
+            serviceId: oldParent.serviceId,
+            branchId: oldParent.branchId,
+            status: input.updates?.status ?? oldParent.status,
+            sessionTotal: oldParent.sessionTotal,
+            pricePerClient: oldParent.pricePerClient,
+            createdBy: context.member.userId,
+            userId: oldParent.userId,
+            trainerId: input.updates?.trainerId !== undefined ? input.updates.trainerId : oldParent.trainerId,
+            packageInstanceId: null, // new series doesn't inherit package
+            creditsUsed: oldParent.creditsUsed ?? 1,
+            location: input.updates?.location !== undefined ? input.updates.location : oldParent.location,
+            notes: input.updates?.notes !== undefined ? input.updates.notes : oldParent.notes,
+            description: input.updates?.description !== undefined ? input.updates.description : oldParent.description,
+            imageUrl: input.updates?.imageUrl !== undefined ? input.updates.imageUrl : oldParent.imageUrl,
+            isRecurring: true,
+            recurringEndDate: input.recurrence?.endsOn ? new Date(input.recurrence.endsOn) : null,
+          })
+          .returning();
+
+        if (!newParent) throw new Error("Failed to create new series parent");
+
+        // Insert new recurrence rule (use provided rule or copy from old)
+        const ruleToUse = input.recurrence ?? (oldRule ? {
+          frequencyValue: oldRule.frequencyValue,
+          timeUnit: oldRule.timeUnit as "day" | "week" | "month",
+          repeatOn: Array.isArray(oldRule.repeatOn) ? oldRule.repeatOn : [],
+          monthlyType: (oldRule.monthlyType ?? undefined) as "day_of_month" | "day_of_week" | undefined,
+          monthlyDayOfWeek: oldRule.monthlyDayOfWeek ?? undefined,
+          monthlyWeekOfMonth: oldRule.monthlyWeekOfMonth ?? undefined,
+          endsType: "never" as const,
+          endsAfterOccurrences: undefined as number | undefined,
+          endsOn: undefined as string | undefined,
+        } : null);
+
+        if (ruleToUse) {
+          await tx.insert(recurrenceRules).values({
+            appointmentId: newParent.id,
+            frequencyValue: ruleToUse.frequencyValue,
+            timeUnit: ruleToUse.timeUnit,
+            repeatOn: ruleToUse.repeatOn ?? [],
+            monthlyType: ruleToUse.monthlyType ?? null,
+            monthlyDayOfWeek: ruleToUse.monthlyDayOfWeek ?? null,
+            monthlyWeekOfMonth: ruleToUse.monthlyWeekOfMonth ?? null,
+            endsType: ruleToUse.endsType,
+            endsAfterOccurrences: ruleToUse.endsAfterOccurrences ?? null,
+          });
+        }
+
+        // Re-parent materialized children with startTime >= fromDate
+        await tx
+          .update(appointments)
+          .set({ recurringParentId: newParent.id, updatedAt: new Date() })
+          .where(
+            and(
+              eq(appointments.recurringParentId, input.parentId),
+              gte(appointments.startTime, fromDateObj),
+            )
+          );
+
+        return newParent;
+      });
+    }),
+
+  /**
+   * Cancel all appointments in a recurring series (parent + all materialized children).
+   */
+  cancelSeries: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        parentId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb || !context.member) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
+      }
+
+      try {
+        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
+      } catch {
+        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+      }
+
+      await context.tenantDb.transaction(async (tx) => {
+        const cancelledAt = new Date();
+
+        // Cancel the parent (unless already completed)
+        await tx
+          .update(appointments)
+          .set({ status: "cancelled", cancelledAt, updatedAt: new Date() })
+          .where(
+            and(
+              eq(appointments.id, input.parentId),
+              ne(appointments.status, "completed"),
+            )
+          );
+
+        // Cancel all materialized children (unless already completed)
+        await tx
+          .update(appointments)
+          .set({ status: "cancelled", cancelledAt, updatedAt: new Date() })
+          .where(
+            and(
+              eq(appointments.recurringParentId, input.parentId),
+              ne(appointments.status, "completed"),
+            )
+          );
+      });
+
+      return { success: true };
+    }),
+
+  /**
+   * Cancel all occurrences of a recurring series from a given date onward.
+   * Truncates the old series and cancels materialized children on/after fromDate.
+   */
+  cancelFuture: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        parentId: z.string().uuid(),
+        fromDate: z.string(), // ISO date "YYYY-MM-DD"
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb || !context.member) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
+      }
+
+      try {
+        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
+      } catch {
+        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+      }
+
+      await context.tenantDb.transaction(async (tx) => {
+        const fromDateObj = new Date(input.fromDate + "T00:00:00.000Z");
+        // End-of-day of the day before fromDate — preserves occurrences with time-of-day on that day.
+        const prevDay = new Date(fromDateObj);
+        prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+        const newEndDate = new Date(
+          Date.UTC(prevDay.getUTCFullYear(), prevDay.getUTCMonth(), prevDay.getUTCDate(), 23, 59, 59, 999)
+        );
+        const cancelledAt = new Date();
+
+        // Truncate the series' end date so virtual occurrences on/after fromDate stop emitting
+        await tx
+          .update(appointments)
+          .set({ recurringEndDate: newEndDate, updatedAt: new Date() })
+          .where(eq(appointments.id, input.parentId));
+
+        // Also update the recurrence rule to ends on newEndDate
+        await tx
+          .update(recurrenceRules)
+          .set({ endsType: "on_date", endsAfterOccurrences: null, updatedAt: new Date() })
+          .where(eq(recurrenceRules.appointmentId, input.parentId));
+
+        // Cancel materialized children on/after fromDate (skip completed)
+        await tx
+          .update(appointments)
+          .set({ status: "cancelled", cancelledAt, updatedAt: new Date() })
+          .where(
+            and(
+              eq(appointments.recurringParentId, input.parentId),
+              gte(appointments.startTime, fromDateObj),
+              ne(appointments.status, "completed"),
+            )
+          );
+      });
+
+      return { success: true };
+    }),
+
   update: protectedProcedure
     .input(
       z.object({
@@ -439,6 +851,14 @@ export const appointmentsRouter = {
         cancellationReason: z.string().nullable().optional(),
         description: z.string().nullable().optional(),
         imageUrl: z.string().nullable().optional(),
+        staffAssignments: z
+          .array(
+            z.object({
+              staffId: z.string().uuid(),
+              slotIndex: z.number().int().min(0),
+            })
+          )
+          .optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -492,6 +912,11 @@ export const appointmentsRouter = {
             message: "Clients can only cancel (set status to cancelled)",
           });
         }
+        if (input.staffAssignments !== undefined) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Clients cannot modify staff assignments",
+          });
+        }
       } else {
         throw new ORPCError("FORBIDDEN", {
           message: "Access denied",
@@ -511,6 +936,7 @@ export const appointmentsRouter = {
           (input.status === "cancelled" ? "Cancelled by client" : undefined),
         description: input.description,
         imageUrl: input.imageUrl,
+        staffAssignments: input.staffAssignments,
       };
 
       try {
@@ -536,5 +962,78 @@ export const appointmentsRouter = {
           message: error instanceof Error ? error.message : "Failed to update appointment",
         });
       }
+    }),
+
+  statusHistory: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        appointmentId: z.string().uuid(),
+        cursor: z.string().optional(),
+        limit: z.number().int().min(1).max(100).default(50),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "appointment_management",
+          "read",
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const limit = input.limit;
+      const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
+
+      const rawRows = await getAppointmentStatusHistory(context.tenantDb, input.appointmentId, {
+        parsedCursor,
+        limit,
+      });
+
+      const hasMore = rawRows.length > limit;
+      const pageRows = hasMore ? rawRows.slice(0, limit) : rawRows;
+      const lastRow = pageRows.at(-1);
+      const nextCursor =
+        hasMore && lastRow ? encodeCursor(lastRow.changedAt, lastRow.id) : null;
+
+      const userIds = [
+        ...new Set(pageRows.map((r) => r.changedBy).filter((id) => id !== "system")),
+      ];
+      const cpDb = getControlPanelDb(context);
+      const userRecords =
+        userIds.length > 0
+          ? await cpDb
+              .select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+              .from(cpUsers)
+              .where(inArray(cpUsers.id, userIds))
+          : [];
+      const nameMap = new Map(
+        userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown User"]),
+      );
+
+      const rows = pageRows.map(({ changedBy, ...rest }) => ({
+        ...rest,
+        changedByName:
+          changedBy === "system" ? "System" : (nameMap.get(changedBy) ?? "Unknown User"),
+      }));
+
+      return { rows, nextCursor };
     }),
 };

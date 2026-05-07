@@ -11,8 +11,11 @@
  * ```
  */
 
-import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, or, lt, desc } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { appointmentStatusHistory } from "@avantej-core/db/schema/tenant/appointment-status-history";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
@@ -83,6 +86,17 @@ export type CreateAppointmentParams = {
   notes?: string | null;
   bookingNumber?: string | null;
   staffAssignments?: { staffId: string; slotIndex: number }[];
+  recurrence?: {
+    frequencyValue: number;
+    timeUnit: "day" | "week" | "month";
+    repeatOn?: number[];
+    monthlyType?: "day_of_month" | "day_of_week";
+    monthlyDayOfWeek?: number;
+    monthlyWeekOfMonth?: number;
+    endsType: "never" | "on_date" | "after_occurrences";
+    endsAfterOccurrences?: number;
+    endsOn?: Date;
+  };
 };
 
 export type UpdateAppointmentParams = {
@@ -103,7 +117,35 @@ export type UpdateAppointmentParams = {
    * service commission config exists (currently dormant — see NOTE in commission-splits.service.ts).
    */
   actor?: { userId: string; memberId: string; role: string };
+  /**
+   * When provided, replaces ALL existing appointment_staff rows for this appointment.
+   * staffId values must be members.userId (control-panel UUIDs).
+   * Slot 0 also updates appointments.trainerId via resolveMemberIdFromUserId.
+   */
+  staffAssignments?: { staffId: string; slotIndex: number }[];
 };
+
+// Recurrence timezone: defaults to UTC for virtual occurrence expansion.
+// Organization-specific timezone is a future enhancement tracked in open questions.
+// When expanding recurrence windows, all date calculations use UTC unless a timezone param is provided.
+
+/**
+ * Resolve a member's tenant DB id (members.id) from their control-panel userId (members.userId).
+ * Used to convert staffAssignments[].staffId (userId) to the trainerId FK (members.id) for
+ * appointment_staff buffer conflict checks.
+ * Returns null if no member with that userId exists in this tenant.
+ */
+export async function resolveMemberIdFromUserId(
+	tenantDb: TenantDb | TenantTx,
+	userId: string,
+): Promise<string | null> {
+	const [row] = await tenantDb
+		.select({ id: members.id })
+		.from(members)
+		.where(eq(members.userId, userId))
+		.limit(1);
+	return row?.id ?? null;
+}
 
 function addMinutes(date: Date, minutes: number): Date {
   const result = new Date(date);
@@ -369,6 +411,32 @@ export async function createAppointment(
         );
       }
 
+      // A.1.8 — Persist recurrence rule if provided
+      if (params.recurrence) {
+        // Mark the appointment as the head of a recurring series
+        await tx
+          .update(appointments)
+          .set({
+            isRecurring: true,
+            recurringEndDate: params.recurrence.endsOn ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(appointments.id, row.id));
+
+        // Insert the recurrence rule row
+        await tx.insert(recurrenceRules).values({
+          appointmentId: row.id,
+          frequencyValue: params.recurrence.frequencyValue,
+          timeUnit: params.recurrence.timeUnit,
+          repeatOn: params.recurrence.repeatOn ?? [],
+          monthlyType: params.recurrence.monthlyType ?? null,
+          monthlyDayOfWeek: params.recurrence.monthlyDayOfWeek ?? null,
+          monthlyWeekOfMonth: params.recurrence.monthlyWeekOfMonth ?? null,
+          endsType: params.recurrence.endsType,
+          endsAfterOccurrences: params.recurrence.endsAfterOccurrences ?? null,
+        });
+      }
+
       return row;
     });
   } catch (err: unknown) {
@@ -397,23 +465,41 @@ export async function updateAppointment(
   const duration = params.duration ?? existingForBuffer.duration;
   const endTime = params.endTime ?? addMinutes(startTime, duration);
 
-  // Buffer time enforcement when time changes (read-only, outside transaction)
+  // Buffer time enforcement (read-only, outside transaction)
+  // Run when time changes OR when staff assignments change (new staff may have conflicts)
   const timeChanged = params.startTime !== undefined || params.duration !== undefined;
-  const trainerId = params.trainerId !== undefined ? params.trainerId : existingForBuffer.trainerId;
-  if (timeChanged && existingForBuffer.serviceId && trainerId) {
-    const bufferMinutes = await resolveBufferTime(tenantDb, existingForBuffer.serviceId, trainerId);
-    if (bufferMinutes > 0) {
-      const { hasConflict } = await checkAppointmentBufferConflict(tenantDb, {
-        trainerId,
-        startTime,
-        endTime,
-        bufferTimeMinutes: bufferMinutes,
-        excludeAppointmentId: id,
-      });
-      if (hasConflict) {
-        throw new Error(
-          `This time conflicts with another appointment. A ${bufferMinutes}-minute buffer is required between bookings.`
-        );
+  const staffChanged = params.staffAssignments !== undefined;
+
+  if (existingForBuffer.serviceId && (timeChanged || staffChanged)) {
+    // Determine which trainer IDs (members.id) to check buffer conflicts for.
+    // If staffAssignments provided, use those; otherwise fall back to the existing trainerId.
+    let trainerIdsToCheck: string[] = [];
+    if (params.staffAssignments && params.staffAssignments.length > 0) {
+      // Resolve all new staff userId → members.id
+      const resolved = await Promise.all(
+        params.staffAssignments.map((a) => resolveMemberIdFromUserId(tenantDb, a.staffId)),
+      );
+      trainerIdsToCheck = resolved.filter((id): id is string => id !== null);
+    } else {
+      const trainerId = params.trainerId !== undefined ? params.trainerId : existingForBuffer.trainerId;
+      if (trainerId) trainerIdsToCheck = [trainerId];
+    }
+
+    for (const tId of trainerIdsToCheck) {
+      const bufferMinutes = await resolveBufferTime(tenantDb, existingForBuffer.serviceId, tId);
+      if (bufferMinutes > 0) {
+        const { hasConflict } = await checkAppointmentBufferConflict(tenantDb, {
+          trainerId: tId,
+          startTime,
+          endTime,
+          bufferTimeMinutes: bufferMinutes,
+          excludeAppointmentId: id,
+        });
+        if (hasConflict) {
+          throw new Error(
+            `This time conflicts with another appointment. A ${bufferMinutes}-minute buffer is required between bookings.`
+          );
+        }
       }
     }
   }
@@ -496,6 +582,40 @@ export async function updateAppointment(
 
       if (!updated) {
         throw new Error("Appointment not found");
+      }
+
+      // B.1.6 — Staff assignment replacement
+      if (params.staffAssignments !== undefined) {
+        // Delete all existing staff rows for this appointment
+        await tx.delete(appointmentStaff).where(eq(appointmentStaff.appointmentId, id));
+
+        if (params.staffAssignments.length > 0) {
+          await tx.insert(appointmentStaff).values(
+            params.staffAssignments.map((a) => ({
+              appointmentId: id,
+              staffId: a.staffId,
+              slotIndex: a.slotIndex,
+            })),
+          );
+        }
+
+        // Sync slot-0 staff → appointments.trainerId (members.id FK)
+        const slot0 = params.staffAssignments.find((a) => a.slotIndex === 0);
+        if (slot0) {
+          const newTrainerId = await resolveMemberIdFromUserId(tx, slot0.staffId);
+          if (newTrainerId) {
+            await tx
+              .update(appointments)
+              .set({ trainerId: newTrainerId, updatedAt: new Date() })
+              .where(eq(appointments.id, id));
+          }
+        } else if (params.staffAssignments.length === 0) {
+          // All staff removed — clear trainerId
+          await tx
+            .update(appointments)
+            .set({ trainerId: null, updatedAt: new Date() })
+            .where(eq(appointments.id, id));
+        }
       }
 
       // Commission: create splits when appointment completes
@@ -616,4 +736,35 @@ async function runAppointmentCommission(
     earnedAt: new Date(), // completion time
     actor,
   });
+}
+
+export type AppointmentHistoryQueryOpts = {
+	parsedCursor: { changedAt: Date; id: string } | null;
+	limit: number;
+};
+
+export async function getAppointmentStatusHistory(
+	tenantDb: TenantDb,
+	appointmentId: string,
+	{ parsedCursor, limit }: AppointmentHistoryQueryOpts,
+) {
+	return tenantDb
+		.select()
+		.from(appointmentStatusHistory)
+		.where(
+			and(
+				eq(appointmentStatusHistory.appointmentId, appointmentId),
+				parsedCursor
+					? or(
+							lt(appointmentStatusHistory.changedAt, parsedCursor.changedAt),
+							and(
+								eq(appointmentStatusHistory.changedAt, parsedCursor.changedAt),
+								lt(appointmentStatusHistory.id, parsedCursor.id),
+							),
+						)
+					: undefined,
+			),
+		)
+		.orderBy(desc(appointmentStatusHistory.changedAt), desc(appointmentStatusHistory.id))
+		.limit(limit + 1);
 }

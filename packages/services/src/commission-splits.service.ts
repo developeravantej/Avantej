@@ -24,6 +24,7 @@ import {
 	inArray,
 	lte,
 	ne,
+	or,
 	sql,
 } from "drizzle-orm";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
@@ -70,9 +71,10 @@ export async function listCommissionSplits(
 		to?: Date;
 		limit?: number;
 		offset?: number;
+		accessibleNodeIds?: string[];
 	} = {},
 ) {
-	const { memberId, appointmentId, from, to, limit = 50, offset = 0 } = params;
+	const { memberId, appointmentId, from, to, limit = 50, offset = 0, accessibleNodeIds } = params;
 
 	const conditions = [];
 
@@ -92,6 +94,32 @@ export async function listCommissionSplits(
 		conditions.push(lte(commissionSplits.createdAt, to));
 	}
 
+	// Scope by accessible hierarchy nodes. commissionSplits can be linked to either an
+	// appointment (branchId on appointments) or a salesOrder (branchId on salesOrders).
+	// LEFT JOIN both and require at least one of the resolved branchIds to be accessible.
+	if (accessibleNodeIds !== undefined && accessibleNodeIds.length > 0) {
+		const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
+
+		return tenantDb
+			.select({ split: commissionSplits })
+			.from(commissionSplits)
+			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
+			.where(
+				and(
+					baseConditions,
+					or(
+						inArray(appointments.branchId, accessibleNodeIds),
+						inArray(salesOrders.branchId, accessibleNodeIds),
+					),
+				),
+			)
+			.orderBy(desc(commissionSplits.createdAt))
+			.limit(limit)
+			.offset(offset)
+			.then((rows) => rows.map((r) => r.split));
+	}
+
 	const query = tenantDb
 		.select()
 		.from(commissionSplits)
@@ -109,7 +137,22 @@ export async function listCommissionSplits(
 export async function getCommissionsByAppointment(
 	tenantDb: TenantDb,
 	appointmentId: string,
+	options: { accessibleNodeIds?: string[] } = {},
 ) {
+	const { accessibleNodeIds } = options;
+
+	// If accessibleNodeIds provided, verify the appointment's branch is accessible
+	// before returning commission data — avoids a JOIN for single-record lookups.
+	if (accessibleNodeIds !== undefined && accessibleNodeIds.length > 0) {
+		const appt = await tenantDb.query.appointments.findFirst({
+			where: eq(appointments.id, appointmentId),
+			columns: { branchId: true },
+		});
+		if (!appt || !appt.branchId || !accessibleNodeIds.includes(appt.branchId)) {
+			return [];
+		}
+	}
+
 	return tenantDb
 		.select()
 		.from(commissionSplits)

@@ -1,5 +1,6 @@
-import { eq, and, desc, count, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, sql, inArray, or, lt } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { salesOrderStatusHistory } from "@avantej-core/db/schema/tenant/sales-order-status-history";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
@@ -281,4 +282,35 @@ export async function cancelSalesOrder(
 
 		return updatedOrder;
 	});
+}
+
+export type StatusHistoryQueryOpts = {
+	parsedCursor: { changedAt: Date; id: string } | null;
+	limit: number;
+};
+
+export async function getSalesOrderStatusHistory(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	salesOrderId: string,
+	{ parsedCursor, limit }: StatusHistoryQueryOpts,
+) {
+	return tenantDb
+		.select()
+		.from(salesOrderStatusHistory)
+		.where(
+			and(
+				eq(salesOrderStatusHistory.salesOrderId, salesOrderId),
+				parsedCursor
+					? or(
+							lt(salesOrderStatusHistory.changedAt, parsedCursor.changedAt),
+							and(
+								eq(salesOrderStatusHistory.changedAt, parsedCursor.changedAt),
+								lt(salesOrderStatusHistory.id, parsedCursor.id),
+							),
+						)
+					: undefined,
+			),
+		)
+		.orderBy(desc(salesOrderStatusHistory.changedAt), desc(salesOrderStatusHistory.id))
+		.limit(limit + 1);
 }

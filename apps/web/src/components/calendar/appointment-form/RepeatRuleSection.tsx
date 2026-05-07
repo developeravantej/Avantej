@@ -119,7 +119,7 @@ export function RepeatRuleSection({
 									<SelectItem value="day">day</SelectItem>
 									<SelectItem value="week">week</SelectItem>
 									<SelectItem value="month">month</SelectItem>
-									<SelectItem value="year">year</SelectItem>
+									<SelectItem value="year" disabled>year (coming soon)</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>

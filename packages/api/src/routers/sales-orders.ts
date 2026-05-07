@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "../index";
@@ -11,7 +11,11 @@ import {
 	createSalesOrder,
 	updateSalesOrder,
 	cancelSalesOrder,
+	getSalesOrderStatusHistory,
 } from "@avantej-core/services";
+import { user as cpUsers } from "@avantej-core/db/schema/auth";
+import { getControlPanelDb } from "../lib/context-helpers";
+import { encodeCursor, parseCursor } from "../lib/cursor";
 
 const salesOrderStatusEnum = z.enum(["draft", "confirmed", "completed", "cancelled"]);
 
@@ -248,5 +252,73 @@ export const salesOrdersRouter = {
 				reason: input.reason,
 				refundAmount: input.refundAmount,
 			}, actor);
+		}),
+
+	statusHistory: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				salesOrderId: z.string().uuid(),
+				cursor: z.string().optional(),
+				limit: z.number().int().min(1).max(100).default(50),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			if (!context.member) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User is not a member of this organization",
+				});
+			}
+
+			try {
+				await requirePermission(context.tenantDb, context.member, "sales", "read");
+			} catch (error) {
+				throw new ORPCError("FORBIDDEN", {
+					message: error instanceof Error ? error.message : "Permission denied",
+				});
+			}
+
+			const limit = input.limit;
+			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
+
+			const rawRows = await getSalesOrderStatusHistory(context.tenantDb, input.salesOrderId, {
+				parsedCursor,
+				limit,
+			});
+
+			const hasMore = rawRows.length > limit;
+			const pageRows = hasMore ? rawRows.slice(0, limit) : rawRows;
+			const lastRow = pageRows.at(-1);
+			const nextCursor =
+				hasMore && lastRow ? encodeCursor(lastRow.changedAt, lastRow.id) : null;
+
+			const userIds = [
+				...new Set(pageRows.map((r) => r.changedBy).filter((id) => id !== "system")),
+			];
+			const cpDb = getControlPanelDb(context);
+			const userRecords =
+				userIds.length > 0
+					? await cpDb
+							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.from(cpUsers)
+							.where(inArray(cpUsers.id, userIds))
+					: [];
+			const nameMap = new Map(
+				userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown User"]),
+			);
+
+			const rows = pageRows.map(({ changedBy, ...rest }) => ({
+				...rest,
+				changedByName:
+					changedBy === "system" ? "System" : (nameMap.get(changedBy) ?? "Unknown User"),
+			}));
+
+			return { rows, nextCursor };
 		}),
 };

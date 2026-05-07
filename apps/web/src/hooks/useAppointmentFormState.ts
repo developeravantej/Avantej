@@ -158,6 +158,15 @@ export function useAppointmentFormState({
 		}
 	}, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
 
+	// Clear employeeId when selected service changes and the current trainer is not qualified
+	React.useEffect(() => {
+		if (!newAppointment.employeeId) return;
+		if (!firstServiceId || !serviceTrainers) return;
+		if (!qualifiedTrainerIds.has(newAppointment.employeeId)) {
+			setNewAppointment((prev) => ({ ...prev, employeeId: "" }));
+		}
+	}, [firstServiceId, serviceTrainers, qualifiedTrainerIds, newAppointment.employeeId]);
+
 	// ─── Derived queries ───────────────────────────────────────────────────────
 
 	const selectedClientUserId = useMemo(() => {
@@ -192,6 +201,34 @@ export function useAppointmentFormState({
 		const rawSvc = (servicesData as ServiceListItem[]).find((s) => s.id === firstServiceId);
 		return rawSvc?.categoryId ?? null;
 	}, [newAppointment.selectedServices, servicesData]);
+
+	const firstServiceId = newAppointment.selectedServices[0] ?? null;
+
+	const { data: serviceTrainers } = useQuery({
+		...orpc.serviceMembers.listForService.queryOptions({
+			input: {
+				organizationId,
+				serviceId: firstServiceId ?? "",
+			},
+		}),
+		enabled: !!organizationId && !!firstServiceId,
+	});
+
+	const qualifiedTrainerIds = useMemo<Set<string>>(() => {
+		if (!serviceTrainers) return new Set();
+		return new Set(serviceTrainers.map((t) => t.memberId));
+	}, [serviceTrainers]);
+
+	const hasServiceTrainers = !!firstServiceId && !!serviceTrainers && serviceTrainers.length > 0;
+
+	const derivedTrainers = useMemo(() => {
+		if (!hasServiceTrainers) return trainers;
+		const filtered = trainers.filter((t) => qualifiedTrainerIds.has(t.id));
+		return filtered.length > 0 ? filtered : trainers;
+	}, [trainers, hasServiceTrainers, qualifiedTrainerIds]);
+
+	const trainerFilterActive = hasServiceTrainers && derivedTrainers.length < trainers.length;
+	const trainerFilterFallback = hasServiceTrainers && derivedTrainers.length === trainers.length && trainers.filter((t) => qualifiedTrainerIds.has(t.id)).length === 0;
 
 	const { data: commissionConfig } = useQuery({
 		queryKey: ["categoryCommission", selectedServiceCategoryId, organizationId],
@@ -690,10 +727,27 @@ export function useAppointmentFormState({
 		const endDateTime = new Date(startDateTime);
 		endDateTime.setMinutes(endDateTime.getMinutes() + totalDuration);
 
+		// Translate members.id → members.userId for staffAssignments.
+		// The form stores members.id (trainerId FK) but the service expects members.userId (control-panel UUID).
+		const allTrainers = [...derivedTrainers, ...trainers];
+		const findUserId = (membersId: string): string | null => {
+			const found = allTrainers.find((t) => t.id === membersId);
+			return found?.userId ?? null;
+		};
+
 		const staffAssignments: { staffId: string; slotIndex: number }[] = [
-			...(newAppointment.employeeId ? [{ staffId: newAppointment.employeeId, slotIndex: 0 }] : []),
+			...(newAppointment.employeeId
+				? (() => {
+						const userId = findUserId(newAppointment.employeeId);
+						return userId ? [{ staffId: userId, slotIndex: 0 }] : [];
+					})()
+				: []),
 			...additionalSlotTrainers
-				.map((staffId, i) => (staffId ? { staffId, slotIndex: i + 1 } : null))
+				.map((membersId, i) => {
+					if (!membersId) return null;
+					const userId = findUserId(membersId);
+					return userId ? { staffId: userId, slotIndex: i + 1 } : null;
+				})
 				.filter((a): a is { staffId: string; slotIndex: number } => a !== null),
 		];
 
@@ -778,6 +832,9 @@ export function useAppointmentFormState({
 		additionalSlotTrainers,
 		setAdditionalSlotTrainers,
 		// Derived
+		derivedTrainers,
+		trainerFilterActive,
+		trainerFilterFallback,
 		isLoadingPackages,
 		purchasedServiceIds,
 		selectedClassSlotService,

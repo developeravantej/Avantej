@@ -60,5 +60,12 @@ export const commissionSplitReversals = pgTable(
 		reversedSplitIdx: index("commission_split_reversals_split_idx").on(
 			t.reversedSplitId,
 		),
+		// Migration 0046 — additional indexes for payout adjustment lookups
+		payoutAdjIdx: index("commission_split_reversals_payout_adj_idx").on(
+			t.payoutAdjustmentId,
+		),
+		reversedByIdx: index("commission_split_reversals_reversed_by_idx").on(
+			t.reversedByReversalId,
+		),
 	}),
 );

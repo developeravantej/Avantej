@@ -52,6 +52,9 @@ export const categoryCommissionConfigVersions = pgTable(
 		// preserve cap history alongside the rest of the config metadata.
 		maxPerCycleCents: integer("max_per_cycle_cents"),
 		excludeIfDiscountAbovePct: integer("exclude_if_discount_above_pct"),
+		// Migration 0046 — mirror cap/floor per-split cols (null = not set).
+		capAmountCents: integer("cap_amount_cents"),
+		floorAmountCents: integer("floor_amount_cents"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

@@ -12,6 +12,8 @@ export const transferOrderItems = pgTable("transfer_order_items", {
 		.references(() => products.id, { onDelete: "restrict" }),
 	quantityTransferred: integer("quantity_transferred").notNull(),
 	quantityReceived: integer("quantity_received").default(0).notNull(),
+	// Migration 0046 — track units damaged/lost in transit (null = not assessed yet)
+	damagedQty: integer("damaged_qty"),
 	notes: text("notes"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({

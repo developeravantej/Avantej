@@ -3,6 +3,20 @@
  * These are UI-layer types — not DB schema types.
  */
 
+/**
+ * Action types for recurring occurrence edit dialogs.
+ * - edit_this / cancel_this: materialize a single occurrence
+ * - edit_future / cancel_future: split series at this date
+ * - edit_all / cancel_all: apply to all occurrences (parent + children)
+ */
+export type OccurrenceEditAction =
+	| "edit_this"
+	| "cancel_this"
+	| "edit_future"
+	| "cancel_future"
+	| "edit_all"
+	| "cancel_all";
+
 export interface TeamMember {
 	id: string;
 	name: string;

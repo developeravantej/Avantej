@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { CheckCircle, DollarSign, Layers, Plus, Zap } from "lucide-react";
+import { CheckCircle, DollarSign, Layers, Plus, Zap, History, Users, Trash2 } from "lucide-react";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -121,6 +122,23 @@ const STATUS_TABS = [
 const TH = "px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 const TD = "px-5 py-4";
 
+// ── Status History sub-component ──────────────────────────────────────────────
+
+function PackageInstanceHistory({
+	organizationId,
+	packageInstanceId,
+}: {
+	organizationId: string;
+	packageInstanceId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["packageInstances", "statusHistory", packageInstanceId],
+		queryFn: () =>
+			client.packageInstances.statusHistory({ organizationId, packageInstanceId }),
+	});
+	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function PackageInstancesPage() {
@@ -130,6 +148,9 @@ export function PackageInstancesPage() {
 	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [form, setForm] = useState<CreateInstanceFormState>(EMPTY_FORM);
+	const [historyInstanceId, setHistoryInstanceId] = useState<string | null>(null);
+	const [staffInstanceId, setStaffInstanceId] = useState<string | null>(null);
+	const [assignStaffId, setAssignStaffId] = useState("");
 
 	// Admin list — all instances for the org
 	const { data: apiData = [], isLoading } = useQuery({
@@ -193,6 +214,63 @@ export function PackageInstancesPage() {
 			setForm(EMPTY_FORM);
 		},
 	});
+
+	// Staff assignment queries + mutations
+	const { data: staffRows = [], isLoading: isLoadingStaff } = useQuery({
+		queryKey: ["packageInstanceStaff", staffInstanceId, organizationId],
+		queryFn: async () => {
+			if (!staffInstanceId || !organizationId) return [];
+			return client.packageInstanceStaff.list({
+				organizationId,
+				packageInstanceId: staffInstanceId,
+			});
+		},
+		enabled: !!staffInstanceId && !!organizationId,
+	});
+
+	const { data: trainerList = [] } = useQuery({
+		queryKey: ["members", organizationId, "trainer"],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.members.list({ organizationId, role: "trainer", status: "active" });
+		},
+		enabled: !!staffInstanceId && !!organizationId,
+	});
+
+	const assignStaffMutation = useApiMutation({
+		mutationFn: (input: { staffId: string; slotIndex: number }) =>
+			client.packageInstanceStaff.assign({
+				organizationId: organizationId!,
+				packageInstanceId: staffInstanceId!,
+				staffId: input.staffId,
+				slotIndex: input.slotIndex,
+			}),
+		successMessage: "Staff assigned.",
+		errorMessage: (err) => err.message || "Failed to assign staff.",
+		invalidate: [["packageInstanceStaff", staffInstanceId, organizationId]],
+		onSuccess: () => setAssignStaffId(""),
+	});
+
+	const removeStaffMutation = useApiMutation({
+		mutationFn: (staffId: string) =>
+			client.packageInstanceStaff.remove({
+				organizationId: organizationId!,
+				packageInstanceId: staffInstanceId!,
+				staffId,
+			}),
+		successMessage: "Staff removed.",
+		errorMessage: (err) => err.message || "Failed to remove staff.",
+		invalidate: [["packageInstanceStaff", staffInstanceId, organizationId]],
+	});
+
+	function handleAssignStaff() {
+		if (!assignStaffId || !staffInstanceId || !organizationId) return;
+		// slotIndex = next available index
+		const nextSlot = staffRows.length > 0
+			? Math.max(...staffRows.map((r) => r.slotIndex)) + 1
+			: 0;
+		assignStaffMutation.mutate({ staffId: assignStaffId, slotIndex: nextSlot });
+	}
 
 	function handleCreateSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -363,13 +441,14 @@ export function PackageInstancesPage() {
 							<TableHead className={TH}>Starts</TableHead>
 							<TableHead className={TH}>Expires</TableHead>
 							<TableHead className={TH}>Status</TableHead>
+							<TableHead className={TH}>Staff</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{isLoading ? (
 							Array.from({ length: 5 }).map((_, i) => (
 								<TableRow key={i}>
-									{Array.from({ length: 9 }).map((__, j) => (
+									{Array.from({ length: 10 }).map((__, j) => (
 										<TableCell key={j} className={TD}>
 											<Skeleton className="h-4 w-full" />
 										</TableCell>
@@ -378,7 +457,7 @@ export function PackageInstancesPage() {
 							))
 						) : data.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={9} className="h-60">
+								<TableCell colSpan={10} className="h-60">
 									<div className="flex flex-col items-center justify-center gap-3 text-center">
 										<div className="flex size-14 items-center justify-center rounded-full bg-muted">
 											<Layers className="h-6 w-6 text-muted-foreground" />
@@ -390,7 +469,11 @@ export function PackageInstancesPage() {
 							</TableRow>
 						) : (
 							data.map((row) => (
-								<TableRow key={row.id} className="transition-colors hover:bg-muted/30">
+								<TableRow
+									key={row.id}
+									className="transition-colors hover:bg-muted/30 cursor-pointer"
+									onClick={() => setHistoryInstanceId(row.id)}
+								>
 									<TableCell className={TD}>
 										<CopyableCell
 											value={row.serviceId}
@@ -429,6 +512,20 @@ export function PackageInstancesPage() {
 										<Badge variant={STATUS_VARIANTS[row.status] ?? "outline"}>
 											{row.status.charAt(0).toUpperCase() + row.status.slice(1)}
 										</Badge>
+									</TableCell>
+									<TableCell className={TD}>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 px-2 text-xs"
+											onClick={(e) => {
+												e.stopPropagation();
+												setStaffInstanceId(row.id);
+											}}
+										>
+											<Users className="h-3.5 w-3.5 mr-1" />
+											Staff
+										</Button>
 									</TableCell>
 								</TableRow>
 							))
@@ -654,6 +751,136 @@ export function PackageInstancesPage() {
 							</Button>
 						</DialogFooter>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			{/* ── Status History Dialog ── */}
+			<Dialog
+				open={historyInstanceId !== null}
+				onOpenChange={(open) => {
+					if (!open) setHistoryInstanceId(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<History className="h-4 w-4 text-muted-foreground" />
+							Status History
+						</DialogTitle>
+						<DialogDescription>
+							Status transitions for this package instance.
+						</DialogDescription>
+					</DialogHeader>
+					{historyInstanceId && organizationId && (
+						<PackageInstanceHistory
+							organizationId={organizationId}
+							packageInstanceId={historyInstanceId}
+						/>
+					)}
+				</DialogContent>
+			</Dialog>
+
+			{/* ── Assigned Staff Dialog ── */}
+			<Dialog
+				open={staffInstanceId !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setStaffInstanceId(null);
+						setAssignStaffId("");
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Users className="h-4 w-4 text-muted-foreground" />
+							Assigned Staff
+						</DialogTitle>
+						<DialogDescription>
+							Manage trainer/staff assignments for this package instance.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						{/* Current assignments */}
+						{isLoadingStaff ? (
+							<div className="text-sm text-muted-foreground">Loading…</div>
+						) : staffRows.length === 0 ? (
+							<p className="text-sm text-muted-foreground">No staff assigned yet.</p>
+						) : (
+							<div className="space-y-2">
+								{staffRows.map((sr) => {
+									type TrainerItem = { id: string; userId?: string; name?: string | null; email?: string | null };
+									const trainer = (trainerList as TrainerItem[]).find(
+										(t) => t.userId === sr.staffId,
+									);
+									const displayName =
+										trainer?.name ?? trainer?.email ?? sr.staffId.slice(0, 8) + "…";
+									return (
+										<div
+											key={sr.id}
+											className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+										>
+											<div className="flex items-center gap-2">
+												<span className="text-xs text-muted-foreground font-mono w-6">
+													#{sr.slotIndex}
+												</span>
+												<span className="font-medium">{displayName}</span>
+												<Badge variant="outline" className="text-[10px] px-1.5 py-0">
+													{sr.role}
+												</Badge>
+											</div>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+												disabled={removeStaffMutation.isPending}
+												onClick={() => removeStaffMutation.mutate(sr.staffId)}
+											>
+												<Trash2 className="h-3.5 w-3.5" />
+											</Button>
+										</div>
+									);
+								})}
+							</div>
+						)}
+
+						<Separator />
+
+						{/* Add staff */}
+						<div className="flex gap-2">
+							<Select value={assignStaffId} onValueChange={setAssignStaffId}>
+								<SelectTrigger className="flex-1">
+									<SelectValue placeholder="Select trainer to add…" />
+								</SelectTrigger>
+								<SelectContent>
+									{(trainerList as Array<{ id: string; userId?: string; name?: string | null; email?: string | null }>).map((t) => {
+										const alreadyAssigned = staffRows.some((sr) => sr.staffId === t.userId);
+										if (alreadyAssigned) return null;
+										return (
+											<SelectItem key={t.id} value={t.userId ?? t.id}>
+												{t.name ?? t.email ?? t.id}
+											</SelectItem>
+										);
+									})}
+								</SelectContent>
+							</Select>
+							<Button
+								size="sm"
+								disabled={!assignStaffId || assignStaffMutation.isPending}
+								onClick={handleAssignStaff}
+							>
+								<Plus className="h-4 w-4 mr-1" />
+								Add
+							</Button>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setStaffInstanceId(null)}>
+							Close
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</>

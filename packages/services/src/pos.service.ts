@@ -384,6 +384,8 @@ export async function recordPosSale(
 		// Step 8: Insert N sales_order_items
 		// Agent 2.3 — J2: snapshot the active tax rate id on every line so
 		// historical orders reproduce the correct rate after rate edits.
+		// Phase 3 Task 3.1: also snapshot rateInBasisPoints and code so
+		// the historical rate is self-contained even after rate row edits.
 		for (const item of input.items) {
 			await tx.insert(salesOrderItems).values({
 				salesOrderId: salesOrder.id,
@@ -392,6 +394,8 @@ export async function recordPosSale(
 						? item.refId
 						: null,
 				taxRateId: resolvedTaxRateId,
+				taxRateBps: taxRate?.rateInBasisPoints ?? null,
+				taxRateCode: taxRate?.code ?? null,
 				description: item.description,
 				quantity: item.quantity,
 				unitPrice: item.unitPriceCents,
@@ -454,11 +458,14 @@ export async function recordPosSale(
 		}
 
 		// Tax item — Agent 2.3 — J2: snapshot the rate id on the type='tax' row.
+		// Phase 3 Task 3.1: also snapshot rateInBasisPoints and code.
 		if (taxCents > 0 && taxRate) {
 			await tx.insert(paymentItems).values({
 				paymentId: payment.id,
 				itemType: "tax",
 				taxRateId: taxRate.id,
+				taxRateBps: taxRate.rateInBasisPoints,
+				taxRateCode: taxRate.code,
 				description: `${taxRate.name} (${(taxRate.rateInBasisPoints / 100).toFixed(2)}%)`,
 				quantity: 1,
 				unitPrice: taxCents,

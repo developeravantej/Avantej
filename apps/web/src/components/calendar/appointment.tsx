@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Calendar, CalendarDays, Clock, X, User, Calendar as CalendarIcon, MapPin, Phone, Mail } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar, CalendarDays, Clock, X, User, Calendar as CalendarIcon, MapPin, Phone, Mail, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddAppointmentModal } from "./add-appointment-modal";
+import { EditAppointmentModal } from "./edit-appointment-modal";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import type { OccurrenceEditAction } from "@/types/appointments";
 
 interface Appointment {
 	id: string;
@@ -31,6 +33,10 @@ interface Appointment {
 	location?: string;
 	notes?: string;
 	duration?: number;
+	/** True when this event represents a not-yet-materialized virtual occurrence */
+	isVirtual?: boolean;
+	/** Parent recurring appointment ID (present for virtual occurrences and materialized children) */
+	parentId?: string;
 }
 
 type CalendarView = "monthly" | "weekly" | "daily";
@@ -97,6 +103,9 @@ export function AppointmentCalendar({
 	const [showCancelled, setShowCancelled] = useState(true);
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [_editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+	const [editStaffAppointmentId, setEditStaffAppointmentId] = useState<string | null>(null);
+	// Occurrence action dialog (shown when user clicks a virtual/recurring occurrence)
+	const [occurrenceDialogAppt, setOccurrenceDialogAppt] = useState<Appointment | null>(null);
 
 	const gridContainerRef = useRef<HTMLDivElement>(null);
 
@@ -116,7 +125,24 @@ export function AppointmentCalendar({
 	});
 
 	const createMutation = useApiMutation({
-		mutationFn: (params: { start: Date; duration: number; notes?: string; userId?: string | null; staffAssignments?: { staffId: string; slotIndex: number }[] }) =>
+		mutationFn: (params: {
+			start: Date;
+			duration: number;
+			notes?: string;
+			userId?: string | null;
+			staffAssignments?: { staffId: string; slotIndex: number }[];
+			recurrence?: {
+				frequencyValue: number;
+				timeUnit: "day" | "week" | "month";
+				repeatOn?: number[];
+				monthlyType?: "day_of_month" | "day_of_week";
+				monthlyDayOfWeek?: number;
+				monthlyWeekOfMonth?: number;
+				endsType: "never" | "on_date" | "after_occurrences";
+				endsAfterOccurrences?: number;
+				endsOn?: string;
+			};
+		}) =>
 			client.appointments.create({
 				organizationId,
 				type: "private",
@@ -128,12 +154,76 @@ export function AppointmentCalendar({
 				notes: params.notes ?? null,
 				userId: params.userId ?? null,
 				staffAssignments: params.staffAssignments ?? undefined,
+				recurrence: params.recurrence,
 			}),
 		successMessage: "Appointment created",
 		errorMessage: (err) => err.message || "Failed to create appointment",
 		invalidate: [["appointments"]],
 		onSuccess: () => closeAddModal(),
 	});
+
+	// Occurrence action handler
+	const handleOccurrenceAction = async (action: OccurrenceEditAction, appt: Appointment) => {
+		if (!appt.isVirtual && !appt.parentId) return;
+
+		const parentId = appt.parentId ?? appt.id;
+		// Derive occurrence date from the appointment start time
+		const occurrenceDate = appt.start instanceof Date
+			? appt.start.toISOString().split("T")[0]!
+			: new Date(appt.start).toISOString().split("T")[0]!;
+
+		setOccurrenceDialogAppt(null);
+
+		try {
+			if (action === "cancel_this") {
+				await client.appointments.materializeOccurrence({
+					organizationId,
+					parentId,
+					occurrenceDate,
+					updates: { status: "cancelled" },
+				});
+				toast.success("Occurrence cancelled");
+				queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			} else if (action === "cancel_future") {
+				await client.appointments.cancelFuture({
+					organizationId,
+					parentId,
+					fromDate: occurrenceDate,
+				});
+				toast.success("Future occurrences cancelled");
+				queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			} else if (action === "cancel_all") {
+				await client.appointments.cancelSeries({
+					organizationId,
+					parentId,
+				});
+				toast.success("Series cancelled");
+				queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			} else if (action === "edit_this") {
+				// Materialize and then open edit modal
+				await client.appointments.materializeOccurrence({
+					organizationId,
+					parentId,
+					occurrenceDate,
+				});
+				queryClient.invalidateQueries({ queryKey: ["appointments"] });
+				toast.success("Occurrence created — refresh to edit");
+			} else if (action === "edit_future") {
+				await client.appointments.splitSeries({
+					organizationId,
+					parentId,
+					fromDate: occurrenceDate,
+				});
+				toast.success("Series split — future occurrences can now be edited independently");
+				queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			} else if (action === "edit_all") {
+				// Open the regular edit modal on the parent
+				setEditStaffAppointmentId(parentId);
+			}
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Action failed");
+		}
+	};
 
 	const { startDate, endDate, dateDisplay, prevPeriod, nextPeriod } = useMemo(() => {
 		if (view === "monthly") {
@@ -225,12 +315,40 @@ export function AppointmentCalendar({
 	const handleSubmitAppointment = (appointment: any) => {
 		if (!organizationId) { toast.error("No organization selected."); return; }
 		if (!branchId) { toast.error("Your account is not scoped to a branch. Please contact your administrator."); return; }
+
+		// Map UI-layer CustomRecurrence to API-layer RecurrenceParams
+		let recurrenceParams: Parameters<typeof createMutation.mutate>[0]["recurrence"] | undefined;
+		if (appointment.recurrence && appointment.recurrence !== "none" && appointment.customRecurrence) {
+			// Only pass recurrence for "custom" recurrence type (the only one backed by our engine)
+			if (appointment.recurrence === "custom") {
+				// Inline the adapter logic to avoid importing (keeps this file self-contained)
+				const cr = appointment.customRecurrence;
+				const DAYS_MAP: Record<string, number> = { SU: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, S: 6 };
+				const endsType = cr.endsType === "on" ? "on_date" : cr.endsType === "after" ? "after_occurrences" : "never";
+				const monthlyType = cr.timeUnit === "month" ? (cr.monthlyType === "week" ? "day_of_week" : "day_of_month") : undefined;
+				recurrenceParams = {
+					frequencyValue: cr.frequency ?? 1,
+					timeUnit: (cr.timeUnit ?? "week") as "day" | "week" | "month",
+					repeatOn: cr.timeUnit === "week" && cr.repeatOn?.length > 0
+						? cr.repeatOn.map((d: string) => DAYS_MAP[d] ?? 0)
+						: undefined,
+					monthlyType,
+					endsType: endsType as "never" | "on_date" | "after_occurrences",
+					endsAfterOccurrences: endsType === "after_occurrences" ? (cr.endsOccurrences ?? undefined) : undefined,
+					endsOn: endsType === "on_date" && cr.endsDate
+						? new Date(cr.endsDate + "T23:59:59.999Z").toISOString()
+						: undefined,
+				};
+			}
+		}
+
 		createMutation.mutate({
 			start: new Date(appointment.start),
 			duration: appointment.duration,
 			notes: appointment.remarks,
 			userId: appointment.client?.userId ?? null,
 			staffAssignments: appointment.staffAssignments ?? undefined,
+			recurrence: recurrenceParams,
 		});
 	};
 
@@ -239,6 +357,9 @@ export function AppointmentCalendar({
 			const next = new Set(selectedAppointments);
 			next.has(appointment.id) ? next.delete(appointment.id) : next.add(appointment.id);
 			setSelectedAppointments(next);
+		} else if (appointment.isVirtual || appointment.parentId) {
+			// Show occurrence action dialog for recurring occurrences
+			setOccurrenceDialogAppt(appointment);
 		} else {
 			setSelectedAppointment(appointment);
 			onAppointmentClick?.(appointment);
@@ -376,14 +497,25 @@ export function AppointmentCalendar({
 			const height = Math.max(28, durationMins * PX_PER_MIN);
 			const colWidth = 100 / totalCols;
 			const s = statusStyle(appt.status);
+			const isVirtualOccurrence = appt.isVirtual === true || (appt.id?.startsWith("virtual__") ?? false);
 			return (
 				<div
 					key={appt.id}
-					className={cn("absolute z-10 rounded border-l-[3px] px-2 py-1 cursor-pointer hover:brightness-95 transition-all overflow-hidden", s.bg, s.border, s.text)}
+					className={cn(
+						"absolute z-10 rounded border-l-[3px] px-2 py-1 cursor-pointer hover:brightness-95 transition-all overflow-hidden",
+						s.bg, s.border, s.text,
+						// Virtual occurrences use dashed border to indicate they are not yet materialized
+						isVirtualOccurrence && "border border-dashed",
+					)}
 					style={{ top, height, left: `calc(${col * colWidth}% + 2px)`, width: `calc(${colWidth}% - 4px)` }}
 					onClick={() => handleAppointmentClick(appt)}
 				>
-					<div className="font-semibold text-xs truncate leading-tight">{appt.title}</div>
+					<div className="font-semibold text-xs truncate leading-tight flex items-center gap-1">
+						{isVirtualOccurrence && (
+							<RefreshCw className="h-2.5 w-2.5 shrink-0 opacity-60" aria-label="Recurring occurrence" />
+						)}
+						<span className="truncate">{appt.title}</span>
+					</div>
 					<div className="text-xs opacity-80 truncate">{appt.clientName}</div>
 					{height > 44 && <div className="text-xs opacity-60 truncate">{formatTime(start)} – {formatTime(end)}</div>}
 					{height > 60 && <span className={cn("inline-block mt-0.5 rounded text-[10px] px-1 py-0.5", s.badge)}>{s.label}</span>}
@@ -632,8 +764,8 @@ export function AppointmentCalendar({
 
 						<div className="flex gap-3 pt-4 border-t">
 							<Button variant="outline" onClick={closeAppointmentModal} className="flex-1">Close</Button>
-							<Button onClick={() => { setEditingAppointment(selectedAppointment); closeAppointmentModal(); setShowAddModal(true); }} className="flex-1">
-								Edit
+							<Button onClick={() => { setEditStaffAppointmentId(selectedAppointment.id); closeAppointmentModal(); }} className="flex-1">
+								Edit Staff
 							</Button>
 						</div>
 					</CardContent>
@@ -745,6 +877,88 @@ export function AppointmentCalendar({
 				selectedDate={selectedDate || undefined}
 				defaultTrainerId={defaultTrainerId}
 			/>
+
+			{editStaffAppointmentId && (
+				<EditAppointmentModal
+					appointmentId={editStaffAppointmentId}
+					organizationId={organizationId}
+					isOpen={!!editStaffAppointmentId}
+					onClose={() => setEditStaffAppointmentId(null)}
+					onSuccess={() => queryClient.invalidateQueries({ queryKey: ["appointments"] })}
+				/>
+			)}
+
+			{/* Occurrence action dialog — shown when user clicks a recurring/virtual occurrence */}
+			{occurrenceDialogAppt && (
+				<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40" onClick={() => setOccurrenceDialogAppt(null)}>
+					<div className="bg-white rounded-lg shadow-xl p-6 w-[360px] max-w-[95vw]" onClick={(e) => e.stopPropagation()}>
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-lg font-semibold text-gray-900">Recurring Appointment</h3>
+							<button
+								type="button"
+								className="text-gray-400 hover:text-gray-600"
+								onClick={() => setOccurrenceDialogAppt(null)}
+							>
+								<X className="h-5 w-5" />
+							</button>
+						</div>
+						<p className="text-sm text-gray-500 mb-4">
+							What would you like to do with this occurrence?
+						</p>
+						<div className="flex flex-col gap-2">
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+								onClick={() => handleOccurrenceAction("edit_this", occurrenceDialogAppt)}
+							>
+								Edit this occurrence only
+							</button>
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+								onClick={() => handleOccurrenceAction("cancel_this", occurrenceDialogAppt)}
+							>
+								Cancel this occurrence only
+							</button>
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+								onClick={() => handleOccurrenceAction("edit_future", occurrenceDialogAppt)}
+							>
+								Edit this and all future occurrences
+							</button>
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-orange-200 hover:bg-orange-50 text-sm font-medium text-orange-700 transition-colors"
+								onClick={() => handleOccurrenceAction("cancel_future", occurrenceDialogAppt)}
+							>
+								Cancel this and all future occurrences
+							</button>
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+								onClick={() => handleOccurrenceAction("edit_all", occurrenceDialogAppt)}
+							>
+								Edit all occurrences in this series
+							</button>
+							<button
+								type="button"
+								className="w-full text-left px-4 py-2.5 rounded-lg border border-red-200 hover:bg-red-50 text-sm font-medium text-red-700 transition-colors"
+								onClick={() => handleOccurrenceAction("cancel_all", occurrenceDialogAppt)}
+							>
+								Cancel entire series
+							</button>
+						</div>
+						<button
+							type="button"
+							className="w-full mt-3 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-500 transition-colors"
+							onClick={() => setOccurrenceDialogAppt(null)}
+						>
+							Never mind
+						</button>
+					</div>
+				</div>
+			)}
 		</>
 	);
 }

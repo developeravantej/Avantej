@@ -15,6 +15,11 @@ export const googleCalendarConnections = pgTable("google_calendar_connections", 
   isActive: boolean("is_active").default(true).notNull(),
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   lastSyncError: text("last_sync_error"),
+  // Migration 0046 — key rotation tracking.
+  // encryptionKeyId: references the KMS key version used to encrypt accessToken/refreshToken.
+  // tokenRotatedAt: timestamp of last OAuth token rotation for audit/expiry monitoring.
+  encryptionKeyId: text("encryption_key_id"),
+  tokenRotatedAt: timestamp("token_rotated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

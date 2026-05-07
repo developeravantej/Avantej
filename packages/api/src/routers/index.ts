@@ -2,6 +2,7 @@ import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import { analyticsRouter } from "./analytics";
+import { categoryBufferOverridesRouter } from "./category-buffer-overrides";
 import { announcementsRouter } from "./announcements";
 import { appointmentsRouter } from "./appointments";
 import { auditLogsRouter } from "./audit-logs";
@@ -27,6 +28,7 @@ import { notificationPreferencesRouter } from "./notification-preferences";
 import { notificationsRouter } from "./notifications";
 import { organizationSettingsRouter } from "./organization-settings";
 import { packageInstancesRouter } from "./package-instances";
+import { packageInstanceStaffRouter } from "./package-instance-staff";
 import { payoutsRouter } from "./payouts";
 import { permissionsRouter } from "./permissions";
 import { posRouter } from "./pos";
@@ -81,6 +83,7 @@ export const baseRouter = {
 	services: servicesRouter,
 	appointments: appointmentsRouter,
 	packageInstances: packageInstancesRouter,
+	packageInstanceStaff: packageInstanceStaffRouter,
 	preferredTimes: preferredTimesRouter,
 	notifications: notificationsRouter,
 	notificationPreferences: notificationPreferencesRouter,
@@ -120,6 +123,7 @@ export const baseRouter = {
 	trainerAvailability: trainerAvailabilityRouter,
 	trainerTiers: trainerTiersRouter,
 	serviceMembers: serviceMembersRouter,
+	categoryBufferOverrides: categoryBufferOverridesRouter,
 	installments: installmentsRouter,
 	installmentPlans: installmentPlansRouter,
 	organizationSettings: organizationSettingsRouter,

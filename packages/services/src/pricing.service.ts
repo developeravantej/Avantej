@@ -295,3 +295,43 @@ export async function setProductPrice(
 		.returning({ id: productPrices.id });
 	return row;
 }
+
+/** Set `effectiveUntil` on a service price row to end the override. Defaults to now(). */
+export async function expireServicePrice(
+	tenantDb: DbHandle,
+	priceId: string,
+	until: Date = new Date(),
+): Promise<void> {
+	await tenantDb
+		.update(servicePrices)
+		.set({ effectiveUntil: until })
+		.where(eq(servicePrices.id, priceId));
+}
+
+/** Set `effectiveUntil` on a product price row to end the override. Defaults to now(). */
+export async function expireProductPrice(
+	tenantDb: DbHandle,
+	priceId: string,
+	until: Date = new Date(),
+): Promise<void> {
+	await tenantDb
+		.update(productPrices)
+		.set({ effectiveUntil: until })
+		.where(eq(productPrices.id, priceId));
+}
+
+/** Hard-delete a service price override row. */
+export async function deleteServicePrice(
+	tenantDb: DbHandle,
+	priceId: string,
+): Promise<void> {
+	await tenantDb.delete(servicePrices).where(eq(servicePrices.id, priceId));
+}
+
+/** Hard-delete a product price override row. */
+export async function deleteProductPrice(
+	tenantDb: DbHandle,
+	priceId: string,
+): Promise<void> {
+	await tenantDb.delete(productPrices).where(eq(productPrices.id, priceId));
+}

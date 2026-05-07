@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -45,6 +45,9 @@ export const cancelledSalesRouter = {
 			}
 			if (input.to) {
 				conditions.push(lte(salesOrders.cancellationDate, new Date(input.to)));
+			}
+			if (context.accessibleNodeIds?.length) {
+				conditions.push(inArray(salesOrders.branchId, context.accessibleNodeIds));
 			}
 
 			const rows = await context.tenantDb

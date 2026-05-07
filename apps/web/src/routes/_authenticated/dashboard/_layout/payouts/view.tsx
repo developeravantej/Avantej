@@ -131,6 +131,8 @@ function PayoutsViewPage() {
 							<button
 								key={tab.label}
 								type="button"
+								role="tab"
+								aria-selected={isActive}
 								onClick={() => setStatusFilter(tab.value)}
 								className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
 									isActive

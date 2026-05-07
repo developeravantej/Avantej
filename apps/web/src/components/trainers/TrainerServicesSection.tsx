@@ -15,6 +15,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { CategoryBufferRow, type CategoryBufferRowData } from "./category-buffer-row";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,32 @@ export function TrainerServicesSection({
 		},
 		onError: (err) =>
 			toast.error(err instanceof Error ? err.message : "Failed to update buffer."),
+	});
+
+	const { data: categoryBuffers = [] } = useQuery({
+		queryKey: ["categoryBufferOverrides", organizationId, memberId],
+		queryFn: () =>
+			client.categoryBufferOverrides.listForMember({
+				organizationId,
+				memberId,
+			}),
+		enabled: isOpen && !!organizationId && !!memberId,
+	});
+
+	const updateCategoryBufferMutation = useMutation({
+		mutationFn: (args: { categoryId: string; bufferTimeMinutes: number | null }) =>
+			client.categoryBufferOverrides.upsert({
+				organizationId,
+				memberId,
+				...args,
+			}),
+		onSuccess: () => {
+			toast.success("Category buffer updated");
+			queryClient.invalidateQueries({
+				queryKey: ["categoryBufferOverrides", organizationId, memberId],
+			});
+		},
+		onError: () => toast.error("Failed to update category buffer"),
 	});
 
 	// ── Derived data ──────────────────────────────────────────────────────────
@@ -325,6 +352,34 @@ export function TrainerServicesSection({
 						})}
 					</div>
 				)}
+
+			{/* Category Buffer Defaults */}
+			<div className="mt-4 space-y-2">
+				<p className="text-sm font-medium text-muted-foreground">
+					Category Buffer Defaults
+				</p>
+				<p className="text-xs text-muted-foreground">
+					Set a default buffer for this trainer per service category. Leave blank to
+					use the org-wide default. Service-level overrides take priority.
+				</p>
+				{categoryBuffers.length === 0 ? (
+					<p className="text-xs text-muted-foreground">
+						No service categories assigned.
+					</p>
+				) : (
+					<div className="flex flex-col gap-2">
+						{categoryBuffers.map((cat) => (
+							<CategoryBufferRow
+								key={cat.categoryId}
+								cat={cat as CategoryBufferRowData}
+								onSave={(categoryId, bufferTimeMinutes) =>
+									updateCategoryBufferMutation.mutate({ categoryId, bufferTimeMinutes })
+								}
+							/>
+						))}
+					</div>
+				)}
+			</div>
 			</CollapsibleContent>
 		</Collapsible>
 	);

@@ -44,6 +44,11 @@ export const supplierInvoices = pgTable(
 		status: text("status").notNull().default("pending"),
 		matchedAt: timestamp("matched_at", { withTimezone: true }),
 		matchedBy: text("matched_by"),
+		disputeReason: text("dispute_reason"),
+		disputedAt: timestamp("disputed_at", { withTimezone: true }),
+		paidAt: timestamp("paid_at", { withTimezone: true }),
+		paidBy: text("paid_by"),
+		paymentReference: text("payment_reference"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

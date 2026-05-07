@@ -12,6 +12,8 @@ export const stockRequestItems = pgTable("stock_request_items", {
 		.references(() => products.id, { onDelete: "restrict" }),
 	quantityRequested: integer("quantity_requested").notNull(),
 	quantityFulfilled: integer("quantity_fulfilled").default(0).notNull(),
+	// Migration 0046 — approved quantity (may differ from requested; null = not yet reviewed)
+	approvedQty: integer("approved_qty"),
 	notes: text("notes"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({

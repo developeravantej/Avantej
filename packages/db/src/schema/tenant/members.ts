@@ -22,6 +22,9 @@ import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/
 import { hierarchyNodes } from "./hierarchy";
 import { trainerTiers } from "./trainer-tiers";
 import { roles } from "./roles";
+import { leadSources } from "./lead-sources";
+import { households } from "./households";
+import { invitations } from "./invitations";
 
 export const members = pgTable("members", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -37,6 +40,10 @@ export const members = pgTable("members", {
 	status: text("status").notNull(), // active, suspended
 	joinedAt: timestamp("joined_at").defaultNow().notNull(),
 	trainerTierId: uuid("trainer_tier_id").references(() => trainerTiers.id, { onDelete: "set null" }),
+	// Migration 0046 — acquisition / lifecycle linkage (all nullable)
+	leadSourceId: uuid("lead_source_id").references(() => leadSources.id, { onDelete: "set null" }),
+	householdId: uuid("household_id").references(() => households.id, { onDelete: "set null" }),
+	invitationId: uuid("invitation_id").references(() => invitations.id, { onDelete: "set null" }),
 }, (table) => ({
 	// Unique constraint: one membership per user in this tenant
 	userIdUniqueIdx: uniqueIndex("members_user_idx").on(table.userId),
@@ -46,5 +53,8 @@ export const members = pgTable("members", {
 	roleIdIdx: index("members_role_id_idx").on(table.roleId),
 	statusIdx: index("members_status_idx").on(table.status),
 	trainerTierIdx: index("members_trainer_tier_idx").on(table.trainerTierId),
+	leadSourceIdx: index("members_lead_source_idx").on(table.leadSourceId),
+	householdIdx: index("members_household_idx").on(table.householdId),
+	invitationIdx: index("members_invitation_idx").on(table.invitationId),
 }));
 

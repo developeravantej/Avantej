@@ -2,7 +2,7 @@ import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye } from "lucide-react";
+import { Copy, Eye, History } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,6 +13,7 @@ export interface PaymentRow {
 	date?: string | null;
 	invoice?: string | null;
 	sales_order?: string | null;
+	payment_id?: string | null;
 	mode?: string | null;
 	total_paid?: number;
 	customer_name?: string | null;
@@ -95,7 +96,13 @@ const formatEInvoiceStatus = (
 	);
 };
 
-function PaymentActionCell({ row }: { row: import("@tanstack/react-table").Row<PaymentRow> }) {
+function PaymentActionCell({
+	row,
+	onHistoryClick,
+}: {
+	row: import("@tanstack/react-table").Row<PaymentRow>;
+	onHistoryClick?: (paymentId: string) => void;
+}) {
 	const navigate = useNavigate();
 	return (
 		<div className="flex items-center gap-2">
@@ -111,11 +118,23 @@ function PaymentActionCell({ row }: { row: import("@tanstack/react-table").Row<P
 			>
 				<Eye className="h-4 w-4 mr-1" /> View
 			</Button>
+			{row.original.payment_id && onHistoryClick && (
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => onHistoryClick(row.original.payment_id!)}
+				>
+					<History className="h-4 w-4 mr-1" /> History
+				</Button>
+			)}
 		</div>
 	);
 }
 
-export const columns: ColumnDef<PaymentRow>[] = [
+export function buildColumns(
+	onHistoryClick?: (paymentId: string) => void,
+): ColumnDef<PaymentRow>[] {
+	return [
 	{
 		accessorKey: "date",
 		header: ({ column }) => (
@@ -237,8 +256,12 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => <PaymentActionCell row={row} />,
+		cell: ({ row }) => <PaymentActionCell row={row} onHistoryClick={onHistoryClick} />,
 		enableSorting: false,
 		enableHiding: false,
 	},
-];
+	];
+}
+
+// Backward-compat export for callers that don't need history
+export const columns: ColumnDef<PaymentRow>[] = buildColumns();

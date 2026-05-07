@@ -18,6 +18,7 @@
  */
 
 import {
+	boolean,
 	index,
 	integer,
 	pgTable,
@@ -35,7 +36,8 @@ export const commissionSplits = pgTable(
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
 
-		// Target — exactly one must be set (enforced by CHECK constraint in migration)
+		// Target — exactly one must be set (enforced by CHECK constraint in migration 0046;
+		// one-of-three: appointmentId | salesOrderId | packageInstanceId)
 		appointmentId: uuid("appointment_id").references(() => appointments.id, {
 			onDelete: "cascade",
 		}),
@@ -84,6 +86,16 @@ export const commissionSplits = pgTable(
 		splitType: text("split_type").notNull().default("automatic"), // "automatic" | "manual"
 		manualNote: text("manual_note"), // Required when splitType="manual"
 
+		// Migration 0046 — calculation flags (set by commission engine at split-creation time)
+		// capApplied: true when the trainer's monthly cap was hit and amount was trimmed
+		// floorApplied: true when the floor was applied (amount raised to minimum)
+		// excluded: true when this split was skipped (discount threshold exceeded, etc.)
+		// isComplimentary: true when the source sales order is complimentary
+		capApplied: boolean("cap_applied").notNull().default(false),
+		floorApplied: boolean("floor_applied").notNull().default(false),
+		excluded: boolean("excluded").notNull().default(false),
+		isComplimentary: boolean("is_complimentary").notNull().default(false),
+
 		// Use earnedAt (not createdAt) for payroll period filtering
 		earnedAt: timestamp("earned_at", { withTimezone: true }).notNull(),
 
@@ -111,6 +123,12 @@ export const commissionSplits = pgTable(
 		),
 		configVersionIdx: index("commission_splits_config_version_idx").on(
 			table.configVersionId,
+		),
+		// Composite: payout query — find splits by staff+status sorted by earned date
+		staffStatusEarnedIdx: index("commission_splits_staff_status_earned_idx").on(
+			table.staffId,
+			table.status,
+			table.earnedAt,
 		),
 	}),
 );

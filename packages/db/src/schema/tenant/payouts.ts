@@ -28,8 +28,9 @@ export const payouts = pgTable("payouts", {
 	stripeConnectAccountId: text("stripe_connect_account_id"), // Coach's Stripe Connect account (if they have one)
 	
 	// Related records
+	// Migration 0046 P0 fix: NOT NULL dropped — payouts can now be created for
+	// package-instance or sales-order commissions without a linked appointment.
 	appointmentId: uuid("appointment_id")
-		.notNull()
 		.references(() => appointments.id, { onDelete: "restrict" }),
 	commissionSplitId: uuid("commission_split_id")
 		.references(() => commissionSplits.id, { onDelete: "set null" }),

@@ -48,6 +48,7 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
+import { roles } from "@avantej-core/db/schema/tenant/roles";
 
 // Type definitions for database clients
 // Support both NeonHttpDatabase and NeonDatabase (serverless) for flexibility
@@ -101,9 +102,19 @@ export class MembershipService {
 
         // Tenant DB: Full member record + optionally mark invitation accepted
         tenantDb.transaction(async (tx) => {
+          // Phase 3 Task 3.4: resolve role_id from roles table so the FK is set
+          // at creation time instead of requiring a separate backfill.
+          const roleRow = await tx
+            .select({ id: roles.id })
+            .from(roles)
+            .where(eq(roles.name, role))
+            .limit(1)
+            .then((rows) => rows[0]);
+
           await tx.insert(members).values({
             userId,
             role,
+            roleId: roleRow?.id ?? null,
             hierarchyScopeId,
             status: "active",
           });

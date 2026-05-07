@@ -28,6 +28,7 @@ const list = protectedProcedure
 			appointmentId: z.string().uuid().optional(),
 			from: z.string().datetime().optional(),
 			to: z.string().datetime().optional(),
+			limit: z.number().int().min(1).max(200).default(50).optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -63,6 +64,8 @@ const list = protectedProcedure
 			appointmentId: input.appointmentId,
 			from: input.from ? new Date(input.from) : undefined,
 			to: input.to ? new Date(input.to) : undefined,
+			limit: input.limit ?? 50,
+			accessibleNodeIds: context.accessibleNodeIds,
 		});
 	});
 
@@ -101,7 +104,9 @@ const getByAppointment = protectedProcedure
 			});
 		}
 
-		return getCommissionsByAppointment(context.tenantDb, input.appointmentId);
+		return getCommissionsByAppointment(context.tenantDb, input.appointmentId, {
+			accessibleNodeIds: context.accessibleNodeIds,
+		});
 	});
 
 const myCommissions = protectedProcedure

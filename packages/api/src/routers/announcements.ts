@@ -45,6 +45,7 @@ const list = protectedProcedure
 			branchId: input.branchId,
 			isActive: input.isActive,
 			accessibleNodeIds: context.accessibleNodeIds,
+			isAdmin: context.member.role === "admin",
 			limit: input.limit,
 			offset: input.offset,
 		});
@@ -79,6 +80,7 @@ const listActive = protectedProcedure
 
 		return listActiveAnnouncements(context.tenantDb, {
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			isAdmin: context.member.role === "admin",
 		});
 	});
 
@@ -94,6 +96,7 @@ const create = protectedProcedure
 			startDate: z.string().datetime().optional(),
 			endDate: z.string().datetime().optional(),
 			isPinned: z.boolean().optional(),
+			scopedBranchIds: z.array(z.string().uuid()).optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -127,6 +130,7 @@ const create = protectedProcedure
 			endDate: input.endDate ? new Date(input.endDate) : undefined,
 			isPinned: input.isPinned,
 			createdBy: context.member.userId,
+			scopedBranchIds: input.scopedBranchIds,
 		});
 	});
 
@@ -143,6 +147,7 @@ const update = protectedProcedure
 			isPinned: z.boolean().optional(),
 			startDate: z.string().datetime().optional(),
 			endDate: z.string().datetime().optional(),
+			scopedBranchIds: z.array(z.string().uuid()).optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -176,6 +181,7 @@ const update = protectedProcedure
 				isPinned: input.isPinned,
 				startDate: input.startDate ? new Date(input.startDate) : undefined,
 				endDate: input.endDate ? new Date(input.endDate) : undefined,
+				scopedBranchIds: input.scopedBranchIds,
 			});
 		} catch {
 			throw new ORPCError("NOT_FOUND", {

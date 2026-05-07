@@ -5,9 +5,10 @@
  */
 
 import { payouts } from "@avantej-core/db/schema/tenant/payouts";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
+import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -48,7 +49,7 @@ export const payoutsRouter = {
 				await requirePermission(
 					context.tenantDb,
 					context.member,
-					"user_management",
+					"commission_payout",
 					"read"
 				);
 			} catch (error) {
@@ -67,13 +68,23 @@ export const payoutsRouter = {
 			if (input.recipientId) {
 				conditions.push(eq(payouts.recipientId, input.recipientId));
 			}
+			if (context.accessibleNodeIds?.length) {
+				conditions.push(
+					or(
+						isNull(payouts.appointmentId),
+						inArray(appointments.branchId, context.accessibleNodeIds)
+					) as SQL
+				);
+			}
 
 			const payoutRows = await context.tenantDb
-				.select()
+				.select({ payout: payouts })
 				.from(payouts)
+				.leftJoin(appointments, eq(payouts.appointmentId, appointments.id))
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(payouts.createdAt))
-				.limit(input.limit);
+				.limit(input.limit)
+				.then((rows) => rows.map((r) => r.payout));
 
 			if (payoutRows.length === 0) {
 				return [];

@@ -17,6 +17,7 @@ import {
 	useReactTable,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -79,6 +80,7 @@ export default function DataTable<TData, TValue>({
 	onRetry,
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
+	const navigate = useNavigate();
 
 	const table = useReactTable({
 		data,
@@ -143,7 +145,13 @@ export default function DataTable<TData, TValue>({
 									<TableRow
 										key={row.id}
 										data-state={row.getIsSelected() && "selected"}
-										className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+										className="cursor-pointer border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+										onClick={() =>
+											navigate({
+												to: "/dashboard/sales/$id",
+												params: { id: (row.original as { id: string }).id },
+											})
+										}
 									>
 										{row.getVisibleCells().map((cell) => (
 											<TableCell

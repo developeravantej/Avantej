@@ -7,20 +7,39 @@
 
 // Analytics services
 export * from "./analytics.service";
+// Category buffer override services
+export {
+	listCategoryBufferOverridesForMember,
+	upsertCategoryBufferOverride,
+	type CategoryOverrideRow,
+} from "./category-buffer-overrides.service";
 // Announcement services
 export * from "./announcements.service";
 // Appointment services
 export {
+	type AppointmentHistoryQueryOpts,
 	type CreateAppointmentParams,
 	createAppointment,
 	getAppointmentById,
+	getAppointmentStatusHistory,
 	type ListAppointmentsForUserParams,
 	type ListAppointmentsParams,
 	listAppointments,
 	listAppointmentsForUser,
+	resolveMemberIdFromUserId,
 	type UpdateAppointmentParams,
 	updateAppointment,
 } from "./appointment.service";
+// Recurrence services
+export {
+	type AppointmentWithOccurrence,
+	expandRecurrenceRule,
+	isVirtualId,
+	listAppointmentsWithRecurrence,
+	makeVirtualId,
+	MAX_VIRTUAL_OCCURRENCES,
+	parseVirtualId,
+} from "./recurrence.service";
 // Audit log services
 export {
 	type AuditRowEnriched,
@@ -210,11 +229,23 @@ export {
 	type CreatePackageInstanceParams,
 	createPackageInstance,
 	getPackageInstanceById,
+	getPackageInstanceStatusHistory,
 	type ListPackageInstancesForClientParams,
 	listPackageInstancesForClient,
+	type PackageInstanceHistoryQueryOpts,
 	type UpdatePackageInstanceParams,
 	updatePackageInstance,
 } from "./package-instance.service";
+// Package instance staff services
+export {
+	type AssignPackageInstanceStaffParams,
+	assignPackageInstanceStaff,
+	listPackageInstanceStaff,
+	type PackageInstanceStaffRow,
+	removePackageInstanceStaff,
+	type ReplacePackageInstanceStaffParams,
+	replacePackageInstanceStaff,
+} from "./package-instance-staff.service";
 // Permission service - for RBAC permission checking
 export * from "./permission.service";
 // POS services (tracking-pages P4)
@@ -237,6 +268,11 @@ export {
 export * from "./product-categories.service";
 // Product services
 export * from "./products.service";
+// Payment status history service
+export {
+	type PaymentHistoryQueryOpts,
+	getPaymentStatusHistory,
+} from "./payments.service";
 // Promotion services
 export * from "./promotions.service";
 // Purchase order services
@@ -368,4 +404,9 @@ export * from "./walk-in.service";
 
 // #region Agent 3.1 — membership freeze/resume (Phase 3 — J4)
 export * from "./membership.service";
+// #endregion
+
+// #region Phase 7.5 — DB error helpers
+export * from "./lib/pg-error";
+export * from "./lib/fk-guard";
 // #endregion

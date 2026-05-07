@@ -12,10 +12,14 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { ProductPricingPage } from "@/components/pages/products/pricing-page";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/products/view",
 )({
+	validateSearch: (search: Record<string, unknown>) => ({
+		tab: (search.tab as string | undefined) ?? "products",
+	}),
 	component: ProductsViewPage,
 });
 
@@ -28,7 +32,14 @@ const STATUS_TABS: { value: ProductStatus | undefined; label: string }[] = [
 	{ value: "discontinued", label: "Discontinued" },
 ];
 
+const PAGE_TABS = [
+	{ id: "products", label: "Products" },
+	{ id: "pricing", label: "Pricing" },
+];
+
 function ProductsViewPage() {
+	const { tab } = Route.useSearch();
+	const navigate = Route.useNavigate();
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
@@ -42,7 +53,7 @@ function ProductsViewPage() {
 				status: statusFilter,
 			},
 		}),
-		enabled: !!organizationId,
+		enabled: !!organizationId && tab === "products",
 	});
 
 	// Fetch brands/categories/suppliers/uoms for the form dropdowns
@@ -66,6 +77,87 @@ function ProductsViewPage() {
 		updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
 	}));
 
+	return (
+		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+				<div>
+					<h1 className="text-xl font-semibold">Products</h1>
+					<p className="mt-0.5 text-sm text-muted-foreground">
+						Manage your product catalog and branch pricing
+					</p>
+				</div>
+			</div>
+			<div className="shrink-0 border-b border-border/40 px-6">
+				<div className="flex h-10 items-end gap-0">
+					{PAGE_TABS.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => navigate({ search: { tab: t.id } })}
+							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
+								tab === t.id
+									? "border-foreground text-foreground"
+									: "border-transparent text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{t.label}
+						</button>
+					))}
+				</div>
+			</div>
+			<div className="min-h-0 flex-1 overflow-hidden">
+				{tab === "pricing" ? (
+					<ProductPricingPage />
+				) : (
+					<ProductsListTab
+						organizationId={organizationId}
+						statusFilter={statusFilter}
+						setStatusFilter={setStatusFilter}
+						tableData={tableData}
+						isLoading={isLoading}
+						isError={isError}
+						error={error}
+						refetch={refetch}
+						brands={brands}
+						categories={categories}
+						suppliers={suppliers}
+						uoms={uoms}
+					/>
+				)}
+			</div>
+		</div>
+	);
+}
+
+interface ProductsListTabProps {
+	organizationId: string | null;
+	statusFilter: ProductStatus | undefined;
+	setStatusFilter: (v: ProductStatus | undefined) => void;
+	tableData: ProductRow[];
+	isLoading: boolean;
+	isError: boolean;
+	error: unknown;
+	refetch: () => void;
+	brands: ReturnType<typeof useProductData>["brands"];
+	categories: ReturnType<typeof useProductData>["categories"];
+	suppliers: ReturnType<typeof useProductData>["suppliers"];
+	uoms: ReturnType<typeof useProductData>["uoms"];
+}
+
+function ProductsListTab({
+	organizationId,
+	statusFilter,
+	setStatusFilter,
+	tableData,
+	isLoading,
+	isError,
+	error,
+	refetch,
+	brands,
+	categories,
+	suppliers,
+	uoms,
+}: ProductsListTabProps) {
 	if (!organizationId) {
 		return (
 			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
@@ -93,7 +185,7 @@ function ProductsViewPage() {
 	}
 
 	return (
-		<div className="p-6 space-y-6">
+		<div className="p-6 space-y-6 h-full overflow-auto">
 			{/* Header */}
 			<PageHeader
 				icon={Package}

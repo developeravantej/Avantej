@@ -30,7 +30,13 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { ShoppingCart, Plus, CheckCircle, Package, Trash2 } from "lucide-react";
+import {
+	Tabs,
+	TabsList,
+	TabsTrigger,
+	TabsContent,
+} from "@/components/ui/tabs";
+import { ShoppingCart, Plus, CheckCircle, Package, Trash2, FileText } from "lucide-react";
 import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useState, useCallback, useMemo } from "react";
 
@@ -533,6 +539,678 @@ function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveIte
 }
 
 // ---------------------------------------------------------------------------
+// Invoice status helpers
+// ---------------------------------------------------------------------------
+
+type InvoiceStatus = "pending" | "matched" | "disputed" | "paid";
+
+const INVOICE_STATUS_MAP: Record<InvoiceStatus, { status: CanonicalStatus; label: string }> = {
+	pending:  { status: "pending",   label: "Pending" },
+	matched:  { status: "approved",  label: "Matched" },
+	disputed: { status: "cancelled", label: "Disputed" },
+	paid:     { status: "paid",      label: "Paid" },
+};
+
+function InvoiceStatusBadge({ status }: { status: string }) {
+	const entry = INVOICE_STATUS_MAP[status as InvoiceStatus] ?? { status: "pending" as CanonicalStatus, label: status };
+	return <StatusBadge status={entry.status} label={entry.label} />;
+}
+
+// ---------------------------------------------------------------------------
+// RecordInvoiceDialog
+// ---------------------------------------------------------------------------
+
+type RecordInvoiceDialogProps = {
+	poId: string | null;
+	organizationId: string;
+	onClose: () => void;
+	onCreated: () => void;
+};
+
+function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }: RecordInvoiceDialogProps) {
+	const [invoiceNumber, setInvoiceNumber] = useState("");
+	const [goodsReceiptId, setGoodsReceiptId] = useState("");
+	const [totalRM, setTotalRM] = useState("");
+	const [taxRM, setTaxRM] = useState("");
+	const [invoiceDate, setInvoiceDate] = useState(todayISO());
+	const [dueDate, setDueDate] = useState("");
+	const qc = useQueryClient();
+
+	const { data: detail, isLoading: detailLoading } = useQuery({
+		queryKey: ["purchaseOrders", organizationId, poId],
+		queryFn: async () => {
+			if (!poId || !organizationId) return null;
+			return client.purchaseOrders.getById({ organizationId, id: poId });
+		},
+		enabled: !!poId && !!organizationId,
+	});
+
+	const { data: receipts = [] } = useQuery({
+		queryKey: ["goodsReceiptsForPo", organizationId, poId],
+		queryFn: async () => {
+			if (!poId || !organizationId) return [];
+			return client.goodsReceipts.listForPo({ organizationId, purchaseOrderId: poId });
+		},
+		enabled: !!poId && !!organizationId,
+	});
+
+	const postedReceipts = receipts.filter((r) => r.status === "posted");
+
+	const createMutation = useApiMutation({
+		mutationFn: (input: Parameters<typeof client.goodsReceipts.createInvoice>[0]) =>
+			client.goodsReceipts.createInvoice(input),
+		successMessage: "Invoice recorded successfully.",
+		errorMessage: (err) => `Failed to record invoice: ${err.message}`,
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["supplierInvoices", organizationId] });
+			onCreated();
+			handleClose();
+		},
+	});
+
+	function handleClose() {
+		setInvoiceNumber("");
+		setGoodsReceiptId("");
+		setTotalRM("");
+		setTaxRM("");
+		setInvoiceDate(todayISO());
+		setDueDate("");
+		onClose();
+	}
+
+	function handleSubmit() {
+		if (!poId || !detail?.order) return;
+		if (!invoiceNumber.trim()) { toast.error("Invoice number is required."); return; }
+		const total = parseFloat(totalRM);
+		if (!totalRM || Number.isNaN(total) || total <= 0) { toast.error("Invoice total must be greater than 0."); return; }
+		if (!invoiceDate) { toast.error("Invoice date is required."); return; }
+
+		createMutation.mutate({
+			organizationId,
+			invoiceNumber: invoiceNumber.trim(),
+			supplierId: detail.order.supplierId,
+			purchaseOrderId: poId,
+			goodsReceiptId: goodsReceiptId || undefined,
+			totalCents: rmToCents(total),
+			taxCents: taxRM && !Number.isNaN(parseFloat(taxRM)) ? rmToCents(parseFloat(taxRM)) : undefined,
+			invoiceDate: new Date(invoiceDate).toISOString(),
+			dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+		});
+	}
+
+	return (
+		<Dialog open={!!poId} onOpenChange={(open) => { if (!open) handleClose(); }}>
+			<DialogContent className="sm:max-w-lg overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>Record Supplier Invoice</DialogTitle>
+					<DialogDescription>
+						{detail?.order
+							? `Record an invoice against PO ${detail.order.purchaseOrderNumber}.`
+							: "Loading purchase order…"}
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="mt-4 space-y-4">
+					{detailLoading && (
+						<div className="flex items-center justify-center py-8">
+							<LoadingSpinner size="md" />
+						</div>
+					)}
+
+					{!detailLoading && (
+						<>
+							<div className="space-y-1.5">
+								<Label htmlFor="inv-number">Invoice Number</Label>
+								<Input
+									id="inv-number"
+									value={invoiceNumber}
+									onChange={(e) => setInvoiceNumber(e.target.value)}
+									placeholder="e.g. INV-2026-001"
+								/>
+							</div>
+
+							{postedReceipts.length > 0 && (
+								<div className="space-y-1.5">
+									<Label htmlFor="inv-receipt">Goods Receipt (optional)</Label>
+									<Select value={goodsReceiptId} onValueChange={setGoodsReceiptId}>
+										<SelectTrigger id="inv-receipt">
+											<SelectValue placeholder="Select posted receipt…" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="">— None —</SelectItem>
+											{postedReceipts.map((r) => (
+												<SelectItem key={r.id} value={r.id}>
+													{r.receiptNumber} — {formatDate(r.receivedAt)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
+
+							<div className="grid grid-cols-2 gap-4">
+								<div className="space-y-1.5">
+									<Label htmlFor="inv-total">Invoice Total (RM)</Label>
+									<Input
+										id="inv-total"
+										type="number"
+										min="0"
+										step="0.01"
+										value={totalRM}
+										onChange={(e) => setTotalRM(e.target.value)}
+										placeholder="0.00"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="inv-tax">Tax Amount (RM, optional)</Label>
+									<Input
+										id="inv-tax"
+										type="number"
+										min="0"
+										step="0.01"
+										value={taxRM}
+										onChange={(e) => setTaxRM(e.target.value)}
+										placeholder="0.00"
+									/>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-2 gap-4">
+								<div className="space-y-1.5">
+									<Label htmlFor="inv-date">Invoice Date</Label>
+									<Input
+										id="inv-date"
+										type="date"
+										value={invoiceDate}
+										onChange={(e) => setInvoiceDate(e.target.value)}
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="inv-due">Due Date (optional)</Label>
+									<Input
+										id="inv-due"
+										type="date"
+										value={dueDate}
+										onChange={(e) => setDueDate(e.target.value)}
+									/>
+								</div>
+							</div>
+
+							<Separator />
+
+							<div className="flex gap-2 justify-end">
+								<Button variant="outline" onClick={handleClose} disabled={createMutation.isPending}>
+									Cancel
+								</Button>
+								<Button onClick={handleSubmit} disabled={createMutation.isPending}>
+									{createMutation.isPending ? "Saving…" : "Save Invoice"}
+								</Button>
+							</div>
+						</>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// MatchReviewDialog
+// ---------------------------------------------------------------------------
+
+type MatchReviewDialogProps = {
+	invoiceId: string | null;
+	organizationId: string;
+	onClose: () => void;
+	onAction: () => void;
+};
+
+function MatchReviewDialog({ invoiceId, organizationId, onClose, onAction }: MatchReviewDialogProps) {
+	const [disputeReason, setDisputeReason] = useState("");
+	const [showDisputeForm, setShowDisputeForm] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
+	const qc = useQueryClient();
+
+	const { data: preview, isLoading } = useQuery({
+		queryKey: ["invoicePreview", organizationId, invoiceId],
+		queryFn: async () => {
+			if (!invoiceId || !organizationId) return null;
+			return client.goodsReceipts.getInvoicePreview({ organizationId, invoiceId });
+		},
+		enabled: !!invoiceId && !!organizationId,
+	});
+
+	const matchMutation = useApiMutation({
+		mutationFn: (input: Parameters<typeof client.goodsReceipts.matchInvoice>[0]) =>
+			client.goodsReceipts.matchInvoice(input),
+		successMessage: "Invoice matched successfully.",
+		errorMessage: (err) => {
+			setActionError(err.message);
+			return `Match failed: ${err.message}`;
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["supplierInvoices", organizationId] });
+			onAction();
+			onClose();
+		},
+	});
+
+	const disputeMutation = useApiMutation({
+		mutationFn: (input: Parameters<typeof client.goodsReceipts.disputeInvoice>[0]) =>
+			client.goodsReceipts.disputeInvoice(input),
+		successMessage: "Invoice disputed.",
+		errorMessage: (err) => {
+			setActionError(err.message);
+			return `Failed to dispute: ${err.message}`;
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["supplierInvoices", organizationId] });
+			onAction();
+			onClose();
+		},
+	});
+
+	function handleClose() {
+		setDisputeReason("");
+		setShowDisputeForm(false);
+		setActionError(null);
+		onClose();
+	}
+
+	return (
+		<Dialog open={!!invoiceId} onOpenChange={(open) => { if (!open) handleClose(); }}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>3-Way Match Review</DialogTitle>
+					<DialogDescription>
+						Compare PO, receipt, and invoice totals to verify the match.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="mt-4 space-y-4">
+					{isLoading && (
+						<div className="flex items-center justify-center py-8">
+							<LoadingSpinner size="md" />
+						</div>
+					)}
+
+					{!isLoading && preview && (
+						<>
+							<table className="w-full text-sm">
+								<thead>
+									<tr className="border-b">
+										<th className="text-left pb-2 font-medium text-muted-foreground">Source</th>
+										<th className="text-right pb-2 font-medium text-muted-foreground">Amount</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr className="border-b last:border-0">
+										<td className="py-2">Purchase Order</td>
+										<td className="py-2 text-right tabular-nums font-medium">
+											{preview.poTotalCents !== null ? formatPrice(preview.poTotalCents, "MYR") : "N/A"}
+										</td>
+									</tr>
+									<tr className="border-b last:border-0">
+										<td className="py-2">Goods Receipt</td>
+										<td className="py-2 text-right tabular-nums font-medium">
+											{preview.receiptTotalCents !== null ? formatPrice(preview.receiptTotalCents, "MYR") : "N/A"}
+										</td>
+									</tr>
+									<tr>
+										<td className="py-2">Invoice</td>
+										<td className="py-2 text-right tabular-nums font-medium">
+											{formatPrice(preview.invoiceTotalCents, "MYR")}
+										</td>
+									</tr>
+								</tbody>
+							</table>
+
+							<div className="text-xs text-muted-foreground">
+								Tolerance: {formatPrice(preview.toleranceCents, "MYR")}
+							</div>
+
+							{preview.isWithinTolerance ? (
+								<div className="rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700 font-medium">
+									Within Tolerance — Ready to approve
+								</div>
+							) : (
+								<div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+									<p className="font-medium mb-1">Mismatch Detected</p>
+									<ul className="list-disc list-inside space-y-0.5">
+										{preview.mismatches.map((m, i) => (
+											<li key={i}>{m}</li>
+										))}
+									</ul>
+								</div>
+							)}
+
+							{actionError && (
+								<div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+									{actionError}
+								</div>
+							)}
+
+							{showDisputeForm ? (
+								<div className="space-y-2">
+									<Label htmlFor="dispute-reason">Dispute Reason</Label>
+									<Textarea
+										id="dispute-reason"
+										value={disputeReason}
+										onChange={(e) => setDisputeReason(e.target.value)}
+										placeholder="Describe the discrepancy…"
+										rows={3}
+									/>
+									<div className="flex gap-2 justify-end">
+										<Button variant="outline" size="sm" onClick={() => setShowDisputeForm(false)}>
+											Back
+										</Button>
+										<Button
+											size="sm"
+											variant="destructive"
+											disabled={!disputeReason.trim() || disputeMutation.isPending}
+											onClick={() => {
+												if (!invoiceId) return;
+												setActionError(null);
+												disputeMutation.mutate({ organizationId, invoiceId, reason: disputeReason.trim() });
+											}}
+										>
+											{disputeMutation.isPending ? "Saving…" : "Confirm Dispute"}
+										</Button>
+									</div>
+								</div>
+							) : (
+								<div className="flex gap-2 justify-end">
+									<Button variant="outline" onClick={handleClose}>
+										Close
+									</Button>
+									{preview.isWithinTolerance ? (
+										<Button
+											disabled={matchMutation.isPending}
+											onClick={() => {
+												if (!invoiceId) return;
+												setActionError(null);
+												matchMutation.mutate({ organizationId, invoiceId });
+											}}
+										>
+											{matchMutation.isPending ? "Approving…" : "Approve Match"}
+										</Button>
+									) : (
+										<Button
+											variant="destructive"
+											onClick={() => setShowDisputeForm(true)}
+										>
+											Dispute Invoice
+										</Button>
+									)}
+								</div>
+							)}
+						</>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// MarkPaidDialog
+// ---------------------------------------------------------------------------
+
+type MarkPaidDialogProps = {
+	invoiceId: string | null;
+	invoiceNumber: string;
+	organizationId: string;
+	onClose: () => void;
+	onDone: () => void;
+};
+
+function MarkPaidDialog({ invoiceId, invoiceNumber, organizationId, onClose, onDone }: MarkPaidDialogProps) {
+	const [paymentReference, setPaymentReference] = useState("");
+	const qc = useQueryClient();
+
+	const paidMutation = useApiMutation({
+		mutationFn: (input: Parameters<typeof client.goodsReceipts.markInvoicePaid>[0]) =>
+			client.goodsReceipts.markInvoicePaid(input),
+		successMessage: "Invoice marked as paid.",
+		errorMessage: (err) => `Failed to mark as paid: ${err.message}`,
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["supplierInvoices", organizationId] });
+			onDone();
+			handleClose();
+		},
+	});
+
+	function handleClose() {
+		setPaymentReference("");
+		onClose();
+	}
+
+	return (
+		<Dialog open={!!invoiceId} onOpenChange={(open) => { if (!open) handleClose(); }}>
+			<DialogContent className="sm:max-w-sm">
+				<DialogHeader>
+					<DialogTitle>Mark Invoice as Paid</DialogTitle>
+					<DialogDescription>
+						Confirm that payment for invoice {invoiceNumber} has been sent.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="mt-4 space-y-4">
+					<div className="space-y-1.5">
+						<Label htmlFor="pay-ref">Payment Reference (optional)</Label>
+						<Input
+							id="pay-ref"
+							value={paymentReference}
+							onChange={(e) => setPaymentReference(e.target.value)}
+							placeholder="e.g. TXN-12345"
+						/>
+					</div>
+
+					<div className="flex gap-2 justify-end">
+						<Button variant="outline" onClick={handleClose} disabled={paidMutation.isPending}>
+							Cancel
+						</Button>
+						<Button
+							disabled={paidMutation.isPending}
+							onClick={() => {
+								if (!invoiceId) return;
+								paidMutation.mutate({
+									organizationId,
+									invoiceId,
+									paymentReference: paymentReference.trim() || undefined,
+								});
+							}}
+						>
+							{paidMutation.isPending ? "Saving…" : "Confirm Paid"}
+						</Button>
+					</div>
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// SupplierInvoicesTab
+// ---------------------------------------------------------------------------
+
+type SupplierInvoicesTabProps = {
+	organizationId: string;
+	canCreate: boolean;
+	canUpdate: boolean;
+};
+
+function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, canUpdate }: SupplierInvoicesTabProps) {
+	const [reviewInvoiceId, setReviewInvoiceId] = useState<string | null>(null);
+	const [paidInvoice, setPaidInvoice] = useState<{ id: string; number: string } | null>(null);
+	const [statusFilter, setStatusFilter] = useState("");
+
+	const { data: invoices = [], isLoading, isError, error, refetch } = useQuery({
+		queryKey: ["supplierInvoices", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return [];
+			return client.goodsReceipts.listInvoices({
+				organizationId,
+				status: statusFilter || undefined,
+			});
+		},
+		enabled: !!organizationId,
+	});
+
+	const { data: suppliers = [] } = useQuery({
+		queryKey: ["suppliers", organizationId],
+		queryFn: () => client.suppliers.list({ organizationId }),
+		enabled: !!organizationId,
+	});
+
+	const supplierMap = useMemo(
+		() => new Map(suppliers.map((s) => [s.id, s.name])),
+		[suppliers],
+	);
+
+	type InvoiceRow = (typeof invoices)[number];
+
+	const columns: ColumnDef<InvoiceRow>[] = [
+		{
+			id: "invoiceNumber",
+			header: "Invoice #",
+			accessorKey: "invoiceNumber",
+			cell: ({ row }) => <CopyableCell value={row.original.invoiceNumber} />,
+		},
+		{
+			id: "supplierId",
+			header: "Supplier",
+			accessorKey: "supplierId",
+			cell: ({ row }) => (
+				<span className="text-sm">{supplierMap.get(row.original.supplierId) ?? row.original.supplierId.slice(0, 8) + "…"}</span>
+			),
+		},
+		{
+			id: "purchaseOrderId",
+			header: "PO",
+			accessorKey: "purchaseOrderId",
+			cell: ({ row }) => (
+				<span className="text-xs font-mono text-muted-foreground">
+					{row.original.purchaseOrderId ? row.original.purchaseOrderId.slice(0, 8) + "…" : "—"}
+				</span>
+			),
+		},
+		{
+			id: "invoiceDate",
+			header: "Invoice Date",
+			accessorKey: "invoiceDate",
+			cell: ({ row }) => <span className="text-sm">{formatDate(row.original.invoiceDate)}</span>,
+		},
+		{
+			id: "dueDate",
+			header: "Due Date",
+			accessorKey: "dueDate",
+			cell: ({ row }) => (
+				<span className="text-sm">
+					{row.original.dueDate ? formatDate(row.original.dueDate) : <span className="text-muted-foreground">—</span>}
+				</span>
+			),
+		},
+		{
+			id: "totalCents",
+			header: "Amount (MYR)",
+			accessorKey: "totalCents",
+			cell: ({ row }) => (
+				<span className="text-sm font-medium tabular-nums">{formatPrice(row.original.totalCents, "MYR")}</span>
+			),
+		},
+		{
+			id: "status",
+			header: "Status",
+			accessorKey: "status",
+			cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			cell: ({ row }) => {
+				const { id, status, invoiceNumber } = row.original;
+				if (!canUpdate) return <span className="text-muted-foreground text-xs">—</span>;
+				return (
+					<div className="flex items-center gap-1.5">
+						{(status === "pending" || status === "disputed") && (
+							<Button
+								size="sm"
+								variant="outline"
+								className="h-7 text-xs"
+								onClick={() => setReviewInvoiceId(id)}
+							>
+								Review Match
+							</Button>
+						)}
+						{status === "matched" && (
+							<Button
+								size="sm"
+								variant="outline"
+								className="h-7 text-xs"
+								onClick={() => setPaidInvoice({ id, number: invoiceNumber })}
+							>
+								Mark Paid
+							</Button>
+						)}
+					</div>
+				);
+			},
+		},
+	];
+
+	return (
+		<div className="space-y-4">
+			<div className="flex items-center gap-2">
+				<Select value={statusFilter} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+					<SelectTrigger className="w-40">
+						<SelectValue placeholder="All statuses" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All statuses</SelectItem>
+						<SelectItem value="pending">Pending</SelectItem>
+						<SelectItem value="matched">Matched</SelectItem>
+						<SelectItem value="disputed">Disputed</SelectItem>
+						<SelectItem value="paid">Paid</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
+			<DataTable<InvoiceRow, unknown>
+				columns={columns}
+				data={invoices}
+				emptyTitle="No supplier invoices found"
+				error={isError ? error : undefined}
+				onRetry={() => refetch()}
+			/>
+
+			{isLoading && (
+				<div className="flex justify-center py-6">
+					<LoadingSpinner size="md" />
+				</div>
+			)}
+
+			<MatchReviewDialog
+				invoiceId={reviewInvoiceId}
+				organizationId={organizationId}
+				onClose={() => setReviewInvoiceId(null)}
+				onAction={() => refetch()}
+			/>
+
+			{paidInvoice && (
+				<MarkPaidDialog
+					invoiceId={paidInvoice.id}
+					invoiceNumber={paidInvoice.number}
+					organizationId={organizationId}
+					onClose={() => setPaidInvoice(null)}
+					onDone={() => refetch()}
+				/>
+			)}
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Main route component
 // ---------------------------------------------------------------------------
 
@@ -545,6 +1223,7 @@ function RouteComponent() {
 
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
 	const [receivePoId, setReceivePoId] = useState<string | null>(null);
+	const [invoicePoId, setInvoicePoId] = useState<string | null>(null);
 
 	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["purchaseOrders", organizationId],
@@ -645,12 +1324,13 @@ function RouteComponent() {
 			header: "Actions",
 			cell: ({ row }) => {
 				const { id, status } = row.original;
-				if (!canUpdate) {
+				if (!canUpdate && !canCreate) {
 					return <span className="text-muted-foreground text-xs">—</span>;
 				}
 				const isApprovable = status === "draft";
 				const isReceivable = ["approved", "ordered", "partially_received"].includes(status);
 				const isCancellable = ["draft", "approved"].includes(status);
+				const isInvoiceable = ["received", "partially_received"].includes(status);
 
 				return (
 					<div className="flex items-center gap-1.5">
@@ -686,6 +1366,17 @@ function RouteComponent() {
 								disabled={cancelMutation.isPending}
 							>
 								Cancel
+							</Button>
+						)}
+						{isInvoiceable && canCreate && (
+							<Button
+								size="sm"
+								variant="outline"
+								className="h-7 text-xs"
+								onClick={() => setInvoicePoId(id)}
+							>
+								<FileText className="h-3 w-3 mr-1" />
+								Invoice
 							</Button>
 						)}
 					</div>
@@ -727,15 +1418,34 @@ function RouteComponent() {
 				)}
 			</div>
 
-			{/* Table */}
-			<DataTable<PurchaseOrderRow, unknown>
-				columns={columns}
-				data={data}
-				emptyTitle="No purchase orders found"
-				emptyAction={canCreate ? { label: "New PO", onClick: () => setCreateSheetOpen(true) } : undefined}
-				error={isError ? error : undefined}
-				onRetry={() => refetch()}
-			/>
+			{/* Tabs */}
+			<Tabs defaultValue="orders" className="space-y-4">
+				<TabsList>
+					<TabsTrigger value="orders">Purchase Orders</TabsTrigger>
+					<TabsTrigger value="invoices">Supplier Invoices</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="orders">
+					<DataTable<PurchaseOrderRow, unknown>
+						columns={columns}
+						data={data}
+						emptyTitle="No purchase orders found"
+						emptyAction={canCreate ? { label: "New PO", onClick: () => setCreateSheetOpen(true) } : undefined}
+						error={isError ? error : undefined}
+						onRetry={() => refetch()}
+					/>
+				</TabsContent>
+
+				<TabsContent value="invoices">
+					{organizationId && (
+						<SupplierInvoicesTab
+							organizationId={organizationId}
+							canCreate={canCreate}
+							canUpdate={canUpdate}
+						/>
+					)}
+				</TabsContent>
+			</Tabs>
 
 			{/* Create Sheet */}
 			{organizationId && canCreate && (
@@ -754,6 +1464,16 @@ function RouteComponent() {
 					organizationId={organizationId}
 					onClose={() => setReceivePoId(null)}
 					onDone={handleInvalidate}
+				/>
+			)}
+
+			{/* Record Invoice Dialog */}
+			{organizationId && (
+				<RecordInvoiceDialog
+					poId={invoicePoId}
+					organizationId={organizationId}
+					onClose={() => setInvoicePoId(null)}
+					onCreated={handleInvalidate}
 				/>
 			)}
 		</div>

@@ -3,6 +3,7 @@ import { ServicesPage } from "@/components/pages/services/services-page";
 import { ServiceCategoriesPage } from "@/components/pages/services/categories-page";
 import { RoomsPage } from "@/components/pages/services/rooms-page";
 import { PromotionsPage } from "@/components/pages/services/promotions-page";
+import { ServicePricingPage } from "@/components/pages/services/pricing-page";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/service/view",
@@ -18,6 +19,7 @@ const TABS = [
 	{ id: "categories", label: "Categories" },
 	{ id: "rooms", label: "Rooms" },
 	{ id: "promotions", label: "Promotions" },
+	{ id: "pricing", label: "Pricing" },
 ];
 
 function ServicesTabPage() {
@@ -25,7 +27,9 @@ function ServicesTabPage() {
 	const navigate = Route.useNavigate();
 
 	const content =
-		tab === "promotions" ? (
+		tab === "pricing" ? (
+			<ServicePricingPage />
+		) : tab === "promotions" ? (
 			<PromotionsPage />
 		) : tab === "rooms" ? (
 			<RoomsPage />

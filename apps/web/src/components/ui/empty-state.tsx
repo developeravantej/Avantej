@@ -15,6 +15,7 @@ interface EmptyStateProps {
 	};
 	context?: "empty" | "search";
 	className?: string;
+	"data-testid"?: string;
 }
 
 export function EmptyState({
@@ -24,11 +25,13 @@ export function EmptyState({
 	action,
 	context = "empty",
 	className,
+	"data-testid": testId = "empty-state",
 }: EmptyStateProps) {
 	const showAction = action !== undefined && context !== "search";
 
 	return (
 		<div
+			data-testid={testId}
 			className={cn(
 				"flex flex-col items-center justify-center gap-4 py-16 text-center",
 				className,

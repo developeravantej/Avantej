@@ -37,6 +37,7 @@ export type Resource =
 	// Sales & payments
 	| "sales"
 	| "payments"
+	| "package_management"
 	| "promotion_management"
 	| "tax_configuration"
 	// Inventory & purchasing

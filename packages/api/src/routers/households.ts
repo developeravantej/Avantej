@@ -234,7 +234,12 @@ export const householdsRouter = {
 	/**
 	 * List households. Optional `branchId` narrows the result to households that
 	 * have at least one member whose tenant `members` row is scoped to that
-	 * branch (hierarchyScopeId). Without `branchId` returns all households.
+	 * branch (hierarchyScopeId). Without `branchId`:
+	 * - Admins see all households.
+	 * - Staff/non-admin members are scoped to households where at least one
+	 *   customer profile belongs to a user in their accessible hierarchy nodes
+	 *   (`accessibleNodeIds`). This prevents staff from reading all-org household
+	 *   data outside their scope.
 	 */
 	list: protectedProcedure
 		.input(
@@ -250,19 +255,35 @@ export const householdsRouter = {
 			// biome-ignore lint/suspicious/noExplicitAny: tenantDb is dynamic
 			const db = context.tenantDb as any;
 
-			if (!input.branchId) {
+			const isAdmin = context.member.role === "admin";
+			const accessibleNodeIds = (context as any).accessibleNodeIds as string[] | null | undefined;
+
+			// Determine the effective branch filter:
+			// - explicit branchId wins (used for drill-down UIs)
+			// - no branchId + admin → no scope restriction
+			// - no branchId + staff → restrict to accessibleNodeIds scope
+			const scopeNodeIds: string[] | null =
+				input.branchId
+					? [input.branchId]
+					: isAdmin
+						? null // null = unrestricted
+						: (accessibleNodeIds && accessibleNodeIds.length > 0 ? accessibleNodeIds : null);
+
+			// If there is no scope restriction, return all households.
+			if (scopeNodeIds === null) {
 				return db
 					.select()
 					.from(households)
 					.orderBy(asc(households.name));
 			}
 
-			// branchId filter: find userIds of members in that branch, map to
-			// customer_profiles, take their distinct householdIds.
+			// Scoped path: find userIds of members whose hierarchyScopeId falls
+			// within the scope node set, then map through customer_profiles to
+			// collect the distinct householdIds.
 			const memberRows = await db
 				.select({ userId: members.userId })
 				.from(members)
-				.where(eq(members.hierarchyScopeId, input.branchId));
+				.where(inArray(members.hierarchyScopeId, scopeNodeIds));
 
 			if (memberRows.length === 0) return [];
 

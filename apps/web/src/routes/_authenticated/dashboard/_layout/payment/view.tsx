@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CreditCard } from "lucide-react";
+import { CreditCard, History } from "lucide-react";
 import {
-	columns,
+	buildColumns,
 	type PaymentRow,
 } from "@/components/tables/payment/view/columns";
 import DataTable from "@/components/tables/payment/view/data-table";
@@ -10,6 +10,15 @@ import { Separator } from "@/components/ui/separator";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { useMemo, useState } from "react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payment/view",
@@ -17,9 +26,26 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
+function PaymentHistoryPanel({
+	organizationId,
+	paymentId,
+}: {
+	organizationId: string;
+	paymentId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["invoices", "paymentStatusHistory", paymentId],
+		queryFn: () =>
+			client.invoices.paymentStatusHistory({ organizationId, paymentId }),
+	});
+	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
+}
+
 function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+
+	const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
 	const {
 		data: invoicesApiData = [],
@@ -37,12 +63,18 @@ function RouteComponent() {
 		date: item.date ? item.date.toISOString() : null,
 		invoice: item.invoiceNumber,
 		sales_order: item.salesOrderId ?? null,
+		payment_id: item.paymentId ?? null,
 		mode: item.paymentMode ?? null,
 		total_paid: item.totalAmount,
 		customer_name: item.customerName,
 		created_by: item.createdBy,
 		e_invoice_status: item.eInvoiceStatus ?? null,
 	}));
+
+	const columns = useMemo(
+		() => buildColumns((paymentId) => setSelectedPaymentId(paymentId)),
+		[],
+	);
 
 	return (
 		<div className="p-6 space-y-6">
@@ -70,6 +102,32 @@ function RouteComponent() {
 					/>
 				)}
 			</div>
+
+			{/* ── Payment Status History Dialog ── */}
+			<Dialog
+				open={selectedPaymentId !== null}
+				onOpenChange={(open) => {
+					if (!open) setSelectedPaymentId(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<History className="h-4 w-4 text-muted-foreground" />
+							Payment Status History
+						</DialogTitle>
+						<DialogDescription>
+							Status transitions for this payment.
+						</DialogDescription>
+					</DialogHeader>
+					{selectedPaymentId && organizationId && (
+						<PaymentHistoryPanel
+							organizationId={organizationId}
+							paymentId={selectedPaymentId}
+						/>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

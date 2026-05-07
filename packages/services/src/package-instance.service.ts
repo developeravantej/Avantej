@@ -11,8 +11,9 @@
  * ```
  */
 
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, inArray, sql, or, lt, desc } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { packageInstanceStatusHistory } from "@avantej-core/db/schema/tenant/package-instance-status-history";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { user } from "@avantej-core/db/schema/auth";
@@ -423,4 +424,38 @@ export async function updatePackageInstance(
     });
   }
   return row;
+}
+
+export type PackageInstanceHistoryQueryOpts = {
+	parsedCursor: { changedAt: Date; id: string } | null;
+	limit: number;
+};
+
+export async function getPackageInstanceStatusHistory(
+	tenantDb: TenantDb,
+	packageInstanceId: string,
+	{ parsedCursor, limit }: PackageInstanceHistoryQueryOpts,
+) {
+	return tenantDb
+		.select()
+		.from(packageInstanceStatusHistory)
+		.where(
+			and(
+				eq(packageInstanceStatusHistory.packageInstanceId, packageInstanceId),
+				parsedCursor
+					? or(
+							lt(packageInstanceStatusHistory.changedAt, parsedCursor.changedAt),
+							and(
+								eq(packageInstanceStatusHistory.changedAt, parsedCursor.changedAt),
+								lt(packageInstanceStatusHistory.id, parsedCursor.id),
+							),
+						)
+					: undefined,
+			),
+		)
+		.orderBy(
+			desc(packageInstanceStatusHistory.changedAt),
+			desc(packageInstanceStatusHistory.id),
+		)
+		.limit(limit + 1);
 }

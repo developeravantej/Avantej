@@ -120,6 +120,11 @@ export async function seedRBACData(
 		{ resource: "commission_payout", action: "read" },
 		{ resource: "commission_payout", action: "create" },
 		{ resource: "commission_payout", action: "update" },
+		// Package management (multi-staff Phase 1 — assign staff to package instances)
+		{ resource: "package_management", action: "read" },
+		{ resource: "package_management", action: "create" },
+		{ resource: "package_management", action: "update" },
+		{ resource: "package_management", action: "delete" },
 	];
 
 	// Insert roles (skip if exists)

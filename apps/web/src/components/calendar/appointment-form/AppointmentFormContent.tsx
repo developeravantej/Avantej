@@ -47,6 +47,9 @@ type AppointmentFormContentProps = {
 	additionalSlotTrainers: string[];
 	setAdditionalSlotTrainers: React.Dispatch<React.SetStateAction<string[]>>;
 	// Derived
+	derivedTrainers: { id: string; name: string; role: string; department: string }[];
+	trainerFilterActive: boolean;
+	trainerFilterFallback: boolean;
 	isLoadingPackages: boolean;
 	purchasedServiceIds: Set<string>;
 	selectedClassSlotService: Service | null;
@@ -85,6 +88,7 @@ export function AppointmentFormContent({
 	appointmentSlots, setAppointmentSlots, selectedAppointmentId, setSelectedAppointmentId,
 	isTestDialogOpen, setIsTestDialogOpen, testAppointmentData, setTestAppointmentData,
 	selectedClassSlotId, setSelectedClassSlotId, additionalSlotTrainers, setAdditionalSlotTrainers,
+	derivedTrainers, trainerFilterActive, trainerFilterFallback,
 	isLoadingPackages, purchasedServiceIds, selectedClassSlotService, commissionSlots,
 	classSlotOptions, trainerPlaceholder, getWeekPosition, formatDuration,
 	handleClientChange, handleInputChange, addService, removeService, adjustDuration,
@@ -740,7 +744,7 @@ export function AppointmentFormContent({
 																onNavigateAway={onClose}
 															/>
 															<StaffPicker
-																trainers={trainers}
+																trainers={derivedTrainers}
 																commissionSlots={commissionSlots}
 																employeeId={newAppointment.employeeId}
 																additionalSlotTrainers={additionalSlotTrainers}
@@ -755,6 +759,8 @@ export function AppointmentFormContent({
 																trainerPlaceholder={trainerPlaceholder}
 																disableWhenNoRoom
 																roomId={newAppointment.roomId}
+																trainerFilterActive={trainerFilterActive}
+																trainerFilterFallback={trainerFilterFallback}
 															/>
 														</div>
 													</div>

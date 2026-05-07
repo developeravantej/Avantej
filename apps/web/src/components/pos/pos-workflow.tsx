@@ -618,6 +618,7 @@ export function PosWorkflow({
 									) : (
 										<ItemsStep
 											organizationId={organizationId}
+											selectedCustomer={selectedCustomer}
 											items={items}
 											onAddItem={handleAddItem}
 											onUpdateItem={handleUpdateItem}

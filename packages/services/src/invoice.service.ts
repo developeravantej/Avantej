@@ -1,5 +1,6 @@
-import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, sql } from "drizzle-orm";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
+import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -43,9 +44,32 @@ async function generateInvoiceNumber(
 
 export async function listInvoices(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { status?: string; customerId?: string; from?: Date; to?: Date; salesOrderId?: string } = {}
+	params: { status?: string; customerId?: string; from?: Date; to?: Date; salesOrderId?: string; accessibleNodeIds?: string[] } = {}
 ): Promise<(typeof invoices.$inferSelect)[]> {
-	const { status, customerId, from, to, salesOrderId } = params;
+	const { status, customerId, from, to, salesOrderId, accessibleNodeIds } = params;
+
+	// When accessibleNodeIds is provided, scope to invoices whose linked sales order
+	// falls within the accessible branches. Invoices with no sales order (orphans) are
+	// hidden from scoped staff — this is the safe default (no sales order = no branch
+	// context to authorise against). Admins get accessibleNodeIds=undefined and bypass.
+	if (accessibleNodeIds !== undefined && accessibleNodeIds.length > 0) {
+		// JOIN through salesOrders to filter by branchId
+		const invoiceConditions = [];
+		if (status) invoiceConditions.push(eq(invoices.status, status));
+		if (customerId) invoiceConditions.push(eq(invoices.customerId, customerId));
+		if (from) invoiceConditions.push(gte(invoices.date, from));
+		if (to) invoiceConditions.push(lte(invoices.date, to));
+		if (salesOrderId) invoiceConditions.push(eq(invoices.salesOrderId, salesOrderId));
+		invoiceConditions.push(inArray(salesOrders.branchId, accessibleNodeIds));
+
+		return tenantDb
+			.select({ invoice: invoices })
+			.from(invoices)
+			.innerJoin(salesOrders, eq(invoices.salesOrderId, salesOrders.id))
+			.where(and(...invoiceConditions))
+			.orderBy(desc(invoices.date))
+			.then((rows) => rows.map((r) => r.invoice));
+	}
 
 	const conditions = [];
 	if (status) {

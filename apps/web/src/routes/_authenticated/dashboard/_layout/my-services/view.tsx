@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import { CategoryBufferRow, type CategoryBufferRowData } from "@/components/trainers/category-buffer-row";
 import type { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,6 +47,7 @@ type ServiceBufferAssignment = {
 function MyServicesView() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? "";
+	const queryClient = useQueryClient();
 
 	// ── Sheet state ──────────────────────────────────────────────────────────
 
@@ -85,6 +87,25 @@ function MyServicesView() {
 			setSheetOpen(false);
 			setSelectedService(null);
 		},
+	});
+
+	// ── Category buffer query & mutation ────────────────────────────────────
+
+	const { data: categoryBuffers = [] } = useQuery({
+		queryKey: ["myCategoryBuffers", organizationId],
+		queryFn: () =>
+			client.categoryBufferOverrides.listMine({ organizationId }),
+		enabled: !!organizationId,
+	});
+
+	const updateCategoryMutation = useMutation({
+		mutationFn: (args: { categoryId: string; bufferTimeMinutes: number | null }) =>
+			client.categoryBufferOverrides.updateMine({ organizationId, ...args }),
+		onSuccess: () => {
+			toast.success("Category buffer updated");
+			queryClient.invalidateQueries({ queryKey: ["myCategoryBuffers", organizationId] });
+		},
+		onError: () => toast.error("Failed to update"),
 	});
 
 	// ── Sheet helpers ────────────────────────────────────────────────────────
@@ -245,7 +266,33 @@ function MyServicesView() {
 				/>
 			)}
 
-			{/* Edit Buffer Dialog */}
+			{/* Category Buffer Defaults */}
+			<div className="mt-6 space-y-2">
+				<p className="text-sm font-semibold">Category Buffer Defaults</p>
+				<p className="text-xs text-muted-foreground">
+					Set your default buffer for each service category. Leave blank to use
+					the org default. Service-level overrides take priority.
+				</p>
+				{categoryBuffers.length === 0 ? (
+					<p className="text-xs text-muted-foreground">
+						No service categories assigned.
+					</p>
+				) : (
+					<div className="flex flex-col gap-2">
+						{categoryBuffers.map((cat) => (
+							<CategoryBufferRow
+								key={cat.categoryId}
+								cat={cat as CategoryBufferRowData}
+								onSave={(categoryId, bufferTimeMinutes) =>
+									updateCategoryMutation.mutate({ categoryId, bufferTimeMinutes })
+								}
+							/>
+						))}
+					</div>
+				)}
+			</div>
+
+		{/* Edit Buffer Dialog */}
 			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {

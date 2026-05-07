@@ -279,7 +279,7 @@ export const adminRouter = {
 	 */
 	impersonateUser: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin", "support"]))
-		.input(z.object({ userId: z.string() }))
+		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
 				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
@@ -569,7 +569,7 @@ export const adminRouter = {
 		.use(requirePlatformAdmin(["super_admin"]))
 		.input(
 			z.object({
-				userId: z.string(),
+				userId: z.string().min(1).max(64),
 				role: z.enum(["super_admin", "support", "billing"]),
 			})
 		)
@@ -621,7 +621,7 @@ export const adminRouter = {
 	 */
 	revokePlatformAdmin: adminProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
-		.input(z.object({ userId: z.string() }))
+		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
 			if (input.userId === context.session!.user.id) {
 				throw new ORPCError("FORBIDDEN", {
