@@ -165,6 +165,7 @@ describe("Invitations — org-wide scope (Ticket B fix)", () => {
 			hierarchyScopeId: TEST_BRANCH_NODE_ID,
 			joinedAt: new Date(),
 			trainerTierId: null,
+			deletedAt: null,
 		};
 
 		await expect(

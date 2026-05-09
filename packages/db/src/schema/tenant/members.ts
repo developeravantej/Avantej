@@ -32,6 +32,11 @@ export const members = pgTable("members", {
 	status: text("status").notNull(), // active, suspended
 	joinedAt: timestamp("joined_at").defaultNow().notNull(),
 	trainerTierId: uuid("trainer_tier_id").references(() => trainerTiers.id, { onDelete: "set null" }),
+	// Soft-delete marker. Additive to `status` (which captures active/suspended/inactive
+	// for the deactivate flow). When non-null, the row is hidden from default member
+	// queries and surfaced only when callers opt in via `includeDeleted`. Soft-delete
+	// is a GHL no-op (mirrors customer parity except customers also fire GHL DELETE).
+	deletedAt: timestamp("deleted_at"),
 }, (table) => ({
 	// Unique constraint: one membership per user in this tenant
 	userIdUniqueIdx: uniqueIndex("members_user_idx").on(table.userId),
@@ -40,5 +45,6 @@ export const members = pgTable("members", {
 	roleIdx: index("members_role_idx").on(table.role),
 	statusIdx: index("members_status_idx").on(table.status),
 	trainerTierIdx: index("members_trainer_tier_idx").on(table.trainerTierId),
+	deletedAtIdx: index("members_deleted_at_idx").on(table.deletedAt),
 }));
 
