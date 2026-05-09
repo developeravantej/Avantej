@@ -1,5 +1,12 @@
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 import type { AppRouterClient } from "@/utils/orpc";
+
+type AnyFn = (...args: any[]) => any;
+type DeepMock<T> = T extends AnyFn
+	? Mock & T
+	: T extends object
+		? { [K in keyof T]: DeepMock<T[K]> }
+		: T;
 
 // Proxy-based mock: auto-handles any router/procedure path.
 // - Uses vi.fn() as target so vi.mocked() works
@@ -10,7 +17,7 @@ function makeMockNamespace(path: string[] = []): unknown {
 	const fn = vi.fn().mockResolvedValue(undefined);
 	return new Proxy(fn, {
 		get(target, prop) {
-			if (prop in target) return (target as Record<string | symbol, unknown>)[prop];
+			if (prop in target) return (target as unknown as Record<string | symbol, unknown>)[prop];
 			if (prop === "key") return () => [...path, String(prop)];
 			if (prop === "queryOptions") {
 				return (opts?: unknown) => ({
@@ -33,5 +40,5 @@ function makeMockNamespace(path: string[] = []): unknown {
 	});
 }
 
-export const mockClient = makeMockNamespace() as AppRouterClient;
+export const mockClient = makeMockNamespace() as unknown as DeepMock<AppRouterClient>;
 export const mockOrpc = makeMockNamespace();

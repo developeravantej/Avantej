@@ -62,7 +62,7 @@ export function ProductPriceOverrideDialog({
 	});
 
 	const branchNodes = (hierarchyData?.nodes ?? []).filter(
-		(n) => n.type === "branch",
+		(n: { id: string; name: string; type: string }) => n.type === "branch",
 	);
 
 	async function handleSubmit(e: React.FormEvent) {
@@ -154,7 +154,7 @@ export function ProductPriceOverrideDialog({
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="__org_wide__">Org-wide / All branches</SelectItem>
-								{branchNodes.map((n) => (
+								{branchNodes.map((n: { id: string; name: string }) => (
 									<SelectItem key={n.id} value={n.id}>
 										{n.name}
 									</SelectItem>

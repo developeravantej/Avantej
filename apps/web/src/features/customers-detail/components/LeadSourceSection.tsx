@@ -51,7 +51,7 @@ export function LeadSourceSection(props: {
 	});
 
 	const sourceName = profile?.leadSourceId
-		? (leadSources.find((s) => s.id === profile.leadSourceId)?.name ?? "—")
+		? (leadSources.find((s: { id: string; name: string }) => s.id === profile.leadSourceId)?.name ?? "—")
 		: null;
 
 	const mutation = useMutation({
@@ -150,7 +150,7 @@ export function LeadSourceSection(props: {
 											No sources configured
 										</SelectItem>
 									) : (
-										leadSources.map((s) => (
+										leadSources.map((s: { id: string; name: string; category?: string | null }) => (
 											<SelectItem key={s.id} value={s.id}>
 												{s.name}
 												{s.category ? ` · ${s.category}` : ""}

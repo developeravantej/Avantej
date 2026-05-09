@@ -84,7 +84,9 @@ export const payoutsRouter = {
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(payouts.createdAt))
 				.limit(input.limit)
-				.then((rows) => rows.map((r) => r.payout));
+				.then((rows: Array<{ payout: typeof payouts.$inferSelect }>) =>
+					rows.map((r: { payout: typeof payouts.$inferSelect }) => r.payout),
+				);
 
 			if (payoutRows.length === 0) {
 				return [];

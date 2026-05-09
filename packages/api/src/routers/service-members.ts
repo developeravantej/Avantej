@@ -421,10 +421,16 @@ export const serviceMembersRouter = {
 				.leftJoin(memberProfiles, eq(memberProfiles.memberId, serviceMembers.memberId))
 				.where(eq(serviceMembers.serviceId, input.serviceId));
 
-			return rows.map((r) => ({
-				memberId: r.memberId,
-				isPrimary: r.isPrimary,
-				displayName: r.displayName ?? r.memberId,
-			}));
+			return rows.map(
+				(r: {
+					memberId: string;
+					isPrimary: boolean;
+					displayName: string | null;
+				}) => ({
+					memberId: r.memberId,
+					isPrimary: r.isPrimary,
+					displayName: r.displayName ?? r.memberId,
+				}),
+			);
 		}),
 };

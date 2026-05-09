@@ -610,7 +610,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      return context.tenantDb.transaction(async (tx) => {
+      // TODO: tighten tx type
+      return context.tenantDb.transaction(async (tx: any) => {
         // Fetch old parent + its rule
         const oldParent = await tx.query.appointments.findFirst({
           where: eq(appointments.id, input.parentId),
@@ -746,7 +747,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      await context.tenantDb.transaction(async (tx) => {
+      // TODO: tighten tx type
+      await context.tenantDb.transaction(async (tx: any) => {
         const cancelledAt = new Date();
 
         // Cancel the parent (unless already completed)
@@ -798,7 +800,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      await context.tenantDb.transaction(async (tx) => {
+      // TODO: tighten tx type
+      await context.tenantDb.transaction(async (tx: any) => {
         const fromDateObj = new Date(input.fromDate + "T00:00:00.000Z");
         // End-of-day of the day before fromDate — preserves occurrences with time-of-day on that day.
         const prevDay = new Date(fromDateObj);
