@@ -28,6 +28,10 @@ function makeConfig(overrides: Partial<Record<string, unknown>> = {}) {
 		isActive: true,
 		createdAt: new Date(),
 		updatedAt: new Date(),
+		maxPerCycleCents: null as number | null,
+		excludeIfDiscountAbovePct: null as number | null,
+		capAmountCents: null as number | null,
+		floorAmountCents: null as number | null,
 		...overrides,
 	};
 }

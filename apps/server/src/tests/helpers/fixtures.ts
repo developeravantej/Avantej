@@ -51,6 +51,7 @@ export function makeAnnouncement(
 		createdBy: MEMBER_ID,
 		createdAt: new Date(),
 		updatedAt: new Date(),
+		scopedBranchIds: [] as string[],
 		...overrides,
 	};
 }

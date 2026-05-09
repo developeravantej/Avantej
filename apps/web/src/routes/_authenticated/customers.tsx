@@ -527,7 +527,7 @@ function CustomersComponent() {
 											No sources configured
 										</SelectItem>
 									) : (
-										leadSources.map((s) => (
+										leadSources.map((s: { id: string; name: string; category?: string | null }) => (
 											<SelectItem key={s.id} value={s.id}>
 												{s.name}
 												{s.category ? ` · ${s.category}` : ""}

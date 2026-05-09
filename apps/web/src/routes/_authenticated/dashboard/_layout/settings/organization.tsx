@@ -138,7 +138,7 @@ function OrganizationSettingsPage() {
 				: DEFAULT_VALUES.commissionPct,
 			locale: (locale as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
 			packageApprovalRequired:
-				(packageApprovalData?.value ?? "true") === "true",
+				(((packageApprovalData as any)?.value as string | undefined) ?? "true") === "true",
 		});
 	}, [isLoading, gracePeriodData, commissionData, localeData, packageApprovalData, form]);
 
