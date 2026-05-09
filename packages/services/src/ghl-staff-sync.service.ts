@@ -54,6 +54,7 @@ export type SyncStaffOrchestrator = (args: {
 		firstName?: string | null;
 		lastName?: string | null;
 		name?: string | null;
+		phone?: string | null;
 	};
 	member: {
 		id: string;
@@ -204,6 +205,7 @@ export async function dispatchStaffSync(
 				firstName: user.firstName ?? null,
 				lastName: user.lastName ?? null,
 				name: user.name ?? null,
+				phone: user.phone ?? null,
 			},
 			member: {
 				id: member.id,

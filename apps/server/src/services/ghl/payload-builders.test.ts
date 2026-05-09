@@ -195,6 +195,46 @@ describe("buildUserPayload", () => {
 		expect(result.scopesAssignedToOnly).toEqual(result.scopes);
 	});
 
+	test("passes phone through when user has a non-empty phone", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: { ...baseUser, phone: "+60142075523" },
+			memberRole: "staff",
+		});
+		expect(result.phone).toBe("+60142075523");
+	});
+
+	test("omits phone when user.phone is null", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: { ...baseUser, phone: null },
+			memberRole: "staff",
+		});
+		expect(result.phone).toBeUndefined();
+	});
+
+	test("omits phone when user.phone is empty string", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: { ...baseUser, phone: "" },
+			memberRole: "admin",
+		});
+		expect(result.phone).toBeUndefined();
+	});
+
+	test("omits phone when user.phone is undefined", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: baseUser,
+			memberRole: "admin",
+		});
+		expect(result.phone).toBeUndefined();
+	});
+
 	test("maps trainer role with wider permissions + scopes", () => {
 		const result = buildUserPayload({
 			companyId: "agency_xyz",

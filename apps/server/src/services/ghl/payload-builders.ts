@@ -14,6 +14,7 @@ export interface AvantejUser {
 	firstName?: string | null;
 	lastName?: string | null;
 	name?: string | null;
+	phone?: string | null;
 }
 
 export interface AvantejCustomerProfile {
@@ -163,6 +164,12 @@ export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 		locationIds: [locationId],
 		platformLanguage: "en_US",
 	};
+
+	// Pass phone only when non-empty. GHL rejects empty strings on this field
+	// and we never want to overwrite an existing phone with a blank value.
+	if (user.phone && user.phone.trim() !== "") {
+		base.phone = user.phone;
+	}
 
 	if (memberRole === "admin") {
 		return base;
