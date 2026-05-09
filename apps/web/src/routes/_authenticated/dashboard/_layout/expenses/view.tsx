@@ -32,10 +32,14 @@ import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Receipt, Plus, CheckCircle, XCircle, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { requirePermission } from "@/lib/route-guards";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/expenses/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("expense_management:read");
+	},
 	component: ExpensesViewPage,
 });
 

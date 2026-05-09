@@ -21,6 +21,14 @@ const SEED_PERMISSIONS = [
 	// reports
 	{ resource: "reports", action: "read" },
 	{ resource: "reports", action: "export" },
+	// announcement_management
+	{ resource: "announcement_management", action: "read" },
+	{ resource: "announcement_management", action: "write" },
+	{ resource: "announcement_management", action: "delete" },
+	// expense_management
+	{ resource: "expense_management", action: "read" },
+	{ resource: "expense_management", action: "write" },
+	{ resource: "expense_management", action: "delete" },
 	// inventory
 	{ resource: "inventory", action: "create" },
 	{ resource: "inventory", action: "read" },

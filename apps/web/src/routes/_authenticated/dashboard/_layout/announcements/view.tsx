@@ -34,10 +34,14 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Megaphone, Plus, Pin, Edit, Trash2 } from "lucide-react";
+import { requirePermission } from "@/lib/route-guards";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/announcements/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("announcement_management:read");
+	},
 	component: AnnouncementsViewPage,
 });
 
