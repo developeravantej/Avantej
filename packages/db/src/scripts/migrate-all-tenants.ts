@@ -59,6 +59,12 @@ CREATE INDEX "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree (
 CREATE INDEX "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
 CREATE INDEX "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");`,
   },
+  "add-members-deleted-at": {
+    name: "Add deleted_at column for staff member soft-delete",
+    sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" ("deleted_at");`,
+  },
   // Add more migrations here as needed:
   // "migration-name": {
   //   name: "Description of what this does",
