@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -529,35 +529,39 @@ export function MembersTabPage() {
 		priority: r.priority,
 	}));
 
-	const initialUsers: UserForAssignment[] = (
-		membersApiData as MemberApiItem[]
-	).map((m) => ({
-		id: m.id,
-		name: m.name,
-		firstName: m.name.split(" ")[0] ?? m.name,
-		lastName: m.name.split(" ").slice(1).join(" ") ?? "",
-		email: m.email,
-		roles: rolesApiData
-			? (rolesApiData as RoleApiItem[])
-					.filter(
-						(r) => r.name.toLowerCase() === (m.role ?? "").toLowerCase(),
-					)
-					.map((r) => r.id)
-			: [],
-		isActive: m.status === "active",
-		ghlSync: m.ghlSync ?? null,
-	}));
+	// Derive `users` directly from query data. Previously this used
+	// useState + useEffect to mirror the API response, which caused an
+	// infinite render loop while the query was loading: the destructuring
+	// default `data: membersApiData = []` returns a fresh array each render,
+	// the effect's dep `[membersApiData]` therefore changed every render,
+	// `setUsers` fired on every render, and React threw "Maximum update
+	// depth exceeded".
+	const users = useMemo<UserForAssignment[]>(
+		() =>
+			(membersApiData as MemberApiItem[]).map((m) => ({
+				id: m.id,
+				name: m.name,
+				firstName: m.name.split(" ")[0] ?? m.name,
+				lastName: m.name.split(" ").slice(1).join(" ") ?? "",
+				email: m.email,
+				roles: rolesApiData
+					? (rolesApiData as RoleApiItem[])
+							.filter(
+								(r) =>
+									r.name.toLowerCase() === (m.role ?? "").toLowerCase(),
+							)
+							.map((r) => r.id)
+					: [],
+				isActive: m.status === "active",
+				ghlSync: m.ghlSync ?? null,
+			})),
+		[membersApiData, rolesApiData],
+	);
 
-	const [users, setUsers] = useState<UserForAssignment[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [retryingGhlSyncMemberId, setRetryingGhlSyncMemberId] = useState<
 		string | null
 	>(null);
-
-	useEffect(() => {
-		setUsers(initialUsers);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [membersApiData]);
 
 	const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 	const [searchQuery, setSearchQuery] = useState("");
