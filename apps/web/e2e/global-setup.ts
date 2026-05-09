@@ -20,34 +20,39 @@ export default async function globalSetup() {
 			? __dirname
 			: path.dirname(fileURLToPath(import.meta.url));
 	const serverEnvPath = path.resolve(dir, "../../server/.env");
+	const devVarsPath = path.resolve(dir, "../../server/.dev.vars");
 
-	if (!fs.existsSync(serverEnvPath)) {
-		console.warn(
-			`[global-setup] apps/server/.env not found at ${serverEnvPath} — DB env vars must be set externally`,
-		);
-		return;
-	}
+	const KEYS_FROM_ENV = new Set([
+		"DATABASE_URL",
+		"TENANT_DATABASE_URL",
+		"ENCRYPTION_KEY",
+	]);
+	const KEYS_FROM_DEV_VARS = new Set(["GHL_AGENCY_ID"]);
 
-	const content = fs.readFileSync(serverEnvPath, "utf-8");
-
-	for (const line of content.split("\n")) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-		const eqIdx = trimmed.indexOf("=");
-		if (eqIdx === -1) continue;
-		const key = trimmed.slice(0, eqIdx).trim();
-		const value = trimmed.slice(eqIdx + 1).trim();
-		// Only load env keys our fixtures need — don't clobber unrelated env
-		if (
-			key === "DATABASE_URL" ||
-			key === "TENANT_DATABASE_URL" ||
-			key === "ENCRYPTION_KEY"
-		) {
-			// Strip surrounding quotes if present (.env files often quote values)
-			const unquoted = value.replace(/^["']|["']$/g, "");
-			process.env[key] = unquoted;
+	const loadEnvFile = (filePath: string, keys: Set<string>, label: string) => {
+		if (!fs.existsSync(filePath)) {
+			console.warn(`[global-setup] ${label} not found at ${filePath}`);
+			return;
 		}
-	}
+		const content = fs.readFileSync(filePath, "utf-8");
+		for (const line of content.split("\n")) {
+			const trimmed = line.trim();
+			if (!trimmed || trimmed.startsWith("#")) continue;
+			const eqIdx = trimmed.indexOf("=");
+			if (eqIdx === -1) continue;
+			const key = trimmed.slice(0, eqIdx).trim();
+			const value = trimmed.slice(eqIdx + 1).trim();
+			if (keys.has(key)) {
+				const unquoted = value.replace(/^["']|["']$/g, "");
+				process.env[key] = unquoted;
+			}
+		}
+	};
 
-	console.log("[global-setup] Loaded DATABASE_URL, TENANT_DATABASE_URL, ENCRYPTION_KEY from apps/server/.env");
+	loadEnvFile(serverEnvPath, KEYS_FROM_ENV, "apps/server/.env");
+	loadEnvFile(devVarsPath, KEYS_FROM_DEV_VARS, "apps/server/.dev.vars");
+
+	console.log(
+		"[global-setup] Loaded DATABASE_URL, TENANT_DATABASE_URL, ENCRYPTION_KEY from apps/server/.env; GHL_AGENCY_ID from apps/server/.dev.vars",
+	);
 }

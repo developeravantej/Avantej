@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e:test": "playwright test --config playwright.config.ts",
+    "e2e:test:real": "E2E_REAL_GHL=1 playwright test --config playwright.config.real.ts",
     "e2e:install": "playwright install chromium",
     "wrangler:dev": "wrangler dev --port=3001",
     "deploy": "bun run build && wrangler deploy"
