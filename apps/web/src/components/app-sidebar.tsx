@@ -209,6 +209,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Announcements",
 				url: "/dashboard/announcements/view",
 				icon: Megaphone,
+				permission: "announcement_management:read",
 			},
 			{
 				title: "Notifications",
@@ -243,7 +244,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/stock-requests/view",
 				icon: ArrowLeftRight,
 			},
-			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
+			{
+				title: "Expenses",
+				url: "/dashboard/expenses/view",
+				icon: Receipt,
+				permission: "expense_management:read",
+			},
 		],
 	},
 ];
