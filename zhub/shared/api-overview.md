@@ -1,10 +1,28 @@
-﻿# API Overview
+# API Overview
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-09
 
 All oRPC procedures available in the Avantej platform. Client: `client.routerName.procedureName(input)` from `@/utils/orpc`.
 
 Auth levels: **public** = no session required, **protected** = session + tenant context required.
+
+Total routers: 52
+
+---
+
+## New in this update
+
+- **`categoryBufferOverrides`** — new router: listForMember, upsert, listMine, updateMine
+- **`packageInstanceStaff`** — new router: list, assign, remove, replace
+- **`appointments`** — added: materializeOccurrence, splitSeries, cancelSeries, cancelFuture; create now accepts recurrence; list uses virtual occurrences
+- **`announcements`** — create/update now accept `scopedBranchIds`; list accepts `isAdmin` param
+- **`services`** — added: expireBranchPrice, deleteBranchPrice
+- **`products`** — added: expireBranchPrice, deleteBranchPrice
+- **`goodsReceipts`** — added: disputeInvoice, markInvoicePaid, getInvoicePreview; listInvoices updated
+- **`invoices`** — added: paymentStatusHistory (cursor-paginated)
+- **`salesOrders`** — added: statusHistory (cursor-paginated)
+- **`packageInstances`** — added: statusHistory (cursor-paginated), assignTrainer, reject, listPending
+- **`serviceMembers`** — added: listForService
 
 ---
 
@@ -25,19 +43,23 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 ## announcements
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `create` | protected | Create new announcement |
+| `create` | protected | Create new announcement; accepts optional `scopedBranchIds` array |
 | `delete` | protected | Delete announcement by id |
-| `list` | protected | List announcements with optional filters |
+| `list` | protected | List announcements; accepts `isAdmin` param to include all org announcements |
 | `listActive` | protected | List active announcements visible to user |
-| `update` | protected | Update announcement details |
+| `update` | protected | Update announcement details; accepts optional `scopedBranchIds` array |
 
 ## appointments
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `create` | protected | Create new appointment (staff) |
+| `cancelFuture` | protected | Cancel all future occurrences of a recurring series from a given date |
+| `cancelSeries` | protected | Cancel all occurrences of a recurring appointment series |
+| `create` | protected | Create new appointment (staff); accepts recurrence rule input |
 | `getById` | protected | Get appointment details (staff or client owner) |
-| `list` | protected | List appointments by branch/date (staff view) |
+| `list` | protected | List appointments by branch/date; returns virtual occurrences via listAppointmentsWithRecurrence |
 | `listForUser` | protected | List appointments for current user (client view) |
+| `materializeOccurrence` | protected | Persist a virtual recurrence occurrence as a concrete row |
+| `splitSeries` | protected | Split a recurring series at a given date, materializing the target occurrence |
 | `update` | protected | Update appointment status/details |
 
 ## audit-logs
@@ -66,6 +88,14 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 |-----------|------|-------------|
 | `getById` | protected | Get cancelled sale details |
 | `list` | protected | List cancelled sales with optional filters |
+
+## category-buffer-overrides
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `listForMember` | protected | List category buffer overrides for a specific member (requires user_management or service_management read) |
+| `listMine` | protected | List category buffer overrides for the calling member (no permission gate) |
+| `updateMine` | protected | Set/clear calling member's category buffer override; validates member has services in category |
+| `upsert` | protected | Set/clear category buffer override for a specific member (requires user_management or service_management update) |
 
 ## category-commission
 | Procedure | Auth | Description |
@@ -131,6 +161,18 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | `markPaid` | protected | Mark expense as paid |
 | `reject` | protected | Reject expense with reason |
 
+## goods-receipts
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `create` | protected | Create goods receipt |
+| `disputeInvoice` | protected | Raise a dispute on a goods receipt invoice |
+| `getById` | protected | Get goods receipt details |
+| `getInvoicePreview` | protected | Get invoice preview for a goods receipt |
+| `list` | protected | List goods receipts |
+| `listInvoices` | protected | List invoices with optional purchaseOrderId filter and pagination |
+| `markInvoicePaid` | protected | Mark a goods receipt invoice as paid |
+| `update` | protected | Update goods receipt details |
+
 ## google-calendar
 | Procedure | Auth | Description |
 |-----------|------|-------------|
@@ -188,6 +230,7 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | `create` | protected | Create new invoice |
 | `getById` | protected | Get invoice details |
 | `list` | protected | List invoices with optional filters |
+| `paymentStatusHistory` | protected | Cursor-paginated payment status transition log for an invoice |
 | `update` | protected | Update invoice details |
 
 ## member-profiles
@@ -228,16 +271,28 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | `get` | protected | Get organization settings |
 | `upsert` | protected | Update organization settings |
 
+## package-instance-staff
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `assign` | protected | Assign (or UPSERT) a staff member to a slot on a package instance (package_management:update) |
+| `list` | protected | List all staff assignments for a package instance (package_management:read) |
+| `remove` | protected | Remove a staff member from a package instance by staffId (package_management:update) |
+| `replace` | protected | Atomically replace ALL staff assignments for a package instance (package_management:update) |
+
 ## package-instances
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `create` | protected | Create new package instance |
-| `getActiveForClient` | protected | Get active packages for client |
-| `getById` | protected | Get package instance details |
-| `listAll` | protected | List all package instances |
-| `listExpiring` | protected | List packages expiring soon |
-| `listForClient` | protected | List packages for specific client |
-| `listMemberships` | protected | List membership packages |
+| `assignTrainer` | protected | Assign a trainer to a pending package, transitioning it to active (admin or trainer self-assign) |
+| `create` | protected | Create new package instance; approval gate: purchased packages start pending when org setting enabled |
+| `getActiveForClient` | protected | Get active packages for client (session user; native app) |
+| `getById` | protected | Get package instance details (enriched with assignedTrainerName, preferredTrainerName) |
+| `listAll` | protected | List all package instances for org (service_management:read); returns clientName |
+| `listExpiring` | protected | List packages expiring soon (reports:read) |
+| `listForClient` | protected | List packages for specific client (session user; native app) |
+| `listMemberships` | protected | List membership packages with RBAC scope (service_management:read) |
+| `listPending` | protected | List packages awaiting trainer assignment (admin or trainer; enriched with customerName, preferredTrainerName) |
+| `reject` | protected | Reject a pending package — admin only; sets status cancelled and notifies customer |
+| `statusHistory` | protected | Cursor-paginated status transition log (package_management:read) |
 
 ## payouts
 | Procedure | Auth | Description |
@@ -260,7 +315,7 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `list` | protected | List preferred times for package instance |
-| `upsert` | protected | Set preferred appointment times |
+| `upsert` | protected | Set preferred appointment times (up to 4 slots: dayOfWeek + time + priority) |
 
 ## product-categories
 | Procedure | Auth | Description |
@@ -276,6 +331,8 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 |-----------|------|-------------|
 | `adjustStock` | protected | Adjust product stock levels |
 | `create` | protected | Create new product |
+| `deleteBranchPrice` | protected | Delete a branch-specific price override for a product |
+| `expireBranchPrice` | protected | Expire a branch-specific price override for a product |
 | `getById` | protected | Get product details |
 | `getStock` | protected | Get product stock level |
 | `list` | protected | List products with optional filters |
@@ -349,6 +406,7 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | `create` | protected | Create new sales order |
 | `getById` | protected | Get sales order details |
 | `list` | protected | List sales orders |
+| `statusHistory` | protected | Cursor-paginated status transition log for a sales order |
 | `update` | protected | Update sales order details |
 
 ## service-categories
@@ -369,16 +427,19 @@ Auth levels: **public** = no session required, **protected** = session + tenant 
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `assign` | protected | Assign member to service |
-| `listForMember` | protected | List services for member |
-| `listMine` | protected | List services for current member |
+| `listForMember` | protected | List services for a specific member (admin view) |
+| `listForService` | protected | List members assigned to a specific service |
+| `listMine` | protected | List services for current member (self-scoped) |
 | `remove` | protected | Remove member from service |
-| `updateBuffer` | protected | Update service buffer time for member |
-| `updateMyBuffer` | protected | Update buffer time for own service |
+| `updateBuffer` | protected | Update service buffer time for a specific member (admin) |
+| `updateMyBuffer` | protected | Update buffer time for own service assignment (self-scoped) |
 
 ## services
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `create` | protected | Create new service |
+| `deleteBranchPrice` | protected | Delete a branch-specific price override for a service |
+| `expireBranchPrice` | protected | Expire a branch-specific price override for a service |
 | `getById` | protected | Get service details |
 | `list` | protected | List services with optional filters |
 | `update` | protected | Update service details |

@@ -1,8 +1,8 @@
 # Project Hub Index
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-09
 
-Generated from full hub scan. Contains 103 pages (74 web + 29 native screens) plus shared reference docs.
+Generated from full hub scan. Contains 103 pages (74 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-09: 7-feature batch (trainer scheduling, branch pricing, status history, multi-staff+recurrence, service config, announcement scoping, supplier invoices). Updated pages: appointment-view, purchase-orders-view, announcements-view, service-view, products-view, payment-view, sales-detail, my-services-view, packages-instances-view, customers-360. Updated shared: api-overview (52 routers).
 
 ---
 

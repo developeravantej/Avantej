@@ -4,64 +4,102 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-09
+
+---
+
+## New in this update
+
+- **`StatusHistoryCard` added** below the invoices section: fetches and renders the full status change history for the sales order via `client.salesOrders.statusHistory`. Rendered as a vertical timeline (left-border style) with `fromStatus → toStatus` transitions, changedByName, timestamp, reason, and notes.
+- **`salesOrders.statusHistory` procedure added** (cursor-paginated): accepts `{ organizationId, salesOrderId }`.
+- **`PartialRefundDialog` added:** a new "Partial Refund" button appears alongside "Request Refund" (both gated on `refund_management:create`). Opens `PartialRefundDialog` which requires `branchId` from the order.
+- **`formatPrice` import path changed** to `@/lib/money` (was `@/lib/currency`).
+- **`createdByName` field:** Order summary now prefers `order.createdByName` over `order.createdBy` for display (with fallback).
+- **`StatusTimeline` component** (`apps/web/src/components/ui/status-timeline.tsx`) exists as a shared component but `StatusHistoryCard` in this file implements its own inline vertical timeline (does not use the shared component).
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View a single sales order with full details, associated invoices, and options to request refund or print receipt.
+**Purpose (user perspective):** View a single sales order with full details, associated invoices, complete status change history, and options to request full or partial refund, or print receipt.
 
-**Produces:** Header with back button and order info (number, status, date), order summary card, invoices list, print receipt dialog, refund request dialog.
+**Produces:**
+- Header: back button + "Sales Order #NUMBER", status badge, date; action buttons (Request Refund, Partial Refund, Print Receipt).
+- Order Summary card: Total Amount, Customer, Created By, Status badge, Customer Type, legacy refund indicator (if `cancelledAmount > 0`), Notes.
+- Invoices card (if any): list of invoice number, total, and status badge per invoice.
+- Status History card (`StatusHistoryCard`): vertical timeline of all status transitions for this order, each showing `fromStatus → toStatus` (with "Initial state →" when `fromStatus` is null), changed-by name, timestamp, optional reason and notes.
+- Print Receipt dialog.
+- Request Refund dialog.
+- Partial Refund dialog.
 
 **On success:**
-- Order detail loaded and displayed
-- Refund request dialog opened and submitted (navigates to refund page)
-- Receipt printed or viewed
+- Order detail loaded and displayed.
+- Status history loaded and rendered in timeline.
+- Refund request submitted (navigates to refund page).
+- Receipt printed.
 
 **On failure / error states:**
-- Loading spinner during order fetch
-- Error card: "Order not found" with error message and back button
-- Toast errors on refund request
+- `<PageLoader />` while order is loading.
+- Error card: "Order not found" with error message and back button (uses `StatusCallout variant="error"`).
+- `StatusHistoryCard` loading: three `<Skeleton>` rows.
+- `StatusHistoryCard` empty: "No history available."
+- Toast errors on refund request failures.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-1. Route extracts `id` param from URL
-2. Fetches order detail via `client.salesOrders.getById()`
-3. Fetches invoices for order via `client.invoices.list()`
-4. Optionally fetches receipt data via `client.pos.getReceiptData()` (on-demand when print dialog opens)
-5. Displays order summary: total amount, customer, created by, status, customer type, notes
-6. Displays invoices list (if any) with invoice number, total, status
-7. "Request Refund" button (if hasPermission refund_management:create)
-   - Opens RequestRefundDialog component
-   - Pre-fills with order ID, customer name, suggested amount
-8. "Print Receipt" button
-   - Opens Dialog with ReceiptView component
-   - Loads receipt data from API (if available) or builds from order/invoices data
-   - "Print" button triggers window.print()
-9. Legacy refund indicator: if order has cancelledAmount > 0, shows "Already refunded (legacy)" message
+```
+SalesOrderDetailPage
+  → Route.useParams() → id
+  → useUserContext() → organizationId, hasPermission
+  → canRequestRefund = hasPermission("refund_management:create")
+
+  → useQuery(["salesOrders", id])
+      → client.salesOrders.getById({ organizationId, id })
+  → useQuery(["invoices", "by-order", id])
+      → client.invoices.list({ organizationId, salesOrderId: id })
+  → useQuery(["pos-receipt", organizationId, id])   ← enabled only when printDialogOpen
+      → client.pos.getReceiptData({ organizationId, salesOrderId: id })
+
+  → order loaded → render layout:
+      → Order Summary card (dl grid)
+      → Invoices card (if invoices.length > 0)
+      → <StatusHistoryCard organizationId salesOrderId={id} />
+          → useQuery(["salesOrders", "statusHistory", salesOrderId])
+              → client.salesOrders.statusHistory({ organizationId, salesOrderId })
+          → renders inline vertical timeline (left-border ol)
+              → each entry: SalesStatusBadge(fromStatus) → SalesStatusBadge(toStatus)
+              → fromStatus === null → "Initial state →"
+              → changedByName · timestamp
+              → optional reason, notes
+
+  → Print Receipt dialog (lazy: printDialogOpen)
+      → receiptDataRaw != null → mapReceiptResponse(receiptDataRaw) → <ReceiptView data />
+      → fallback → buildReceiptData(order, invoices) → <ReceiptView data />
+      → "Print" → window.print()
+
+  → Request Refund dialog (canRequestRefund && refundDialogOpen)
+      → <RequestRefundDialog> pre-filled: salesOrderId, customerName, suggestedAmountCents
+
+  → Partial Refund dialog (canRequestRefund && partialRefundDialogOpen)
+      → <PartialRefundDialog> with organizationId, branchId=(order as any).branchId
+```
 
 **Inputs:**
 - URL param: `id` (sales order ID)
+- `printDialogOpen`, `refundDialogOpen`, `partialRefundDialogOpen` local state booleans
 
 **State management:**
-- TanStack Query: `["salesOrders", id]`, `["invoices", "by-order", id]`, `["pos-receipt", organizationId, id]`
-- Local state: printDialogOpen, refundDialogOpen
-- Receipt data lazy-loaded only when printDialogOpen is true
-
-**Outputs:**
-- Order detail card with summary fields
-- Invoices list (if any)
-- Refund and print dialogs (conditionally rendered)
-- Back button navigation
+- TanStack Query: `["salesOrders", id]`, `["invoices", "by-order", id]`, `["pos-receipt", organizationId, id]`, `["salesOrders", "statusHistory", id]`
+- Local state: `printDialogOpen`, `refundDialogOpen`, `partialRefundDialogOpen`
+- Receipt data lazy-loaded only when `printDialogOpen` is true
+- Status history query always enabled (not lazy) when `organizationId` is present
 
 **Side effects:**
-- Fetches order, invoices, and (optionally) receipt data
-- No cache invalidation (read-only)
-- No mutations on this page
+- Fetches order, invoices, receipt (on demand), and status history
+- No cache invalidation on this page — read-only except dialog submissions
 
 ---
 
@@ -69,69 +107,81 @@
 
 **Calls these API endpoints:**
 - `client.salesOrders.getById()` — fetch single order by ID
-- `client.invoices.list()` — fetch invoices for order
-- `client.pos.getReceiptData()` — fetch formatted receipt data (optional, on-demand)
+- `client.invoices.list({ organizationId, salesOrderId })` — fetch invoices for this order
+- `client.pos.getReceiptData({ organizationId, salesOrderId })` — receipt data (on demand)
+- `client.salesOrders.statusHistory({ organizationId, salesOrderId })` — **NEW**: cursor-paginated status history
 
 **Uses these components:**
-- `ReceiptView` from `@/components/pos/receipt-view` — render receipt data
-- `RequestRefundDialog` from `@/components/refunds/request-refund-dialog` — refund request form
-- `Link, Button, Card, CardHeader, CardTitle, CardContent, Dialog, DialogContent, StatusBadge, StatusCallout` — UI
-- `ArrowLeft, Printer` icons — button icons
+- `ReceiptView` — `@/components/pos/receipt-view`
+- `RequestRefundDialog` — `@/components/refunds/request-refund-dialog`
+- `PartialRefundDialog` — `@/components/refunds/partial-refund-dialog` — **NEW**
+- `StatusBadge`, `StatusCallout` — UI status components
+- `Card`, `CardHeader`, `CardTitle`, `CardContent` — order and history cards
+- `Dialog`, `DialogContent` — print receipt dialog
+- `Skeleton` — loading state in `StatusHistoryCard`
+- `Button`, `Link` — navigation and actions
+- `ArrowLeft`, `Printer`, `Clock` icons (lucide-react)
 
 **Uses these hooks:**
-- `useUserContext()` — org ID, permission checks (refund_management:create)
-- `useQuery` (React Query) — fetch order, invoices, receipt
-- `useState` — dialog state
-- `Route.useParams()` — extract URL id param
+- `useUserContext()` — org ID, permission checks (`refund_management:create`)
+- `useQuery` (React Query) — order, invoices, receipt, status history
+- `useState` — three dialog state booleans
+- `Route.useParams()` — extract URL `id` param
 
 **Navigation: who navigates here:**
 - Sales list table row click
+- Payment view "View" button (using `sales_order` ID)
 - Direct URL
 - Create sale → redirect on success
 
 **Navigation: where it goes:**
-- "Back to Sales Orders" link → `/dashboard/sales/view`
-- None other (dialogs are modals)
+- "Back to Sales Orders" → `/dashboard/sales/view`
+- No other outbound navigation (dialogs are modals)
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-- `salesOrders` (select)
-- `invoices` (select, where salesOrderId = id)
+| Table | Operation | Key columns used |
+|-------|-----------|-----------------|
+| `sales_orders` | SELECT | `id`, `salesOrderNumber`, `date`, `customerName`, `customerType`, `status`, `totalAmount`, `createdBy`, `createdByName`, `notes`, `cancelledAmount`, `branchId` |
+| `invoices` | SELECT (where salesOrderId = id) | `id`, `invoiceNumber`, `status`, `totalAmount`, `date`, `paymentMode`, `eInvoiceStatus` |
+| `sales_order_status_history` | SELECT (via statusHistory) | `id`, `fromStatus`, `toStatus`, `changedAt`, `changedByName`, `reason`, `notes` |
 
-**Key types / Zod schemas:**
+**Key types:**
 ```typescript
-// From API
 type SalesOrder = {
   id: string;
   salesOrderNumber: string;
   date?: Date | null;
   customerName?: string | null;
   customerType?: "member" | "walk_in" | null;
-  status: string; // "draft" | "pending" | "processing" | "confirmed" | "sent" | "partially_paid" | "paid" | "completed" | "overdue" | "cancelled" | "rejected"
-  totalAmount?: number | null; // in cents?
-  createdBy?: string | null;
-  notes?: string | null;
-  cancelledAmount?: number; // legacy refund (in cents)
-};
-
-type Invoice = {
-  id: string;
-  invoiceNumber: string;
   status: string;
-  totalAmount?: number | null;
-  date?: Date | null;
-  customerName?: string | null;
+  totalAmount?: number | null;   // cents
   createdBy?: string | null;
-  paymentMode?: string | null;
-  eInvoiceStatus?: string | null;
-  salesOrderId?: string | null;
+  createdByName?: string | null; // preferred display name
+  notes?: string | null;
+  cancelledAmount?: number;      // legacy refund in cents; shown if > 0
+  branchId?: string | null;      // used by PartialRefundDialog
 };
 
-// Status mapping (for canonical StatusBadge)
-const STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+// salesOrders.statusHistory response
+{
+  rows: Array<{
+    id: string;
+    fromStatus: string | null;   // null = initial state
+    toStatus: string;
+    changedByName: string;
+    changedAt: Date | string;
+    reason: string | null;
+    notes: string | null;
+  }>;
+  nextCursor: string | null;
+}
+
+// Status mapping for SalesStatusBadge (non-canonical → canonical)
+const STATUS_MAP = {
   confirmed: { status: "confirmed" },
   completed: { status: "completed" },
   paid: { status: "paid" },
@@ -144,48 +194,32 @@ const STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = 
   rejected: { status: "rejected" },
   overdue: { status: "rejected", label: "Overdue" },
 };
-
-type ReceiptData = {
-  salesOrderNumber: string;
-  invoiceNumber: string;
-  date: Date;
-  customerName: string;
-  customerType: "member" | "walk_in";
-  items: any[];
-  subtotalCents: number;
-  discountCents: number;
-  taxCents: number;
-  totalCents: number;
-  paymentMethod: string;
-};
 ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found matching sales-detail pattern in `__tests__/`
-
-**Scenarios covered:** (none currently)
+**Test files:** None found.
 
 **Not tested (risk areas):**
-- Order fetch error handling
-- Missing order fallback
-- Invoice list rendering
-- Receipt data loading and display
-- Refund dialog integration
-- Print functionality
-- Legacy refund indicator (cancelledAmount display)
-- Permission checks (refund_management:create)
+- `StatusHistoryCard` rendering — especially `fromStatus === null` renders as "Initial state →".
+- Cursor pagination not surfaced in the UI (only first page returned is shown).
+- `PartialRefundDialog` integration — passes `branchId` cast via `(order as { branchId?: string | null })?.branchId`.
+- `createdByName` fallback chain: prefers `createdByName`, then `createdBy`, then em-dash.
+- `mapReceiptResponse` / `buildReceiptData` fallback — if `pos.getReceiptData` fails, receipt shows empty items array.
+- Legacy refund indicator: shown if `(order as any).cancelledAmount > 0`.
+- Permission gating: "Request Refund" and "Partial Refund" buttons only show when `hasPermission("refund_management:create")`.
 
 ---
 
 ## 6. Notes
 
-- **Status mapping:** Converts POS/sales domain statuses to canonical UI equivalents; "processing", "sent", "partially_paid", "overdue" mapped with label overrides.
-- **Legacy refunds:** Orders can have a `cancelledAmount` from pre-refund-ledger era; displayed as informational alert if > 0.
-- **Receipt data:** API endpoint `pos.getReceiptData()` may not exist on all servers; graceful fallback uses `buildReceiptData()` to construct receipt from order + invoices. Items array will be empty in fallback.
-- **Printing:** Standard browser `window.print()` call; receipt view likely has `print:hidden` class to hide UI elements.
-- **Customer type:** Determined at order creation time (member or walk_in); used in receipt.
-- **Invoices:** Optional; if order has no invoices, none displayed. Multiple invoices possible per order.
-- **Refund dialog:** Pre-filled with order ID, customer name, and total amount as suggested (user can adjust).
+- **`StatusHistoryCard` is an inline component** (not the shared `StatusTimeline` from `apps/web/src/components/ui/status-timeline.tsx`). It implements its own timeline rendering directly using `ol + li` with `SalesStatusBadge`. The shared `StatusTimeline` is used by the payment history dialog on the Payment View page instead.
+- **Cursor pagination not surfaced:** `salesOrders.statusHistory` returns `nextCursor` but the current implementation fetches only the first page with no "Load More" UI.
+- **Two refund dialog types:** "Request Refund" (`RequestRefundDialog`) pre-fills with order-level suggestedAmountCents. "Partial Refund" (`PartialRefundDialog`) requires `branchId` — if the order has no `branchId`, it passes `undefined`.
+- **Legacy refunds:** Orders can have a `cancelledAmount` from pre-refund-ledger era; displayed as amber informational field if `> 0`.
+- **Receipt data:** `pos.getReceiptData()` is loaded lazily when print dialog opens. If it returns `null`, `buildReceiptData()` constructs a receipt from order + invoices with an empty items array.
+- **Printing:** Standard `window.print()` call; ReceiptView likely has `print:hidden` class on UI chrome.
+- **Status mapping:** `SalesStatusBadge` is a local wrapper around the canonical `StatusBadge`. Unknown statuses fall back to `{ status: "draft", label: <original> }`.
+- **`formatPrice` import:** `@/lib/money` (not `@/lib/currency` — that path no longer exists).
