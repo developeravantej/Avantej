@@ -161,6 +161,7 @@ function AcceptInvitationPage() {
 	// signUp doesn't return a session.
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
+	const [phone, setPhone] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -169,6 +170,7 @@ function AcceptInvitationPage() {
 			if (!token || !orgId || !invitation) {
 				throw new Error("Missing invitation context");
 			}
+			const trimmedPhone = phone.trim();
 			return await client.invitations.acceptWithSignup({
 				token,
 				organizationId: orgId,
@@ -176,6 +178,7 @@ function AcceptInvitationPage() {
 				password,
 				firstName: firstName.trim(),
 				lastName: lastName.trim(),
+				phone: trimmedPhone.length > 0 ? trimmedPhone : undefined,
 			});
 		},
 		successMessage: "Welcome! Your account is set up.",
@@ -277,6 +280,19 @@ function AcceptInvitationPage() {
 										<p className="text-xs text-muted-foreground mt-1">
 											This email is required for this invitation
 										</p>
+									</div>
+									<div>
+										<Label htmlFor="phone">
+											Phone <span className="text-muted-foreground">(optional)</span>
+										</Label>
+										<Input
+											id="phone"
+											type="tel"
+											value={phone}
+											onChange={(e) => setPhone(e.target.value)}
+											placeholder="+60123456789"
+											autoComplete="tel"
+										/>
 									</div>
 									<div>
 										<Label htmlFor="password">Password</Label>

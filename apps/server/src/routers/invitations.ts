@@ -243,6 +243,7 @@ export const acceptWithSignup = o
 			password: z.string().min(8),
 			firstName: z.string().min(1),
 			lastName: z.string().min(1),
+			phone: z.string().trim().min(1).optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -299,13 +300,14 @@ export const acceptWithSignup = o
 			});
 		}
 
-		// 3. Mark email verified + persist firstName/lastName
+		// 3. Mark email verified + persist firstName/lastName/phone
 		await controlPanelDb
 			.update(userTable)
 			.set({
 				emailVerified: true,
 				firstName: input.firstName,
 				lastName: input.lastName,
+				...(input.phone ? { phone: input.phone } : {}),
 			})
 			.where(eq(userTable.email, input.email));
 
