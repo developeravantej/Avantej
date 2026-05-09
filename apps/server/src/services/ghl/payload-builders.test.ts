@@ -152,7 +152,7 @@ describe("buildUserPayload", () => {
 		name: "Sarah Lee",
 	};
 
-	test("maps admin role", () => {
+	test("maps admin role with no permissions/scopes (GHL defaults)", () => {
 		const result = buildUserPayload({
 			companyId: "agency_xyz",
 			locationId: "loc_1",
@@ -166,9 +166,14 @@ describe("buildUserPayload", () => {
 		expect(result.firstName).toBe("Sarah");
 		expect(result.lastName).toBe("Lee");
 		expect(result.companyId).toBe("agency_xyz");
+		expect(result.platformLanguage).toBe("en_US");
+		// admin -> rely on GHL defaults
+		expect(result.permissions).toBeUndefined();
+		expect(result.scopes).toBeUndefined();
+		expect(result.scopesAssignedToOnly).toBeUndefined();
 	});
 
-	test("maps staff role to 'user' role", () => {
+	test("maps staff role with restricted permissions + scopes", () => {
 		const result = buildUserPayload({
 			companyId: "agency_xyz",
 			locationId: "loc_1",
@@ -176,9 +181,21 @@ describe("buildUserPayload", () => {
 			memberRole: "staff",
 		});
 		expect(result.role).toBe("user");
+		expect(result.platformLanguage).toBe("en_US");
+		expect(result.permissions).toEqual({
+			contactsEnabled: true,
+			conversationsEnabled: true,
+			appointmentsEnabled: true,
+			assignedDataOnly: true,
+		});
+		expect(result.scopes).toEqual([
+			"contacts.write",
+			"conversations.write",
+		]);
+		expect(result.scopesAssignedToOnly).toEqual(result.scopes);
 	});
 
-	test("maps trainer role to 'user' role", () => {
+	test("maps trainer role with wider permissions + scopes", () => {
 		const result = buildUserPayload({
 			companyId: "agency_xyz",
 			locationId: "loc_1",
@@ -186,5 +203,21 @@ describe("buildUserPayload", () => {
 			memberRole: "trainer",
 		});
 		expect(result.role).toBe("user");
+		expect(result.platformLanguage).toBe("en_US");
+		expect(result.permissions).toEqual({
+			contactsEnabled: true,
+			conversationsEnabled: true,
+			appointmentsEnabled: true,
+			opportunitiesEnabled: true,
+			calendarsEnabled: true,
+			assignedDataOnly: true,
+		});
+		expect(result.scopes).toEqual([
+			"contacts.write",
+			"conversations.write",
+			"opportunities.write",
+			"calendars.write",
+		]);
+		expect(result.scopesAssignedToOnly).toEqual(result.scopes);
 	});
 });

@@ -108,9 +108,52 @@ export interface BuildUserArgs {
 	memberRole: "admin" | "staff" | "trainer";
 }
 
+/**
+ * Per-role GHL capability bundles. Avantej `admin` -> GHL `admin` role with
+ * default permissions (omitted = all-true on GHL side). Non-admin Avantej
+ * roles get `user` role with explicit `assignedDataOnly:true` permissions
+ * and matching scopes — principle of least privilege.
+ *
+ * Trainer = wider operational access (calendar, opportunities) than staff.
+ */
+const ROLE_CAPABILITIES: Record<
+	"trainer" | "staff",
+	{
+		permissions: Record<string, boolean>;
+		scopes: string[];
+	}
+> = {
+	trainer: {
+		permissions: {
+			contactsEnabled: true,
+			conversationsEnabled: true,
+			appointmentsEnabled: true,
+			opportunitiesEnabled: true,
+			calendarsEnabled: true,
+			assignedDataOnly: true,
+		},
+		scopes: [
+			"contacts.write",
+			"conversations.write",
+			"opportunities.write",
+			"calendars.write",
+		],
+	},
+	staff: {
+		permissions: {
+			contactsEnabled: true,
+			conversationsEnabled: true,
+			appointmentsEnabled: true,
+			assignedDataOnly: true,
+		},
+		scopes: ["contacts.write", "conversations.write"],
+	},
+};
+
 export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 	const { companyId, locationId, user, memberRole } = args;
-	return {
+
+	const base: GhlUserPayload = {
 		companyId,
 		firstName: user.firstName ?? "",
 		lastName: user.lastName ?? "",
@@ -118,5 +161,18 @@ export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 		type: "account",
 		role: memberRole === "admin" ? "admin" : "user",
 		locationIds: [locationId],
+		platformLanguage: "en_US",
+	};
+
+	if (memberRole === "admin") {
+		return base;
+	}
+
+	const caps = ROLE_CAPABILITIES[memberRole];
+	return {
+		...base,
+		permissions: caps.permissions,
+		scopes: caps.scopes,
+		scopesAssignedToOnly: caps.scopes,
 	};
 }

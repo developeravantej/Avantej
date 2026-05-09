@@ -37,6 +37,9 @@ export interface GhlUserPayload {
 	role: "admin" | "user";
 	locationIds: string[];
 	permissions?: Record<string, boolean>;
+	scopes?: string[];
+	scopesAssignedToOnly?: string[];
+	platformLanguage?: string;
 }
 
 export interface GhlUser {
