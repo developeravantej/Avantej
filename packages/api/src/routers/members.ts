@@ -11,7 +11,7 @@ import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { user } from "@avantej-core/db/schema/auth";
-import { desc, eq, and, inArray, asc, type SQL } from "drizzle-orm";
+import { desc, eq, and, inArray, asc, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -48,6 +48,10 @@ export const memberRouter = {
         role: z.enum(["admin", "trainer", "staff", "client"]).optional(),
         status: z.enum(["active", "suspended"]).optional(),
         hierarchyScopeId: z.string().uuid().optional(),
+        // Mirror customerDirectory.list: when omitted/false, soft-deleted
+        // members are filtered out via `isNull(members.deletedAt)`. Set to
+        // true to surface deleted rows for the "view deleted" toggle.
+        includeDeleted: z.boolean().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -89,6 +93,10 @@ export const memberRouter = {
       }
       if (input.hierarchyScopeId) {
         conditions.push(eq(members.hierarchyScopeId, input.hierarchyScopeId));
+      }
+      // Hide soft-deleted members from default list (mirrors customerDirectory).
+      if (!input.includeDeleted) {
+        conditions.push(isNull(members.deletedAt));
       }
 
       // RBAC: non-admins only see members within their accessible hierarchy
@@ -271,6 +279,9 @@ export const memberRouter = {
           status: m.status,
           joinedAt: m.joinedAt,
           trainerTierId: m.trainerTierId,
+          // Surface soft-delete timestamp so the UI can render the "deleted"
+          // badge + "Restore" action. Null when the member is live.
+          deletedAt: (m.deletedAt as Date | null) ?? null,
           name: userDetails?.name ?? "Unknown",
           email: userDetails?.email ?? "Unknown",
           ghlSync,
@@ -1165,6 +1176,174 @@ export const memberRouter = {
       }
 
       return { ...result, ghlSync };
+    }),
+
+  /**
+   * Soft-delete a member (admin-scoped). Mirrors `customerProfiles.softDelete`
+   * but additive to the existing `deactivate` flow:
+   *   - `deactivate` flips `members.status='inactive'` (reversible via
+   *     `reactivate`, also fires GHL DELETE through the dispatcher).
+   *   - `softDelete` stamps `members.deletedAt = now()` (reversible via
+   *     `restore`). It is a GHL no-op — staff GHL state is governed by the
+   *     deactivate flow; soft-delete is an Avantej-only marker that hides
+   *     the row from default listings.
+   *
+   * Requires user_management.delete permission. Hierarchy access enforced
+   * via `accessibleNodeIds`.
+   */
+  softDelete: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "delete"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const target = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+      if (!target) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      // Row-level RBAC: non-admins can only soft-delete members in their scope.
+      if (context.member.role !== "admin") {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (await getDescendantNodeIds(
+            context.tenantDb,
+            context.member.hierarchyScopeId
+          ));
+        if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Target member is outside your accessible scope",
+          });
+        }
+      }
+
+      const now = new Date();
+      const [updated] = await context.tenantDb
+        .update(members)
+        .set({ deletedAt: now })
+        .where(eq(members.id, input.memberId))
+        .returning();
+
+      if (!updated) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      return { ok: true, memberId: updated.id };
+    }),
+
+  /**
+   * Restore a soft-deleted member. Flips `members.deletedAt` back to null.
+   * GHL no-op (mirrors `softDelete`). Throws BAD_REQUEST when the member
+   * is not actually soft-deleted, mirroring `customerProfiles.restore`.
+   *
+   * Requires user_management.update permission.
+   */
+  restore: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        memberId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "update"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const target = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+      });
+      if (!target) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      if (context.member.role !== "admin") {
+        const accessibleNodeIds =
+          context.accessibleNodeIds ??
+          (await getDescendantNodeIds(
+            context.tenantDb,
+            context.member.hierarchyScopeId
+          ));
+        if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Target member is outside your accessible scope",
+          });
+        }
+      }
+
+      if (target.deletedAt === null) {
+        throw new ORPCError("BAD_REQUEST", { message: "not-deleted" });
+      }
+
+      const [updated] = await context.tenantDb
+        .update(members)
+        .set({ deletedAt: null })
+        .where(eq(members.id, input.memberId))
+        .returning();
+
+      if (!updated) {
+        throw new ORPCError("NOT_FOUND", {
+          message: `Member not found: ${input.memberId}`,
+        });
+      }
+
+      return { ok: true, memberId: updated.id };
     }),
 
   /**

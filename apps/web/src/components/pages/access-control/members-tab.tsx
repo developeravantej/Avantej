@@ -16,6 +16,7 @@ import {
 	Mail,
 	Calendar,
 	MoveRight,
+	Undo2,
 } from "lucide-react";
 import { GhlSyncBadge } from "@/components/ghl-sync-badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ interface UserCardProps {
 	onEditDetails: () => void;
 	onMoveBranch?: () => void;
 	onDeactivate: () => void;
+	onSoftDelete: () => void;
+	onRestore: () => void;
 	onRetryGhlSync: () => void;
 	onSelect?: (selected: boolean) => void;
 	isSelected?: boolean;
@@ -76,6 +79,8 @@ function UserCard({
 	onEditDetails,
 	onMoveBranch,
 	onDeactivate,
+	onSoftDelete,
+	onRestore,
 	onRetryGhlSync,
 	onSelect,
 	isSelected,
@@ -140,10 +145,20 @@ function UserCard({
 						<div className="space-y-1 flex-1">
 							<div className="flex items-center gap-2">
 								<CardTitle className="text-base">{user.name}</CardTitle>
-								{!user.isActive && (
-									<Badge variant="secondary" className="text-xs">
-										Inactive
+								{user.isDeleted ? (
+									<Badge
+										variant="destructive"
+										className="text-xs"
+										data-testid="member-deleted-badge"
+									>
+										Deleted
 									</Badge>
+								) : (
+									!user.isActive && (
+										<Badge variant="secondary" className="text-xs">
+											Inactive
+										</Badge>
+									)
 								)}
 							</div>
 							<div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -197,6 +212,25 @@ function UserCard({
 								<Trash2 className="w-4 h-4 mr-2" />
 								{user.isActive ? "Deactivate" : "Activate"} User
 							</DropdownMenuItem>
+							{user.isDeleted ? (
+								<DropdownMenuItem
+									onClick={onRestore}
+									className="cursor-pointer"
+									data-testid="member-restore-action"
+								>
+									<Undo2 className="w-4 h-4 mr-2" />
+									Restore
+								</DropdownMenuItem>
+							) : (
+								<DropdownMenuItem
+									onClick={onSoftDelete}
+									className="cursor-pointer text-destructive focus:text-destructive"
+									data-testid="member-delete-action"
+								>
+									<Trash2 className="w-4 h-4 mr-2" />
+									Delete
+								</DropdownMenuItem>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
@@ -491,11 +525,16 @@ export function MembersTabPage() {
 	const inviterHierarchyScopeId =
 		currentOrg?.hierarchy.member?.hierarchyScopeId ?? null;
 
+	const [showDeleted, setShowDeleted] = useState(false);
+
 	const { data: membersApiData = [], isLoading: membersLoading } = useQuery({
-		queryKey: ["members", organizationId],
+		queryKey: ["members", organizationId, { includeDeleted: showDeleted }],
 		queryFn: (): Promise<Awaited<ReturnType<typeof client.members.list>>> => {
 			if (!organizationId) return Promise.resolve([]);
-			return client.members.list({ organizationId });
+			return client.members.list({
+				organizationId,
+				includeDeleted: showDeleted,
+			});
 		},
 		enabled: !!organizationId,
 	});
@@ -553,6 +592,7 @@ export function MembersTabPage() {
 							.map((r) => r.id)
 					: [],
 				isActive: m.status === "active",
+				isDeleted: m.deletedAt != null,
 				ghlSync: m.ghlSync ?? null,
 			})),
 		[membersApiData, rolesApiData],
@@ -665,6 +705,46 @@ export function MembersTabPage() {
 				error instanceof Error
 					? error.message
 					: "Failed to update user status",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const handleSoftDeleteUser = async (userId: string) => {
+		if (!organizationId) return;
+		const user = users.find((u) => u.id === userId);
+		if (!user) return;
+		setIsSaving(true);
+		try {
+			await client.members.softDelete({ organizationId, memberId: userId });
+			toast.success(`${user.name} deleted`);
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to delete user",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const handleRestoreUser = async (userId: string) => {
+		if (!organizationId) return;
+		const user = users.find((u) => u.id === userId);
+		if (!user) return;
+		setIsSaving(true);
+		try {
+			await client.members.restore({ organizationId, memberId: userId });
+			toast.success(`${user.name} restored`);
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to restore user",
 			);
 		} finally {
 			setIsSaving(false);
@@ -986,6 +1066,15 @@ export function MembersTabPage() {
 									<SelectItem value="inactive">Inactive</SelectItem>
 								</SelectContent>
 							</Select>
+
+							<label className="flex items-center gap-2 text-sm">
+								<Checkbox
+									checked={showDeleted}
+									onCheckedChange={(v) => setShowDeleted(v === true)}
+									data-testid="show-deleted-members-toggle"
+								/>
+								<span>Show deleted</span>
+							</label>
 						</div>
 
 						{selectedCount > 0 && (
@@ -1066,6 +1155,8 @@ export function MembersTabPage() {
 						onEditDetails={() => handleOpenEditUser(user)}
 						onMoveBranch={() => handleOpenMoveBranch(user)}
 						onDeactivate={() => handleDeactivateUser(user.id)}
+						onSoftDelete={() => handleSoftDeleteUser(user.id)}
+						onRestore={() => handleRestoreUser(user.id)}
 						onRetryGhlSync={() => handleRetryGhlSync(user.id)}
 						isLoading={isSaving}
 						isRetryingGhlSync={retryingGhlSyncMemberId === user.id}
