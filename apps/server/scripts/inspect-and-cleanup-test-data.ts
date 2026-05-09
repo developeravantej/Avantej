@@ -19,11 +19,10 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import ws from "ws";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { decrypt } from "@avantej-core/db";
@@ -45,7 +44,9 @@ function loadDevVars(): Record<string, string> {
     const match = trimmed.match(/^([^=]+)=(.*)$/);
     if (match) {
       const [, key, value] = match;
-      vars[key] = value;
+      if (key !== undefined && value !== undefined) {
+        vars[key] = value;
+      }
     }
   }
   
@@ -487,7 +488,7 @@ async function main() {
       inspectionResult.testUsers,
       inspectionResult.testSubscriptions,
       inspectionResult.orgDetails,
-      inspectionResult.controlPanelDb
+      inspectionResult.controlPanelDb!
     );
 
     console.log("✅ Cleanup complete!");

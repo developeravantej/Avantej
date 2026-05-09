@@ -8,13 +8,13 @@ import {
 	cancelTransfer,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
+const mockFindMany = mock((..._args: any[]) => Promise.resolve([] as any[]));
+const mockFindFirst = mock((..._args: any[]) => Promise.resolve(null as any));
+const mockReturning = mock(() => Promise.resolve([] as any[]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock(() => ({ values: mockValues }));
 const mockUpdate = mock(() => ({
-	set: mock(() => ({
+	set: mock((..._args: any[]) => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
 }));
@@ -70,9 +70,9 @@ describe("listTransferOrders", () => {
 
 		const result = await listTransferOrders(mockTenantDb);
 
-		expect(result).toEqual(fakeOrders);
+		expect(result).toEqual(fakeOrders as any);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -81,7 +81,7 @@ describe("listTransferOrders", () => {
 
 		await listTransferOrders(mockTenantDb, { status: "in_transit" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -90,7 +90,7 @@ describe("listTransferOrders", () => {
 
 		await listTransferOrders(mockTenantDb, { fromBranchId: "br1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -99,7 +99,7 @@ describe("listTransferOrders", () => {
 
 		await listTransferOrders(mockTenantDb, { toBranchId: "br2" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -149,7 +149,7 @@ describe("getTransferOrderById", () => {
 		expect(result).not.toBeNull();
 		expect(result!.id).toBe("to1");
 		expect(result!.items).toHaveLength(1);
-		expect(result!.items[0].productId).toBe("p1");
+		expect(result!.items[0]!.productId).toBe("p1");
 	});
 });
 
@@ -203,9 +203,9 @@ describe("createTransferOrder", () => {
 		const fakeHeader = { id: "to2", transferNumber: "TO-20260227-0001", fromBranchId: "br1", toBranchId: "br2", status: "pending" };
 
 		const txReturningHeader = mock(() => Promise.resolve([fakeHeader]));
-		const txValuesHeader = mock(() => ({ returning: txReturningHeader }));
-		const txReturningItems = mock(() => Promise.resolve([]));
-		const txValuesItems = mock(() => ({ returning: txReturningItems }));
+		const txValuesHeader = mock((..._args: any[]) => ({ returning: txReturningHeader }));
+		const txReturningItems = mock(() => Promise.resolve([] as any[]));
+		const txValuesItems = mock((..._args: any[]) => ({ returning: txReturningItems }));
 
 		let insertCallCount = 0;
 		const txInsert = mock(() => {
@@ -224,7 +224,7 @@ describe("createTransferOrder", () => {
 		});
 
 		// Items mapped with quantityReceived: 0
-		const itemValuesArg = txValuesItems.mock.calls[0][0];
+		const itemValuesArg = txValuesItems.mock.calls[0]![0]!;
 		expect(itemValuesArg[0].quantityReceived).toBe(0);
 	});
 });
@@ -234,13 +234,13 @@ describe("markInTransit", () => {
 		const inTransit = { id: "to1", status: "in_transit" };
 		const mockReturningUpd = mock(() => Promise.resolve([inTransit]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await markInTransit(mockTenantDb, "to1");
 
 		expect(result.status).toBe("in_transit");
-		const setArg = mockSetUpd.mock.calls[0][0];
+		const setArg = mockSetUpd.mock.calls[0]![0]!;
 		expect(setArg.status).toBe("in_transit");
 	});
 
@@ -301,7 +301,7 @@ describe("completeTransfer", () => {
 
 		const statusRet = mock(() => Promise.resolve([completed]));
 		const statusWhere = mock(() => ({ returning: statusRet }));
-		const statusSet = mock(() => ({ where: statusWhere }));
+		const statusSet = mock((..._args: any[]) => ({ where: statusWhere }));
 
 		let updateCallCount = 0;
 		const txUpdate = mock(() => {
@@ -322,7 +322,7 @@ describe("completeTransfer", () => {
 		expect(txUpdate).toHaveBeenCalledTimes(4);
 
 		// Verify last update set status=completed
-		const finalSetArg = statusSet.mock.calls[0][0];
+		const finalSetArg = statusSet.mock.calls[0]![0]!;
 		expect(finalSetArg.status).toBe("completed");
 	});
 
@@ -336,14 +336,11 @@ describe("completeTransfer", () => {
 		const itemUpdateWhere = mock(() => Promise.resolve());
 		const itemUpdateSet = mock(() => ({ where: itemUpdateWhere }));
 
-		let adjFromDelta: number | undefined;
-		let adjToDelta: number | undefined;
-
 		// Capture the sql expression args for adjustStock calls
 		// adjustStock calls update().set({quantity: sql`...+delta`...}).where().returning()
 		const adjFromRet = mock(() => Promise.resolve([{ id: "ps1", quantity: 95 }]));
 		const adjFromWhere = mock(() => ({ returning: adjFromRet }));
-		const adjFromSet = mock((setArg: any) => {
+		const adjFromSet = mock((_setArg: any) => {
 			// The quantity field is a sql expression; we note the update happened
 			return { where: adjFromWhere };
 		});
@@ -380,13 +377,13 @@ describe("cancelTransfer", () => {
 		const cancelled = { id: "to1", status: "cancelled" };
 		const mockReturningUpd = mock(() => Promise.resolve([cancelled]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await cancelTransfer(mockTenantDb, "to1");
 
 		expect(result.status).toBe("cancelled");
-		const setArg = mockSetUpd.mock.calls[0][0];
+		const setArg = mockSetUpd.mock.calls[0]![0]!;
 		expect(setArg.status).toBe("cancelled");
 	});
 

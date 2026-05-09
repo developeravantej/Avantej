@@ -212,12 +212,21 @@ describe("updateTaxRate", () => {
 
 // ─── setDefaultTaxRate ───────────────────────────────────────────────────────
 describe("setDefaultTaxRate", () => {
+	const actor = {
+		userId: "user-1",
+		memberId: "member-1",
+		role: "admin",
+	};
+
 	test("clears all defaults then sets one as default (two updates)", async () => {
 		const rate = makeTaxRate({ isDefault: true });
 
 		let updateCount = 0;
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+
+			// query previous default
+			tx.query.taxRates.findFirst.mockResolvedValueOnce({ id: "old-default" });
 
 			// First update: clear all isDefault
 			const clearSetChain = {
@@ -240,10 +249,19 @@ describe("setDefaultTaxRate", () => {
 				set: mock(() => setDefaultChain),
 			});
 
+			// writeAudit insert
+			const _auditValuesChain = {
+				returning: mock(() => Promise.resolve([])),
+			};
+			void _auditValuesChain;
+			tx.insert.mockReturnValueOnce({
+				values: mock(() => Promise.resolve()),
+			});
+
 			return cb(tx);
 		});
 
-		const result = await setDefaultTaxRate(mockDb, rate.id);
+		const result = await setDefaultTaxRate(mockDb, rate.id, actor);
 
 		expect(result.isDefault).toBe(true);
 		expect(updateCount).toBe(1); // first update happened
@@ -253,6 +271,7 @@ describe("setDefaultTaxRate", () => {
 	test("throws when tax rate not found", async () => {
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			tx.query.taxRates.findFirst.mockResolvedValueOnce(undefined);
 			const clearSetChain = {
 				where: mock(() => Promise.resolve()),
 			};
@@ -271,7 +290,7 @@ describe("setDefaultTaxRate", () => {
 		});
 
 		await expect(
-			setDefaultTaxRate(mockDb, "nonexistent"),
+			setDefaultTaxRate(mockDb, "nonexistent", actor),
 		).rejects.toThrow("Tax rate not found");
 	});
 });

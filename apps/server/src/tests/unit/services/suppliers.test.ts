@@ -7,12 +7,12 @@ import {
 	deactivateSupplier,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
-const mockUpdate = mock(() => ({
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
+const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockValues }));
+const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
@@ -48,10 +48,10 @@ describe("listSuppliers", () => {
 
 		const result = await listSuppliers(mockTenantDb);
 
-		expect(result).toEqual(fakeSuppliers);
+		expect(result as any).toEqual(fakeSuppliers);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		// No where clause when no filters
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -61,8 +61,8 @@ describe("listSuppliers", () => {
 
 		const result = await listSuppliers(mockTenantDb, { isActive: true });
 
-		expect(result).toEqual(activeSuppliers);
-		const callArg = mockFindMany.mock.calls[0][0];
+		expect(result as any).toEqual(activeSuppliers);
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -71,7 +71,7 @@ describe("listSuppliers", () => {
 
 		await listSuppliers(mockTenantDb, { search: "Supplier A" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -80,7 +80,7 @@ describe("listSuppliers", () => {
 
 		await listSuppliers(mockTenantDb, { isActive: true, search: "Supplier" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 });
@@ -92,7 +92,7 @@ describe("getSupplierById", () => {
 
 		const result = await getSupplierById(mockTenantDb, "s1");
 
-		expect(result).toEqual(fakeSupplier);
+		expect(result as any).toEqual(fakeSupplier);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -118,11 +118,11 @@ describe("createSupplier", () => {
 
 		const result = await createSupplier(mockTenantDb, { name: "Supplier A" });
 
-		expect(result).toEqual(fakeSupplier);
+		expect(result as any).toEqual(fakeSupplier);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 		expect(mockValues).toHaveBeenCalledTimes(1);
 		// Defaults: isActive = true
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.isActive).toBe(true);
 	});
 
@@ -143,8 +143,8 @@ describe("createSupplier", () => {
 			isActive: false,
 		});
 
-		expect(result).toEqual(fakeSupplier);
-		const valuesArg = mockValues.mock.calls[0][0];
+		expect(result as any).toEqual(fakeSupplier);
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.email).toBe("b@supplier.com");
 		expect(valuesArg.isActive).toBe(false);
 	});
@@ -166,7 +166,7 @@ describe("updateSupplier", () => {
 
 		const result = await updateSupplier(mockTenantDb, "s1", { name: "Updated Name" });
 
-		expect(result).toEqual(updatedSupplier);
+		expect(result as any).toEqual(updatedSupplier);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 
@@ -190,12 +190,12 @@ describe("deactivateSupplier", () => {
 
 		const result = await deactivateSupplier(mockTenantDb, "s1");
 
-		expect(result).toEqual(deactivatedSupplier);
+		expect(result as any).toEqual(deactivatedSupplier);
 		expect(result.isActive).toBe(false);
 		// Must call update, NOT delete
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
-		const setArg = mockSetUpd.mock.calls[0][0];
-		expect(setArg.isActive).toBe(false);
+		const setArg = ((mockSetUpd as any).mock.calls[0] ?? [])[0];
+		expect(setArg!.isActive).toBe(false);
 	});
 
 	test("throws 'Supplier not found' when deactivate returns empty", async () => {

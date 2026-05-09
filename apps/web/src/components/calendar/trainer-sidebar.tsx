@@ -45,7 +45,7 @@ export function TrainerSidebar({
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const filteredTrainers = trainers.filter((member) => {
+	const filteredTrainers = trainers.filter((member: any) => {
 		if (!debouncedSearch) return true;
 		const displayName = member.name ?? member.email ?? "";
 		return displayName.toLowerCase().includes(debouncedSearch.toLowerCase());
@@ -107,7 +107,7 @@ export function TrainerSidebar({
 				)}
 
 				{!isLoading &&
-					filteredTrainers.map((member) => {
+					filteredTrainers.map((member: any) => {
 						const displayName =
 							member.displayName ?? member.name ?? member.email ?? "?";
 						const isSelected = selectedTrainerId === member.id;

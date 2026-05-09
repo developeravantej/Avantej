@@ -9,8 +9,10 @@ import { webhookRoutes } from "@/routes/webhooks.routes";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
+import { serverCustomerProfilesRouter } from "@/routers/customer-profiles";
 import { adminRouter } from "@/routers/admin";
 import { tenantAdminRouter } from "@/routers/tenant-admin";
+import { ghlRouter } from "@/routers/ghl";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -22,9 +24,17 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
-function getAllowedOrigin(env: Record<string, unknown>): string {
-  const origin = env?.CORS_ORIGIN;
-  return ((typeof origin === "string" && origin) || "http://localhost:3001").trim();
+// Multi-port allowlist for dev/E2E (3001 = web, 4001 = E2E worktrees).
+// Env CORS_ORIGIN adds a prod origin per-request.
+const ALLOWED_ORIGINS = new Set<string>([
+  "http://localhost:3001",
+  "http://localhost:4001",
+]);
+function getAllowedOrigin(env: Record<string, unknown>, requestOrigin?: string): string {
+  if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) return requestOrigin;
+  const envOrigin = env?.CORS_ORIGIN;
+  if (requestOrigin && typeof envOrigin === "string" && envOrigin === requestOrigin) return requestOrigin;
+  return ((typeof envOrigin === "string" && envOrigin) || "http://localhost:3001").trim();
 }
 
 // Combine base router with server-specific routers
@@ -36,8 +46,14 @@ const appRouter = {
 		...baseRouter.invitations,
 		...serverInvitationRouter,
 	},
+	// Extend customerProfiles router with GHL sync-enabled overrides + softDelete
+	customerProfiles: {
+		...baseRouter.customerProfiles,
+		...serverCustomerProfilesRouter,
+	},
 	admin: adminRouter,
 	tenantAdmin: tenantAdminRouter,
+	ghl: ghlRouter,
 };
 
 const app = new Hono();
@@ -46,7 +62,7 @@ app.use(logger());
 
 // Manual CORS — replaces hono/cors to guarantee per-request origin resolution
 app.use("/*", async (c, next) => {
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
   const corsHeaders = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -79,7 +95,7 @@ app.use("/*", orpcTenantMiddleware);
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
   const corsHeaders = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Credentials": "true",
@@ -208,7 +224,7 @@ app.get("/", (c) => {
 
 app.onError((err, c) => {
   console.error("[onError]", err);
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
   return c.json(
     { error: err.message || "Internal server error" },
     500,

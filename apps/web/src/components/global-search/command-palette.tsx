@@ -89,7 +89,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 		queryKey: ["salesOrders", organizationId],
 		queryFn: () =>
 			organizationId
-				? (client.salesOrders.list({ organizationId }) as Promise<SaleRow[]>)
+				? (client.salesOrders.list({ organizationId }) as unknown as Promise<SaleRow[]>)
 				: Promise.resolve([] as SaleRow[]),
 		enabled: !!organizationId,
 		staleTime: 60_000,

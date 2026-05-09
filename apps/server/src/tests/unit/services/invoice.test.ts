@@ -6,26 +6,24 @@ import {
 	updateInvoice,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
-const mockUpdate = mock(() => ({
-	set: mock(() => ({
-		where: mock(() => ({ returning: mockReturning })),
+const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
+const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
+const mockUpdate = mock((..._args: any[]) => ({
+	set: mock((..._args: any[]) => ({
+		where: mock((..._args: any[]) => ({ returning: mockReturning })),
 	})),
 }));
 
-// select chain for count queries: select({total}).from(table).where(...) → [{total: N}]
-const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
-const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
-const mockSelect = mock(() => ({ from: mockSelectFrom }));
+// execute mock for raw SQL: tenantDb.execute(sql`SELECT nextval(...)`) → { rows: [{ seq }] }
+const mockExecute = mock((..._args: any[]): Promise<any> => Promise.resolve({ rows: [{ seq: "1" }] }));
 
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
-	select: mockSelect,
+	execute: mockExecute,
 	query: {
 		invoices: {
 			findMany: mockFindMany,
@@ -41,9 +39,7 @@ beforeEach(() => {
 	mockValues.mockClear();
 	mockInsert.mockClear();
 	mockUpdate.mockClear();
-	mockSelectWhere.mockClear();
-	mockSelectFrom.mockClear();
-	mockSelect.mockClear();
+	mockExecute.mockClear();
 });
 
 describe("listInvoices", () => {
@@ -55,9 +51,9 @@ describe("listInvoices", () => {
 
 		const result = await listInvoices(mockTenantDb);
 
-		expect(result).toEqual(fakeInvoices);
+		expect(result as any).toEqual(fakeInvoices);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -66,7 +62,7 @@ describe("listInvoices", () => {
 
 		await listInvoices(mockTenantDb, { status: "paid" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -75,7 +71,7 @@ describe("listInvoices", () => {
 
 		await listInvoices(mockTenantDb, { customerId: "cust-1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -86,7 +82,7 @@ describe("listInvoices", () => {
 		const to = new Date("2026-01-31");
 		await listInvoices(mockTenantDb, { from, to });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -95,7 +91,7 @@ describe("listInvoices", () => {
 
 		await listInvoices(mockTenantDb, { salesOrderId: "so1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -108,7 +104,7 @@ describe("listInvoices", () => {
 			from: new Date("2026-01-01"),
 		});
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 });
@@ -120,7 +116,7 @@ describe("getInvoiceById", () => {
 
 		const result = await getInvoiceById(mockTenantDb, "inv1");
 
-		expect(result).toEqual(fakeInvoice);
+		expect(result as any).toEqual(fakeInvoice);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -134,12 +130,12 @@ describe("getInvoiceById", () => {
 });
 
 describe("createInvoice", () => {
-	test("auto-generates invoice number when invoiceNumber not provided (total=0 → 0001)", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+	test("auto-generates invoice number when invoiceNumber not provided (seq=1 → 000001)", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
 
 		const fakeInvoice = {
 			id: "inv1",
-			invoiceNumber: "INV-20260227-0001",
+			invoiceNumber: "INV-20260227-000001",
 			customerName: "Alice",
 			status: "draft",
 		};
@@ -153,12 +149,12 @@ describe("createInvoice", () => {
 			status: "draft",
 		});
 
-		expect(result).toEqual(fakeInvoice);
-		// select was called to generate the number
-		expect(mockSelect).toHaveBeenCalledTimes(1);
+		expect(result as any).toEqual(fakeInvoice);
+		// execute was called to generate the number
+		expect(mockExecute).toHaveBeenCalledTimes(1);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockValues.mock.calls[0][0];
-		expect(valuesArg.invoiceNumber).toMatch(/INV-\d{8}-0001/);
+		const valuesArg = mockValues.mock.calls[0]![0];
+		expect(valuesArg.invoiceNumber).toMatch(/INV-\d{8}-000001/);
 	});
 
 	test("skips number generation when invoiceNumber is explicitly provided", async () => {
@@ -179,16 +175,16 @@ describe("createInvoice", () => {
 			status: "sent",
 		});
 
-		expect(result).toEqual(fakeInvoice);
-		// select should NOT be called when invoiceNumber is provided
-		expect(mockSelect).not.toHaveBeenCalled();
-		const valuesArg = mockValues.mock.calls[0][0];
+		expect(result as any).toEqual(fakeInvoice);
+		// execute should NOT be called when invoiceNumber is provided
+		expect(mockExecute).not.toHaveBeenCalled();
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.invoiceNumber).toBe("INV-CUSTOM-001");
 	});
 
 	test("uses amountPaid=0 when not provided", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		const fakeInvoice = { id: "inv3", invoiceNumber: "INV-20260227-0001" };
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		const fakeInvoice = { id: "inv3", invoiceNumber: "INV-20260227-000001" };
 		mockReturning.mockResolvedValueOnce([fakeInvoice]);
 
 		await createInvoice(mockTenantDb, {
@@ -199,12 +195,12 @@ describe("createInvoice", () => {
 			status: "draft",
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0];
 		expect(valuesArg.amountPaid).toBe(0);
 	});
 
 	test("throws 'Failed to create invoice' when insert returns empty", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
@@ -222,21 +218,21 @@ describe("createInvoice", () => {
 describe("updateInvoice", () => {
 	test("updates and returns the invoice", async () => {
 		const updatedInvoice = { id: "inv1", invoiceNumber: "INV-20260227-0001", status: "paid" };
-		const mockReturningUpd = mock(() => Promise.resolve([updatedInvoice]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([updatedInvoice]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		const result = await updateInvoice(mockTenantDb, "inv1", { status: "paid", amountPaid: 100 });
 
-		expect(result).toEqual(updatedInvoice);
+		expect(result as any).toEqual(updatedInvoice);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 
 	test("throws 'Invoice not found' when update returns empty", async () => {
-		const mockReturningUpd = mock(() => Promise.resolve([]));
-		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
-		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
+		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		await expect(updateInvoice(mockTenantDb, "nonexistent", { status: "paid" })).rejects.toThrow("Invoice not found");

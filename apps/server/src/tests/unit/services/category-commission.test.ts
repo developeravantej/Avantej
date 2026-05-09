@@ -11,7 +11,8 @@ import {
 const CATEGORY_ID = "cccc-0000-4000-8000-000000000001";
 const CONFIG_ID = "cfcf-0000-4000-8000-000000000001";
 const TIER_ID = "tttt-0000-4000-8000-000000000001";
-const TIER_ID_2 = "tttt-0000-4000-8000-000000000002";
+const _TIER_ID_2 = "tttt-0000-4000-8000-000000000002";
+void _TIER_ID_2;
 const CONDITION_ID = "cond-0000-4000-8000-000000000001";
 const SLOT_ID = "slot-0000-4000-8000-000000000001";
 
@@ -110,7 +111,7 @@ function selectChainResolving(value: unknown) {
  * Insert chain that resolves `.returning()` to `value`.
  * Also supports `.values()` without a `.returning()` call (void inserts).
  */
-function insertChainReturning(value: unknown) {
+function _insertChainReturning(value: unknown) {
 	const returningMock = mock(() => Promise.resolve(value));
 	const voidResolveMock = mock(() => Promise.resolve(undefined));
 	const valuesMock = mock(() => ({
@@ -123,6 +124,7 @@ function insertChainReturning(value: unknown) {
 	const insertMock = mock(() => ({ values: valuesMock, returning: mock(() => Promise.resolve(value)) }));
 	return { insertMock, valuesMock, returningMock, voidResolveMock };
 }
+void _insertChainReturning;
 
 /**
  * Delete chain that supports `.where().returning()` (the factory default only supports `.where()` as a terminal).
@@ -342,13 +344,14 @@ describe("upsertCategoryCommissionConfig — validation errors (no DB needed)", 
 		const condition = makeCondition();
 
 		// Build a tx mock that handles all nested inserts/selects inside the transaction
-		const txInsert = mock((table: unknown) => ({
+		const _txInsert = mock((_table: unknown) => ({
 			values: mock(() => ({
 				returning: mock(() => Promise.resolve([condition])),
 				then: (resolve: (v: unknown) => unknown) =>
 					Promise.resolve(undefined).then(resolve),
 			})),
 		}));
+		void _txInsert;
 
 		const txDelete = mock(() => ({
 			where: mock(() => Promise.resolve([])),

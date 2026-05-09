@@ -6,11 +6,11 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
+const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
+const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
 
 const mockTenantDb = {
 	insert: mockInsert,
@@ -40,9 +40,9 @@ describe("listPackageInstancesForClient", () => {
 
 		const result = await listPackageInstancesForClient(mockTenantDb, { clientId: "user-1" });
 
-		expect(result).toEqual(fakeInstances);
+		expect(result as any).toEqual(fakeInstances);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -54,7 +54,7 @@ describe("listPackageInstancesForClient", () => {
 			status: "active",
 		});
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -66,7 +66,7 @@ describe("listPackageInstancesForClient", () => {
 			source: "purchased",
 		});
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -78,7 +78,7 @@ describe("listPackageInstancesForClient", () => {
 			limit: 10,
 		});
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.limit).toBe(10);
 	});
 
@@ -87,7 +87,7 @@ describe("listPackageInstancesForClient", () => {
 
 		await listPackageInstancesForClient(mockTenantDb, { clientId: "user-1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.limit).toBe(50);
 	});
 
@@ -99,7 +99,7 @@ describe("listPackageInstancesForClient", () => {
 			limit: 500,
 		});
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.limit).toBe(200);
 	});
 });
@@ -111,7 +111,7 @@ describe("getPackageInstanceById", () => {
 
 		const result = await getPackageInstanceById(mockTenantDb, "pi1");
 
-		expect(result).toEqual(fakeInstance);
+		expect(result as any).toEqual(fakeInstance);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -140,10 +140,10 @@ describe("createPackageInstance", () => {
 
 		const result = await createPackageInstance(mockTenantDb, baseParams);
 
-		expect(result).toEqual(fakeInstance);
+		expect(result as any).toEqual(fakeInstance);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.serviceId).toBe("svc-1");
 		expect(valuesArg.clientId).toBe("user-1");
 		expect(valuesArg.source).toBe("purchased");
@@ -175,7 +175,7 @@ describe("createPackageInstance", () => {
 			remark: "VIP client discount",
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.assignedBy).toBe("admin-1");
 		expect(valuesArg.purchaseNumber).toBe("PKG-001");
 		expect(valuesArg.paymentId).toBe("pay-1");
@@ -202,7 +202,7 @@ describe("createPackageInstance", () => {
 
 		await createPackageInstance(mockTenantDb, baseParams);
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.assignedBy).toBeNull();
 		expect(valuesArg.purchaseNumber).toBeNull();
 		expect(valuesArg.paymentId).toBeNull();
@@ -223,7 +223,7 @@ describe("createPackageInstance", () => {
 			assignedBy: "staff-1",
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.source).toBe("assigned");
 		expect(valuesArg.assignedBy).toBe("staff-1");
 	});

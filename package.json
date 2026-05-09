@@ -35,6 +35,13 @@
     "db:studio": "turbo -F @avantej-core/db db:studio",
     "db:generate": "turbo -F @avantej-core/db db:generate",
     "db:migrate": "turbo -F @avantej-core/db db:migrate",
+    "db:generate:control-panel": "turbo -F @avantej-core/db db:generate:control-panel",
+    "db:generate:tenant": "turbo -F @avantej-core/db db:generate:tenant",
+    "db:migrate:control-panel": "turbo -F @avantej-core/db db:migrate:control-panel",
+    "db:migrate:tenant": "turbo -F @avantej-core/db db:migrate:tenant",
+    "db:studio:control-panel": "turbo -F @avantej-core/db db:studio:control-panel",
+    "db:studio:tenant": "turbo -F @avantej-core/db db:studio:tenant",
+    "db:migrate-all-tenants": "turbo -F @avantej-core/db db:migrate-all-tenants",
     "gen:migrations": "bun scripts/gen-tenant-migrations.ts",
     "verify:migrations": "bun scripts/verify-migrations-generated.ts"
   },

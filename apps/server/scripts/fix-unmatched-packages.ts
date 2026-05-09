@@ -83,7 +83,7 @@ async function main() {
 	const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
 
 	// 1. Find unmatched packages
-	const unmatchedResult = await tenantDb.execute<UnmatchedPackage>(sql`
+	const unmatchedResult = await tenantDb.execute<UnmatchedPackage & Record<string, unknown>>(sql`
 		SELECT p.id, p.name, p.appointment_type, p.session_count,
 		       p.price_per_session, p.max_clients_per_session,
 		       p.expiry_days, p.expiry_date, p.branch_id, p.is_archived

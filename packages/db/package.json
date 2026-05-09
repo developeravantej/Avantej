@@ -13,10 +13,12 @@
   },
   "scripts": {
     "build": "tsdown",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate:control-panel": "drizzle-kit generate --config=drizzle.control-panel.config.ts",
+    "db:generate:tenant": "drizzle-kit generate --config=drizzle.tenant.config.ts",
+    "db:migrate:control-panel": "drizzle-kit migrate --config=drizzle.control-panel.config.ts",
+    "db:migrate:tenant": "drizzle-kit migrate --config=drizzle.tenant.config.ts",
+    "db:studio:control-panel": "drizzle-kit studio --config=drizzle.control-panel.config.ts",
+    "db:studio:tenant": "drizzle-kit studio --config=drizzle.tenant.config.ts",
     "db:migrate-all-tenants": "bun src/scripts/migrate-all-tenants.ts"
   },
   "devDependencies": {

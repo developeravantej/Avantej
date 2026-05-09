@@ -125,6 +125,14 @@ export async function seedRBACData(
 		{ resource: "package_management", action: "create" },
 		{ resource: "package_management", action: "update" },
 		{ resource: "package_management", action: "delete" },
+		// Announcement management
+		{ resource: "announcement_management", action: "read" },
+		{ resource: "announcement_management", action: "write" },
+		{ resource: "announcement_management", action: "delete" },
+		// Expense management
+		{ resource: "expense_management", action: "read" },
+		{ resource: "expense_management", action: "write" },
+		{ resource: "expense_management", action: "delete" },
 	];
 
 	// Insert roles (skip if exists)

@@ -11,8 +11,9 @@ import {
 	decrementBooking,
 } from "@avantej-core/services/class-slots.service";
 
-let mockDb: ReturnType<typeof createMockTenantDb>;
-const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
+let mockDb: any;
+const _MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
+void _MEMBER_ID;
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 
 beforeEach(() => {
@@ -27,7 +28,7 @@ describe("listClassSlots", () => {
 
 		const result = await listClassSlots(mockDb, {});
 
-		expect(result).toEqual(slots);
+		expect(result).toEqual(slots as any);
 		expect(mockDb.query.classSlots.findMany).toHaveBeenCalledTimes(1);
 	});
 
@@ -58,7 +59,7 @@ describe("getClassSlotById", () => {
 
 		const result = await getClassSlotById(mockDb, slot.id);
 
-		expect(result).toEqual(slot);
+		expect(result).toEqual(slot as any);
 	});
 
 	test("returns undefined when not found", async () => {
@@ -205,7 +206,7 @@ describe("incrementBooking", () => {
 
 		const result = await incrementBooking(mockDb, slot.id);
 
-		expect(result.spotsBooked).toBe(3);
+		expect(result!.spotsBooked).toBe(3);
 	});
 
 	test("throws when class slot is full", async () => {

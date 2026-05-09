@@ -24,7 +24,9 @@ function loadDevVars(): Record<string, string> {
     const match = trimmed.match(/^([^=]+)=(.*)$/);
     if (match) {
       const [, key, value] = match;
-      vars[key] = value;
+      if (key !== undefined && value !== undefined) {
+        vars[key] = value;
+      }
     }
   }
   
@@ -53,7 +55,7 @@ async function deleteTestProjects() {
     throw new Error(`Failed to fetch projects: ${response.status} ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as any;
   const projects = data.projects || [];
 
   console.log(`📊 Found ${projects.length} total projects`);

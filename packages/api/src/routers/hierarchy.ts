@@ -530,7 +530,7 @@ export const hierarchyRouter = {
 
       // Get full node details for all descendants
       const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
-        where: (nodes, { inArray }) => inArray(nodes.id, descendantIdsOnly),
+        where: (nodes: any, { inArray }: any) => inArray(nodes.id, descendantIdsOnly),
         orderBy: (nodes: any, { asc }: any) => [
           asc(nodes.depth),
           asc(nodes.name),
@@ -538,7 +538,7 @@ export const hierarchyRouter = {
       });
 
       // Filter to only accessible nodes
-      const accessibleDescendants = descendantNodes.filter((node) =>
+      const accessibleDescendants = descendantNodes.filter((node: any) =>
         accessibleNodeIds.includes(node.id)
       );
 
@@ -635,7 +635,7 @@ export const hierarchyRouter = {
         try {
           const descendantIds = await getDescendantNodeIds(tenantDb, input.nodeId);
           const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
-            where: (nodes, { inArray }) => inArray(nodes.id, descendantIds),
+            where: (nodes: any, { inArray }: any) => inArray(nodes.id, descendantIds),
           });
           branchNodeIds = descendantNodes
             .filter((n: any) => n.type === "branch")

@@ -232,6 +232,27 @@ export function CustomerDetailSheet({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [memberId]);
 
+	// ── Soft-delete mutation ───────────────────────────────────────────────
+
+	const deleteMutation = useApiMutation({
+		mutationFn: () => {
+			if (!data) throw new Error("No customer data loaded");
+			return client.customerProfiles.softDelete({
+				organizationId,
+				targetUserId: data.member.userId,
+			});
+		},
+		successMessage: "Customer deleted",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			["customerDirectory", organizationId],
+		],
+		onSuccess: () => {
+			onSaved?.();
+			onOpenChange(false);
+		},
+	});
+
 	// ── Profile upsert mutation ────────────────────────────────────────────
 
 	const upsertMutation = useApiMutation({
@@ -501,6 +522,7 @@ export function CustomerDetailSheet({
 									<div className="flex justify-end">
 										<Button
 											type="button"
+											data-testid="save-profile-btn"
 											onClick={() => upsertMutation.mutate()}
 											disabled={!formDirty || upsertMutation.isPending}
 										>
@@ -525,7 +547,7 @@ export function CustomerDetailSheet({
 											>
 												<div className="flex min-w-0 flex-col gap-0.5">
 													<span className="truncate font-medium">
-														{pkg.serviceName ?? pkg.id}
+														{(pkg as any).serviceName ?? pkg.id}
 													</span>
 													<span className="text-muted-foreground text-xs">
 														{pkg.creditsUsed ?? 0} / {pkg.creditsTotal ?? "∞"}{" "}
@@ -567,7 +589,7 @@ export function CustomerDetailSheet({
 													</span>
 													<span className="text-muted-foreground text-xs">
 														{formatDate(payment.createdAt)}
-														{payment.method ? ` · ${payment.method}` : ""}
+														{(payment as any).method ? ` · ${(payment as any).method}` : ""}
 													</span>
 												</div>
 												<Badge
@@ -612,6 +634,27 @@ export function CustomerDetailSheet({
 									</div>
 								</div>
 							</Section>
+						</div>
+
+						{/* ── Danger zone footer ───────────────────────── */}
+						<div className="border-t px-6 py-4">
+							<Button
+								type="button"
+								variant="destructive"
+								data-testid="delete-customer-btn"
+								onClick={() => {
+									if (
+										!window.confirm(
+											"Delete this customer? This will also remove them from GoHighLevel.",
+										)
+									)
+										return;
+									deleteMutation.mutate();
+								}}
+								disabled={deleteMutation.isPending}
+							>
+								{deleteMutation.isPending ? "Deleting..." : "Delete customer"}
+							</Button>
 						</div>
 					</>
 				)}

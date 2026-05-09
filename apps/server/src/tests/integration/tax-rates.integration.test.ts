@@ -4,12 +4,15 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
+	TEST_MEMBER_ID,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
+
+const TEST_ACTOR = { userId: TEST_USER_ID, memberId: TEST_MEMBER_ID, role: "admin" };
 import {
 	createTaxRate,
 	listTaxRates,
 	getTaxRateById,
-	getDefaultTaxRate,
 	setDefaultTaxRate,
 	updateTaxRate,
 	deactivateTaxRate,
@@ -77,7 +80,7 @@ describe("Tax Rates Integration", () => {
 		createdIds.push(rate2.id);
 
 		// Set rate2 as default
-		const updated = await setDefaultTaxRate(tenantDb, rate2.id);
+		const updated = await setDefaultTaxRate(tenantDb, rate2.id, TEST_ACTOR);
 		expect(updated.isDefault).toBe(true);
 
 		// Verify rate1 is no longer default

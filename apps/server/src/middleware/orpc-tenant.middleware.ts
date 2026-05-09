@@ -36,7 +36,7 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
     const contentType = clonedRequest.headers.get('content-type');
 
     if (contentType?.includes('application/json')) {
-      let body;
+      let body: any;
       try {
         body = await clonedRequest.json();
       } catch (parseError) {

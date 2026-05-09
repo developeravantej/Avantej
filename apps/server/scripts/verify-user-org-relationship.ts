@@ -16,13 +16,9 @@
 import "./load-dev-vars";
 import { decrypt } from "@avantej-core/db";
 import { getControlPanelDb } from "../src/lib/db";
-import { organizations, organizationMembers } from "@avantej-core/db/schema/control-panel/index";
-import { users } from "@avantej-core/db/schema/control-panel/index";
-import { members } from "@avantej-core/db/schema/tenant/members";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import { eq } from "drizzle-orm";
 
 async function verifyUserOrgRelationship() {
   const testEmail = "franchisee@gmail.com";

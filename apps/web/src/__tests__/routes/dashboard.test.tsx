@@ -4,19 +4,72 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
+// Stateful router mock: useSearch reads from a singleton store, useNavigate
+// updates it (supporting the (prev) => next updater form) and notifies
+// subscribers via useSyncExternalStore so components re-render.
+const { routerState, useSearchMock, useNavigateMock, resetRouterState } = vi.hoisted(() => {
+	type SearchState = Record<string, unknown>;
+	const state: { search: SearchState; listeners: Set<() => void> } = {
+		search: { period: "this_month" },
+		listeners: new Set(),
+	};
+
+	function setSearch(updater: SearchState | ((prev: SearchState) => SearchState)) {
+		const next = typeof updater === "function" ? (updater as (p: SearchState) => SearchState)(state.search) : updater;
+		state.search = next;
+		for (const l of state.listeners) l();
+	}
+
+	function subscribe(cb: () => void) {
+		state.listeners.add(cb);
+		return () => {
+			state.listeners.delete(cb);
+		};
+	}
+
+	// Lazily require react inside the hook so the mock factory does not
+	// import React at module top level (avoids hoist-order issues).
+	function useSearchMock() {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const React = require("react");
+		return React.useSyncExternalStore(
+			subscribe,
+			() => state.search,
+			() => state.search,
+		);
+	}
+
+	function useNavigateMock() {
+		return (opts: { search?: SearchState | ((prev: SearchState) => SearchState) } = {}) => {
+			if (opts.search !== undefined) setSearch(opts.search);
+		};
+	}
+
+	function resetRouterState() {
+		state.search = { period: "this_month" };
+	}
+
+	return { routerState: state, useSearchMock, useNavigateMock, resetRouterState };
+});
+
 let DashboardComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		DashboardComponent = opts.component;
 		return {
 			component: opts.component,
-			useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
-			useNavigate: vi.fn().mockReturnValue(vi.fn()),
+			useSearch: useSearchMock,
+			useNavigate: useNavigateMock,
+			useLoaderData: () => ({}),
+			useParams: () => ({}),
+			fullPath: "/_authenticated/dashboard/_layout/",
 		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: vi.fn().mockReturnValue(vi.fn()),
-	useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
+	useNavigate: useNavigateMock,
+	useSearch: useSearchMock,
+	useLoaderData: () => ({}),
+	useParams: () => ({}),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -24,7 +77,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
-		hasPermission: vi.fn().mockReturnValue(true),
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("@/lib/currency", () => ({
@@ -48,28 +103,6 @@ vi.mock("@/components/payroll-widget", () => ({
 vi.mock("@/components/claims-widget", () => ({
 	ClaimsWidget: () => <div data-testid="claims-widget">Claims Widget</div>,
 }));
-vi.mock("@/components/dashboard/expiring-memberships-widget", () => ({
-	ExpiringMembershipsWidget: () => (
-		<div data-testid="expiring-memberships-widget">Expiring Memberships Widget</div>
-	),
-}));
-vi.mock("@/components/dashboard/greeting-banner", () => ({
-	GreetingBanner: () => <div data-testid="greeting-banner">Dashboard</div>,
-}));
-vi.mock("@/components/dashboard/quick-actions", () => ({
-	QuickActions: () => <div data-testid="quick-actions" />,
-}));
-vi.mock("@/components/dashboard/section-header", () => ({
-	SectionHeader: ({ title }: { title: string }) => <div>{title}</div>,
-}));
-vi.mock("@/components/dashboard/quick-insight", () => ({
-	QuickInsight: ({ label }: { label: string }) => <div>{label}</div>,
-}));
-vi.mock("@/components/dashboard/pending-approvals-widget", () => ({
-	PendingApprovalsWidget: () => (
-		<div data-testid="pending-approvals-widget">Pending Approvals Widget</div>
-	),
-}));
 
 beforeAll(async () => {
 	await import("@/routes/_authenticated/dashboard/_layout/index");
@@ -78,6 +111,7 @@ beforeAll(async () => {
 describe("Dashboard page", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		resetRouterState();
 		mockClient.analytics.getDashboardKpis.mockResolvedValue({
 			totalSales: 0,
 			salesOrderCount: 0,
@@ -92,8 +126,13 @@ describe("Dashboard page", () => {
 	test("renders Dashboard heading", async () => {
 		renderWithProviders(<DashboardComponent />);
 
+		// The dashboard's primary h1 is the time-based greeting from
+		// GreetingBanner ("Good Morning, …" / "Good Afternoon, …" / "Good Evening, …").
+		// Asserting the structural heading regardless of greeting variant.
 		await waitFor(() => {
-			expect(screen.getByText("Dashboard")).toBeInTheDocument();
+			const headings = screen.getAllByRole("heading", { level: 1 });
+			expect(headings.length).toBeGreaterThan(0);
+			expect(headings[0].textContent).toMatch(/Good (Morning|Afternoon|Evening)/);
 		});
 	});
 
@@ -124,12 +163,26 @@ describe("Dashboard page", () => {
 		const user = userEvent.setup();
 		renderWithProviders(<DashboardComponent />);
 
-		const todayBtn = await screen.findByRole("button", { name: "Today" });
-		await user.click(todayBtn);
-
-		// Navigate called; initial API call already happened
+		// The period selector is a row of <button> pills, not Radix Tabs.
 		await waitFor(() => {
-			expect(mockClient.analytics.getDashboardKpis).toHaveBeenCalled();
+			expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
+		});
+
+		await user.click(screen.getByRole("button", { name: "Today" }));
+
+		await waitFor(() => {
+			expect(
+				mockClient.analytics.getDashboardKpis,
+			).toHaveBeenCalledWith(
+				expect.objectContaining({ period: "today" }),
+			);
+			// The page currently uses the same `period` for both KPIs and
+			// staff performance — there is no separate this_week mapping.
+			expect(
+				mockClient.analytics.getStaffPerformance,
+			).toHaveBeenCalledWith(
+				expect.objectContaining({ period: "today" }),
+			);
 		});
 	});
 
@@ -180,7 +233,7 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/75%/)).toBeInTheDocument();
+			expect(screen.getAllByText(/75%/)[0]).toBeInTheDocument();
 		});
 	});
 
@@ -219,11 +272,11 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Sales Overview")).toBeInTheDocument();
+			expect(screen.getAllByText("Sales Overview")[0]).toBeInTheDocument();
 			// "Appointments" appears both as KPI card title and widget mock
-			expect(screen.getAllByText("Active Members").length).toBeGreaterThan(0);
-			expect(screen.getByText("Revenue by Branch")).toBeInTheDocument();
-			expect(screen.getByText("Staff Performance")).toBeInTheDocument();
+			expect(screen.getAllByText("Active Members")[0]).toBeInTheDocument();
+			expect(screen.getAllByText("Revenue by Branch")[0]).toBeInTheDocument();
+			expect(screen.getAllByText("Staff Performance")[0]).toBeInTheDocument();
 		});
 	});
 });

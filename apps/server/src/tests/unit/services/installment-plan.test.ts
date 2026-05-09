@@ -29,7 +29,7 @@ describe("listInstallmentPlans", () => {
 
 		const result = await listInstallmentPlans(mockDb, {});
 
-		expect(result).toEqual(plans);
+		expect(result as any).toEqual(plans);
 		expect(mockDb.query.installmentPlans.findMany).toHaveBeenCalledTimes(1);
 	});
 
@@ -60,7 +60,7 @@ describe("getInstallmentPlanById", () => {
 
 		const result = await getInstallmentPlanById(mockDb, plan.id as string);
 
-		expect(result).toEqual(plan);
+		expect(result as any).toEqual(plan);
 	});
 
 	test("returns undefined when not found", async () => {
@@ -80,7 +80,7 @@ describe("getInstallmentPlanByCode", () => {
 
 		const result = await getInstallmentPlanByCode(mockDb, "quarterly");
 
-		expect(result).toEqual(plan);
+		expect(result as any).toEqual(plan);
 		expect(result?.code).toBe("quarterly");
 	});
 

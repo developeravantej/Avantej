@@ -21,11 +21,28 @@ import { createMiddleware } from "hono/factory";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { decrypt } from "@avantej-core/db";
 import { getBetterAuth } from "@/lib/better-auth";
-import type { Context } from "hono";
+import {
+	dispatchStaffSync as dispatchStaffSyncRaw,
+	dispatchProfileSync as dispatchProfileSyncRaw,
+	type ServerDispatchStaffSyncArgs,
+	type ServerDispatchProfileSyncArgs,
+} from "@/services/ghl/dispatch-staff-sync";
+
+/**
+ * Env-bound staff sync dispatcher: identical to the underlying dispatcher
+ * but with `env` already filled from request-scoped Cloudflare bindings,
+ * so call sites in shared routers (`@avantej-core/api`) don't need to know
+ * about Cloudflare-only env access.
+ */
+export type BoundDispatchStaffSync = (
+	args: Omit<ServerDispatchStaffSyncArgs, "env">,
+) => ReturnType<typeof dispatchStaffSyncRaw>;
+
+export type BoundDispatchProfileSync = (
+	args: Omit<ServerDispatchProfileSyncArgs, "env">,
+) => ReturnType<typeof dispatchProfileSyncRaw>;
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env
@@ -81,6 +98,21 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 	c.set("decrypt", decrypt);
 	// Store getBetterAuth function reference for use in createContext
 	c.set("getBetterAuth", () => getBetterAuth(c));
+
+	// Bind GHL staff sync dispatchers with request-scoped env. Routers in
+	// `@avantej-core/api` cannot import from `apps/server` (would be a circular
+	// dep) and have no access to `cloudflare:workers` env, so we expose the
+	// dispatchers via Hono context the same way `controlPanelDb` is exposed.
+	const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
+	if (ghlAgencyId) {
+		const env = { GHL_AGENCY_ID: ghlAgencyId };
+		const boundDispatchStaffSync: BoundDispatchStaffSync = (args) =>
+			dispatchStaffSyncRaw({ ...args, env });
+		const boundDispatchProfileSync: BoundDispatchProfileSync = (args) =>
+			dispatchProfileSyncRaw({ ...args, env });
+		c.set("dispatchStaffSync", boundDispatchStaffSync);
+		c.set("dispatchProfileSync", boundDispatchProfileSync);
+	}
 
 	try {
 		await next();

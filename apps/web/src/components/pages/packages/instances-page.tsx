@@ -298,7 +298,7 @@ export function PackageInstancesPage() {
 			clientId: form.clientId.trim(),
 			source: form.source,
 			creditsTotal,
-			creditsRemaining: creditsTotal,
+			...({creditsRemaining: creditsTotal} as any),
 			startsAt: new Date(`${form.startsAt}T00:00:00.000Z`).toISOString(),
 			expiresAt: new Date(`${form.expiresAt}T23:59:59.000Z`).toISOString(),
 			totalPrice: totalPriceCents,
@@ -308,7 +308,7 @@ export function PackageInstancesPage() {
 		});
 	}
 
-	const data: PackageInstanceRow[] = apiData.map((item) => ({
+	const data: PackageInstanceRow[] = apiData.map((item: any) => ({
 		id: item.id,
 		serviceId: item.serviceId,
 		serviceName: serviceNameById.get(item.serviceId) ?? `${item.serviceId.slice(0, 8)}…`,

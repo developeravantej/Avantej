@@ -7,7 +7,9 @@ import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
-	const serverUrl = env.VITE_SERVER_URL ?? "http://localhost:3000";
+	// Override server port via SERVER_PORT env (used by E2E to avoid worktree port conflicts).
+	const serverUrl =
+		env.VITE_SERVER_URL ?? `http://localhost:${process.env.SERVER_PORT ?? 3000}`;
 
 	return {
 		plugins: [

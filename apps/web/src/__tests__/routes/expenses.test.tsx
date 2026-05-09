@@ -11,7 +11,6 @@ vi.mock("@tanstack/react-router", () => ({
 		return { component: opts.component };
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -19,7 +18,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
-		hasPermission: vi.fn().mockReturnValue(true),
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -55,8 +56,8 @@ describe("Expenses page", () => {
 				screen.getByText("Submit and manage expense claims"),
 			).toBeInTheDocument();
 			expect(
-				screen.getAllByRole("button", { name: /submit expense/i }).length,
-			).toBeGreaterThan(0);
+				screen.getAllByRole("button", { name: /submit expense/i })[0],
+			).toBeInTheDocument();
 		});
 	});
 

@@ -30,6 +30,7 @@ export const customerDirectoryRouter = {
 				branchId: z.string().uuid().optional(),
 				limit: z.number().int().min(1).max(100).default(50),
 				offset: z.number().int().min(0).default(0),
+				includeDeleted: z.boolean().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -64,6 +65,7 @@ export const customerDirectoryRouter = {
 					accessibleNodeIds,
 					limit: input.limit,
 					offset: input.offset,
+					includeDeleted: input.includeDeleted,
 				},
 			);
 		}),

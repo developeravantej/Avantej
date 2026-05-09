@@ -48,7 +48,7 @@ import { getBetterAuth } from "@/lib/better-auth";
 function requirePlatformAdmin(
 	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">
 ) {
-	return protectedProcedure.middleware(async ({ context, next }) => {
+	return (protectedProcedure as any).middleware(async ({ context, next }: { context: any; next: any }) => {
 		if (!context.session?.user) {
 			throw new ORPCError("UNAUTHORIZED", {
 				message: "Authentication required",

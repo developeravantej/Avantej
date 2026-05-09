@@ -56,7 +56,7 @@ export const cancelledSalesRouter = {
 				.where(and(...conditions))
 				.orderBy(desc(salesOrders.cancellationDate));
 
-			return rows.map((row) => ({
+			return rows.map((row: any) => ({
 				id: row.id,
 				cancellationNumber: row.cancellationNumber,
 				salesOrderId: row.id,

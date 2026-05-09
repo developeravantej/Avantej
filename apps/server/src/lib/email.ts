@@ -28,7 +28,6 @@ import { Resend } from "resend";
  */
 function getEnvVar(key: string): string | undefined {
 	try {
-		// @ts-expect-error - cloudflare:workers is only available in Workers runtime
 		const { env } = require("cloudflare:workers");
 		return env[key];
 	} catch {
@@ -103,7 +102,7 @@ const EMAIL_CAPTURE_LIMIT = 50;
 const capturedEmails: CapturedEmail[] = [];
 
 let emailCaptureEnabled =
-	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" || process.env.NODE_ENV === "test";
+	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" || (process.env.NODE_ENV as string) === "test";
 
 export function __setEmailCaptureEnabled(enabled: boolean): void {
 	emailCaptureEnabled = enabled;

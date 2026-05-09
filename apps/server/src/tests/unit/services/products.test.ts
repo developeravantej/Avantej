@@ -9,17 +9,17 @@ import {
 	adjustStock,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockOnConflictDoUpdate = mock(() => ({ returning: mockReturning }));
-const mockInsertValues = mock(() => ({
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
+const mockOnConflictDoUpdate = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
+const mockInsertValues = mock<(...args: any[]) => any>(() => ({
 	returning: mockReturning,
 	onConflictDoUpdate: mockOnConflictDoUpdate,
 }));
-const mockInsert = mock(() => ({ values: mockInsertValues }));
-const mockUpdate = mock(() => ({
+const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockInsertValues }));
+const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
@@ -61,9 +61,9 @@ describe("listProducts", () => {
 
 		const result = await listProducts(mockTenantDb);
 
-		expect(result).toEqual(fakeProducts);
+		expect(result as any).toEqual(fakeProducts);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -72,7 +72,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { brandId: "b1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -81,7 +81,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { categoryId: "cat1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -90,7 +90,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { supplierId: "sup1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -99,7 +99,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { status: "active" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -108,7 +108,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { search: "Protein" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -117,7 +117,7 @@ describe("listProducts", () => {
 
 		await listProducts(mockTenantDb, { brandId: "b1", status: "active", search: "Shake" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 });
@@ -129,7 +129,7 @@ describe("getProductById", () => {
 
 		const result = await getProductById(mockTenantDb, "p1");
 
-		expect(result).toEqual(fakeProduct);
+		expect(result as any).toEqual(fakeProduct);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -163,9 +163,9 @@ describe("createProduct", () => {
 			uomId: "u1",
 		});
 
-		expect(result).toEqual(fakeProduct);
+		expect(result as any).toEqual(fakeProduct);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockInsertValues.mock.calls[0][0];
+		const valuesArg = mockInsertValues.mock.calls[0]![0];
 		expect(valuesArg.type).toBe("product");
 		expect(valuesArg.status).toBe("active");
 		expect(valuesArg.conversionFactor).toBe("1");
@@ -195,7 +195,7 @@ describe("createProduct", () => {
 			status: "inactive",
 		});
 
-		const valuesArg = mockInsertValues.mock.calls[0][0];
+		const valuesArg = mockInsertValues.mock.calls[0]![0];
 		expect(valuesArg.brandId).toBe("b1");
 		expect(valuesArg.status).toBe("inactive");
 	});
@@ -219,7 +219,7 @@ describe("updateProduct", () => {
 
 		const result = await updateProduct(mockTenantDb, "p1", { name: "Updated Protein Shake" });
 
-		expect(result).toEqual(updatedProduct);
+		expect(result as any).toEqual(updatedProduct);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 
@@ -240,7 +240,7 @@ describe("getProductStock", () => {
 
 		const result = await getProductStock(mockTenantDb, "p1", "br1");
 
-		expect(result).toEqual(fakeStock);
+		expect(result as any).toEqual(fakeStock);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -260,7 +260,7 @@ describe("upsertProductStock", () => {
 
 		const result = await upsertProductStock(mockTenantDb, "p1", "br1", 20);
 
-		expect(result).toEqual(fakeStock);
+		expect(result as any).toEqual(fakeStock);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 		expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
 	});
@@ -285,7 +285,7 @@ describe("adjustStock", () => {
 
 		const result = await adjustStock(mockTenantDb, "p1", "br1", 10);
 
-		expect(result).toEqual(updatedStock);
+		expect(result as any).toEqual(updatedStock);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 		// insert should NOT be called since update succeeded
 		expect(mockInsert).not.toHaveBeenCalled();
@@ -304,9 +304,9 @@ describe("adjustStock", () => {
 
 		const result = await adjustStock(mockTenantDb, "p1", "br1", -5);
 
-		expect(result).toEqual(newStockRow);
+		expect(result as any).toEqual(newStockRow);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockInsertValues.mock.calls[0][0];
+		const valuesArg = mockInsertValues.mock.calls[0]![0];
 		expect(valuesArg.quantity).toBe(-5);
 	});
 

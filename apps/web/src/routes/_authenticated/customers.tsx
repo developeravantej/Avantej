@@ -6,10 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Users, Mail, Calendar, User } from "lucide-react";
 import { useUserContext } from "@/hooks/useUserContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
 import { useState, useMemo } from "react";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import {
+	GhlSyncBadge,
+	type GhlSyncInfo,
+	type GhlSyncStatus,
+} from "@/components/ghl-sync-badge";
+import { toast } from "sonner";
 import {
 	Dialog,
 	DialogContent,
@@ -54,6 +60,10 @@ function CustomersComponent() {
 	const [newLeadSourceId, setNewLeadSourceId] = useState("");
 	const [newCampaignId, setNewCampaignId] = useState("");
 	// === /3.2 ===
+	const [retryingCustomerProfileId, setRetryingCustomerProfileId] = useState<
+		string | null
+	>(null);
+	const queryClient = useQueryClient();
 
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
@@ -85,13 +95,13 @@ function CustomersComponent() {
 		}),
 	});
 	const branchNodes = (hierarchyData?.nodes ?? []).filter(
-		(n) => n.type === "branch",
+		(n: any) => n.type === "branch",
 	);
 
 	const filteredCustomers = useMemo(
 		() =>
 			customers.filter(
-				(c) =>
+				(c: any) =>
 					!searchQuery ||
 					c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
 					c.email?.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -175,6 +185,44 @@ function CustomersComponent() {
 			// === /3.2 ===
 		},
 	});
+
+	const handleRetryGhlSync = async (customerProfileId: string) => {
+		if (!organizationId) return;
+		setRetryingCustomerProfileId(customerProfileId);
+		try {
+			const result = await client.customerProfiles.retryGhlSync({
+				organizationId,
+				customerProfileId,
+			});
+			const status = result?.ghlSync?.status;
+			if (status === "synced") {
+				toast.success("GHL sync succeeded");
+			} else if (status === "skipped") {
+				toast.info(
+					`GHL sync skipped${
+						result?.ghlSync && "reason" in result.ghlSync && result.ghlSync.reason
+							? `: ${result.ghlSync.reason}`
+							: ""
+					}`,
+				);
+			} else {
+				toast.error(
+					`GHL sync failed${
+						result?.ghlSync && "error" in result.ghlSync && result.ghlSync.error
+							? `: ${result.ghlSync.error}`
+							: ""
+					}`,
+				);
+			}
+			await queryClient.invalidateQueries({ queryKey: memberListKey });
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to retry GHL sync",
+			);
+		} finally {
+			setRetryingCustomerProfileId(null);
+		}
+	};
 
 	const openEditProfile = () => {
 		if (profile) {
@@ -273,42 +321,70 @@ function CustomersComponent() {
 									: "No customers yet. Click \"Add Customer\" to add one."}
 							</p>
 						) : (
-							filteredCustomers.map((customer) => (
-								<div key={customer.id} className="border rounded-lg p-4">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-												<Users className="h-5 w-5 text-blue-600" />
+							filteredCustomers.map((customer: any) => {
+								const ghlSync: GhlSyncInfo | null = customer.ghlSync
+									? {
+											syncStatus:
+												customer.ghlSync.syncStatus as GhlSyncStatus,
+											lastError: customer.ghlSync.lastError ?? null,
+											lastSyncedAt: customer.ghlSync.lastSyncedAt ?? null,
+											ghlContactId:
+												customer.ghlSync.ghlContactId ?? undefined,
+											customerProfileId:
+												customer.ghlSync.customerProfileId ?? undefined,
+											kind: "customer",
+										}
+									: null;
+								const customerProfileId = ghlSync?.customerProfileId;
+								return (
+									<div key={customer.id} className="border rounded-lg p-4">
+										<div className="flex items-center justify-between">
+											<div className="flex items-center space-x-4">
+												<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+													<Users className="h-5 w-5 text-blue-600" />
+												</div>
+												<div>
+													<h3 className="font-semibold">{customer.name ?? customer.email ?? "Unknown"}</h3>
+													<p className="text-sm text-muted-foreground">{customer.email}</p>
+												</div>
 											</div>
-											<div>
-												<h3 className="font-semibold">{customer.name ?? customer.email ?? "Unknown"}</h3>
-												<p className="text-sm text-muted-foreground">{customer.email}</p>
+											<div className="flex items-center space-x-2">
+												<Badge variant={customer.status === "active" ? "default" : "destructive"}>
+													{customer.status}
+												</Badge>
+												<GhlSyncBadge
+													ghlSync={ghlSync}
+													onRetry={
+														customerProfileId
+															? () => handleRetryGhlSync(customerProfileId)
+															: undefined
+													}
+													isRetrying={
+														!!customerProfileId &&
+														retryingCustomerProfileId === customerProfileId
+													}
+												/>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => { window.location.href = `mailto:${customer.email}`; }}
+												>
+													<Mail className="h-4 w-4 mr-1" />
+													Contact
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => navigate({ to: "/dashboard/appointment/view" })}
+												>
+													<Calendar className="h-4 w-4 mr-1" />
+													Schedule
+												</Button>
 											</div>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Badge variant={customer.status === "active" ? "default" : "destructive"}>
-												{customer.status}
-											</Badge>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => { window.location.href = `mailto:${customer.email}`; }}
-											>
-												<Mail className="h-4 w-4 mr-1" />
-												Contact
-											</Button>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => navigate({ to: "/dashboard/appointment/view" })}
-											>
-												<Calendar className="h-4 w-4 mr-1" />
-												Schedule
-											</Button>
 										</div>
 									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 				</CardContent>
@@ -426,7 +502,7 @@ function CustomersComponent() {
 										<SelectValue placeholder="Select a branch…" />
 									</SelectTrigger>
 									<SelectContent>
-										{branchNodes.map((node) => (
+										{branchNodes.map((node: any) => (
 											<SelectItem key={node.id} value={node.id}>
 												{node.name}
 											</SelectItem>

@@ -177,7 +177,7 @@ hierarchyRoutes.get(
 
       // Get all active nodes (exclude soft-deleted, filtered by accessible nodes if needed)
       const allNodes = await tenantDb.query.hierarchyNodes.findMany({
-        where: (nodes, { isNull }) => isNull(nodes.deletedAt), // Only active nodes
+        where: (nodes: any, { isNull }: any) => isNull(nodes.deletedAt), // Only active nodes
         orderBy: (nodes, { asc }) => [asc(nodes.depth), asc(nodes.name)],
       });
 

@@ -32,7 +32,6 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import type { Context } from "hono";
-import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import * as schema from "@avantej-core/db/schema/auth";
 
@@ -43,6 +42,9 @@ import {
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
 } from "@/lib/email";
+import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
+import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env (for Node.js/test environments)
@@ -183,6 +185,7 @@ function createBetterAuth(c?: Context) {
   },
   trustedOrigins: [
     getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+    "http://localhost:4001", // E2E alt port
     "mybettertapp://",
     "exp://",
   ],
@@ -267,6 +270,45 @@ function createBetterAuth(c?: Context) {
           return { data: { ...user, role: null } };
         },
       },
+      update: {
+        // Fire GHL profile sync after a user record changes. The dispatcher is
+        // idempotent and soft-fails — it is safe to invoke on every update
+        // (it short-circuits when the user has no GHL link rows or when
+        // GHL_AGENCY_ID is unset).
+        after: async (user) => {
+          try {
+            const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
+            if (!ghlAgencyId) return;
+            const databaseUrl = getEnvVar("DATABASE_URL");
+            if (!databaseUrl) return;
+
+            // Build a control-panel db scoped to this hook invocation. We
+            // can't reuse the request-scoped pool here because the betterAuth
+            // hook signature does not surface the Hono context. A short-lived
+            // pool is acceptable since dispatchProfileSync awaits its work.
+            const pool = new Pool({ connectionString: databaseUrl });
+            try {
+              const controlPanelDb = drizzle({
+                client: pool,
+                schema: controlPanelSchema,
+              }) as NeonDatabase<typeof controlPanelSchema>;
+
+              await dispatchProfileSync({
+                controlPanelDb,
+                userId: user.id,
+                env: { GHL_AGENCY_ID: ghlAgencyId },
+              });
+            } finally {
+              await pool.end();
+            }
+          } catch (err) {
+            console.error(
+              "dispatchProfileSync failed in user.update.after hook:",
+              err,
+            );
+          }
+        },
+      },
     },
   },
   session: {
@@ -336,7 +378,7 @@ function createBetterAuth(c?: Context) {
           const databaseUrl = getEnvVar("DATABASE_URL");
           if (databaseUrl) {
             const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool });
+            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),

@@ -5,13 +5,11 @@ import { mockClient } from "../helpers/mock-client";
 
 let TaxRatesPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => () => ({}),
-	createLazyFileRoute: () => (opts: { component: React.ComponentType }) => {
+	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		TaxRatesPage = opts.component;
 		return { component: opts.component };
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -19,7 +17,9 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
-		hasPermission: vi.fn().mockReturnValue(true),
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -28,7 +28,7 @@ vi.mock("sonner", () => ({
 
 beforeAll(async () => {
 	await import(
-		"@/routes/_authenticated/dashboard/_layout/settings/tax-rates.lazy"
+		"@/routes/_authenticated/dashboard/_layout/settings/tax-rates"
 	);
 });
 
@@ -42,7 +42,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
+			expect(screen.getByText(/Tax Rates/)).toBeInTheDocument();
 		});
 	});
 
@@ -50,10 +50,10 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
+			expect(screen.getByText(/Tax Rates/)).toBeInTheDocument();
 			expect(
-				screen.getAllByRole("button", { name: /new tax rate/i }).length,
-			).toBeGreaterThan(0);
+				screen.getAllByRole("button", { name: /new tax rate|add tax rate/i })[0],
+			).toBeInTheDocument();
 		});
 	});
 
@@ -97,7 +97,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getAllByText("SST 8%").length).toBeGreaterThan(0);
+			expect(screen.getAllByText("SST 8%")[0]).toBeInTheDocument();
 		});
 
 		const deactivateButton = screen.getByRole("button", {
