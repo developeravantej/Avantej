@@ -147,7 +147,7 @@ export interface CommonPermissions {
 
 // Auth hook return type
 export interface UseAuthReturn extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string; data?: any }>;
+  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string; data?: unknown }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<boolean>;
   requireAuth: (redirectTo?: string) => void;
@@ -162,18 +162,23 @@ export interface UseAuthReturn extends AuthState {
 }
 
 // Type guards
-export function isUserWithPermissions(user: any): user is UserWithPermissions {
-  return user && typeof user === 'object' && 
-         'organizations' in user && 
-         Array.isArray(user.organizations);
+export function isUserWithPermissions(user: unknown): user is UserWithPermissions {
+  return (
+    user !== null &&
+    typeof user === 'object' &&
+    'organizations' in user &&
+    Array.isArray((user as Record<string, unknown>).organizations)
+  );
 }
 
-export function isPermissionData(permission: any): permission is PermissionData {
-  return permission && 
-         typeof permission === 'object' &&
-         typeof permission.resource === 'string' &&
-         Array.isArray(permission.actions) &&
-         typeof permission.scope === 'string';
+export function isPermissionData(permission: unknown): permission is PermissionData {
+  return (
+    permission !== null &&
+    typeof permission === 'object' &&
+    'resource' in permission && typeof (permission as Record<string, unknown>).resource === 'string' &&
+    'actions' in permission && Array.isArray((permission as Record<string, unknown>).actions) &&
+    'scope' in permission && typeof (permission as Record<string, unknown>).scope === 'string'
+  );
 }
 
 

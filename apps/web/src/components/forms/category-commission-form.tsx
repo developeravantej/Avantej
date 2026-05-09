@@ -81,12 +81,12 @@ export function CategoryCommissionForm({
 
 	useEffect(() => {
 		if (!existingConfig) return;
-		const { config, slots: apiSlots, rates: apiRates, conditions: apiConditions } = existingConfig as any;
-		setPaymentType(config.paymentType ?? "fixed");
+		const { config, slots: apiSlots, rates: apiRates, conditions: apiConditions } = existingConfig;
+		setPaymentType((config.paymentType ?? "fixed") as "fixed" | "variable");
 		setIsConditional(config.isConditional ?? false);
 		setMaxCoaches(config.maxCoaches ?? 1);
 		setSlots(
-			(apiSlots ?? []).map((s: any) => ({
+			(apiSlots ?? []).map((s) => ({
 				slotIndex: s.slotIndex,
 				label: s.label,
 				weightageBasisPoints: s.weightageBasisPoints,
@@ -94,7 +94,7 @@ export function CategoryCommissionForm({
 		);
 		if (!config.isConditional) {
 			setRates(
-				(apiRates ?? []).map((r: any) => ({
+				(apiRates ?? []).map((r) => ({
 					trainerTierId: r.trainerTierId,
 					amount: Number(centsToRm(r.amount)),
 				})),
@@ -103,13 +103,13 @@ export function CategoryCommissionForm({
 		} else {
 			setRates([]);
 			setConditions(
-				(apiConditions ?? []).map(({ condition, rates: cr }: any) => ({
+				(apiConditions ?? []).map(({ condition, rates: cr }) => ({
 					conditionIndex: condition.conditionIndex,
-					operator: condition.operator,
+					operator: condition.operator as ConditionEntry["operator"],
 					threshold: condition.threshold,
 					thresholdMax: condition.thresholdMax ?? undefined,
 					label: condition.label ?? undefined,
-					rates: (cr ?? []).map((r: any) => ({
+					rates: (cr ?? []).map((r) => ({
 						trainerTierId: r.trainerTierId,
 						amount: Number(centsToRm(r.amount)),
 					})),
@@ -120,7 +120,7 @@ export function CategoryCommissionForm({
 
 	useEffect(() => {
 		if (tiers.length === 0 || rates.length > 0) return;
-		setRates(tiers.map((t: any) => ({ trainerTierId: t.id, amount: 0 })));
+		setRates(tiers.map((t) => ({ trainerTierId: t.id, amount: 0 })));
 	}, [tiers]);
 
 	const upsertMutation = useApiMutation({
@@ -197,7 +197,7 @@ export function CategoryCommissionForm({
 				operator: "gte",
 				threshold: 0,
 				label: "",
-				rates: tiers.map((t: any) => ({ trainerTierId: t.id, amount: 0 })),
+				rates: tiers.map((t) => ({ trainerTierId: t.id, amount: 0 })),
 			},
 		]);
 	}
@@ -408,7 +408,7 @@ export function CategoryCommissionForm({
 									<p className="text-sm text-muted-foreground">No active trainer tiers found.</p>
 								) : (
 									<div className="divide-y divide-border/30">
-										{tiers.map((tier: any) => {
+										{tiers.map((tier) => {
 											const rate = rates.find((r) => r.trainerTierId === tier.id);
 											return (
 												<div key={tier.id} className="flex items-center gap-3 py-2">
@@ -539,7 +539,7 @@ export function CategoryCommissionForm({
 												<div className="flex flex-col gap-2">
 													<Label className="text-xs font-medium">Rates by Trainer Tier</Label>
 													<div className="divide-y divide-border/30">
-														{tiers.map((tier: any) => {
+														{tiers.map((tier) => {
 															const rate = condition.rates.find(
 																(r) => r.trainerTierId === tier.id,
 															);

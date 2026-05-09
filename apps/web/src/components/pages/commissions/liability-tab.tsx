@@ -495,7 +495,7 @@ export function LiabilityTab() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All categories</SelectItem>
-								{categories.map((cat: any) => (
+								{categories.map((cat) => (
 									<SelectItem key={cat.id} value={cat.id}>
 										{cat.name}
 									</SelectItem>

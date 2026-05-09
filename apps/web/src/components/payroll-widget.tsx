@@ -8,12 +8,14 @@ export function PayrollWidget() {
   const { data: userCtx } = useUserContext();
   const organizationId = userCtx?.currentOrganizationId ?? "";
 
-  const { data = [] } = useQuery({
+  const { data } = useQuery({
     ...orpc.payouts.list.queryOptions({ input: { organizationId, limit: 20 } }),
     enabled: !!organizationId,
   });
 
-  const payrolls = data.map((payout: any) => ({
+  type PayoutItem = { id: string; recipientName?: string | null; amount: number };
+  const rawPayouts: PayoutItem[] = Array.isArray(data) ? (data as PayoutItem[]) : [];
+  const payrolls: { id: string; name: string; amount: string }[] = rawPayouts.map((payout) => ({
     id: payout.id,
     name: payout.recipientName ?? "Unknown",
     amount: formatCents(payout.amount),
@@ -31,7 +33,7 @@ export function PayrollWidget() {
               No payroll data available
             </div>
           ) : (
-            payrolls.map((payroll: any) => (
+            payrolls.map((payroll) => (
               <div
                 key={payroll.id}
                 className="flex items-center justify-between border-b border-brand-secondary-3 pr-2 py-2 last:border-0 last:pb-0"

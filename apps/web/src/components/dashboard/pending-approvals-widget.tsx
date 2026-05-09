@@ -48,7 +48,7 @@ export function PendingApprovalsWidget() {
 	const currentOrg = userCtx?.organizations.find(
 		(o) => o.id === organizationId,
 	);
-	const callerRole = (currentOrg as any)?.role ?? null;
+	const callerRole = currentOrg?.role ?? null;
 	const isStaff = callerRole === "admin" || callerRole === "trainer";
 
 	const { data: rows, isLoading } = useQuery({

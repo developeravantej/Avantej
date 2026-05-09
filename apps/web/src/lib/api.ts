@@ -25,19 +25,16 @@ class ApiClient {
   // TODO: All methods should be migrated to oRPC
   // This is a placeholder to prevent import errors
   
-  async getListServices(_params: any): Promise<any> {
-    console.warn("TODO: Replace apiClient.getListServices with oRPC client");
-    return { status: 200, data: [] }; // Mock data
+  async getListServices(_params: unknown): Promise<never> {
+    throw new Error("apiClient.getListServices is deprecated — use orpc client instead");
   }
-  
-  async getListServiceCategories(_params: any): Promise<any> {
-    console.warn("TODO: Replace apiClient.getListServiceCategories with oRPC client");
-    return { status: 200, data: [] }; // Mock data
+
+  async getListServiceCategories(_params: unknown): Promise<never> {
+    throw new Error("apiClient.getListServiceCategories is deprecated — use orpc client instead");
   }
-  
-  async getListbranches(): Promise<any> {
-    console.warn("TODO: Replace apiClient.getListbranches with oRPC client");
-    return { status: 200, data: [] }; // Mock data
+
+  async getListbranches(): Promise<never> {
+    throw new Error("apiClient.getListbranches is deprecated — use orpc client instead");
   }
   
   // Add other stub methods as needed during migration

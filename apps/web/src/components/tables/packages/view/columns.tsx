@@ -124,7 +124,6 @@ export const columns: ColumnDef<PackageRow>[] = [
 						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
 						type="button"
 						onClick={() => {
-							console.log("Edit package:", row.original);
 						}}
 					>
 						Edit

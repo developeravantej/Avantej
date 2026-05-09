@@ -71,8 +71,12 @@ function ApprovalsPage() {
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
-	const callerRole = (currentOrg as any)?.role ?? null;
-	const callerMemberId = (currentOrg as any)?.hierarchy?.member?.id ?? null;
+	const callerRole = currentOrg?.role ?? null;
+	// hierarchy.member.id is not in the UserContextResponse type (member only has role/hierarchyScopeId/etc.)
+	// but the server may include it — narrow via unknown to avoid widening the type contract.
+	type MemberWithId = NonNullable<typeof currentOrg>["hierarchy"]["member"] & { id?: string };
+	const callerMemberId =
+		(currentOrg?.hierarchy?.member as MemberWithId | null | undefined)?.id ?? null;
 
 	const isAdmin = callerRole === "admin";
 	const isTrainer = callerRole === "trainer";

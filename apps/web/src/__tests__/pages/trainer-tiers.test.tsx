@@ -1,17 +1,13 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
-
-let TrainerTiersPage: React.ComponentType;
+import { TrainerTiersPage } from "@/components/pages/trainers/trainer-tiers-page";
 
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		TrainerTiersPage = opts.component;
-		return { component: opts.component };
-	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -19,15 +15,12 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
-
-beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/trainers/tiers");
-});
 
 describe("TrainerTiersPage", () => {
 	beforeEach(() => {

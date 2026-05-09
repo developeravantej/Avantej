@@ -1,44 +1,11 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {
-		members: {
-			list: {
-				queryOptions: (opts: { input: unknown }) => ({
-					queryKey: ["members-mock", opts],
-					queryFn: () => mockClient.members.list(opts.input as Parameters<typeof mockClient.members.list>[0]),
-				}),
-			},
-		},
-		services: {
-			list: {
-				queryOptions: (opts: { input: unknown }) => ({
-					queryKey: ["services-mock", opts],
-					queryFn: () => mockClient.services.list(opts.input as Parameters<typeof mockClient.services.list>[0]),
-				}),
-			},
-		},
-		packageInstances: {
-			listAll: {
-				queryOptions: (opts: { input: unknown }) => ({
-					queryKey: ["pkgInstances-mock", opts],
-					queryFn: () => mockClient.packageInstances.listAll(opts.input as Parameters<typeof mockClient.packageInstances.listAll>[0]),
-				}),
-			},
-		},
-		classSlots: {
-			list: {
-				queryOptions: (opts: { input: unknown }) => ({
-					queryKey: ["classSlots-mock", opts],
-					queryFn: () => mockClient.classSlots.list(opts.input as Parameters<typeof mockClient.classSlots.list>[0]),
-				}),
-			},
-		},
-	},
+	orpc: mockOrpc,
 }));
 
 vi.mock("@/hooks/useUserContext", () => ({
@@ -47,6 +14,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			organizations: [],
 		},
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 
@@ -56,6 +24,7 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 
 vi.mock("sonner", () => ({

@@ -57,8 +57,21 @@ const hierarchicalBranchSchema = z.object({
 
 type HierarchicalBranchFormData = z.infer<typeof hierarchicalBranchSchema>;
 
+interface HierarchyNodeResponse {
+  id: string;
+  name: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  code?: string | null;
+  address?: string | null;
+  picUserId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface HierarchicalBranchFormProps {
-  onSuccess?: (branch: any) => void;
+  onSuccess?: (branch: HierarchyNodeResponse) => void;
 }
 
 interface HierarchyItem {
@@ -113,7 +126,6 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
   // Load countries and user organization on mount or when organizationId changes
   useEffect(() => {
-    console.log("📋 Hierarchical Branch Form mounted, organizationId:", organizationId);
     if (organizationId) {
       loadCountries();
       loadUserOrganization();
@@ -137,31 +149,31 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const loadCountries = async () => {
     try {
       if (!organizationId) {
-        console.warn("No organization ID available");
         setCountries([]);
         return;
       }
 
       // Fetch all hierarchy nodes from API
       const result = await client.hierarchy.listNodes({ organizationId });
-      
+
       // Filter for countries (type === "country", depth === 1)
-      const countryNodes = (result.nodes || []).filter(
-        (node: any) => node.type === "country" && node.depth === 1
+      const allNodes = (result.nodes || []) as HierarchyNodeResponse[];
+      const countryNodes = allNodes.filter(
+        (node) => node.type === "country" && node.depth === 1
       );
 
       // Map to HierarchyItem format
-      const countriesList: HierarchyItem[] = countryNodes.map((node: any) => ({
+      const countriesList: HierarchyItem[] = countryNodes.map((node) => ({
         id: node.id,
         name: node.name,
         code: node.code || "",
       }));
 
-      console.log(`Loaded ${countriesList.length} countries`);
       setCountries(countriesList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading countries:", error);
-      if (error.message.includes("Not authenticated")) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Not authenticated")) {
         toast.error("Please log in to access this feature");
       } else {
         toast.error("Failed to load countries. Please try again.");
@@ -181,11 +193,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       //     name: organization.name,
       //   });
       // }
-      console.warn("API call to loadUserOrganization is mocked.");
       setUserOrganization(null); // Mock data
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading user organization:", error);
-      if (error.message.includes("Not authenticated")) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Not authenticated")) {
         toast.error("Please log in to access this feature");
       } else {
         toast.error("Failed to load your organization. Please try again.");
@@ -196,30 +208,30 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const loadRegions = async (countryId: string) => {
     try {
       if (!organizationId) {
-        console.warn("No organization ID available");
         setRegions([]);
         return;
       }
 
       // Fetch all hierarchy nodes from API
       const result = await client.hierarchy.listNodes({ organizationId });
-      
+
       // Filter for regions under the selected country
-      const regionNodes = (result.nodes || []).filter(
-        (node: any) => node.type === "region" && node.depth === 2 && node.parentId === countryId
+      const allRegionNodes = (result.nodes || []) as HierarchyNodeResponse[];
+      const regionNodes = allRegionNodes.filter(
+        (node) => node.type === "region" && node.depth === 2 && node.parentId === countryId
       );
 
-      const regionsList: HierarchyItem[] = regionNodes.map((node: any) => ({
+      const regionsList: HierarchyItem[] = regionNodes.map((node) => ({
         id: node.id,
         name: node.name,
         code: node.code || "",
       }));
 
-      console.log(`Loaded ${regionsList.length} regions for country ${countryId}`);
       setRegions(regionsList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading regions:", error);
-      if (error.message.includes("Not authenticated")) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Not authenticated")) {
         toast.error("Please log in to access this feature");
       } else {
         toast.error("Failed to load regions. Please try again.");
@@ -231,30 +243,30 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const loadAreas = async (regionId: string) => {
     try {
       if (!organizationId) {
-        console.warn("No organization ID available");
         setAreas([]);
         return;
       }
 
       // Fetch all hierarchy nodes from API
       const result = await client.hierarchy.listNodes({ organizationId });
-      
+
       // Filter for areas under the selected region
-      const areaNodes = (result.nodes || []).filter(
-        (node: any) => node.type === "area" && node.depth === 3 && node.parentId === regionId
+      const allAreaNodes = (result.nodes || []) as HierarchyNodeResponse[];
+      const areaNodes = allAreaNodes.filter(
+        (node) => node.type === "area" && node.depth === 3 && node.parentId === regionId
       );
 
-      const areasList: HierarchyItem[] = areaNodes.map((node: any) => ({
+      const areasList: HierarchyItem[] = areaNodes.map((node) => ({
         id: node.id,
         name: node.name,
         code: node.code || "",
       }));
 
-      console.log(`Loaded ${areasList.length} areas for region ${regionId}`);
       setAreas(areasList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading areas:", error);
-      if (error.message.includes("Not authenticated")) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Not authenticated")) {
         toast.error("Please log in to access this feature");
       } else {
         toast.error("Failed to load areas. Please try again.");
@@ -400,60 +412,44 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
       // Navigate to branch view
       navigate({ to: "/dashboard/branch/view" });
-    } catch (error: any) {
-      console.error("Error creating branch:", error);
-      console.log("Error message:", error.message);
-      console.log("Error stack:", error.stack);
-
-      // Check authentication status
-      const token = localStorage.getItem("authToken");
-      console.log("Current auth token exists:", !!token);
-      if (token) {
-        console.log("Token preview:", token.substring(0, 50) + "...");
-      }
-
-      // Handle specific error types with more detailed debugging
+    } catch (error: unknown) {
+      // Handle specific error types
+      const msg = error instanceof Error ? error.message : String(error);
       if (
-        error.message.includes("Not authenticated") ||
-        error.message.includes("401")
+        msg.includes("Not authenticated") ||
+        msg.includes("401")
       ) {
-        console.error("Authentication error - token may be expired or invalid");
         toast.error(
           "Please log in to create branches. Your session may have expired."
         );
       } else if (
-        error.message.includes("not found") ||
-        error.message.includes("404")
+        msg.includes("not found") ||
+        msg.includes("404")
       ) {
-        console.error("Resource not found error");
         toast.error(
           "One or more selected items could not be found. Please refresh and try again."
         );
       } else if (
-        error.message.includes("already exists") ||
-        error.message.includes("duplicate")
+        msg.includes("already exists") ||
+        msg.includes("duplicate")
       ) {
-        console.error("Duplicate resource error");
         toast.error(
           "A branch with this code already exists in the selected area"
         );
-      } else if (error.message.includes("400")) {
-        console.error("Bad request error");
+      } else if (msg.includes("400")) {
         toast.error(
           "Invalid data provided. Please check your input and try again."
         );
       } else if (
-        error.message.includes("403") ||
-        error.message.includes("Forbidden") ||
-        error.message.includes("permission")
+        msg.includes("403") ||
+        msg.includes("Forbidden") ||
+        msg.includes("permission")
       ) {
-        console.error("Permission error - user lacks required permissions");
         toast.error(
           "You don't have permission to create branches. Please contact your administrator."
         );
       } else {
-        console.error("Unknown error occurred");
-        toast.error(`Failed to create branch: ${error.message}`);
+        toast.error(`Failed to create branch: ${msg}`);
       }
     } finally {
       setIsLoading(false);

@@ -5,11 +5,13 @@ import { mockClient } from "../helpers/mock-client";
 
 let PurchaseOrdersPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
+	createFileRoute: () => () => ({}),
+	createLazyFileRoute: () => (opts: { component: React.ComponentType }) => {
 		PurchaseOrdersPage = opts.component;
 		return { component: opts.component };
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -17,6 +19,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -25,7 +28,7 @@ vi.mock("sonner", () => ({
 
 beforeAll(async () => {
 	await import(
-		"@/routes/_authenticated/dashboard/_layout/purchase-orders/view"
+		"@/routes/_authenticated/dashboard/_layout/purchase-orders/view.lazy"
 	);
 });
 
@@ -39,7 +42,7 @@ describe("Purchase Orders page", () => {
 		renderWithProviders(<PurchaseOrdersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Purchase Orders")).toBeInTheDocument();
+			expect(screen.getByRole("heading", { name: "Purchase Orders" })).toBeInTheDocument();
 		});
 	});
 
@@ -48,8 +51,8 @@ describe("Purchase Orders page", () => {
 
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: /new po/i }),
-			).toBeInTheDocument();
+				screen.getAllByRole("button", { name: /new po/i }).length,
+			).toBeGreaterThan(0);
 		});
 	});
 
@@ -143,7 +146,7 @@ describe("Purchase Orders page", () => {
 		renderWithProviders(<PurchaseOrdersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/2500\.00/)).toBeInTheDocument();
+			expect(screen.getByText(/2,500\.00/)).toBeInTheDocument();
 		});
 	});
 

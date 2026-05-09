@@ -98,8 +98,7 @@ function DeleteDialog({
 	const deleteMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!row) return;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.deleteCheckIn({
+			return client.checkIns.deleteCheckIn({
 				organizationId,
 				id: row.id,
 			});

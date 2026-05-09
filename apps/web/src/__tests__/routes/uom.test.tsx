@@ -1,20 +1,26 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let RouteComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		RouteComponent = opts.component;
-		return { component: opts.component };
+		return {
+			component: opts.component,
+			useSearch: vi.fn().mockReturnValue({ tab: "units" }),
+			useNavigate: vi.fn().mockReturnValue(vi.fn()),
+		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -40,7 +46,7 @@ describe("Unit of Measure page", () => {
 		renderWithProviders(<RouteComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /add uom/i })).toBeInTheDocument();
+			expect(screen.getByRole("heading", { name: "Units of Measure" })).toBeInTheDocument();
 		});
 	});
 

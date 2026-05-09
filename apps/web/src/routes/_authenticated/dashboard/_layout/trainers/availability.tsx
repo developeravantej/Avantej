@@ -188,8 +188,10 @@ function TrainerAvailabilityPage() {
 	const memberRole = (
 		currentOrg?.hierarchy?.member?.role ?? ""
 	).toLowerCase();
+	// hierarchy.member.id is not in UserContextResponse type; narrow without `any`.
+	type MemberWithId = NonNullable<typeof currentOrg>["hierarchy"]["member"] & { id?: string };
 	const callerMemberId =
-		(currentOrg as any)?.hierarchy?.member?.id ?? null;
+		(currentOrg?.hierarchy?.member as MemberWithId | null | undefined)?.id ?? null;
 	const isTrainerRole = memberRole === "trainer";
 
 	// ── General schedule state ────────────────────────────────────────────────

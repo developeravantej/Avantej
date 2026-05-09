@@ -1,5 +1,6 @@
 import { columns } from "@/components/tables/branch/view/columns";
 import DataTable from "@/components/tables/branch/view/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,24 @@ type HierarchyNode = {
   depth: number;
   parentId: string | null;
   code?: string | null;
+};
+
+/** Shape of items returned by mapBranchesWithHierarchy and stored in branchData.items */
+type BranchItem = {
+  id: string;
+  name: string;
+  code: string;
+  area_id: string | null;
+  organization_id: string | null;
+  branch_type: string;
+  is_active: boolean;
+  created_at: Date | null;
+  updated_at: Date | null;
+  address: string | null;
+  picUserId: string | null;
+  person_in_charge: { name: string; email: string };
+  area: { name: string; region: { name: string; country: { name: string } } };
+  location: { address: string };
 };
 
 function RouteComponent() {
@@ -217,7 +236,7 @@ function RouteComponent() {
           : null;
 
         // Get PIC info - resolve picUserId to name/email via the members list
-        const picUserId = (branch as any).picUserId;
+        const picUserId = branch.picUserId;
         const picInfo = picUserId
           ? memberByUserId.get(picUserId) ?? { name: "Unknown", email: "N/A" }
           : {
@@ -228,7 +247,8 @@ function RouteComponent() {
         return {
           id: branch.id,
           name: branch.name,
-          code: (branch as any).code || "", // Code may not be in schema yet
+          // `code` is not yet returned by listNodes — default to empty string
+          code: (branch as { code?: string }).code ?? "",
           area_id: branch.parentId,
           organization_id: orgId,
           branch_type: "standard",
@@ -236,8 +256,8 @@ function RouteComponent() {
           created_at: branch.createdAt,
           updated_at: branch.updatedAt,
           // Store raw data for editing
-          address: (branch as any).address || null,
-          picUserId: picUserId || null,
+          address: branch.address ?? null,
+          picUserId: picUserId ?? null,
           // Map to expected column structure
           person_in_charge: picInfo,
           area: {
@@ -250,7 +270,7 @@ function RouteComponent() {
             },
           },
           location: {
-            address: (branch as any).address || "N/A",
+            address: branch.address ?? "N/A",
           },
         };
       });
@@ -351,8 +371,8 @@ function RouteComponent() {
         );
 
         return { items: mappedBranches };
-      } catch (apiError: any) {
-        throw apiError; // Re-throw so React Query can handle it
+      } catch (err: unknown) {
+        throw err; // Re-throw so React Query can handle it
       }
     },
     enabled: !!organizationId && isAuthenticated,
@@ -545,7 +565,7 @@ function RouteComponent() {
 
   // Edit handler - open dialog
   const handleEdit = useCallback(
-    (branch: any) => {
+    (branch: BranchItem) => {
       if (!branch.id || !branch.name) {
         toast.error("Invalid branch data");
         return;
@@ -694,10 +714,10 @@ function RouteComponent() {
       setEditBranchRegionId("");
       setEditBranchAreaId("");
       toast.success("Branch updated successfully");
-    } catch (error: any) {
+    } catch (err: unknown) {
       // Error handling is done in mutation onError callbacks
       // Just log here for debugging
-      console.error("Failed to update branch:", error);
+      console.error("Failed to update branch:", err instanceof Error ? err.message : String(err));
     }
   }, [
     editingBranch,
@@ -736,11 +756,11 @@ function RouteComponent() {
     return null;
   }
 
-  const items = branchData?.items ?? [];
+  const items: BranchItem[] = (branchData?.items ?? []) as BranchItem[];
   const totalBranches = items.length;
-  const activeBranches = items.filter((b: any) => b.is_active !== false).length;
-  const uniqueRegions = new Set(items.map((b: any) => b.area?.region?.name).filter(Boolean)).size;
-  const assignedPic = items.filter((b: any) => b.picUserId).length;
+  const activeBranches = items.filter((b) => b.is_active !== false).length;
+  const uniqueRegions = new Set(items.map((b) => b.area?.region?.name).filter(Boolean)).size;
+  const assignedPic = items.filter((b) => b.picUserId).length;
 
   return (
     <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
@@ -811,7 +831,7 @@ function RouteComponent() {
         {/* Data Table */}
         {items.length > 0 && (
           <DataTable
-            columns={columns}
+            columns={columns as ColumnDef<BranchItem>[]}
             data={items}
             onEdit={handleEdit}
             onDelete={handleDelete}

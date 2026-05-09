@@ -81,7 +81,7 @@ export function ProcessRefundDialog({
 
 	async function onSubmit(values: FormValues) {
 		try {
-			await (client as any).refunds.process({
+			await client.refunds.process({
 				organizationId,
 				id: refundId,
 				refundMethod: values.refundMethod,

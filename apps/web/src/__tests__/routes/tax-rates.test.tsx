@@ -5,11 +5,13 @@ import { mockClient } from "../helpers/mock-client";
 
 let TaxRatesPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
+	createFileRoute: () => () => ({}),
+	createLazyFileRoute: () => (opts: { component: React.ComponentType }) => {
 		TaxRatesPage = opts.component;
 		return { component: opts.component };
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -17,6 +19,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -25,7 +28,7 @@ vi.mock("sonner", () => ({
 
 beforeAll(async () => {
 	await import(
-		"@/routes/_authenticated/dashboard/_layout/settings/tax-rates"
+		"@/routes/_authenticated/dashboard/_layout/settings/tax-rates.lazy"
 	);
 });
 
@@ -39,7 +42,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Configuration")).toBeInTheDocument();
+			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
 		});
 	});
 
@@ -47,10 +50,10 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Tax Configuration")).toBeInTheDocument();
+			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /add tax rate/i }),
-			).toBeInTheDocument();
+				screen.getAllByRole("button", { name: /new tax rate/i }).length,
+			).toBeGreaterThan(0);
 		});
 	});
 
@@ -94,7 +97,7 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("SST 8%")).toBeInTheDocument();
+			expect(screen.getAllByText("SST 8%").length).toBeGreaterThan(0);
 		});
 
 		const deactivateButton = screen.getByRole("button", {

@@ -48,6 +48,9 @@
 					}
 				}
 			},
+			"suspicious": {
+				"noConsoleLog": "error"
+			},
 			"style": {
 				"noParameterAssign": "error",
 				"useAsConstAssertion": "error",
@@ -66,5 +69,18 @@
 		"formatter": {
 			"quoteStyle": "double"
 		}
-	}
+	},
+	"overrides": [
+		{
+			"include": ["apps/web/src/**"],
+			"ignore": ["apps/web/src/routeTree.gen.ts", "apps/web/src/__tests__/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "error"
+					}
+				}
+			}
+		}
+	]
 }

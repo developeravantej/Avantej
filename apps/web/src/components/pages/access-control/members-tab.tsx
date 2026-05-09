@@ -524,6 +524,7 @@ export function MembersTabPage() {
 
 	useEffect(() => {
 		setUsers(initialUsers);
+		// intentional: initialUsers is a stable initial snapshot; adding it to deps causes infinite render loop
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [membersApiData]);
 
@@ -689,11 +690,9 @@ export function MembersTabPage() {
 		const memberRaw = (membersApiData as MemberApiItem[]).find(
 			(m) => m.id === user.id,
 		);
-		const currentRole = (memberRaw as any)?.role as SystemRole | undefined;
-		const currentRoleId = (memberRaw as any)?.roleId as string | null | undefined;
-		const currentScope = (memberRaw as any)?.hierarchyScopeId as
-			| string
-			| undefined;
+		const currentRole = memberRaw?.role as SystemRole | undefined;
+		const currentRoleId = memberRaw?.roleId;
+		const currentScope = memberRaw?.hierarchyScopeId;
 		setEditingUserDetails(user);
 		setEditRole(currentRole ?? "staff");
 		setEditRoleId(currentRoleId ?? "");

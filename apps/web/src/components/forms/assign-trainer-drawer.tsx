@@ -72,8 +72,8 @@ export function AssignTrainerDrawer({
 	});
 
 	const trainers = useMemo(() => {
-		return (members as any[]).filter(
-			(m) =>
+		return members.filter(
+			(m: { role: string; status: string; id: string; userId: string; name: string }) =>
 				(m.role === "trainer" || m.role === "admin") &&
 				m.status === "active",
 		);
@@ -152,9 +152,9 @@ export function AssignTrainerDrawer({
 											No active trainers in this branch
 										</div>
 									)}
-									{trainers.map((t: any) => (
+									{(trainers as { role: string; status: string; id: string; userId: string; name: string }[]).map((t) => (
 										<SelectItem key={t.id} value={t.id}>
-											{t.user?.name ?? t.userId}
+											{t.name ?? t.userId}
 											<span className="ml-2 text-muted-foreground text-xs">
 												({t.role})
 											</span>

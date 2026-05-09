@@ -192,7 +192,7 @@ export function RolesTabPage() {
 	const userCounts = useMemo<Record<string, number>>(() => {
 		const counts: Record<string, number> = {};
 		for (const member of membersData) {
-			const role = (member as any).role as string | undefined;
+			const role = member.role;
 			if (role) {
 				// roles from API have names; find matching role by name
 				const matched = displayRoles.find(
@@ -645,7 +645,7 @@ export function RolesTabPage() {
 								<div className="flex items-center gap-2">
 									<Tabs
 										defaultValue="cards"
-										onValueChange={(value: any) => setViewMode(value as any)}
+										onValueChange={(value) => setViewMode(value as "cards" | "enhanced" | "wizard")}
 									>
 										<TabsList>
 											<TabsTrigger value="cards">Cards</TabsTrigger>

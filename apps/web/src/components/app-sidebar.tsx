@@ -266,7 +266,8 @@ function SidebarUserFooter() {
 	const { logout } = useAuth();
 	const [loggingOut, setLoggingOut] = useState(false);
 
-	const sessionUser = session?.user as any;
+	// Better-Auth inferAdditionalFields adds firstName/lastName at runtime; the client type doesn't reflect it.
+	const sessionUser = session?.user as (typeof session & Record<string, unknown> extends null | undefined ? undefined : { firstName?: string; lastName?: string; name?: string; email?: string });
 	const displayName =
 		`${sessionUser?.firstName || ""} ${sessionUser?.lastName || ""}`.trim() ||
 		sessionUser?.name ||

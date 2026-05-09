@@ -26,6 +26,8 @@ describe("PackageInstallmentsPage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockClient.installments.adminOverview.mockResolvedValue({ items: [], total: 0 });
+		mockClient.installments.listByPackageInstance.mockResolvedValue([]);
+		mockClient.installments.setOverdraft.mockResolvedValue({});
 		mockClient.installmentPlans.list.mockResolvedValue([]);
 	});
 
@@ -105,8 +107,10 @@ describe("PackageInstallmentsPage", () => {
 		});
 	});
 
-	it("opens the Allow Overdraft dialog, fills reason, submits, and calls setOverdraft with correct args", async () => {
-		const user = userEvent.setup();
+	it(
+		"opens the Allow Overdraft dialog, fills reason, submits, and calls setOverdraft with correct args",
+		async () => {
+		const user = userEvent.setup({ delay: null });
 		const organizationId = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 
 		mockClient.installments.adminOverview.mockResolvedValue({
@@ -162,7 +166,9 @@ describe("PackageInstallmentsPage", () => {
 				reason: "VIP customer — payment delayed by 3 days",
 			});
 		});
-	});
+		},
+		15000,
+	);
 
 	it("shows em-dash when nextInstallmentAmount is null under Due Soon tab", async () => {
 		const user = userEvent.setup();

@@ -25,6 +25,7 @@ import {
 	Database,
 	Bell,
 	Palette,
+	type LucideIcon,
 } from "lucide-react";
 import {
 	Card,
@@ -58,7 +59,7 @@ function FeatureCard({
 	title,
 	description,
 }: {
-	icon: any;
+	icon: LucideIcon;
 	title: string;
 	description: string;
 }) {

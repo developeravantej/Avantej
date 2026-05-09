@@ -7,9 +7,14 @@ let StockRequestsViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		StockRequestsViewPage = opts.component;
-		return { component: opts.component };
+		return {
+			component: opts.component,
+			useSearch: vi.fn().mockReturnValue({ tab: "requests" }),
+			useNavigate: vi.fn().mockReturnValue(vi.fn()),
+		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -18,6 +23,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			user: { id: "member-1" },
 		},
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({

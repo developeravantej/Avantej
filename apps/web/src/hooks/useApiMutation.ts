@@ -65,8 +65,7 @@ export function useApiMutation<TData = unknown, TVariables = void, TContext = un
 				}
 			}
 
-			// biome-ignore lint/suspicious/noExplicitAny: pass-through to upstream handler
-			return (onSuccess as any)?.(...args);
+			return (onSuccess as ((...a: unknown[]) => unknown) | undefined)?.(...args);
 		}) as UseMutationOptions<TData, Error, TVariables, TContext>["onSuccess"],
 
 		onError: ((...args: unknown[]) => {
@@ -83,8 +82,7 @@ export function useApiMutation<TData = unknown, TVariables = void, TContext = un
 				if (msg) toast.error(msg);
 			}
 			if (import.meta.env.DEV) console.error("[useApiMutation]", err);
-			// biome-ignore lint/suspicious/noExplicitAny: pass-through to upstream handler
-			return (onError as any)?.(...args);
+			return (onError as ((...a: unknown[]) => unknown) | undefined)?.(...args);
 		}) as UseMutationOptions<TData, Error, TVariables, TContext>["onError"],
 	});
 }

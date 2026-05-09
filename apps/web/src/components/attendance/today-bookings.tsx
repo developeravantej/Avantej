@@ -218,8 +218,7 @@ export function TodayBookingsSection({
 			clientId: string;
 			outcome: "attended" | "no_show";
 		}) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.recordCheckIn({
+			return client.checkIns.recordCheckIn({
 				organizationId,
 				clientType: vars.clientType,
 				clientId: vars.clientId,
@@ -258,15 +257,18 @@ export function TodayBookingsSection({
 
 	const bulkCheckInMutation = useApiMutation({
 		mutationFn: async (vars: { bookingIds: string[] }) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.recordBulkCheckIn({
+			return client.checkIns.recordBulkCheckIn({
 				organizationId,
 				branchId,
 				bookingIds: vars.bookingIds,
 			});
 		},
-		successMessage: (result: any) => {
-			const { totalChecked, totalSkipped, totalError } = result;
+		successMessage: (result: unknown) => {
+			const { totalChecked, totalSkipped, totalError } = result as {
+				totalChecked: number;
+				totalSkipped: number;
+				totalError: number;
+			};
 			let message = `Checked in ${totalChecked}`;
 			if (totalSkipped > 0) message += ` · ${totalSkipped} already checked in`;
 			if (totalError > 0) message += ` · ${totalError} failed`;

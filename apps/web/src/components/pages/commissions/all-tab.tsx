@@ -41,7 +41,7 @@ type ActiveTab = "all" | CommissionStatus;
 type CommissionLedgerRow = {
 	id: string;
 	staffId: string;
-	staffName: string;
+	staffName: string | null;
 	appointmentId: string | null;
 	salesOrderId: string | null;
 	appointmentNumber?: string | null;
@@ -282,8 +282,8 @@ export function AllCommissionsPage() {
 		enabled: !!organizationId && canRead,
 	});
 	// Exclude clients from the staff filter — only admins, trainers, and staff earn commissions
-	const staffMembers = ((membersData as any[] | undefined) ?? []).filter(
-		(m: any) => m.role !== "client",
+	const staffMembers = (membersData ?? []).filter(
+		(m: { role: string; id: string; userId: string; name?: string; email?: string }) => m.role !== "client",
 	);
 
 	// ── Per-row void state ─────────────────────────────────────────────────────
@@ -345,8 +345,8 @@ export function AllCommissionsPage() {
 		enabled: !!organizationId && canRead,
 	});
 
-	const rows: CommissionLedgerRow[] = (data as any)?.rows ?? [];
-	const totals: LedgerTotals = (data as any)?.totals ?? {
+	const rows: CommissionLedgerRow[] = data?.rows ?? [];
+	const totals: LedgerTotals = data?.totals ?? {
 		pending: 0,
 		approved: 0,
 		paid: 0,
@@ -617,7 +617,7 @@ export function AllCommissionsPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All staff</SelectItem>
-								{staffMembers.map((m: any) => (
+								{staffMembers.map((m: { role: string; id: string; userId: string; name?: string; email?: string }) => (
 									<SelectItem key={m.id} value={m.userId}>
 										{m.name ?? m.email ?? m.userId.slice(0, 8)}
 									</SelectItem>

@@ -4,8 +4,29 @@ import { Card, CardContent } from "@/components/ui/card";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type TestAppointmentSlot = {
+	title: string;
+	start: string | null;
+	duration: number;
+	service: string;
+	assignedTo?: { name?: string } | null;
+	remarks?: string;
+	recurrence?: string;
+	customRecurrence?: {
+		frequency: number;
+		timeUnit: string;
+		repeatOn: string[];
+		endsType?: string;
+		endsDate?: string;
+		endsOccurrences?: number;
+	};
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TestAppointmentData = Record<string, any>;
+export type TestAppointmentData = Record<string, any> & {
+	type?: string;
+	appointments?: TestAppointmentSlot[];
+};
 
 type TestDataDialogProps = {
 	data: TestAppointmentData;
@@ -107,8 +128,7 @@ export function TestDataDialog({ data, onClose, onConfirm }: TestDataDialogProps
 							<div className="space-y-2">
 								<h4 className="text-sm font-semibold text-brand-primary-1">📊 Multiple Appointments Slots:</h4>
 								<div className="space-y-3">
-									{/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-									{data.appointments.map((appointment: any, index: number) => (
+									{data.appointments.map((appointment, index) => (
 										<div key={index} className="bg-orange-50 p-3 rounded-lg border">
 											<div className="text-sm font-medium text-brand-primary-1 mb-2">
 												Slot {index + 1}: {appointment.title}

@@ -31,7 +31,6 @@ import {
   Mail,
   User
 } from "lucide-react";
-import apiClient from "@/lib/api";
 import { formatPrice } from "@/lib/money";
 import { getServerUrl } from "@/lib/config";
 import getStripe from "@/lib/stripe";
@@ -93,64 +92,35 @@ function SubscribePage() {
   // Mutation to process successful payment
   const processPaymentMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      try {
-        // Try authenticated session first, then fallback to guest session
-        let response;
-        try {
-          response = await apiClient.getStripeRetrieveSession(sessionId);
-        } catch (authError: unknown) {
-          // Check if it's a 403/401 error (authentication issue)
-          if (isAuthError(authError)) {
-            // This might be a guest checkout, try the guest endpoint
-            console.log(
-              "Auth failed, trying guest endpoint for session:",
-              sessionId
-            );
-            const backendUrl = getServerUrl();
-            const guestResponse = await fetch(
-              `${backendUrl}/api/v1/stripe/guest-session/${sessionId}`
-            );
-            if (guestResponse.ok) {
-              response = { data: await guestResponse.json() };
-              console.log(
-                "Successfully retrieved guest session:",
-                response.data
-              );
-            } else {
-              const errorText = await guestResponse.text();
-              console.error("Guest session failed:", errorText);
-              throw new Error(`Failed to retrieve guest session: ${errorText}`);
-            }
-          } else {
-            throw authError;
-          }
-        }
-
-        // Return payment processing result
-        return {
-          success: true,
-          requires_password_setup:
-            response.data.metadata?.requires_password_setup === "true",
-          requires_onboarding:
-            response.data.metadata?.requires_onboarding === "true",
-          user_id: response.data.metadata?.user_id,
-          guest_email: response.data.metadata?.guest_email,
-        };
-      } catch (error) {
-        console.error("Error processing payment:", error);
-        throw error;
+      // Guest checkout: fetch session from guest endpoint
+      const backendUrl = getServerUrl();
+      const guestResponse = await fetch(
+        `${backendUrl}/api/v1/stripe/guest-session/${sessionId}`
+      );
+      if (!guestResponse.ok) {
+        const errorText = await guestResponse.text();
+        throw new Error(`Failed to retrieve guest session: ${errorText}`);
       }
+      const data = await guestResponse.json();
+
+      // Return payment processing result
+      return {
+        success: true,
+        requires_password_setup:
+          data.metadata?.requires_password_setup === "true",
+        requires_onboarding:
+          data.metadata?.requires_onboarding === "true",
+        user_id: data.metadata?.user_id,
+        guest_email: data.metadata?.guest_email,
+      };
     },
     onSuccess: (data) => {
-      console.log("Payment processed successfully data:", data);
       // Prevent multiple navigations
       if (hasNavigated) return;
       setHasNavigated(true);
 
       // Check if user needs password setup first
       if (data?.requires_password_setup && data?.guest_email) {
-        console.log("User needs password setup - getting setup token");
-
         // Get the password setup token for this user
         const backendUrl = getServerUrl();
         fetch(
@@ -159,18 +129,23 @@ function SubscribePage() {
           )}`
         )
           .then((response) => response.json())
-          .then((tokenData: any) => {
-            console.log("Got setup token:", tokenData);
+          .then((tokenData: unknown) => {
             // Redirect to password setup page with token
+            const token =
+              tokenData !== null &&
+              typeof tokenData === "object" &&
+              "token" in tokenData
+                ? String((tokenData as { token: unknown }).token)
+                : "";
             navigate({
               to: "/setup-password",
-              search: { token: tokenData.token },
+              search: { token },
             });
           })
-          .catch((error) => {
-            console.error("Failed to get setup token:", error);
+          .catch((err) => {
+            console.error("Failed to get setup token:", err instanceof Error ? err.message : "Unknown error");
             toast.error(
-              `Could not retrieve password setup link for ${data.guest_email}. Please contact support.`
+              "Could not retrieve password setup link. Please contact support."
             );
             navigate({ to: "/login" });
           });
@@ -179,9 +154,6 @@ function SubscribePage() {
 
       // Check if user needs onboarding
       if (data?.requires_onboarding) {
-        console.log(
-          "User needs onboarding - redirect to organization creation"
-        );
         navigate({
           to: "/onboarding",
         });
@@ -191,7 +163,6 @@ function SubscribePage() {
       }
     },
     onError: (error) => {
-      console.error("Failed to process payment:", error);
       setError("Failed to process your payment. Please contact support.");
     },
   });

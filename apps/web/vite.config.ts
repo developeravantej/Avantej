@@ -3,35 +3,65 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
-export default defineConfig({
-	plugins: [tailwindcss(), tanstackRouter({}), react(), cloudflare()],
-	resolve: {
-		alias: {
-			"@": path.resolve(__dirname, "./src"),
-		},
-	},
-	server: {
-		// In local dev the API (Wrangler) runs on :3000 while the web app runs on :3001.
-		// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
-		proxy: {
-			"/rpc": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/api": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/auth": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
-			},
-			"/api-reference": {
-				target: "http://localhost:3000",
-				changeOrigin: true,
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, process.cwd(), "");
+	const serverUrl = env.VITE_SERVER_URL ?? "http://localhost:3000";
+
+	return {
+		plugins: [
+			tailwindcss(),
+			tanstackRouter({}),
+			react(),
+			...(process.env.CF_DEPLOY === "true" ? [cloudflare()] : []),
+		],
+		resolve: {
+			alias: {
+				"@": path.resolve(__dirname, "./src"),
 			},
 		},
-	},
+		build: {
+			chunkSizeWarningLimit: 600,
+			rollupOptions: {
+				output: {
+					manualChunks: {
+						"vendor-react": ["react", "react-dom"],
+						"vendor-tanstack": [
+							"@tanstack/react-query",
+							"@tanstack/react-router",
+							"@tanstack/react-table",
+						],
+						"vendor-radix": [
+							"radix-ui",
+							"@radix-ui/react-avatar",
+							"@radix-ui/react-checkbox",
+							"@radix-ui/react-collapsible",
+							"@radix-ui/react-dialog",
+							"@radix-ui/react-dropdown-menu",
+							"@radix-ui/react-label",
+							"@radix-ui/react-radio-group",
+							"@radix-ui/react-select",
+							"@radix-ui/react-separator",
+							"@radix-ui/react-slot",
+							"@radix-ui/react-tabs",
+							"@radix-ui/react-tooltip",
+						],
+						"vendor-ui": ["lucide-react", "sonner"],
+						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+					},
+				},
+			},
+		},
+		server: {
+			// In local dev the API (Wrangler) runs on :3000 while the web app runs on :3001.
+			// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
+			proxy: {
+				"/rpc": { target: serverUrl, changeOrigin: true },
+				"/api": { target: serverUrl, changeOrigin: true },
+				"/auth": { target: serverUrl, changeOrigin: true },
+				"/api-reference": { target: serverUrl, changeOrigin: true },
+			},
+		},
+	};
 });

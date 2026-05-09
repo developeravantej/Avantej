@@ -140,9 +140,9 @@ export function SignupForm({
 					},
 				}
 			);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Signup error:", error);
-			const errorMessage = error.message || "Signup failed";
+			const errorMessage = error instanceof Error ? error.message : "Signup failed";
 			
 			// Check if user already exists
 			const isUserExists = 

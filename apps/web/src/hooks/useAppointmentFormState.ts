@@ -158,14 +158,7 @@ export function useAppointmentFormState({
 		}
 	}, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
 
-	// Clear employeeId when selected service changes and the current trainer is not qualified
-	React.useEffect(() => {
-		if (!newAppointment.employeeId) return;
-		if (!firstServiceId || !serviceTrainers) return;
-		if (!qualifiedTrainerIds.has(newAppointment.employeeId)) {
-			setNewAppointment((prev) => ({ ...prev, employeeId: "" }));
-		}
-	}, [firstServiceId, serviceTrainers, qualifiedTrainerIds, newAppointment.employeeId]);
+	const firstServiceId = newAppointment.selectedServices[0] ?? null;
 
 	// ─── Derived queries ───────────────────────────────────────────────────────
 
@@ -202,8 +195,6 @@ export function useAppointmentFormState({
 		return rawSvc?.categoryId ?? null;
 	}, [newAppointment.selectedServices, servicesData]);
 
-	const firstServiceId = newAppointment.selectedServices[0] ?? null;
-
 	const { data: serviceTrainers } = useQuery({
 		...orpc.serviceMembers.listForService.queryOptions({
 			input: {
@@ -218,6 +209,15 @@ export function useAppointmentFormState({
 		if (!serviceTrainers) return new Set();
 		return new Set(serviceTrainers.map((t) => t.memberId));
 	}, [serviceTrainers]);
+
+	// Clear employeeId when selected service changes and the current trainer is not qualified
+	React.useEffect(() => {
+		if (!newAppointment.employeeId) return;
+		if (!firstServiceId || !serviceTrainers) return;
+		if (!qualifiedTrainerIds.has(newAppointment.employeeId)) {
+			setNewAppointment((prev) => ({ ...prev, employeeId: "" }));
+		}
+	}, [firstServiceId, serviceTrainers, qualifiedTrainerIds, newAppointment.employeeId]);
 
 	const hasServiceTrainers = !!firstServiceId && !!serviceTrainers && serviceTrainers.length > 0;
 

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { createORPCClientConfig } from "@avantej-core/api/client";
 
 const { queryClient, client, orpc } = createORPCClientConfig({
-	serverUrl: import.meta.env.VITE_SERVER_URL || "http://localhost:3000",
+	serverUrl: import.meta.env.VITE_SERVER_URL ?? "",
 	QueryClient,
 	QueryCache,
 	onError: (error) => {

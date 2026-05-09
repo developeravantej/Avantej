@@ -57,8 +57,11 @@ export function TrainerTiersPage() {
 			setCreateOpen(false);
 			setCreateForm(EMPTY_FORM);
 			refetch();
-			if ((result as any).missingRateCategories?.length > 0) {
-				setMissingRateBanner((result as any).missingRateCategories);
+			const missing = result && typeof result === "object" && "missingRateCategories" in result
+				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
+				: [];
+			if (missing.length > 0) {
+				setMissingRateBanner(missing);
 			}
 		},
 	});
@@ -81,8 +84,11 @@ export function TrainerTiersPage() {
 		errorMessage: (err) => err.message || "Failed to reactivate tier",
 		onSuccess: (result) => {
 			refetch();
-			if ((result as any).missingRateCategories?.length > 0) {
-				setMissingRateBanner((result as any).missingRateCategories);
+			const missing = result && typeof result === "object" && "missingRateCategories" in result
+				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
+				: [];
+			if (missing.length > 0) {
+				setMissingRateBanner(missing);
 			}
 		},
 	});

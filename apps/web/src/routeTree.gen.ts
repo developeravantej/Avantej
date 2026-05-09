@@ -265,7 +265,11 @@ const AuthenticatedDashboardLayoutSettingsTaxRatesRoute =
     id: '/settings/tax-rates',
     path: '/settings/tax-rates',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_authenticated/dashboard/_layout/settings/tax-rates.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const AuthenticatedDashboardLayoutSettingsOrganizationRoute =
   AuthenticatedDashboardLayoutSettingsOrganizationRouteImport.update({
     id: '/settings/organization',
@@ -349,7 +353,11 @@ const AuthenticatedDashboardLayoutPurchaseOrdersViewRoute =
     id: '/purchase-orders/view',
     path: '/purchase-orders/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_authenticated/dashboard/_layout/purchase-orders/view.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const AuthenticatedDashboardLayoutPromotionsViewRoute =
   AuthenticatedDashboardLayoutPromotionsViewRouteImport.update({
     id: '/promotions/view',
@@ -379,7 +387,11 @@ const AuthenticatedDashboardLayoutPayoutsViewRoute =
     id: '/payouts/view',
     path: '/payouts/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_authenticated/dashboard/_layout/payouts/view.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const AuthenticatedDashboardLayoutPaymentViewRoute =
   AuthenticatedDashboardLayoutPaymentViewRouteImport.update({
     id: '/payment/view',
@@ -403,7 +415,11 @@ const AuthenticatedDashboardLayoutNotificationsViewRoute =
     id: '/notifications/view',
     path: '/notifications/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_authenticated/dashboard/_layout/notifications/view.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const AuthenticatedDashboardLayoutMyServicesViewRoute =
   AuthenticatedDashboardLayoutMyServicesViewRouteImport.update({
     id: '/my-services/view',

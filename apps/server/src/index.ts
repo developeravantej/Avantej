@@ -19,12 +19,13 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { env } from "cloudflare:workers";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-const ALLOWED_ORIGIN = (typeof env !== "undefined" && env?.CORS_ORIGIN) || "http://localhost:3001";
+function getAllowedOrigin(env: Record<string, unknown>): string {
+  const origin = env?.CORS_ORIGIN;
+  return ((typeof origin === "string" && origin) || "http://localhost:3001").trim();
+}
 
 // Combine base router with server-specific routers
 const appRouter = {
@@ -42,15 +43,30 @@ const appRouter = {
 const app = new Hono();
 
 app.use(logger());
-app.use(
-  "/*",
-  cors({
-    origin: ALLOWED_ORIGIN,
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
-);
+
+// Manual CORS — replaces hono/cors to guarantee per-request origin resolution
+app.use("/*", async (c, next) => {
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  };
+
+  if (c.req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: { ...corsHeaders, "Access-Control-Max-Age": "86400" },
+    });
+  }
+
+  await next();
+
+  for (const [k, v] of Object.entries(corsHeaders)) {
+    c.header(k, v);
+  }
+});
 
 // Database middleware: Creates request-scoped connection pools
 // Must be applied early, before any database access
@@ -60,52 +76,44 @@ app.use("/*", dbMiddleware);
 // Must run after dbMiddleware but before createContext
 app.use("/*", orpcTenantMiddleware);
 
-// Better-Auth handler for internal auth routes (e.g., /api/auth/get-session, sign-in, sign-up)
-// OPTIONS: respond to CORS preflight so browser allows GET/POST from web origin
-app.on(["OPTIONS"], "/api/auth/*", (_c) => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Max-Age": "86400",
-      "Access-Control-Allow-Credentials": "true",
-    },
-  });
-});
-
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
-  // Clone the request to get a new body stream (required for Cloudflare Workers)
-  const clonedRequest = c.req.raw.clone();
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+  };
 
-  // Create new mutable headers
-  const headers = new Headers(clonedRequest.headers);
+  try {
+    // Clone the request to get a new body stream (required for Cloudflare Workers)
+    const clonedRequest = c.req.raw.clone();
+    const headers = new Headers(clonedRequest.headers);
+    const newRequest = new Request(clonedRequest.url, {
+      method: clonedRequest.method,
+      headers: headers,
+      body: clonedRequest.body,
+      ...(clonedRequest.body && { duplex: "half" }),
+    });
 
-  // Create a new Request with mutable headers and cloned body
-  const newRequest = new Request(clonedRequest.url, {
-    method: clonedRequest.method,
-    headers: headers,
-    body: clonedRequest.body,
-    ...(clonedRequest.body && { duplex: "half" }),
-  });
+    const auth = getBetterAuth(c);
+    const response = await auth.handler(newRequest);
 
-  // Use request-scoped Better-Auth instance
-  const auth = getBetterAuth(c);
-  const response = await auth.handler(newRequest);
+    const newHeaders = new Headers(response.headers);
+    for (const [k, v] of Object.entries(corsHeaders)) newHeaders.set(k, v);
 
-  // Ensure CORS headers on auth response (browser requires them for cross-origin requests)
-  const newHeaders = new Headers(response.headers);
-  newHeaders.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-  newHeaders.set("Access-Control-Allow-Credentials", "true");
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders,
-  });
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  } catch (err) {
+    console.error("[auth handler]", err);
+    return new Response(
+      JSON.stringify({ error: "Internal server error", detail: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
 });
 
 // Custom auth routes following OpenAPI contract
@@ -196,6 +204,19 @@ app.use("/api-reference/*", async (c, next) => {
 
 app.get("/", (c) => {
   return c.text("OK");
+});
+
+app.onError((err, c) => {
+  console.error("[onError]", err);
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>);
+  return c.json(
+    { error: err.message || "Internal server error" },
+    500,
+    {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+    }
+  );
 });
 
 export default app;

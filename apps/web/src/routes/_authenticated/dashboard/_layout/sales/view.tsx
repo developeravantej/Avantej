@@ -237,7 +237,9 @@ function RouteComponent() {
 				organizationId: organizationId!,
 				from: derivedFilters.from ? `${derivedFilters.from}T00:00:00.000Z` : undefined,
 				to: derivedFilters.to ? `${derivedFilters.to}T23:59:59.999Z` : undefined,
-				status: (status || undefined) as any,
+				status: (["draft", "confirmed", "completed", "cancelled"].includes(status)
+					? status
+					: undefined) as "draft" | "confirmed" | "completed" | "cancelled" | undefined,
 				branchId: branchId || undefined,
 				limit: 50,
 				offset: (page - 1) * 50,

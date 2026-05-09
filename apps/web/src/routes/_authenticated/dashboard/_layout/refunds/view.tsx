@@ -70,6 +70,16 @@ type RefundRow = {
 	salesOrderNumber?: string | null;
 };
 
+// ─── Audit row type ────────────────────────────────────────────────────────────
+
+type AuditRow = {
+	id: string;
+	action: string;
+	createdAt: string | Date;
+	summary?: string | null;
+	actorName?: string | null;
+};
+
 // ─── Status tab definition ─────────────────────────────────────────────────────
 
 const STATUS_TABS: { value: RefundStatus | "all"; label: string }[] = [
@@ -188,8 +198,7 @@ function RefundDetailDrawer({
 
 	if (!refund) return null;
 
-	// biome-ignore lint/suspicious/noExplicitAny: API response shape varies
-	const auditRows = (auditData as any)?.rows ?? [];
+	const auditRows = (auditData as { rows?: AuditRow[] } | undefined)?.rows ?? [];
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -333,8 +342,7 @@ function RefundDetailDrawer({
 							</p>
 						) : (
 							<div className="space-y-2">
-								{/* biome-ignore lint/suspicious/noExplicitAny: dynamic audit rows */}
-								{auditRows.map((row: any) => (
+								{auditRows.map((row: AuditRow) => (
 									<div
 										key={row.id}
 										className="space-y-1 rounded-md border px-3 py-2 text-sm"
@@ -461,8 +469,7 @@ function RefundsLedgerPage() {
 		queryKey: ["refunds", organizationId, activeTab],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
-			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
-			return (client as any).refunds.list({
+			return client.refunds.list({
 				organizationId,
 				status: activeTab === "all" ? undefined : activeTab,
 				limit: 100,
@@ -472,8 +479,7 @@ function RefundsLedgerPage() {
 		enabled: !!organizationId,
 	});
 
-	// biome-ignore lint/suspicious/noExplicitAny: response shape from untyped router
-	const rows: RefundRow[] = (data as any)?.rows ?? [];
+	const rows: RefundRow[] = (data as { rows?: RefundRow[] } | undefined)?.rows ?? [];
 
 	// ── KPI computations ───────────────────────────────────────────────────────
 	const pendingCount = rows.filter((r) => r.status === "pending").length;
@@ -493,9 +499,8 @@ function RefundsLedgerPage() {
 	// ── Mutations ──────────────────────────────────────────────────────────────
 	const approveMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes?: string }) =>
-			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
-			(client as any).refunds.approve({
-				organizationId,
+			client.refunds.approve({
+				organizationId: organizationId!,
 				id: vars.id,
 				reviewNotes: vars.reviewNotes,
 			}),
@@ -509,9 +514,8 @@ function RefundsLedgerPage() {
 
 	const rejectMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes: string }) =>
-			// biome-ignore lint/suspicious/noExplicitAny: refunds not typed on client yet
-			(client as any).refunds.reject({
-				organizationId,
+			client.refunds.reject({
+				organizationId: organizationId!,
 				id: vars.id,
 				reviewNotes: vars.reviewNotes,
 			}),

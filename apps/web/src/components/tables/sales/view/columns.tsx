@@ -1,10 +1,9 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
-import { Badge } from "@/components/ui/badge";
+import { CopyableCell } from "@/components/tables/copyable-cell";
 import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye } from "lucide-react";
-import { toast } from "sonner";
+import { Eye } from "lucide-react";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/money";
@@ -20,43 +19,6 @@ export interface SalesRow {
 	created_by?: string | null;
 	status?: string | null;
 }
-
-// Helper component for copyable cells
-interface CopyableCellProps {
-	value: string | null | undefined;
-	displayText?: React.ReactNode;
-}
-
-const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
-	const onCopy = (textToCopy: string) => {
-		navigator.clipboard
-			.writeText(textToCopy)
-			.then(() => {
-				toast.success("Copied to clipboard!");
-			})
-			.catch((err) => {
-				toast.error("Failed to copy: " + err);
-			});
-	};
-
-	const displayContent = displayText || value || "N/A";
-
-	return (
-		<div
-			className="cursor-pointer flex items-center group"
-			onClick={() => onCopy(value!)}
-		>
-			<Badge
-				variant="outline"
-				className="flex items-center gap-x-2 truncate"
-				title={value || undefined}
-			>
-				{displayContent}
-				<Copy className="h-3.5 w-3.5 text-muted-foreground" />
-			</Badge>
-		</div>
-	);
-};
 
 // Helper function to format date
 const formatDate = (dateString: string | null | undefined): string => {

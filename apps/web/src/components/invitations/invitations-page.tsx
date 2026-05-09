@@ -35,7 +35,7 @@ export function InvitationsPage() {
 
 			const result = await client.invitations.list({
 				organizationId,
-				status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+				status: statusFilter !== "all" ? (statusFilter as "pending" | "accepted" | "declined" | "expired") : undefined,
 			});
 
 			return result.invitations;

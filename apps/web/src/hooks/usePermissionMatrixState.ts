@@ -149,7 +149,7 @@ export function usePermissionMatrixState({
 			visibleRoleStart: 0,
 			selectedBatchRoles: new Set<string>(),
 		}),
-		// We only want the initial value; subsequent changes flow through the reducer.
+		// intentional: init-only useMemo; adding deps would reset permission matrix state on every render
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[],
 	);

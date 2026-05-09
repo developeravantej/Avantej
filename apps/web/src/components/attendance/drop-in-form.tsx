@@ -51,8 +51,7 @@ export function DropInForm({
 	const { data: activePackage } = useQuery({
 		queryKey: ["activePackageForMember", organizationId, clientId.trim()],
 		queryFn: async () =>
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(client as any).checkIns.getActivePackageForMember({
+			client.checkIns.getActivePackageForMember({
 				organizationId,
 				clientId: clientId.trim(),
 			}),
@@ -80,8 +79,7 @@ export function DropInForm({
 							source: "drop_in" as const,
 							outcome: "attended" as const,
 						};
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.recordCheckIn(payload);
+			return client.checkIns.recordCheckIn(payload);
 		},
 		successMessage: () =>
 			`Drop-in check-in recorded${displayName ? ` for ${displayName}` : ""}.`,

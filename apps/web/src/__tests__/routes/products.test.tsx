@@ -7,9 +7,14 @@ let ProductsViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
 	createFileRoute: () => (opts: { component: React.ComponentType }) => {
 		ProductsViewPage = opts.component;
-		return { component: opts.component };
+		return {
+			component: opts.component,
+			useSearch: vi.fn().mockReturnValue({ tab: "products" }),
+			useNavigate: vi.fn().mockReturnValue(vi.fn()),
+		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 
 // orpc is used for queryOptions — stub it to delegate to mockClient at call time
@@ -67,6 +72,7 @@ vi.mock("@/utils/orpc", () => ({
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -95,7 +101,7 @@ describe("Products page", () => {
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Products")).toBeInTheDocument();
+			expect(screen.getByRole("heading", { name: "Products" })).toBeInTheDocument();
 		});
 	});
 

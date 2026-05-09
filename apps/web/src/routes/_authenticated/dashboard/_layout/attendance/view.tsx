@@ -126,8 +126,7 @@ function AttendancePage() {
 		queryKey: bookingsQueryKey,
 		queryFn: async () => {
 			if (!organizationId || !branchId) return [];
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.listTodaysBookings({
+			return client.checkIns.listTodaysBookings({
 				organizationId,
 				branchId,
 				date,
@@ -149,13 +148,12 @@ function AttendancePage() {
 		queryKey: checkInsQueryKey,
 		queryFn: async () => {
 			if (!organizationId || !branchId) return { rows: [], total: 0 };
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return (client as any).checkIns.list({
+			return client.checkIns.list({
 				organizationId,
 				branchId,
 				from: `${date}T00:00:00`,
 				to: `${date}T23:59:59`,
-			}) as Promise<{ rows: CheckInRow[]; total: number }>;
+			}) as unknown as Promise<{ rows: CheckInRow[]; total: number }>;
 		},
 		enabled: !!organizationId && !!branchId && canRead,
 	});

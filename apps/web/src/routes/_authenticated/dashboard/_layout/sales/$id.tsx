@@ -263,11 +263,11 @@ function SalesOrderDetailPage() {
 							<dd className="font-medium">{order.customerType ?? "\u2014"}</dd>
 						</div>
 						{/* Legacy refund indicator (§5.13): sales cancelled before refunds ledger was introduced */}
-						{(order as any).cancelledAmount > 0 && (
+						{(order.cancelledAmount ?? 0) > 0 && (
 							<div className="col-span-2">
 								<dt className="text-muted-foreground text-sm">Legacy Refund</dt>
 								<dd className="font-medium text-amber-700">
-									Already refunded (legacy): {formatPrice((order as any).cancelledAmount, "MYR")}
+									Already refunded (legacy): {formatPrice(order.cancelledAmount ?? 0, "MYR")}
 								</dd>
 							</div>
 						)}

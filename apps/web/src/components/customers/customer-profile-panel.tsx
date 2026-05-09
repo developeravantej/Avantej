@@ -244,6 +244,7 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
+		// intentional: profile in deps would wipe unsaved form edits on every background refetch
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [memberId]);
 

@@ -111,7 +111,7 @@ export function RequestRefundDialog({
 			: 0;
 
 		try {
-			await (client as any).refunds.request({
+			await client.refunds.request({
 				organizationId,
 				salesOrderId,
 				paymentId,

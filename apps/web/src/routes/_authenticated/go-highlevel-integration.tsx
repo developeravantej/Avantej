@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { requireSystemAdmin } from "@/lib/route-guards";
@@ -192,7 +192,8 @@ function GoHighLevelIntegrationPage() {
 		setLinks(linkData.links || []);
 	};
 
-	const refresh = async () => {
+	// stable reference — initial mount only; selectedLocationId changes are handled by the second useEffect below
+	const refresh = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError("");
@@ -205,7 +206,8 @@ function GoHighLevelIntegrationPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const saveLocationMapping = async () => {
 		if (!newLocationId.trim()) {
@@ -242,8 +244,7 @@ function GoHighLevelIntegrationPage() {
 
 	useEffect(() => {
 		void refresh();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [refresh]);
 
 	useEffect(() => {
 		if (!selectedLocationId) {

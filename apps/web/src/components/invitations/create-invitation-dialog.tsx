@@ -201,7 +201,7 @@ export function CreateInvitationDialog({
 						<Select
 							value={selectedRole}
 							onValueChange={(value) => {
-								setValue("role", value as any);
+								setValue("role", value as "admin" | "trainer" | "staff" | "client");
 								// Reset hierarchy scope when role changes
 								setValue("hierarchyScopeId", "");
 							}}
