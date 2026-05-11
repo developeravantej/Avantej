@@ -10,10 +10,14 @@
  *   - error   → upsert ghl_contact_links { sync_status='error', last_error }
  *
  * The caller never sees a sync error as a thrown exception.
+ *
+ * Phase G: supports two sync models via resolveSyncContext():
+ *   - "org-shared" — single GHL sub-account per org, branch encoded as a
+ *     SINGLE_OPTIONS custom field on the contact.
+ *   - "per-branch" (legacy) — one GHL sub-account per Avantej branch.
  */
 
-import { and, eq } from "drizzle-orm";
-import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { eq } from "drizzle-orm";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -25,6 +29,7 @@ import {
 	type AvantejCustomerProfile,
 	type CustomFieldIdMap,
 } from "./payload-builders";
+import { resolveSyncContext } from "./sync-context";
 import type { GhlContact } from "./types";
 import { GhlApiError } from "./types";
 
@@ -47,7 +52,10 @@ export interface SyncCustomerResult {
 	status: "synced" | "skipped" | "error";
 	ghlContactId?: string;
 	error?: string;
-	reason?: "branch-not-connected" | "no-existing-contact-on-update";
+	reason?:
+		| "branch-not-connected"
+		| "not-provisioned"
+		| "no-existing-contact-on-update";
 }
 
 export async function syncCustomerToGhl(
@@ -66,23 +74,30 @@ export async function syncCustomerToGhl(
 		customFieldIds = {},
 	} = args;
 
-	// 1. Resolve the branch's GHL connection
-	const link = await controlPanelDb.query.ghlBranchLinks.findFirst({
-		where: and(
-			eq(ghlBranchLinks.organizationId, organizationId),
-			eq(ghlBranchLinks.tenantBranchId, branchNodeId),
-			eq(ghlBranchLinks.isActive, true),
-		),
+	// 1. Resolve sync model + locationId/apiKey (+ branch-stamp in org-shared)
+	const ctx = await resolveSyncContext({
+		controlPanelDb,
+		tenantDb,
+		organizationId,
+		branchNodeId,
+		decryptApiKey,
 	});
 
-	// Defensive runtime check (mirrors the SQL `isActive=true` predicate; also
-	// guards against future schema changes that move "active" semantics).
-	if (!link || !link.isActive) {
-		return { status: "skipped", reason: "branch-not-connected" };
+	if (ctx.model === "skipped") {
+		return { status: "skipped", reason: ctx.reason };
 	}
 
-	const apiKey = decryptApiKey(link.ghlApiKey);
-	const locationId = link.ghlLocationId;
+	const { apiKey, locationId } = ctx;
+	// TODO(phase-g): non-branch custom fields (gender, emergency contact, etc.)
+	// currently flow through `customFieldIds` from the caller. In org-shared mode
+	// the caller doesn't have a per-branch source for these — they live per
+	// GHL location and could be backfilled onto `organizations` or refreshed
+	// at sync time via `ensureCustomFieldsExist`. For now we pass through what
+	// the caller supplied (default {}); no regression for the legacy path.
+	const branchCountryFieldId =
+		ctx.model === "org-shared" ? ctx.branchCountryFieldId : null;
+	const branchOptionLabel =
+		ctx.model === "org-shared" ? ctx.branchOptionLabel : null;
 
 	// GHL contact endpoints wrap the contact in `{ contact: {...} }`.
 	const unwrap = (raw: unknown): GhlContact => {
@@ -142,12 +157,10 @@ export async function syncCustomerToGhl(
 		return rest;
 	};
 
-	// 2. Look up existing contact link for this (customer, branch)
+	// 2. Look up existing contact link for this customer.
+	// Phase G.5: ghl_contact_links uniq is now (customer_profile_id) only.
 	const existing = await tenantDb.query.ghlContactLinks.findFirst({
-		where: and(
-			eq(ghlContactLinks.customerProfileId, customerProfile.id),
-			eq(ghlContactLinks.branchNodeId, branchNodeId),
-		),
+		where: eq(ghlContactLinks.customerProfileId, customerProfile.id),
 	});
 
 	// A 'deleted' link points at a GHL contact that's already gone — treat
@@ -163,6 +176,8 @@ export async function syncCustomerToGhl(
 				profile: customerProfile,
 				memberStatus,
 				customFieldIds,
+				branchCountryFieldId,
+				branchOptionLabel,
 			});
 
 		if (operation === "create") {
@@ -307,13 +322,12 @@ async function upsertLink(args: {
 			lastError: args.lastError,
 		})
 		.onConflictDoUpdate({
-			target: [
-				ghlContactLinks.customerProfileId,
-				ghlContactLinks.branchNodeId,
-			],
+			// Phase G.5: uniq is single-column (customer_profile_id).
+			target: [ghlContactLinks.customerProfileId],
 			set: {
 				ghlContactId: args.ghlContactId,
 				ghlLocationId: args.ghlLocationId,
+				branchNodeId: args.branchNodeId,
 				syncStatus: args.syncStatus,
 				lastSyncedAt: new Date(),
 				lastError: args.lastError,

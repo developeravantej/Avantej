@@ -3,16 +3,21 @@
  * Staff (member.role IN admin/staff/trainer + user) → GHL User outbound sync.
  *
  * Same failure mode B as sync-customer.ts. Different table: ghl_user_links.
+ *
+ * Phase G: dispatches via resolveSyncContext() — supports both per-branch
+ * (legacy) and org-shared models. In org-shared mode the branch is encoded
+ * onto the GHL User via a `customFields` entry referencing the per-country
+ * SINGLE_OPTIONS field.
  */
 
-import { and, eq } from "drizzle-orm";
-import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { eq } from "drizzle-orm";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { ghlFetch } from "./http-client";
 import { buildUserPayload, type AvantejUser } from "./payload-builders";
+import { resolveSyncContext } from "./sync-context";
 import type { GhlUser } from "./types";
 import { GhlApiError } from "./types";
 
@@ -43,7 +48,7 @@ export interface SyncStaffResult {
 	status: "synced" | "skipped" | "error";
 	ghlUserId?: string;
 	error?: string;
-	reason?: "branch-not-connected" | "non-staff-role";
+	reason?: "branch-not-connected" | "not-provisioned" | "non-staff-role";
 }
 
 export async function syncStaffToGhl(
@@ -69,23 +74,27 @@ export async function syncStaffToGhl(
 		return { status: "skipped", reason: "non-staff-role" };
 	}
 
-	const link = await controlPanelDb.query.ghlBranchLinks.findFirst({
-		where: and(
-			eq(ghlBranchLinks.organizationId, organizationId),
-			eq(ghlBranchLinks.tenantBranchId, branchNodeId),
-			eq(ghlBranchLinks.isActive, true),
-		),
+	const ctx = await resolveSyncContext({
+		controlPanelDb,
+		tenantDb,
+		organizationId,
+		branchNodeId,
+		decryptApiKey,
 	});
-	if (!link) return { status: "skipped", reason: "branch-not-connected" };
 
-	const apiKey = decryptApiKey(link.ghlApiKey);
-	const locationId = link.ghlLocationId;
+	if (ctx.model === "skipped") {
+		return { status: "skipped", reason: ctx.reason };
+	}
 
+	const { apiKey, locationId } = ctx;
+	const branchCountryFieldId =
+		ctx.model === "org-shared" ? ctx.branchCountryFieldId : null;
+	const branchOptionLabel =
+		ctx.model === "org-shared" ? ctx.branchOptionLabel : null;
+
+	// Phase G.5: ghl_user_links uniq is (member_id) only.
 	const existing = await tenantDb.query.ghlUserLinks.findFirst({
-		where: and(
-			eq(ghlUserLinks.memberId, member.id),
-			eq(ghlUserLinks.branchNodeId, branchNodeId),
-		),
+		where: eq(ghlUserLinks.memberId, member.id),
 	});
 
 	try {
@@ -95,6 +104,8 @@ export async function syncStaffToGhl(
 				locationId,
 				user,
 				memberRole: member.role as "admin" | "staff" | "trainer",
+				branchCountryFieldId,
+				branchOptionLabel,
 			});
 			const created = await ghlFetch<GhlUser>({
 				method: "POST",
@@ -121,6 +132,8 @@ export async function syncStaffToGhl(
 				locationId,
 				user,
 				memberRole: member.role as "admin" | "staff" | "trainer",
+				branchCountryFieldId,
+				branchOptionLabel,
 			});
 			await ghlFetch<GhlUser>({
 				method: "PUT",
@@ -203,10 +216,12 @@ async function upsertUserLink(args: {
 			lastError: args.lastError,
 		})
 		.onConflictDoUpdate({
-			target: [ghlUserLinks.memberId, ghlUserLinks.branchNodeId],
+			// Phase G.5: uniq is single-column (member_id).
+			target: [ghlUserLinks.memberId],
 			set: {
 				ghlUserId: args.ghlUserId,
 				ghlLocationId: args.ghlLocationId,
+				branchNodeId: args.branchNodeId,
 				syncStatus: args.syncStatus,
 				lastSyncedAt: new Date(),
 				lastError: args.lastError,

@@ -134,14 +134,28 @@ export async function dispatchStaffSync(
 	});
 	if (!user) return { status: "error", error: "control panel user not found" };
 
-	const branchLink = await args.controlPanelDb.query.ghlBranchLinks.findFirst({
-		where: and(
-			eq(ghlBranchLinks.organizationId, args.organizationId),
-			eq(ghlBranchLinks.tenantBranchId, branchNodeId),
-			eq(ghlBranchLinks.isActive, true),
-		),
+	// Phase G: gate on the org's sync model. In "org-shared" mode there's no
+	// ghl_branch_links row — config lives on `organizations` — so we must skip
+	// the per-branch lookup entirely and delegate to the orchestrator, which
+	// reads from organizations via resolveSyncContext.
+	const org = await args.controlPanelDb.query.organizations.findFirst({
+		where: eq(organizations.id, args.organizationId),
 	});
-	if (!branchLink) {
+	const isOrgShared =
+		org?.ghlSyncModel === "org-shared" &&
+		!!org.ghlLocationId &&
+		!!org.ghlApiKeyEncrypted;
+
+	const branchLink = isOrgShared
+		? null
+		: ((await args.controlPanelDb.query.ghlBranchLinks.findFirst({
+				where: and(
+					eq(ghlBranchLinks.organizationId, args.organizationId),
+					eq(ghlBranchLinks.tenantBranchId, branchNodeId),
+					eq(ghlBranchLinks.isActive, true),
+				),
+			})) ?? null);
+	if (!isOrgShared && !branchLink) {
 		return { status: "skipped", reason: "branch-not-connected" };
 	}
 
@@ -153,7 +167,13 @@ export async function dispatchStaffSync(
 		// Branch reassignment path: existing link points at a different branch.
 		// Reassign by PUT-ing new locationIds to GHL and updating the link row.
 		// Skips the standard orchestrator (which would create a new GHL user).
+		// Phase G: org-shared model uses the same GHL location for every branch,
+		// so reassignment is handled by the standard orchestrator's update path
+		// (which PUTs to /users/:id preserving ghlUserId and re-stamps the
+		// branch custom field). We only short-circuit for legacy per-branch.
 		if (
+			!isOrgShared &&
+			branchLink &&
 			args.operation === "update" &&
 			existingLink &&
 			existingLink.branchNodeId !== branchNodeId
