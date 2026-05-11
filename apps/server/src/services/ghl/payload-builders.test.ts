@@ -131,6 +131,60 @@ describe("buildContactPayload", () => {
 		expect(result.phone).toBeUndefined();
 	});
 
+	test("stamps branch dropdown when branchCountryFieldId and branchOptionLabel are provided", () => {
+		const result = buildContactPayload({
+			locationId: "loc_1",
+			user: baseUser,
+			profile: { ...baseProfile, medicalNotes: "Allergic to nuts" },
+			memberStatus: "active",
+			customFieldIds: { medicalNotes: "cf_med" },
+			branchCountryFieldId: "cf_country_my",
+			branchOptionLabel: "Selangor - KL Branch",
+		});
+		expect(result.customFields).toContainEqual({
+			id: "cf_country_my",
+			value: "Selangor - KL Branch",
+		});
+		// existing custom fields still present
+		expect(result.customFields).toContainEqual({
+			id: "cf_med",
+			value: "Allergic to nuts",
+		});
+	});
+
+	test("omits branch stamp when branchCountryFieldId or branchOptionLabel is null/absent", () => {
+		const resultNoArgs = buildContactPayload({
+			locationId: "loc_1",
+			user: baseUser,
+			profile: baseProfile,
+			memberStatus: "active",
+			customFieldIds: {},
+		});
+		expect(resultNoArgs.customFields).toEqual([]);
+
+		const resultNullLabel = buildContactPayload({
+			locationId: "loc_1",
+			user: baseUser,
+			profile: baseProfile,
+			memberStatus: "active",
+			customFieldIds: {},
+			branchCountryFieldId: "cf_country_my",
+			branchOptionLabel: null,
+		});
+		expect(resultNullLabel.customFields).toEqual([]);
+
+		const resultNullId = buildContactPayload({
+			locationId: "loc_1",
+			user: baseUser,
+			profile: baseProfile,
+			memberStatus: "active",
+			customFieldIds: {},
+			branchCountryFieldId: null,
+			branchOptionLabel: "Selangor - KL Branch",
+		});
+		expect(resultNullId.customFields).toEqual([]);
+	});
+
 	test("source defaults to 'Avantej Sync'", () => {
 		const result = buildContactPayload({
 			locationId: "loc_1",
@@ -233,6 +287,51 @@ describe("buildUserPayload", () => {
 			memberRole: "admin",
 		});
 		expect(result.phone).toBeUndefined();
+	});
+
+	test("stamps branch dropdown when branchCountryFieldId and branchOptionLabel are provided", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: baseUser,
+			memberRole: "staff",
+			branchCountryFieldId: "cf_country_my",
+			branchOptionLabel: "Selangor - KL Branch",
+		});
+		expect(result.customFields).toContainEqual({
+			id: "cf_country_my",
+			value: "Selangor - KL Branch",
+		});
+	});
+
+	test("omits branch stamp when branchCountryFieldId or branchOptionLabel is null/absent", () => {
+		const resultNoArgs = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: baseUser,
+			memberRole: "staff",
+		});
+		expect(resultNoArgs.customFields).toBeUndefined();
+
+		const resultNullLabel = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: baseUser,
+			memberRole: "admin",
+			branchCountryFieldId: "cf_country_my",
+			branchOptionLabel: null,
+		});
+		expect(resultNullLabel.customFields).toBeUndefined();
+
+		const resultNullId = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: baseUser,
+			memberRole: "admin",
+			branchCountryFieldId: null,
+			branchOptionLabel: "Selangor - KL Branch",
+		});
+		expect(resultNullId.customFields).toBeUndefined();
 	});
 
 	test("maps trainer role with wider permissions + scopes", () => {

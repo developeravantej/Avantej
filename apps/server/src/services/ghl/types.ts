@@ -40,6 +40,7 @@ export interface GhlUserPayload {
 	scopes?: string[];
 	scopesAssignedToOnly?: string[];
 	platformLanguage?: string;
+	customFields?: Array<{ id: string; value: string | number }>;
 }
 
 export interface GhlUser {

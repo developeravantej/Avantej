@@ -55,6 +55,12 @@ export interface BuildContactArgs {
 	profile: AvantejCustomerProfile;
 	memberStatus: "active" | "inactive";
 	customFieldIds: CustomFieldIdMap;
+	// Phase G org-shared model: stamps the per-country branch dropdown so GHL
+	// knows which Avantej branch this contact belongs to. All three are
+	// optional — when absent, no branch stamp is added (legacy per-branch
+	// model continues working unchanged).
+	branchCountryFieldId?: string | null;
+	branchOptionLabel?: string | null;
 }
 
 export function buildContactPayload(
@@ -85,6 +91,13 @@ export function buildContactPayload(
 	addCustomField("creditPoints", profile.creditPoints);
 	addCustomField("notes", profile.notes);
 
+	if (args.branchCountryFieldId && args.branchOptionLabel) {
+		customFields.push({
+			id: args.branchCountryFieldId,
+			value: args.branchOptionLabel,
+		});
+	}
+
 	return {
 		locationId,
 		email: user.email,
@@ -107,6 +120,11 @@ export interface BuildUserArgs {
 	locationId: string;
 	user: AvantejUser;
 	memberRole: "admin" | "staff" | "trainer";
+	// Phase G org-shared model: stamps the per-country branch dropdown so GHL
+	// knows which Avantej branch this user belongs to. Both optional — when
+	// absent, no branch stamp is added (legacy per-branch model unchanged).
+	branchCountryFieldId?: string | null;
+	branchOptionLabel?: string | null;
 }
 
 /**
@@ -169,6 +187,15 @@ export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 	// and we never want to overwrite an existing phone with a blank value.
 	if (user.phone && user.phone.trim() !== "") {
 		base.phone = user.phone;
+	}
+
+	if (args.branchCountryFieldId && args.branchOptionLabel) {
+		base.customFields = [
+			{
+				id: args.branchCountryFieldId,
+				value: args.branchOptionLabel,
+			},
+		];
 	}
 
 	if (memberRole === "admin") {
