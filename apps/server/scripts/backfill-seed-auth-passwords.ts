@@ -34,6 +34,9 @@ const SEED = [
 	{ email: "trainer.deterministic@test.com", password: "password123" },
 	{ email: "staff.deterministic@test.com", password: "password123" },
 	{ email: "e2e.client@test.com", password: "password123" },
+	{ email: "coach.alex@example.com", password: "password123" },
+	{ email: "maya.trainer@example.com", password: "password123" },
+	{ email: "daniel.fit@example.com", password: "password123" },
 ];
 
 for (const s of SEED) {
