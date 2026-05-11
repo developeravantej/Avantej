@@ -126,6 +126,9 @@ export const dispatchBranchRename = async (
 				ghlApiKey: provisioned.ghlApiKey,
 				countryNodeId: path.countryNodeId,
 				countryName: path.countryName,
+				// Rename path: seed with the NEW option label so the
+				// fresh GHL field has at least one option.
+				initialOption: path.optionLabel,
 			});
 			ghlFieldId = ensured.ghlFieldId;
 		}
@@ -259,6 +262,9 @@ export const dispatchBranchMove = async (
 				ghlApiKey: provisioned.ghlApiKey,
 				countryNodeId: newPath.countryNodeId,
 				countryName: newPath.countryName,
+				// Move path: seed with the new branch's option label so
+				// the fresh GHL field is immediately usable.
+				initialOption: newPath.optionLabel,
 			});
 			newGhlFieldId = ensured.ghlFieldId;
 			await ensureBranchOption({

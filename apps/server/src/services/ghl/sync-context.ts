@@ -123,6 +123,9 @@ export async function resolveSyncContext(
 				ghlApiKey: apiKey,
 				countryNodeId: path.countryNodeId,
 				countryName: path.countryName,
+				// Contact/staff sync path: seed with the current branch's
+				// option label so the fresh GHL field has at least one option.
+				initialOption: path.optionLabel,
 			});
 			branchCountryFieldId = created.ghlFieldId;
 		}

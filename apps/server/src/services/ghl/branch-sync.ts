@@ -155,6 +155,13 @@ async function readOrgRow(
 /**
  * Idempotent: return cached entry from organizations.ghlCountryFieldMap, or
  * create the GHL custom field (SINGLE_OPTIONS, contact model) and persist.
+ *
+ * `initialOption` is required when creating a fresh field — GHL rejects
+ * SINGLE_OPTIONS creation with an empty options array (422 "options must
+ * contain at least 1 elements"). Callers that don't have a meaningful
+ * first option to seed can pass a placeholder, but the realistic flow
+ * (syncBranchToGhl) always knows the branch being synced and uses its
+ * composed option label.
  */
 export async function ensureCountryFieldExists(args: {
 	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
@@ -163,6 +170,7 @@ export async function ensureCountryFieldExists(args: {
 	ghlApiKey: string;
 	countryNodeId: string;
 	countryName: string;
+	initialOption: string;
 }): Promise<{ ghlFieldId: string; fieldKey: string }> {
 	const org = await readOrgRow(args.controlPanelDb, args.organizationId);
 	const map: CountryFieldMap =
@@ -173,19 +181,45 @@ export async function ensureCountryFieldExists(args: {
 	}
 
 	const fieldKey = `${slugifyCountry(args.countryName)}_location`;
-	const created = await ghlFetch<{ id: string; customField?: { id: string } }>({
-		method: "POST",
+
+	// Discovery first: a custom field with this fieldKey may already exist
+	// on the GHL location (e.g. created manually in the UI, leftover from
+	// a previous provisioning attempt that succeeded on GHL but failed to
+	// persist back, or in shared-tenant scenarios). Listing + matching by
+	// fieldKey is cheap and avoids the 400 "already exists" path.
+	const list = await ghlFetch<{ customFields?: GhlCustomField[] }>({
+		method: "GET",
 		path: `/locations/${args.ghlLocationId}/customFields`,
 		apiKey: args.ghlApiKey,
-		body: {
-			name: `Select Preferred Branch in ${args.countryName}`,
-			fieldKey,
-			dataType: "SINGLE_OPTIONS",
-			model: "contact",
-			options: [],
-		},
 	});
-	const ghlFieldId = created.customField?.id ?? created.id;
+	// GHL returns fieldKey prefixed with "contact." for contact-model fields.
+	const targetKey = `contact.${fieldKey}`;
+	const existing = (list.customFields ?? []).find(
+		(f) => f.fieldKey === fieldKey || f.fieldKey === targetKey,
+	);
+	let ghlFieldId: string | undefined = existing?.id;
+
+	if (!ghlFieldId) {
+		const created = await ghlFetch<{
+			id: string;
+			customField?: { id: string };
+		}>({
+			method: "POST",
+			path: `/locations/${args.ghlLocationId}/customFields`,
+			apiKey: args.ghlApiKey,
+			body: {
+				name: `Select Preferred Branch in ${args.countryName}`,
+				fieldKey,
+				dataType: "SINGLE_OPTIONS",
+				model: "contact",
+				// GHL requires ≥ 1 option on creation; seed with the caller's
+				// first known option so the field is immediately usable.
+				options: [args.initialOption],
+			},
+		});
+		ghlFieldId = created.customField?.id ?? created.id;
+	}
+
 	if (!ghlFieldId) {
 		throw new Error("GHL did not return an id for the new custom field");
 	}
@@ -329,6 +363,7 @@ export async function syncBranchToGhl(args: {
 			ghlApiKey: apiKey,
 			countryNodeId: path.countryNodeId,
 			countryName: path.countryName,
+			initialOption: path.optionLabel,
 		});
 
 		await ensureBranchOption({
