@@ -61,8 +61,19 @@ export interface GhlCustomField {
 	id: string;
 	name: string;
 	fieldKey: string;
-	dataType: "TEXT" | "LARGE_TEXT" | "NUMERICAL" | "DATE" | "PHONE" | "EMAIL";
+	dataType:
+		| "TEXT"
+		| "LARGE_TEXT"
+		| "NUMERICAL"
+		| "DATE"
+		| "PHONE"
+		| "EMAIL"
+		| "SINGLE_OPTIONS"
+		| "MULTIPLE_OPTIONS";
 	locationId: string;
+	// SINGLE_OPTIONS / MULTIPLE_OPTIONS only. GHL returns either string[] or
+	// { label, value }[] depending on field version; treat as string[] of labels.
+	options?: string[];
 }
 
 export type GhlApiErrorCode =
