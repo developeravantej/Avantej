@@ -670,6 +670,39 @@ const ghlRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	// Phase G.2: Org-shared GHL connection (one GHL sub-account per org)
+	connectOrgShared: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				ghlLocationId: z.string().min(1),
+				ghlApiKey: z.string().min(10),
+			}),
+		)
+		.handler((): { status: "connected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	disconnectOrgShared: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): { status: "disconnected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	getOrgShared: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				ghlLocationId: string | null;
+				ghlSyncModel: string | null;
+				ghlProvisionedAt: Date | null;
+				hasApiKey: boolean;
+				countryFieldCount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Full appRouter with auth and server-specific procedures for type inference on the client

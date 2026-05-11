@@ -72,6 +72,45 @@ function GoHighLevelIntegrationPage() {
 		enabled: !!organizationId,
 	});
 
+	// Phase G.2 — org-shared GHL connection state
+	const [orgLocationId, setOrgLocationId] = useState("");
+	const [orgApiKey, setOrgApiKey] = useState("");
+
+	const { data: orgShared, isLoading: orgSharedLoading } = useQuery({
+		queryKey: ["ghlOrgShared", organizationId],
+		queryFn: async () => {
+			if (!organizationId) return null;
+			return client.ghl.getOrgShared({ organizationId });
+		},
+		enabled: !!organizationId,
+	});
+
+	const orgConnectMutation = useApiMutation({
+		mutationFn: async (vars: { ghlLocationId: string; ghlApiKey: string }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.connectOrgShared({
+				organizationId,
+				ghlLocationId: vars.ghlLocationId,
+				ghlApiKey: vars.ghlApiKey,
+			});
+		},
+		successMessage: "Connected to GHL (organization-wide)",
+		invalidate: [["ghlOrgShared", organizationId]],
+		onSuccess: () => {
+			setOrgLocationId("");
+			setOrgApiKey("");
+		},
+	});
+
+	const orgDisconnectMutation = useApiMutation({
+		mutationFn: async () => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.disconnectOrgShared({ organizationId });
+		},
+		successMessage: "Disconnected organization-wide GHL link",
+		invalidate: [["ghlOrgShared", organizationId]],
+	});
+
 	const branchNodes: HierarchyNode[] = (hierarchyData?.nodes ?? []).filter(
 		(n: HierarchyNode) => n.type === "branch",
 	);
@@ -159,6 +198,111 @@ function GoHighLevelIntegrationPage() {
 				<h1 className="text-3xl font-bold tracking-tight">GoHighLevel Integration</h1>
 				<p className="text-muted-foreground">
 					Connect each branch to its GoHighLevel sub-account location.
+				</p>
+			</div>
+
+			{/* Phase G.2 — Organization-wide GHL connection (Option Y) */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Organization-Wide GHL Connection (Recommended)</CardTitle>
+					<p className="text-sm text-muted-foreground mt-1">
+						Connect once for the whole organization. All branches use the same
+						GHL sub-account, differentiated by custom field.
+					</p>
+				</CardHeader>
+				<CardContent>
+					{orgSharedLoading ? (
+						<p className="text-sm text-muted-foreground py-4">Loading…</p>
+					) : orgShared?.ghlSyncModel === "org-shared" && orgShared.ghlLocationId ? (
+						<div className="space-y-3">
+							<div className="flex items-center gap-2">
+								<Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+									✓ Connected
+								</Badge>
+								<span className="text-sm font-medium">
+									GHL location: {orgShared.ghlLocationId}
+								</span>
+							</div>
+							<div className="text-sm text-muted-foreground">
+								Country fields configured: {orgShared.countryFieldCount}
+							</div>
+							{orgShared.ghlProvisionedAt && (
+								<div className="text-sm text-muted-foreground">
+									Connected at:{" "}
+									{new Date(orgShared.ghlProvisionedAt).toLocaleString()}
+								</div>
+							)}
+							<Button
+								variant="outline"
+								size="sm"
+								data-testid="org-shared-disconnect-btn"
+								onClick={() => {
+									if (
+										!window.confirm(
+											"Disconnect the organization-wide GHL connection? Branches will fall back to the legacy per-branch model.",
+										)
+									)
+										return;
+									orgDisconnectMutation.mutate(undefined as never);
+								}}
+								disabled={orgDisconnectMutation.isPending}
+							>
+								{orgDisconnectMutation.isPending ? "Disconnecting…" : "Disconnect"}
+							</Button>
+						</div>
+					) : (
+						<div className="grid gap-4 max-w-md">
+							<div>
+								<Label htmlFor="orgGhlLocationId">GHL Location ID</Label>
+								<Input
+									id="orgGhlLocationId"
+									value={orgLocationId}
+									onChange={(e) => setOrgLocationId(e.target.value)}
+									placeholder="e.g. abc123xyz"
+									className="mt-1"
+								/>
+							</div>
+							<div>
+								<Label htmlFor="orgGhlApiKey">Private Integration Token</Label>
+								<Input
+									id="orgGhlApiKey"
+									type="password"
+									value={orgApiKey}
+									onChange={(e) => setOrgApiKey(e.target.value)}
+									placeholder="Private Integration API key"
+									className="mt-1"
+								/>
+							</div>
+							<div>
+								<Button
+									data-testid="org-shared-connect-btn"
+									onClick={() => {
+										if (!orgLocationId.trim() || !orgApiKey.trim()) return;
+										orgConnectMutation.mutate({
+											ghlLocationId: orgLocationId.trim(),
+											ghlApiKey: orgApiKey.trim(),
+										});
+									}}
+									disabled={
+										orgConnectMutation.isPending ||
+										!orgLocationId.trim() ||
+										!orgApiKey.trim()
+									}
+								>
+									{orgConnectMutation.isPending ? "Connecting…" : "Connect"}
+								</Button>
+							</div>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			<div className="border-t pt-2" />
+
+			<div>
+				<p className="text-xs text-muted-foreground italic">
+					Legacy per-branch connection (Option X) — use only if your franchise
+					model requires separate GHL locations per branch.
 				</p>
 			</div>
 
