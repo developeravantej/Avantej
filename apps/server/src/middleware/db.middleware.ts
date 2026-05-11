@@ -29,6 +29,10 @@ import {
 	type ServerDispatchStaffSyncArgs,
 	type ServerDispatchProfileSyncArgs,
 } from "@/services/ghl/dispatch-staff-sync";
+import {
+	dispatchBranchSync as dispatchBranchSyncRaw,
+	type ServerDispatchBranchSyncArgs,
+} from "@/services/ghl/dispatch-branch-sync";
 
 /**
  * Env-bound staff sync dispatcher: identical to the underlying dispatcher
@@ -43,6 +47,10 @@ export type BoundDispatchStaffSync = (
 export type BoundDispatchProfileSync = (
 	args: Omit<ServerDispatchProfileSyncArgs, "env">,
 ) => ReturnType<typeof dispatchProfileSyncRaw>;
+
+export type BoundDispatchBranchSync = (
+	args: ServerDispatchBranchSyncArgs,
+) => ReturnType<typeof dispatchBranchSyncRaw>;
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env
@@ -113,6 +121,13 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 		c.set("dispatchStaffSync", boundDispatchStaffSync);
 		c.set("dispatchProfileSync", boundDispatchProfileSync);
 	}
+
+	// Branch sync needs no env vars (org-scoped api key lives in DB), so it's
+	// always available — gate runtime in the dispatcher itself (org-shared
+	// flag + presence of ghlLocationId).
+	const boundDispatchBranchSync: BoundDispatchBranchSync = (args) =>
+		dispatchBranchSyncRaw(args);
+	c.set("dispatchBranchSync", boundDispatchBranchSync);
 
 	try {
 		await next();

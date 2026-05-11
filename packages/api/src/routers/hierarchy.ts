@@ -163,6 +163,45 @@ export const hierarchyRouter = {
           }
         }
 
+        // Fire-and-forget GHL branch-option sync (Phase G org-shared model).
+        // Skips silently if org isn't on org-shared model; error never blocks
+        // the create response.
+        let ghlSync:
+          | { status: "synced" | "skipped" | "error"; [k: string]: unknown }
+          | null = null;
+        if (node.type === "branch" && context.organizationId) {
+          const dispatchBranchSync = context.honoContext?.get(
+            "dispatchBranchSync",
+          ) as
+            | ((args: {
+                controlPanelDb: ReturnType<typeof getControlPanelDb>;
+                tenantDb: typeof tenantDb;
+                organizationId: string;
+                branchNodeId: string;
+              }) => Promise<{
+                status: "synced" | "skipped" | "error";
+                [k: string]: unknown;
+              }>)
+            | undefined;
+          const controlPanelDb = getControlPanelDb(context);
+          if (dispatchBranchSync && controlPanelDb) {
+            try {
+              ghlSync = await dispatchBranchSync({
+                controlPanelDb,
+                tenantDb,
+                organizationId: context.organizationId,
+                branchNodeId: node.id,
+              });
+            } catch (err) {
+              console.error("GHL branch sync failed:", err);
+              ghlSync = {
+                status: "error",
+                error: err instanceof Error ? err.message : String(err),
+              };
+            }
+          }
+        }
+
         return {
           id: node.id,
           name: node.name,
@@ -173,6 +212,7 @@ export const hierarchyRouter = {
           picUserId: (node as any).picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
+          ghlSync,
         };
       } catch (error) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
