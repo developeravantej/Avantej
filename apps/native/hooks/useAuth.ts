@@ -17,7 +17,12 @@ export function useAuth() {
 				throw new Error(result.error.message || "Failed to sign in");
 			}
 			await refetch();
-			queryClient.refetchQueries();
+			await queryClient.invalidateQueries({
+				predicate: (query) => {
+					const key = query.queryKey[0];
+					return key === "auth" || key === "userContext";
+				},
+			});
 			return result.data;
 		},
 		[refetch],
@@ -45,8 +50,8 @@ export function useAuth() {
 
 	const logout = useCallback(async () => {
 		await authClient.signOut();
-		queryClient.clear();
 		await refetch();
+		queryClient.clear();
 	}, [refetch]);
 
 	const forgotPassword = useCallback(async (email: string) => {

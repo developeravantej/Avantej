@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
@@ -52,13 +52,21 @@ export default function PlanScreen() {
 		(state.paymentPlanType as PlanKey) ?? defaultPlan,
 	);
 
-	// If no plans or only 'full', auto-skip this screen
+	// If no plans or only 'full', auto-skip this screen.
+	// Ref guard prevents the effect from triggering twice if React StrictMode
+	// double-mounts.
+	const autoSkippedRef = useRef(false);
 	useEffect(() => {
-		if (availablePlans.length === 0 || (availablePlans.length === 1 && availablePlans[0] === "full")) {
+		if (autoSkippedRef.current) return;
+		if (
+			availablePlans.length === 0 ||
+			(availablePlans.length === 1 && availablePlans[0] === "full")
+		) {
+			autoSkippedRef.current = true;
 			update({ paymentPlanType: "full" });
 			router.replace("./review");
 		}
-	}, []); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [availablePlans, update]);
 
 	const price = state.price ?? 0;
 	const creditsTotal = state.creditsTotal ?? 0;

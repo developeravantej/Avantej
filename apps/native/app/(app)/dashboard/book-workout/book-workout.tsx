@@ -18,6 +18,21 @@ import { colors } from "@/lib/colors";
 import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
+type ServiceLite = {
+	id: string;
+	name: string | null;
+	type: "private" | "semi_private" | "both" | null;
+	categoryId: string | null;
+	branchId: string | null;
+	schedulingType: "appointment" | "class_slot" | null;
+	timePresetConfig: {
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	} | null;
+	duration: number | null;
+	description: string | null;
+};
+
 const steps = [
 	{ number: 1, label: "Setup", active: true },
 	{ number: 2, label: "Schedule", active: false },
@@ -68,8 +83,10 @@ export default function BookWorkoutScreen() {
 	);
 
 	const serviceById = useMemo(() => {
-		const map = new Map<string, any>();
-		for (const s of (services as any[]) ?? []) map.set(s.id, s);
+		const map = new Map<string, ServiceLite>();
+		for (const s of (services as ServiceLite[] | undefined) ?? []) {
+			map.set(s.id, s);
+		}
 		return map;
 	}, [services]);
 
@@ -78,8 +95,8 @@ export default function BookWorkoutScreen() {
 	// (e.g. created via the web form which sets branchId: null), we pick the
 	// first non-null branchId found across the org's services.
 	const fallbackBranchId = useMemo(() => {
-		const list = (services as any[]) ?? [];
-		for (const s of list) if (s?.branchId) return s.branchId as string;
+		const list = (services as ServiceLite[] | undefined) ?? [];
+		for (const s of list) if (s.branchId) return s.branchId;
 		return null;
 	}, [services]);
 

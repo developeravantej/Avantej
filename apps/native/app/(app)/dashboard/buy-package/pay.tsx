@@ -27,8 +27,8 @@ export default function PayScreen() {
 	const { state, update } = usePurchaseFlow();
 	const queryClient = useQueryClient();
 
-	const currentStep = 7;
-	const totalSteps = 8;
+	const currentStep = 6;
+	const totalSteps = 7;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
 	const [isProcessing, setIsProcessing] = useState(false);

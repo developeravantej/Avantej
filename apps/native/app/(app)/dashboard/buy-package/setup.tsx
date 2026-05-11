@@ -67,7 +67,7 @@ export default function SetupScreen() {
 	// Fetch services for selected category — only package-style (sessionCount != null)
 	const { data: services, isLoading: servicesLoading } = useQuery({
 		...orpc.services.list.queryOptions({
-			input: { organizationId, categoryId: selectedCategoryId! },
+			input: { organizationId, categoryId: selectedCategoryId ?? "" },
 		}),
 		enabled: !!selectedCategoryId,
 	});
@@ -120,16 +120,7 @@ export default function SetupScreen() {
 			installmentIntervalDays:
 				(selectedSvc as any).installmentIntervalDays ?? 30,
 		});
-		const nextSchedulingType =
-			((selectedSvc as any).schedulingType as
-				| "appointment"
-				| "class_slot"
-				| null) ?? "appointment";
-		if (nextSchedulingType === "appointment") {
-			router.push("./trainer");
-		} else {
-			router.push("./schedule");
-		}
+		router.push("./schedule");
 	};
 
 	return (

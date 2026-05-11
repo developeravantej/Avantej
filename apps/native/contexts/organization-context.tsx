@@ -93,14 +93,47 @@ export function OrganizationProvider({
 	}, [setOrganizationId]);
 
 	useEffect(() => {
+		let aborted = false;
 		if (isAuthenticated) {
-			fetchUserContext();
+			(async () => {
+				try {
+					setIsLoading(true);
+					setError(null);
+					const userContext = await client.auth.userContext();
+					if (aborted) return;
+					const orgs = userContext.organizations ?? [];
+					setOrganizations(orgs);
+					const storedId = await SecureStore.getItemAsync(STORAGE_KEY);
+					if (aborted) return;
+					const storedOrgStillValid =
+						storedId && orgs.some((o) => o.id === storedId);
+					if (storedOrgStillValid) {
+						setOrganizationIdState(storedId);
+					} else if (orgs.length === 1) {
+						setOrganizationId(orgs[0].id);
+					} else if (userContext.currentOrganizationId) {
+						setOrganizationId(userContext.currentOrganizationId);
+					}
+				} catch (err) {
+					if (aborted) return;
+					setError(
+						err instanceof Error
+							? err
+							: new Error("Failed to fetch user context"),
+					);
+				} finally {
+					if (!aborted) setIsLoading(false);
+				}
+			})();
 		} else {
 			setOrganizations([]);
 			setOrganizationIdState(null);
 			setIsLoading(false);
 		}
-	}, [isAuthenticated, fetchUserContext]);
+		return () => {
+			aborted = true;
+		};
+	}, [isAuthenticated, setOrganizationId]);
 
 	const value = useMemo(
 		() => ({

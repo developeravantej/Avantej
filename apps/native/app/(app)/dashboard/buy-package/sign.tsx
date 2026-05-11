@@ -69,20 +69,30 @@ export default function SignScreen() {
 	};
 
 	const handleOpenSignatureModal = async () => {
-		await ScreenOrientation.lockAsync(
-			ScreenOrientation.OrientationLock.LANDSCAPE,
-		);
+		try {
+			await ScreenOrientation.lockAsync(
+				ScreenOrientation.OrientationLock.LANDSCAPE,
+			);
+		} catch (err) {
+			console.warn("[sign] failed to lock orientation", err);
+		}
 		setShowSignatureModal(true);
 	};
 
 	const handleCloseSignatureModal = async () => {
 		setShowSignatureModal(false);
-		await ScreenOrientation.unlockAsync();
+		try {
+			await ScreenOrientation.unlockAsync();
+		} catch (err) {
+			console.warn("[sign] failed to unlock orientation", err);
+		}
 	};
 
 	useEffect(() => {
 		return () => {
-			ScreenOrientation.unlockAsync();
+			ScreenOrientation.unlockAsync().catch(() => {
+				// Best-effort cleanup; ignore failures during unmount.
+			});
 		};
 	}, []);
 

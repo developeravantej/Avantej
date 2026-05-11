@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { colors } from "@/lib/colors";
 
@@ -12,8 +13,9 @@ type WeeklyTimetableProps = {
 	slots: TimetableSlot[];
 	startHour?: number; // default 7
 	endHour?: number; // default 20
-	hourHeight?: number; // px per hour, default 60
-	weekLabel?: string; // e.g. "May 5 - May 11"
+	rowHeight?: number; // px per day row
+	hourWidth?: number; // px per hour — controls horizontal density
+	weekLabel?: string;
 };
 
 const DAY_ORDER: Record<string, number> = {
@@ -28,38 +30,64 @@ const DAY_ORDER: Record<string, number> = {
 
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const COL_WIDTH = 72;
-const TIME_COL_WIDTH = 44;
+const DAY_LABEL_WIDTH = 40;
 
 function hhmmToMinutes(hhmm: string): number {
-	const [h, m] = hhmm.split(":").map(Number);
-	return (h ?? 0) * 60 + (m ?? 0);
+	const parts = hhmm.split(":");
+	const h = Number(parts[0]);
+	const m = Number(parts[1]);
+	if (!Number.isFinite(h) || !Number.isFinite(m)) {
+		if (__DEV__) {
+			console.warn(`[weekly-timetable] invalid time format: "${hhmm}"`);
+		}
+		return 0;
+	}
+	return h * 60 + m;
 }
 
 export function WeeklyTimetable({
 	slots,
-	startHour = 7,
-	endHour = 20,
-	hourHeight = 60,
+	startHour: startHourProp,
+	endHour: endHourProp,
+	rowHeight = 36,
+	hourWidth = 64,
 	weekLabel,
 }: WeeklyTimetableProps) {
-	const totalHours = endHour - startHour;
-	const gridHeight = totalHours * hourHeight;
-	const hours = Array.from({ length: totalHours + 1 }, (_, i) => startHour + i);
-
-	// Group slots by day index
-	const slotsByDay: TimetableSlot[][] = Array.from({ length: 7 }, () => []);
-	for (const slot of slots) {
-		const dayIdx = DAY_ORDER[slot.dayOfWeek.toLowerCase()];
-		if (dayIdx !== undefined) {
-			slotsByDay[dayIdx]?.push(slot);
+	const { slotsByDay, computedStartHour, computedEndHour } = useMemo(() => {
+		const byDay: TimetableSlot[][] = Array.from({ length: 7 }, () => []);
+		let minHour = 24;
+		let maxHour = 0;
+		for (const slot of slots) {
+			const dayIdx = DAY_ORDER[slot.dayOfWeek.toLowerCase()];
+			if (dayIdx !== undefined) {
+				byDay[dayIdx]?.push(slot);
+				const sH = Math.floor(hhmmToMinutes(slot.startTime) / 60);
+				const eH = Math.ceil(hhmmToMinutes(slot.endTime) / 60);
+				if (sH < minHour) minHour = sH;
+				if (eH > maxHour) maxHour = eH;
+			}
 		}
-	}
+		return {
+			slotsByDay: byDay,
+			computedStartHour: slots.length > 0 ? minHour : 7,
+			computedEndHour: slots.length > 0 ? maxHour : 20,
+		};
+	}, [slots]);
+
+	const startHour = startHourProp ?? computedStartHour;
+	const endHour = endHourProp ?? computedEndHour;
+	const totalHours = Math.max(endHour - startHour, 1);
+	const trackWidth = totalHours * hourWidth;
+
+	const hours = Array.from({ length: totalHours + 1 }, (_, i) => startHour + i);
 
 	const hasSlots = slots.length > 0;
 
+	const pxFromMinutes = (minutes: number) =>
+		((minutes - startHour * 60) / 60) * hourWidth;
+
 	return (
-		<View>
+		<View style={{ padding: 8 }}>
 			{weekLabel ? (
 				<Text
 					className="mb-2 text-center text-xs font-medium"
@@ -69,137 +97,175 @@ export function WeeklyTimetable({
 				</Text>
 			) : null}
 
-			{/* Scrollable timetable, max height ~400 */}
-			<ScrollView style={{ maxHeight: 400 }} nestedScrollEnabled>
-				<View style={{ flexDirection: "row" }}>
-					{/* Time label column */}
-					<View style={{ width: TIME_COL_WIDTH }}>
-						{/* Header spacer */}
-						<View style={{ height: 24 }} />
-						{/* Hour labels */}
-						{hours.map((h) => (
-							<View
-								key={h}
+			<View style={{ flexDirection: "row" }}>
+				{/* Fixed day-label column */}
+				<View style={{ width: DAY_LABEL_WIDTH }}>
+					{/* Spacer to align with time header */}
+					<View style={{ height: 22 }} />
+					{DAY_SHORT.map((day) => (
+						<View
+							key={day}
+							style={{
+								height: rowHeight,
+								marginBottom: 4,
+								alignItems: "flex-end",
+								justifyContent: "center",
+								paddingRight: 8,
+							}}
+						>
+							<Text
 								style={{
-									height: h === endHour ? 0 : hourHeight,
-									justifyContent: "flex-start",
-									alignItems: "flex-end",
-									paddingRight: 6,
+									fontSize: 11,
+									fontWeight: "700",
+									color: colors.primary[1],
 								}}
 							>
+								{day}
+							</Text>
+						</View>
+					))}
+				</View>
+
+				{/* Scrollable time grid */}
+				<ScrollView
+					horizontal
+					showsHorizontalScrollIndicator
+					style={{ flex: 1 }}
+					contentContainerStyle={{ paddingRight: 8 }}
+				>
+					<View style={{ width: trackWidth }}>
+						{/* Time header */}
+						<View
+							style={{
+								height: 22,
+								position: "relative",
+								marginBottom: 0,
+							}}
+						>
+							{hours.map((h) => (
 								<Text
+									key={h}
 									style={{
-										fontSize: 9,
+										position: "absolute",
+										left: pxFromMinutes(h * 60),
+										transform: [{ translateX: -16 }],
+										fontSize: 10,
 										color: colors.secondary[1],
-										lineHeight: 12,
+										fontWeight: "600",
 									}}
 								>
 									{String(h).padStart(2, "0")}:00
 								</Text>
-							</View>
-						))}
-					</View>
+							))}
+						</View>
 
-					{/* Day columns in horizontal scroll */}
-					<ScrollView horizontal showsHorizontalScrollIndicator={false}>
-						<View>
-							{/* Day header row */}
-							<View style={{ flexDirection: "row", height: 24 }}>
-								{DAY_SHORT.map((day) => (
-									<View
-										key={day}
-										style={{
-											width: COL_WIDTH,
-											alignItems: "center",
-											justifyContent: "center",
-										}}
-									>
-										<Text
-											style={{
-												fontSize: 10,
-												fontWeight: "600",
-												color: colors.primary[1],
-											}}
-										>
-											{day}
-										</Text>
-									</View>
-								))}
-							</View>
-
-							{/* Grid + slots */}
-							<View style={{ flexDirection: "row" }}>
-								{DAY_SHORT.map((day, dayIdx) => (
-									<View
-										key={day}
-										style={{
-											width: COL_WIDTH,
-											height: gridHeight,
-											position: "relative",
-											borderLeftWidth: 1,
-											borderLeftColor: colors.secondary[3],
-										}}
-									>
-										{/* Hour grid lines */}
-										{hours.map((h) => (
+						{/* Day tracks */}
+						{DAY_SHORT.map((day, dayIdx) => {
+							const daySlots = slotsByDay[dayIdx] ?? [];
+							return (
+								<View
+									key={day}
+									style={{
+										height: rowHeight,
+										marginBottom: 4,
+										position: "relative",
+										backgroundColor: colors.secondary[3],
+										borderRadius: 6,
+										overflow: "hidden",
+									}}
+								>
+									{/* Hour tick lines */}
+									{hours.map((h) =>
+										h === startHour || h === endHour ? null : (
 											<View
 												key={h}
 												style={{
 													position: "absolute",
-													top: (h - startHour) * hourHeight,
-													left: 0,
-													right: 0,
-													height: 1,
-													backgroundColor: colors.secondary[3],
+													top: 0,
+													bottom: 0,
+													left: pxFromMinutes(h * 60),
+													width: 1,
+													backgroundColor: "rgba(0,0,0,0.06)",
 												}}
 											/>
-										))}
+										),
+									)}
 
-										{/* Slots */}
-										{(slotsByDay[dayIdx] ?? []).map((slot) => {
-											const startMin = hhmmToMinutes(slot.startTime);
-											const endMin = hhmmToMinutes(slot.endTime);
-											const top =
-												((startMin - startHour * 60) / 60) * hourHeight;
-											const height = ((endMin - startMin) / 60) * hourHeight;
+									{daySlots.map((slot) => {
+										const startMin = hhmmToMinutes(slot.startTime);
+										const endMin = hhmmToMinutes(slot.endTime);
+										const durationMin = Math.max(endMin - startMin, 15);
+										const left = pxFromMinutes(startMin);
+										const width = Math.max(
+											(durationMin / 60) * hourWidth,
+											48,
+										);
 
-											return (
-												<View
-													key={`${slot.dayOfWeek}-${slot.startTime}-${slot.endTime}`}
+										return (
+											<View
+												key={`${slot.dayOfWeek}-${slot.startTime}-${slot.endTime}`}
+												style={{
+													position: "absolute",
+													top: 2,
+													bottom: 2,
+													left,
+													width,
+													backgroundColor: "rgba(0,0,0,0.5)",
+													borderRadius: 6,
+													borderWidth: 2,
+													borderStyle: "solid",
+													borderColor: colors.primary[1],
+													paddingHorizontal: 8,
+													flexDirection: "row",
+													alignItems: "center",
+													justifyContent: "center",
+													gap: 4,
+												}}
+											>
+												<Text
+													numberOfLines={1}
 													style={{
-														position: "absolute",
-														top,
-														left: 2,
-														right: 2,
-														height: Math.max(height, 12),
-														backgroundColor: colors.primary[1],
-														borderRadius: 4,
-														padding: 2,
-														zIndex: 1,
+														color: colors.primary[2],
+														fontSize: 11,
+														fontWeight: "700",
 													}}
 												>
-													<Text
-														style={{
-															color: colors.primary[2],
-															fontSize: 8,
-															lineHeight: 10,
-														}}
-														numberOfLines={2}
-													>
-														{slot.label ?? `${slot.startTime}–${slot.endTime}`}
-													</Text>
-												</View>
-											);
-										})}
-									</View>
-								))}
-							</View>
-						</View>
-					</ScrollView>
-				</View>
-			</ScrollView>
+													{slot.label ?? slot.startTime}
+												</Text>
+												{!slot.label ? (
+													<>
+														<Text
+															style={{
+																color: colors.primary[2],
+																fontSize: 10,
+																fontWeight: "700",
+																opacity: 0.6,
+															}}
+														>
+															/
+														</Text>
+														<Text
+															numberOfLines={1}
+															style={{
+																color: colors.primary[2],
+																fontSize: 11,
+																fontWeight: "700",
+															}}
+														>
+															{slot.endTime}
+														</Text>
+													</>
+												) : null}
+											</View>
+										);
+									})}
+								</View>
+							);
+						})}
+					</View>
+				</ScrollView>
+			</View>
 
-			{/* Empty state */}
 			{!hasSlots ? (
 				<View className="items-center py-4">
 					<Text

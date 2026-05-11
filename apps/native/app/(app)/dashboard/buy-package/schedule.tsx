@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+	FlatList,
 	Image,
+	Modal,
 	Platform,
 	ScrollView,
 	Text,
@@ -12,8 +15,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { WeeklyTimetable } from "@/components/weekly-timetable";
+import { useOrganizationContext } from "@/contexts/organization-context";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
+import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { orpc } from "@/utils/orpc";
 
 const steps = [
 	{ number: 1, label: "Setup", active: false },
@@ -319,6 +326,8 @@ type PreferredTime = {
 };
 
 export default function ScheduleScreen() {
+	const { organizationId } = useOrganization();
+	const { organizations } = useOrganizationContext();
 	const { state, update } = usePurchaseFlow();
 
 	// Appointment-style services let the user pick preferred days/times.
@@ -334,6 +343,57 @@ export default function ScheduleScreen() {
 	);
 	const [expandedDay, setExpandedDay] = useState<string | null>(null);
 	const [selectedTime, setSelectedTime] = useState<Date>(new Date());
+	const [pickerOpen, setPickerOpen] = useState(false);
+
+	// Trainer selection (merged from former trainer.tsx step)
+	const currentOrg = organizations.find((o) => o.id === organizationId);
+	const customerHierarchyScopeId =
+		currentOrg?.hierarchy?.member?.hierarchyScopeId ?? undefined;
+
+	const [selectedTrainerId, setSelectedTrainerId] = useState<string | null>(
+		state.preferredTrainerId ?? null,
+	);
+	const [trainerDropdownOpen, setTrainerDropdownOpen] = useState(false);
+
+	const trainersQuery = useQuery(
+		orpc.coachIntake.listByBranch.queryOptions({
+			input: {
+				organizationId,
+				...(customerHierarchyScopeId
+					? { branchId: customerHierarchyScopeId }
+					: {}),
+			},
+		}),
+	);
+
+	const trainers = (trainersQuery.data as Array<{
+		trainerId: string;
+		trainerName: string;
+		trainerEmail: string;
+		slots: Array<{
+			dayOfWeek: string;
+			startTime: string;
+			endTime: string;
+		}>;
+	}> | undefined) ?? [];
+
+	const selectedTrainer = trainers.find(
+		(t) => t.trainerId === selectedTrainerId,
+	);
+
+	const handleSelectTrainer = (
+		trainer: { id: string; name: string } | null,
+	) => {
+		update({
+			preferredTrainerId: trainer?.id ?? null,
+			preferredTrainerName: trainer?.name ?? null,
+		});
+		setSelectedTrainerId(trainer?.id ?? null);
+	};
+
+	const canContinue = isAppointment
+		? !!selectedTrainerId && preferredTimes.length > 0
+		: true;
 
 	// Add preferred time directly
 	const handleAddPreferredTime = (day: string, time: string) => {
@@ -353,6 +413,7 @@ export default function ScheduleScreen() {
 	};
 
 	const handleContinue = () => {
+		if (!canContinue) return;
 		update({ preferredTimes });
 		router.push("./info");
 	};
@@ -502,58 +563,221 @@ export default function ScheduleScreen() {
 						</View>
 					</View>
 
+					{isAppointment && (
+					<>
+					{/* Trainer Selection */}
+					<View className="mb-4">
+						<Text
+							className="mb-2 font-bold text-sm uppercase tracking-wide"
+							style={{ color: colors.primary[1] }}
+						>
+							CHOOSE YOUR TRAINER
+						</Text>
+						<Text
+							className="mb-4 text-base"
+							style={{ color: colors.primary[1] }}
+						>
+							Select a trainer to view their intake availability for new clients.
+						</Text>
+
+						{trainersQuery.isLoading ? (
+							<View className="h-12 rounded-xl bg-secondary-3" />
+						) : (
+							<TouchableOpacity
+								onPress={() => setTrainerDropdownOpen(true)}
+								activeOpacity={0.8}
+								className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
+							>
+								<Text
+									style={{
+										color: selectedTrainerId
+											? colors.primary[1]
+											: colors.secondary[1],
+									}}
+								>
+									{selectedTrainer?.trainerName ?? "Select a trainer..."}
+								</Text>
+								<Ionicons
+									name="chevron-down"
+									size={16}
+									color={colors.secondary[1]}
+								/>
+							</TouchableOpacity>
+						)}
+					</View>
+
+					{/* Trainer Availability Preview */}
+					{selectedTrainerId && (
+						<View className="mb-6">
+							<Text
+								className="mb-3 font-bold text-sm uppercase tracking-wide"
+								style={{ color: colors.primary[1] }}
+							>
+								Trainer Availability
+							</Text>
+							{(selectedTrainer?.slots ?? []).length === 0 ? (
+								<View className="items-center rounded-2xl border border-secondary-3 bg-card py-8">
+									<Ionicons
+										name="calendar-outline"
+										size={32}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="mt-2 text-sm italic"
+										style={{ color: colors.secondary[1] }}
+									>
+										No intake slots this week
+									</Text>
+								</View>
+							) : (
+								<View className="rounded-2xl border border-secondary-3 bg-card overflow-hidden">
+									<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
+								</View>
+							)}
+						</View>
+					)}
+
+					{/* Trainer Dropdown Modal */}
+					<Modal
+						visible={trainerDropdownOpen}
+						transparent
+						animationType="fade"
+						onRequestClose={() => setTrainerDropdownOpen(false)}
+					>
+						<TouchableOpacity
+							style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
+							activeOpacity={1}
+							onPress={() => setTrainerDropdownOpen(false)}
+						>
+							<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
+								<Text
+									className="mb-3 font-bold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									Select a Trainer
+								</Text>
+								<FlatList
+									data={trainers}
+									keyExtractor={(item) => item.trainerId}
+									renderItem={({ item }) => (
+										<TouchableOpacity
+											onPress={() => {
+												handleSelectTrainer({
+													id: item.trainerId,
+													name: item.trainerName,
+												});
+												setTrainerDropdownOpen(false);
+											}}
+											className="border-b border-secondary-3 py-3"
+										>
+											<Text
+												style={{ color: colors.primary[1] }}
+												className="font-medium text-base"
+											>
+												{item.trainerName}
+											</Text>
+											{item.trainerEmail ? (
+												<Text
+													style={{ color: colors.secondary[1] }}
+													className="text-xs"
+												>
+													{item.trainerEmail}
+												</Text>
+											) : null}
+										</TouchableOpacity>
+									)}
+								/>
+								<TouchableOpacity
+									onPress={() => setTrainerDropdownOpen(false)}
+									className="mt-3 items-center py-3"
+								>
+									<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
+								</TouchableOpacity>
+							</View>
+						</TouchableOpacity>
+					</Modal>
+					</>
+					)}
+
 					{/* Schedule Selection */}
 					{isAppointment ? (
-						/* Appointment: select up to 4 preferred day and time combinations */
+						/* Appointment: 4-slot deck of preferred day+time picks */
 						<View className="mb-4">
 							<Text
 								className="mb-2 font-bold text-sm uppercase tracking-wide"
 								style={{ color: colors.primary[1] }}
 							>
-								SELECT PREFERRED DAY & TIME
+								Your Preferences
 							</Text>
 							<Text
-								className="mb-6 text-sm"
+								className="mb-4 text-sm"
 								style={{ color: colors.secondary[1] }}
 							>
-								Select up to 4 preferred day and time combinations (
-								{preferredTimes.length}/4)
+								Pick up to 4 day + time combinations.
 							</Text>
 
-							{/* Selected Preferred Times */}
-							{preferredTimes.length > 0 && (
-								<View className="mb-6">
-									<Text
-										className="mb-3 font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										Selected Preferences ({preferredTimes.length}/4)
-									</Text>
-									<View className="flex-row flex-wrap gap-2">
-										{preferredTimes.map((pt, index) => (
+							{/* Progress card */}
+							<View
+								className="mb-4 flex-row items-center justify-between rounded-2xl border border-secondary-3 px-4 py-3"
+								style={{ backgroundColor: colors.secondary[3] }}
+							>
+								<Text
+									className="font-bold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{preferredTimes.length} of 4 added
+								</Text>
+								<Text
+									className="text-xs"
+									style={{ color: colors.secondary[1] }}
+								>
+									{4 - preferredTimes.length === 0
+										? "All slots filled"
+										: `${4 - preferredTimes.length} slot${
+												4 - preferredTimes.length === 1 ? "" : "s"
+											} remaining`}
+								</Text>
+							</View>
+
+							{/* 2x2 slot deck */}
+							<View
+								style={{
+									flexDirection: "row",
+									flexWrap: "wrap",
+									gap: 10,
+								}}
+							>
+								{[0, 1, 2, 3].map((i) => {
+									const pref = preferredTimes[i];
+									const label = `PREF ${String(i + 1).padStart(2, "0")}`;
+
+									if (pref) {
+										return (
 											<View
-												key={`${pt.day}-${pt.time}`}
-												className="flex-row items-center rounded-xl border border-secondary-3 bg-secondary-3 px-4 py-3"
-												style={{ minWidth: 140 }}
+												key={i}
+												style={{
+													width: "48%",
+													minHeight: 110,
+													borderRadius: 16,
+													backgroundColor: colors.primary[1],
+													padding: 14,
+													justifyContent: "space-between",
+													position: "relative",
+												}}
 											>
-												<View className="flex-1">
-													<Text
-														className="font-semibold text-sm"
-														style={{ color: colors.primary[1] }}
-													>
-														{pt.day.substring(0, 3)}
-													</Text>
-													<Text
-														className="mt-0.5 text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														{pt.time}
-													</Text>
-												</View>
 												<TouchableOpacity
-													onPress={() => handleRemovePreferredTime(index)}
-													className="ml-2 h-6 w-6 items-center justify-center rounded-full"
-													style={{ backgroundColor: "#EF4444" }}
+													onPress={() => handleRemovePreferredTime(i)}
+													style={{
+														position: "absolute",
+														top: 8,
+														right: 8,
+														width: 24,
+														height: 24,
+														borderRadius: 12,
+														backgroundColor: "rgba(255,255,255,0.18)",
+														alignItems: "center",
+														justifyContent: "center",
+													}}
 												>
 													<Ionicons
 														name="close"
@@ -561,218 +785,89 @@ export default function ScheduleScreen() {
 														color={colors.primary[2]}
 													/>
 												</TouchableOpacity>
-											</View>
-										))}
-									</View>
-								</View>
-							)}
-
-							{/* Day Selection - Expandable Time Slots */}
-							{preferredTimes.length < 4 && (
-								<View className="mb-4">
-									<Text
-										className="mb-3 font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										Select Day & Time
-									</Text>
-									<Text
-										className="mb-4 text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
-										Tap a day to see available times, then select your preferred
-										slots.
-									</Text>
-
-									{/* Days - Horizontal Scroll */}
-									<ScrollView
-										horizontal
-										showsHorizontalScrollIndicator={false}
-										className="mb-4"
-									>
-										<View className="flex-row gap-2">
-											{DAYS_OF_WEEK.map((day) => {
-												const hasSelections = preferredTimes.some(
-													(pt) => pt.day === day,
-												);
-												const isExpanded = expandedDay === day;
-
-												return (
-													<TouchableOpacity
-														key={day}
-														onPress={() =>
-															setExpandedDay(isExpanded ? null : day)
-														}
-														className="flex-row items-center rounded-xl border px-4 py-3"
-														style={{
-															backgroundColor: isExpanded
-																? colors.primary[1]
-																: hasSelections
-																	? "#E0F2FE"
-																	: colors.primary[2],
-															borderColor: isExpanded
-																? colors.primary[1]
-																: hasSelections
-																	? colors.primary[1]
-																	: colors.secondary[3],
-															borderWidth: 1,
-															minWidth: 100,
-														}}
-													>
-														<Text
-															className="font-semibold text-sm"
-															style={{
-																color: isExpanded
-																	? colors.primary[2]
-																	: colors.primary[1],
-															}}
-														>
-															{day}
-														</Text>
-														{hasSelections && !isExpanded && (
-															<View
-																className="ml-2 h-2 w-2 rounded-full"
-																style={{
-																	backgroundColor: colors.primary[1],
-																}}
-															/>
-														)}
-														{isExpanded && (
-															<Ionicons
-																name="chevron-up"
-																size={16}
-																color={colors.primary[2]}
-																style={{ marginLeft: 4 }}
-															/>
-														)}
-													</TouchableOpacity>
-												);
-											})}
-										</View>
-									</ScrollView>
-
-									{/* Time Picker - Show only for expanded day */}
-									{expandedDay && (
-										<View className="rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
-											<Text
-												className="mb-4 font-semibold text-sm"
-												style={{ color: colors.primary[1] }}
-											>
-												Select time for {expandedDay}
-											</Text>
-
-											{/* Display selected time */}
-											<View className="mb-4">
 												<Text
-													className="mb-3 font-semibold text-base"
-													style={{ color: colors.primary[1] }}
+													style={{
+														color: colors.primary[2],
+														fontSize: 10,
+														fontWeight: "800",
+														letterSpacing: 1.4,
+														opacity: 0.6,
+													}}
 												>
-													{formatTime(selectedTime)}
+													{label}
 												</Text>
-											</View>
-
-											{/* Time Picker */}
-											<View className="mb-4 rounded-xl bg-primary-2 p-4">
-												{Platform.OS === "ios" ? (
-													<DateTimePicker
-														value={selectedTime}
-														mode="time"
-														is24Hour={false}
-														display="spinner"
-														onChange={(
-															event: { type: string },
-															date?: Date,
-														) => {
-															if (event.type !== "dismissed" && date) {
-																setSelectedTime(date);
-															}
+												<View>
+													<Text
+														style={{
+															color: colors.primary[2],
+															fontSize: 22,
+															fontWeight: "900",
+															letterSpacing: -0.5,
 														}}
-														style={{ alignSelf: "center", height: 200 }}
-													/>
-												) : (
-													<AndroidTimePicker
-														selectedTime={selectedTime}
-														onTimeChange={setSelectedTime}
-													/>
-												)}
+													>
+														{pref.day.substring(0, 3)}
+													</Text>
+													<Text
+														style={{
+															color: colors.primary[2],
+															fontSize: 13,
+															fontWeight: "700",
+															opacity: 0.85,
+															marginTop: 2,
+														}}
+													>
+														{pref.time}
+													</Text>
+												</View>
 											</View>
+										);
+									}
 
-											{/* Add Time Button */}
-											<TouchableOpacity
-												onPress={() => {
-													const timeString = formatTime(selectedTime);
-													if (preferredTimes.length < 4) {
-														handleAddPreferredTime(expandedDay, timeString);
-													}
-												}}
-												disabled={preferredTimes.length >= 4}
-												className="flex-row items-center justify-center rounded-xl bg-primary-1 py-3.5"
+									return (
+										<TouchableOpacity
+											key={i}
+											onPress={() => {
+												if (!expandedDay) setExpandedDay(DAYS_OF_WEEK[0]);
+												setPickerOpen(true);
+											}}
+											style={{
+												width: "48%",
+												minHeight: 110,
+												borderRadius: 16,
+												borderStyle: "dashed",
+												borderWidth: 1.5,
+												borderColor: colors.secondary[1],
+												alignItems: "center",
+												justifyContent: "center",
+												padding: 14,
+											}}
+										>
+											<Text
 												style={{
-													backgroundColor: colors.primary[1],
-													opacity: preferredTimes.length >= 4 ? 0.5 : 1,
+													color: colors.secondary[1],
+													fontSize: 32,
+													fontWeight: "300",
+													lineHeight: 36,
 												}}
 											>
-												<Ionicons
-													name="add-circle-outline"
-													size={20}
-													color={colors.primary[2]}
-													style={{ marginRight: 8 }}
-												/>
-												<Text className="font-semibold text-base text-primary-2">
-													Add This Time
-												</Text>
-											</TouchableOpacity>
+												+
+											</Text>
+											<Text
+												style={{
+													color: colors.secondary[1],
+													fontSize: 11,
+													fontWeight: "700",
+													marginTop: 4,
+													letterSpacing: 1.2,
+												}}
+											>
+												ADD {String(i + 1).padStart(2, "0")}
+											</Text>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
 
-											{/* Show already selected times for this day */}
-											{preferredTimes.filter((pt) => pt.day === expandedDay)
-												.length > 0 && (
-												<View className="mt-4">
-													<Text
-														className="mb-2 font-semibold text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														Already selected for {expandedDay}:
-													</Text>
-													<View className="flex-row flex-wrap gap-2">
-														{preferredTimes
-															.filter((pt) => pt.day === expandedDay)
-															.map((pt) => (
-																<TouchableOpacity
-																	key={`${pt.day}-${pt.time}`}
-																	onPress={() => {
-																		const removeIndex =
-																			preferredTimes.findIndex(
-																				(p) =>
-																					p.day === pt.day &&
-																					p.time === pt.time,
-																			);
-																		if (removeIndex !== -1) {
-																			handleRemovePreferredTime(removeIndex);
-																		}
-																	}}
-																	className="flex-row items-center rounded-lg bg-secondary-3 px-3 py-2"
-																>
-																	<Text
-																		className="font-medium text-xs"
-																		style={{ color: colors.primary[1] }}
-																	>
-																		{pt.time}
-																	</Text>
-																	<Ionicons
-																		name="close"
-																		size={14}
-																		color={colors.primary[1]}
-																		style={{ marginLeft: 6 }}
-																	/>
-																</TouchableOpacity>
-															))}
-													</View>
-												</View>
-											)}
-										</View>
-									)}
-								</View>
-							)}
 						</View>
 					) : (
 						/* Class slot: read-only display of the preset time slots */
@@ -852,23 +947,199 @@ export default function ScheduleScreen() {
 			</ScrollView>
 
 			{/* Continue Button */}
-			{(isAppointment ? preferredTimes.length > 0 : true) && (
-				<SafeAreaView
-					edges={["bottom"]}
-					className="border-secondary-3 border-t bg-primary-2"
-				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
-							onPress={handleContinue}
-							className="items-center justify-center rounded-xl bg-primary-1 py-4"
+			<SafeAreaView
+				edges={["bottom"]}
+				className="border-secondary-3 border-t bg-primary-2"
+			>
+				<View className="px-4 py-4">
+					<TouchableOpacity
+						onPress={handleContinue}
+						disabled={!canContinue}
+						activeOpacity={0.8}
+						className="items-center justify-center rounded-xl bg-primary-1 py-4"
+						style={{ opacity: canContinue ? 1 : 0.4 }}
+					>
+						<Text className="font-semibold text-base text-primary-2">
+							Continue
+						</Text>
+					</TouchableOpacity>
+				</View>
+			</SafeAreaView>
+
+			{/* Add-slot picker modal */}
+			<Modal
+				visible={pickerOpen && preferredTimes.length < 4}
+				transparent
+				animationType="slide"
+				onRequestClose={() => setPickerOpen(false)}
+			>
+				<View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+					<TouchableOpacity
+						style={{ flex: 1 }}
+						activeOpacity={1}
+						onPress={() => setPickerOpen(false)}
+					/>
+					<View
+						style={{
+							backgroundColor: colors.primary[2],
+							borderTopLeftRadius: 28,
+							borderTopRightRadius: 28,
+							paddingHorizontal: 20,
+							paddingTop: 12,
+							paddingBottom: 32,
+						}}
+					>
+						<View
+							style={{
+								width: 36,
+								height: 4,
+								borderRadius: 99,
+								backgroundColor: colors.secondary[3],
+								alignSelf: "center",
+								marginBottom: 14,
+							}}
+						/>
+
+						<View className="mb-4 flex-row items-center justify-between">
+							<Text
+								className="font-bold text-base uppercase"
+								style={{
+									color: colors.primary[1],
+									letterSpacing: 1.4,
+								}}
+							>
+								Add slot{" "}
+								{String(preferredTimes.length + 1).padStart(2, "0")}
+							</Text>
+							<TouchableOpacity
+								onPress={() => setPickerOpen(false)}
+								style={{
+									width: 32,
+									height: 32,
+									borderRadius: 16,
+									alignItems: "center",
+									justifyContent: "center",
+									backgroundColor: colors.secondary[3],
+								}}
+							>
+								<Ionicons
+									name="close"
+									size={18}
+									color={colors.primary[1]}
+								/>
+							</TouchableOpacity>
+						</View>
+
+						<Text
+							className="mb-2 font-semibold text-xs uppercase"
+							style={{
+								color: colors.secondary[1],
+								letterSpacing: 1.2,
+							}}
 						>
+							Day
+						</Text>
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							className="mb-4"
+						>
+							<View className="flex-row gap-2">
+								{DAYS_OF_WEEK.map((day) => {
+									const active = expandedDay === day;
+									return (
+										<TouchableOpacity
+											key={day}
+											onPress={() => setExpandedDay(day)}
+											className="rounded-xl border px-4 py-3"
+											style={{
+												backgroundColor: active
+													? colors.primary[1]
+													: colors.primary[2],
+												borderColor: active
+													? colors.primary[1]
+													: colors.secondary[3],
+											}}
+										>
+											<Text
+												className="font-semibold text-sm"
+												style={{
+													color: active
+														? colors.primary[2]
+														: colors.primary[1],
+												}}
+											>
+												{day.substring(0, 3)}
+											</Text>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+						</ScrollView>
+
+						<Text
+							className="mb-2 font-semibold text-xs uppercase"
+							style={{
+								color: colors.secondary[1],
+								letterSpacing: 1.2,
+							}}
+						>
+							Time
+						</Text>
+						<View
+							className="mb-4 rounded-xl p-4"
+							style={{ backgroundColor: colors.secondary[3] }}
+						>
+							<Text
+								className="mb-2 font-semibold text-base"
+								style={{ color: colors.primary[1] }}
+							>
+								{formatTime(selectedTime)}
+							</Text>
+							{Platform.OS === "ios" ? (
+								<DateTimePicker
+									value={selectedTime}
+									mode="time"
+									is24Hour={false}
+									display="spinner"
+									onChange={(event: { type: string }, date?: Date) => {
+										if (event.type !== "dismissed" && date) {
+											setSelectedTime(date);
+										}
+									}}
+									style={{ alignSelf: "center", height: 180 }}
+								/>
+							) : (
+								<AndroidTimePicker
+									selectedTime={selectedTime}
+									onTimeChange={setSelectedTime}
+								/>
+							)}
+						</View>
+
+						<TouchableOpacity
+							onPress={() => {
+								if (!expandedDay) return;
+								const timeString = formatTime(selectedTime);
+								handleAddPreferredTime(expandedDay, timeString);
+								setPickerOpen(false);
+							}}
+							className="flex-row items-center justify-center rounded-xl py-4"
+							style={{ backgroundColor: colors.primary[1] }}
+						>
+							<Ionicons
+								name="checkmark"
+								size={20}
+								color={colors.primary[2]}
+								style={{ marginRight: 8 }}
+							/>
 							<Text className="font-semibold text-base text-primary-2">
-								Continue
+								Add This Slot
 							</Text>
 						</TouchableOpacity>
 					</View>
-				</SafeAreaView>
-			)}
+				</View>
+			</Modal>
 		</Container>
 	);
 }

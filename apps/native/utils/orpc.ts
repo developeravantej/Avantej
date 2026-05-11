@@ -7,7 +7,7 @@ export const { queryClient, client, orpc } = createORPCClientConfig({
   QueryClient,
   QueryCache,
   onError: (error) => {
-    console.log(error);
+    console.error("[orpc]", error);
   },
   getAuthHeaders: () => {
     const headers: Record<string, string> = {};

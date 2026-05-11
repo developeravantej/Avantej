@@ -8,7 +8,9 @@ import { ActivityIndicator, View } from "react-native";
 export default function AppLayout() {
 	const { isAuthenticated, isPending, user } = useAuth();
 	const userRole =
-		user && "role" in user ? (user as { role?: string | null }).role : undefined;
+		user && typeof user === "object" && "role" in user
+			? (user as Record<string, unknown>).role
+			: undefined;
 
 	if (isPending) {
 		return (
