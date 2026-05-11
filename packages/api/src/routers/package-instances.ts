@@ -35,6 +35,11 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { getControlPanelDb } from "../lib/context-helpers";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 const sourceSchema = z.enum(["assigned", "purchased"]);
 const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded"]);
@@ -663,8 +668,8 @@ export const packageInstancesRouter = {
 
       // Transaction: update package + write staff slot + audit + notifications
       try {
-        // TODO: tighten tx type
-        const updated = await context.tenantDb.transaction(async (tx: any) => {
+        
+        const updated = await context.tenantDb.transaction(async (tx: TenantTx) => {
           const [row] = await tx
             .update(packageInstances)
             .set({
@@ -807,8 +812,8 @@ export const packageInstancesRouter = {
       }
 
       const now = new Date();
-      // TODO: tighten tx type
-      const updated = await context.tenantDb.transaction(async (tx: any) => {
+      
+      const updated = await context.tenantDb.transaction(async (tx: TenantTx) => {
         const [row] = await tx
           .update(packageInstances)
           .set({

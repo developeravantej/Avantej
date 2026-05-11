@@ -28,10 +28,6 @@ import { AppointmentCalendar } from "@/components/calendar/appointment";
 describe("AppointmentCalendar", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// TODO: appointments.{cancelOccurrence,cancel,confirm} not on current router; tests stale.
-		(mockClient.appointments as any).cancelOccurrence?.mockResolvedValue({});
-		(mockClient.appointments as any).cancel?.mockResolvedValue({});
-		(mockClient.appointments as any).confirm?.mockResolvedValue({});
 	});
 
 	it("renders without crashing with empty appointments", () => {

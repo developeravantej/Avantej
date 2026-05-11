@@ -26,8 +26,6 @@ import { AppointmentList } from "@/components/appointments/appointment-list";
 describe("AppointmentList", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// TODO: appointments.listForNode not on current router; test stale.
-		(mockClient.appointments as any).listForNode?.mockResolvedValue([]);
 	});
 
 	it("renders without crashing when appointments array is empty", () => {
