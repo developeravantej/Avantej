@@ -51,7 +51,15 @@ export type SyncContext =
 	  }
 	| {
 			model: "skipped";
-			reason: "branch-not-connected" | "not-provisioned";
+			// Caller compat surface: sync-customer.ts and sync-staff.ts only read
+			// `model` and `reason` for logging/passthrough — they don't
+			// pattern-match on the specific string. Adding new variants here is
+			// safe; the SyncCustomerResult.reason union may need extending if
+			// callers want to surface the new strings to the API layer.
+			reason:
+				| "branch-not-connected"
+				| "org-shared-not-provisioned"
+				| "unknown-sync-model";
 	  };
 
 export interface ResolveSyncContextArgs {
@@ -97,7 +105,7 @@ export async function resolveSyncContext(
 
 	if (org && org.ghlSyncModel === "org-shared") {
 		if (!org.ghlLocationId || !org.ghlApiKeyEncrypted) {
-			return { model: "skipped", reason: "not-provisioned" };
+			return { model: "skipped", reason: "org-shared-not-provisioned" };
 		}
 		const apiKey = decryptApiKey(org.ghlApiKeyEncrypted);
 		const path = await resolveBranchPath(
@@ -139,7 +147,14 @@ export async function resolveSyncContext(
 		};
 	}
 
-	// Legacy per-branch (also covers null ghlSyncModel and missing org row)
+	// If the org row exists with a non-null, non-"org-shared" sync model, it's
+	// an unrecognized value — surface explicitly rather than silently falling
+	// back to per-branch. Null is still legitimate legacy (no model column set).
+	if (org && org.ghlSyncModel && org.ghlSyncModel !== "org-shared") {
+		return { model: "skipped", reason: "unknown-sync-model" };
+	}
+
+	// Legacy per-branch (covers null ghlSyncModel and missing org row)
 	const link = await controlPanelDb.query.ghlBranchLinks.findFirst({
 		where: and(
 			eq(ghlBranchLinks.organizationId, organizationId),

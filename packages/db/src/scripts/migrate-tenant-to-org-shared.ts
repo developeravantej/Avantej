@@ -78,7 +78,11 @@ async function main() {
 			return;
 		}
 
-		// 2. Pick the source branch_link
+		// 2. Pick the source branch_link.
+		// If --branch <uuid> was supplied, REQUIRE an exact match — no silent
+		// fallback to the active row. The operator explicitly named a branch;
+		// if it doesn't exist we should surface that rather than picking
+		// something else.
 		const branchQuery = branchHint
 			? "SELECT * FROM ghl_branch_links WHERE organization_id = $1 AND tenant_branch_id = $2"
 			: "SELECT * FROM ghl_branch_links WHERE organization_id = $1 AND is_active = true ORDER BY created_at ASC LIMIT 1";
@@ -87,8 +91,14 @@ async function main() {
 			branchHint ? [org.id, branchHint] : [org.id],
 		);
 		if (branchRes.rows.length === 0) {
+			if (branchHint) {
+				throw new Error(
+					`No ghl_branch_links row found matching --branch ${branchHint} for tenant ${org.name}. ` +
+						`Re-run without --branch to auto-pick the first active row, or supply a uuid that exists in ghl_branch_links.tenant_branch_id.`,
+				);
+			}
 			throw new Error(
-				`No suitable ghl_branch_links row found for tenant (hint=${branchHint ?? "none"})`,
+				`No active ghl_branch_links row found for tenant ${org.name}. Tenant may not be connected to GHL.`,
 			);
 		}
 		const link = branchRes.rows[0];

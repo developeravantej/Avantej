@@ -54,7 +54,8 @@ export interface SyncCustomerResult {
 	error?: string;
 	reason?:
 		| "branch-not-connected"
-		| "not-provisioned"
+		| "org-shared-not-provisioned"
+		| "unknown-sync-model"
 		| "no-existing-contact-on-update";
 }
 

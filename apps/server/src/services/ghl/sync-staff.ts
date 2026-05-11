@@ -48,7 +48,11 @@ export interface SyncStaffResult {
 	status: "synced" | "skipped" | "error";
 	ghlUserId?: string;
 	error?: string;
-	reason?: "branch-not-connected" | "not-provisioned" | "non-staff-role";
+	reason?:
+		| "branch-not-connected"
+		| "org-shared-not-provisioned"
+		| "unknown-sync-model"
+		| "non-staff-role";
 }
 
 export async function syncStaffToGhl(
