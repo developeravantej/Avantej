@@ -11,19 +11,30 @@
  * - Cannot delete node with active children (app layer)
  * - Cannot delete node with assigned members (app layer)
  * - Branch names globally unique across org (DB partial unique index)
- * - Other node names unique within parent (app layer)
+ * - Other node names unique within parent (DB partial unique post Phase H-hygiene)
  * - ≥ 1 active branch under org (app layer)
  * - Soft archive via archived_at (Phase G0); hard delete still allowed
+ * - Phase H2: `type` is now a Postgres enum (hierarchy_node_type); `slug`
+ *   column added; branch-specific columns (address, pic_user_id) split
+ *   into the `branch_details` table.
  */
 
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+
+export const hierarchyNodeType = pgEnum("hierarchy_node_type", [
+	"organization",
+	"country",
+	"state",
+	"branch",
+]);
 
 export const hierarchyNodes = pgTable(
 	"hierarchy_nodes",
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
 		name: text("name").notNull(),
-		type: text("type").notNull(), // organization | country | state | branch
+		slug: text("slug").notNull(),
+		type: hierarchyNodeType("type").notNull(),
 		parentId: uuid("parent_id").references((): any => hierarchyNodes.id, {
 			onDelete: "restrict",
 		}),
@@ -34,9 +45,7 @@ export const hierarchyNodes = pgTable(
 		countryNodeId: uuid("country_node_id").references((): any => hierarchyNodes.id, {
 			onDelete: "restrict",
 		}),
-		// Branch-specific (nullable, only used when type = 'branch')
-		address: text("address"),
-		picUserId: text("pic_user_id"), // cross-DB ref to control_panel.users.id
+		// Branch-specific columns moved to branch_details table in Phase H2.
 		// Soft archive (Phase G0). NULL = active.
 		archivedAt: timestamp("archived_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -46,11 +55,13 @@ export const hierarchyNodes = pgTable(
 		parentIdIdx: index("hierarchy_parent_idx").on(table.parentId),
 		typeIdx: index("hierarchy_type_idx").on(table.type),
 		depthIdx: index("hierarchy_depth_idx").on(table.depth),
-		picUserIdIdx: index("hierarchy_pic_user_idx").on(table.picUserId),
 		countryIdx: index("hierarchy_country_idx").on(table.countryNodeId),
 		archivedAtIdx: index("hierarchy_archived_at_idx").on(table.archivedAt),
-		// Partial unique on branch name added via migration script:
-		// CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique"
-		//   ON "hierarchy_nodes"("name") WHERE "type" = 'branch';
+		// Partial unique indexes are added via migration script (Drizzle's
+		// pgTable doesn't support partial uniques natively):
+		// - hierarchy_nodes_branch_name_unique on (name) WHERE type='branch'
+		// - hierarchy_country_name_unique on (name) WHERE type='country' AND archived_at IS NULL
+		// - hierarchy_state_sibling_name_unique on (parent_id, name) WHERE type='state' AND archived_at IS NULL
+		// - hierarchy_sibling_slug_unique on (parent_id, slug) WHERE archived_at IS NULL
 	}),
 );

@@ -16,9 +16,10 @@ import {
   getAllOrganizationMembersWithUserDetails,
 } from "@avantej-core/services";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -127,6 +128,17 @@ export const hierarchyRouter = {
       try {
         const node = await createHierarchyNode(tenantDb, params);
 
+        // Fetch branch-specific details (split off into branch_details in H2)
+        let nodeAddress: string | null = null;
+        let nodePicUserId: string | null = null;
+        if (node.type === "branch") {
+          const details = await tenantDb.query.branchDetails.findFirst({
+            where: eq(branchDetails.nodeId, node.id),
+          });
+          nodeAddress = details?.address ?? null;
+          nodePicUserId = details?.picUserId ?? null;
+        }
+
         // Sync branch to control panel organization_branches registry
         if (node.type === "branch" && context.organizationId) {
           const controlPanelDb = getControlPanelDb(context);
@@ -155,7 +167,7 @@ export const hierarchyRouter = {
                 name: node.name,
                 countryTenantNodeId,
                 country: countryName,
-                address: node.address,
+                address: nodeAddress,
               });
             } catch (syncError) {
               console.error("Failed to sync branch to organization_branches:", syncError);
@@ -208,8 +220,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: node.address,
-          picUserId: node.picUserId,
+          address: nodeAddress,
+          picUserId: nodePicUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,
@@ -275,20 +287,42 @@ export const hierarchyRouter = {
         );
       }
 
+      // Phase H2: branch details split off hierarchy_nodes. Batch-fetch
+      // all branch_details rows for branches in the response.
+      type BranchDetailRow = {
+        nodeId: string;
+        address: string | null;
+        picUserId: string | null;
+      };
+      const branchIds = accessibleNodes
+        .filter((n: any) => n.type === "branch")
+        .map((n: any) => n.id as string);
+      const detailsRows: BranchDetailRow[] = branchIds.length > 0
+        ? ((await tenantDb.query.branchDetails.findMany({
+            where: inArray(branchDetails.nodeId, branchIds),
+          })) as BranchDetailRow[])
+        : [];
+      const detailsByNodeId = new Map<string, BranchDetailRow>(
+        detailsRows.map((d) => [d.nodeId, d]),
+      );
+
       // Map nodes to response format
       return {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nodes: accessibleNodes.map((node: any) => ({
-          id: node.id,
-          name: node.name,
-          type: node.type,
-          depth: node.depth,
-          parentId: node.parentId,
-          address: node.address,
-          picUserId: node.picUserId,
-          createdAt: node.createdAt,
-          updatedAt: node.updatedAt,
-        })),
+        nodes: accessibleNodes.map((node: any) => {
+          const d = detailsByNodeId.get(node.id);
+          return {
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            depth: node.depth,
+            parentId: node.parentId,
+            address: d?.address ?? null,
+            picUserId: d?.picUserId ?? null,
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt,
+          };
+        }),
       };
     }),
 
@@ -372,6 +406,17 @@ export const hierarchyRouter = {
       try {
         const node = await updateHierarchyNode(tenantDb, input.nodeId, updateParams);
 
+        // Fetch branch-specific details (split off into branch_details in H2)
+        let nodeAddress: string | null = null;
+        let nodePicUserId: string | null = null;
+        if (node.type === "branch") {
+          const details = await tenantDb.query.branchDetails.findFirst({
+            where: eq(branchDetails.nodeId, node.id),
+          });
+          nodeAddress = details?.address ?? null;
+          nodePicUserId = details?.picUserId ?? null;
+        }
+
         // Sync updates to control panel organization_branches registry
         const controlPanelDb = getControlPanelDb(context);
         if (controlPanelDb) {
@@ -382,7 +427,7 @@ export const hierarchyRouter = {
                 updatedAt: new Date(),
               };
               if (input.name !== undefined) syncData.name = node.name;
-              if (input.address !== undefined) syncData.address = node.address;
+              if (input.address !== undefined) syncData.address = nodeAddress;
 
               await controlPanelDb
                 .update(organizationBranches)
@@ -457,8 +502,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: node.address,
-          picUserId: node.picUserId,
+          address: nodeAddress,
+          picUserId: nodePicUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,
@@ -547,14 +592,25 @@ export const hierarchyRouter = {
         });
       }
 
+      // Phase H2: branch details split off.
+      let address: string | null = null;
+      let picUserId: string | null = null;
+      if (node.type === "branch") {
+        const details = await tenantDb.query.branchDetails.findFirst({
+          where: eq(branchDetails.nodeId, node.id),
+        });
+        address = details?.address ?? null;
+        picUserId = details?.picUserId ?? null;
+      }
+
       return {
         id: node.id,
         name: node.name,
         type: node.type,
         depth: node.depth,
         parentId: node.parentId,
-        address: node.address,
-        picUserId: node.picUserId,
+        address,
+        picUserId,
         createdAt: node.createdAt,
         updatedAt: node.updatedAt,
       };
@@ -633,18 +689,39 @@ export const hierarchyRouter = {
         accessibleNodeIds.includes(node.id)
       );
 
+      // Phase H2: batch-load branch_details for branch descendants.
+      const dBranchIds = accessibleDescendants
+        .filter((n: any) => n.type === "branch")
+        .map((n: any) => n.id as string);
+      type BranchDetailRow = {
+        nodeId: string;
+        address: string | null;
+        picUserId: string | null;
+      };
+      const dDetails: BranchDetailRow[] = dBranchIds.length > 0
+        ? ((await tenantDb.query.branchDetails.findMany({
+            where: inArray(branchDetails.nodeId, dBranchIds),
+          })) as BranchDetailRow[])
+        : [];
+      const dDetailsByNodeId = new Map<string, BranchDetailRow>(
+        dDetails.map((d) => [d.nodeId, d]),
+      );
+
       return {
-        descendants: accessibleDescendants.map((node: any) => ({
-          id: node.id,
-          name: node.name,
-          type: node.type,
-          depth: node.depth,
-          parentId: node.parentId,
-          address: node.address,
-          picUserId: node.picUserId,
-          createdAt: node.createdAt,
-          updatedAt: node.updatedAt,
-        })),
+        descendants: accessibleDescendants.map((node: any) => {
+          const d = dDetailsByNodeId.get(node.id);
+          return {
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            depth: node.depth,
+            parentId: node.parentId,
+            address: d?.address ?? null,
+            picUserId: d?.picUserId ?? null,
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt,
+          };
+        }),
       };
     }),
 
@@ -1001,6 +1078,17 @@ export const hierarchyRouter = {
       try {
         const node = await moveHierarchyNode(tenantDb, input.nodeId, input.newParentId);
 
+        // Fetch branch-specific details (split off into branch_details in H2)
+        let nodeAddress: string | null = null;
+        let nodePicUserId: string | null = null;
+        if (node.type === "branch") {
+          const details = await tenantDb.query.branchDetails.findFirst({
+            where: eq(branchDetails.nodeId, node.id),
+          });
+          nodeAddress = details?.address ?? null;
+          nodePicUserId = details?.picUserId ?? null;
+        }
+
         // Fire-and-forget GHL branch move sync. Only when a branch crossed
         // countries.
         let ghlSync:
@@ -1058,8 +1146,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: node.address,
-          picUserId: node.picUserId,
+          address: nodeAddress,
+          picUserId: nodePicUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,

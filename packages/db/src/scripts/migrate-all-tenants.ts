@@ -200,6 +200,108 @@ CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
   ON "hierarchy_nodes" ("parent_id", "name")
   WHERE "type" = 'state' AND "archived_at" IS NULL;`,
   },
+  "hierarchy-type-enum": {
+    name: "Phase H2: convert hierarchy_nodes.type text → Postgres enum (drop+recreate partial indexes referencing type)",
+    sql: `DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hierarchy_node_type') THEN
+    CREATE TYPE hierarchy_node_type AS ENUM ('organization', 'country', 'state', 'branch');
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE bad_count int; bad_types text;
+BEGIN
+  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+    INTO bad_count, bad_types
+  FROM hierarchy_nodes
+  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+  IF bad_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s): %', bad_count, bad_types;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- Drop partial indexes that reference the type column; ALTER TYPE can't
+-- proceed while a partial predicate compares enum-incompatible literals.
+DROP INDEX IF EXISTS "hierarchy_nodes_branch_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_country_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_state_sibling_name_unique";
+--> statement-breakpoint
+DO $$
+DECLARE col_type text;
+BEGIN
+  SELECT data_type INTO col_type
+  FROM information_schema.columns
+  WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+  IF col_type = 'text' THEN
+    ALTER TABLE hierarchy_nodes
+      ALTER COLUMN type TYPE hierarchy_node_type
+      USING type::hierarchy_node_type;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- Recreate the partial indexes; Postgres now stores the enum-aware predicate.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_nodes_branch_name_unique"
+  ON "hierarchy_nodes" ("name") WHERE "type" = 'branch';
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
+  ON "hierarchy_nodes" ("name")
+  WHERE "type" = 'country' AND "archived_at" IS NULL;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
+  ON "hierarchy_nodes" ("parent_id", "name")
+  WHERE "type" = 'state' AND "archived_at" IS NULL;`,
+  },
+  "hierarchy-slug": {
+    name: "Phase H2: add slug column to hierarchy_nodes + backfill + sibling-unique",
+    sql: `ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS slug text;
+--> statement-breakpoint
+UPDATE hierarchy_nodes
+SET slug = trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))),
+    updated_at = now()
+WHERE slug IS NULL;
+--> statement-breakpoint
+DO $$
+DECLARE null_count int;
+BEGIN
+  SELECT count(*) INTO null_count FROM hierarchy_nodes WHERE slug IS NULL;
+  IF null_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % rows still have NULL slug after backfill', null_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+ALTER TABLE hierarchy_nodes ALTER COLUMN slug SET NOT NULL;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_sibling_slug_unique"
+  ON "hierarchy_nodes" ("parent_id", "slug")
+  WHERE "archived_at" IS NULL;`,
+  },
+  "branch-details-split": {
+    name: "Phase H2: split branch-specific columns (address, pic_user_id) into branch_details table",
+    sql: `CREATE TABLE IF NOT EXISTS "branch_details" (
+  "node_id" uuid PRIMARY KEY REFERENCES "hierarchy_nodes"("id") ON DELETE CASCADE,
+  "address" text,
+  "pic_user_id" text,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+INSERT INTO "branch_details" ("node_id", "address", "pic_user_id")
+SELECT id, address, pic_user_id FROM hierarchy_nodes
+WHERE type = 'branch' AND (address IS NOT NULL OR pic_user_id IS NOT NULL)
+ON CONFLICT (node_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  pic_user_id = EXCLUDED.pic_user_id,
+  updated_at = now();
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "address";
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");`,
+  },
   // Add more migrations here as needed:
   // "migration-name": {
   //   name: "Description of what this does",
