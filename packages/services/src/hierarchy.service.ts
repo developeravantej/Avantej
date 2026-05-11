@@ -185,6 +185,25 @@ export async function createHierarchyNode(
   const { type, name, parentId, address, picUserId } = params;
   const depth = getDepthForType(type);
 
+  // Resolve country_node_id (Phase G0 denorm).
+  // organization + country rows: NULL.
+  // state row: parent is the country itself.
+  // branch row: parent is a state; inherit country_node_id from parent.
+  let countryNodeId: string | null = null;
+  if (parentId && (type === "state" || type === "branch")) {
+    const parent = await tenantDb.query.hierarchyNodes.findFirst({
+      where: eq(hierarchyNodes.id, parentId),
+    });
+    if (!parent) {
+      throw new Error(`Parent node not found: ${parentId}`);
+    }
+    if (parent.type === "country") {
+      countryNodeId = parent.id;
+    } else {
+      countryNodeId = parent.countryNodeId ?? null;
+    }
+  }
+
   try {
     const [node] = await tenantDb
       .insert(hierarchyNodes)
@@ -193,6 +212,7 @@ export async function createHierarchyNode(
         type,
         parentId: parentId || null,
         depth,
+        countryNodeId,
         address: address || null,
         picUserId: picUserId || null,
         createdAt: new Date(),
@@ -686,11 +706,22 @@ export async function moveHierarchyNode(
       }
     }
 
-    // Update the node's parentId
+    // Resolve new country_node_id (Phase G0 denorm).
+    // state moving: new parent is country itself → countryNodeId = newParent.id
+    // branch moving: new parent is state → inherit newParent.countryNodeId
+    const newCountryNodeId =
+      node.type === "state"
+        ? newParent.id
+        : node.type === "branch"
+          ? (newParent.countryNodeId ?? null)
+          : null;
+
+    // Update the node's parentId + countryNodeId
     const [updatedNode] = await tenantDb
       .update(hierarchyNodes)
       .set({
         parentId: newParentId,
+        countryNodeId: newCountryNodeId,
         updatedAt: new Date(),
       })
       .where(eq(hierarchyNodes.id, nodeId))
@@ -698,6 +729,14 @@ export async function moveHierarchyNode(
 
     if (!updatedNode) {
       throw new Error("Failed to move hierarchy node");
+    }
+
+    // If a state moved across countries, cascade country_node_id update to all branches under it
+    if (node.type === "state" && node.countryNodeId !== newCountryNodeId) {
+      await tenantDb
+        .update(hierarchyNodes)
+        .set({ countryNodeId: newCountryNodeId, updatedAt: new Date() })
+        .where(eq(hierarchyNodes.parentId, nodeId));
     }
 
     return updatedNode;

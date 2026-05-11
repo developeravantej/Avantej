@@ -1,44 +1,56 @@
 /**
  * Tenant Hierarchy Nodes Schema
  *
- * Represents the 5-level organizational hierarchy within a tenant organization:
- * organization (0) → country (1) → region (2) → area (3) → branch (4)
+ * 4-level org hierarchy (post Phase H1): organization → country → state → branch.
  *
- * Each tenant database has its own isolated hierarchy_nodes table.
- * No organizationId field needed since each tenant has its own database.
+ * Per-tenant DB isolation (no organizationId column; the tenant DB itself
+ * is the org boundary).
  *
  * Business Rules:
- * - Fixed 5-level depth: organization (0) → country (1) → region (2) → area (3) → branch (4)
- * - Cannot add nodes deeper than branch level (depth > 4) (enforced in app layer)
- * - Cannot delete node with active child nodes (enforced in app layer)
- * - Cannot delete node with assigned members (enforced in app layer)
- * - Branch names must be globally unique across organization (enforced by database constraint)
- * - Other node names unique within parent scope (enforced in app layer)
- * - At least one active branch must exist under organization (enforced in app layer)
- * - Deletion is hard delete (permanently removes the record)
+ * - Fixed 4-level depth: organization (0) → country (1) → state (2) → branch (3)
+ * - Cannot delete node with active children (app layer)
+ * - Cannot delete node with assigned members (app layer)
+ * - Branch names globally unique across org (DB partial unique index)
+ * - Other node names unique within parent (app layer)
+ * - ≥ 1 active branch under org (app layer)
+ * - Soft archive via archived_at (Phase G0); hard delete still allowed
  */
 
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 
-export const hierarchyNodes = pgTable("hierarchy_nodes", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	name: text("name").notNull(),
-	type: text("type").notNull(), // organization | country | region | area | branch
-	parentId: uuid("parent_id").references((): any => hierarchyNodes.id, { onDelete: "restrict" }),
-	depth: integer("depth").notNull(), // 0 = org, 1 = country, 2 = region, 3 = area, 4 = branch
-	// Branch-specific fields (nullable, only used for branch type nodes)
-	address: text("address"), // Physical address of the branch
-	picUserId: text("pic_user_id"), // Person In Charge - references control panel users.id (text, no FK constraint due to cross-database)
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-	// Indexes for performance
-	parentIdIdx: index("hierarchy_parent_idx").on(table.parentId),
-	typeIdx: index("hierarchy_type_idx").on(table.type),
-	depthIdx: index("hierarchy_depth_idx").on(table.depth),
-	picUserIdIdx: index("hierarchy_pic_user_idx").on(table.picUserId),
-	// Note: Partial unique index on branch names is added via migration script
-	// (Drizzle doesn't support partial unique constraints directly)
-	// SQL: CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique" ON "hierarchy_nodes"("name") WHERE "type" = 'branch';
-}));
-
+export const hierarchyNodes = pgTable(
+	"hierarchy_nodes",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		name: text("name").notNull(),
+		type: text("type").notNull(), // organization | country | state | branch
+		parentId: uuid("parent_id").references((): any => hierarchyNodes.id, {
+			onDelete: "restrict",
+		}),
+		depth: integer("depth").notNull(), // 0=org, 1=country, 2=state, 3=branch
+		// Denormalized FK to country ancestor (Phase G0).
+		// NULL for organization + country rows. Populated for state + branch.
+		// Maintained by createHierarchyNode + moveNode service helpers.
+		countryNodeId: uuid("country_node_id").references((): any => hierarchyNodes.id, {
+			onDelete: "restrict",
+		}),
+		// Branch-specific (nullable, only used when type = 'branch')
+		address: text("address"),
+		picUserId: text("pic_user_id"), // cross-DB ref to control_panel.users.id
+		// Soft archive (Phase G0). NULL = active.
+		archivedAt: timestamp("archived_at"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	},
+	(table) => ({
+		parentIdIdx: index("hierarchy_parent_idx").on(table.parentId),
+		typeIdx: index("hierarchy_type_idx").on(table.type),
+		depthIdx: index("hierarchy_depth_idx").on(table.depth),
+		picUserIdIdx: index("hierarchy_pic_user_idx").on(table.picUserId),
+		countryIdx: index("hierarchy_country_idx").on(table.countryNodeId),
+		archivedAtIdx: index("hierarchy_archived_at_idx").on(table.archivedAt),
+		// Partial unique on branch name added via migration script:
+		// CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique"
+		//   ON "hierarchy_nodes"("name") WHERE "type" = 'branch';
+	}),
+);
