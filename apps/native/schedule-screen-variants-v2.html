@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Schedule Screen — More UI Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #EDEDE4;
+    --surface: #FFFFFF;
+    --card: #F7F6F0;
+    --ink: #000000;
+    --muted: #8A8F91;
+    --line: #D9D9CA;
+    --line-soft: #E6E4D9;
+    --inverse: #FFFFFF;
+    --good: #10B981;
+    --warm: #C6BFAB;
+    --warm-deep: #8B826C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #E2E0D4;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    padding: 56px 48px 80px;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, #ECEAE0 0%, transparent 60%),
+      radial-gradient(800px 400px at 90% 90%, #DDD9C8 0%, transparent 60%),
+      #E2E0D4;
+    min-height: 100vh;
+  }
+  .canvas-title {
+    max-width: 1640px;
+    margin: 0 auto 32px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .canvas-title span { color: var(--ink); }
+  .grid {
+    max-width: 1640px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+  }
+  @media (max-width: 1500px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Device */
+  .device {
+    background: linear-gradient(180deg, #15141A 0%, #1A1820 100%);
+    border-radius: 56px;
+    padding: 14px;
+    box-shadow:
+      0 30px 60px -20px rgba(0,0,0,0.35),
+      0 10px 24px -10px rgba(0,0,0,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+  }
+  .device-screen {
+    background: var(--bg);
+    border-radius: 44px;
+    overflow: hidden;
+    aspect-ratio: 9 / 19.5;
+    position: relative;
+  }
+
+  .notch {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px; background: #0B0A0F; border-radius: 20px;
+  }
+  .status {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px 6px; font-size: 13px; font-weight: 600;
+  }
+  .status .right { display: flex; gap: 6px; align-items: center; }
+  .dot-bar { width: 18px; height: 10px; border: 1.5px solid var(--ink); border-radius: 3px; position: relative; }
+  .dot-bar::after { content: ''; position: absolute; top: 1.5px; left: 1.5px; bottom: 1.5px; right: 6px; background: var(--ink); border-radius: 1px; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px 16px; }
+  .iconbtn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; }
+  .h-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+
+  .stepbar { padding: 0 20px 10px; }
+  .progress { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress > span { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
+  .step-meta { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); margin-bottom: 8px; }
+  .step-meta .muted { color: var(--muted); }
+
+  .label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); margin-bottom: 8px; }
+  .sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+
+  .cta { width: 100%; padding: 14px 16px; background: var(--ink); color: var(--inverse); border: none; border-radius: 14px; font-weight: 700; font-size: 15px; }
+  .cta[disabled] { opacity: 0.4; }
+  .footer { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+  .content { padding: 0 20px 130px; }
+
+  .cap { text-align: center; margin-top: 18px; color: var(--ink); }
+  .cap .t { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
+  .cap .d { font-size: 12px; color: var(--muted); margin-top: 4px; max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.45; }
+
+  /* ============ V5 — Split-hero (photo hero + docked time) ============ */
+  .v5 .hero {
+    margin: 0 -20px 14px;
+    height: 220px;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(15,15,15,0.65) 90%, rgba(15,15,15,0.85) 100%),
+      linear-gradient(135deg, #6E6753, #44402F);
+    position: relative;
+    overflow: hidden;
+  }
+  .v5 .hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(120% 60% at 50% 30%, rgba(255,255,255,0.12) 0%, transparent 70%);
+  }
+  .v5 .hero-meta {
+    position: absolute; left: 20px; right: 20px; bottom: 16px;
+    color: var(--inverse);
+  }
+  .v5 .hero-meta .role { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+  .v5 .hero-meta .nm { font-size: 26px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; }
+  .v5 .hero-meta .meta { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+  .v5 .hero-switch {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(10px);
+    color: var(--inverse);
+    padding: 8px 12px; border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+  }
+  .v5 .hero-dots {
+    position: absolute; top: 14px; left: 14px;
+    display: flex; gap: 4px;
+  }
+  .v5 .hero-dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.4); }
+  .v5 .hero-dots span.active { background: var(--inverse); width: 16px; border-radius: 99px; }
+
+  .v5 .day-row { display: flex; gap: 4px; margin-bottom: 12px; }
+  .v5 .dc { flex: 1; padding: 8px 0; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .v5 .dc.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v5 .dc .dn { font-size: 10px; font-weight: 700; opacity: 0.7; }
+  .v5 .dc .dd { font-size: 14px; font-weight: 800; margin-top: 2px; }
+
+  .v5 .pick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .v5 .pk { padding: 12px 4px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 12px; font-weight: 700; }
+  .v5 .pk.taken { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v5 .pk.dim { opacity: 0.3; }
+
+  /* ============ V6 — Bottom sheet ============ */
+  .v6 .stage {
+    margin: 0 -20px;
+    height: 420px;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.7) 100%),
+      linear-gradient(140deg, #8C846F, #4E4836);
+    position: relative;
+  }
+  .v6 .stage-meta {
+    position: absolute; left: 20px; right: 20px; bottom: 24px; color: var(--inverse);
+  }
+  .v6 .stage-meta .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.8; }
+  .v6 .stage-meta .nm { font-size: 30px; font-weight: 900; margin-top: 4px; letter-spacing: -0.02em; line-height: 1; }
+  .v6 .stage-meta .meta { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+  .v6 .stage-row { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; }
+  .v6 .stage-chip { background: rgba(255,255,255,0.16); backdrop-filter: blur(10px); color: var(--inverse); padding: 8px 12px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .v6 .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    padding: 12px 20px 130px;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.18);
+  }
+  .v6 .sheet .grab { width: 36px; height: 4px; border-radius: 99px; background: var(--line); margin: 0 auto 10px; }
+  .v6 .sheet .title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+  .v6 .chip-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin: 0 -20px 12px; padding-left: 20px; padding-right: 20px; }
+  .v6 .chip { flex-shrink: 0; padding: 8px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+  .v6 .chip.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v6 .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .v6 .slot { padding: 12px 4px; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; font-size: 12px; font-weight: 700; }
+  .v6 .slot.taken { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+
+  /* ============ V7 — Heatmap (single tap = trainer + time) ============ */
+  .v7 .legend {
+    display: flex; gap: 12px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 8px 12px; margin-bottom: 12px;
+  }
+  .v7 .legend .l-item { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; color: var(--muted); }
+  .v7 .legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+
+  .v7 .heatmap {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; padding: 14px;
+  }
+  .v7 .hm-row {
+    display: grid; grid-template-columns: 64px repeat(7, 1fr); gap: 4px;
+    margin-bottom: 6px; align-items: center;
+  }
+  .v7 .hm-row.head { margin-bottom: 8px; }
+  .v7 .hm-row .who { font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .v7 .hm-row.head .who { color: var(--muted); font-weight: 600; }
+  .v7 .av-mini {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg,#A8A395,#6B6757);
+    flex-shrink: 0;
+  }
+  .v7 .hm-row.head .day { font-size: 10px; font-weight: 700; text-align: center; color: var(--muted); }
+  .v7 .cell {
+    height: 26px; border-radius: 5px;
+    background: var(--line-soft);
+  }
+  .v7 .cell.f1 { background: #DDD7C2; }
+  .v7 .cell.f2 { background: #B6AD8E; }
+  .v7 .cell.f3 { background: #6E6648; }
+  .v7 .cell.picked {
+    background: var(--ink);
+    box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--ink);
+  }
+
+  .v7 .pickedbar {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--ink); color: var(--inverse);
+    border-radius: 14px; padding: 12px 14px;
+    margin-top: 14px;
+  }
+  .v7 .pickedbar .av { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#A8A395,#6B6757); }
+  .v7 .pickedbar .info { flex: 1; }
+  .v7 .pickedbar .who { font-size: 13px; font-weight: 800; }
+  .v7 .pickedbar .when { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+  .v7 .pickedbar .x { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.18); display: grid; place-items: center; font-size: 11px; }
+
+  /* ============ V8 — Intake-window cards (combined trainer+slot) ============ */
+  .v8 .filters {
+    display: flex; gap: 6px; overflow-x: auto;
+    margin: 0 -20px 14px; padding: 0 20px 4px;
+  }
+  .v8 .fc {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 99px;
+    background: var(--surface); border: 1px solid var(--line);
+    font-size: 12px; font-weight: 700;
+  }
+  .v8 .fc.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v8 .fc .small { font-size: 10px; font-weight: 600; opacity: 0.7; margin-left: 4px; }
+
+  .v8 .window-list { display: flex; flex-direction: column; gap: 10px; }
+  .v8 .win {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .v8 .win.picked { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v8 .win .av { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,#A8A395,#6B6757); flex-shrink: 0; }
+  .v8 .win.picked .av { box-shadow: 0 0 0 3px rgba(255,255,255,0.2); }
+  .v8 .win .info { flex: 1; min-width: 0; }
+  .v8 .win .who { font-size: 12px; font-weight: 700; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.08em; }
+  .v8 .win .when { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-top: 2px; }
+  .v8 .win .meta { font-size: 11px; opacity: 0.6; margin-top: 4px; }
+  .v8 .win.picked .who, .v8 .win.picked .meta { opacity: 0.85; }
+  .v8 .win .badge {
+    align-self: flex-start;
+    background: var(--card); color: var(--ink);
+    padding: 4px 8px; border-radius: 8px;
+    font-size: 10px; font-weight: 700;
+  }
+  .v8 .win.picked .badge { background: rgba(255,255,255,0.2); color: var(--inverse); }
+
+  .v8 .day-divider {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 14px 4px 8px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="canvas-title">Buy Package · Step 2 · <span>Trainer + Time (combined screen — more variants)</span></div>
+
+  <div class="grid">
+
+    <!-- ============== V5: Split-hero ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v5">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+
+            <div class="hero">
+              <div class="hero-dots"><span class="active"></span><span></span><span></span><span></span></div>
+              <div class="hero-switch">Change ⌄</div>
+              <div class="hero-meta">
+                <div class="role">Strength &amp; Mobility</div>
+                <div class="nm">Coach Alex</div>
+                <div class="meta">14 intake slots this week · 4.9 ★</div>
+              </div>
+            </div>
+
+            <div class="label">Pick a time · 2/4</div>
+            <div class="day-row">
+              <div class="dc active"><div class="dn">Mon</div><div class="dd">12</div></div>
+              <div class="dc"><div class="dn">Tue</div><div class="dd">13</div></div>
+              <div class="dc"><div class="dn">Wed</div><div class="dd">14</div></div>
+              <div class="dc"><div class="dn">Thu</div><div class="dd">15</div></div>
+              <div class="dc"><div class="dn">Fri</div><div class="dd">16</div></div>
+            </div>
+            <div class="pick-grid">
+              <div class="pk taken">9:00 AM</div>
+              <div class="pk">9:30 AM</div>
+              <div class="pk">10:00 AM</div>
+              <div class="pk dim">10:30 AM</div>
+              <div class="pk dim">11:00 AM</div>
+              <div class="pk taken">3:00 PM</div>
+              <div class="pk">3:30 PM</div>
+              <div class="pk">4:00 PM</div>
+              <div class="pk">4:30 PM</div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 2 times</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V5 · Split-hero</div><div class="d">Big trainer hero photo with dots indicating other coaches. Day-of-week pills + time grid sit on a calm tactile surface below.</div></div>
+    </div>
+
+    <!-- ============== V6: Bottom sheet ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v6">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-row">
+              <div class="stage-chip">← All coaches</div>
+              <div class="stage-chip">1 of 4 ›</div>
+            </div>
+            <div class="stage-meta">
+              <div class="lbl">Your trainer</div>
+              <div class="nm">Coach<br/>Alex</div>
+              <div class="meta">Strength &amp; Mobility · 14 slots / wk</div>
+            </div>
+          </div>
+
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="title">Pick preferred times</div>
+            <div class="chip-row">
+              <div class="chip active">Mon · May 12</div>
+              <div class="chip">Tue · 13</div>
+              <div class="chip">Wed · 14</div>
+              <div class="chip">Thu · 15</div>
+              <div class="chip">Fri · 16</div>
+            </div>
+            <div class="slot-grid">
+              <div class="slot taken">9:00 AM</div>
+              <div class="slot">9:30 AM</div>
+              <div class="slot">10:00 AM</div>
+              <div class="slot">3:00 PM</div>
+              <div class="slot taken">3:30 PM</div>
+              <div class="slot">4:00 PM</div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V6 · Bottom sheet</div><div class="d">Trainer is the visual stage (photo + name). Time picker rises as a docked sheet. Feels like an Apple Music / Airbnb pattern.</div></div>
+    </div>
+
+    <!-- ============== V7: Heatmap (single tap = trainer+time) ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v7">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="label">Tap a slot to pick trainer + time</div>
+
+            <div class="legend">
+              <div class="l-item"><span class="sw" style="background:var(--line-soft)"></span> Off</div>
+              <div class="l-item"><span class="sw" style="background:#DDD7C2"></span> Light</div>
+              <div class="l-item"><span class="sw" style="background:#B6AD8E"></span> Open</div>
+              <div class="l-item"><span class="sw" style="background:#6E6648"></span> Peak</div>
+            </div>
+
+            <div class="heatmap">
+              <div class="hm-row head">
+                <div class="who">Coach</div>
+                <div class="day">M</div><div class="day">T</div><div class="day">W</div><div class="day">T</div><div class="day">F</div><div class="day">S</div><div class="day">S</div>
+              </div>
+
+              <div class="hm-row">
+                <div class="who"><div class="av-mini"></div>Alex</div>
+                <div class="cell f3"></div>
+                <div class="cell f1"></div>
+                <div class="cell f2 picked"></div>
+                <div class="cell f2"></div>
+                <div class="cell f3"></div>
+                <div class="cell"></div>
+                <div class="cell f1"></div>
+              </div>
+              <div class="hm-row">
+                <div class="who"><div class="av-mini" style="background:linear-gradient(135deg,#BCB5A3,#7C7763);"></div>Maya</div>
+                <div class="cell f2"></div>
+                <div class="cell f3"></div>
+                <div class="cell f1"></div>
+                <div class="cell f3"></div>
+                <div class="cell f2"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+              </div>
+              <div class="hm-row">
+                <div class="who"><div class="av-mini" style="background:linear-gradient(135deg,#9F9A8C,#5E5A4B);"></div>Daniel</div>
+                <div class="cell f1"></div>
+                <div class="cell f2"></div>
+                <div class="cell f3"></div>
+                <div class="cell f1"></div>
+                <div class="cell f2"></div>
+                <div class="cell f1"></div>
+                <div class="cell"></div>
+              </div>
+              <div class="hm-row">
+                <div class="who"><div class="av-mini" style="background:linear-gradient(135deg,#A8A395,#6B6757);"></div>Priya</div>
+                <div class="cell"></div>
+                <div class="cell f2"></div>
+                <div class="cell f3"></div>
+                <div class="cell f3"></div>
+                <div class="cell f1"></div>
+                <div class="cell f2"></div>
+                <div class="cell f1"></div>
+              </div>
+              <div class="hm-row">
+                <div class="who"><div class="av-mini" style="background:linear-gradient(135deg,#CFC9B6,#8C8772);"></div>Jamal</div>
+                <div class="cell f3"></div>
+                <div class="cell f1"></div>
+                <div class="cell"></div>
+                <div class="cell f2"></div>
+                <div class="cell f3"></div>
+                <div class="cell"></div>
+                <div class="cell f1"></div>
+              </div>
+            </div>
+
+            <div class="pickedbar">
+              <div class="av"></div>
+              <div class="info">
+                <div class="who">Coach Alex</div>
+                <div class="when">Wed · 9:00 AM – 11:00 AM</div>
+              </div>
+              <div class="x">×</div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V7 · Heatmap</div><div class="d">One dense matrix: rows = trainers, cols = days, density = availability. One tap picks trainer + slot simultaneously. Power-user dense.</div></div>
+    </div>
+
+    <!-- ============== V8: Intake-window cards ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v8">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="filters">
+              <div class="fc active">All coaches <span class="small">23</span></div>
+              <div class="fc">Alex</div>
+              <div class="fc">Maya</div>
+              <div class="fc">Daniel</div>
+              <div class="fc">Priya</div>
+            </div>
+
+            <div class="day-divider">Monday · May 12</div>
+            <div class="window-list">
+              <div class="win picked">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="who">Coach Alex</div>
+                  <div class="when">9:00 – 11:00 AM</div>
+                  <div class="meta">Strength · 120 min intake</div>
+                </div>
+                <div class="badge">Picked</div>
+              </div>
+              <div class="win">
+                <div class="av" style="background:linear-gradient(135deg,#BCB5A3,#7C7763);"></div>
+                <div class="info">
+                  <div class="who">Coach Maya</div>
+                  <div class="when">10:00 – 11:00 AM</div>
+                  <div class="meta">HIIT · 60 min intake</div>
+                </div>
+                <div class="badge">+ Add</div>
+              </div>
+            </div>
+
+            <div class="day-divider">Wednesday · May 14</div>
+            <div class="window-list">
+              <div class="win">
+                <div class="av" style="background:linear-gradient(135deg,#9F9A8C,#5E5A4B);"></div>
+                <div class="info">
+                  <div class="who">Coach Daniel</div>
+                  <div class="when">3:00 – 5:00 PM</div>
+                  <div class="meta">Endurance · 120 min intake</div>
+                </div>
+                <div class="badge">+ Add</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 1 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V8 · Intake-window cards</div><div class="d">Each row is a trainer + concrete intake window. Day dividers create rhythm. Customer browses real available windows like a marketplace listing.</div></div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

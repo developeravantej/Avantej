@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Schedule Screen — UI Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #EDEDE4;
+    --surface: #FFFFFF;
+    --card: #F7F6F0;
+    --ink: #000000;
+    --muted: #8A8F91;
+    --line: #D9D9CA;
+    --line-soft: #E6E4D9;
+    --accent: #000000;
+    --inverse: #FFFFFF;
+    --good: #10B981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #E2E0D4;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    padding: 56px 48px 80px;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, #ECEAE0 0%, transparent 60%),
+      radial-gradient(800px 400px at 90% 90%, #DDD9C8 0%, transparent 60%),
+      #E2E0D4;
+    min-height: 100vh;
+  }
+  .canvas-title {
+    max-width: 1640px;
+    margin: 0 auto 32px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .canvas-title span { color: var(--ink); }
+  .grid {
+    max-width: 1640px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+  }
+  @media (max-width: 1500px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Device frame */
+  .device {
+    background: linear-gradient(180deg, #15141A 0%, #1A1820 100%);
+    border-radius: 56px;
+    padding: 14px;
+    box-shadow:
+      0 30px 60px -20px rgba(0,0,0,0.35),
+      0 10px 24px -10px rgba(0,0,0,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+  }
+  .device-screen {
+    background: var(--bg);
+    border-radius: 44px;
+    overflow: hidden;
+    aspect-ratio: 9 / 19.5;
+    position: relative;
+  }
+
+  /* Status / notch */
+  .status {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px 6px;
+    font-size: 13px; font-weight: 600;
+  }
+  .notch {
+    position: absolute;
+    top: 14px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px;
+    background: #0B0A0F;
+    border-radius: 20px;
+  }
+  .status .right { display: flex; gap: 6px; align-items: center; }
+  .dot-bar { width: 18px; height: 10px; border: 1.5px solid var(--ink); border-radius: 3px; position: relative; }
+  .dot-bar::after { content: ''; position: absolute; top: 1.5px; left: 1.5px; bottom: 1.5px; right: 6px; background: var(--ink); border-radius: 1px; }
+
+  /* Header */
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px 16px;
+  }
+  .iconbtn {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink); background: transparent;
+  }
+  .h-title {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  }
+
+  /* Step bar */
+  .stepbar { padding: 0 20px 10px; }
+  .progress {
+    height: 6px; background: var(--line); border-radius: 99px; overflow: hidden;
+  }
+  .progress > span { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
+  .step-meta {
+    display: flex; justify-content: space-between;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .step-meta .muted { color: var(--muted); }
+
+  /* Section labels */
+  .label {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+
+  /* Buttons */
+  .cta {
+    width: 100%; padding: 14px 16px;
+    background: var(--ink); color: var(--inverse);
+    border: none; border-radius: 14px;
+    font-weight: 700; font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+  .cta[disabled] { opacity: 0.4; }
+  .footer {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 14px 20px 28px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+
+  .content { padding: 0 20px 120px; }
+
+  /* Generic cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  /* ===== VARIANT 1 — Stacked (current) ===== */
+  .v1 .trainer-pill {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 13px 14px;
+  }
+  .v1 .trainer-pill .name { font-weight: 600; font-size: 14px; }
+  .v1 .availability {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; overflow: hidden; padding: 12px 10px 14px;
+    margin-top: 14px;
+  }
+  .v1 .week-grid {
+    display: grid;
+    grid-template-columns: 28px repeat(7, 1fr);
+    gap: 2px;
+  }
+  .v1 .week-grid .head { font-size: 10px; font-weight: 700; color: var(--ink); text-align: center; padding: 6px 0; }
+  .v1 .week-grid .time { font-size: 8px; color: var(--muted); text-align: right; padding-right: 4px; align-self: start; }
+  .v1 .col { position: relative; height: 56px; border-left: 1px solid var(--line-soft); }
+  .v1 .slot {
+    position: absolute; left: 2px; right: 2px;
+    background: var(--ink); color: var(--inverse);
+    border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 3px 1px;
+    font-size: 8px; font-weight: 700;
+  }
+  .v1 .slot .sep { font-size: 7px; opacity: 0.7; }
+  .v1 .day-pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-top: 14px; }
+  .v1 .day-pill {
+    flex-shrink: 0; padding: 8px 12px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--line);
+    font-size: 12px; font-weight: 600;
+  }
+  .v1 .day-pill.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v1 .time-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .v1 .chip {
+    padding: 8px 12px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line);
+    font-size: 12px; font-weight: 600;
+  }
+  .v1 .chip.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+
+  /* ===== VARIANT 2 — Carded trainer carousel ===== */
+  .v2 .trainer-row {
+    display: flex; gap: 12px; overflow-x: auto;
+    margin: 0 -20px; padding: 0 20px 14px;
+    scroll-snap-type: x mandatory;
+  }
+  .v2 .trainer-card {
+    flex-shrink: 0; width: 140px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; padding: 12px;
+    scroll-snap-align: start;
+  }
+  .v2 .trainer-card.selected {
+    background: var(--ink); color: var(--inverse); border-color: var(--ink);
+  }
+  .v2 .avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #A8A395, #6B6757);
+    margin: 4px auto 10px;
+    background-size: cover; background-position: center;
+  }
+  .v2 .trainer-card .name { font-size: 13px; font-weight: 700; text-align: center; }
+  .v2 .trainer-card .role { font-size: 10px; opacity: 0.7; text-align: center; margin-top: 2px; }
+  .v2 .trainer-card .slots { font-size: 10px; opacity: 0.7; text-align: center; margin-top: 8px; }
+
+  .v2 .time-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; padding: 14px; margin-top: 14px;
+  }
+  .v2 .time-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .v2 .selected-times { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .v2 .selected-time {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--line);
+    padding: 6px 8px 6px 10px; border-radius: 10px;
+    font-size: 11px; font-weight: 600;
+  }
+  .v2 .selected-time .x {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #EF4444; color: white;
+    display: grid; place-items: center; font-size: 9px;
+  }
+  .v2 .day-row { display: flex; gap: 4px; margin-bottom: 10px; }
+  .v2 .day { flex: 1; padding: 8px 0; border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700; background: var(--card); border: 1px solid var(--line); }
+  .v2 .day.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v2 .time-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .v2 .ts {
+    padding: 10px 4px; border-radius: 10px; text-align: center;
+    background: var(--card); border: 1px solid var(--line);
+    font-size: 11px; font-weight: 600;
+  }
+  .v2 .ts.taken { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+
+  /* ===== VARIANT 3 — Tabs ===== */
+  .v3 .tabs {
+    display: flex; gap: 4px; background: var(--card);
+    border-radius: 12px; padding: 4px; margin-bottom: 14px;
+  }
+  .v3 .tab {
+    flex: 1; padding: 10px 0; text-align: center;
+    font-size: 13px; font-weight: 700;
+    border-radius: 9px; color: var(--muted);
+  }
+  .v3 .tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+  .v3 .trainer-list { display: flex; flex-direction: column; gap: 8px; }
+  .v3 .trainer-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px;
+  }
+  .v3 .trainer-item.selected { border-color: var(--ink); border-width: 2px; padding: 11px; }
+  .v3 .av {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #B0AB9D, #74705E);
+  }
+  .v3 .ti-info { flex: 1; }
+  .v3 .ti-info .nm { font-size: 14px; font-weight: 700; }
+  .v3 .ti-info .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .v3 .check {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: var(--inverse);
+    display: grid; place-items: center; font-size: 12px;
+  }
+  .v3 .summary {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px;
+    margin-top: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .v3 .summary .l { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .v3 .summary .v { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+  /* ===== VARIANT 4 — Timeline (tap intake slot directly) ===== */
+  .v4 .trainer-strip {
+    display: flex; gap: 10px; overflow-x: auto;
+    margin: 0 -20px; padding: 0 20px 14px;
+  }
+  .v4 .ts-avatar {
+    width: 56px; flex-shrink: 0; text-align: center;
+  }
+  .v4 .ts-avatar .av {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #A8A395, #6B6757);
+    margin-bottom: 6px;
+    border: 2px solid transparent;
+  }
+  .v4 .ts-avatar.active .av { border-color: var(--ink); }
+  .v4 .ts-avatar .nm { font-size: 11px; font-weight: 600; }
+  .v4 .ts-avatar.active .nm { font-weight: 800; }
+
+  .v4 .day-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin: 8px 0 12px;
+  }
+  .v4 .day-header .ttl { font-size: 14px; font-weight: 800; }
+  .v4 .day-nav { display: flex; gap: 8px; }
+  .v4 .day-nav button { width: 30px; height: 30px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
+
+  .v4 .slot-list { display: flex; flex-direction: column; gap: 8px; }
+  .v4 .slot-card {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px;
+  }
+  .v4 .slot-card .time {
+    font-size: 16px; font-weight: 800; letter-spacing: -0.01em; min-width: 78px;
+  }
+  .v4 .slot-card .dur { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .v4 .slot-card .add {
+    margin-left: auto;
+    width: 36px; height: 36px; border-radius: 12px;
+    background: var(--ink); color: var(--inverse);
+    display: grid; place-items: center; font-size: 18px; font-weight: 700;
+  }
+  .v4 .slot-card.picked { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v4 .slot-card.picked .dur { color: rgba(255,255,255,0.7); }
+  .v4 .slot-card.picked .add { background: var(--inverse); color: var(--ink); }
+
+  /* Caption under each phone */
+  .cap {
+    text-align: center; margin-top: 18px;
+    color: var(--ink);
+  }
+  .cap .t { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
+  .cap .d { font-size: 12px; color: var(--muted); margin-top: 4px; max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.45; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="canvas-title">Buy Package · Step 2 · <span>Trainer + Schedule (merged)</span></div>
+
+  <div class="grid">
+
+    <!-- ============== VARIANT 1: STACKED ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v1">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Select Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="label">Choose Your Trainer</div>
+            <div class="sub">Pick a trainer to see their intake availability.</div>
+            <div class="trainer-pill"><div class="name">Coach Alex</div><div>⌄</div></div>
+
+            <div class="availability">
+              <div class="week-grid">
+                <div class="time"></div>
+                <div class="head">Mon</div><div class="head">Tue</div><div class="head">Wed</div><div class="head">Thu</div><div class="head">Fri</div><div class="head">Sat</div><div class="head">Sun</div>
+
+                <div class="time">9</div>
+                <div class="col"><div class="slot" style="top:0%; height:50%;"><span>09:00</span><span class="sep">/</span><span>11:00</span></div></div>
+                <div class="col"></div>
+                <div class="col"><div class="slot" style="top:0%; height:50%;"><span>09:00</span><span class="sep">/</span><span>11:00</span></div></div>
+                <div class="col"></div>
+                <div class="col"><div class="slot" style="top:0%; height:50%;"><span>09:00</span><span class="sep">/</span><span>11:00</span></div></div>
+                <div class="col"></div>
+                <div class="col"></div>
+
+                <div class="time">11</div>
+                <div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div>
+
+                <div class="time">13</div>
+                <div class="col"></div>
+                <div class="col"><div class="slot" style="top:0%; height:50%;"><span>15:00</span><span class="sep">/</span><span>17:00</span></div></div>
+                <div class="col"></div>
+                <div class="col"><div class="slot" style="top:0%; height:50%;"><span>15:00</span><span class="sep">/</span><span>17:00</span></div></div>
+                <div class="col"></div>
+                <div class="col"></div><div class="col"></div>
+              </div>
+            </div>
+
+            <div class="label" style="margin-top:18px">Preferred Times</div>
+            <div class="day-pills">
+              <div class="day-pill active">Monday</div>
+              <div class="day-pill">Tuesday</div>
+              <div class="day-pill">Wednesday</div>
+              <div class="day-pill">Thursday</div>
+              <div class="day-pill">Friday</div>
+            </div>
+            <div class="time-chips">
+              <div class="chip active">9:00 AM</div>
+              <div class="chip">9:30 AM</div>
+              <div class="chip">10:00 AM</div>
+              <div class="chip active">3:00 PM</div>
+              <div class="chip">3:30 PM</div>
+              <div class="chip">4:00 PM</div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">Variant 1 · Stacked</div><div class="d">Closest to current build. Trainer dropdown → availability grid → preferred-time picker.</div></div>
+    </div>
+
+    <!-- ============== VARIANT 2: TRAINER CAROUSEL ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v2">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Select Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="label">Choose Your Trainer</div>
+            <div class="sub">Swipe to browse available coaches.</div>
+            <div class="trainer-row">
+              <div class="trainer-card selected">
+                <div class="avatar"></div>
+                <div class="name">Coach Alex</div>
+                <div class="role">Strength &amp; Mobility</div>
+                <div class="slots">14 intake slots / wk</div>
+              </div>
+              <div class="trainer-card">
+                <div class="avatar" style="background:linear-gradient(135deg,#BCB5A3,#7C7763);"></div>
+                <div class="name">Coach Maya</div>
+                <div class="role">HIIT · Performance</div>
+                <div class="slots">10 slots / wk</div>
+              </div>
+              <div class="trainer-card">
+                <div class="avatar" style="background:linear-gradient(135deg,#9F9A8C,#5E5A4B);"></div>
+                <div class="name">Coach Daniel</div>
+                <div class="role">Endurance</div>
+                <div class="slots">10 slots / wk</div>
+              </div>
+            </div>
+
+            <div class="label" style="margin-top:6px">Preferred Times (2/4)</div>
+            <div class="time-card">
+              <div class="head">
+                <span style="font-size:13px;font-weight:700;">Pick up to 4 slots</span>
+                <span style="font-size:11px;color:var(--muted);">tap to add</span>
+              </div>
+
+              <div class="selected-times">
+                <div class="selected-time">Mon · 9:00 AM <span class="x">×</span></div>
+                <div class="selected-time">Wed · 3:00 PM <span class="x">×</span></div>
+              </div>
+
+              <div class="day-row">
+                <div class="day active">Mon</div>
+                <div class="day">Tue</div>
+                <div class="day">Wed</div>
+                <div class="day">Thu</div>
+                <div class="day">Fri</div>
+              </div>
+
+              <div class="time-slots">
+                <div class="ts taken">9:00 AM</div>
+                <div class="ts">9:30 AM</div>
+                <div class="ts">10:00 AM</div>
+                <div class="ts">10:30 AM</div>
+                <div class="ts">11:00 AM</div>
+                <div class="ts">3:00 PM</div>
+                <div class="ts">3:30 PM</div>
+                <div class="ts">4:00 PM</div>
+                <div class="ts">4:30 PM</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 2 times selected</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">Variant 2 · Trainer carousel</div><div class="d">Trainers as swipeable identity cards w/ avatar + specialty. Time grid below shows only the selected trainer's available slots.</div></div>
+    </div>
+
+    <!-- ============== VARIANT 3: TABS ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v3">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Select Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="tabs">
+              <div class="tab active">1 · Trainer</div>
+              <div class="tab">2 · Times</div>
+            </div>
+
+            <div class="trainer-list">
+              <div class="trainer-item selected">
+                <div class="av"></div>
+                <div class="ti-info">
+                  <div class="nm">Coach Alex</div>
+                  <div class="meta">Strength &amp; Mobility · 14 slots/wk</div>
+                </div>
+                <div class="check">✓</div>
+              </div>
+              <div class="trainer-item">
+                <div class="av" style="background:linear-gradient(135deg,#BCB5A3,#7C7763);"></div>
+                <div class="ti-info">
+                  <div class="nm">Coach Maya</div>
+                  <div class="meta">HIIT · 10 slots/wk</div>
+                </div>
+              </div>
+              <div class="trainer-item">
+                <div class="av" style="background:linear-gradient(135deg,#9F9A8C,#5E5A4B);"></div>
+                <div class="ti-info">
+                  <div class="nm">Coach Daniel</div>
+                  <div class="meta">Endurance · 10 slots/wk</div>
+                </div>
+              </div>
+              <div class="trainer-item">
+                <div class="av" style="background:linear-gradient(135deg,#A8A395,#6B6757);"></div>
+                <div class="ti-info">
+                  <div class="nm">Coach Priya</div>
+                  <div class="meta">Yoga · 8 slots/wk</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="summary">
+              <div>
+                <div class="l">Selected</div>
+                <div class="v">Coach Alex</div>
+              </div>
+              <div style="font-size:12px;font-weight:700;text-decoration:underline;">Next: Times →</div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Pick Times →</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">Variant 3 · Tabs</div><div class="d">Two crisp sub-steps inside one route. Trainer list first, then segmented switch to Times. Cleaner when trainer count is large.</div></div>
+    </div>
+
+    <!-- ============== VARIANT 4: TIMELINE PICK ============== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v4">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span class="right">●●● <div class="dot-bar"></div></span></div>
+
+          <div class="topbar">
+            <div class="iconbtn">←</div>
+            <div class="h-title">Select Schedule</div>
+          </div>
+
+          <div class="stepbar">
+            <div class="step-meta"><span>Step 2 of 7</span><span class="muted">29%</span></div>
+            <div class="progress"><span style="width:29%"></span></div>
+          </div>
+
+          <div class="content">
+            <div style="height:14px"></div>
+            <div class="label">Trainer</div>
+            <div class="trainer-strip">
+              <div class="ts-avatar active">
+                <div class="av"></div>
+                <div class="nm">Alex</div>
+              </div>
+              <div class="ts-avatar"><div class="av" style="background:linear-gradient(135deg,#BCB5A3,#7C7763);"></div><div class="nm">Maya</div></div>
+              <div class="ts-avatar"><div class="av" style="background:linear-gradient(135deg,#9F9A8C,#5E5A4B);"></div><div class="nm">Daniel</div></div>
+              <div class="ts-avatar"><div class="av" style="background:linear-gradient(135deg,#A8A395,#6B6757);"></div><div class="nm">Priya</div></div>
+              <div class="ts-avatar"><div class="av" style="background:linear-gradient(135deg,#CFC9B6,#8C8772);"></div><div class="nm">Jamal</div></div>
+            </div>
+
+            <div class="day-header">
+              <div class="ttl">Monday, May 12</div>
+              <div class="day-nav"><button>‹</button><button>›</button></div>
+            </div>
+
+            <div class="slot-list">
+              <div class="slot-card picked">
+                <div>
+                  <div class="time">9:00 AM</div>
+                  <div class="dur">120 min · intake window</div>
+                </div>
+                <div class="add">−</div>
+              </div>
+              <div class="slot-card">
+                <div>
+                  <div class="time">11:00 AM</div>
+                  <div class="dur">60 min</div>
+                </div>
+                <div class="add">+</div>
+              </div>
+              <div class="slot-card">
+                <div>
+                  <div class="time">3:00 PM</div>
+                  <div class="dur">120 min · intake window</div>
+                </div>
+                <div class="add">+</div>
+              </div>
+              <div class="slot-card">
+                <div>
+                  <div class="time">5:30 PM</div>
+                  <div class="dur">30 min</div>
+                </div>
+                <div class="add">+</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 1 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">Variant 4 · Timeline pick</div><div class="d">Trainer avatars on top. Tap a day and add real intake slots from a list. Most direct mapping of trainer availability → preferred time.</div></div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

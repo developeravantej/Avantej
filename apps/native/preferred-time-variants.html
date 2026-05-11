@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Preferred Day & Time — UI Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #EDEDE4;
+    --surface: #FFFFFF;
+    --card: #F7F6F0;
+    --ink: #000000;
+    --muted: #8A8F91;
+    --line: #D9D9CA;
+    --line-soft: #E6E4D9;
+    --inverse: #FFFFFF;
+    --accent: #000000;
+    --danger: #EF4444;
+    --good: #10B981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #E2E0D4;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    padding: 56px 48px 80px;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, #ECEAE0 0%, transparent 60%),
+      radial-gradient(800px 400px at 90% 90%, #DDD9C8 0%, transparent 60%),
+      #E2E0D4;
+    min-height: 100vh;
+  }
+  .canvas-title {
+    max-width: 1640px;
+    margin: 0 auto 32px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .canvas-title span { color: var(--ink); }
+  .grid {
+    max-width: 1640px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+  }
+  @media (max-width: 1500px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .device {
+    background: linear-gradient(180deg, #15141A 0%, #1A1820 100%);
+    border-radius: 56px;
+    padding: 14px;
+    box-shadow:
+      0 30px 60px -20px rgba(0,0,0,0.35),
+      0 10px 24px -10px rgba(0,0,0,0.25);
+    width: 100%; max-width: 380px; margin: 0 auto;
+  }
+  .device-screen {
+    background: var(--bg);
+    border-radius: 44px; overflow: hidden;
+    aspect-ratio: 9 / 19.5; position: relative;
+  }
+  .notch { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 110px; height: 28px; background: #0B0A0F; border-radius: 20px; }
+  .status { display: flex; justify-content: space-between; padding: 14px 28px 6px; font-size: 13px; font-weight: 600; }
+  .dot-bar { width: 18px; height: 10px; border: 1.5px solid var(--ink); border-radius: 3px; position: relative; }
+  .dot-bar::after { content: ''; position: absolute; top: 1.5px; left: 1.5px; bottom: 1.5px; right: 6px; background: var(--ink); border-radius: 1px; }
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px 16px; }
+  .iconbtn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 18px; }
+  .h-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
+  .sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.45; }
+  .footer { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+  .cta { width: 100%; padding: 14px 16px; background: var(--ink); color: var(--inverse); border: none; border-radius: 14px; font-weight: 700; font-size: 15px; }
+  .content { padding: 0 20px 130px; }
+  .cap { text-align: center; margin-top: 18px; }
+  .cap .t { font-size: 14px; font-weight: 800; }
+  .cap .d { font-size: 12px; color: var(--muted); margin-top: 4px; max-width: 320px; margin: 4px auto 0; line-height: 1.45; }
+
+  /* ===== V1: Slot deck ===== */
+  .v1 .progress-cap {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  .v1 .progress-cap .t { font-size: 12px; font-weight: 700; }
+  .v1 .progress-cap .m { font-size: 11px; color: var(--muted); }
+  .v1 .deck { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .v1 .slot {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px; min-height: 90px;
+    position: relative; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .v1 .slot.filled { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v1 .slot.empty { border-style: dashed; align-items: center; justify-content: center; color: var(--muted); }
+  .v1 .slot .num { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; opacity: 0.6; text-transform: uppercase; }
+  .v1 .slot .day { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; }
+  .v1 .slot .time { font-size: 13px; font-weight: 700; opacity: 0.8; }
+  .v1 .slot .x {
+    position: absolute; top: 8px; right: 8px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(255,255,255,0.18); color: var(--inverse);
+    display: grid; place-items: center; font-size: 11px;
+  }
+  .v1 .slot.empty .plus { font-size: 28px; font-weight: 300; line-height: 1; }
+  .v1 .slot.empty .lbl { font-size: 11px; font-weight: 700; margin-top: 4px; }
+
+  .v1 .picker {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px; margin-top: 14px;
+  }
+  .v1 .picker .lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .v1 .picker .days { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
+  .v1 .picker .day-pill {
+    flex-shrink: 0; padding: 8px 12px; border-radius: 99px;
+    background: var(--card); border: 1px solid var(--line);
+    font-size: 12px; font-weight: 700;
+  }
+  .v1 .picker .day-pill.active { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v1 .picker .times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .v1 .picker .tslot {
+    padding: 10px 4px; text-align: center; font-size: 12px; font-weight: 700;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .v1 .picker .tslot.taken { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+
+  /* ===== V2: Day-row with inline times ===== */
+  .v2 .pref-counter {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .v2 .pref-counter .l { font-size: 13px; font-weight: 700; }
+  .v2 .pref-counter .pips { display: flex; gap: 4px; }
+  .v2 .pip { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .v2 .pip.on { background: var(--ink); }
+  .v2 .day-row {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .v2 .day-row.has-pick { background: var(--ink); color: var(--inverse); border-color: var(--ink); }
+  .v2 .day-row .head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .v2 .day-row .name { font-size: 14px; font-weight: 800; }
+  .v2 .day-row .count { font-size: 10px; opacity: 0.7; font-weight: 700; }
+  .v2 .day-row .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .v2 .day-row .chip {
+    padding: 6px 10px; border-radius: 99px;
+    background: var(--card); color: var(--ink);
+    font-size: 11px; font-weight: 700;
+  }
+  .v2 .day-row .chip.picked {
+    background: var(--inverse); color: var(--ink);
+  }
+  .v2 .day-row.has-pick .chip {
+    background: rgba(255,255,255,0.12); color: var(--inverse);
+  }
+  .v2 .day-row.has-pick .chip.picked {
+    background: var(--inverse); color: var(--ink);
+  }
+  .v2 .day-row.collapsed .chips { display: none; }
+  .v2 .day-row.collapsed { padding: 14px; }
+
+  /* ===== V3: Grid matrix ===== */
+  .v3 .matrix-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 12px; margin-bottom: 14px;
+  }
+  .v3 .legend-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .v3 .legend-row .lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+  .v3 .legend-row .meta { font-size: 11px; font-weight: 700; }
+  .v3 .matrix-head { display: grid; grid-template-columns: 30px repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
+  .v3 .matrix-head .day { font-size: 9px; font-weight: 800; text-align: center; color: var(--muted); padding: 4px 0; }
+  .v3 .row {
+    display: grid; grid-template-columns: 30px repeat(7, 1fr); gap: 3px;
+    margin-bottom: 3px; align-items: center;
+  }
+  .v3 .row .hr { font-size: 9px; font-weight: 700; color: var(--muted); text-align: right; padding-right: 4px; }
+  .v3 .cell {
+    height: 26px; border-radius: 5px;
+    background: var(--card);
+  }
+  .v3 .cell.avail { background: #D9D7C9; }
+  .v3 .cell.taken {
+    background: var(--ink);
+    position: relative;
+  }
+  .v3 .cell.taken::after {
+    content: '✓'; position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: var(--inverse); font-size: 10px; font-weight: 800;
+  }
+  .v3 .selected-strip {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 12px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .v3 .selected-strip .item {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--line);
+    padding: 5px 9px; border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+  }
+  .v3 .selected-strip .x {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink); color: var(--inverse);
+    display: grid; place-items: center; font-size: 8px;
+  }
+
+  /* ===== V4: Wheel + chips ===== */
+  .v4 .selected-chips {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+  }
+  .v4 .chip-card {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 8px 10px 8px 12px;
+    min-width: 120px;
+  }
+  .v4 .chip-card .when {
+    display: flex; flex-direction: column;
+  }
+  .v4 .chip-card .when .d { font-size: 11px; font-weight: 800; }
+  .v4 .chip-card .when .t { font-size: 13px; font-weight: 700; opacity: 0.7; margin-top: 1px; }
+  .v4 .chip-card .x {
+    margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+    background: #FEE2E2; color: var(--danger);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+  .v4 .wheel-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; padding: 14px; position: relative;
+  }
+  .v4 .wheel-row {
+    display: flex; gap: 12px; align-items: center; justify-content: center;
+    height: 160px; position: relative;
+  }
+  .v4 .wheel { flex: 1; height: 100%; position: relative; overflow: hidden; }
+  .v4 .wheel-window {
+    position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
+    height: 44px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+    pointer-events: none;
+  }
+  .v4 .wheel-items {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 60px 0;
+  }
+  .v4 .wheel-items > div {
+    height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; color: var(--muted);
+  }
+  .v4 .wheel-items > div.center {
+    color: var(--ink); font-size: 20px; font-weight: 800;
+  }
+  .v4 .colon { font-size: 22px; font-weight: 900; }
+  .v4 .add-btn {
+    margin-top: 14px;
+    width: 100%; padding: 12px 16px;
+    background: var(--ink); color: var(--inverse);
+    border-radius: 12px; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .v4 .add-btn.disabled { background: var(--card); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="canvas-title">Buy Package · <span>Select Preferred Day & Time — Variants</span></div>
+
+  <div class="grid">
+
+    <!-- ===== V1: Slot deck ===== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v1">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><div class="dot-bar"></div></div>
+          <div class="topbar"><div class="iconbtn">←</div><div class="h-title">Schedule</div></div>
+
+          <div class="content">
+            <div class="label">Your Preferences</div>
+            <div class="sub">Pick up to 4 day + time combinations.</div>
+
+            <div class="progress-cap">
+              <div class="t">3 of 4 added</div>
+              <div class="m">1 slot remaining</div>
+            </div>
+
+            <div class="deck">
+              <div class="slot filled">
+                <span class="x">×</span>
+                <div>
+                  <div class="num">Pref 01</div>
+                  <div class="day">Mon</div>
+                </div>
+                <div class="time">3:18 PM</div>
+              </div>
+              <div class="slot filled">
+                <span class="x">×</span>
+                <div>
+                  <div class="num">Pref 02</div>
+                  <div class="day">Tue</div>
+                </div>
+                <div class="time">2:20 PM</div>
+              </div>
+              <div class="slot filled">
+                <span class="x">×</span>
+                <div>
+                  <div class="num">Pref 03</div>
+                  <div class="day">Fri</div>
+                </div>
+                <div class="time">5:20 AM</div>
+              </div>
+              <div class="slot empty">
+                <div class="plus">+</div>
+                <div class="lbl">Add 04</div>
+              </div>
+            </div>
+
+            <div class="picker">
+              <div class="lbl">Add slot 04</div>
+              <div class="days">
+                <div class="day-pill">Mon</div>
+                <div class="day-pill">Tue</div>
+                <div class="day-pill active">Wed</div>
+                <div class="day-pill">Thu</div>
+                <div class="day-pill">Fri</div>
+                <div class="day-pill">Sat</div>
+                <div class="day-pill">Sun</div>
+              </div>
+              <div class="times">
+                <div class="tslot">9:00 AM</div>
+                <div class="tslot taken">10:30 AM</div>
+                <div class="tslot">11:00 AM</div>
+                <div class="tslot">2:00 PM</div>
+                <div class="tslot">3:00 PM</div>
+                <div class="tslot">4:00 PM</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 3 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V1 · Slot deck</div><div class="d">Four numbered preference cards. Filled slots show day+time, empty slot opens picker below. Always shows all 4 picks at a glance.</div></div>
+    </div>
+
+    <!-- ===== V2: Day-row chips ===== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v2">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><div class="dot-bar"></div></div>
+          <div class="topbar"><div class="iconbtn">←</div><div class="h-title">Schedule</div></div>
+
+          <div class="content">
+            <div class="label">Preferred Times</div>
+
+            <div class="pref-counter">
+              <div class="l">3 of 4 selected</div>
+              <div class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div>
+            </div>
+
+            <div class="day-row has-pick">
+              <div class="head">
+                <span class="name">Mon</span>
+                <span class="count">1 picked</span>
+              </div>
+              <div class="chips">
+                <div class="chip">9:00 AM</div>
+                <div class="chip picked">3:18 PM</div>
+                <div class="chip">5:00 PM</div>
+              </div>
+            </div>
+
+            <div class="day-row has-pick">
+              <div class="head"><span class="name">Tue</span><span class="count">2 picked</span></div>
+              <div class="chips">
+                <div class="chip picked">2:20 PM</div>
+                <div class="chip">3:00 PM</div>
+                <div class="chip picked">5:20 PM</div>
+              </div>
+            </div>
+
+            <div class="day-row collapsed">
+              <div class="head"><span class="name">Wed</span><span class="count" style="color:var(--muted)">tap to expand</span></div>
+            </div>
+
+            <div class="day-row collapsed">
+              <div class="head"><span class="name">Thu</span><span class="count" style="color:var(--muted)">tap to expand</span></div>
+            </div>
+
+            <div class="day-row">
+              <div class="head"><span class="name" style="color:var(--muted)">Fri</span><span class="count" style="color:var(--muted)">0 picked</span></div>
+              <div class="chips">
+                <div class="chip">9:00 AM</div>
+                <div class="chip">3:00 PM</div>
+                <div class="chip">5:00 PM</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 3 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V2 · Day rows with time chips</div><div class="d">Each day expands inline to show its time options. Tap chip to toggle. Filled days highlighted dark. Scannable, intake-aware.</div></div>
+    </div>
+
+    <!-- ===== V3: Grid matrix ===== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v3">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><div class="dot-bar"></div></div>
+          <div class="topbar"><div class="iconbtn">←</div><div class="h-title">Schedule</div></div>
+
+          <div class="content">
+            <div class="label">Pick up to 4 slots</div>
+            <div class="sub">Tap a cell to toggle that day + time.</div>
+
+            <div class="matrix-card">
+              <div class="legend-row">
+                <div class="lbl">Week of May 12</div>
+                <div class="meta">3 / 4</div>
+              </div>
+
+              <div class="matrix-head">
+                <div></div>
+                <div class="day">M</div><div class="day">T</div><div class="day">W</div>
+                <div class="day">T</div><div class="day">F</div><div class="day">S</div><div class="day">S</div>
+              </div>
+
+              <div class="row">
+                <div class="hr">9a</div>
+                <div class="cell avail"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell"></div>
+              </div>
+              <div class="row">
+                <div class="hr">11a</div>
+                <div class="cell avail"></div><div class="cell avail"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+              </div>
+              <div class="row">
+                <div class="hr">1p</div>
+                <div class="cell"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div>
+              </div>
+              <div class="row">
+                <div class="hr">3p</div>
+                <div class="cell taken"></div><div class="cell avail"></div><div class="cell avail"></div><div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell"></div>
+              </div>
+              <div class="row">
+                <div class="hr">5p</div>
+                <div class="cell avail"></div><div class="cell taken"></div><div class="cell"></div><div class="cell avail"></div><div class="cell taken"></div><div class="cell avail"></div><div class="cell"></div>
+              </div>
+              <div class="row">
+                <div class="hr">7p</div>
+                <div class="cell"></div><div class="cell avail"></div><div class="cell"></div><div class="cell avail"></div><div class="cell avail"></div><div class="cell"></div><div class="cell"></div>
+              </div>
+            </div>
+
+            <div class="label">Selected</div>
+            <div class="selected-strip">
+              <div class="item">Mon 3pm <span class="x">×</span></div>
+              <div class="item">Tue 5pm <span class="x">×</span></div>
+              <div class="item">Fri 5pm <span class="x">×</span></div>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 3 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V3 · Grid matrix</div><div class="d">All week × time in one heatmap. Tap a cell to toggle. Selected chips strip below. Densest, fastest for power users.</div></div>
+    </div>
+
+    <!-- ===== V4: Wheel picker + chips ===== -->
+    <div>
+      <div class="device">
+        <div class="device-screen v4">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><div class="dot-bar"></div></div>
+          <div class="topbar"><div class="iconbtn">←</div><div class="h-title">Schedule</div></div>
+
+          <div class="content">
+            <div class="label">Selected Preferences (3/4)</div>
+
+            <div class="selected-chips">
+              <div class="chip-card">
+                <div class="when"><div class="d">Mon</div><div class="t">3:18 PM</div></div>
+                <div class="x">×</div>
+              </div>
+              <div class="chip-card">
+                <div class="when"><div class="d">Tue</div><div class="t">2:20 PM</div></div>
+                <div class="x">×</div>
+              </div>
+              <div class="chip-card">
+                <div class="when"><div class="d">Fri</div><div class="t">5:20 AM</div></div>
+                <div class="x">×</div>
+              </div>
+            </div>
+
+            <div class="label">Add another</div>
+
+            <div class="wheel-card">
+              <div class="wheel-row">
+                <div class="wheel">
+                  <div class="wheel-window"></div>
+                  <div class="wheel-items">
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div class="center">Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                  </div>
+                </div>
+                <div class="wheel">
+                  <div class="wheel-window"></div>
+                  <div class="wheel-items">
+                    <div>09</div>
+                    <div>10</div>
+                    <div class="center">11</div>
+                    <div>12</div>
+                    <div>13</div>
+                  </div>
+                </div>
+                <div class="colon">:</div>
+                <div class="wheel">
+                  <div class="wheel-window"></div>
+                  <div class="wheel-items">
+                    <div>00</div>
+                    <div>15</div>
+                    <div class="center">30</div>
+                    <div>45</div>
+                    <div>00</div>
+                  </div>
+                </div>
+              </div>
+              <button class="add-btn">＋ Add Wed · 11:30 AM</button>
+            </div>
+          </div>
+
+          <div class="footer"><button class="cta">Continue · 3 picked</button></div>
+        </div>
+      </div>
+      <div class="cap"><div class="t">V4 · Wheel picker</div><div class="d">Selected chips up top (each w/ red ✕). iOS-style scroll wheels for day · hour · minute. Single add button below.</div></div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

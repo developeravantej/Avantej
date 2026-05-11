@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "docs/superpowers/plans/sessions/2026-05-11-native-frontend-fixes",
+  "planPath": "docs/superpowers/plans/2026-05-11-native-frontend-fixes.md",
+  "updatedAt": "2026-05-11",
+  "status": "complete",
+  "gitHeadAtStart": "3a6a952b3f4668e1dd832ddd02875b9e4718f61c",
+  "lastCompletedPhase": 2,
+  "currentPhase": null,
+  "totalPhases": 2,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "1": [{ "role": "Inline orchestrator", "logWritten": true }],
+    "2": [{ "role": "Inline orchestrator", "logWritten": true }]
+  },
+  "taskCoverage": {
+    "1": { "total": 13, "done": 13, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "OQ1", "title": "Task 10 serviceType enum", "decision": "Option A — DROP", "reason": "hyphenated form is appointments API contract" },
+    { "id": "OQ2", "title": "Task 1 useIsomorphicLayoutEffect", "decision": "Option A — DROP", "reason": "module-level const is always available; not a real bug" },
+    { "id": "OQ3", "title": "Task 17 packageInstances cast", "decision": "Option A — keep only ServiceLite edits", "reason": "out of scope" },
+    { "id": "MID-EXEC-1", "title": "ServiceLite missing 'both' variant", "decision": "Widen union to include 'both'", "reason": "uncovered by tsc at book-workout.tsx:327" }
+  ],
+  "openQuestions": [],
+  "nextActions": ["User manually smoke-test buy-package flow", "User decides whether to commit per task or bulk"],
+  "subagentRetryLog": []
+}

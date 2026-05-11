@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buy Package Flow — Redesign Mockup</title>
+<style>
+  :root {
+    --primary-1: #000000;
+    --primary-2: #FFFFFF;
+    --primary-3: #F3F3F3;
+    --secondary-1: #8A8F91;
+    --secondary-2: #D9D9CA;
+    --secondary-3: #EDEDE4;
+    --green: #10B981;
+    --red: #EF4444;
+    --phone-w: 375px;
+    --phone-h: 812px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a1a;
+    color: var(--primary-1);
+    padding: 40px 20px;
+  }
+
+  h1.page-title {
+    color: #fff;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .page-subtitle {
+    color: var(--secondary-1);
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+
+  .screen-row {
+    display: flex;
+    gap: 32px;
+    overflow-x: auto;
+    padding: 0 20px 40px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen-row::-webkit-scrollbar { height: 6px; }
+  .screen-row::-webkit-scrollbar-track { background: #333; border-radius: 3px; }
+  .screen-row::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
+
+  .phone-wrap {
+    flex-shrink: 0;
+    scroll-snap-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .phone-label {
+    color: var(--secondary-1);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+  }
+
+  .phone {
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background: var(--secondary-3);
+    border-radius: 44px;
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.5), inset 0 0 0 3px #333;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 34px;
+    background: #000;
+    border-radius: 0 0 20px 20px;
+    z-index: 10;
+  }
+
+  .status-bar {
+    height: 54px;
+    padding: 14px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-1);
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 4px; font-size: 12px; }
+
+  .screen-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .screen-content::-webkit-scrollbar { display: none; }
+
+  /* ─── Header ─── */
+  .header {
+    padding: 4px 20px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* ─── Progress ─── */
+  .progress-strip {
+    padding: 0 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .progress-bar-bg {
+    flex: 1;
+    height: 3px;
+    background: var(--secondary-2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--primary-1);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--secondary-1);
+    white-space: nowrap;
+  }
+
+  /* ─── Scrollable body ─── */
+  .body {
+    flex: 1;
+    padding: 0 20px;
+    overflow-y: auto;
+  }
+  .body::-webkit-scrollbar { display: none; }
+
+  /* ─── Section label ─── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--primary-1);
+    margin-bottom: 6px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--secondary-1);
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+
+  /* ─── Card ─── */
+  .card {
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .card.selected {
+    border-color: var(--primary-1);
+    border-width: 2px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--secondary-1);
+    line-height: 1.4;
+  }
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-price {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .card-meta {
+    font-size: 11px;
+    color: var(--secondary-1);
+  }
+
+  /* ─── Pill ─── */
+  .pill {
+    display: inline-block;
+    background: var(--secondary-3);
+    color: var(--primary-1);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-right: 4px;
+    margin-top: 6px;
+  }
+
+  /* ─── Hero image ─── */
+  .hero-img {
+    margin: 0 20px 16px;
+    height: 160px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .hero-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-img::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, var(--secondary-3));
+  }
+
+  /* ─── Trainer card ─── */
+  .trainer-card {
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .trainer-card.selected {
+    border-color: var(--primary-1);
+    border-width: 2px;
+  }
+  .trainer-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background: var(--secondary-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-1);
+    flex-shrink: 0;
+  }
+  .trainer-info { flex: 1; }
+  .trainer-name { font-size: 14px; font-weight: 700; }
+  .trainer-spec { font-size: 11px; color: var(--secondary-1); margin-top: 2px; }
+  .trainer-check {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    border: 2px solid var(--secondary-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .trainer-check.checked {
+    background: var(--primary-1);
+    border-color: var(--primary-1);
+    color: var(--primary-2);
+  }
+
+  /* ─── Timetable ─── */
+  .timetable {
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 12px 8px;
+    margin-bottom: 10px;
+  }
+  .tt-header {
+    display: flex;
+    gap: 0;
+    margin-bottom: 8px;
+  }
+  .tt-time-col { width: 36px; }
+  .tt-day-label {
+    flex: 1;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary-1);
+  }
+  .tt-grid {
+    position: relative;
+  }
+  .tt-row {
+    display: flex;
+    height: 36px;
+    border-top: 1px solid var(--secondary-3);
+  }
+  .tt-time {
+    width: 36px;
+    font-size: 8px;
+    color: var(--secondary-1);
+    padding-top: 2px;
+    text-align: right;
+    padding-right: 4px;
+  }
+  .tt-cell {
+    flex: 1;
+    position: relative;
+    border-left: 1px solid var(--secondary-3);
+  }
+  .tt-slot {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    background: var(--primary-1);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-2);
+    font-size: 7px;
+    font-weight: 600;
+    overflow: hidden;
+  }
+
+  /* ─── Day selector ─── */
+  .day-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+  .day-chip {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--secondary-2);
+    background: var(--primary-2);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .day-chip.active {
+    background: var(--primary-1);
+    color: var(--primary-2);
+    border-color: var(--primary-1);
+  }
+  .day-chip.has-selection {
+    border-color: var(--primary-1);
+  }
+
+  /* ─── Time picker mock ─── */
+  .time-picker {
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .time-col {
+    text-align: center;
+  }
+  .time-col .dim { color: var(--secondary-2); font-size: 18px; }
+  .time-col .active { color: var(--primary-1); font-size: 22px; font-weight: 700; }
+  .time-sep { font-size: 22px; font-weight: 700; }
+
+  /* ─── Textarea ─── */
+  .textarea {
+    width: 100%;
+    min-height: 120px;
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 13px;
+    color: var(--secondary-1);
+    font-family: inherit;
+    resize: none;
+    margin-bottom: 10px;
+  }
+
+  /* ─── Review row ─── */
+  .review-item {
+    background: var(--primary-2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .review-label { font-size: 11px; color: var(--secondary-1); margin-bottom: 3px; }
+  .review-value { font-size: 14px; font-weight: 600; }
+
+  /* ─── Signature area ─── */
+  .sig-pad {
+    background: var(--primary-2);
+    border: 2px dashed var(--secondary-2);
+    border-radius: 14px;
+    height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary-1);
+    font-size: 13px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .sig-pad.signed {
+    border-style: solid;
+    border-color: var(--primary-1);
+  }
+  .sig-pad .sig-icon { font-size: 28px; margin-bottom: 6px; }
+
+  /* ─── Checkbox ─── */
+  .checkbox-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    background: var(--primary-2);
+    border-radius: 12px;
+    border: 1.5px solid var(--secondary-2);
+    margin-bottom: 10px;
+  }
+  .checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 2px solid var(--secondary-2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin-top: 1px;
+  }
+  .checkbox.checked {
+    background: var(--primary-1);
+    border-color: var(--primary-1);
+    color: var(--primary-2);
+  }
+  .checkbox-text { font-size: 12px; line-height: 1.4; }
+
+  /* ─── Terms link ─── */
+  .terms-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .terms-link .dot { color: var(--primary-1); }
+  .terms-link .check { color: var(--green); font-size: 14px; }
+
+  /* ─── Price breakdown ─── */
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+  .price-row.total {
+    border-top: 1.5px solid var(--secondary-2);
+    padding-top: 12px;
+    margin-top: 6px;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  /* ─── Sticky CTA ─── */
+  .cta-area {
+    padding: 12px 20px;
+    padding-bottom: 28px;
+    background: var(--primary-2);
+    border-top: 1px solid var(--secondary-3);
+    flex-shrink: 0;
+  }
+  .cta-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--primary-1);
+    color: var(--primary-2);
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+  }
+  .cta-btn.outline {
+    background: var(--primary-2);
+    color: var(--primary-1);
+    border: 1.5px solid var(--primary-1);
+  }
+  .cta-btn.ghost {
+    background: var(--primary-2);
+    color: var(--primary-1);
+    border: 1.5px solid var(--secondary-2);
+  }
+  .cta-row {
+    display: flex;
+    gap: 10px;
+  }
+  .cta-row .cta-btn { flex: 1; }
+
+  /* ─── Success ─── */
+  .success-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 36px;
+    background: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: var(--primary-2);
+    margin: 0 auto 16px;
+  }
+  .success-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .success-desc {
+    font-size: 13px;
+    color: var(--secondary-1);
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 24px;
+    padding: 0 10px;
+  }
+
+  /* ─── Plan card ─── */
+  .plan-card {
+    background: var(--primary-2);
+    border: 1.5px solid var(--secondary-2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .plan-card.selected {
+    border-color: var(--primary-1);
+    border-width: 2px;
+  }
+  .plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .plan-divider {
+    height: 1px;
+    background: var(--secondary-3);
+    margin-bottom: 10px;
+  }
+
+  /* ─── Selected prefs chips ─── */
+  .pref-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .pref-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--secondary-3);
+    border-radius: 10px;
+    padding: 8px 12px;
+  }
+  .pref-chip-day { font-size: 12px; font-weight: 700; }
+  .pref-chip-time { font-size: 11px; color: var(--secondary-1); }
+  .pref-chip-x {
+    width: 18px;
+    height: 18px;
+    background: var(--red);
+    border-radius: 9px;
+    color: #fff;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mb-4 { margin-bottom: 16px; }
+  .mb-6 { margin-bottom: 24px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mt-2 { margin-top: 8px; }
+
+  .section-title {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0 20px;
+    margin-bottom: 20px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Buy Package Flow — Redesign</h1>
+<p class="page-subtitle">Scroll horizontally to view all screens &middot; Monochrome + warm beige palette</p>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<p class="section-title">Core Flow</p>
+<div class="screen-row">
+
+<!-- ── SCREEN 1: Setup ──────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">1 &mdash; Setup</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Buy Package</div>
+      </div>
+
+      <div class="hero-img">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a2a2a 0%,#444 50%,#2a2a2a 100%);display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;color:rgba(255,255,255,0.6);">
+            <div style="font-size:32px;margin-bottom:4px;">🏋️</div>
+            <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;">Premium Fitness</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:14%"></div>
+        </div>
+        <div class="progress-label">1 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Select Category</div>
+        <div class="section-desc">Choose a training category</div>
+
+        <div class="card selected">
+          <div class="card-title">Personal Training</div>
+          <div class="card-desc">One-on-one sessions tailored to your goals</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Group Classes</div>
+          <div class="card-desc">High-energy group workouts with certified coaches</div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Select Service</div>
+        <div class="section-desc">Pick your package</div>
+
+        <div class="card selected">
+          <div class="card-title">Private Session</div>
+          <div class="card-row" style="margin-top:8px;">
+            <div>
+              <span class="pill">12 credits</span>
+              <span class="pill">Private</span>
+            </div>
+          </div>
+          <div class="card-row" style="margin-top:10px;">
+            <div class="card-price">RM 1,200</div>
+            <div class="card-meta">Valid 90 days</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Semi-Private Session</div>
+          <div class="card-row" style="margin-top:8px;">
+            <div>
+              <span class="pill">8 credits</span>
+              <span class="pill">Semi-Private</span>
+            </div>
+          </div>
+          <div class="card-row" style="margin-top:10px;">
+            <div class="card-price">RM 800</div>
+            <div class="card-meta">Valid 60 days</div>
+          </div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Continue</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 2: Trainer ────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">2 &mdash; Trainer</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Select Trainer</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:28%"></div>
+        </div>
+        <div class="progress-label">2 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Choose Preferred Trainer</div>
+        <div class="section-desc">Select a trainer to view their availability</div>
+
+        <div class="trainer-card selected">
+          <div class="trainer-avatar">AW</div>
+          <div class="trainer-info">
+            <div class="trainer-name">Alex Wong</div>
+            <div class="trainer-spec">Strength & Conditioning</div>
+          </div>
+          <div class="trainer-check checked">✓</div>
+        </div>
+
+        <div class="trainer-card">
+          <div class="trainer-avatar">MK</div>
+          <div class="trainer-info">
+            <div class="trainer-name">Maya Krishnan</div>
+            <div class="trainer-spec">Yoga & Mobility</div>
+          </div>
+          <div class="trainer-check"></div>
+        </div>
+
+        <div class="trainer-card">
+          <div class="trainer-avatar">DT</div>
+          <div class="trainer-info">
+            <div class="trainer-name">Daniel Tan</div>
+            <div class="trainer-spec">HIIT & Cardio</div>
+          </div>
+          <div class="trainer-check"></div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Trainer Availability</div>
+
+        <div class="timetable">
+          <div class="tt-header">
+            <div class="tt-time-col"></div>
+            <div class="tt-day-label">Mon</div>
+            <div class="tt-day-label">Tue</div>
+            <div class="tt-day-label">Wed</div>
+            <div class="tt-day-label">Thu</div>
+            <div class="tt-day-label">Fri</div>
+            <div class="tt-day-label" style="color:var(--secondary-1)">Sat</div>
+            <div class="tt-day-label" style="color:var(--secondary-1)">Sun</div>
+          </div>
+          <div class="tt-grid">
+            <!-- 06:00 -->
+            <div class="tt-row">
+              <div class="tt-time">06:00</div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">06<br>/09</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+            </div>
+            <!-- 07:00 -->
+            <div class="tt-row">
+              <div class="tt-time">07:00</div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:70%;opacity:0"></div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">07<br>/11</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+            </div>
+            <!-- 10:00 -->
+            <div class="tt-row">
+              <div class="tt-time">10:00</div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">10<br>/14</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:70%;">09<br>/12</div></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">10<br>/13</div></div>
+            </div>
+            <!-- 12:00 -->
+            <div class="tt-row">
+              <div class="tt-time">12:00</div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">12<br>/18</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+            </div>
+            <!-- 15:00 -->
+            <div class="tt-row">
+              <div class="tt-time">15:00</div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:36px;">14<br>/16</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">15<br>/19</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+            </div>
+            <!-- 17:00 -->
+            <div class="tt-row">
+              <div class="tt-time">17:00</div>
+              <div class="tt-cell"><div class="tt-slot" style="top:0;height:100%;">17<br>/20</div></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+              <div class="tt-cell"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-row">
+          <div class="cta-btn outline">Skip</div>
+          <div class="cta-btn">Continue</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 3: Schedule ───────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">3 &mdash; Schedule</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Preferred Schedule</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:42%"></div>
+        </div>
+        <div class="progress-label">3 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Preferred Day & Time</div>
+        <div class="section-desc">Select up to 4 preferred time slots</div>
+
+        <div class="pref-chips">
+          <div class="pref-chip">
+            <div>
+              <div class="pref-chip-day">Mon</div>
+              <div class="pref-chip-time">9:00 AM</div>
+            </div>
+            <div class="pref-chip-x">✕</div>
+          </div>
+          <div class="pref-chip">
+            <div>
+              <div class="pref-chip-day">Wed</div>
+              <div class="pref-chip-time">3:00 PM</div>
+            </div>
+            <div class="pref-chip-x">✕</div>
+          </div>
+        </div>
+
+        <div class="section-label">Select Day</div>
+
+        <div class="day-chips">
+          <div class="day-chip has-selection">Mon •</div>
+          <div class="day-chip active">Tue</div>
+          <div class="day-chip has-selection">Wed •</div>
+          <div class="day-chip">Thu</div>
+          <div class="day-chip">Fri</div>
+          <div class="day-chip">Sat</div>
+          <div class="day-chip">Sun</div>
+        </div>
+
+        <div class="section-label">Select Time for Tuesday</div>
+        <div class="time-picker">
+          <div class="time-col">
+            <div class="dim">8</div>
+            <div class="active">9</div>
+            <div class="dim">10</div>
+          </div>
+          <div class="time-sep">:</div>
+          <div class="time-col">
+            <div class="dim">25</div>
+            <div class="active">30</div>
+            <div class="dim">35</div>
+          </div>
+          <div style="width:12px"></div>
+          <div class="time-col">
+            <div class="active" style="font-size:18px;">AM</div>
+            <div class="dim" style="margin-top:4px;">PM</div>
+          </div>
+        </div>
+
+        <div class="cta-btn" style="border-radius:12px;padding:14px;margin-bottom:10px;">Add This Time</div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Continue</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 4: Info ───────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">4 &mdash; Info</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Additional Info</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:57%"></div>
+        </div>
+        <div class="progress-label">4 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Remarks</div>
+        <div class="section-desc">Any additional notes for your trainer (optional)</div>
+
+        <div class="textarea">e.g. I have a previous knee injury, please avoid high-impact exercises...</div>
+
+        <div style="background:var(--primary-2);border-radius:14px;padding:14px 16px;margin-top:16px;">
+          <div style="font-size:11px;color:var(--secondary-1);margin-bottom:10px;">YOUR SELECTIONS</div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:12px;color:var(--secondary-1);">Category</span>
+            <span style="font-size:12px;font-weight:600;">Personal Training</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:12px;color:var(--secondary-1);">Service</span>
+            <span style="font-size:12px;font-weight:600;">Private Session</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:12px;color:var(--secondary-1);">Trainer</span>
+            <span style="font-size:12px;font-weight:600;">Alex Wong</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;">
+            <span style="font-size:12px;color:var(--secondary-1);">Schedule</span>
+            <span style="font-size:12px;font-weight:600;">Mon 9AM, Wed 3PM</span>
+          </div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Continue</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 5: Plan ───────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">5 &mdash; Payment Plan</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Payment Plan</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:71%"></div>
+        </div>
+        <div class="progress-label">5 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Choose Payment Plan</div>
+        <div class="section-desc">Credits unlock after each installment is confirmed</div>
+
+        <div class="plan-card selected">
+          <div class="plan-header">
+            <div>
+              <div class="card-title">Full Payment</div>
+              <div class="card-desc">1 payment</div>
+            </div>
+            <div class="trainer-check checked">✓</div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Total</span>
+            <span style="font-weight:600;">RM 1,200</span>
+          </div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Credits</span>
+            <span style="font-weight:600;">12 credits</span>
+          </div>
+        </div>
+
+        <div class="plan-card">
+          <div class="plan-header">
+            <div>
+              <div class="card-title">Half Payment</div>
+              <div class="card-desc">2 payments</div>
+            </div>
+            <div class="trainer-check"></div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Per installment</span>
+            <span style="font-weight:600;">RM 600</span>
+          </div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Credits per installment</span>
+            <span style="font-weight:600;">6 credits</span>
+          </div>
+        </div>
+
+        <div class="plan-card">
+          <div class="plan-header">
+            <div>
+              <div class="card-title">Quarterly</div>
+              <div class="card-desc">4 payments</div>
+            </div>
+            <div class="trainer-check"></div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Per installment</span>
+            <span style="font-weight:600;">RM 300</span>
+          </div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Credits per installment</span>
+            <span style="font-weight:600;">3 credits</span>
+          </div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Continue</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 6: Review ─────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">6 &mdash; Review</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Review</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:85%"></div>
+        </div>
+        <div class="progress-label">6 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Review Your Package</div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Category</div>
+            <div class="review-value">Personal Training</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">▦</div>
+        </div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Service</div>
+            <div class="review-value">Private Session</div>
+            <div style="font-size:11px;color:var(--secondary-1);margin-top:2px;">12 credits · Valid 90 days</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">⚡</div>
+        </div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Preferred Trainer</div>
+            <div class="review-value">Alex Wong</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">👤</div>
+        </div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Preferred Times</div>
+            <div class="review-value">Mon 9:00 AM</div>
+            <div class="review-value">Wed 3:00 PM</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">🕐</div>
+        </div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Payment Plan</div>
+            <div class="review-value">Full Payment</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">💳</div>
+        </div>
+
+        <div class="review-item">
+          <div>
+            <div class="review-label">Remark</div>
+            <div style="font-size:12px;color:var(--primary-1);margin-top:2px;">Previous knee injury</div>
+          </div>
+          <div style="font-size:16px;color:var(--secondary-1);">📝</div>
+        </div>
+
+        <div style="background:var(--primary-2);border-radius:14px;padding:16px;margin-top:8px;">
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Subtotal</span>
+            <span>RM 1,200.00</span>
+          </div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Tax (10%)</span>
+            <span>RM 120.00</span>
+          </div>
+          <div class="price-row total">
+            <span>Total</span>
+            <span>RM 1,320.00</span>
+          </div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Continue to Sign</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 7: Sign ───────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">7 &mdash; E-Signature</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">E-Signature</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:92%"></div>
+        </div>
+        <div class="progress-label">7 / 7</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Terms & Conditions</div>
+
+        <div style="background:var(--primary-2);border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--primary-1);margin-bottom:8px;">By signing, you agree to:</div>
+          <div class="terms-link">
+            <span class="dot">•</span>
+            <span style="text-decoration:none;color:var(--secondary-1);">Company–Client Agreement</span>
+            <span class="check">✓</span>
+          </div>
+          <div class="terms-link">
+            <span class="dot">•</span>
+            <span style="text-decoration:none;color:var(--secondary-1);">100% Satisfaction Guarantee</span>
+            <span class="check">✓</span>
+          </div>
+          <div class="terms-link">
+            <span class="dot">•</span>
+            <span style="text-decoration:underline;">Par-Q & You</span>
+            <span style="color:var(--secondary-1);font-size:14px;">›</span>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <div class="checkbox checked">✓</div>
+          <div class="checkbox-text">I agree to the terms and conditions and confirm that the information provided is accurate</div>
+        </div>
+
+        <div class="section-label" style="margin-top:16px;">Sign Below</div>
+
+        <div class="sig-pad signed">
+          <div style="font-family:cursive;font-size:28px;color:var(--primary-1);transform:rotate(-3deg);">John Doe</div>
+        </div>
+
+        <div style="text-align:right;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:600;color:var(--primary-1);text-decoration:underline;cursor:pointer;">Re-sign</span>
+        </div>
+
+        <div style="font-size:10px;color:var(--secondary-1);margin-bottom:20px;">By signing above, you provide your electronic signature</div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Proceed to Payment</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 8: Pay ────────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">8 &mdash; Payment</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Payment</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:96%"></div>
+        </div>
+        <div class="progress-label">✓</div>
+      </div>
+
+      <div class="body">
+        <div class="section-label">Order Summary</div>
+
+        <div style="background:var(--primary-2);border-radius:14px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">Private Session</div>
+              <div style="font-size:11px;color:var(--secondary-1);margin-top:4px;">12 credits · Personal Training</div>
+              <div style="font-size:11px;color:var(--secondary-1);margin-top:2px;">Valid 90 days from purchase</div>
+            </div>
+            <div style="font-size:16px;font-weight:700;">RM 1,200</div>
+          </div>
+        </div>
+
+        <div style="background:var(--primary-2);border-radius:14px;padding:16px;margin-bottom:14px;">
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Subtotal</span>
+            <span>RM 1,200.00</span>
+          </div>
+          <div class="price-row">
+            <span style="color:var(--secondary-1);">Tax (10%)</span>
+            <span>RM 120.00</span>
+          </div>
+          <div class="price-row total">
+            <span>Total</span>
+            <span>RM 1,320.00</span>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Payment Method</div>
+        <div style="background:var(--primary-2);border-radius:14px;padding:16px;opacity:0.6;">
+          <div style="font-size:12px;color:var(--secondary-1);">Payment processing will be available soon.</div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+
+      <div class="cta-area">
+        <div class="cta-btn">Pay RM 1,320.00</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 9: Done ───────────────────────────────────────────── -->
+<div class="phone-wrap">
+  <div class="phone-label">9 &mdash; Done</div>
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">■ ▮ ◗</div>
+    </div>
+    <div class="screen-content">
+      <div class="header">
+        <div class="back-btn">←</div>
+        <div class="header-title">Complete</div>
+      </div>
+
+      <div class="progress-strip">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:100%"></div>
+        </div>
+        <div class="progress-label">✓</div>
+      </div>
+
+      <div class="body" style="display:flex;flex-direction:column;align-items:center;padding-top:20px;">
+
+        <div class="success-circle">✓</div>
+        <div class="success-title">Package Submitted!</div>
+        <div class="success-desc">Your package is being reviewed. You'll be notified once approved and can start booking sessions.</div>
+
+        <div style="width:100%;background:var(--primary-2);border-radius:14px;padding:16px;margin-bottom:20px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--primary-1);margin-bottom:12px;">Package Details</div>
+
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:11px;color:var(--secondary-1);">Package</span>
+            <span style="font-size:12px;font-weight:600;">Private Session</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:11px;color:var(--secondary-1);">Credits</span>
+            <span style="font-size:12px;font-weight:600;">12 credits</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:11px;color:var(--secondary-1);">Trainer</span>
+            <span style="font-size:12px;font-weight:600;">Alex Wong</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--secondary-3);">
+            <span style="font-size:11px;color:var(--secondary-1);">Validity</span>
+            <span style="font-size:12px;font-weight:600;">90 days</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0 0;">
+            <span style="font-size:11px;color:var(--secondary-1);">Total</span>
+            <span style="font-size:16px;font-weight:700;">RM 1,320.00</span>
+          </div>
+        </div>
+
+        <div style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+          <div class="cta-btn">View My Packages</div>
+          <div class="cta-btn outline">Start Booking</div>
+          <div class="cta-btn ghost">Back to Home</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /screen-row -->
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div style="text-align:center;padding:40px 20px;color:var(--secondary-1);font-size:12px;">
+  <p style="margin-bottom:8px;"><strong style="color:#fff;">Key Design Changes</strong></p>
+  <p>✦ Replaced 7-dot stepper with thin progress bar + step counter (saves ~80px per screen)</p>
+  <p>✦ Hero image only on Setup screen — removed from all other screens to reduce fatigue</p>
+  <p>✦ Trainer cards replace dropdown modal — better scanability and touch targets</p>
+  <p>✦ Info screen shows summary of prior selections as confirmation</p>
+  <p>✦ Consistent 7-step count across all screens (was mixed 7/8)</p>
+  <p>✦ Review uses compact row layout instead of heavy cards-in-cards</p>
+  <p>✦ Done screen celebrates with green check, clean summary, and 3 clear next actions</p>
+</div>
+
+</body>
+</html>
