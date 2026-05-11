@@ -117,7 +117,7 @@ describe("dispatchStaffSync", () => {
 				},
 				hierarchyNodes: {
 					findFirst: mock(() =>
-						Promise.resolve({ id: "n-region", type: "region" }),
+						Promise.resolve({ id: "n-state", type: "state" }),
 					),
 				},
 			},

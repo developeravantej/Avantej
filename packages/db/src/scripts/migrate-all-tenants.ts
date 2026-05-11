@@ -65,6 +65,21 @@ CREATE INDEX IF NOT EXISTS "ghl_contact_links_sync_status_idx" ON "ghl_contact_l
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" ("deleted_at");`,
   },
+  "hierarchy-rename-region-state": {
+    name: "Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3 (requires zero 'area' rows)",
+    sql: `DO $$
+DECLARE area_count int;
+BEGIN
+  SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
+  IF area_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
+--> statement-breakpoint
+UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;`,
+  },
   // Add more migrations here as needed:
   // "migration-name": {
   //   name: "Description of what this does",

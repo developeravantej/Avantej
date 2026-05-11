@@ -348,30 +348,26 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         setSelectedCountry({ id: countryNode.id, name: countryNode.name });
       }
 
-      // Step 2: Create Region if needed
+      // Step 2: Create State if needed (was "region" pre Phase-H1)
+      // FIXME-Phase-H1.5: rewrite this 4-step wizard to 3 steps (country → state → branch).
+      // Area level removed in Phase H1. Until UI rewritten, fallback: ignore area_name input,
+      // create branch directly under state.
       if (!regionNodeId && data.region_name && countryNodeId) {
-        const regionNode = await client.hierarchy.createNode({
+        const stateNode = await client.hierarchy.createNode({
           organizationId,
-          type: "region",
+          type: "state",
           name: data.region_name,
           code: data.region_code,
           parentId: countryNodeId,
         });
-        regionNodeId = regionNode.id;
-        setSelectedRegion({ id: regionNode.id, name: regionNode.name });
+        regionNodeId = stateNode.id;
+        setSelectedRegion({ id: stateNode.id, name: stateNode.name });
       }
 
-      // Step 3: Create Area if needed
-      if (!areaNodeId && data.area_name && regionNodeId) {
-        const areaNode = await client.hierarchy.createNode({
-          organizationId,
-          type: "area",
-          name: data.area_name,
-          code: data.area_code,
-          parentId: regionNodeId,
-        });
-        areaNodeId = areaNode.id;
-        setSelectedArea({ id: areaNode.id, name: areaNode.name });
+      // Step 3: (deprecated) Area creation skipped — area level removed in Phase H1.
+      // Branch becomes direct child of state below.
+      if (!areaNodeId) {
+        areaNodeId = regionNodeId; // legacy var name; holds state id post-H1
       }
 
       // Step 4: Create Branch

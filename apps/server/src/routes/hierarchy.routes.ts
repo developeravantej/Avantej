@@ -34,7 +34,7 @@ export const hierarchyRoutes = new Hono();
  *
  * Body:
  * {
- *   type: "country" | "region" | "area" | "branch",
+ *   type: "country" | "state" | "branch",
  *   name: string,
  *   code?: string,
  *   parentId?: string (UUID, required for non-organization nodes)
@@ -73,7 +73,7 @@ hierarchyRoutes.post(
       }
 
       // Validate type
-      const validTypes = ["country", "region", "area", "branch"];
+      const validTypes = ["country", "state", "branch"];
       if (!validTypes.includes(type)) {
         return c.json(
           { error: `Invalid type. Must be one of: ${validTypes.join(", ")}` },

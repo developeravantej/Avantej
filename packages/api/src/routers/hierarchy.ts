@@ -31,13 +31,13 @@ function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof 
 
 export const hierarchyRouter = {
   /**
-   * Create a hierarchy node (country, region, area, or branch)
+   * Create a hierarchy node (country, state, or branch)
    */
   createNode: protectedProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
-        type: z.enum(["country", "region", "area", "branch"]),
+        type: z.enum(["country", "state", "branch"]),
         name: z.string().min(1),
         code: z.string().optional(),
         parentId: z.string().uuid().optional(),
