@@ -155,7 +155,7 @@ export const hierarchyRouter = {
                 name: node.name,
                 countryTenantNodeId,
                 country: countryName,
-                address: (node as any).address,
+                address: node.address,
               });
             } catch (syncError) {
               console.error("Failed to sync branch to organization_branches:", syncError);
@@ -208,8 +208,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: (node as any).address,
-          picUserId: (node as any).picUserId,
+          address: node.address,
+          picUserId: node.picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,
@@ -382,7 +382,7 @@ export const hierarchyRouter = {
                 updatedAt: new Date(),
               };
               if (input.name !== undefined) syncData.name = node.name;
-              if (input.address !== undefined) syncData.address = (node as any).address;
+              if (input.address !== undefined) syncData.address = node.address;
 
               await controlPanelDb
                 .update(organizationBranches)
@@ -457,8 +457,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: (node as any).address,
-          picUserId: (node as any).picUserId,
+          address: node.address,
+          picUserId: node.picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,
@@ -553,8 +553,8 @@ export const hierarchyRouter = {
         type: node.type,
         depth: node.depth,
         parentId: node.parentId,
-        address: (node as any).address,
-        picUserId: (node as any).picUserId,
+        address: node.address,
+        picUserId: node.picUserId,
         createdAt: node.createdAt,
         updatedAt: node.updatedAt,
       };
@@ -803,6 +803,54 @@ export const hierarchyRouter = {
 
         return { success: true, ghlSync: ghlSyncResults };
       } catch (error) {
+        // Compensation: GHL options were removed BEFORE the delete to allow
+        // the dispatcher to resolve branch paths while rows still existed.
+        // If the delete failed, re-add any successfully-removed options so
+        // the two systems don't drift (GHL option gone, branch row still
+        // present). Best-effort: log and continue on compensation failure.
+        const successfullyRemovedBranchIds = ghlSyncResults
+          .filter((r) => r.status === "synced")
+          .map((r) => r.branchNodeId);
+        if (
+          successfullyRemovedBranchIds.length > 0 &&
+          controlPanelDb &&
+          context.organizationId
+        ) {
+          const dispatchBranchSync = context.honoContext?.get(
+            "dispatchBranchSync",
+          ) as
+            | ((args: {
+                controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                tenantDb: typeof tenantDb;
+                organizationId: string;
+                branchNodeId: string;
+              }) => Promise<{
+                status: "synced" | "skipped" | "error";
+                [k: string]: unknown;
+              }>)
+            | undefined;
+          if (dispatchBranchSync) {
+            for (const branchId of successfullyRemovedBranchIds) {
+              try {
+                await dispatchBranchSync({
+                  controlPanelDb,
+                  tenantDb,
+                  organizationId: context.organizationId,
+                  branchNodeId: branchId,
+                });
+                console.warn(
+                  `Delete failed for ${branchId}; GHL option re-added via compensation.`,
+                );
+              } catch (compensateErr) {
+                console.error(
+                  `Delete failed AND GHL compensation failed for ${branchId}:`,
+                  compensateErr,
+                );
+              }
+            }
+          }
+        }
+
         // Handle specific error cases
         if (error instanceof Error) {
           if (error.message.includes("not found")) {
@@ -918,7 +966,7 @@ export const hierarchyRouter = {
       let preMoveStatePrefix: string | null = null;
       const preMoveBranchName = nodeToMove.name;
       if (nodeToMove.type === "branch") {
-        preMoveCountryNodeId = (nodeToMove as any).countryNodeId ?? null;
+        preMoveCountryNodeId = nodeToMove.countryNodeId ?? null;
         if (!preMoveCountryNodeId && nodeToMove.parentId) {
           // Fallback: walk parents to find the country ancestor.
           let cursorId: string | null = nodeToMove.parentId;
@@ -963,7 +1011,7 @@ export const hierarchyRouter = {
           preMoveCountryNodeId &&
           context.organizationId
         ) {
-          const newCountryNodeId = (node as any).countryNodeId ?? null;
+          const newCountryNodeId = node.countryNodeId ?? null;
           if (newCountryNodeId && newCountryNodeId !== preMoveCountryNodeId) {
             const dispatchBranchMove = context.honoContext?.get(
               "dispatchBranchMove",
@@ -1010,8 +1058,8 @@ export const hierarchyRouter = {
           type: node.type,
           depth: node.depth,
           parentId: node.parentId,
-          address: (node as any).address,
-          picUserId: (node as any).picUserId,
+          address: node.address,
+          picUserId: node.picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           ghlSync,

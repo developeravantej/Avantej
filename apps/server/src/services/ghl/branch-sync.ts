@@ -11,7 +11,7 @@
  * pass tenantDb + controlPanelDb + decryptApiKey for testability.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -190,17 +190,23 @@ export async function ensureCountryFieldExists(args: {
 		throw new Error("GHL did not return an id for the new custom field");
 	}
 
-	const next: CountryFieldMap = {
-		...map,
-		[args.countryNodeId]: {
-			ghlFieldId,
-			fieldKey,
-			createdAt: new Date().toISOString(),
-		},
+	const newEntry: CountryFieldEntry = {
+		ghlFieldId,
+		fieldKey,
+		createdAt: new Date().toISOString(),
 	};
+	const newEntryJson = JSON.stringify(newEntry);
+
+	// Atomic jsonb merge at the SQL level: COALESCE handles a NULL map,
+	// jsonb_set targets only this country's key, and the whole expression
+	// evaluates in a single UPDATE so concurrent calls for different
+	// countries don't stomp each other's entries.
 	await args.controlPanelDb
 		.update(organizations)
-		.set({ ghlCountryFieldMap: next, updatedAt: new Date() })
+		.set({
+			ghlCountryFieldMap: sql`jsonb_set(COALESCE(${organizations.ghlCountryFieldMap}, '{}'::jsonb), ARRAY[${args.countryNodeId}]::text[], ${newEntryJson}::jsonb, true)`,
+			updatedAt: new Date(),
+		})
 		.where(eq(organizations.id, args.organizationId));
 
 	return { ghlFieldId, fieldKey };
