@@ -363,6 +363,11 @@ export const hierarchyRouter = {
         updateParams.picUserId = input.picUserId;
       }
 
+      // Capture pre-update state for GHL branch rename sync.
+      const preUpdateNode = await tenantDb.query.hierarchyNodes.findFirst({
+        where: eq(hierarchyNodes.id, input.nodeId),
+      });
+
       // Update node
       try {
         const node = await updateHierarchyNode(tenantDb, input.nodeId, updateParams);
@@ -401,6 +406,51 @@ export const hierarchyRouter = {
           }
         }
 
+        // Fire-and-forget GHL branch rename sync.
+        let ghlSync:
+          | { status: "synced" | "skipped" | "error"; [k: string]: unknown }
+          | null = null;
+        if (
+          node.type === "branch" &&
+          preUpdateNode &&
+          input.name !== undefined &&
+          preUpdateNode.name !== input.name &&
+          context.organizationId
+        ) {
+          const dispatchBranchRename = context.honoContext?.get(
+            "dispatchBranchRename",
+          ) as
+            | ((args: {
+                controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                tenantDb: typeof tenantDb;
+                organizationId: string;
+                branchNodeId: string;
+                oldBranchName: string;
+              }) => Promise<{
+                status: "synced" | "skipped" | "error";
+                [k: string]: unknown;
+              }>)
+            | undefined;
+          const cpDb = getControlPanelDb(context);
+          if (dispatchBranchRename && cpDb) {
+            try {
+              ghlSync = await dispatchBranchRename({
+                controlPanelDb: cpDb,
+                tenantDb,
+                organizationId: context.organizationId,
+                branchNodeId: node.id,
+                oldBranchName: preUpdateNode.name,
+              });
+            } catch (err) {
+              console.error("GHL branch rename sync failed:", err);
+              ghlSync = {
+                status: "error",
+                error: err instanceof Error ? err.message : String(err),
+              };
+            }
+          }
+        }
+
         return {
           id: node.id,
           name: node.name,
@@ -411,6 +461,7 @@ export const hierarchyRouter = {
           picUserId: (node as any).picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
+          ghlSync,
         };
       } catch (error) {
         // Handle specific error cases
@@ -685,6 +736,54 @@ export const hierarchyRouter = {
         }
       }
 
+      // Fire-and-forget GHL branch option removal BEFORE the delete, so the
+      // dispatcher can still resolve the branch path while the row exists.
+      // Errors are logged but never block the delete.
+      const ghlSyncResults: Array<{
+        branchNodeId: string;
+        status: "synced" | "skipped" | "error";
+        [k: string]: unknown;
+      }> = [];
+      if (controlPanelDb && branchNodeIds.length > 0 && context.organizationId) {
+        const dispatchBranchRemove = context.honoContext?.get(
+          "dispatchBranchRemove",
+        ) as
+          | ((args: {
+              controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+              tenantDb: typeof tenantDb;
+              organizationId: string;
+              branchNodeId: string;
+            }) => Promise<{
+              status: "synced" | "skipped" | "error";
+              [k: string]: unknown;
+            }>)
+          | undefined;
+        if (dispatchBranchRemove) {
+          for (const branchId of branchNodeIds) {
+            try {
+              const res = await dispatchBranchRemove({
+                controlPanelDb,
+                tenantDb,
+                organizationId: context.organizationId,
+                branchNodeId: branchId,
+              });
+              ghlSyncResults.push({ branchNodeId: branchId, ...res });
+            } catch (err) {
+              console.error(
+                "GHL branch remove sync failed for",
+                branchId,
+                err,
+              );
+              ghlSyncResults.push({
+                branchNodeId: branchId,
+                status: "error",
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+        }
+      }
+
       // Delete node with automatic handling
       try {
         await deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions);
@@ -702,7 +801,7 @@ export const hierarchyRouter = {
           }
         }
 
-        return { success: true };
+        return { success: true, ghlSync: ghlSyncResults };
       } catch (error) {
         // Handle specific error cases
         if (error instanceof Error) {
@@ -813,9 +912,98 @@ export const hierarchyRouter = {
         });
       }
 
+      // For branches: capture old country + state prefix + branch name BEFORE
+      // the move, so we can rebuild the OLD GHL option label for removal.
+      let preMoveCountryNodeId: string | null = null;
+      let preMoveStatePrefix: string | null = null;
+      const preMoveBranchName = nodeToMove.name;
+      if (nodeToMove.type === "branch") {
+        preMoveCountryNodeId = (nodeToMove as any).countryNodeId ?? null;
+        if (!preMoveCountryNodeId && nodeToMove.parentId) {
+          // Fallback: walk parents to find the country ancestor.
+          let cursorId: string | null = nodeToMove.parentId;
+          while (cursorId) {
+            const p: any = await tenantDb.query.hierarchyNodes.findFirst({
+              where: eq(hierarchyNodes.id, cursorId),
+            });
+            if (!p) break;
+            if (p.type === "country") {
+              preMoveCountryNodeId = p.id;
+              break;
+            }
+            cursorId = p.parentId ?? null;
+          }
+        }
+        // State prefix = immediate non-country, non-organization parent's name.
+        if (nodeToMove.parentId) {
+          const parent: any = await tenantDb.query.hierarchyNodes.findFirst({
+            where: eq(hierarchyNodes.id, nodeToMove.parentId),
+          });
+          if (
+            parent &&
+            parent.type !== "country" &&
+            parent.type !== "organization"
+          ) {
+            preMoveStatePrefix = parent.name;
+          }
+        }
+      }
+
       // Move node
       try {
         const node = await moveHierarchyNode(tenantDb, input.nodeId, input.newParentId);
+
+        // Fire-and-forget GHL branch move sync. Only when a branch crossed
+        // countries.
+        let ghlSync:
+          | { status: "synced" | "skipped" | "error"; [k: string]: unknown }
+          | null = null;
+        if (
+          node.type === "branch" &&
+          preMoveCountryNodeId &&
+          context.organizationId
+        ) {
+          const newCountryNodeId = (node as any).countryNodeId ?? null;
+          if (newCountryNodeId && newCountryNodeId !== preMoveCountryNodeId) {
+            const dispatchBranchMove = context.honoContext?.get(
+              "dispatchBranchMove",
+            ) as
+              | ((args: {
+                  controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                  tenantDb: typeof tenantDb;
+                  organizationId: string;
+                  branchNodeId: string;
+                  oldCountryNodeId: string;
+                  oldBranchName: string;
+                  oldStatePrefix: string | null;
+                }) => Promise<{
+                  status: "synced" | "skipped" | "error";
+                  [k: string]: unknown;
+                }>)
+              | undefined;
+            const cpDb = getControlPanelDb(context);
+            if (dispatchBranchMove && cpDb) {
+              try {
+                ghlSync = await dispatchBranchMove({
+                  controlPanelDb: cpDb,
+                  tenantDb,
+                  organizationId: context.organizationId,
+                  branchNodeId: node.id,
+                  oldCountryNodeId: preMoveCountryNodeId,
+                  oldBranchName: preMoveBranchName,
+                  oldStatePrefix: preMoveStatePrefix,
+                });
+              } catch (err) {
+                console.error("GHL branch move sync failed:", err);
+                ghlSync = {
+                  status: "error",
+                  error: err instanceof Error ? err.message : String(err),
+                };
+              }
+            }
+          }
+        }
+
         return {
           id: node.id,
           name: node.name,
@@ -826,6 +1014,7 @@ export const hierarchyRouter = {
           picUserId: (node as any).picUserId,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
+          ghlSync,
         };
       } catch (error) {
         // Handle specific error cases

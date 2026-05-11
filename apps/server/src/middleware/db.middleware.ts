@@ -31,7 +31,13 @@ import {
 } from "@/services/ghl/dispatch-staff-sync";
 import {
 	dispatchBranchSync as dispatchBranchSyncRaw,
+	dispatchBranchRename as dispatchBranchRenameRaw,
+	dispatchBranchRemove as dispatchBranchRemoveRaw,
+	dispatchBranchMove as dispatchBranchMoveRaw,
 	type ServerDispatchBranchSyncArgs,
+	type DispatchBranchRenameArgs,
+	type DispatchBranchRemoveArgs,
+	type DispatchBranchMoveArgs,
 } from "@/services/ghl/dispatch-branch-sync";
 
 /**
@@ -51,6 +57,18 @@ export type BoundDispatchProfileSync = (
 export type BoundDispatchBranchSync = (
 	args: ServerDispatchBranchSyncArgs,
 ) => ReturnType<typeof dispatchBranchSyncRaw>;
+
+export type BoundDispatchBranchRename = (
+	args: DispatchBranchRenameArgs,
+) => ReturnType<typeof dispatchBranchRenameRaw>;
+
+export type BoundDispatchBranchRemove = (
+	args: DispatchBranchRemoveArgs,
+) => ReturnType<typeof dispatchBranchRemoveRaw>;
+
+export type BoundDispatchBranchMove = (
+	args: DispatchBranchMoveArgs,
+) => ReturnType<typeof dispatchBranchMoveRaw>;
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env
@@ -128,6 +146,18 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 	const boundDispatchBranchSync: BoundDispatchBranchSync = (args) =>
 		dispatchBranchSyncRaw(args);
 	c.set("dispatchBranchSync", boundDispatchBranchSync);
+
+	const boundDispatchBranchRename: BoundDispatchBranchRename = (args) =>
+		dispatchBranchRenameRaw(args);
+	c.set("dispatchBranchRename", boundDispatchBranchRename);
+
+	const boundDispatchBranchRemove: BoundDispatchBranchRemove = (args) =>
+		dispatchBranchRemoveRaw(args);
+	c.set("dispatchBranchRemove", boundDispatchBranchRemove);
+
+	const boundDispatchBranchMove: BoundDispatchBranchMove = (args) =>
+		dispatchBranchMoveRaw(args);
+	c.set("dispatchBranchMove", boundDispatchBranchMove);
 
 	try {
 		await next();
