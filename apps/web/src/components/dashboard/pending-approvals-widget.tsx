@@ -23,11 +23,6 @@ type PendingRow = {
 	createdAt: string | Date;
 };
 
-function formatPrice(cents: number | null): string {
-	if (cents == null) return "—";
-	return `RM ${(cents / 100).toFixed(2)}`;
-}
-
 function timeAgo(value: string | Date): string {
 	const now = Date.now();
 	const then = new Date(value).getTime();

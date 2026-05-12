@@ -3,7 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import {
 	createContext,
 	useCallback,
-	useContext,
+	use,
 	useEffect,
 	useMemo,
 	useState,
@@ -155,7 +155,7 @@ export function OrganizationProvider({
 }
 
 export function useOrganizationContext() {
-	const context = useContext(OrganizationContext);
+	const context = use(OrganizationContext);
 	if (!context) {
 		throw new Error("useOrganizationContext must be used within an OrganizationProvider");
 	}

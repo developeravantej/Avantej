@@ -71,7 +71,7 @@ export function ConfirmPaymentDialog({
 				notes: vars.notes || undefined,
 				nextIntervalDays: vars.nextIntervalDays,
 			}),
-		onSuccess: (_, vars) => {
+		onSuccess: (_, _vars) => {
 			// Invalidate the per-instance timeline (the dialog knows which installment was paid)
 			if (installment) {
 				// We invalidate by matching the installmentId in the queryKey

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/accept-invitation")({
 function AcceptInvitationPage() {
 	const { token, orgId } = useSearch({ from: "/accept-invitation" });
 	const navigate = useNavigate();
-	const { data: session, isPending: isSessionLoading, refetch: refetchSession } = authClient.useSession();
+	const { data: session, isPending: isSessionLoading, refetch: _refetchSession } = authClient.useSession();
 
 	// Fetch invitation details
 	const {

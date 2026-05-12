@@ -5,7 +5,7 @@
  * This component wraps the entire application to provide auth context.
  */
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import type { UseAuthReturn } from "@/types/auth";
 
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 // Hook to use auth context
 function useAuthContext(): UseAuthReturn {
-  const context = useContext(AuthContext);
+  const context = use(AuthContext);
   if (!context) {
     throw new Error("useAuthContext must be used within an AuthProvider");
   }

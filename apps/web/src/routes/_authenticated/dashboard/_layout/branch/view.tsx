@@ -73,7 +73,7 @@ type BranchItem = {
 function RouteComponent() {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const { data: userContext, isLoading: isLoadingContext, error: userContextError } = useUserContext();
+  const { data: userContext, isLoading: isLoadingContext, error: _userContextError } = useUserContext();
   const navigate = useNavigate();
   const orgErrorShown = useRef(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -122,7 +122,7 @@ function RouteComponent() {
   );
 
   // Use React Query to load all hierarchy nodes (for cascading dropdowns)
-  const { data: hierarchyNodesData, error: hierarchyNodesError } = useQuery({
+  const { data: hierarchyNodesData, error: _hierarchyNodesError } = useQuery({
     queryKey: ["hierarchy-nodes", organizationId],
     queryFn: async (): Promise<{ nodes: HierarchyNode[] }> => {
       if (!organizationId) return { nodes: [] };
@@ -314,7 +314,7 @@ function RouteComponent() {
             }
             localStorage.removeItem(`org_${organizationId}_hierarchy`);
             localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
-          } catch (_e) {
+          } catch {
             localStorage.removeItem(`org_${organizationId}_hierarchy`);
             localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
           }

@@ -44,13 +44,13 @@ type IntakeRow = {
 };
 
 function IntakeTab({
-	organizationId,
+	organizationId: _organizationId,
 	intakeData,
 	isTrainerRole,
 	callerMemberId,
 	onOpenEditor,
-	onClaim,
-	onUnclaim,
+	onClaim: _onClaim,
+	onUnclaim: _onUnclaim,
 	DAY_COLUMNS: dayCols,
 }: {
 	organizationId: string;

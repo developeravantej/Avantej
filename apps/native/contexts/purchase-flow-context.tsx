@@ -1,7 +1,7 @@
 import {
 	createContext,
 	useCallback,
-	useContext,
+	use,
 	useMemo,
 	useState,
 	type ReactNode,
@@ -108,7 +108,7 @@ export function PurchaseFlowProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePurchaseFlow() {
-	const context = useContext(PurchaseFlowContext);
+	const context = use(PurchaseFlowContext);
 	if (!context) {
 		throw new Error(
 			"usePurchaseFlow must be used within a PurchaseFlowProvider",

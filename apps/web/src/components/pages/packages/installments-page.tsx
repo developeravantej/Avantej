@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -18,7 +18,6 @@ import { useInstallmentMutations } from "@/features/installments/hooks/useInstal
 export function PackageInstallmentsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// ── List state ──────────────────────────────────────────────────────────────
 	const [statusFilter, setStatusFilter] = useState<

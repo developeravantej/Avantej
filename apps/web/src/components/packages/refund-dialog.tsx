@@ -21,7 +21,7 @@ export function RefundDialog({
 	onOpenChange,
 	packageInstance,
 	organizationId,
-	onSuccess,
+	onSuccess: _onSuccess,
 }: RefundDialogProps) {
 	// Fetch suggested refund amount when the dialog is open
 	const suggestRefundQuery = useQuery({

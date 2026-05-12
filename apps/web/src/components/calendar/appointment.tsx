@@ -40,7 +40,7 @@ export function AppointmentCalendar({
 }: AppointmentCalendarProps) {
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [view, setView] = useState<CalendarView>(initialView);
-	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+	const [selectedDate, _setSelectedDate] = useState<Date | null>(null);
 	const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 	const [selectedAppointments, setSelectedAppointments] = useState<Set<string>>(new Set());
 	const [isGroupSelectMode, setIsGroupSelectMode] = useState(false);

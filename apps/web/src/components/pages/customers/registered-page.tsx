@@ -139,9 +139,6 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 
 	const rows: CustomerDirectoryRow[] = listData?.rows ?? [];
 	const total = listData?.total ?? 0;
-	const showingFrom = total === 0 ? 0 : offset + 1;
-	const showingTo = Math.min(offset + PAGE_LIMIT, total);
-
 	// ── Guards ─────────────────────────────────────────────────────────────
 
 	if (!organizationId) {

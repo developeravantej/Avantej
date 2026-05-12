@@ -22,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
@@ -56,7 +55,6 @@ export function DataTable({
 	error,
 	onRetry,
 }: DataTableProps) {
-	const qc = useQueryClient();
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

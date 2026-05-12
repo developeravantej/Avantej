@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-	cycleScope,
 	getPermissionScope,
 	hasPermission,
 } from "@/hooks/usePermissionMatrixState";
@@ -184,5 +183,3 @@ export function MobileRoleCards({
 	);
 }
 
-/** Helper for consumers that want to keep the cycle logic inline. */
-const cycleScopeForMobile = cycleScope;

@@ -115,7 +115,7 @@ export function WeeklyTimetable({
 						>
 							<Text
 								style={{
-									fontSize: 11,
+									fontSize: 12,
 									fontWeight: "700",
 									color: colors.primary[1],
 								}}
@@ -149,7 +149,7 @@ export function WeeklyTimetable({
 										position: "absolute",
 										left: pxFromMinutes(h * 60),
 										transform: [{ translateX: -16 }],
-										fontSize: 10,
+										fontSize: 12,
 										color: colors.secondary[1],
 										fontWeight: "600",
 									}}
@@ -226,7 +226,7 @@ export function WeeklyTimetable({
 													numberOfLines={1}
 													style={{
 														color: colors.primary[2],
-														fontSize: 11,
+														fontSize: 12,
 														fontWeight: "700",
 													}}
 												>
@@ -237,7 +237,7 @@ export function WeeklyTimetable({
 														<Text
 															style={{
 																color: colors.primary[2],
-																fontSize: 10,
+																fontSize: 12,
 																fontWeight: "700",
 																opacity: 0.6,
 															}}
@@ -248,7 +248,7 @@ export function WeeklyTimetable({
 															numberOfLines={1}
 															style={{
 																color: colors.primary[2],
-																fontSize: 11,
+																fontSize: 12,
 																fontWeight: "700",
 															}}
 														>

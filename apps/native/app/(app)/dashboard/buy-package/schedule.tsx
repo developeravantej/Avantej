@@ -788,7 +788,7 @@ export default function ScheduleScreen() {
 												<Text
 													style={{
 														color: colors.primary[2],
-														fontSize: 10,
+														fontSize: 12,
 														fontWeight: "800",
 														letterSpacing: 1.4,
 														opacity: 0.6,
@@ -855,7 +855,7 @@ export default function ScheduleScreen() {
 											<Text
 												style={{
 													color: colors.secondary[1],
-													fontSize: 11,
+													fontSize: 12,
 													fontWeight: "700",
 													marginTop: 4,
 													letterSpacing: 1.2,

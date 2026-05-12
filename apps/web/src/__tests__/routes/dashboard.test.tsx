@@ -7,7 +7,7 @@ import { mockClient } from "../helpers/mock-client";
 // Stateful router mock: useSearch reads from a singleton store, useNavigate
 // updates it (supporting the (prev) => next updater form) and notifies
 // subscribers via useSyncExternalStore so components re-render.
-const { routerState, useSearchMock, useNavigateMock, resetRouterState } = vi.hoisted(() => {
+const { routerState: _routerState, useSearchMock, useNavigateMock, resetRouterState } = vi.hoisted(() => {
 	type SearchState = Record<string, unknown>;
 	const state: { search: SearchState; listeners: Set<() => void> } = {
 		search: { period: "this_month" },

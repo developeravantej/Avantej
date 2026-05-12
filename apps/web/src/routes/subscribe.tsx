@@ -62,14 +62,6 @@ export const Route = createFileRoute("/subscribe")({
   },
 });
 
-const isAuthError = (error: unknown): boolean => {
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase();
-    return msg.includes("401") || msg.includes("403") || msg.includes("not authenticated");
-  }
-  return false;
-};
-
 function SubscribePage() {
   const navigate = useNavigate();
   const { session_id, canceled } = Route.useSearch();
@@ -165,7 +157,7 @@ function SubscribePage() {
         navigate({ to: "/dashboard", search: { session_id: undefined } as any });
       }
     },
-    onError: (error) => {
+    onError: (_error) => {
       setError("Failed to process your payment. Please contact support.");
     },
   });

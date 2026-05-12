@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, use, useMemo, useState, type ReactNode } from "react";
 
 export interface BookingFlowState {
 	packageInstanceId: string | null;
@@ -74,7 +74,7 @@ export function BookingFlowProvider({ children }: { children: ReactNode }) {
 }
 
 export function useBookingFlow() {
-	const context = useContext(BookingFlowContext);
+	const context = use(BookingFlowContext);
 	if (!context) {
 		throw new Error("useBookingFlow must be used within a BookingFlowProvider");
 	}

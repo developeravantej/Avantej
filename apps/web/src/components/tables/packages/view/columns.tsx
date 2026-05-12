@@ -117,7 +117,7 @@ export const columns: ColumnDef<PackageRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => {
+		cell: ({ row: _row }) => {
 			return (
 				<div className="flex items-center gap-2">
 					<button

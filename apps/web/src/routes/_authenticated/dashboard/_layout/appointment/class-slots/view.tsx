@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { BranchSelector } from "@/components/branch/branch-selector";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";

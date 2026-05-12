@@ -5,7 +5,6 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
 	Select,
 	SelectContent,

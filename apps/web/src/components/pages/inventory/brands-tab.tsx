@@ -16,7 +16,7 @@ export function BrandsTabPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
 	// Dialog state
-	const [_editTarget, setEditTarget] = useState<BrandRow | null>(null);
+	const [_editTarget, _setEditTarget] = useState<BrandRow | null>(null);
 	const [_deleteTarget, setDeleteTarget] = useState<BrandRow | null>(null);
 
 	// Query

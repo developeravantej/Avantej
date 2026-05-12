@@ -44,7 +44,7 @@ export default function DataTable<TData, TValue>({
 	columns,
 	data,
 	organizationId,
-	isLoading = false,
+	isLoading: _isLoading = false,
 	emptyTitle,
 	emptyDescription,
 	emptyAction,

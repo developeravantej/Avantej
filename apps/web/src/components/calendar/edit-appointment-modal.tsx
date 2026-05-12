@@ -32,11 +32,11 @@ export function EditAppointmentModal({
 	onClose,
 	onSuccess,
 }: EditAppointmentModalProps) {
-	const { data: userCtx } = useUserContext();
+	const { data: _userCtx } = useUserContext();
 	const { trainers } = useAppointmentFormData();
 
 	// Fetch appointment detail to get current staff
-	const { data: staffRows = [], isLoading: isLoadingStaff } = useQuery({
+	const { data: _staffRows = [], isLoading: isLoadingStaff } = useQuery({
 		queryKey: ["appointmentStaff", appointmentId],
 		queryFn: () =>
 			client.packageInstanceStaff

@@ -82,8 +82,8 @@ type AppointmentFormContentProps = {
 };
 
 export function AppointmentFormContent({
-	clients, services, rooms, trainers, teamMembers, onSubmit, onClose,
-	newAppointment, isServiceDialogOpen, setIsServiceDialogOpen,
+	clients, services, rooms, trainers, teamMembers: _teamMembers, onSubmit, onClose,
+	newAppointment, isServiceDialogOpen: _isServiceDialogOpen, setIsServiceDialogOpen: _setIsServiceDialogOpen,
 	isMultiAppointment, setIsMultiAppointment, isBlockedTiming, setIsBlockedTiming,
 	appointmentSlots, setAppointmentSlots, selectedAppointmentId, setSelectedAppointmentId,
 	isTestDialogOpen, setIsTestDialogOpen, testAppointmentData, setTestAppointmentData,
@@ -91,7 +91,7 @@ export function AppointmentFormContent({
 	derivedTrainers, trainerFilterActive, trainerFilterFallback,
 	isLoadingPackages, purchasedServiceIds, selectedClassSlotService, commissionSlots,
 	classSlotOptions, trainerPlaceholder, getWeekPosition, formatDuration,
-	handleClientChange, handleInputChange, addService, removeService, adjustDuration,
+	handleClientChange, handleInputChange, addService, removeService, adjustDuration: _adjustDuration,
 	handleCustomRecurrenceChange, toggleDay, addNewAppointmentSlot, removeAppointmentSlot,
 	selectAppointmentSlot, updateAppointmentSlot, addServiceToSlot, removeServiceFromSlot,
 	handleMultiAppointmentToggle, handleBlockedTimingToggle, resetForm, clearAllForm,
