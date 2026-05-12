@@ -1,0 +1,17 @@
+{
+  "sources": [
+    {
+      "name": "react-doctor-web",
+      "cmd": "npx -y react-doctor@latest apps/web --json 2>/dev/null || true",
+      "format": "react-doctor",
+      "enabled": true
+    },
+    {
+      "name": "tsc-web",
+      "cmd": "bunx tsc -p apps/web/tsconfig.json --noEmit 2>&1",
+      "format": "tsc-text",
+      "enabled": true
+    }
+  ],
+  "default_severity_filter": "warning"
+}
