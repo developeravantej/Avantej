@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
-	Image,
 	Pressable,
 	ScrollView,
 	Text,
@@ -158,7 +158,7 @@ export default function ReviewScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 

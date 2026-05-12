@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { Image } from "expo-image";
 import {
-	Image,
 	Pressable,
 	ScrollView,
 	Text,
@@ -202,7 +202,7 @@ export default function PackageDetailScreen() {
 					<Image
 						source={{ uri: DEFAULT_IMAGE }}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 

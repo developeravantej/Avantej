@@ -32,6 +32,69 @@ interface AppointmentCalendarProps {
 	defaultTrainerId?: string | null;
 }
 
+interface CalendarGridProps {
+	view: CalendarView;
+	currentDate: Date;
+	calendarDays: Date[];
+	defaultTrainerId?: string | null;
+	gridContainerRef: React.RefObject<HTMLDivElement | null>;
+	getSortedAppointmentsForDate: (date: Date) => Appointment[];
+	isTodayDate: (date: Date) => boolean;
+	isCurrentPeriod: (date: Date) => boolean;
+	handleAppointmentClick: (appointment: Appointment) => void;
+	handleDayCellClick: (date: Date) => void;
+	openAddModal: () => void;
+}
+
+function CalendarGrid({
+	view,
+	currentDate,
+	calendarDays,
+	defaultTrainerId,
+	gridContainerRef,
+	getSortedAppointmentsForDate,
+	isTodayDate,
+	isCurrentPeriod,
+	handleAppointmentClick,
+	handleDayCellClick,
+	openAddModal,
+}: CalendarGridProps) {
+	if (view === "daily") {
+		return (
+			<DayTimeGrid
+				ref={gridContainerRef}
+				appts={getSortedAppointmentsForDate(currentDate)}
+				currentDate={currentDate}
+				defaultTrainerId={defaultTrainerId}
+				onAppointmentClick={handleAppointmentClick}
+				onAddAppointment={openAddModal}
+			/>
+		);
+	}
+	const minHeight = view === "monthly" ? "min-h-[120px]" : "min-h-[150px]";
+	return (
+		<div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+			{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+				<div key={day} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+					{day}
+				</div>
+			))}
+			{calendarDays.map((date) => (
+				<React.Fragment key={date.toISOString()}>
+					<CalendarCell
+						date={date}
+						appts={getSortedAppointmentsForDate(date)}
+						isTodayDate={isTodayDate(date)}
+						inPeriod={view === "monthly" ? isCurrentPeriod(date) : true}
+						minHeight={minHeight}
+						onCellClick={handleDayCellClick}
+					/>
+				</React.Fragment>
+			))}
+		</div>
+	);
+}
+
 export function AppointmentCalendar({
 	appointments = EMPTY_APPOINTMENTS,
 	onDateSelect,
@@ -238,43 +301,6 @@ export function AppointmentCalendar({
 	// intentional: appointments in deps causes scroll-jump UX regression on every background refetch
 	}, [view, currentDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	const renderCalendarGrid = () => {
-		if (view === "daily") {
-			return (
-				<DayTimeGrid
-					ref={gridContainerRef}
-					appts={getSortedAppointmentsForDate(currentDate)}
-					currentDate={currentDate}
-					defaultTrainerId={defaultTrainerId}
-					onAppointmentClick={handleAppointmentClick}
-					onAddAppointment={openAddModal}
-				/>
-			);
-		}
-		const minHeight = view === "monthly" ? "min-h-[120px]" : "min-h-[150px]";
-		return (
-			<div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-				{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-					<div key={day} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-						{day}
-					</div>
-				))}
-				{calendarDays.map((date) => (
-					<React.Fragment key={date.toISOString()}>
-						<CalendarCell
-							date={date}
-							appts={getSortedAppointmentsForDate(date)}
-							isTodayDate={isToday(date)}
-							inPeriod={view === "monthly" ? isCurrentPeriod(date) : true}
-							minHeight={minHeight}
-							onCellClick={handleDayCellClick}
-						/>
-					</React.Fragment>
-				))}
-			</div>
-		);
-	};
-
 	return (
 		<>
 			<Card className="w-full">
@@ -356,7 +382,19 @@ export function AppointmentCalendar({
 						</Button>
 					</div>
 
-					{renderCalendarGrid()}
+					<CalendarGrid
+						view={view}
+						currentDate={currentDate}
+						calendarDays={calendarDays}
+						defaultTrainerId={defaultTrainerId}
+						gridContainerRef={gridContainerRef}
+						getSortedAppointmentsForDate={getSortedAppointmentsForDate}
+						isTodayDate={isToday}
+						isCurrentPeriod={isCurrentPeriod}
+						handleAppointmentClick={handleAppointmentClick}
+						handleDayCellClick={handleDayCellClick}
+						openAddModal={openAddModal}
+					/>
 
 					<div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
 						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-green-500 inline-block" />Came (confirmed)</span>

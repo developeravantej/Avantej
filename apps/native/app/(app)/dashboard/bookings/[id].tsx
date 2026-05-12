@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useHideTabBar } from "@/hooks/useHideTabBar";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
-	Image,
 	Pressable,
 	ScrollView,
 	Text,
@@ -209,7 +209,7 @@ export default function BookingDetailScreen() {
 						<Image
 							source={{ uri: appointment.imageUrl }}
 							className="h-64 w-full rounded-2xl"
-							resizeMode="cover"
+							contentFit="cover"
 						/>
 					</View>
 				)}

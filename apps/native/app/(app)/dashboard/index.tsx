@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
-	Image,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -288,7 +288,7 @@ export default function Home() {
 							<Image
 								source={{ uri: "https://via.placeholder.com/48" }}
 								className="h-full w-full"
-								resizeMode="cover"
+								contentFit="cover"
 							/>
 						</View>
 						<View className="flex-1">
@@ -568,7 +568,7 @@ export default function Home() {
 										<Image
 											source={{ uri: upcomingActivity.image }}
 											className="h-full w-full"
-											resizeMode="cover"
+											contentFit="cover"
 											style={{
 												position: "absolute",
 												top: 0,

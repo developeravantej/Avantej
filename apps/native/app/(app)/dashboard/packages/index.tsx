@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
+import { Image } from "expo-image";
 import {
-	Image,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -233,7 +233,7 @@ export default function PackagesScreen() {
 										<Image
 											source={{ uri: pkg.imageUrl }}
 											className="mr-4 size-24 rounded-xl"
-											resizeMode="cover"
+											contentFit="cover"
 										/>
 										<View className="flex-1">
 											<View className="mb-2 flex-row items-start justify-between">

@@ -369,7 +369,52 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 
 	if (visibleItems.length === 0) return null;
 
-	const renderItems = () => (
+	if (group.collapsible) {
+		return (
+			<SidebarGroup className="py-1">
+				<button
+					type="button"
+					onClick={() => setIsOpen((v) => !v)}
+					className="flex w-full items-center justify-between px-2 py-1.5 text-left font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden"
+				>
+					<span>{group.label}</span>
+					<ChevronRight
+						className={cn(
+							"size-3 shrink-0 transition-transform",
+							isOpen && "rotate-90",
+						)}
+					/>
+				</button>
+				{isOpen && (
+					<SidebarGroupContent>
+						<NavGroupItems visibleItems={visibleItems} pathname={pathname} />
+					</SidebarGroupContent>
+				)}
+			</SidebarGroup>
+		);
+	}
+
+	return (
+		<SidebarGroup className="py-1">
+			<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+				{group.label}
+			</SidebarGroupLabel>
+
+			<SidebarGroupContent>
+				<NavGroupItems visibleItems={visibleItems} pathname={pathname} />
+			</SidebarGroupContent>
+		</SidebarGroup>
+	);
+}
+
+function NavGroupItems({
+	visibleItems,
+	pathname,
+}: {
+	visibleItems: SidebarNavGroup["items"];
+	pathname: string;
+}) {
+	return (
 		<SidebarMenu>
 			{visibleItems.map((item) => {
 				const isActive =
@@ -389,37 +434,6 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 				);
 			})}
 		</SidebarMenu>
-	);
-
-	if (group.collapsible) {
-		return (
-			<SidebarGroup className="py-1">
-				<button
-					type="button"
-					onClick={() => setIsOpen((v) => !v)}
-					className="flex w-full items-center justify-between px-2 py-1.5 text-left font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden"
-				>
-					<span>{group.label}</span>
-					<ChevronRight
-						className={cn(
-							"size-3 shrink-0 transition-transform",
-							isOpen && "rotate-90",
-						)}
-					/>
-				</button>
-				{isOpen && <SidebarGroupContent>{renderItems()}</SidebarGroupContent>}
-			</SidebarGroup>
-		);
-	}
-
-	return (
-		<SidebarGroup className="py-1">
-			<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
-				{group.label}
-			</SidebarGroupLabel>
-
-			<SidebarGroupContent>{renderItems()}</SidebarGroupContent>
-		</SidebarGroup>
 	);
 }
 

@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect, useRef, useState } from "react";
+import { Image } from "expo-image";
 import {
 	Alert,
-	Image,
 	Modal,
 	Pressable,
 	ScrollView,
@@ -155,7 +155,7 @@ export default function SignScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
@@ -377,10 +377,10 @@ export default function SignScreen() {
 									<View className="h-full w-full items-center justify-center bg-primary-3">
 										<Image
 											source={{ uri: signature }}
+											contentFit="contain"
 											style={{
 												width: "100%",
 												height: "100%",
-												resizeMode: "contain",
 											}}
 										/>
 									</View>

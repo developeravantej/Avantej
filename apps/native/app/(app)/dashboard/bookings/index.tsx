@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
-	Image,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -294,7 +294,7 @@ export default function BookingsScreen() {
 											uri: booking.imageUrl || DEFAULT_IMAGE,
 										}}
 										className="mr-4 size-24 rounded-xl"
-										resizeMode="cover"
+										contentFit="cover"
 									/>
 
 									{/* Details */}
@@ -449,7 +449,7 @@ export default function BookingsScreen() {
 											uri: booking.imageUrl || DEFAULT_IMAGE,
 										}}
 										className="mr-4 size-24 rounded-xl"
-										resizeMode="cover"
+										contentFit="cover"
 									/>
 
 									{/* Details */}

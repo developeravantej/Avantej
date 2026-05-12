@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
-	Image,
 	Pressable,
 	ScrollView,
 	Text,
@@ -179,7 +179,7 @@ export default function ServiceDetailScreen() {
 					<Image
 						source={{ uri: svc.imageUrl ?? DEFAULT_IMAGE }}
 						className="h-72 w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 					<Pressable
 						onPress={() => router.back()}
@@ -382,7 +382,7 @@ export default function ServiceDetailScreen() {
 									<Image
 										source={{ uri: relSvc.imageUrl ?? DEFAULT_IMAGE }}
 										className="mr-3 size-14 rounded-lg"
-										resizeMode="cover"
+										contentFit="cover"
 									/>
 									<View className="flex-1">
 										<View className="mb-1 flex-row items-center justify-between">

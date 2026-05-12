@@ -3,9 +3,9 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Image } from "expo-image";
 import {
 	FlatList,
-	Image,
 	Modal,
 	Platform,
 	Pressable,
@@ -502,7 +502,7 @@ export default function ScheduleScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 

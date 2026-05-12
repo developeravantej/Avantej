@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
+import { Image } from "expo-image";
 import {
-	Image,
 	Pressable,
 	ScrollView,
 	Text,
@@ -217,7 +217,7 @@ export default function ExploreScreen() {
 													uri: service.imageUrl ?? DEFAULT_IMAGE,
 												}}
 												className="mr-4 size-24 rounded-xl"
-												resizeMode="cover"
+												contentFit="cover"
 											/>
 											<View className="flex-1">
 												<Text
@@ -305,7 +305,7 @@ export default function ExploreScreen() {
 													uri: service.imageUrl ?? DEFAULT_IMAGE,
 												}}
 												className="mr-4 size-24 rounded-xl"
-												resizeMode="cover"
+												contentFit="cover"
 											/>
 											<View className="flex-1">
 												<Text

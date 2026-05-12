@@ -3,7 +3,8 @@
     "rules": [
       "react-doctor/rendering-hydration-mismatch-time",
       "react-doctor/rerender-state-only-in-handlers",
-      "react-doctor/rendering-usetransition-loading"
+      "react-doctor/rendering-usetransition-loading",
+      "react-doctor/rn-no-legacy-expo-packages"
     ],
     "files": [
       "**/node_modules/**",

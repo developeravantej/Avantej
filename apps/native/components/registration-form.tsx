@@ -4,11 +4,11 @@ import { client } from "@/utils/orpc";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
 	FlatList,
-	Image,
 	Modal,
 	Platform,
 	Pressable,
@@ -1209,7 +1209,7 @@ export default function RegistrationForm() {
 						<Image
 							source={require("../assets/images/Logo-B.png")}
 							className="mb-2 size-12"
-							resizeMode="contain"
+							contentFit="contain"
 						/>
 						<Text className="font-bold text-2xl text-primary-1">
 							User Registration

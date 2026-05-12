@@ -1,10 +1,10 @@
 import { useAuth } from "@/hooks/useAuth";
 import { router } from "expo-router";
 import { useState } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
-	Image,
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
@@ -90,7 +90,7 @@ export default function SignUpScreen() {
 							<Image
 								source={require("../../assets/images/Logo-B.png")}
 								style={{ width: 64, height: 64 }}
-								resizeMode="contain"
+								contentFit="contain"
 							/>
 						</View>
 						<Text

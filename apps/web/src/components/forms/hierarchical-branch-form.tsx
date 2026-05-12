@@ -75,6 +75,82 @@ interface HierarchyItem {
   code?: string;
 }
 
+interface StepHeaderProps {
+  currentStep: number;
+  selectedCountry: HierarchyItem | null;
+  selectedState: HierarchyItem | null;
+}
+
+function StepHeader({ currentStep, selectedCountry, selectedState }: StepHeaderProps) {
+  const steps = [
+    {
+      number: 1,
+      title: "Country",
+      icon: Globe,
+      completed: !!selectedCountry,
+    },
+    {
+      number: 2,
+      title: "State",
+      icon: MapIcon,
+      completed: !!selectedState,
+    },
+    { number: 3, title: "Branch", icon: Target, completed: false },
+  ];
+
+  return (
+    <div className="mb-8 flex items-center justify-between">
+      {steps.map((step, index) => (
+        <React.Fragment key={step.number}>
+          <div className="flex flex-col items-center">
+            <div
+              className={`flex items-center space-x-2 ${
+                currentStep === step.number
+                  ? "text-brand-primary-1"
+                  : step.completed
+                    ? "text-brand-primary-1"
+                    : "text-brand-secondary-1"
+              }`}
+            >
+              <div
+                className={`flex size-10 items-center justify-center rounded-full ${
+                  currentStep === step.number
+                    ? "bg-gray-950 text-white"
+                    : step.completed
+                      ? "bg-brand-primary-1 text-white"
+                      : "bg-brand-secondary-3 text-brand-secondary-1"
+                }`}
+              >
+                <step.icon className="size-5" />
+              </div>
+            </div>
+            <span
+              className={`mt-2 font-medium text-sm ${
+                currentStep === step.number
+                  ? "text-brand-primary-1"
+                  : step.completed
+                    ? "text-brand-primary-1"
+                    : "text-brand-secondary-1"
+              }`}
+            >
+              {step.title}
+            </span>
+          </div>
+          {index < steps.length - 1 && (
+            <div className="flex-1 mx-4 flex items-center">
+              <div
+                className={`flex-1 h-0.5 ${
+                  step.completed ? "bg-brand-primary-1" : "border-t border-brand-secondary-3"
+                }`}
+              />
+            </div>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   onSuccess,
 }) => {
@@ -380,76 +456,6 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     }
   };
 
-  const renderStepHeader = () => {
-    const steps = [
-      {
-        number: 1,
-        title: "Country",
-        icon: Globe,
-        completed: !!selectedCountry,
-      },
-      {
-        number: 2,
-        title: "State",
-        icon: MapIcon,
-        completed: !!selectedState,
-      },
-      { number: 3, title: "Branch", icon: Target, completed: false },
-    ];
-
-    return (
-      <div className="mb-8 flex items-center justify-between">
-        {steps.map((step, index) => (
-          <React.Fragment key={step.number}>
-            <div className="flex flex-col items-center">
-              <div
-                className={`flex items-center space-x-2 ${
-                  currentStep === step.number
-                    ? "text-brand-primary-1"
-                    : step.completed
-                      ? "text-brand-primary-1"
-                      : "text-brand-secondary-1"
-                }`}
-              >
-                <div
-                  className={`flex size-10 items-center justify-center rounded-full ${
-                    currentStep === step.number
-                      ? "bg-gray-950 text-white"
-                      : step.completed
-                        ? "bg-brand-primary-1 text-white"
-                        : "bg-brand-secondary-3 text-brand-secondary-1"
-                  }`}
-                >
-                  <step.icon className="size-5" />
-                </div>
-              </div>
-              <span
-                className={`mt-2 font-medium text-sm ${
-                  currentStep === step.number
-                    ? "text-brand-primary-1"
-                    : step.completed
-                      ? "text-brand-primary-1"
-                      : "text-brand-secondary-1"
-                }`}
-              >
-                {step.title}
-              </span>
-            </div>
-            {index < steps.length - 1 && (
-              <div className="flex-1 mx-4 flex items-center">
-                <div
-                  className={`flex-1 h-0.5 ${
-                    step.completed ? "bg-brand-primary-1" : "border-t border-brand-secondary-3"
-                  }`}
-                />
-              </div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  };
-
   const renderStep1 = () => (
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
@@ -753,7 +759,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         <p className="text-sm text-brand-secondary-1 mt-1">Set up a new branch by selecting its location in the hierarchy.</p>
       </div>
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-        {renderStepHeader()}
+        <StepHeader
+          currentStep={currentStep}
+          selectedCountry={selectedCountry}
+          selectedState={selectedState}
+        />
 
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
