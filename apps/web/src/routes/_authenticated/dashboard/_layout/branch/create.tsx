@@ -30,7 +30,6 @@ export const Route = createFileRoute(
 function CreateBranchComponent() {
 	const handleSuccess = () => {
 		// TODO: Navigate to branch view after successful creation
-		console.log("Branch created successfully");
 	};
 
 	return (
@@ -38,7 +37,7 @@ function CreateBranchComponent() {
 			{/* Main Form - Takes 2 columns on large screens */}
 			<div className="lg:col-span-2 space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold">Create Branch</h1>
+					<h1 className="text-3xl font-bold font-heading">Create Branch</h1>
 				</div>
 				<HierarchicalBranchForm onSuccess={handleSuccess} />
 			</div>
@@ -57,7 +56,7 @@ function CreateBranchComponent() {
 						<div className="space-y-4">
 							{/* Step 1: Country */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm">
+								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									1
 								</div>
 								<div className="flex-1">
@@ -70,7 +69,7 @@ function CreateBranchComponent() {
 
 							{/* Step 2: Region */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm">
+								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									2
 								</div>
 								<div className="flex-1">
@@ -83,7 +82,7 @@ function CreateBranchComponent() {
 
 							{/* Step 3: Area */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm">
+								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									3
 								</div>
 								<div className="flex-1">
@@ -96,7 +95,7 @@ function CreateBranchComponent() {
 
 							{/* Step 4: Branch */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm">
+								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									4
 								</div>
 								<div className="flex-1">
@@ -109,7 +108,7 @@ function CreateBranchComponent() {
 						</div>
 
 						{/* Permissions Required */}
-						<div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+						<div className="rounded-lg bg-brand-secondary-3/50 p-4 border border-brand-secondary-3">
 							<h3 className="font-semibold text-sm mb-2">Permissions Required</h3>
 							<p className="text-sm text-muted-foreground">
 								You need Organization Owner permissions to create branches and hierarchy items.

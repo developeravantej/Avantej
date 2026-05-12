@@ -11,6 +11,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
+import { writeAudit } from "./audit-log.service";
 
 /**
  * Get all members assigned to a specific hierarchy node
@@ -326,4 +327,60 @@ export async function createMember(
       `Failed to create member: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
+}
+
+/**
+ * Deactivate a member in the tenant database
+ *
+ * Sets the member's status to "inactive" directly in the tenant database.
+ * Unlike suspend (which dual-writes to control panel), this is a tenant-only operation.
+ * Audit row is written inside the same transaction as the status change.
+ *
+ * @param tenantDb - Drizzle client for the tenant database
+ * @param memberId - UUID of the member to deactivate
+ * @param actor - Actor info (userId, memberId, role) for the audit log
+ * @returns Updated member record
+ * @throws Error if member not found
+ */
+export async function deactivateMember(
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  memberId: string,
+  actor: { userId: string; memberId: string; role: string },
+): Promise<typeof members.$inferSelect> {
+  const existing = await tenantDb.query.members.findFirst({
+    where: eq(members.id, memberId),
+  });
+  if (!existing) {
+    throw new Error(`Member not found: ${memberId}`);
+  }
+
+  return tenantDb.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(members)
+      .set({ status: "inactive" })
+      .where(eq(members.id, memberId))
+      .returning();
+
+    if (!updated) {
+      throw new Error(`Failed to deactivate member: ${memberId}`);
+    }
+
+    await writeAudit(tx, {
+      actorUserId: actor.userId,
+      actorMemberId: actor.memberId,
+      actorRole: actor.role,
+      action: "member.deactivate",
+      entityType: "member",
+      entityId: memberId,
+      branchId: existing.hierarchyScopeId ?? undefined,
+      summary: `Deactivated member ${memberId}`,
+      changes: {
+        statusBefore: existing.status,
+        statusAfter: "inactive",
+        role: existing.role,
+      },
+    });
+
+    return updated;
+  });
 }

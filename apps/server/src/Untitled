@@ -1,0 +1,6 @@
+I have linked tenant database’s branch and country hierarchy node id to a new added table in core database, call organization_branch table, in your user registration flow, you should be able to query the core database, let say user select “country” -> query core db’s organization_branch to display all the branches within that country (you need to build that backend api) something like: 
+
+For the registration flow, you'd need a public endpoint (no auth) that queries the control panel DB's organization_branches table:
+
+  1. GET /api/registration/countries → SELECT DISTINCT country FROM organization_branches
+  2. GET /api/registration/branches?country=Malaysia → SELECT name, address, organizationId FROM organization_branches WHERE country = ?

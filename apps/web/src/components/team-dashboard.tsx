@@ -10,10 +10,20 @@ import { ChevronsUpDown, ChevronUp } from "lucide-react";
 import { Card } from "./ui/card";
 import { CardContent } from "./ui/card";
 
+interface TeamDataItem {
+  target: string | number;
+  score: string | number;
+}
+
+interface TeamDataSection {
+  name: string;
+  data: TeamDataItem[];
+}
+
 export interface TeamData {
   id: string;
   name: string;
-  [key: string]: any; // Allow for dynamic custom data properties
+  teamData: TeamDataSection[];
 }
 
 interface TeamDashboardProps {
@@ -27,11 +37,11 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
   );
 
   // Get all custom data keys
-  const customDataKeys = selectedTeam.teamData.map((team: any) => team.name);
+  const customDataKeys = selectedTeam.teamData.map((section) => section.name);
 
   const [showValues, setShowValues] = React.useState<Record<string, boolean>>(
-    customDataKeys.reduce(
-      (acc: any, key: any) => ({ ...acc, [key]: false }),
+    customDataKeys.reduce<Record<string, boolean>>(
+      (acc, key) => ({ ...acc, [key]: false }),
       {}
     )
   );
@@ -62,11 +72,11 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
           </DropdownMenu>
         </div>
 
-        <div className="overflow-y-auto max-h-[200px] pr-4 -mr-4  [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className="overflow-y-auto max-h-[200px] pr-4 -mr-4  [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-brand-secondary-2 [&::-webkit-scrollbar-thumb]:rounded-full">
           <div className="space-y-6 max-w-2xl mx-auto">
-            {customDataKeys.map((key: any) => {
+            {customDataKeys.map((key) => {
               const team = selectedTeam.teamData.find(
-                (t: any) => t.name === key
+                (t) => t.name === key
               );
               return (
                 <Card
@@ -103,7 +113,7 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
                             </tr>
                           </thead>
                           <tbody>
-                            {team.data.map((dataItem: any, dataIndex: any) => (
+                            {team?.data.map((dataItem, dataIndex) => (
                               <tr key={dataIndex} className="border-t">
                                 <td className="py-2">{dataItem.target}</td>
                                 <td className="py-2">{dataItem.score}</td>

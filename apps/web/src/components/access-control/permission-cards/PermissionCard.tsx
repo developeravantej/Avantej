@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Minus, ChevronDown, ChevronRight, Edit, Trash2, Shield, Users } from 'lucide-react';
+import { Check, Minus, ChevronDown, ChevronRight, Edit, Trash2, Shield, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,7 +132,7 @@ export function PermissionCard({
       case 3:
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3';
     }
   };
 

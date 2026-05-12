@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Mail, CheckCircle, XCircle, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
-import { SignupForm } from "@/components/forms/signup-form";
+import { useEffect, useRef, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/accept-invitation")({
 	component: AcceptInvitationPage,
@@ -62,8 +64,8 @@ function AcceptInvitationPage() {
 	});
 
 	// Accept invitation mutation
-	const acceptMutation = useMutation({
-		mutationFn: async () => {
+	const acceptMutation = useApiMutation({
+		mutationFn: async (_: void) => {
 			if (!token || !orgId) {
 				throw new Error("Token and organization ID are required");
 			}
@@ -72,8 +74,17 @@ function AcceptInvitationPage() {
 				organizationId: orgId,
 			});
 		},
+		successMessage: "Successfully joined organization!",
+		errorMessage: (error) => {
+			if (error.message.includes("UNAUTHORIZED")) {
+				return "Please sign up or log in to accept this invitation";
+			}
+			if (error.message.includes("different email address") || error.message.includes("sent to")) {
+				return error.message || "This invitation was sent to a different email address";
+			}
+			return `Failed to accept invitation: ${error.message}`;
+		},
 		onSuccess: () => {
-			toast.success("Successfully joined organization!");
 			// Ensure the app routes into the invited tenant context immediately
 			try {
 				if (orgId) {
@@ -87,20 +98,14 @@ function AcceptInvitationPage() {
 				navigate({ to: `/dashboard` });
 			}, 2000);
 		},
-		onError: (error: Error) => {
-			// Handle specific error cases
-			if (error.message.includes("UNAUTHORIZED")) {
-				toast.error("Please sign up or log in to accept this invitation");
-			} else if (error.message.includes("different email address") || error.message.includes("sent to")) {
-				toast.error(error.message || "This invitation was sent to a different email address");
-			} else {
-				toast.error(`Failed to accept invitation: ${error.message}`);
-			}
-		},
 	});
+
+	const hasProcessedRef = useRef(false);
 
 	// Auto-accept if user is logged in and invitation is valid (for existing users logging in)
 	useEffect(() => {
+		if (hasProcessedRef.current) return;
+
 		if (
 			!isSessionLoading &&
 			session?.user &&
@@ -110,10 +115,17 @@ function AcceptInvitationPage() {
 		) {
 			// Verify email matches invitation before auto-accepting
 			const userEmail = session.user.email?.toLowerCase();
-			const invitationEmail = invitation?.email.toLowerCase();
-			
+			const invitationEmail = invitation?.email?.toLowerCase();
+
 			if (userEmail === invitationEmail) {
+				hasProcessedRef.current = true;
 				acceptMutation.mutate();
+			} else if (userEmail && invitationEmail) {
+				// Email mismatch — show a user-facing warning instead of silently ignoring
+				toast.warning(
+					`This invitation was sent to ${invitation?.email}. You're signed in as ${session.user.email}. Please sign out and use the correct email.`,
+					{ duration: 10000 }
+				);
 			}
 		}
 	}, [
@@ -144,40 +156,61 @@ function AcceptInvitationPage() {
 		verifyEmailMutation.isError,
 	]);
 
-	// Function to handle signup success and accept invitation directly
-	const handleSignupSuccess = async () => {
-		try {
-			// Refresh session after signup
-			await refetchSession();
-			
-			// Wait a moment for session to propagate
-			await new Promise(resolve => setTimeout(resolve, 500));
+	// Atomic signup + accept + GHL sync. Single round-trip — avoids the
+	// `requireEmailVerification:true` chicken-and-egg where Better-Auth
+	// signUp doesn't return a session.
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
+	const [phone, setPhone] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 
-			const sessionResult = await authClient.getSession();
-			
-			// Verify session is available and email matches
-			if (!sessionResult.data?.user) {
-				console.error("Session not available after signup");
-				toast.error("Failed to verify session after signup. Please try accepting the invitation again.");
-				return;
+	const acceptWithSignupMutation = useApiMutation({
+		mutationFn: async (_: void) => {
+			if (!token || !orgId || !invitation) {
+				throw new Error("Missing invitation context");
 			}
-			
-			const userEmail = sessionResult.data.user.email?.toLowerCase();
-			const invitationEmail = invitation?.email.toLowerCase();
-			
-			if (userEmail !== invitationEmail) {
-				toast.error(`Email mismatch: signed up with ${sessionResult.data.user.email} but invitation is for ${invitation?.email}`);
-				return;
+			const trimmedPhone = phone.trim();
+			return await client.invitations.acceptWithSignup({
+				token,
+				organizationId: orgId,
+				email: invitation.email,
+				password,
+				firstName: firstName.trim(),
+				lastName: lastName.trim(),
+				phone: trimmedPhone.length > 0 ? trimmedPhone : undefined,
+			});
+		},
+		successMessage: "Welcome! Your account is set up.",
+		errorMessage: (error) => error.message || "Failed to accept invitation",
+		onSuccess: () => {
+			try {
+				if (orgId) localStorage.setItem("current_organization_id", orgId);
+			} catch {
+				// ignore storage errors
 			}
-			
-			// Directly call accept mutation
-			if (!acceptMutation.isPending && !acceptMutation.isSuccess) {
-				acceptMutation.mutate();
-			}
-		} catch (error) {
-			console.error("Error handling signup success:", error);
-			toast.error("Failed to accept invitation after signup. Please try again.");
+			// Hard reload installs the session cookie set by the server.
+			setTimeout(() => {
+				window.location.href = "/dashboard";
+			}, 800);
+		},
+	});
+
+	const handleSubmitSignup = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!firstName.trim() || !lastName.trim()) {
+			toast.error("First name and last name are required");
+			return;
 		}
+		if (password.length < 8) {
+			toast.error("Password must be at least 8 characters");
+			return;
+		}
+		if (password !== confirmPassword) {
+			toast.error("Passwords do not match");
+			return;
+		}
+		acceptWithSignupMutation.mutate();
 	};
 
 	// Show signup form directly if not authenticated and invitation is valid
@@ -212,17 +245,87 @@ function AcceptInvitationPage() {
 								</div>
 							</div>
 
-							{/* Signup form with pre-filled email */}
+							{/* Atomic signup-and-accept form */}
 							<div className="pt-2">
 								<p className="text-sm text-muted-foreground mb-4 text-center">
 									Create your account to accept this invitation and join the organization
 								</p>
-								<SignupForm 
-									invitationEmail={invitation.email}
-									invitationToken={token}
-									orgId={orgId}
-									onSignupSuccess={handleSignupSuccess}
-								/>
+								<form onSubmit={handleSubmitSignup} className="space-y-3">
+									<div>
+										<Label htmlFor="firstName">First Name</Label>
+										<Input
+											id="firstName"
+											value={firstName}
+											onChange={(e) => setFirstName(e.target.value)}
+											required
+										/>
+									</div>
+									<div>
+										<Label htmlFor="lastName">Last Name</Label>
+										<Input
+											id="lastName"
+											value={lastName}
+											onChange={(e) => setLastName(e.target.value)}
+											required
+										/>
+									</div>
+									<div>
+										<Label htmlFor="email">Email Address</Label>
+										<Input
+											id="email"
+											value={invitation.email}
+											readOnly
+											className="bg-muted"
+										/>
+										<p className="text-xs text-muted-foreground mt-1">
+											This email is required for this invitation
+										</p>
+									</div>
+									<div>
+										<Label htmlFor="phone">
+											Phone <span className="text-muted-foreground">(optional)</span>
+										</Label>
+										<Input
+											id="phone"
+											type="tel"
+											value={phone}
+											onChange={(e) => setPhone(e.target.value)}
+											placeholder="+60123456789"
+											autoComplete="tel"
+										/>
+									</div>
+									<div>
+										<Label htmlFor="password">Password</Label>
+										<Input
+											id="password"
+											type="password"
+											value={password}
+											onChange={(e) => setPassword(e.target.value)}
+											required
+											minLength={8}
+										/>
+									</div>
+									<div>
+										<Label htmlFor="confirmPassword">Confirm Password</Label>
+										<Input
+											id="confirmPassword"
+											type="password"
+											value={confirmPassword}
+											onChange={(e) => setConfirmPassword(e.target.value)}
+											required
+											minLength={8}
+										/>
+									</div>
+									<Button
+										type="submit"
+										className="w-full"
+										disabled={acceptWithSignupMutation.isPending}
+									>
+										{acceptWithSignupMutation.isPending
+											? "Setting up your account…"
+											: "Sign Up & Accept Invitation"}
+									</Button>
+								</form>
 							</div>
 
 							{/* Login option */}

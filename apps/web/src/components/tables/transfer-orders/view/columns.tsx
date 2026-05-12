@@ -1,108 +1,75 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ArrowUpDown } from "lucide-react";
+import { CopyableCell } from "@/components/tables/copyable-cell";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type TransferOrderStatus = "pending" | "in_transit" | "completed" | "cancelled";
 
 export interface TransferOrderRow {
-	"Transfer Number": string;
-	"Date Issued": string;
-	Form: string;
-	"Issued By": string;
-	"Issued To": string;
-	Status: string;
+	id: string;
+	transferNumber: string;
+	dateIssued: string;
+	fromBranchId: string;
+	toBranchId: string;
+	issuedByMemberId: string;
+	notes?: string | null;
+	status: TransferOrderStatus;
+	items: Array<{
+		id: string;
+		productId: string;
+		quantityTransferred: number;
+		quantityReceived?: number | null;
+		notes?: string | null;
+	}>;
+	createdAt: string;
 }
+
+
+// ---------------------------------------------------------------------------
+// Columns
+// ---------------------------------------------------------------------------
 
 export const columns: ColumnDef<TransferOrderRow>[] = [
 	{
-		accessorKey: "Transfer Number",
+		accessorKey: "transferNumber",
 		header: ({ column }) => (
 			<Button
 				variant="ghost"
-				type="button"
 				onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 			>
-				Transfer Number
+				Transfer #
 				<ArrowUpDown className="ml-2 h-4 w-4" />
 			</Button>
 		),
+		cell: ({ getValue }) => <CopyableCell value={getValue<string>()} />,
 	},
 	{
-		accessorKey: "Date Issued",
+		accessorKey: "dateIssued",
 		header: "Date Issued",
-		cell: ({ row }) => {
-			const date = row.getValue("Date Issued") as string;
-			return date ? new Date(date).toLocaleDateString() : "N/A";
-		},
+		cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
 	},
 	{
-		accessorKey: "Form",
-		header: "Form",
+		accessorKey: "fromBranchId",
+		header: "From Branch",
+		cell: ({ getValue }) => (
+			<span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+		),
 	},
 	{
-		accessorKey: "Issued By",
-		header: "Issued By",
+		accessorKey: "toBranchId",
+		header: "To Branch",
+		cell: ({ getValue }) => (
+			<span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+		),
 	},
 	{
-		accessorKey: "Issued To",
-		header: "Issued To",
-	},
-	{
-		accessorKey: "Status",
+		accessorKey: "status",
 		header: "Status",
-		cell: ({ row }) => {
-			const status = row.getValue("Status") as string;
-			const statusColors = {
-				Pending: "secondary",
-				Approved: "default",
-				"In Progress": "default",
-				Completed: "default",
-				Rejected: "destructive",
-			} as const;
-			return (
-				<Badge variant={statusColors[status as keyof typeof statusColors] ?? "secondary"}>
-					{status}
-				</Badge>
-			);
-		},
-	},
-	{
-		id: "actions",
-		enableHiding: false,
-		cell: ({ row }) => {
-			const transferOrder = row.original;
-			return (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0" type="button">
-							<span className="sr-only">Open menu</span>
-							<MoreHorizontal className="h-4 w-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Actions</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={() =>
-								navigator.clipboard.writeText(transferOrder["Transfer Number"])
-							}
-						>
-							Copy transfer number
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem>View details</DropdownMenuItem>
-						<DropdownMenuItem>Edit order</DropdownMenuItem>
-						<DropdownMenuItem>Approve order</DropdownMenuItem>
-						<DropdownMenuItem>Reject order</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			);
-		},
+		cell: ({ getValue }) => <StatusBadge status={getValue<TransferOrderStatus>() as CanonicalStatus} />,
 	},
 ];

@@ -6,9 +6,14 @@ import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
+import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
+import { serverCustomerProfilesRouter } from "@/routers/customer-profiles";
 import { adminRouter } from "@/routers/admin";
+import { tenantAdminRouter } from "@/routers/tenant-admin";
+import { ghlRouter } from "@/routers/ghl";
+
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -16,10 +21,21 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { env } from "cloudflare:workers";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+// Multi-port allowlist for dev/E2E (3001 = web, 4001 = E2E worktrees).
+// Env CORS_ORIGIN adds a prod origin per-request.
+const ALLOWED_ORIGINS = new Set<string>([
+  "http://localhost:3001",
+  "http://localhost:4001",
+]);
+function getAllowedOrigin(env: Record<string, unknown>, requestOrigin?: string): string {
+  if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) return requestOrigin;
+  const envOrigin = env?.CORS_ORIGIN;
+  if (requestOrigin && typeof envOrigin === "string" && envOrigin === requestOrigin) return requestOrigin;
+  return ((typeof envOrigin === "string" && envOrigin) || "http://localhost:3001").trim();
+}
 
 // Combine base router with server-specific routers
 const appRouter = {
@@ -30,21 +46,43 @@ const appRouter = {
 		...baseRouter.invitations,
 		...serverInvitationRouter,
 	},
+	// Extend customerProfiles router with GHL sync-enabled overrides + softDelete
+	customerProfiles: {
+		...baseRouter.customerProfiles,
+		...serverCustomerProfilesRouter,
+	},
 	admin: adminRouter,
+	tenantAdmin: tenantAdminRouter,
+	ghl: ghlRouter,
 };
 
 const app = new Hono();
 
 app.use(logger());
-app.use(
-  "/*",
-  cors({
-    origin: env.CORS_ORIGIN || "http://localhost:3001", // Add fallback for local development
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
-);
+
+// Manual CORS — replaces hono/cors to guarantee per-request origin resolution
+app.use("/*", async (c, next) => {
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  };
+
+  if (c.req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: { ...corsHeaders, "Access-Control-Max-Age": "86400" },
+    });
+  }
+
+  await next();
+
+  for (const [k, v] of Object.entries(corsHeaders)) {
+    c.header(k, v);
+  }
+});
 
 // Database middleware: Creates request-scoped connection pools
 // Must be applied early, before any database access
@@ -54,31 +92,49 @@ app.use("/*", dbMiddleware);
 // Must run after dbMiddleware but before createContext
 app.use("/*", orpcTenantMiddleware);
 
-// Better-Auth handler for internal auth routes (e.g., /api/auth/sign-in, /api/auth/sign-up)
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
-  // Clone the request to get a new body stream (required for Cloudflare Workers)
-  const clonedRequest = c.req.raw.clone();
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+  };
 
-  // Create new mutable headers
-  const headers = new Headers(clonedRequest.headers);
+  try {
+    // Clone the request to get a new body stream (required for Cloudflare Workers)
+    const clonedRequest = c.req.raw.clone();
+    const headers = new Headers(clonedRequest.headers);
+    const newRequest = new Request(clonedRequest.url, {
+      method: clonedRequest.method,
+      headers: headers,
+      body: clonedRequest.body,
+      ...(clonedRequest.body && { duplex: "half" }),
+    });
 
-  // Create a new Request with mutable headers and cloned body
-  const newRequest = new Request(clonedRequest.url, {
-    method: clonedRequest.method,
-    headers: headers,
-    body: clonedRequest.body,
-    ...(clonedRequest.body && { duplex: "half" }),
-  });
+    const auth = getBetterAuth(c);
+    const response = await auth.handler(newRequest);
 
-  // Use request-scoped Better-Auth instance
-  const auth = getBetterAuth(c);
-  return auth.handler(newRequest);
+    const newHeaders = new Headers(response.headers);
+    for (const [k, v] of Object.entries(corsHeaders)) newHeaders.set(k, v);
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  } catch (err) {
+    console.error("[auth handler]", err);
+    return new Response(
+      JSON.stringify({ error: "Internal server error", detail: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
 });
 
 // Custom auth routes following OpenAPI contract
 app.route("/auth", authRoutes);
+app.route("/auth/google-calendar", googleCalendarRoutes);
 
 // Organization routes following OpenAPI contract
 app.route("/orgs", organizationRoutes);
@@ -123,6 +179,24 @@ app.use("/rpc/*", async (c, next) => {
   });
 
   if (rpcResult.matched) {
+    // Re-attach any Set-Cookie headers stored by impersonation procedures.
+    // oRPC builds its own Response object and doesn't inherit Hono context headers,
+    // so impersonation handlers stash cookies via c.set("__impersonationSetCookie__", string[])
+    // and we merge them here before returning to the browser.
+    const impersonationCookies = c.get("__impersonationSetCookie__");
+    if (impersonationCookies && impersonationCookies.length > 0) {
+      const merged = new Headers(rpcResult.response.headers);
+      for (const cookie of impersonationCookies) {
+        merged.append("Set-Cookie", cookie);
+      }
+      // Build a new Response (not c.newResponse) to preserve status + merged headers
+      const mergedResponse = new Response(rpcResult.response.body, {
+        status: rpcResult.response.status,
+        statusText: rpcResult.response.statusText,
+        headers: merged,
+      });
+      return mergedResponse;
+    }
     return c.newResponse(rpcResult.response.body, rpcResult.response);
   }
 
@@ -146,6 +220,19 @@ app.use("/api-reference/*", async (c, next) => {
 
 app.get("/", (c) => {
   return c.text("OK");
+});
+
+app.onError((err, c) => {
+  console.error("[onError]", err);
+  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
+  return c.json(
+    { error: err.message || "Internal server error" },
+    500,
+    {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+    }
+  );
 });
 
 export default app;

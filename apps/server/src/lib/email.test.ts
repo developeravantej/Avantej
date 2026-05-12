@@ -14,7 +14,7 @@ process.env.RESEND_API_KEY = "re_test_mock_key";
 // Don't set RESEND_FROM_EMAIL and RESEND_FROM_NAME to test defaults
 
 // Mock Resend before importing email module
-const mockResendSend = mock(() => Promise.resolve({
+const mockResendSend = mock((..._args: any[]): any => Promise.resolve({
 	error: null,
 	id: "mock-email-id-123",
 }));
@@ -66,7 +66,7 @@ describe("Email Service - sendEmail", () => {
 		await sendEmail(options);
 
 		expect(mockResendSend).toHaveBeenCalledTimes(1);
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["test@example.com"]);
 		expect(callArgs.subject).toBe("Test Subject");
 		expect(callArgs.html).toBe("<p>Test HTML</p>");
@@ -76,11 +76,12 @@ describe("Email Service - sendEmail", () => {
 	});
 
 	test("handles Resend API errors properly", async () => {
-		mockResendSend.mockReturnValueOnce(Promise.resolve({
-			error: {
-				message: "Invalid API key",
-			},
-		}));
+		mockResendSend.mockReturnValueOnce(
+			Promise.resolve({
+				error: { message: "Invalid API key" },
+				id: "mock-email-id-123",
+			}) as unknown as Promise<{ error: null; id: string }>,
+		);
 
 		await expect(
 			sendEmail({
@@ -105,7 +106,7 @@ describe("Email Service - sendEmail", () => {
 			html: "<p>Test</p>",
 		});
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.from).toContain("Avantej Core");
 		expect(callArgs.from).toContain("onboarding@resend.dev");
 	});
@@ -119,7 +120,7 @@ describe("Email Service - sendEmail", () => {
 			fromName: "Custom Name",
 		});
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.from).toContain("Custom Name");
 		expect(callArgs.from).toContain("custom@example.com");
 	});
@@ -131,7 +132,7 @@ describe("Email Service - sendEmail", () => {
 			html: "<p>Test <strong>HTML</strong></p>",
 		});
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.text).toBe("Test HTML"); // HTML tags stripped
 	});
 
@@ -142,7 +143,7 @@ describe("Email Service - sendEmail", () => {
 			html: "<p>Test</p>",
 		});
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["test1@example.com", "test2@example.com"]);
 	});
 });
@@ -150,26 +151,30 @@ describe("Email Service - sendEmail", () => {
 describe("Email Service - sendVerificationEmail", () => {
 	test("sends email with correct subject and content", async () => {
 		const verificationLink = "https://example.com/verify?token=abc123";
+		// The implementation rewrites the link to point to the frontend UI
+		const expectedLink = "http://localhost:3001/verify-email?token=abc123&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
 		expect(mockResendSend).toHaveBeenCalledTimes(1);
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["test@example.com"]);
 		expect(callArgs.subject).toBe("Verify Your Email Address - Avantej Core");
-		expect(callArgs.html).toContain(verificationLink);
+		expect(callArgs.html).toContain(expectedLink);
 		expect(callArgs.html).toContain("Verify Your Email Address");
-		expect(callArgs.text).toContain(verificationLink);
+		expect(callArgs.text).toContain(expectedLink);
 	});
 
 	test("includes verification link in email", async () => {
 		const verificationLink = "https://example.com/verify?token=xyz789";
+		// The implementation rewrites the link to point to the frontend UI
+		const expectedLink = "http://localhost:3001/verify-email?token=xyz789&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
-		expect(callArgs.html).toContain(verificationLink);
-		expect(callArgs.html).toContain('href="' + verificationLink + '"');
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
+		expect(callArgs.html).toContain(expectedLink);
+		expect(callArgs.html).toContain('href="' + expectedLink + '"');
 	});
 
 	test("includes user name when provided", async () => {
@@ -177,7 +182,7 @@ describe("Email Service - sendVerificationEmail", () => {
 
 		await sendVerificationEmail("test@example.com", verificationLink, "John Doe");
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Hi John Doe");
 		expect(callArgs.text).toContain("Hi John Doe");
 	});
@@ -187,7 +192,7 @@ describe("Email Service - sendVerificationEmail", () => {
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Hi there,");
 		expect(callArgs.text).toContain("Hi there,");
 	});
@@ -200,7 +205,7 @@ describe("Email Service - sendPasswordResetEmail", () => {
 		await sendPasswordResetEmail("test@example.com", resetLink);
 
 		expect(mockResendSend).toHaveBeenCalledTimes(1);
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["test@example.com"]);
 		expect(callArgs.subject).toBe("Reset Your Password - Avantej Core");
 		expect(callArgs.html).toContain(resetLink);
@@ -213,7 +218,7 @@ describe("Email Service - sendPasswordResetEmail", () => {
 
 		await sendPasswordResetEmail("test@example.com", resetLink);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain(resetLink);
 		expect(callArgs.html).toContain('href="' + resetLink + '"');
 	});
@@ -223,7 +228,7 @@ describe("Email Service - sendPasswordResetEmail", () => {
 
 		await sendPasswordResetEmail("test@example.com", resetLink, "Jane Doe");
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Hi Jane Doe");
 		expect(callArgs.text).toContain("Hi Jane Doe");
 	});
@@ -241,7 +246,7 @@ describe("Email Service - sendInvitationEmail", () => {
 		);
 
 		expect(mockResendSend).toHaveBeenCalledTimes(1);
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["invitee@example.com"]);
 		expect(callArgs.subject).toBe("You've been invited to join Test Organization");
 		expect(callArgs.html).toContain(invitationLink);
@@ -258,7 +263,7 @@ describe("Email Service - sendInvitationEmail", () => {
 			"Test Org"
 		);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain(invitationLink);
 		expect(callArgs.html).toContain('href="' + invitationLink + '"');
 	});
@@ -274,7 +279,7 @@ describe("Email Service - sendInvitationEmail", () => {
 			"admin"
 		);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Acme Corp");
 		expect(callArgs.html).toContain("John Manager");
 		expect(callArgs.html).toContain("admin");
@@ -292,7 +297,7 @@ describe("Email Service - sendInvitationEmail", () => {
 			"Test Org"
 		);
 
-		const callArgs = mockResendSend.mock.calls[0][0];
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Test Org");
 		expect(callArgs.html).not.toContain("undefined");
 		expect(callArgs.text).toContain("Test Org");

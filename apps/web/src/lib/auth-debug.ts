@@ -8,7 +8,7 @@
 export interface TokenInfo {
   exists: boolean;
   preview?: string;
-  decoded?: any;
+  decoded?: Record<string, unknown>;
   isExpired?: boolean;
   expiresAt?: Date;
   timeUntilExpiry?: number;
@@ -17,11 +17,14 @@ export interface TokenInfo {
 /**
  * Decode JWT token without verification (for debugging only)
  */
-export function decodeJWT(token: string): any {
+export function decodeJWT(token: string): Record<string, unknown> | null {
   try {
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
-    return decoded;
+    const decoded = JSON.parse(atob(payload)) as unknown;
+    if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+      return decoded as Record<string, unknown>;
+    }
+    return null;
   } catch (error) {
     console.error('Error decoding JWT:', error);
     return null;
@@ -43,10 +46,10 @@ export function getTokenInfo(): TokenInfo {
   const info: TokenInfo = {
     exists: true,
     preview: token.substring(0, 50) + '...',
-    decoded
+    decoded: decoded ?? undefined
   };
 
-  if (decoded && decoded.exp) {
+  if (decoded && typeof decoded.exp === 'number') {
     const expiresAt = new Date(decoded.exp * 1000);
     const now = new Date();
     const timeUntilExpiry = expiresAt.getTime() - now.getTime();
@@ -66,21 +69,23 @@ export function getTokenInfo(): TokenInfo {
 export function logAuthStatus() {
   const tokenInfo = getTokenInfo();
   
-  console.group('🔐 Authentication Status');
-  console.log('Token exists:', tokenInfo.exists);
-  
-  if (tokenInfo.exists) {
-    console.log('Token preview:', tokenInfo.preview);
-    console.log('Token decoded:', tokenInfo.decoded);
-    
-    if (tokenInfo.expiresAt) {
-      console.log('Expires at:', tokenInfo.expiresAt.toLocaleString());
-      console.log('Time until expiry:', Math.round((tokenInfo.timeUntilExpiry || 0) / 1000 / 60), 'minutes');
-      console.log('Is expired:', tokenInfo.isExpired);
+  if (import.meta.env.DEV) {
+    console.group('🔐 Authentication Status');
+    console.log('Token exists:', tokenInfo.exists);
+
+    if (tokenInfo.exists) {
+      console.log('Token preview:', tokenInfo.preview);
+      console.log('Token decoded:', tokenInfo.decoded);
+
+      if (tokenInfo.expiresAt) {
+        console.log('Expires at:', tokenInfo.expiresAt.toLocaleString());
+        console.log('Time until expiry:', Math.round((tokenInfo.timeUntilExpiry || 0) / 1000 / 60), 'minutes');
+        console.log('Is expired:', tokenInfo.isExpired);
+      }
     }
+
+    console.groupEnd();
   }
-  
-  console.groupEnd();
   
   return tokenInfo;
 }

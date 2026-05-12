@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Check, X, Search, Filter, ChevronDown, ChevronRight, Minus } from 'lucide-react';
+import { Shield, Check, X, Search, ChevronDown, ChevronRight, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { PermissionResource, PermissionAction } from '../permission-matrix/PermissionMatrix';
+import type { PermissionResource } from '../permission-matrix/PermissionMatrix';
 
 interface Permission {
   resourceId: string;
@@ -27,13 +26,6 @@ interface PermissionSelectorProps {
   title?: string;
   description?: string;
   maxSelections?: number;
-}
-
-interface PermissionGroup {
-  resourceId: string;
-  actionId: string;
-  enabled: boolean;
-  scope: 'own' | 'team' | 'organization';
 }
 
 type FilterMode = 'all' | 'selected' | 'unselected';
@@ -175,16 +167,6 @@ export function PermissionSelector({
     }
   };
 
-  const getScopeBadgeColor = (scope: 'own' | 'team' | 'organization') => {
-    switch (scope) {
-      case 'own':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'team':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'organization':
-        return 'bg-green-100 text-green-800 border-green-300';
-    }
-  };
 
   const filteredResources = resources.filter(resource => {
     const matchesSearch = resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

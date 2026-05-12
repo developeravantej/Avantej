@@ -3,12 +3,10 @@ import { Users, Shield, Save, X, Check, AlertTriangle, UserPlus, UserMinus } fro
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, IconAvatar } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { Role } from '../permission-matrix/PermissionMatrix';
 
@@ -113,7 +111,7 @@ export function BulkAssignmentSheet({
       case 1: return 'bg-red-100 text-red-800 border-red-300';
       case 2: return 'bg-orange-100 text-orange-800 border-orange-300';
       case 3: return 'bg-blue-100 text-blue-800 border-blue-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      default: return 'bg-brand-secondary-3 text-brand-primary-1 border-brand-secondary-3';
     }
   };
 

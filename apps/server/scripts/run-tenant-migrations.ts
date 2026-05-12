@@ -6,7 +6,6 @@
 
 import { decrypt, runTenantMigrations } from "@avantej-core/db";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { organizations } from "@avantej-core/db/schema/control-panel/index";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { readFileSync } from "fs";

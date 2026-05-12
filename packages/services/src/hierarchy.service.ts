@@ -15,8 +15,9 @@
 
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { sql, eq, and } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type {
   CreateHierarchyNodeParams,
@@ -185,16 +186,43 @@ export async function createHierarchyNode(
   const { type, name, parentId, address, picUserId } = params;
   const depth = getDepthForType(type);
 
+  // Resolve country_node_id (Phase G0 denorm).
+  // organization + country rows: NULL.
+  // state row: parent is the country itself.
+  // branch row: parent is a state; inherit country_node_id from parent.
+  let countryNodeId: string | null = null;
+  if (parentId && (type === "state" || type === "branch")) {
+    const parent = await tenantDb.query.hierarchyNodes.findFirst({
+      where: eq(hierarchyNodes.id, parentId),
+    });
+    if (!parent) {
+      throw new Error(`Parent node not found: ${parentId}`);
+    }
+    if (parent.type === "country") {
+      countryNodeId = parent.id;
+    } else {
+      countryNodeId = parent.countryNodeId ?? null;
+    }
+  }
+
+  // Phase H2: auto-generate slug from name. Same algorithm as the SQL
+  // backfill in migration 0058 (no diacritic stripping at this layer —
+  // matches the DB constraint).
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
   try {
     const [node] = await tenantDb
       .insert(hierarchyNodes)
       .values({
         name,
+        slug,
         type,
         parentId: parentId || null,
         depth,
-        address: address || null,
-        picUserId: picUserId || null,
+        countryNodeId,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -202,6 +230,19 @@ export async function createHierarchyNode(
 
     if (!node) {
       throw new Error("Failed to create hierarchy node");
+    }
+
+    // Phase H2: branch-specific data lives in branch_details (split off
+    // hierarchy_nodes). Insert lazily — only when at least one branch
+    // attribute was supplied.
+    if (type === "branch" && (address || picUserId)) {
+      await tenantDb.insert(branchDetails).values({
+        nodeId: node.id,
+        address: address || null,
+        picUserId: picUserId || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
     return node;
@@ -316,27 +357,26 @@ export async function updateHierarchyNode(
       }
     }
 
-    // Build update object with only provided fields
+    // Build update object for hierarchy_nodes (name only — branch-specific
+    // columns now live in branch_details, Phase H2).
     const updateData: {
       name?: string;
-      address?: string | null;
-      picUserId?: string | null;
+      slug?: string;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
     };
 
     if (name !== undefined) {
-      updateData.name = name.trim();
-    }
-    if (address !== undefined) {
-      updateData.address = address?.trim() || null;
-    }
-    if (picUserId !== undefined) {
-      updateData.picUserId = picUserId?.trim() || null;
+      const trimmed = name.trim();
+      updateData.name = trimmed;
+      // Phase H2: keep slug in sync with name on rename.
+      updateData.slug = trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
     }
 
-    // Update the node
     const [updatedNode] = await tenantDb
       .update(hierarchyNodes)
       .set(updateData)
@@ -345,6 +385,40 @@ export async function updateHierarchyNode(
 
     if (!updatedNode) {
       throw new Error("Failed to update hierarchy node");
+    }
+
+    // Phase H2: branch-specific updates routed to branch_details.
+    if (address !== undefined || picUserId !== undefined) {
+      if (node.type !== "branch") {
+        throw new Error(
+          `Cannot set address or picUserId on a ${node.type} node — only branches have those fields.`,
+        );
+      }
+      const detailsUpdate: {
+        address?: string | null;
+        picUserId?: string | null;
+        updatedAt: Date;
+      } = { updatedAt: new Date() };
+      if (address !== undefined) {
+        detailsUpdate.address = address?.trim() || null;
+      }
+      if (picUserId !== undefined) {
+        detailsUpdate.picUserId = picUserId?.trim() || null;
+      }
+      // Upsert: insert if no row yet, update otherwise.
+      await tenantDb
+        .insert(branchDetails)
+        .values({
+          nodeId,
+          address: detailsUpdate.address ?? null,
+          picUserId: detailsUpdate.picUserId ?? null,
+          createdAt: new Date(),
+          updatedAt: detailsUpdate.updatedAt,
+        })
+        .onConflictDoUpdate({
+          target: branchDetails.nodeId,
+          set: detailsUpdate,
+        });
     }
 
     return updatedNode;
@@ -686,11 +760,22 @@ export async function moveHierarchyNode(
       }
     }
 
-    // Update the node's parentId
+    // Resolve new country_node_id (Phase G0 denorm).
+    // state moving: new parent is country itself → countryNodeId = newParent.id
+    // branch moving: new parent is state → inherit newParent.countryNodeId
+    const newCountryNodeId =
+      node.type === "state"
+        ? newParent.id
+        : node.type === "branch"
+          ? (newParent.countryNodeId ?? null)
+          : null;
+
+    // Update the node's parentId + countryNodeId
     const [updatedNode] = await tenantDb
       .update(hierarchyNodes)
       .set({
         parentId: newParentId,
+        countryNodeId: newCountryNodeId,
         updatedAt: new Date(),
       })
       .where(eq(hierarchyNodes.id, nodeId))
@@ -698,6 +783,14 @@ export async function moveHierarchyNode(
 
     if (!updatedNode) {
       throw new Error("Failed to move hierarchy node");
+    }
+
+    // If a state moved across countries, cascade country_node_id update to all branches under it
+    if (node.type === "state" && node.countryNodeId !== newCountryNodeId) {
+      await tenantDb
+        .update(hierarchyNodes)
+        .set({ countryNodeId: newCountryNodeId, updatedAt: new Date() })
+        .where(eq(hierarchyNodes.parentId, nodeId));
     }
 
     return updatedNode;

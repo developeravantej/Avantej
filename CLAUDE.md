@@ -51,6 +51,7 @@ Request → dbMiddleware → tenantMiddleware/orpcTenantMiddleware → createCon
 ```
 
 Key context properties:
+
 - `session`: Better-Auth session with user info
 - `organizationId`: Current tenant ID
 - `tenantDb`: Drizzle client for tenant database
@@ -59,13 +60,13 @@ Key context properties:
 
 ### Package Responsibilities
 
-| Package | Purpose |
-|---------|---------|
-| `@avantej-core/api` | oRPC router definitions, procedures, context creation |
-| `@avantej-core/auth` | Better-Auth configuration |
-| `@avantej-core/db` | Drizzle schemas (control-panel + tenant), migrations |
-| `@avantej-core/services` | Business logic (hierarchy traversal, permissions) |
-| `@avantej-core/types` | Shared TypeScript types |
+| Package                  | Purpose                                               |
+| ------------------------ | ----------------------------------------------------- |
+| `@avantej-core/api`      | oRPC router definitions, procedures, context creation |
+| `@avantej-core/auth`     | Better-Auth configuration                             |
+| `@avantej-core/db`       | Drizzle schemas (control-panel + tenant), migrations  |
+| `@avantej-core/services` | Business logic (hierarchy traversal, permissions)     |
+| `@avantej-core/types`    | Shared TypeScript types                               |
 
 ### API Pattern
 
@@ -94,7 +95,7 @@ Organizations have a tree-based hierarchy (regions → districts → locations).
 
 ```typescript
 // packages/services/src/hierarchy.ts
-getDescendantNodeIds(tenantDb, hierarchyScopeId) // Returns all accessible node IDs
+getDescendantNodeIds(tenantDb, hierarchyScopeId); // Returns all accessible node IDs
 ```
 
 ### Database Schema Organization
@@ -107,6 +108,17 @@ getDescendantNodeIds(tenantDb, hierarchyScopeId) // Returns all accessible node 
 
 Uses TanStack Router with file-based routing in `apps/web/src/routes/`. Route files generate types in `routeTree.gen.ts`.
 
+## Codebase Hub (zhub/)
+
+A pre-built context hub lives at `zhub/` in the project root. Always check it before exploring source files.
+
+- **`zhub/index.md`** — full page inventory: every route, purpose, and known bugs/limitations. Read this first on any task.
+- **`zhub/pages/<name>.md`** — deep dive per page: components, hooks, API calls, data flow, gotchas.
+- **`zhub/shared/auth-flow.md`** — cookie config, RBAC model, context pipeline. Read before any auth work.
+- **`zhub/shared/api-overview.md`** — all 47 routers with procedure names and auth levels. Read before any API work.
+
+Run `/hub-update` at the end of any feature branch to keep the hub current before merging.
+
 ## Development Notes
 
 - **Biome** handles formatting (tabs, double quotes) and linting
@@ -116,5 +128,5 @@ Uses TanStack Router with file-based routing in `apps/web/src/routes/`. Route fi
 
 ## Test Credentials
 
-- Control Panel: `developer.avantej@gmail.com` / `password123`
+- Control Panel: `developer.avantej@gmail.com` / `password1234`
 - Tenant DB: `franchisee@gmail.com` / `password123`

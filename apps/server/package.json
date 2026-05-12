@@ -6,12 +6,12 @@
     "build": "wrangler deploy --dry-run",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "wrangler dev --port=3000",
+    "dev": "wrangler dev --port=3000 --local-protocol=http --ip=0.0.0.0",
     "start": "wrangler dev",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "bun test src/**/*.test.ts",
-    "test:unit": "bun test src/**/*.test.ts --exclude '**/*.integration.test.ts'",
+    "test": "SKIP_INTEGRATION_TESTS=true bun test",
+    "test:unit": "SKIP_INTEGRATION_TESTS=true bun test --exclude '**/*.integration.test.ts'",
     "test:integration": "bun test src/**/*.integration.test.ts",
     "test:neon": "bun test src/services/neon.service.test.ts",
     "test:neon:integration": "bun test src/services/neon.service.integration.test.ts",
@@ -20,6 +20,7 @@
     "test:email:integration": "bun test src/lib/email.integration.test.ts",
     "test:auth": "bun test src/services/auth.service.test.ts",
     "test:auth:email": "bun test src/tests/integration/auth-email.test.ts",
+    "backup:tenant": "bun run scripts/backup-tenant-tables.ts",
     "cleanup:test-projects": "bun run scripts/cleanup-test-projects.ts",
     "inspect-test-data": "bun run scripts/inspect-and-cleanup-test-data.ts",
     "inspect-test-data:inspect-only": "bun run scripts/inspect-and-cleanup-test-data.ts --inspect-only",
@@ -44,10 +45,11 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "tsdown": "catalog:",
-    "wrangler": "^4.40.3",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/bun": "^1.3.13",
     "@types/node": "^22.13.11",
-    "@types/bcryptjs": "^3.0.0"
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "^4.40.3"
   }
 }

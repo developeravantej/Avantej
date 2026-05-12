@@ -1,15 +1,19 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
+import { Copy, Eye, History } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatPrice } from "@/lib/money";
+import { useNavigate } from "@tanstack/react-router";
 
 export interface PaymentRow {
 	date?: string | null;
 	invoice?: string | null;
 	sales_order?: string | null;
+	payment_id?: string | null;
 	mode?: string | null;
 	total_paid?: number;
 	customer_name?: string | null;
@@ -64,13 +68,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-// Helper function to format price in MYR
-const formatPriceMYR = (price: number): string => {
-	return new Intl.NumberFormat("en-MY", {
-		style: "currency",
-		currency: "MYR",
-	}).format(price);
-};
 
 // Helper function to format E-Invoice Status
 const formatEInvoiceStatus = (
@@ -99,7 +96,45 @@ const formatEInvoiceStatus = (
 	);
 };
 
-export const columns: ColumnDef<PaymentRow>[] = [
+function PaymentActionCell({
+	row,
+	onHistoryClick,
+}: {
+	row: import("@tanstack/react-table").Row<PaymentRow>;
+	onHistoryClick?: (paymentId: string) => void;
+}) {
+	const navigate = useNavigate();
+	return (
+		<div className="flex items-center gap-2">
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={() =>
+					navigate({
+						to: "/dashboard/sales/$id",
+						params: { id: row.original.sales_order ?? "" },
+					})
+				}
+			>
+				<Eye className="h-4 w-4 mr-1" /> View
+			</Button>
+			{row.original.payment_id && onHistoryClick && (
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => onHistoryClick(row.original.payment_id!)}
+				>
+					<History className="h-4 w-4 mr-1" /> History
+				</Button>
+			)}
+		</div>
+	);
+}
+
+export function buildColumns(
+	onHistoryClick?: (paymentId: string) => void,
+): ColumnDef<PaymentRow>[] {
+	return [
 	{
 		accessorKey: "date",
 		header: ({ column }) => (
@@ -148,8 +183,13 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const mode = getValue<string>();
+			const modeStyles: Record<string, string> = {
+				cash: "bg-green-100 text-green-700 border-green-200",
+				card: "bg-blue-100 text-blue-700 border-blue-200",
+				bank_transfer: "bg-orange-100 text-orange-700 border-orange-200",
+			};
 			return mode ? (
-				<Badge variant="outline" className="text-xs">
+				<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}>
 					{mode}
 				</Badge>
 			) : (
@@ -166,7 +206,7 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const totalPaid = getValue<number>();
-			return totalPaid !== undefined ? formatPriceMYR(totalPaid) : "N/A";
+			return totalPaid !== undefined ? formatPrice(totalPaid, "MYR") : "N/A";
 		},
 		enableSorting: true,
 		enableHiding: false,
@@ -216,31 +256,12 @@ export const columns: ColumnDef<PaymentRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => {
-			return (
-				<div className="flex items-center gap-2">
-					<button
-						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-						type="button"
-						onClick={() => {
-							console.log("View payment:", row.original);
-						}}
-					>
-						View
-					</button>
-					<button
-						className="text-green-600 hover:text-green-800 text-sm font-medium"
-						type="button"
-						onClick={() => {
-							console.log("Edit payment:", row.original);
-						}}
-					>
-						Edit
-					</button>
-				</div>
-			);
-		},
+		cell: ({ row }) => <PaymentActionCell row={row} onHistoryClick={onHistoryClick} />,
 		enableSorting: false,
 		enableHiding: false,
 	},
-];
+	];
+}
+
+// Backward-compat export for callers that don't need history
+export const columns: ColumnDef<PaymentRow>[] = buildColumns();

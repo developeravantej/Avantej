@@ -32,10 +32,9 @@ function loadDevVars(): void {
       const match = trimmed.match(/^([^=]+)=(.*)$/);
       if (match) {
         const [, key, value] = match;
-        // Only set if not already in process.env (allows override)
-        if (!process.env[key]) {
-          process.env[key] = value;
-        }
+        // Always overwrite to defeat env pollution from sibling test files
+        // that may have deleted/mutated process.env before this test ran.
+        process.env[key!] = value;
       }
     }
   } catch (error) {
@@ -50,8 +49,13 @@ describe("Neon Service Integration Tests", () => {
   const testSlug = `test-integration-${Date.now()}`; // Unique slug per test run
   let createdProjectId: string | undefined;
   let createdConnectionString: string | undefined;
+  void createdConnectionString;
 
   beforeAll(() => {
+    // Re-load .dev.vars right before tests run, in case sibling test files
+    // mutated/deleted process.env.NEON_API_KEY between module load and now.
+    loadDevVars();
+
     if (process.env.SKIP_INTEGRATION_TESTS === "true") {
       console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
       return;

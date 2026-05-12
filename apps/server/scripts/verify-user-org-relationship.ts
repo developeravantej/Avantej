@@ -10,46 +10,15 @@
  * Usage:
  *   cd apps/server
  *   bun run scripts/verify-user-org-relationship.ts
+ *   # or: npx tsx scripts/verify-user-org-relationship.ts
  */
 
+import "./load-dev-vars";
 import { decrypt } from "@avantej-core/db";
 import { getControlPanelDb } from "../src/lib/db";
-import { organizations, organizationMembers } from "@avantej-core/db/schema/control-panel/index";
-import { users } from "@avantej-core/db/schema/control-panel/index";
-import { members } from "@avantej-core/db/schema/tenant/members";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import { eq } from "drizzle-orm";
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-function loadDevVars(): void {
-  try {
-    const devVarsPath = join(__dirname, "../.dev.vars");
-    const content = readFileSync(devVarsPath, "utf-8");
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const match = trimmed.match(/^([^=]+)=(.*)$/);
-      if (match?.[1] && match[2] !== undefined) {
-        const key = match[1];
-        const value = match[2];
-        if (!process.env[key]) {
-          process.env[key] = value;
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("Could not load .dev.vars file:", error);
-  }
-}
-
-loadDevVars();
 
 async function verifyUserOrgRelationship() {
   const testEmail = "franchisee@gmail.com";

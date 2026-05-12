@@ -5,7 +5,7 @@
 **Status**: Draft
 **Input**: User description: "Implement multi-tenant authentication and organization management using Better-Auth with Organization and Admin plugins"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Franchise Owner Onboarding & Organization Setup (Priority: P1)
 
@@ -116,7 +116,7 @@ Users with multiple organization memberships (through multiple subscriptions) ca
 - **Hierarchy depth violation**: If an administrator attempts to add a sixth level below Branch (e.g., "Team" under Branch), is this allowed or blocked? System must enforce the fixed 5-level hierarchy depth.
 - **Cross-organization invitation**: Can a user be invited to two different organizations with the same email? System should allow this to support consultants working with multiple franchises.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -170,7 +170,7 @@ Users with multiple organization memberships (through multiple subscriptions) ca
 - **FR-037**: System MUST allow administrators to assign roles at any hierarchy level (organization-wide, country, region, area, or branch)
 - **FR-038**: System MUST grant access to a hierarchy level and all descendant levels (e.g., Regional Manager can access all areas and branches under their region)
 - **FR-039**: System MUST restrict access to sibling or parent hierarchy nodes (e.g., Branch A trainer cannot access Branch B data)
-- **FR-040**: System MUST enforce role-based permissions: Admin (full access), Trainer (manage sessions, clients within scope), Staff (view data, book sessions within scope), Client (view own data only)
+- **FR-040**: System MUST enforce role-based permissions: Admin (full access), Trainer (manage sessions, clients within scope), Staff (view data, s within scope), Client (view own data only)
 - **FR-041**: System MUST validate user role and hierarchy scope on every data access request
 - **FR-042**: System MUST apply the highest privilege role when a user has multiple roles in the same organization (e.g., Admin role takes precedence over Trainer role)
 - **FR-043**: System MUST allow organization admins to define custom permissions per role (e.g., restrict certain trainers from viewing billing data)
@@ -254,7 +254,7 @@ Users with multiple organization memberships (through multiple subscriptions) ca
 
 - **Subscription**: Represents a Stripe subscription linked to organization count limit. Attributes: Stripe subscription ID, Stripe customer ID, tier (basic/professional/enterprise), organization count limit, status (active/past_due/canceled), created date, updated date. Relationships: has many Organizations.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

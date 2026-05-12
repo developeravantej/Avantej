@@ -37,7 +37,7 @@ html.dark {
 
 html,
 body {
-	@apply bg-white;
+	@apply bg-background;
 }
 
 :root {
@@ -60,7 +60,7 @@ body {
 	--color-info: #2196f3;
 
 	--radius: 0.5rem;
-	--background: oklch(0.99 0 0);
+	--background: oklch(0.94 0.005 90);
 	--foreground: oklch(0 0 0);
 	--card: oklch(1 0 0);
 	--card-foreground: oklch(0 0 0);
@@ -75,7 +75,7 @@ body {
 	--accent: oklch(0.94 0 0);
 	--accent-foreground: oklch(0 0 0);
 	--destructive: oklch(0.63 0.19 23.03);
-	--border: oklch(0.92 0 0);
+	--border: oklch(0.94 0.005 90);
 	--input: oklch(0.94 0 0);
 	--ring: oklch(0 0 0);
 	--chart-1: oklch(0.81 0.17 75.35);
@@ -83,13 +83,13 @@ body {
 	--chart-3: oklch(0.72 0 0);
 	--chart-4: oklch(0.92 0 0);
 	--chart-5: oklch(0.56 0 0);
-	--sidebar: oklch(0.99 0 0);
+	--sidebar: oklch(1 0 0);
 	--sidebar-foreground: oklch(0 0 0);
 	--sidebar-primary: oklch(0 0 0);
 	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.94 0 0);
+	--sidebar-accent: oklch(0.94 0.005 90);
 	--sidebar-accent-foreground: oklch(0 0 0);
-	--sidebar-border: oklch(0.94 0 0);
+	--sidebar-border: oklch(0.94 0.005 90);
 	--sidebar-ring: oklch(0 0 0);
 	--destructive-foreground: oklch(1 0 0);
 	--font-heading: Nordeco, sans-serif;
@@ -282,6 +282,22 @@ body {
 	}
 }
 
+/* Warm scrollbar utility */
+.scrollbar-warm {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-brand-secondary-2) transparent;
+}
+.scrollbar-warm::-webkit-scrollbar {
+	width: 3px;
+}
+.scrollbar-warm::-webkit-scrollbar-track {
+	background: transparent;
+}
+.scrollbar-warm::-webkit-scrollbar-thumb {
+	background: var(--color-brand-secondary-2);
+	border-radius: 9999px;
+}
+
 /* Base styles for text elements */
 h1,
 h2,
@@ -304,4 +320,20 @@ h4 {
 p {
 	font-family: var(--font-paragraph);
 	color: var(--color-text-secondary);
+}
+
+/* ── Receipt print styles ─────────────────────────────────────────────────── */
+/* When window.print() is called, hide everything except the .receipt-view div */
+@media print {
+	body * {
+		visibility: hidden;
+	}
+	.receipt-view,
+	.receipt-view * {
+		visibility: visible;
+	}
+	.receipt-view {
+		position: absolute;
+		inset: 0;
+	}
 }

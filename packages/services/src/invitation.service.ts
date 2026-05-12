@@ -18,9 +18,13 @@
  * ```
  */
 
-import { eq, and, or, lt } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
+import { user as userTable } from "@avantej-core/db/schema/auth";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { randomBytes } from "crypto";
 
@@ -92,6 +96,9 @@ export async function createInvitation(params: {
     })
     .returning();
 
+  if (!invitation) {
+    throw new Error("Failed to create invitation");
+  }
   return invitation;
 }
 
@@ -277,6 +284,71 @@ export async function markExpiredInvitations(
   return result.length;
 }
 
+/**
+ * Check if an email maps to a soft-deleted customer in this tenant.
+ *
+ * Pre-flight guard for invitations.create: if the invitee was previously
+ * a client member whose customer_profiles row is soft-deleted, returning
+ * blocked=true lets the handler throw BAD_REQUEST("ALREADY_DELETED") so
+ * the admin is routed to a "Restore customer" flow instead of triggering
+ * the broken acceptWithSignup chain (signup would fail because the user
+ * already exists in the control-panel database).
+ *
+ * Logic:
+ * 1. Lowercase and look up the email in the control-panel user table.
+ *    If no user record exists → genuinely new email → { blocked: false }.
+ * 2. Look up a tenant member row where userId=user.id AND role='client'.
+ *    If none → { blocked: false }.
+ * 3. Look up customer_profiles by userId.
+ *    If profile.is_deleted=true → { blocked: true, userId, profileId }.
+ *    Otherwise → { blocked: false }.
+ *
+ * This is a read-only check; it does NOT modify any rows.
+ *
+ * @param params.tenantDb       - Tenant database client
+ * @param params.controlPanelDb - Control-panel database client
+ * @param params.email          - Invitee email (case-insensitive)
+ */
+export async function checkSoftDeletedCustomerBlock(params: {
+  tenantDb: NeonDatabase<typeof tenantSchema>;
+  controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+  email: string;
+}): Promise<
+  | { blocked: false }
+  | { blocked: true; userId: string; profileId: string }
+> {
+  const { tenantDb, controlPanelDb, email } = params;
+  const normalizedEmail = email.toLowerCase();
 
+  // Step 1: Does a control-panel user with this email exist?
+  const existingUser = await controlPanelDb.query.user.findFirst({
+    where: eq(userTable.email, normalizedEmail),
+  });
 
+  if (!existingUser) {
+    return { blocked: false };
+  }
 
+  // Step 2: Does this user have a client member record in this tenant?
+  const clientMember = await tenantDb.query.members.findFirst({
+    where: and(
+      eq(members.userId, existingUser.id),
+      eq(members.role, "client")
+    ),
+  });
+
+  if (!clientMember) {
+    return { blocked: false };
+  }
+
+  // Step 3: Is their customer_profile soft-deleted?
+  const profile = await tenantDb.query.customerProfiles.findFirst({
+    where: eq(customerProfiles.userId, existingUser.id),
+  });
+
+  if (profile && profile.isDeleted) {
+    return { blocked: true, userId: existingUser.id, profileId: profile.id };
+  }
+
+  return { blocked: false };
+}

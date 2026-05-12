@@ -70,7 +70,7 @@ export function useAuth(): UseAuthReturn {
     const user: UserWithPermissions = {
       id: session.user.id,
       email: session.user.email,
-      full_name: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.name || "",
+      full_name: `${(session.user as any).firstName || ""} ${(session.user as any).lastName || ""}`.trim() || session.user.name || "",
       phone: null,
       is_system_admin: false,
       is_active: true,
@@ -85,7 +85,7 @@ export function useAuth(): UseAuthReturn {
           name: org.role, 
           priority: 0, 
           description: '',
-          permissions: [] as any[]
+          permissions: [] as FlattenedPermission[]
         }],
       })),
       current_organization_id: currentOrganizationId || (organizations.length > 0 ? organizations[0].id : null),
@@ -109,8 +109,8 @@ export function useAuth(): UseAuthReturn {
     try {
       await refetch();
       return !!session?.user;
-    } catch (error: any) {
-      console.error("Auth check failed:", error);
+    } catch (error: unknown) {
+      console.error("Auth check failed:", error instanceof Error ? error.message : String(error));
       return false;
     }
   }, [refetch, session]);
@@ -133,9 +133,9 @@ export function useAuth(): UseAuthReturn {
       // No need to manually fetch here - useUserContext hook handles it
 
       return { success: true, data: result.data };
-    } catch (error: any) {
-      console.error("Login error:", error);
-      return { success: false, error: error.message || "Login failed" };
+    } catch (error: unknown) {
+      console.error("Login error:", error instanceof Error ? error.message : String(error));
+      return { success: false, error: error instanceof Error ? error.message : "Login failed" };
     }
   }, [refetch]);
 

@@ -1,5 +1,7 @@
 import { columns } from "@/components/tables/branch/view/columns";
 import DataTable from "@/components/tables/branch/view/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,15 +12,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, queryClient } from "@/utils/orpc";
-import { Dialog, Transition } from "@headlessui/react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, Store } from "lucide-react";
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -44,10 +52,28 @@ type HierarchyNode = {
   code?: string | null;
 };
 
+/** Shape of items returned by mapBranchesWithHierarchy and stored in branchData.items */
+type BranchItem = {
+  id: string;
+  name: string;
+  code: string;
+  state_id: string | null;
+  organization_id: string | null;
+  branch_type: string;
+  is_active: boolean;
+  created_at: Date | null;
+  updated_at: Date | null;
+  address: string | null;
+  picUserId: string | null;
+  person_in_charge: { name: string; email: string };
+  state: { name: string; country: { name: string } };
+  location: { address: string };
+};
+
 function RouteComponent() {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const { data: userContext, isLoading: isLoadingContext } = useUserContext();
+  const { data: userContext, isLoading: isLoadingContext, error: userContextError } = useUserContext();
   const navigate = useNavigate();
   const orgErrorShown = useRef(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -56,22 +82,26 @@ function RouteComponent() {
     name: string;
     address: string | null;
     picUserId: string | null;
-    areaId: string | null;
+    stateId: string | null;
   } | null>(null);
   const [editBranchName, setEditBranchName] = useState("");
   const [editBranchAddress, setEditBranchAddress] = useState("");
   const [editBranchPicUserId, setEditBranchPicUserId] = useState("");
   const [editBranchCountryId, setEditBranchCountryId] = useState<string>("");
-  const [editBranchRegionId, setEditBranchRegionId] = useState<string>("");
-  const [editBranchAreaId, setEditBranchAreaId] = useState<string>("");
+  const [editBranchStateId, setEditBranchStateId] = useState<string>("");
   const [allHierarchyNodes, setAllHierarchyNodes] = useState<HierarchyNode[]>([]);
 
-  // Get organizationId from React Query data (single source of truth)
-  const organizationId =
+  // Get organizationId from React Query data (single source of truth).
+  // Only use for API calls when it's a valid UUID (server rejects e.g. mock "org-1").
+  const rawOrgId =
     userContext?.currentOrganizationId ||
     user?.current_organization_id ||
     user?.organizations?.[0]?.id ||
     null;
+  const organizationId =
+    rawOrgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawOrgId)
+      ? rawOrgId
+      : null;
 
   // Computed values for cascading dropdowns
   const countries = useMemo(
@@ -80,26 +110,15 @@ function RouteComponent() {
     [allHierarchyNodes]
   );
 
-  const regions = useMemo(
+  const states = useMemo(
     () =>
       allHierarchyNodes.filter(
         (n) =>
-          n.type === "region" &&
+          n.type === "state" &&
           n.depth === 2 &&
           n.parentId === editBranchCountryId
       ),
     [allHierarchyNodes, editBranchCountryId]
-  );
-
-  const areas = useMemo(
-    () =>
-      allHierarchyNodes.filter(
-        (n) =>
-          n.type === "area" &&
-          n.depth === 3 &&
-          n.parentId === editBranchRegionId
-      ),
-    [allHierarchyNodes, editBranchRegionId]
   );
 
   // Use React Query to load all hierarchy nodes (for cascading dropdowns)
@@ -143,13 +162,25 @@ function RouteComponent() {
     refetchOnMount: true,
   });
 
+  // Fetch members to resolve PIC user IDs to human-readable names
+  const { data: membersData = [] } = useQuery({
+    queryKey: ["members", organizationId],
+    queryFn: () => client.members.list({ organizationId: organizationId! }),
+    enabled: !!organizationId && isAuthenticated,
+  });
+
+  // Build a map from userId -> { name, email } for fast PIC lookup
+  const memberByUserId = useMemo(() => {
+    const map = new Map<string, { name: string; email: string }>();
+    membersData.forEach((m: { userId: string; name?: string; email?: string }) => {
+      map.set(m.userId, { name: m.name || "Unknown", email: m.email || "N/A" });
+    });
+    return map;
+  }, [membersData]);
+
   // Update allHierarchyNodes state when hierarchyNodesData changes
   useEffect(() => {
     if (hierarchyNodesData?.nodes) {
-      console.log(
-        "Setting allHierarchyNodes:",
-        hierarchyNodesData.nodes.length
-      );
       setAllHierarchyNodes(hierarchyNodesData.nodes);
     }
   }, [hierarchyNodesData]);
@@ -178,67 +209,21 @@ function RouteComponent() {
       });
 
       // Filter branches and map with hierarchy
-      // First, get all nodes with type="branch"
+      // Get all nodes with type="branch" (include any depth to avoid data loss)
       const branchNodes = allNodes.filter((node) => node.type === "branch");
-      
-      console.log(
-        `[mapBranchesWithHierarchy] Found ${branchNodes.length} nodes with type="branch" out of ${allNodes.length} total nodes`
-      );
-      console.log("[mapBranchesWithHierarchy] All node types:", [
-        ...new Set(allNodes.map((n) => n.type)),
-      ]);
-      console.log("[mapBranchesWithHierarchy] All depths:", [
-        ...new Set(allNodes.map((n) => n.depth)),
-      ]);
-
-      // Filter branches - prefer depth=4, but also include branches with wrong depth (with warning)
-      const branches = branchNodes.filter((node) => {
-        if (node.depth === 4) {
-          return true; // Correct depth
-        }
-        // Include branches with wrong depth but log warning
-        console.warn(
-          `[mapBranchesWithHierarchy] Branch node ${node.id} (${node.name}) has unexpected depth: ${node.depth} (expected 4). Including anyway.`
-        );
-        return true; // Include even with wrong depth to prevent data loss
-      });
-
-      if (branchNodes.length > 0 && branches.length === 0) {
-        console.error(
-          `[mapBranchesWithHierarchy] CRITICAL: Found ${branchNodes.length} branch nodes but none passed filter!`
-        );
-        branchNodes.forEach((b) => {
-          console.error(
-            `  - Branch ${b.id} (${b.name}): depth=${b.depth}, type=${b.type}, parentId=${b.parentId}`
-          );
-        });
-      }
-
-      console.log(
-        `[mapBranchesWithHierarchy] Filtered to ${branches.length} branches`
-      );
+      const branches = branchNodes;
 
       return branches.map((branch) => {
         // Find parent nodes by traversing up the hierarchy
-        let areaNode = branch.parentId ? nodeMap.get(branch.parentId) : null;
-        let regionNode = areaNode?.parentId
-          ? nodeMap.get(areaNode.parentId)
-          : null;
-        let countryNode = regionNode?.parentId
-          ? nodeMap.get(regionNode.parentId)
+        const stateNode = branch.parentId ? nodeMap.get(branch.parentId) : null;
+        const countryNode = stateNode?.parentId
+          ? nodeMap.get(stateNode.parentId)
           : null;
 
-        // Get PIC info - if picUserId exists, use it; otherwise fallback to current user
-        // Note: In a real implementation, we'd fetch user details from control panel DB
-        // For now, if picUserId exists, we'll show it; otherwise use current user
-        const picUserId = (branch as any).picUserId;
+        // Get PIC info - resolve picUserId to name/email via the members list
+        const picUserId = branch.picUserId;
         const picInfo = picUserId
-          ? {
-              // TODO: Fetch actual user details from control panel DB by picUserId
-              // For now, show the userId
-              name: picUserId || "N/A",
-              email: picUserId || "N/A",
-            }
+          ? memberByUserId.get(picUserId) ?? { name: "Unknown", email: "N/A" }
           : {
               name: currentUser?.name || "N/A",
               email: currentUser?.email || "N/A",
@@ -247,34 +232,32 @@ function RouteComponent() {
         return {
           id: branch.id,
           name: branch.name,
-          code: (branch as any).code || "", // Code may not be in schema yet
-          area_id: branch.parentId,
+          // `code` is not yet returned by listNodes — default to empty string
+          code: (branch as { code?: string }).code ?? "",
+          state_id: branch.parentId,
           organization_id: orgId,
           branch_type: "standard",
           is_active: true,
           created_at: branch.createdAt,
           updated_at: branch.updatedAt,
           // Store raw data for editing
-          address: (branch as any).address || null,
-          picUserId: picUserId || null,
+          address: branch.address ?? null,
+          picUserId: picUserId ?? null,
           // Map to expected column structure
           person_in_charge: picInfo,
-          area: {
-            name: areaNode?.name || "N/A",
-            region: {
-              name: regionNode?.name || "N/A",
-              country: {
-                name: countryNode?.name || "N/A",
-              },
+          state: {
+            name: stateNode?.name ?? "N/A",
+            country: {
+              name: countryNode?.name ?? "N/A",
             },
           },
           location: {
-            address: (branch as any).address || "N/A",
+            address: branch.address ?? "N/A",
           },
         };
       });
     },
-    [organizationId]
+    [organizationId, memberByUserId]
   );
 
   // Use React Query for branch data
@@ -286,7 +269,6 @@ function RouteComponent() {
     queryKey: ["branches", organizationId],
     queryFn: async () => {
       if (!organizationId) {
-        console.log("No organizationId, returning empty items");
         return { items: [] };
       }
 
@@ -320,96 +302,33 @@ function RouteComponent() {
           try {
             const hierarchy = JSON.parse(cachedHierarchy);
             const allNodes = hierarchy.nodes || [];
-            console.log(
-              `Using cached hierarchy (${Math.round(cacheAge / 1000)}s old), nodes count:`,
-              allNodes.length
-            );
             const mappedBranches = mapBranchesWithHierarchy(
               allNodes,
               currentUser,
               organizationId
             );
-            console.log("Mapped branches from cache:", mappedBranches.length);
-            
-            // If cache has no branches but we have nodes, fetch fresh data
-            if (mappedBranches.length === 0 && allNodes.length > 0) {
-              console.warn(
-                "Cache has nodes but no branches found. Fetching fresh data..."
-              );
-              localStorage.removeItem(`org_${organizationId}_hierarchy`);
-              localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
-            } else {
+
+            // If cache has no branches, fall through to fetch fresh data
+            if (mappedBranches.length > 0) {
               return { items: mappedBranches };
             }
-          } catch (e) {
-            console.warn(
-              "Failed to parse cached hierarchy, fetching from API:",
-              e
-            );
+            localStorage.removeItem(`org_${organizationId}_hierarchy`);
+            localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
+          } catch (_e) {
             localStorage.removeItem(`org_${organizationId}_hierarchy`);
             localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
           }
         } else {
-          console.log(
-            `Cache is too old (${Math.round(cacheAge / 1000)}s), fetching fresh data`
-          );
           localStorage.removeItem(`org_${organizationId}_hierarchy`);
           localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
         }
       }
 
       // Fallback to API
-      console.log(
-        "[branches query] Fetching hierarchy nodes from API for org:",
-        organizationId
-      );
       try {
         const result = await client.hierarchy.listNodes({ organizationId });
-        console.log(
-          "[branches query] API returned nodes count:",
-          result.nodes?.length || 0
-        );
-        console.log(
-          "[branches query] API nodes sample:",
-          result.nodes?.slice(0, 3)
-        );
-
-        // Check for the specific branch ID
-        const targetBranch = result.nodes?.find(
-          (n: any) => n.id === "7cce143b-627c-472c-a6b6-57696e2b2a75"
-        );
-        if (targetBranch) {
-          console.log(
-            "[branches query] Found target branch in API response:",
-            targetBranch
-          );
-        } else {
-          console.warn(
-            "[branches query] Target branch NOT found in API response"
-          );
-          console.warn(
-            "[branches query] All node IDs:",
-            result.nodes?.map((n: any) => ({
-              id: n.id,
-              name: n.name,
-              type: n.type,
-              depth: n.depth,
-            }))
-          );
-        }
 
         if (!result.nodes || result.nodes.length === 0) {
-          console.warn(
-            "[branches query] API returned no nodes. This might mean:"
-          );
-          console.warn("1. No hierarchy nodes exist in the database");
-          console.warn("2. User doesn't have access to any nodes");
-          console.warn("3. Organization context is not set up correctly");
-          console.warn(
-            "4. User needs to create branches first via /dashboard/branch/create"
-          );
-          console.warn("Organization ID:", organizationId);
-          console.warn("Is Authenticated:", isAuthenticated);
           // Clear stale cache
           localStorage.removeItem(`org_${organizationId}_hierarchy`);
           return { items: [] };
@@ -419,10 +338,6 @@ function RouteComponent() {
           result.nodes,
           currentUser,
           organizationId
-        );
-        console.log(
-          "[branches query] Mapped branches from API:",
-          mappedBranches.length
         );
 
         // Cache the hierarchy data for future use
@@ -437,24 +352,9 @@ function RouteComponent() {
           Date.now().toString()
         );
 
-        if (mappedBranches.length === 0) {
-          console.warn(
-            "[branches query] No branches found after mapping. Check console for details."
-          );
-        }
-
         return { items: mappedBranches };
-      } catch (apiError: any) {
-        console.error(
-          "[branches query] Error fetching hierarchy nodes from API:",
-          apiError
-        );
-        console.error("[branches query] Error details:", {
-          message: apiError?.message,
-          stack: apiError?.stack,
-          response: apiError?.response,
-        });
-        throw apiError; // Re-throw so React Query can handle it
+      } catch (err: unknown) {
+        throw err; // Re-throw so React Query can handle it
       }
     },
     enabled: !!organizationId && isAuthenticated,
@@ -500,7 +400,7 @@ function RouteComponent() {
   }, [error, navigate]);
 
   // Update mutation
-  const updateMutation = useMutation({
+  const updateMutation = useApiMutation({
     mutationFn: async ({
       branchId,
       name,
@@ -524,39 +424,40 @@ function RouteComponent() {
         picUserId,
       });
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-      toast.success("Branch updated successfully");
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: false,
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("already exists")) {
-        toast.error(`Failed to update branch: ${errorMessage}`);
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch not found");
-      } else if (
+        return `Failed to update branch: ${errorMessage}`;
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to update this branch");
-      } else {
-        toast.error(`Failed to update branch: ${errorMessage}`);
+        return "You don't have permission to update this branch";
       }
+      return `Failed to update branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
   // Move mutation
-  const moveMutation = useMutation({
+  const moveMutation = useApiMutation({
     mutationFn: async ({
       branchId,
-      newAreaId,
+      newStateId,
     }: {
       branchId: string;
-      newAreaId: string;
+      newStateId: string;
     }) => {
       if (!organizationId) {
         throw new Error("Organization ID is required");
@@ -565,43 +466,46 @@ function RouteComponent() {
       return await client.hierarchy.moveNode({
         organizationId,
         nodeId: branchId,
-        newParentId: newAreaId,
+        newParentId: newStateId,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: false,
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("circular reference")) {
-        toast.error("Cannot move branch: would create circular reference");
-      } else if (errorMessage.includes("already exists")) {
-        toast.error(
-          "A branch with this name already exists in the selected area"
-        );
-      } else if (
+        return "Cannot move branch: would create circular reference";
+      }
+      if (errorMessage.includes("already exists")) {
+        return "A branch with this name already exists in the selected state";
+      }
+      if (
         errorMessage.includes("Invalid parent type") ||
         errorMessage.includes("depth mismatch")
       ) {
-        toast.error("Invalid move: parent type mismatch");
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch or area not found");
-      } else if (
+        return "Invalid move: parent type mismatch";
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch or state not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to move this branch");
-      } else {
-        toast.error(`Failed to move branch: ${errorMessage}`);
+        return "You don't have permission to move this branch";
       }
+      return `Failed to move branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
   // Delete mutation
-  const deleteMutation = useMutation({
+  const deleteMutation = useApiMutation({
     mutationFn: async (branchId: string) => {
       if (!organizationId) {
         throw new Error("Organization ID is required");
@@ -612,40 +516,38 @@ function RouteComponent() {
         nodeId: branchId,
       });
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["branches", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["user-context"] });
-      localStorage.removeItem(`org_${organizationId}_hierarchy`);
-      toast.success("Branch deleted successfully");
-    },
-    onError: (error: Error) => {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+    successMessage: "Branch deleted successfully",
+    errorMessage: (err) => {
+      const errorMessage = err.message || "Unknown error";
       if (errorMessage.includes("child node")) {
-        toast.error(
-          "Cannot delete branch: It has child nodes. Please delete or move them first."
-        );
-      } else if (errorMessage.includes("assigned member")) {
-        toast.error(
-          "Cannot delete branch: It has assigned members. Please reassign them first."
-        );
-      } else if (errorMessage.includes("not found")) {
-        toast.error("Branch not found");
-      } else if (
+        return "Cannot delete branch: It has child nodes. Please delete or move them first.";
+      }
+      if (errorMessage.includes("assigned member")) {
+        return "Cannot delete branch: It has assigned members. Please reassign them first.";
+      }
+      if (errorMessage.includes("not found")) {
+        return "Branch not found";
+      }
+      if (
         errorMessage.includes("Permission denied") ||
         errorMessage.includes("FORBIDDEN")
       ) {
-        toast.error("You don't have permission to delete this branch");
-      } else {
-        toast.error(`Failed to delete branch: ${errorMessage}`);
+        return "You don't have permission to delete this branch";
       }
+      return `Failed to delete branch: ${errorMessage}`;
+    },
+    invalidate: [
+      ["branches", organizationId],
+      ["user-context"],
+    ],
+    onSuccess: () => {
+      localStorage.removeItem(`org_${organizationId}_hierarchy`);
     },
   });
 
   // Edit handler - open dialog
   const handleEdit = useCallback(
-    (branch: any) => {
+    (branch: BranchItem) => {
       if (!branch.id || !branch.name) {
         toast.error("Invalid branch data");
         return;
@@ -664,15 +566,12 @@ function RouteComponent() {
       // Find current hierarchy position from hierarchy nodes
       const branchNode = hierarchyNodes.find((n) => n.id === branch.id);
       if (!branchNode) {
-        // Fallback: try to use branch's area_id if available
-        if (branch.area_id) {
-          const currentArea = hierarchyNodes.find((n) => n.id === branch.area_id);
-          if (currentArea) {
-            const currentRegion = currentArea.parentId
-              ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
-              : null;
-            const currentCountry = currentRegion?.parentId
-              ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
+        // Fallback: try to use branch's state_id if available
+        if (branch.state_id) {
+          const currentState = hierarchyNodes.find((n) => n.id === branch.state_id);
+          if (currentState) {
+            const currentCountry = currentState.parentId
+              ? hierarchyNodes.find((n) => n.id === currentState.parentId)
               : null;
 
             setEditingBranch({
@@ -680,14 +579,13 @@ function RouteComponent() {
               name: branch.name,
               address: branch.address || null,
               picUserId: branch.picUserId || null,
-              areaId: branch.area_id || null,
+              stateId: branch.state_id || null,
             });
             setEditBranchName(branch.name);
             setEditBranchAddress(branch.address || "");
             setEditBranchPicUserId(branch.picUserId || "");
             setEditBranchCountryId(currentCountry?.id || "");
-            setEditBranchRegionId(currentRegion?.id || "");
-            setEditBranchAreaId(currentArea?.id || "");
+            setEditBranchStateId(currentState?.id || "");
             setIsEditDialogOpen(true);
             return;
           }
@@ -696,15 +594,12 @@ function RouteComponent() {
         return;
       }
 
-      // Find current area, region, country by traversing up the hierarchy
-      const currentArea = branchNode.parentId
+      // Find current state, country by traversing up the hierarchy
+      const currentState = branchNode.parentId
         ? hierarchyNodes.find((n) => n.id === branchNode.parentId)
         : null;
-      const currentRegion = currentArea?.parentId
-        ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
-        : null;
-      const currentCountry = currentRegion?.parentId
-        ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
+      const currentCountry = currentState?.parentId
+        ? hierarchyNodes.find((n) => n.id === currentState.parentId)
         : null;
 
       setEditingBranch({
@@ -712,14 +607,13 @@ function RouteComponent() {
         name: branch.name,
         address: branch.address || null,
         picUserId: branch.picUserId || null,
-        areaId: branchNode.parentId || null,
+        stateId: branchNode.parentId || null,
       });
       setEditBranchName(branch.name);
       setEditBranchAddress(branch.address || "");
       setEditBranchPicUserId(branch.picUserId || "");
       setEditBranchCountryId(currentCountry?.id || "");
-      setEditBranchRegionId(currentRegion?.id || "");
-      setEditBranchAreaId(currentArea?.id || "");
+      setEditBranchStateId(currentState?.id || "");
       setIsEditDialogOpen(true);
     },
     [allHierarchyNodes, hierarchyNodesData]
@@ -739,8 +633,8 @@ function RouteComponent() {
       return;
     }
 
-    if (!editBranchAreaId) {
-      toast.error("Please select an area");
+    if (!editBranchStateId) {
+      toast.error("Please select a state");
       return;
     }
 
@@ -749,9 +643,9 @@ function RouteComponent() {
     const addressChanged = trimmedAddress !== (editingBranch.address || "");
     const picUserIdChanged =
       trimmedPicUserId !== (editingBranch.picUserId || "");
-    const areaChanged = editBranchAreaId !== (editingBranch.areaId || "");
+    const stateChanged = editBranchStateId !== (editingBranch.stateId || "");
 
-    if (!nameChanged && !addressChanged && !picUserIdChanged && !areaChanged) {
+    if (!nameChanged && !addressChanged && !picUserIdChanged && !stateChanged) {
       toast.info("No changes made");
       setIsEditDialogOpen(false);
       return;
@@ -776,11 +670,11 @@ function RouteComponent() {
         await updateMutation.mutateAsync(updateParams);
       }
 
-      // Move branch if area changed
-      if (areaChanged) {
+      // Move branch if state changed
+      if (stateChanged) {
         await moveMutation.mutateAsync({
           branchId: editingBranch.id,
-          newAreaId: editBranchAreaId,
+          newStateId: editBranchStateId,
         });
       }
 
@@ -791,20 +685,19 @@ function RouteComponent() {
       setEditBranchAddress("");
       setEditBranchPicUserId("");
       setEditBranchCountryId("");
-      setEditBranchRegionId("");
-      setEditBranchAreaId("");
+      setEditBranchStateId("");
       toast.success("Branch updated successfully");
-    } catch (error: any) {
+    } catch (err: unknown) {
       // Error handling is done in mutation onError callbacks
       // Just log here for debugging
-      console.error("Failed to update branch:", error);
+      console.error("Failed to update branch:", err instanceof Error ? err.message : String(err));
     }
   }, [
     editingBranch,
     editBranchName,
     editBranchAddress,
     editBranchPicUserId,
-    editBranchAreaId,
+    editBranchStateId,
     updateMutation,
     moveMutation,
   ]);
@@ -821,9 +714,11 @@ function RouteComponent() {
   // Show loading state properly
   if (authLoading || isLoadingContext || isLoadingBranches) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="w-8 h-8 border-2 border-current rounded-full animate-spin border-r-transparent">
-          <span className="sr-only">Loading...</span>
+      <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+        <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+          <div className="w-8 h-8 border-2 border-current rounded-full animate-spin border-r-transparent">
+            <span className="sr-only">Loading...</span>
+          </div>
         </div>
       </div>
     );
@@ -834,157 +729,97 @@ function RouteComponent() {
     return null;
   }
 
+  const items: BranchItem[] = (branchData?.items ?? []) as BranchItem[];
+  const totalBranches = items.length;
+  const activeBranches = items.filter((b) => b.is_active !== false).length;
+  const uniqueStates = new Set(items.map((b) => b.state?.name).filter(Boolean)).size;
+  const assignedPic = items.filter((b) => b.picUserId).length;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Branches</h1>
-          <p className="text-gray-600">Manage your organization's branches</p>
+    <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
+      {/* Fixed header */}
+      <div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Store className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">Branches</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Hierarchy nodes and branch locations
+            </p>
+          </div>
         </div>
         <Link to="/dashboard/branch/create">
-          <Button className="flex items-center space-x-2">
+          <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            <span>Create Branch</span>
+            Create Branch
           </Button>
         </Link>
       </div>
 
-      {process.env.NODE_ENV === "development" && (
-        <div className="p-4 mb-4 space-y-2 text-xs bg-gray-100 rounded">
-          <div className="flex items-center justify-between">
-            <p>
-              <strong>Debug Info:</strong>
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (organizationId) {
-                  localStorage.removeItem(`org_${organizationId}_hierarchy`);
-                  localStorage.removeItem(`org_${organizationId}_hierarchy_timestamp`);
-                  queryClient.invalidateQueries({
-                    queryKey: ["branches", organizationId],
-                  });
-                  queryClient.invalidateQueries({
-                    queryKey: ["hierarchy-nodes", organizationId],
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["user-context"] });
-                  toast.info("Cache cleared, refreshing...");
-                }
-              }}
-            >
-              Clear Cache & Refresh
-            </Button>
+      {/* Scroll region */}
+      <div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total Branches</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{totalBranches}</div>
+            <div className="text-xs text-muted-foreground">in organization</div>
           </div>
-          <p>Organization ID: {organizationId || "None"}</p>
-          <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
-          <p>Branch Data Items: {branchData?.items?.length || 0}</p>
-          <p>Is Loading Branches: {isLoadingBranches ? "Yes" : "No"}</p>
-          <p>Error: {error ? String(error) : "None"}</p>
-          <p>
-            Hierarchy Nodes Query Error:{" "}
-            {hierarchyNodesError ? String(hierarchyNodesError) : "None"}
-          </p>
-          <p>All Hierarchy Nodes: {allHierarchyNodes.length}</p>
-          <p>
-            Hierarchy Nodes Query Data: {hierarchyNodesData?.nodes?.length || 0}
-          </p>
-          {error && (
-            <details className="mt-2">
-              <summary>Error Details</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(error, null, 2)}
-              </pre>
-            </details>
-          )}
-          {branchData?.items && branchData.items.length > 0 && (
-            <details className="mt-2">
-              <summary>First Branch Data</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(branchData.items[0], null, 2)}
-              </pre>
-            </details>
-          )}
-          {hierarchyNodesData?.nodes && hierarchyNodesData.nodes.length > 0 && (
-            <details className="mt-2">
-              <summary>Sample Hierarchy Nodes (first 3)</summary>
-              <pre className="mt-2 overflow-auto text-xs">
-                {JSON.stringify(hierarchyNodesData.nodes.slice(0, 3), null, 2)}
-              </pre>
-            </details>
-          )}
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Active</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{activeBranches}</div>
+            <div className="text-xs text-muted-foreground">branches</div>
+          </div>
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">States</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{uniqueStates}</div>
+            <div className="text-xs text-muted-foreground">top-level states</div>
+          </div>
+          <div className="rounded-xl border bg-card p-3">
+            <div className="text-xs text-muted-foreground">PIC Assigned</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{assignedPic}</div>
+            <div className="text-xs text-muted-foreground">branches with PIC</div>
+          </div>
         </div>
-      )}
-      
-      {/* Empty State */}
-      {!isLoadingBranches && branchData?.items?.length === 0 && (
-        <div className="py-12 text-center border rounded-lg bg-gray-50">
-          <p className="text-lg font-medium text-gray-900 mb-2">
-            No branches found
-          </p>
-          <p className="text-sm text-gray-600 mb-4">
-            {organizationId
-              ? "Create your first branch to get started."
-              : "Please ensure you're logged in and have an organization selected."}
-          </p>
-          {organizationId && (
-            <Link to="/dashboard/branch/create">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Branch
-              </Button>
-            </Link>
-          )}
-        </div>
-      )}
 
-      {/* Data Table */}
-      {!isLoadingBranches && branchData?.items && branchData.items.length > 0 && (
-        <DataTable
-          columns={columns}
-          data={branchData.items}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      )}
+        {/* Empty State */}
+        {items.length === 0 && (
+          <EmptyState
+            title="No branches found"
+            description={
+              organizationId
+                ? "Create your first branch to get started."
+                : "Please ensure you're logged in and have an organization selected."
+            }
+            action={
+              organizationId
+                ? { label: "Create Branch", onClick: () => navigate({ to: "/dashboard/branch/create" }) }
+                : undefined
+            }
+          />
+        )}
+
+        {/* Data Table */}
+        {items.length > 0 && (
+          <DataTable
+            columns={columns as ColumnDef<BranchItem>[]}
+            data={items}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
 
       {/* Edit Branch Dialog */}
-      <Transition appear show={isEditDialogOpen} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-10"
-          onClose={() => setIsEditDialogOpen(false)}
-        >
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-gray-500/50" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-full p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all max-h-[90vh] overflow-y-auto">
-                  <Dialog.Title
-                    as="h3"
-                    className="mb-4 text-lg font-medium leading-6 text-gray-900"
-                  >
-                    Edit Branch
-                  </Dialog.Title>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => !open && setIsEditDialogOpen(false)}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Branch</DialogTitle>
+          </DialogHeader>
                   <div className="space-y-4">
                     {/* Branch Name */}
                     <div className="space-y-2">
@@ -1005,8 +840,7 @@ function RouteComponent() {
                         value={editBranchCountryId}
                         onValueChange={(value) => {
                           setEditBranchCountryId(value);
-                          setEditBranchRegionId(""); // Reset region when country changes
-                          setEditBranchAreaId(""); // Reset area when country changes
+                          setEditBranchStateId(""); // Reset state when country changes
                         }}
                       >
                         <SelectTrigger id="branch-country">
@@ -1022,30 +856,29 @@ function RouteComponent() {
                       </Select>
                     </div>
 
-                    {/* Region Selection */}
+                    {/* State Selection */}
                     <div className="space-y-2">
-                      <Label htmlFor="branch-region">Region *</Label>
+                      <Label htmlFor="branch-state">State *</Label>
                       <Select
-                        value={editBranchRegionId}
+                        value={editBranchStateId}
                         onValueChange={(value) => {
-                          setEditBranchRegionId(value);
-                          setEditBranchAreaId(""); // Reset area when region changes
+                          setEditBranchStateId(value);
                         }}
                         disabled={!editBranchCountryId}
                       >
-                        <SelectTrigger id="branch-region">
+                        <SelectTrigger id="branch-state">
                           <SelectValue
                             placeholder={
                               editBranchCountryId
-                                ? "Select region"
+                                ? "Select state"
                                 : "Select country first"
                             }
                           />
                         </SelectTrigger>
                         <SelectContent>
-                          {regions.map((region) => (
-                            <SelectItem key={region.id} value={region.id}>
-                              {region.name}
+                          {states.map((state) => (
+                            <SelectItem key={state.id} value={state.id}>
+                              {state.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1053,38 +886,6 @@ function RouteComponent() {
                       {!editBranchCountryId && (
                         <p className="text-xs text-muted-foreground">
                           Please select a country first
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Area Selection */}
-                    <div className="space-y-2">
-                      <Label htmlFor="branch-area">Area *</Label>
-                      <Select
-                        value={editBranchAreaId}
-                        onValueChange={(value) => setEditBranchAreaId(value)}
-                        disabled={!editBranchRegionId}
-                      >
-                        <SelectTrigger id="branch-area">
-                          <SelectValue
-                            placeholder={
-                              editBranchRegionId
-                                ? "Select area"
-                                : "Select region first"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areas.map((area) => (
-                            <SelectItem key={area.id} value={area.id}>
-                              {area.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!editBranchRegionId && (
-                        <p className="text-xs text-muted-foreground">
-                          Please select a region first
                         </p>
                       )}
                     </div>
@@ -1154,45 +955,41 @@ function RouteComponent() {
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditDialogOpen(false);
-                        setEditingBranch(null);
-                        setEditBranchName("");
-                        setEditBranchAddress("");
-                        setEditBranchPicUserId("");
-                        setEditBranchCountryId("");
-                        setEditBranchRegionId("");
-                        setEditBranchAreaId("");
-                      }}
-                      disabled={
-                        updateMutation.isPending || moveMutation.isPending
-                      }
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleEditSubmit}
-                      disabled={
-                        !editBranchName.trim() ||
-                        !editBranchAreaId ||
-                        updateMutation.isPending ||
-                        moveMutation.isPending
-                      }
-                    >
-                      {updateMutation.isPending || moveMutation.isPending
-                        ? "Saving..."
-                        : "Save Changes"}
-                    </Button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingBranch(null);
+                setEditBranchName("");
+                setEditBranchAddress("");
+                setEditBranchPicUserId("");
+                setEditBranchCountryId("");
+                setEditBranchStateId("");
+              }}
+              disabled={
+                updateMutation.isPending || moveMutation.isPending
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={
+                !editBranchName.trim() ||
+                !editBranchStateId ||
+                updateMutation.isPending ||
+                moveMutation.isPending
+              }
+            >
+              {updateMutation.isPending || moveMutation.isPending
+                ? "Saving..."
+                : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,7 @@
+// NOTE: Not migrated to shared <EntityDataTable> because this is a read-only display table
+// with no Add, Edit, or Delete actions. Actions (deactivate/impersonate) are handled via
+// a separate MemberActionsCell component, not the meta-driven edit/delete pair.
+// See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Table,

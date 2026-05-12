@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/table-core";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import {
@@ -10,20 +10,27 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export interface UoMRow {
-	id?: string;
-	Name: string;
-	Description: string;
-	"Base UoM"?: string;
+export interface UomRow {
+	id: string;
+	name: string;
+	description: string | null;
+	baseUomId: string | null;
+	conversionFactor: string;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
-export const columns: ColumnDef<UoMRow>[] = [
+export type UomTableMeta = {
+	onEdit: (row: UomRow) => void;
+	onDelete: (id: string) => void;
+};
+
+export const columns: ColumnDef<UomRow>[] = [
 	{
-		accessorKey: "Name",
+		accessorKey: "name",
 		header: ({ column }) => (
 			<Button
 				variant="ghost"
-				type="button"
 				onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 			>
 				Name
@@ -32,31 +39,28 @@ export const columns: ColumnDef<UoMRow>[] = [
 		),
 	},
 	{
-		accessorKey: "Description",
+		accessorKey: "description",
 		header: "Description",
 		cell: ({ row }) => {
-			const description = row.getValue("Description") as string;
+			const description = row.getValue("description") as string | null;
 			return (
-				<div className="truncate" title={description}>
-					{description || "N/A"}
+				<div className="truncate" title={description ?? ""}>
+					{description || "—"}
 				</div>
 			);
 		},
 	},
 	{
-		accessorKey: "Base UoM",
-		header: "Base UoM",
-		cell: ({ getValue }) => getValue<string>() || "N/A",
-	},
-	{
 		id: "actions",
 		enableHiding: false,
-		cell: ({ row }) => {
+		cell: ({ row, table }) => {
 			const uom = row.original;
+			const meta = table.options.meta as UomTableMeta | undefined;
+
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0" type="button">
+						<Button variant="ghost" className="h-8 w-8 p-0">
 							<span className="sr-only">Open menu</span>
 							<MoreHorizontal className="h-4 w-4" />
 						</Button>
@@ -64,14 +68,20 @@ export const columns: ColumnDef<UoMRow>[] = [
 					<DropdownMenuContent align="end">
 						<DropdownMenuLabel>Actions</DropdownMenuLabel>
 						<DropdownMenuItem
-							onClick={() => uom.Name && navigator.clipboard.writeText(uom.Name)}
+							onClick={() => navigator.clipboard.writeText(uom.name)}
 						>
 							Copy UoM name
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem>View details</DropdownMenuItem>
-						<DropdownMenuItem>Edit UoM</DropdownMenuItem>
-						<DropdownMenuItem>Delete UoM</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => meta?.onEdit(uom)}>
+							Edit UoM
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							className="text-destructive"
+							onClick={() => meta?.onDelete(uom.id)}
+						>
+							Delete UoM
+						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);

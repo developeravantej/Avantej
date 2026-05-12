@@ -14,6 +14,7 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
 import { commissionSplits } from "./commission-splits";
+import { payoutBatches } from "./payout-batches";
 
 export const payouts = pgTable("payouts", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -27,11 +28,16 @@ export const payouts = pgTable("payouts", {
 	stripeConnectAccountId: text("stripe_connect_account_id"), // Coach's Stripe Connect account (if they have one)
 	
 	// Related records
+	// Migration 0046 P0 fix: NOT NULL dropped — payouts can now be created for
+	// package-instance or sales-order commissions without a linked appointment.
 	appointmentId: uuid("appointment_id")
-		.notNull()
 		.references(() => appointments.id, { onDelete: "restrict" }),
 	commissionSplitId: uuid("commission_split_id")
 		.references(() => commissionSplits.id, { onDelete: "set null" }),
+
+	// Agent 2.5 — payout batch grouping (J5 commission audit)
+	batchId: uuid("batch_id")
+		.references(() => payoutBatches.id, { onDelete: "set null" }),
 	
 	// Amount details
 	amount: integer("amount").notNull(), // Amount in cents (pre-tax commission)
@@ -64,5 +70,6 @@ export const payouts = pgTable("payouts", {
 	statusIdx: index("payouts_status_idx").on(table.status),
 	payoutMethodIdx: index("payouts_payout_method_idx").on(table.payoutMethod),
 	recipientStatusIdx: index("payouts_recipient_status_idx").on(table.recipientId, table.status),
+	batchIdIdx: index("payouts_batch_id_idx").on(table.batchId),
 }));
 

@@ -1,0 +1,181 @@
+import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
+import { user } from "@avantej-core/db/schema/auth";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { eq, isNotNull } from "drizzle-orm";
+import { ORPCError } from "@orpc/server";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { z } from "zod";
+import { protectedProcedure, publicProcedure } from "../index";
+
+function getControlPanelDb(context: {
+	honoContext?: any;
+}): NeonDatabase<typeof controlPanelSchema> | null {
+	return context.honoContext?.get("controlPanelDb") as NeonDatabase<
+		typeof controlPanelSchema
+	> | null;
+}
+
+export const registrationRouter = {
+	/**
+	 * List distinct countries that have branches registered
+	 * Public endpoint - no auth required (used during registration)
+	 */
+	listCountries: publicProcedure.handler(async ({ context }) => {
+		const controlPanelDb = getControlPanelDb(context);
+		if (!controlPanelDb) {
+			throw new Error("Control panel database not available");
+		}
+
+		const rows = await controlPanelDb
+			.selectDistinct({ country: organizationBranches.country })
+			.from(organizationBranches)
+			.where(isNotNull(organizationBranches.country));
+
+		return rows
+			.filter((r) => r.country != null)
+			.map((r) => r.country as string);
+	}),
+
+	/**
+	 * List branches for a given country
+	 * Public endpoint - no auth required (used during registration)
+	 */
+	listBranches: publicProcedure
+		.input(z.object({ country: z.string().min(1) }))
+		.handler(async ({ input, context }) => {
+			const controlPanelDb = getControlPanelDb(context);
+			if (!controlPanelDb) {
+				throw new Error("Control panel database not available");
+			}
+
+			const rows = await controlPanelDb
+				.select({
+					id: organizationBranches.id,
+					name: organizationBranches.name,
+					address: organizationBranches.address,
+					organizationId: organizationBranches.organizationId,
+				})
+				.from(organizationBranches)
+				.where(eq(organizationBranches.country, input.country));
+
+			return rows;
+		}),
+
+	/**
+	 * Complete user registration
+	 * Requires auth - user must be signed up and logged in (role is null).
+	 * Updates user profile, creates org membership (dual-write), sets role to "user".
+	 */
+	complete: protectedProcedure
+		.input(
+			z.object({
+				// Personal details
+				phone: z.string().min(1),
+				idPassportNo: z.string().min(1),
+				addressType: z.enum(["home", "work"]),
+				streetAddress: z.string().min(1),
+				city: z.string().min(1),
+				state: z.string().min(1),
+				country: z.string().min(1),
+				postalCode: z.string().min(1),
+				dateOfBirth: z.string().min(1), // ISO date string
+				// Emergency contact
+				emergencyContactName: z.string().min(1),
+				emergencyContactRelationship: z.string().min(1),
+				emergencyContactPhone: z.string().min(1),
+				// Branch selection
+				branchId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			const controlPanelDb = getControlPanelDb(context);
+			if (!controlPanelDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel database not available",
+				});
+			}
+
+			const userId = context.session.user.id;
+
+			// 1. Look up the selected branch to get tenantNodeId (hierarchyScopeId)
+			const branch = await controlPanelDb
+				.select({
+					tenantNodeId: organizationBranches.tenantNodeId,
+					organizationId: organizationBranches.organizationId,
+				})
+				.from(organizationBranches)
+				.where(eq(organizationBranches.id, input.branchId))
+				.limit(1);
+
+			if (!branch[0]) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Selected branch not found",
+				});
+			}
+
+			if (branch[0].organizationId !== input.organizationId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Branch does not belong to the selected organization",
+				});
+			}
+
+			// 2. Ensure tenant DB is available (set by orpcTenantMiddleware)
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message:
+						"Tenant database not available. Ensure organization context is set.",
+				});
+			}
+
+			// 3. Check user is not already a member of this organization
+			const existingMember = await context.tenantDb.query.members.findFirst({
+				where: eq(members.userId, userId),
+			});
+
+			if (existingMember) {
+				throw new ORPCError("CONFLICT", {
+					message: "You are already a member of this organization",
+				});
+			}
+
+			// 4. Create member first (dual-write: control panel + tenant)
+			//    Done before user update so that if this fails, user stays in registration state
+			const membershipService = new MembershipService(controlPanelDb);
+			await membershipService.createMember({
+				userId,
+				organizationId: input.organizationId,
+				role: "client",
+				hierarchyScopeId: branch[0].tenantNodeId,
+				tenantDb: context.tenantDb,
+			});
+
+			// 5. Update user profile fields and set role to "user" (marks registration as complete)
+			await controlPanelDb
+				.update(user)
+				.set({
+					phone: input.phone,
+					idPassportNo: input.idPassportNo,
+					addressType: input.addressType,
+					streetAddress: input.streetAddress,
+					city: input.city,
+					state: input.state,
+					country: input.country,
+					postalCode: input.postalCode,
+					dateOfBirth: input.dateOfBirth,
+					emergencyContactName: input.emergencyContactName,
+					emergencyContactRelationship: input.emergencyContactRelationship,
+					emergencyContactPhone: input.emergencyContactPhone,
+					role: "user",
+				})
+				.where(eq(user.id, userId));
+
+			return {
+				success: true,
+				message: "Registration completed successfully",
+				organizationId: input.organizationId,
+			};
+		}),
+};

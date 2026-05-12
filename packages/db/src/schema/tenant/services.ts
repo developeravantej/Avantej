@@ -12,7 +12,7 @@
  * - Attendance threshold allows services to require minimum attendees
  */
 
-import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { serviceCategories } from "./service-categories";
 
@@ -43,6 +43,10 @@ export const services = pgTable("services", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 
+	// Audit
+	createdBy: text("created_by"),
+	updatedBy: text("updated_by"),
+
 	// ========== NEW FIELDS ==========
 
 	// Display info
@@ -51,7 +55,7 @@ export const services = pgTable("services", {
 	imageUrl: text("image_url"),
 
 	// Service type
-	type: text("type").default("private").notNull(), // "private" | "semi_private"
+	type: text("type").default("private").notNull(), // "private" | "semi_private" | "both"
 
 	// Pricing display (for mobile app catalog)
 	price: integer("price"), // Display price in cents
@@ -69,6 +73,25 @@ export const services = pgTable("services", {
 	// Scheduling
 	schedulingType: text("scheduling_type").default("appointment").notNull(),
 	// "appointment" (flexible booking) | "class_slot" (pre-defined slots)
+
+	// Package-equivalent fields (absorbing packages table)
+	sessionCount: integer("session_count"),
+	expirable: boolean("expirable").default(false).notNull(),
+	expiryDays: integer("expiry_days"),
+	expiryDate: timestamp("expiry_date"),
+
+	// Installment configuration
+	availablePaymentPlans: text("available_payment_plans").array().default([]),
+	installmentIntervalDays: integer("installment_interval_days").default(30),
+	gracePeriodDays: integer("grace_period_days"),
+
+	// Recurring class-slot template (only used when schedulingType = "class_slot")
+	// Shape: { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> }
+	timePresetConfig: jsonb("time_preset_config").$type<{
+		recurringDays: string[];
+		timeSlotsPerDay: Record<string, string[]>;
+	} | null>(),
+
 }, (table) => ({
 	categoryIdIdx: index("services_category_idx").on(table.categoryId),
 	branchIdIdx: index("services_branch_idx").on(table.branchId),
@@ -78,5 +101,6 @@ export const services = pgTable("services", {
 	typeIdx: index("services_type_idx").on(table.type),
 	recommendedIdx: index("services_recommended_idx").on(table.isRecommended),
 	schedulingTypeIdx: index("services_scheduling_type_idx").on(table.schedulingType),
+	expiryDaysIdx: index("services_expiry_days_idx").on(table.expiryDays),
 }));
 

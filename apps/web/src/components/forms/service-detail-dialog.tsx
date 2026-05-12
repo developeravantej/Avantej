@@ -1,500 +1,590 @@
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState, useEffect } from 'react';
-// TODO: Replace with actual oRPC client when backend is ready
-// import apiClient from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { toast } from "sonner";
+import { client, orpc } from "@/utils/orpc";
+import { formatPrice } from "@/lib/money";
 
 interface ServiceDetailDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  serviceId: string | null;
-  onEdit?: (serviceId: string) => void;
-  onDelete?: (serviceId: string) => Promise<void>;
+	isOpen: boolean;
+	onClose: () => void;
+	serviceId: string | null;
+	organizationId: string | null;
+	onEdit?: (serviceId: string) => void;
+	onDelete?: (serviceId: string) => Promise<void>;
 }
 
-// Helper function to format price
-const formatPrice = (price: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(price);
-};
-
-// Helper function to format date
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return "N/A";
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return "N/A";
-  }
-};
-
-// Helper function to get full day name
-const getFullDayName = (dayName: string): string => {
-  return dayName; // Already full name from backend
-};
-
-export function ServiceDetailDialog({ isOpen, onClose, serviceId, onEdit, onDelete }: ServiceDetailDialogProps) {
-  const [service, setService] = useState<any>(null);
-  const [categoryName, setCategoryName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && serviceId) {
-      const fetchServiceDetails = async () => {
-        try {
-          setIsLoading(true);
-          setError(null);
-          // TODO: Replace with actual oRPC client calls
-          // const [serviceResponse, categoriesResponse] = await Promise.all([
-          //   apiClient.getService({
-          //     service_id: serviceId,
-          //   }),
-          //   apiClient.getListServiceCategories({
-          //     limit: 1000,
-          //   }),
-          // ]);
-          // setService(serviceResponse.data);
-          // const category = categoriesResponse.data.find(
-          //   (cat: any) => cat.id === serviceResponse.data.service_category_id
-          // );
-          // setCategoryName(category?.name || null);
-          console.warn("API calls to fetch service details and categories are mocked.", serviceId);
-          setService(null); // Mock data
-          setCategoryName(null); // Mock data
-        } catch (err: any) {
-          console.error('Failed to fetch service details:', err);
-          setError(err?.message || 'Failed to load service details');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      fetchServiceDetails();
-    } else {
-      setService(null);
-      setCategoryName(null);
-      setError(null);
-    }
-  }, [isOpen, serviceId]);
-
-  const calculateExpiryDate = (createdAt: string, duration: number, unit: string): string => {
-    const created = new Date(createdAt);
-    const expiryDate = new Date(created);
-    
-    switch (unit) {
-      case 'day':
-        expiryDate.setDate(created.getDate() + duration);
-        break;
-      case 'week':
-        expiryDate.setDate(created.getDate() + (duration * 7));
-        break;
-      case 'month':
-        expiryDate.setMonth(created.getMonth() + duration);
-        break;
-      case 'year':
-        expiryDate.setFullYear(created.getFullYear() + duration);
-        break;
-    }
-    
-    return expiryDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const handleDelete = async () => {
-    if (!serviceId || !onDelete) return;
-
-    try {
-      setIsDeleting(true);
-      // TODO: Replace with actual oRPC client call
-      // await apiClient.deleteService({ service_id: serviceId });
-      console.warn("API call to deleteService is mocked.", serviceId);
-      toast.success('Service deleted successfully (simulated)');
-      setShowDeleteConfirm(false);
-      onClose();
-      await onDelete(serviceId);
-    } catch (err: any) {
-      console.error('Failed to delete service:', err);
-      const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to delete service';
-      toast.error(errorMessage);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-gray-500/50" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-6">
-                  <Dialog.Title
-                    as="h1"
-                    className="text-2xl font-semibold leading-6 text-gray-900"
-                  >
-                    Service Details
-                  </Dialog.Title>
-                  {service && (
-                    <div className="flex items-center gap-2">
-                      {onEdit && (
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onEdit(serviceId!);
-                          }}
-                          className="inline-flex items-center gap-2"
-                          variant="outline"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Edit
-                        </Button>
-                      )}
-                      {onDelete && (
-                        <Button
-                          type="button"
-                          onClick={() => setShowDeleteConfirm(true)}
-                          className="inline-flex items-center gap-2"
-                          variant="destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {isLoading && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                    <span className="ml-3 text-gray-600">Loading service details...</span>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="mb-4 p-4 text-red-700 bg-red-100 rounded-lg">
-                    {error}
-                  </div>
-                )}
-
-                {service && !isLoading && (
-                  <div className="space-y-6">
-                    {/* Basic Information */}
-                    <div className="border-b border-gray-200 pb-4">
-                      <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Service Name</label>
-                          <p className="mt-1 text-sm text-gray-900">{service.name}</p>
-                        </div>
-                        {service.sku && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">SKU</label>
-                            <p className="mt-1 text-sm text-gray-900">{service.sku}</p>
-                          </div>
-                        )}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Service Category</label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {categoryName || service.service_category_id || 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Scheduling Type</label>
-                          <div className="mt-1">
-                            <Badge variant={service.scheduling_type === 'time-preset' ? 'outline' : 'secondary'}>
-                              {service.scheduling_type === 'time-preset' ? 'Time Preset' : 'Appointment Based'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pricing Information */}
-                    <div className="border-b border-gray-200 pb-4">
-                      <h2 className="text-lg font-medium text-gray-900 mb-4">Pricing Information</h2>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Price</label>
-                          <p className="mt-1 text-sm text-gray-900 font-semibold">{formatPrice(parseFloat(service.price))}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Sessions</label>
-                          <p className="mt-1 text-sm text-gray-900">{service.sessions}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Credit per Session</label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {service.sessions > 0 
-                              ? formatPrice(parseFloat(service.price) / service.sessions)
-                              : 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Taxable</label>
-                          <div className="mt-1">
-                            {service.taxable ? (
-                              <Badge variant="default">Yes ({service.tax_percentage}%)</Badge>
-                            ) : (
-                              <Badge variant="secondary">No</Badge>
-                            )}
-                          </div>
-                        </div>
-                        {service.taxable && (
-                          <div className="col-span-2">
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-600">Base Price:</span>
-                                  <span className="ml-2 font-medium">{formatPrice(parseFloat(service.price))}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-600">Tax ({service.tax_percentage}%):</span>
-                                  <span className="ml-2 font-medium">
-                                    {formatPrice((parseFloat(service.price) * parseFloat(service.tax_percentage)) / 100)}
-                                  </span>
-                                </div>
-                                <div className="col-span-2 border-t pt-2 mt-2">
-                                  <span className="text-gray-900 font-semibold">Total:</span>
-                                  <span className="ml-2 font-semibold text-lg">
-                                    {formatPrice(parseFloat(service.price) + (parseFloat(service.price) * parseFloat(service.tax_percentage)) / 100)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expiration Information */}
-                    {service.expirable && (
-                      <div className="border-b border-gray-200 pb-4">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4">Expiration Information</h2>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Expirable</label>
-                            <div className="mt-1">
-                              <Badge variant="default">Yes</Badge>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Duration</label>
-                            <p className="mt-1 text-sm text-gray-900">
-                              {service.duration} {service.duration_unit}(s)
-                            </p>
-                          </div>
-                          {service.created_at && service.duration && service.duration_unit && (
-                            <div className="col-span-2">
-                              <label className="block text-sm font-medium text-gray-500">Expiry Date</label>
-                              <p className="mt-1 text-sm text-gray-900">
-                                {calculateExpiryDate(service.created_at, service.duration, service.duration_unit)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Time Preset Configuration */}
-                    {service.scheduling_type === 'time-preset' && service.time_preset_config && (
-                      <div className="border-b border-gray-200 pb-4">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4">Time Preset Configuration</h2>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-2">Recurring Days</label>
-                            {service.time_preset_config.recurring_days && service.time_preset_config.recurring_days.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {service.time_preset_config.recurring_days.map((day: string, index: number) => (
-                                  <Badge key={index} variant="secondary">
-                                    {getFullDayName(day)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-500 italic">No recurring days configured</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-2">Time Slots per Day</label>
-                            {service.time_preset_config.time_slots_per_day && 
-                             Object.keys(service.time_preset_config.time_slots_per_day).length > 0 ? (
-                              <div className="space-y-3">
-                                {Object.entries(service.time_preset_config.time_slots_per_day)
-                                  .sort(([dayA], [dayB]) => {
-                                    const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                                    return dayOrder.indexOf(dayA) - dayOrder.indexOf(dayB);
-                                  })
-                                  .map(([day, times]: [string, any]) => (
-                                    <div key={day} className="bg-gray-50 p-3 rounded-lg">
-                                      <h4 className="text-sm font-medium text-gray-900 mb-2">{day}</h4>
-                                      {times && times.length > 0 ? (
-                                        <div className="flex flex-wrap gap-2">
-                                          {times.map((time: string, index: number) => (
-                                            <Badge key={index} variant="outline">
-                                              {time}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <p className="text-sm text-gray-500 italic">No time slots configured</p>
-                                      )}
-                                    </div>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-500 italic">No time slots configured</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Metadata */}
-                    <div>
-                      <h2 className="text-lg font-medium text-gray-900 mb-4">Metadata</h2>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Created At</label>
-                          <p className="mt-1 text-sm text-gray-900">{formatDate(service.created_at)}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Updated At</label>
-                          <p className="mt-1 text-sm text-gray-900">{formatDate(service.updated_at)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {/* Delete Confirmation Dialog */}
-                <Transition appear show={showDeleteConfirm} as={Fragment}>
-                  <Dialog as="div" className="relative z-20" onClose={() => setShowDeleteConfirm(false)}>
-                    <Transition.Child
-                      as={Fragment}
-                      enter="ease-out duration-300"
-                      enterFrom="opacity-0"
-                      enterTo="opacity-100"
-                      leave="ease-in duration-200"
-                      leaveFrom="opacity-100"
-                      leaveTo="opacity-0"
-                    >
-                      <div className="fixed inset-0 bg-gray-500/50" />
-                    </Transition.Child>
-
-                    <div className="fixed inset-0 overflow-y-auto">
-                      <div className="flex min-h-full items-center justify-center p-4 text-center">
-                        <Transition.Child
-                          as={Fragment}
-                          enter="ease-out duration-300"
-                          enterFrom="opacity-0 scale-95"
-                          enterTo="opacity-100 scale-100"
-                          leave="ease-in duration-200"
-                          leaveFrom="opacity-100 scale-100"
-                          leaveTo="opacity-0 scale-95"
-                        >
-                          <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                            <Dialog.Title
-                              as="h3"
-                              className="text-lg font-medium leading-6 text-gray-900 mb-4"
-                            >
-                              Delete Service
-                            </Dialog.Title>
-                            <div className="mb-6">
-                              <p className="text-sm text-gray-500">
-                                Are you sure you want to delete "{service?.name}"? This action cannot be undone.
-                              </p>
-                            </div>
-                            <div className="flex justify-end gap-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setShowDeleteConfirm(false)}
-                                disabled={isDeleting}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                              >
-                                {isDeleting ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Deleting...
-                                  </>
-                                ) : (
-                                  'Delete'
-                                )}
-                              </Button>
-                            </div>
-                          </Dialog.Panel>
-                        </Transition.Child>
-                      </div>
-                    </div>
-                  </Dialog>
-                </Transition>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition>
-  );
+function formatDate(date: Date | string | null | undefined): string {
+	if (!date) return "N/A";
+	try {
+		return new Date(date).toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	} catch {
+		return "N/A";
+	}
 }
 
+function formatDuration(duration: number, unit?: string | null): string {
+	if (unit === "hours") return `${duration} hour(s)`;
+	if (unit === "minutes") return `${duration} minute(s)`;
+	return `${duration} second(s)`;
+}
 
+// ── Local presentational helpers ──────────────────────────────────────────────
 
+function Field({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div>
+			<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+				{label}
+			</p>
+			<div className="mt-1 text-sm text-foreground">{children}</div>
+		</div>
+	);
+}
 
+function Section({
+	title,
+	children,
+}: {
+	title: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6">
+			<h3 className="font-subheading text-base text-foreground mb-4">
+				{title}
+			</h3>
+			{children}
+		</div>
+	);
+}
 
+// ── Trainers Tab ──────────────────────────────────────────────────────────────
+
+interface TrainersTabProps {
+	serviceId: string;
+	organizationId: string;
+}
+
+function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
+	const queryClient = useQueryClient();
+
+	// Current assigned trainers
+	const { data: assigned, isLoading: loadingAssigned } = useQuery(
+		orpc.serviceMembers.listForService.queryOptions({
+			input: { organizationId, serviceId },
+		})
+	);
+
+	// All members — for the assign dropdown
+	const { data: allMembers, isLoading: loadingMembers } = useQuery(
+		orpc.members.list.queryOptions({ input: { organizationId } })
+	);
+
+	const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+
+	const assignedIds = new Set((assigned ?? []).map((m: { memberId: string }) => m.memberId));
+
+	const unassigned = (allMembers ?? []).filter(
+		(m: { id: string }) => !assignedIds.has(m.id)
+	);
+
+	const assignMutation = useMutation({
+		mutationFn: (memberId: string) =>
+			client.serviceMembers.assign({ organizationId, serviceId, memberId }),
+		onSuccess: () => {
+			setSelectedMemberId("");
+			queryClient.invalidateQueries({
+				queryKey: orpc.serviceMembers.listForService.key({ input: { organizationId, serviceId } }),
+			});
+			toast.success("Trainer assigned");
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Failed to assign trainer");
+		},
+	});
+
+	const removeMutation = useMutation({
+		mutationFn: (memberId: string) =>
+			client.serviceMembers.remove({ organizationId, serviceId, memberId }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: orpc.serviceMembers.listForService.key({ input: { organizationId, serviceId } }),
+			});
+			toast.success("Trainer removed");
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Failed to remove trainer");
+		},
+	});
+
+	if (loadingAssigned || loadingMembers) {
+		return (
+			<div className="flex items-center justify-center py-8">
+				<Loader2 className="size-6 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			{/* Assign row */}
+			<div className="flex gap-2">
+				<Select
+					value={selectedMemberId}
+					onValueChange={setSelectedMemberId}
+					disabled={unassigned.length === 0}
+				>
+					<SelectTrigger className="flex-1">
+						<SelectValue
+							placeholder={
+								unassigned.length === 0
+									? "All members assigned"
+									: "Select a trainer to assign…"
+							}
+						/>
+					</SelectTrigger>
+					<SelectContent>
+						{unassigned.map((m: { id: string; name?: string | null; email?: string | null }) => (
+							<SelectItem key={m.id} value={m.id}>
+								{m.name ?? m.email ?? m.id}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<Button
+					type="button"
+					size="sm"
+					disabled={!selectedMemberId || assignMutation.isPending}
+					onClick={() => selectedMemberId && assignMutation.mutate(selectedMemberId)}
+				>
+					{assignMutation.isPending ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<UserPlus className="size-4" />
+					)}
+					<span className="ml-1">Assign</span>
+				</Button>
+			</div>
+
+			{/* Assigned list */}
+			{assigned && assigned.length === 0 ? (
+				<p className="text-sm text-muted-foreground italic py-4 text-center">
+					No trainers assigned to this service.
+				</p>
+			) : (
+				<ul className="space-y-2">
+					{(assigned ?? []).map((m: { memberId: string; displayName: string }) => (
+						<li
+							key={m.memberId}
+							className="flex items-center justify-between rounded-lg border border-brand-secondary-3 bg-card px-4 py-3"
+						>
+							<span className="text-sm font-medium">{m.displayName}</span>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="size-7 shrink-0"
+								disabled={removeMutation.isPending}
+								onClick={() => removeMutation.mutate(m.memberId)}
+							>
+								<X className="size-4" />
+							</Button>
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	);
+}
+
+// ── Main Dialog ───────────────────────────────────────────────────────────────
+
+export function ServiceDetailDialog({
+	isOpen,
+	onClose,
+	serviceId,
+	organizationId,
+	onEdit,
+	onDelete,
+}: ServiceDetailDialogProps) {
+	const [service, setService] = useState<{
+		id: string;
+		name: string;
+		categoryId: string | null;
+		duration: number;
+		durationUnitType: string | null;
+		maxAttendees: number;
+		price: number | null;
+		schedulingType: string | null;
+		isActive: boolean;
+		description: string | null;
+		type: string | null;
+		taxable: boolean;
+		taxPercentage: number;
+		location: string | null;
+		features: string[] | null;
+		expirable: boolean;
+		expiryDays: number | null;
+		sessionCount: number | null;
+		isRecommended: boolean;
+		timePresetConfig: {
+			recurringDays: string[];
+			timeSlotsPerDay: Record<string, string[]>;
+		} | null;
+		createdAt: Date | string;
+		updatedAt: Date | string;
+	} | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+	useEffect(() => {
+		if (isOpen && serviceId && organizationId) {
+			const fetchService = async () => {
+				setIsLoading(true);
+				setError(null);
+				try {
+					const result = await client.services.getById({
+						organizationId,
+						id: serviceId,
+					});
+					setService(result);
+				} catch (err: unknown) {
+					const message =
+						err instanceof Error ? err.message : "Failed to load service";
+					setError(message);
+					setService(null);
+				} finally {
+					setIsLoading(false);
+				}
+			};
+			fetchService();
+		} else {
+			setService(null);
+			setError(null);
+		}
+	}, [isOpen, serviceId, organizationId]);
+
+	async function handleDelete() {
+		if (!serviceId || !onDelete) return;
+		try {
+			setIsDeleting(true);
+			await onDelete(serviceId);
+			setShowDeleteConfirm(false);
+			onClose();
+		} catch (err: unknown) {
+			const message =
+				err instanceof Error ? err.message : "Failed to deactivate service";
+			toast.error(message);
+		} finally {
+			setIsDeleting(false);
+		}
+	}
+
+	return (
+		<>
+			<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+				<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<div className="flex items-center justify-between gap-3 pr-8">
+							<DialogTitle className="font-heading text-2xl">
+								Service Details
+							</DialogTitle>
+							{service && (
+								<div className="flex items-center gap-2">
+									{onEdit && (
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												onClose();
+												onEdit(serviceId!);
+											}}
+										>
+											<Pencil className="mr-1 size-4" />
+											Edit
+										</Button>
+									)}
+									{onDelete && (
+										<Button
+											type="button"
+											variant="destructive"
+											size="sm"
+											onClick={() => setShowDeleteConfirm(true)}
+										>
+											<Trash2 className="mr-1 size-4" />
+											Deactivate
+										</Button>
+									)}
+								</div>
+							)}
+						</div>
+					</DialogHeader>
+
+					{isLoading && (
+						<div className="flex items-center justify-center py-12">
+							<Loader2 className="size-8 animate-spin text-muted-foreground" />
+							<span className="ml-3 text-sm text-muted-foreground">
+								Loading...
+							</span>
+						</div>
+					)}
+
+					{error && <StatusCallout variant="error" message={error} />}
+
+					{service && !isLoading && (
+						<Tabs defaultValue="details">
+							<TabsList className="mb-4">
+								<TabsTrigger value="details">Details</TabsTrigger>
+								<TabsTrigger value="trainers">Trainers</TabsTrigger>
+							</TabsList>
+
+							<TabsContent value="details">
+								<div className="space-y-6">
+									{/* Header card: name + status + recommended */}
+									<Section title="Overview">
+										<div className="space-y-4">
+											<Field label="Name">{service.name}</Field>
+											{service.description && (
+												<Field label="Description">{service.description}</Field>
+											)}
+											<div className="grid grid-cols-2 gap-4">
+												<Field label="Status">
+													<StatusBadge
+														status={service.isActive ? "active" : "inactive"}
+													/>
+												</Field>
+												{service.isRecommended && (
+													<Field label="Recommended">
+														<Badge variant="default">Yes</Badge>
+													</Field>
+												)}
+											</div>
+										</div>
+									</Section>
+
+									<Section title="Scheduling">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Duration">
+												{formatDuration(service.duration, service.durationUnitType)}
+											</Field>
+											<Field label="Max attendees">{service.maxAttendees}</Field>
+											<Field label="Scheduling type">
+												<Badge variant="outline">
+													{service.schedulingType === "class_slot"
+														? "Class slot"
+														: "Appointment"}
+												</Badge>
+											</Field>
+											<Field label="Type">
+												<Badge variant="outline" className="capitalize">
+													{service.type ?? "—"}
+												</Badge>
+											</Field>
+										</div>
+									</Section>
+
+									{service.schedulingType === "class_slot" && (
+										<Section title="Time-Preset Schedule">
+											{service.timePresetConfig &&
+											service.timePresetConfig.recurringDays.length > 0 ? (
+												<div className="space-y-4">
+													<Field label="Recurring Days">
+														<div className="flex flex-wrap gap-1">
+															{service.timePresetConfig.recurringDays.map((day) => (
+																<Badge key={day} variant="outline">
+																	{day}
+																</Badge>
+															))}
+														</div>
+													</Field>
+													<Field label="Time Slots per Day">
+														<div className="space-y-2">
+															{service.timePresetConfig.recurringDays.map((day) => {
+																const slots =
+																	service.timePresetConfig?.timeSlotsPerDay[day] ?? [];
+																return (
+																	<div
+																		key={day}
+																		className="flex flex-wrap items-center gap-2"
+																	>
+																		<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground w-20 shrink-0">
+																			{day}
+																		</span>
+																		{slots.length > 0 ? (
+																			slots.map((time, i) => (
+																				<Badge key={i} variant="secondary">
+																					{time}
+																				</Badge>
+																			))
+																		) : (
+																			<span className="text-sm text-muted-foreground italic">
+																				No slots configured
+																			</span>
+																		)}
+																	</div>
+																);
+															})}
+														</div>
+													</Field>
+												</div>
+											) : (
+												<p className="text-sm text-muted-foreground italic">
+													No recurring schedule configured.
+												</p>
+											)}
+										</Section>
+									)}
+
+									<Section title="Pricing & Tax">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Price">
+												{service.price != null
+													? formatPrice(service.price, "MYR")
+													: "—"}
+											</Field>
+											<Field label="Taxable">
+												{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
+											</Field>
+										</div>
+									</Section>
+
+									<Section title="Sessions & Expiry">
+										<div className="grid grid-cols-2 gap-4">
+											<Field label="Sessions">{service.sessionCount ?? "—"}</Field>
+											{service.expirable && (
+												<Field label="Expiry">
+													{service.expiryDays
+														? `${service.expiryDays} days`
+														: "—"}
+												</Field>
+											)}
+										</div>
+									</Section>
+
+									{(service.location ||
+										(service.features && service.features.length > 0)) && (
+										<Section title="Details">
+											<div className="space-y-4">
+												{service.location && (
+													<Field label="Location">{service.location}</Field>
+												)}
+												{service.features && service.features.length > 0 && (
+													<Field label="Features">
+														<div className="flex flex-wrap gap-1">
+															{service.features.map((f, i) => (
+																<Badge key={i} variant="secondary">
+																	{f}
+																</Badge>
+															))}
+														</div>
+													</Field>
+												)}
+											</div>
+										</Section>
+									)}
+
+									<div className="grid grid-cols-2 gap-4 border-t border-brand-secondary-3 pt-4">
+										<Field label="Created">{formatDate(service.createdAt)}</Field>
+										<Field label="Updated">{formatDate(service.updatedAt)}</Field>
+									</div>
+								</div>
+							</TabsContent>
+
+							<TabsContent value="trainers">
+								{organizationId && serviceId ? (
+									<TrainersTab
+										serviceId={serviceId}
+										organizationId={organizationId}
+									/>
+								) : null}
+							</TabsContent>
+						</Tabs>
+					)}
+
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={onClose}>
+							Close
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Confirmation dialog — sibling, not nested */}
+			<Dialog
+				open={showDeleteConfirm}
+				onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="font-heading text-2xl">
+							Deactivate service
+						</DialogTitle>
+					</DialogHeader>
+					<p className="text-sm text-muted-foreground">
+						Deactivate &quot;{service?.name}&quot;? It will be hidden from active
+						lists. You can reactivate it later by editing.
+					</p>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setShowDeleteConfirm(false)}
+							disabled={isDeleting}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleDelete}
+							disabled={isDeleting}
+						>
+							{isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
+							Deactivate
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+}

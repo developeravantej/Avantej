@@ -12,12 +12,14 @@
  * - Payment status tracks Stripe PaymentIntent lifecycle
  */
 
-import { pgTable, uuid, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { services } from "./services";
 import { members } from "./members";
 import { packageInstances } from "./package-instances";
 import { classSlots } from "./class-slots";
+import { rooms } from "./rooms";
+import { salesOrders } from "./sales-orders";
 
 export const appointments = pgTable("appointments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -38,6 +40,8 @@ export const appointments = pgTable("appointments", {
 	// Recurring appointment support
 	isRecurring: boolean("is_recurring").default(false).notNull(),
 	recurringParentId: uuid("recurring_parent_id").references((): any => appointments.id, { onDelete: "cascade" }), // Self-reference for recurring series
+	// DEPRECATED — never written by new code. Recurrence rules are stored in recurrence_rules table.
+	// Kept for backward compatibility. Do not read or write this column from new code.
 	recurringFrequency: text("recurring_frequency"), // "daily" | "weekly" | "custom"
 	recurringEndDate: timestamp("recurring_end_date"),
 	
@@ -86,6 +90,15 @@ export const appointments = pgTable("appointments", {
 	// Description/image
 	description: text("description"),
 	imageUrl: text("image_url"),
+
+	// Room assignment
+	roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
+
+	// Google Calendar integration
+	googleCalendarEventId: text("google_calendar_event_id"),
+
+	// POS linkage for double-commission guard (Policy P6)
+	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
@@ -101,5 +114,15 @@ export const appointments = pgTable("appointments", {
 	packageInstanceIdIdx: index("appointments_package_instance_idx").on(table.packageInstanceId),
 	classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
 	userStatusIdx: index("appointments_user_status_idx").on(table.userId, table.status),
+	roomIdIdx: index("appointments_room_idx").on(table.roomId),
+	salesOrderIdIdx: index("appointments_sales_order_idx").on(table.salesOrderId),
+	isRecurringIdx: index("appointments_is_recurring_idx").on(table.isRecurring),
+	// Prevents concurrent materialization from creating duplicate occurrence rows for the same parent + date.
+	// Note: the migration uses a partial index (WHERE recurring_parent_id IS NOT NULL) for efficiency;
+	// Postgres treats NULLs as distinct in unique indexes so non-recurring rows are unaffected.
+	appointmentsRecurringOccurrenceUniqueIdx: uniqueIndex("appointments_recurring_occurrence_unique_idx").on(
+		table.recurringParentId,
+		table.startTime
+	),
 }));
 

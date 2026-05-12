@@ -1,418 +1,267 @@
+// NOTE: Partial migration — adopts TableToolbar visual primitive for the search bar and add button.
+// Full migration to EntityDataTable skipped: self-fetches with useQuery inside the component,
+// deactivation semantics (not delete), row-click detail dialog pattern,
+// and the data uses ColumnDef<any> with no typed ID field.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@/components/ui/table";
 import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  getFilteredRowModel,
-  getSortedRowModel,
+	flexRender,
+	getCoreRowModel,
+	useReactTable,
+	getFilteredRowModel,
+	getSortedRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
-import { useState, useMemo, useCallback } from "react";
-import { Search, Plus, X, Filter } from "lucide-react";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-form";
 import { ServiceDetailDialog } from "@/components/forms/service-detail-dialog";
-import { Button } from "@/components/ui/button";
-// TODO: Replace with actual oRPC client when backend is ready
-// import apiClient from "@/lib/api";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { client, orpc } from "@/utils/orpc";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableToolbar } from "@/components/ui/table-toolbar";
+import { centsToRm } from "@/lib/money";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  onServiceAdd?: (data: any) => Promise<void>;
-  onServiceDelete?: (serviceId: string) => Promise<void>;
+	columns: ColumnDef<TData, TValue>[];
+	data: TData[];
+	organizationId: string;
+	isLoading?: boolean;
+	emptyTitle?: string;
+	emptyDescription?: string;
+	emptyAction?: { label: string; onClick: () => void };
 }
 
 export default function DataTable<TData, TValue>({
-  columns,
-  data,
-  onServiceAdd,
-  onServiceDelete,
+	columns,
+	data,
+	organizationId,
+	isLoading = false,
+	emptyTitle,
+	emptyDescription,
+	emptyAction,
 }: DataTableProps<TData, TValue>) {
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [editServiceData, setEditServiceData] = useState<any>(null);
-  const [schedulingTypeFilter, setSchedulingTypeFilter] = useState<string>("all");
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+	const qc = useQueryClient();
+	const [globalFilter, setGlobalFilter] = useState("");
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+	const [editServiceId, setEditServiceId] = useState<string | null>(null);
 
-  // Memoize the data array to prevent unnecessary re-renders
-  const stableData = useMemo(() => {
-    return data || [];
-  }, [data]);
+	const table = useReactTable({
+		data,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		onGlobalFilterChange: setGlobalFilter,
+		globalFilterFn: "includesString",
+		enableSorting: true,
+		state: { globalFilter },
+	});
 
-  // Filter data based on scheduling type and recurring days
-  const filteredData = useMemo(() => {
-    if (!stableData || stableData.length === 0) {
-      return [];
-    }
+	// Fetch real data for edit mode
+	const { data: editServiceData } = useQuery({
+		queryKey: ["service", "edit", editServiceId, organizationId],
+		queryFn: async () => {
+			if (!editServiceId || !organizationId) return null;
+			return client.services.getById({ organizationId, id: editServiceId });
+		},
+		enabled: !!editServiceId && !!organizationId && isEditDialogOpen,
+	});
 
-    let filtered = [...stableData]; // Create a copy to avoid mutating the original
+	const editInitialData = editServiceData
+		? (() => {
+				const expiryDays = editServiceData.expiryDays ?? null;
+				let duration = 1;
+				let duration_unit = "day";
+				if (expiryDays) {
+					if (expiryDays % 365 === 0) { duration = expiryDays / 365; duration_unit = "year"; }
+					else if (expiryDays % 30 === 0) { duration = expiryDays / 30; duration_unit = "month"; }
+					else if (expiryDays % 7 === 0) { duration = expiryDays / 7; duration_unit = "week"; }
+					else { duration = expiryDays; duration_unit = "day"; }
+				}
+				return {
+					id: editServiceData.id,
+					name: editServiceData.name,
+					duration,
+					duration_unit,
+					expirable: editServiceData.expirable ?? false,
+					// price divided by 100 here (cents → dollars); form displays dollars, zod transform converts back on submit
+					price: editServiceData.price != null ? Number(centsToRm(editServiceData.price)) : 0,
+					sessions: editServiceData.sessionCount ?? 1,
+					taxable: editServiceData.taxable ?? false,
+					taxPercentage: editServiceData.taxPercentage ?? 0,
+					categoryId: editServiceData.categoryId ?? "",
+					schedulingType: (editServiceData.schedulingType === "class_slot" ? "time-preset" : "appointment-based") as "appointment-based" | "time-preset",
+					sessionDurationMinutes: editServiceData.durationUnitType === "minutes"
+						? editServiceData.duration
+						: editServiceData.durationUnitType === "hours"
+							? editServiceData.duration * 60
+							: Math.round(editServiceData.duration / 60),
+					maxAttendees: editServiceData.maxAttendees ?? 1,
+					availablePaymentPlans: (editServiceData.availablePaymentPlans ?? []) as string[],
+					installmentIntervalDays: editServiceData.installmentIntervalDays ?? 30,
+					gracePeriodDays: editServiceData.gracePeriodDays ?? null,
+					timePresetConfig: editServiceData.timePresetConfig ?? undefined,
+				};
+			})()
+		: undefined;
 
-    // Filter by scheduling type
-    if (schedulingTypeFilter !== "all") {
-      filtered = filtered.filter((item: any) => {
-        return item.scheduling_type === schedulingTypeFilter;
-      });
-    }
+	const handleEditService = useCallback(
+		(serviceId: string) => {
+			setEditServiceId(serviceId);
+			setIsEditDialogOpen(true);
+		},
+		[]
+	);
 
-    // Filter by recurring days (only for time-preset services)
-    if (schedulingTypeFilter === "time-preset" && selectedDays.length > 0) {
-      filtered = filtered.filter((item: any) => {
-        const recurringDays = item.time_preset_config?.recurring_days || [];
-        // Check if any of the selected days are in the service's recurring days
-        return selectedDays.some((day) => recurringDays.includes(day));
-      });
-    }
+	const handleDeleteService = useCallback(
+		async (serviceId: string) => {
+			try {
+				await client.services.update({
+					organizationId,
+					id: serviceId,
+					isActive: false,
+				});
+				toast.success("Service deactivated");
+				qc.invalidateQueries({ queryKey: orpc.services.list.key() });
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : "Failed to deactivate service";
+				toast.error(message);
+				throw err;
+			}
+		},
+		[organizationId, qc]
+	);
 
-    return filtered;
-  }, [stableData, schedulingTypeFilter, selectedDays]);
+	return (
+		<div className="flex h-full flex-col">
+			<TableToolbar
+				search={{
+					value: globalFilter,
+					onChange: setGlobalFilter,
+					placeholder: "Search services...",
+				}}
+				actions={
+					<Button
+						size="sm"
+						onClick={() => setIsAddDialogOpen(true)}
+						className="bg-black text-white hover:bg-black/90"
+						type="button"
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Service
+					</Button>
+				}
+			/>
 
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
-    enableSorting: true,
-    state: {
-      globalFilter,
-    },
-  });
+			<div className="flex-1 overflow-y-auto">
+				<Table>
+					<TableHeader className="sticky top-0 z-10 bg-white">
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow
+								key={headerGroup.id}
+								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
+							>
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+									>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext()
+												)}
+									</TableHead>
+								))}
+							</TableRow>
+						))}
+					</TableHeader>
+					<TableBody>
+						{table.getRowModel().rows?.length ? (
+							table.getRowModel().rows.map((row) => (
+								<TableRow
+									key={row.id}
+									data-state={row.getIsSelected() && "selected"}
+									onClick={() => {
+										const serviceId = (row.original as { id?: string }).id;
+										if (serviceId) {
+											setSelectedServiceId(serviceId);
+											setIsDetailDialogOpen(true);
+										}
+									}}
+									className="border-b border-border/30 cursor-pointer transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+								>
+									{row.getVisibleCells().map((cell) => (
+										<TableCell
+											key={cell.id}
+											className="whitespace-nowrap px-6 py-4 text-sm"
+										>
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext()
+											)}
+										</TableCell>
+									))}
+								</TableRow>
+							))
+						) : (
+							<TableRow>
+								<TableCell colSpan={columns.length} className="p-0">
+									<EmptyState
+										title={emptyTitle ?? "No results found"}
+										description={emptyDescription}
+										action={emptyAction}
+										context={globalFilter ? "search" : "empty"}
+									/>
+								</TableCell>
+							</TableRow>
+						)}
+					</TableBody>
+				</Table>
+			</div>
 
-  const handleServiceSubmit = async (serviceData: any) => {
-    try {
-      if (onServiceAdd) {
-        await onServiceAdd(serviceData);
-        setIsAddDialogOpen(false);
-        setIsEditDialogOpen(false);
-        setEditServiceData(null);
-      }
-    } catch (error) {
-      console.error("Error submitting service:", error);
-      // Don't close dialog on error
-    }
-  };
+			<ServiceFormDialog
+				isOpen={isAddDialogOpen}
+				onClose={() => setIsAddDialogOpen(false)}
+				organizationId={organizationId}
+				mode="create"
+			/>
 
-  const handleEditService = useCallback(async (serviceId: string) => {
-    try {
-      // TODO: Replace with actual oRPC client call
-      // Fetch service data for editing
-      // const response = await apiClient.getService({
-      //   service_id: serviceId,
-      // });
-      // const service = response.data;
-      console.warn("API call to getService is mocked.", serviceId);
-      const service = {
-        id: serviceId,
-        name: "Mock Service",
-        duration: 1,
-        duration_unit: 'day',
-        expirable: false,
-        price: "0",
-        sessions: 1,
-        taxable: false,
-        tax_percentage: "6",
-        service_category_id: "",
-        scheduling_type: 'appointment-based',
-        time_preset_config: null,
-      }; // Mock data
-      
-      // Transform API data to form data format
-      // Note: Using a numeric ID placeholder since form expects number, but we'll use serviceId string for API calls
-      const formData = {
-        id: 0, // Placeholder - actual UUID is stored in serviceId
-        name: service.name,
-        duration: service.duration || 1,
-        duration_unit: service.duration_unit || 'day',
-        expirable: service.expirable || false,
-        price: parseFloat(service.price),
-        sessions: service.sessions,
-        taxable: service.taxable || false,
-        tax_percentage: parseFloat(String(service.tax_percentage || 6)),
-        category_id: service.service_category_id,
-        schedulingType: service.scheduling_type || 'appointment-based',
-        timePresetConfig: service.time_preset_config ? {
-          recurringDays: (service.time_preset_config as any)?.recurring_days || [],
-          timeSlotsPerDay: (service.time_preset_config as any)?.time_slots_per_day || {},
-        } : undefined,
-      };
-      
-      // Store the actual UUID separately
-      (formData as any).serviceId = serviceId;
-      
-      setEditServiceData(formData);
-      setIsEditDialogOpen(true);
-    } catch (error) {
-      console.error("Error fetching service for edit:", error);
-    }
-  }, []);
+			<ServiceFormDialog
+				isOpen={isEditDialogOpen}
+				onClose={() => {
+					setIsEditDialogOpen(false);
+					setEditServiceId(null);
+				}}
+				organizationId={organizationId}
+				mode="edit"
+				initialData={editInitialData}
+			/>
 
-  const handleDayToggle = useCallback((day: string) => {
-    setSelectedDays((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day]
-    );
-  }, []);
-
-  const clearDayFilters = useCallback(() => {
-    setSelectedDays([]);
-  }, []);
-
-  const daysOfWeek = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-
-  const getShortDayName = (dayName: string): string => {
-    const dayMap: Record<string, string> = {
-      Monday: "Mon",
-      Tuesday: "Tue",
-      Wednesday: "Wed",
-      Thursday: "Thu",
-      Friday: "Fri",
-      Saturday: "Sat",
-      Sunday: "Sun",
-    };
-    return dayMap[dayName] || dayName.slice(0, 3);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-black text-white hover:bg-black/90"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Service
-        </Button>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Scheduling Type Filter */}
-          <Select
-            value={schedulingTypeFilter}
-            onValueChange={(value) => {
-              setSchedulingTypeFilter(value);
-              // Clear day filters when switching away from time-preset
-              if (value !== "time-preset") {
-                setSelectedDays([]);
-              }
-            }}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="appointment-based">Appointment Based</SelectItem>
-              <SelectItem value="time-preset">Time Preset</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Recurring Days Filter - Multi-select with Dropdown */}
-          {schedulingTypeFilter === "time-preset" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-56 justify-start">
-                  <Filter className="mr-2 h-4 w-4" />
-                  {selectedDays.length === 0
-                    ? "Filter by days"
-                    : `${selectedDays.length} day${selectedDays.length > 1 ? "s" : ""} selected`}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="start">
-                <div className="px-2 py-1.5 text-sm font-semibold">Select Days</div>
-                <DropdownMenuSeparator />
-                {selectedDays.length > 0 && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={clearDayFilters}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Clear all
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                {daysOfWeek.map((day) => {
-                  const isSelected = selectedDays.includes(day);
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={day}
-                      checked={isSelected}
-                      onCheckedChange={() => {
-                        handleDayToggle(day);
-                      }}
-                    >
-                      {day}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {/* Show selected days as badges */}
-          {schedulingTypeFilter === "time-preset" && selectedDays.length > 0 && (
-            <div className="flex flex-wrap gap-1 items-center">
-              {selectedDays.map((day) => (
-                <Badge
-                  key={day}
-                  variant="secondary"
-                  className="text-xs py-1 px-2 flex items-center gap-1"
-                >
-                  {getShortDayName(day)}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDayToggle(day);
-                    }}
-                    className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          <div className="relative w-72">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search all columns..."
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(event.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-      </div>
-      <div className="rounded-md border shadow-sm">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow
-                key={headerGroup.id}
-                className="border-b bg-muted/50 hover:bg-muted/60"
-              >
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  onClick={() => {
-                    const serviceId = (row.original as any).id;
-                    if (serviceId) {
-                      setSelectedServiceId(serviceId);
-                      setIsDetailDialogOpen(true);
-                    }
-                  }}
-                  className={`border-b transition-colors hover:bg-muted/50 cursor-pointer data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="px-4 py-3 text-sm whitespace-nowrap"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <ServiceFormDialog
-        isOpen={isAddDialogOpen}
-        onClose={() => setIsAddDialogOpen(false)}
-        onSubmit={handleServiceSubmit}
-        mode="create"
-      />
-
-      <ServiceFormDialog
-        isOpen={isEditDialogOpen}
-        onClose={() => {
-          setIsEditDialogOpen(false);
-          setEditServiceData(null);
-        }}
-        onSubmit={handleServiceSubmit}
-        initialData={editServiceData}
-        mode="edit"
-      />
-
-      <ServiceDetailDialog
-        isOpen={isDetailDialogOpen}
-        onClose={() => {
-          setIsDetailDialogOpen(false);
-          setSelectedServiceId(null);
-        }}
-        serviceId={selectedServiceId}
-        onEdit={handleEditService}
-        onDelete={onServiceDelete}
-      />
-    </div>
-  );
+			<ServiceDetailDialog
+				isOpen={isDetailDialogOpen}
+				onClose={() => {
+					setIsDetailDialogOpen(false);
+					setSelectedServiceId(null);
+				}}
+				serviceId={selectedServiceId}
+				organizationId={organizationId}
+				onEdit={handleEditService}
+				onDelete={handleDeleteService}
+			/>
+		</div>
+	);
 }
-
-

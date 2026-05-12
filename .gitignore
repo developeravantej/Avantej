@@ -44,6 +44,9 @@ lerna-debug.log*
 coverage
 .nyc_output
 
+# Local Claude settings
+.claude/
+
 # Misc
 *.tgz
 .cache
@@ -52,3 +55,11 @@ temp
 
 # Git worktrees
 .worktrees
+
+# Database backups (keep folder, ignore contents)
+Backup/*.json
+
+# Local planning and docs (do not commit)
+Backup/
+newmd/
+Plan/

@@ -1,87 +1,133 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { CreditCard, History } from "lucide-react";
+import {
+	buildColumns,
+	type PaymentRow,
+} from "@/components/tables/payment/view/columns";
 import DataTable from "@/components/tables/payment/view/data-table";
-import { columns, type PaymentRow } from "@/components/tables/payment/view/columns";
+import { Separator } from "@/components/ui/separator";
+import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import { useMemo, useState } from "react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 
 export const Route = createFileRoute(
-	"/_authenticated/dashboard/_layout/payment/view"
+	"/_authenticated/dashboard/_layout/payment/view",
 )({
 	component: RouteComponent,
 });
 
+function PaymentHistoryPanel({
+	organizationId,
+	paymentId,
+}: {
+	organizationId: string;
+	paymentId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["invoices", "paymentStatusHistory", paymentId],
+		queryFn: () =>
+			client.invoices.paymentStatusHistory({ organizationId, paymentId }),
+	});
+	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
+}
+
 function RouteComponent() {
-	const [data, setData] = useState<{ items: PaymentRow[] } | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const mockServiceData: PaymentRow[] = [
-		{
-			date: "2025-07-14",
-			invoice: "#INV-1001",
-			sales_order: "#SO-001",
-			mode: "Credit Card",
-			total_paid: 200.0,
-			customer_name: "Customer A",
-			created_by: "User A",
-			e_invoice_status: "Generated",
-		},
-		{
-			date: "2025-07-15",
-			invoice: "#INV-1002",
-			sales_order: "#SO-002",
-			mode: "Bank Transfer",
-			total_paid: 350.0,
-			customer_name: "Customer B",
-			created_by: "User B",
-			e_invoice_status: "Pending",
-		},
-		{
-			date: "2025-07-16",
-			invoice: "#INV-1003",
-			sales_order: "#SO-003",
-			mode: "Cash",
-			total_paid: 150.0,
-			customer_name: "Customer C",
-			created_by: "User C",
-			e_invoice_status: "Generated",
-		},
-		{
-			date: "2025-07-17",
-			invoice: "#INV-1004",
-			sales_order: "#SO-004",
-			mode: "UPI",
-			total_paid: 480.0,
-			customer_name: "Customer D",
-			created_by: "User A",
-			e_invoice_status: "Generated",
-		},
-		{
-			date: "2025-07-18",
-			invoice: "#INV-1005",
-			sales_order: "#SO-005",
-			mode: "Credit Card",
-			total_paid: 220.0,
-			customer_name: "Customer E",
-			created_by: "User B",
-			e_invoice_status: "Failed",
-		},
-	];
+	const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
-	useEffect(() => {
-		setData({ items: mockServiceData });
-		setIsLoading(false);
-	}, []);
+	const {
+		data: invoicesApiData = [],
+		isLoading,
+		isError,
+		error,
+		refetch,
+	} = useQuery({
+		queryKey: ["invoices", organizationId],
+		queryFn: () => client.invoices.list({ organizationId: organizationId! }),
+		enabled: !!organizationId,
+	});
 
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="animate-spin h-8 w-8 border-2 border-current border-r-transparent rounded-full">
-					<span className="sr-only">Loading...</span>
-				</div>
-			</div>
-		);
-	}
+	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
+		date: item.date ? item.date.toISOString() : null,
+		invoice: item.invoiceNumber,
+		sales_order: item.salesOrderId ?? null,
+		payment_id: item.paymentId ?? null,
+		mode: item.paymentMode ?? null,
+		total_paid: item.totalAmount,
+		customer_name: item.customerName,
+		created_by: item.createdBy,
+		e_invoice_status: item.eInvoiceStatus ?? null,
+	}));
+
+	const columns = useMemo(
+		() => buildColumns((paymentId) => setSelectedPaymentId(paymentId)),
+		[],
+	);
 
 	return (
-		<DataTable<PaymentRow, unknown> columns={columns} data={data?.items ?? []} />
+		<div className="p-6 space-y-6">
+			<div className="space-y-1">
+				<div className="flex items-center gap-2">
+					<CreditCard className="h-5 w-5 text-muted-foreground" />
+					<h1 className="text-xl font-semibold">Payments</h1>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					View and manage invoice payments.
+				</p>
+			</div>
+			<Separator />
+			<div className="rounded-2xl border border-border/40 bg-white shadow-sm overflow-hidden">
+				{isLoading ? (
+					<PageLoader />
+				) : (
+					<DataTable<PaymentRow, unknown>
+						columns={columns}
+						data={paymentsData}
+						emptyTitle="No payments found"
+						emptyDescription="Invoice payments will appear here once sales are recorded."
+						error={isError ? error : undefined}
+						onRetry={refetch}
+					/>
+				)}
+			</div>
+
+			{/* ── Payment Status History Dialog ── */}
+			<Dialog
+				open={selectedPaymentId !== null}
+				onOpenChange={(open) => {
+					if (!open) setSelectedPaymentId(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<History className="h-4 w-4 text-muted-foreground" />
+							Payment Status History
+						</DialogTitle>
+						<DialogDescription>
+							Status transitions for this payment.
+						</DialogDescription>
+					</DialogHeader>
+					{selectedPaymentId && organizationId && (
+						<PaymentHistoryPanel
+							organizationId={organizationId}
+							paymentId={selectedPaymentId}
+						/>
+					)}
+				</DialogContent>
+			</Dialog>
+		</div>
 	);
 }

@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { client } from "@/utils/orpc";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Users, Plus, Loader2, UserCheck, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
+import { useApiMutation } from "@/hooks/useApiMutation";
 
 interface Member {
   id: string;
@@ -159,7 +160,7 @@ export function MemberReassignment({
   );
 
   // Reassign member mutation
-  const reassignMutation = useMutation({
+  const reassignMutation = useApiMutation({
     mutationFn: async ({
       memberId,
       newHierarchyScopeId,
@@ -173,18 +174,16 @@ export function MemberReassignment({
         newHierarchyScopeId,
       });
     },
+    successMessage: "Member reassigned successfully",
+    errorMessage: (err) => `Failed to reassign member: ${err.message}`,
     onSuccess: () => {
-      toast.success("Member reassigned successfully");
       refetch();
       onReassigned?.();
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to reassign member: ${error.message}`);
     },
   });
 
   // Assign member to branch mutation
-  const assignMutation = useMutation({
+  const assignMutation = useApiMutation({
     mutationFn: async (memberId: string) => {
       return await client.hierarchy.reassignMember({
         organizationId,
@@ -192,14 +191,12 @@ export function MemberReassignment({
         newHierarchyScopeId: branchId,
       });
     },
+    successMessage: "Member assigned to branch successfully",
+    errorMessage: (err) => `Failed to assign member: ${err.message}`,
     onSuccess: () => {
-      toast.success("Member assigned to branch successfully");
       refetch();
       setShowAssignDropdown(false);
       onReassigned?.();
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to assign member: ${error.message}`);
     },
   });
 
@@ -446,7 +443,7 @@ export function MemberReassignment({
                       className={`h-5 px-1.5 text-[10px] capitalize ${
                         member.status === "active"
                           ? "text-green-600 border-green-200 bg-green-50"
-                          : "text-gray-500"
+                          : "text-brand-secondary-1"
                       }`}
                     >
                       {member.status}
@@ -459,7 +456,7 @@ export function MemberReassignment({
                             ? "text-purple-600 border-purple-200 bg-purple-50"
                             : isHigherLevel
                             ? "text-blue-600 border-blue-200 bg-blue-50"
-                            : "text-gray-600"
+                            : "text-brand-secondary-1"
                         }`}
                       >
                         {scopeInfo.label}

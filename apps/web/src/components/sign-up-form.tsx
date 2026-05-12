@@ -34,7 +34,7 @@ export default function SignUpForm({
 					name: `${value.firstName} ${value.lastName}`,
 					firstName: value.firstName,
 					lastName: value.lastName,
-				},
+				} as any,
 				{
 					onSuccess: () => {
 						toast.success("Sign up successful");

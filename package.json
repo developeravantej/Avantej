@@ -34,20 +34,30 @@
     "db:push": "turbo -F @avantej-core/db db:push",
     "db:studio": "turbo -F @avantej-core/db db:studio",
     "db:generate": "turbo -F @avantej-core/db db:generate",
-    "db:migrate": "turbo -F @avantej-core/db db:migrate"
+    "db:migrate": "turbo -F @avantej-core/db db:migrate",
+    "db:generate:control-panel": "turbo -F @avantej-core/db db:generate:control-panel",
+    "db:generate:tenant": "turbo -F @avantej-core/db db:generate:tenant",
+    "db:migrate:control-panel": "turbo -F @avantej-core/db db:migrate:control-panel",
+    "db:migrate:tenant": "turbo -F @avantej-core/db db:migrate:tenant",
+    "db:studio:control-panel": "turbo -F @avantej-core/db db:studio:control-panel",
+    "db:studio:tenant": "turbo -F @avantej-core/db db:studio:tenant",
+    "db:migrate-all-tenants": "turbo -F @avantej-core/db db:migrate-all-tenants",
+    "gen:migrations": "bun scripts/gen-tenant-migrations.ts",
+    "verify:migrations": "bun scripts/verify-migrations-generated.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.2",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "turbo": "^2.5.4",
     "@biomejs/biome": "^2.2.0",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^22.13.11",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "oxlint": "^1.12.0",
     "tsdown": "^0.15.5",
-    "@types/node": "^22.13.11"
+    "turbo": "^2.5.4"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": "bun run check:oxlint --"

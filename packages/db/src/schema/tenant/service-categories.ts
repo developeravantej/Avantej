@@ -22,6 +22,8 @@ export const serviceCategories = pgTable("service_categories", {
 	isActive: boolean("is_active").default(true).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	createdBy: text("created_by"),
+	updatedBy: text("updated_by"),
 }, (table) => ({
 	branchIdIdx: index("service_categories_branch_idx").on(table.branchId),
 	isActiveIdx: index("service_categories_active_idx").on(table.isActive),

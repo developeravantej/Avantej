@@ -29,7 +29,7 @@ export function SingleTeamDashboard({ team }: SingleTeamDashboardProps) {
   return (
     <Card className="h-full">
       <CardContent className="flex flex-col h-[250px]">
-        <div className="overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className="overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-brand-secondary-2 [&::-webkit-scrollbar-thumb]:rounded-full">
           <div className="flex justify-between items-center p-2">
             <h1 className="font-heading font-bold text-2xl">{team.name}</h1>
             <ChevronsUpDown className="mr-3 h-4 w-4" />

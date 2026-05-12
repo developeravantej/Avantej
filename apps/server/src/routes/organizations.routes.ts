@@ -22,7 +22,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { tenantMiddleware } from "@/middleware/tenant.middleware";
 import { hierarchyMiddleware } from "@/middleware/hierarchy.middleware";
-import { createTenantProject } from "@/services/neon.service";
+import { createTenantProject, deleteTenantProject } from "@/services/neon.service";
 import { encrypt } from "@avantej-core/db";
 import { runTenantMigrations, seedRBACData, LATEST_MIGRATION_VERSION } from "@avantej-core/db";
 import { Pool } from "@neondatabase/serverless";
@@ -109,6 +109,10 @@ function buildHierarchyTree(
  * Create new organization (requires active subscription)
  */
 organizationRoutes.post("/", authMiddleware, async (c) => {
+  // Tracks the Neon project ID once provisioned, so the outer `catch` can
+  // best-effort delete it if anything downstream fails. Declared outside the
+  // `try` to be visible in the `catch` block.
+  let provisionedProjectId: string | null = null;
   try {
     const user = c.get("user");
     if (!user) {
@@ -181,13 +185,21 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
       );
     }
 
-    // Provision organization atomically
+    // Provision organization atomically.
+    //
+    // Migration-failure rollback: if `runTenantMigrations` throws AFTER the
+    // Neon project has been created but BEFORE the org is fully usable, we
+    // best-effort delete the Neon project so we don't leak orphan tenants.
+    // The control-panel transaction also rolls back on any throw, so the
+    // organization row never persists. Tracked in zplan/05-06_09-12_schema-
+    // relationship-fixes — Phase 0 task #5.
     const result = await controlPanelDb.transaction(async (tx) => {
       // 1. Provision Neon project
       const { projectId, connectionString } = await createTenantProject({
         slug,
         region: "aws-ap-southeast-1",
       });
+      provisionedProjectId = projectId;
 
       // 2. Encrypt connection string
       const encryptedConnectionString = encrypt(connectionString);
@@ -212,7 +224,22 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
       }
 
       // 4. Run tenant migrations
-      await runTenantMigrations(connectionString);
+      try {
+        await runTenantMigrations(connectionString);
+      } catch (migrationErr) {
+        // Best-effort cleanup of the orphan Neon project, then rethrow.
+        // The outer try/catch will also attempt cleanup as a safety net.
+        try {
+          await deleteTenantProject(projectId);
+          provisionedProjectId = null;
+        } catch (cleanupErr) {
+          console.error(
+            `[provision] Failed to delete Neon project ${projectId} after migration failure:`,
+            cleanupErr,
+          );
+        }
+        throw migrationErr;
+      }
 
       // 5. Create tenant database client (using Pool for transaction support)
       const tenantPool = new Pool({ connectionString });
@@ -269,6 +296,19 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
     );
   } catch (error) {
     console.error("Create organization error:", error);
+    // Safety-net cleanup: if a Neon project was provisioned but the outer
+    // transaction failed (and the inner migration-failure handler didn't
+    // already delete it), best-effort remove the orphan project here.
+    if (provisionedProjectId) {
+      try {
+        await deleteTenantProject(provisionedProjectId);
+      } catch (cleanupErr) {
+        console.error(
+          `[provision] Safety-net deletion of Neon project ${provisionedProjectId} failed:`,
+          cleanupErr,
+        );
+      }
+    }
     return c.json(
       {
         error:

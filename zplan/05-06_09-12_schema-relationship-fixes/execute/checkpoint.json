@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/05-06_09-12_schema-relationship-fixes",
+  "planPath": "zplan/05-06_09-12_schema-relationship-fixes/plan/plan.md",
+  "updatedAt": "2026-05-06T07:30:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "3a6a952b3f4668e1dd832ddd02875b9e4718f61c",
+  "lastCompletedPhase": 4,
+  "currentPhase": null,
+  "totalPhases": 5,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "0": [
+      { "role": "Phase 0 initial (general-purpose)", "logWritten": true },
+      { "role": "Phase 0 reconcile (general-purpose)", "logWritten": true },
+      { "role": "Phase 0 newcomer audit (general-purpose)", "logWritten": true }
+    ],
+    "1": [
+      { "role": "Agent 1.1 D1 walk_in FK actions", "logWritten": true },
+      { "role": "Agent 1.2 D2 preferred_trainer orphan check", "logWritten": true }
+    ],
+    "2": [
+      { "role": "Agent 2.1 members.roleId", "logWritten": true },
+      { "role": "Agent 2.2 branch pricing", "logWritten": true },
+      { "role": "Agent 2.3 tax-rate snapshots", "logWritten": true },
+      { "role": "Agent 2.4 appointment EXCLUDE", "logWritten": true },
+      { "role": "Agent 2.5 commission audit + versioning", "logWritten": true },
+      { "role": "Agent 2.7 status history per-entity", "logWritten": true },
+      { "role": "Agent 2.8 refund items", "logWritten": true },
+      { "role": "Agent 2.9 commission reversal chain", "logWritten": true },
+      { "role": "Agent 2.10 promotion FK + waitlist + announcements", "logWritten": true },
+      { "role": "Agent 2.11 goods receipt 3-way match", "logWritten": true },
+      { "role": "Agent 2.12 CP critical fixes", "logWritten": true },
+      { "role": "Agent 2.13 catalog audit fields", "logWritten": true }
+    ],
+    "3": [
+      { "role": "Agent 3.1 membership freeze/hold", "logWritten": true },
+      { "role": "Agent 3.2 lead source attribution", "logWritten": true },
+      { "role": "Agent 3.3 complimentary tracking", "logWritten": true },
+      { "role": "Agent 3.4 commission caps/floors", "logWritten": true },
+      { "role": "Agent 3.5 walk-in→package conversion", "logWritten": true },
+      { "role": "Agent 3.6 household linking", "logWritten": true }
+    ],
+    "4": [
+      { "role": "Phase 4 CI drift gate", "logWritten": true }
+    ]
+  },
+  "taskCoverage": {
+    "0": { "total": 9, "done": 9, "missed": 0 },
+    "1": { "total": 5, "done": 5, "missed": 0, "note": "D3 dropped (no-op); D2 vacuously clean" },
+    "2": { "total": 12, "done": 12, "missed": 0, "note": "2.6 dropped per OQ2" },
+    "3": { "total": 6, "done": 6, "missed": 0 },
+    "4": { "total": 1, "done": 1, "missed": 0 }
+  },
+  "missedTasks": [],
+  "knownGaps": [
+    "Agent 3.3/3.4: hot POS path commission-calculator.service.ts::_buildSplits inserts splits directly, bypassing createCommissionSplit; comp-skip + caps don't fire there. Read-only file in scope. Follow-up: mirror guards in _buildSplits.",
+    "Phase 4 CI workflow needs repo-admin to provision GitHub secret DRIFT_CHECK_DATABASE_URL + add 'Schema Drift Check / drift-check' to required status checks on main branch.",
+    "Agent 1.2 D2 result was vacuously clean (column not yet present on dev tenants). Re-run check-preferred-trainer-orphans.ts post-deploy after 0019 applies."
+  ],
+  "resolvedDecisions": [
+    { "id": "OQ2", "decision": "Agent 2.6 stock movements dropped from session" },
+    { "id": "OQ3", "decision": "Commission config auto-version every save (implemented via Postgres AFTER INSERT trigger)" },
+    { "id": "OQ4", "decision": "Refund reversal visibility internal-only (default)" },
+    { "id": "OQ-EXEC", "decision": "Originally Wave 1 only; user said 'go' through all subsequent waves" },
+    { "id": "OQ-EMB-RECONCILE", "decision": "Files = source of truth; codegen produces TENANT_MIGRATIONS; CI guard via verify:migrations" },
+    { "id": "OQ-WAVE2-NEWCOMER-DUPES", "decision": "Per-newcomer audit: 5 marker no-ops, 1 verbatim, 2 idempotent rewrites" }
+  ],
+  "openQuestions": [],
+  "nextActions": [
+    "Session implementation complete. Recommend: commit as PR.",
+    "Browser/manual verification (J1-J7 user journeys) — user runs /chrome-run or manual test pass.",
+    "Post-deploy: re-run check-preferred-trainer-orphans.ts; provision CI secret + status check on drift-check workflow.",
+    "Address known POS hot-path commission gap in follow-up session (commission-calculator.service.ts::_buildSplits)."
+  ],
+  "subagentRetryLog": []
+}

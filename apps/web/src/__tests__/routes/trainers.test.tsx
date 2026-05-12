@@ -1,0 +1,82 @@
+import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../helpers/render-with-providers";
+import { mockClient } from "../helpers/mock-client";
+
+let TrainersViewPage: React.ComponentType;
+vi.mock("@tanstack/react-router", () => ({
+	createFileRoute: () => (opts: { component: React.ComponentType }) => {
+		TrainersViewPage = opts.component;
+		return {
+			component: opts.component,
+			useSearch: () => ({}),
+			useNavigate: () => () => {},
+		};
+	},
+	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: () => () => {},
+	useSearch: () => ({}),
+}));
+vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/hooks/useUserContext", () => ({
+	useUserContext: () => ({
+		data: {
+			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
+			organizations: [],
+		},
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
+	}),
+}));
+vi.mock("sonner", () => ({
+	toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+beforeAll(async () => {
+	await import("@/routes/_authenticated/dashboard/_layout/trainers/view");
+});
+
+describe("Trainers page", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockClient.members.list.mockResolvedValue([]);
+	});
+
+	test("renders without crashing (empty state)", async () => {
+		renderWithProviders(<TrainersViewPage />);
+		await waitFor(() => {
+			expect(screen.getAllByText("Trainers")[0]).toBeInTheDocument();
+		});
+	});
+
+	test("renders Add Trainer button in header", async () => {
+		renderWithProviders(<TrainersViewPage />);
+		await waitFor(() => {
+			const buttons = screen.getAllByRole("button", { name: /add trainer/i });
+			expect(buttons.length).toBeGreaterThan(0);
+		});
+	});
+
+	test("renders trainer card when data exists", async () => {
+		mockClient.members.list.mockResolvedValue([
+			{
+				id: "member-1",
+				userId: "user-1",
+				role: "trainer",
+				hierarchyScopeId: "node-1",
+				status: "active",
+				joinedAt: "2026-01-01T00:00:00.000Z",
+				name: "Alice Trainer",
+				email: "alice@example.com",
+				trainerTierId: null,
+			},
+		]);
+
+		renderWithProviders(<TrainersViewPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Alice Trainer")).toBeInTheDocument();
+		});
+	});
+});

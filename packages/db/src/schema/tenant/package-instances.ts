@@ -7,16 +7,20 @@
  * Replaces the previous package_assignments table with enhanced functionality.
  */
 
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
-import { packages } from "./packages";
+import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { members } from "./members";
 import { payments } from "./payments";
+import { services } from "./services";
+import { walkInCustomers } from "./walk-in-customers";
 
 export const packageInstances = pgTable("package_instances", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	packageId: uuid("package_id")
+	serviceId: uuid("service_id")
 		.notNull()
-		.references(() => packages.id, { onDelete: "restrict" }),
-	clientId: text("client_id").notNull(),
+		.references(() => services.id, { onDelete: "restrict" }),
+	clientId: text("client_id"),
+	walkInCustomerId: uuid("walk_in_customer_id").references(() => walkInCustomers.id, { onDelete: "restrict" }),
 
 	// Source tracking
 	source: text("source").notNull(), // "assigned" | "purchased"
@@ -41,7 +45,9 @@ export const packageInstances = pgTable("package_instances", {
 
 	// Session tracking
 	creditsTotal: integer("credits_total").notNull(),
-	creditsRemaining: integer("credits_remaining").notNull(),
+	creditsRemaining: integer("credits_remaining")
+		.generatedAlwaysAs(sql`COALESCE(credits_unlocked, credits_total) - credits_used`)
+		.notNull(),
 	creditsUsed: integer("credits_used").default(0).notNull(),
 
 	// Validity
@@ -49,14 +55,43 @@ export const packageInstances = pgTable("package_instances", {
 	expiresAt: timestamp("expires_at").notNull(),
 
 	// Status
-	status: text("status").notNull(), // "active" | "expired" | "exhausted" | "cancelled"
+	status: text("status").notNull(), // "pending" | "active" | "expired" | "exhausted" | "cancelled"
+
+	// Approval flow (Pattern C — assignment IS approval)
+	// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
+	// package that started in `pending` state. Null for legacy / non-gated rows.
+	assignedTrainerId: uuid("assigned_trainer_id"),
+	preferredTrainerId: uuid("preferred_trainer_id").references(() => members.id),
+	assignedTrainerAssignedBy: text("assigned_trainer_assigned_by"),
+	assignedTrainerAssignedAt: timestamp("assigned_trainer_assigned_at"),
+	approvedAt: timestamp("approved_at"),
+	approvedBy: text("approved_by"),
+	cancellationReason: text("cancellation_reason"),
+	cancelledBy: text("cancelled_by"),
 
 	remark: text("remark"),
+
+	// Installment tracking
+	paymentPlanType: text("payment_plan_type"), // 'full' | 'half' | 'quarterly' | null (null = legacy)
+	installmentsTotal: integer("installments_total").default(1).notNull(),
+	installmentsPaid: integer("installments_paid").default(0).notNull(),
+	creditsUnlocked: integer("credits_unlocked"), // null = all credits available (legacy); integer = installment-controlled
+	nextDueDate: timestamp("next_due_date", { withTimezone: true }),
+	gracePeriodEndsAt: timestamp("grace_period_ends_at", { withTimezone: true }),
+	isLocked: boolean("is_locked").default(false).notNull(),
+	lockedAt: timestamp("locked_at", { withTimezone: true }),
+	lockedReason: text("locked_reason"),
+
+	// When true, payment confirmations use max(current, formula) rather than overwriting
+	creditsAdminOverride: boolean("credits_admin_override").default(false).notNull(),
+
+	// When true, credit-consuming operations (appointment booking, check-in)
+	// ignore the isLocked flag. Admin override for VIP / trusted customers.
+	allowCreditOverdraft: boolean("allow_credit_overdraft").default(false).notNull(),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-	packageIdIdx: index("package_instances_package_idx").on(table.packageId),
 	clientIdIdx: index("package_instances_client_idx").on(table.clientId),
 	sourceIdx: index("package_instances_source_idx").on(table.source),
 	statusIdx: index("package_instances_status_idx").on(table.status),
@@ -65,4 +100,8 @@ export const packageInstances = pgTable("package_instances", {
 	clientStatusIdx: index("package_instances_client_status_idx")
 		.on(table.clientId, table.status),
 	purchaseNumberIdx: index("package_instances_purchase_number_idx").on(table.purchaseNumber),
+	serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
+	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
+	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
+	walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(table.walkInCustomerId),
 }));

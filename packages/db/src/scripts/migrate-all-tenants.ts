@@ -27,6 +27,281 @@ const MIGRATIONS: Record<string, { name: string; sql: string }> = {
     name: "Add unique constraint for branch names",
     sql: `CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique" ON "hierarchy_nodes"("name") WHERE "type" = 'branch';`,
   },
+  "ghl-per-branch-sync": {
+    name: "Add GHL per-branch sync columns + ghl_user_links table (idempotent, nullable-first)",
+    sql: `CREATE TABLE IF NOT EXISTS "ghl_user_links" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"ghl_user_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"member_id" uuid NOT NULL,
+	"branch_node_id" uuid NOT NULL,
+	"ghl_location_id" text NOT NULL,
+	"last_error" text,
+	"sync_status" text DEFAULT 'active' NOT NULL,
+	"last_synced_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+DROP INDEX IF EXISTS "ghl_contact_links_sync_status_idx";--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "branch_node_id" uuid;--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "ghl_location_id" text;--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "last_error" text;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_ghl_user_id_unique" ON "ghl_user_links" USING btree ("ghl_user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_branch_unique" ON "ghl_user_links" USING btree ("member_id","branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_user_idx" ON "ghl_user_links" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_member_idx" ON "ghl_user_links" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_branch_idx" ON "ghl_user_links" USING btree ("branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_ghl_location_idx" ON "ghl_user_links" USING btree ("ghl_location_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_sync_status_idx" ON "ghl_user_links" USING btree ("sync_status","last_synced_at");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_branch_unique" ON "ghl_contact_links" USING btree ("customer_profile_id","branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree ("branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");`,
+  },
+  "add-members-deleted-at": {
+    name: "Add deleted_at column for staff member soft-delete",
+    sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" ("deleted_at");`,
+  },
+  "hierarchy-rename-region-state": {
+    name: "Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3 (requires zero 'area' rows)",
+    sql: `DO $$
+DECLARE area_count int;
+BEGIN
+  SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
+  IF area_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
+--> statement-breakpoint
+UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;`,
+  },
+  "hierarchy-country-fk-archived-at": {
+    name: "Phase G0: add country_node_id denorm FK + archived_at soft archive on hierarchy_nodes",
+    sql: `ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "country_node_id" uuid REFERENCES "hierarchy_nodes"("id") ON DELETE RESTRICT;
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "archived_at" timestamp;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hierarchy_country_idx" ON "hierarchy_nodes" ("country_node_id");
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hierarchy_archived_at_idx" ON "hierarchy_nodes" ("archived_at");
+--> statement-breakpoint
+WITH RECURSIVE ancestors AS (
+  SELECT id, parent_id, type, id AS country_id FROM hierarchy_nodes WHERE type = 'country'
+  UNION ALL
+  SELECT h.id, h.parent_id, h.type, a.country_id
+  FROM hierarchy_nodes h JOIN ancestors a ON h.parent_id = a.id
+)
+UPDATE hierarchy_nodes h SET country_node_id = a.country_id, updated_at = now()
+FROM ancestors a
+WHERE h.id = a.id AND h.type IN ('state', 'branch') AND h.country_node_id IS NULL;`,
+  },
+  "ghl-links-single-entity-unique": {
+    name: "Phase G: flip ghl_contact_links + ghl_user_links unique from (entity, branch) → (entity)",
+    sql: `-- Phase G: flip ghl_contact_links and ghl_user_links unique constraints from
+-- (entity, branch) → (entity). Reflects org-shared GHL model: one customer
+-- maps to ONE GHL contact per org; one member maps to ONE GHL user per org.
+
+-- Pre-flight: detect duplicate (customer_profile_id) rows that would block the
+-- new unique. If any tenant has >1 row per customer, hard-fail with a clear
+-- message so the operator can dedupe before retrying.
+DO $$
+DECLARE
+  dup_count int;
+  offending_ids text;
+BEGIN
+  SELECT count(*), string_agg(customer_profile_id::text, ', ')
+    INTO dup_count, offending_ids
+  FROM (
+    SELECT customer_profile_id FROM ghl_contact_links
+    GROUP BY customer_profile_id HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % customer_profile_id(s) in ghl_contact_links have multiple rows. Offending: %. Dedupe before applying.', dup_count, offending_ids;
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE
+  dup_count int;
+  offending_ids text;
+BEGIN
+  SELECT count(*), string_agg(member_id::text, ', ')
+    INTO dup_count, offending_ids
+  FROM (
+    SELECT member_id FROM ghl_user_links
+    GROUP BY member_id HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % member_id(s) in ghl_user_links have multiple rows. Offending: %. Dedupe before applying.', dup_count, offending_ids;
+  END IF;
+END $$;
+--> statement-breakpoint
+DROP INDEX IF EXISTS "ghl_contact_links_customer_branch_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "ghl_user_links_member_branch_unique";
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_unique" ON "ghl_contact_links" ("customer_profile_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_unique" ON "ghl_user_links" ("member_id");`,
+  },
+  "hierarchy-name-uniqueness": {
+    name: "Phase H-hygiene: partial unique on country names + (parent, state name) — blocks if dupes exist",
+    sql: `-- Phase H-hygiene: prevent duplicate sibling rows by enforcing uniqueness
+-- on the (parent_id, name) key per type. App layer already validates this
+-- on insert (hierarchy_validation.service.ts), but the DB-level constraint
+-- catches programmatic inserts that bypass the service.
+-- Note: existing branch-name partial unique covers the leaf level globally.
+
+-- 1. Pre-flight dedup checks (hard-fail with actionable message).
+-- The orchestrator will run merge-duplicate-siblings.ts on affected tenants
+-- before applying this migration. CREATE UNIQUE INDEX would itself error if
+-- duplicates exist, but the explicit checks give a clearer remediation hint.
+DO $$
+DECLARE dup_count int;
+BEGIN
+  SELECT count(*) INTO dup_count FROM (
+    SELECT name FROM hierarchy_nodes
+    WHERE type = 'country' AND archived_at IS NULL
+    GROUP BY name HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % duplicate country name(s) exist. Run merge-duplicate-siblings.ts first.', dup_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE dup_count int;
+BEGIN
+  SELECT count(*) INTO dup_count FROM (
+    SELECT parent_id, name FROM hierarchy_nodes
+    WHERE type = 'state' AND archived_at IS NULL
+    GROUP BY parent_id, name HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % duplicate state sibling(s) exist. Run merge-duplicate-siblings.ts first.', dup_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- 2. Create the partial uniques (idempotent via IF NOT EXISTS).
+-- Country names must be globally unique within an org (one tenant DB =
+-- one org). No parent_id matching needed since the org root is the
+-- only parent type=country can have.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
+  ON "hierarchy_nodes" ("name")
+  WHERE "type" = 'country' AND "archived_at" IS NULL;
+--> statement-breakpoint
+-- State names unique within their parent country.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
+  ON "hierarchy_nodes" ("parent_id", "name")
+  WHERE "type" = 'state' AND "archived_at" IS NULL;`,
+  },
+  "hierarchy-type-enum": {
+    name: "Phase H2: convert hierarchy_nodes.type text → Postgres enum (drop+recreate partial indexes referencing type)",
+    sql: `DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hierarchy_node_type') THEN
+    CREATE TYPE hierarchy_node_type AS ENUM ('organization', 'country', 'state', 'branch');
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE bad_count int; bad_types text;
+BEGIN
+  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+    INTO bad_count, bad_types
+  FROM hierarchy_nodes
+  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+  IF bad_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s): %', bad_count, bad_types;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- Drop partial indexes that reference the type column; ALTER TYPE can't
+-- proceed while a partial predicate compares enum-incompatible literals.
+DROP INDEX IF EXISTS "hierarchy_nodes_branch_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_country_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_state_sibling_name_unique";
+--> statement-breakpoint
+DO $$
+DECLARE col_type text;
+BEGIN
+  SELECT data_type INTO col_type
+  FROM information_schema.columns
+  WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+  IF col_type = 'text' THEN
+    ALTER TABLE hierarchy_nodes
+      ALTER COLUMN type TYPE hierarchy_node_type
+      USING type::hierarchy_node_type;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- Recreate the partial indexes; Postgres now stores the enum-aware predicate.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_nodes_branch_name_unique"
+  ON "hierarchy_nodes" ("name") WHERE "type" = 'branch';
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
+  ON "hierarchy_nodes" ("name")
+  WHERE "type" = 'country' AND "archived_at" IS NULL;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
+  ON "hierarchy_nodes" ("parent_id", "name")
+  WHERE "type" = 'state' AND "archived_at" IS NULL;`,
+  },
+  "hierarchy-slug": {
+    name: "Phase H2: add slug column to hierarchy_nodes + backfill + sibling-unique",
+    sql: `ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS slug text;
+--> statement-breakpoint
+UPDATE hierarchy_nodes
+SET slug = trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))),
+    updated_at = now()
+WHERE slug IS NULL;
+--> statement-breakpoint
+DO $$
+DECLARE null_count int;
+BEGIN
+  SELECT count(*) INTO null_count FROM hierarchy_nodes WHERE slug IS NULL;
+  IF null_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % rows still have NULL slug after backfill', null_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+ALTER TABLE hierarchy_nodes ALTER COLUMN slug SET NOT NULL;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_sibling_slug_unique"
+  ON "hierarchy_nodes" ("parent_id", "slug")
+  WHERE "archived_at" IS NULL;`,
+  },
+  "branch-details-split": {
+    name: "Phase H2: split branch-specific columns (address, pic_user_id) into branch_details table",
+    sql: `CREATE TABLE IF NOT EXISTS "branch_details" (
+  "node_id" uuid PRIMARY KEY REFERENCES "hierarchy_nodes"("id") ON DELETE CASCADE,
+  "address" text,
+  "pic_user_id" text,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+INSERT INTO "branch_details" ("node_id", "address", "pic_user_id")
+SELECT id, address, pic_user_id FROM hierarchy_nodes
+WHERE type = 'branch' AND (address IS NOT NULL OR pic_user_id IS NOT NULL)
+ON CONFLICT (node_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  pic_user_id = EXCLUDED.pic_user_id,
+  updated_at = now();
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "address";
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");`,
+  },
   // Add more migrations here as needed:
   // "migration-name": {
   //   name: "Description of what this does",

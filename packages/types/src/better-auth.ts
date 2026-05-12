@@ -11,18 +11,36 @@
 
 /**
  * Better-Auth User type
- * Matches Better-Auth's User type from their API
+ * Matches Better-Auth's User type from their API.
+ *
+ * Optional/nullable fields are configured via `additionalFields` with
+ * `required: false` in `apps/server/src/lib/better-auth.ts`. At runtime
+ * Better-Auth returns these as `string | null | undefined`.
  */
 export interface BetterAuthUser {
   id: string;
   name: string;
-  firstName: string;
-  lastName: string;
   email: string;
   emailVerified: boolean;
   image?: string | null | undefined;
   createdAt: Date;
   updatedAt: Date;
+  // additionalFields (all `required: false`, hence nullable)
+  firstName: string | null | undefined;
+  lastName: string | null | undefined;
+  phone?: string | null | undefined;
+  idPassportNo?: string | null | undefined;
+  addressType?: string | null | undefined;
+  streetAddress?: string | null | undefined;
+  city?: string | null | undefined;
+  state?: string | null | undefined;
+  country?: string | null | undefined;
+  postalCode?: string | null | undefined;
+  dateOfBirth?: string | null | undefined;
+  emergencyContactName?: string | null | undefined;
+  emergencyContactRelationship?: string | null | undefined;
+  emergencyContactPhone?: string | null | undefined;
+  // admin plugin fields
   banned?: boolean | null | undefined;
   role?: string | null | undefined;
   banReason?: string | null | undefined;

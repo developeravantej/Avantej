@@ -1,55 +1,24 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
-import { Badge } from "@/components/ui/badge";
+import { CopyableCell } from "@/components/tables/copyable-cell";
+import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
-import { toast } from "sonner";
+import { Eye } from "lucide-react";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatPrice } from "@/lib/money";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 export interface SalesRow {
+	id: string;
 	date?: string | null;
 	sales_order?: string | null;
 	total_sales?: number;
 	customer_name?: string | null;
+	customerId?: string | null;
 	created_by?: string | null;
+	status?: string | null;
 }
-
-// Helper component for copyable cells
-interface CopyableCellProps {
-	value: string | null | undefined;
-	displayText?: React.ReactNode;
-}
-
-const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
-	const onCopy = (textToCopy: string) => {
-		navigator.clipboard
-			.writeText(textToCopy)
-			.then(() => {
-				toast.success("Copied to clipboard!");
-			})
-			.catch((err) => {
-				toast.error("Failed to copy: " + err);
-			});
-	};
-
-	const displayContent = displayText || value || "N/A";
-
-	return (
-		<div
-			className="cursor-pointer flex items-center group"
-			onClick={() => onCopy(value!)}
-		>
-			<Badge
-				variant="outline"
-				className="flex items-center gap-x-2 truncate"
-				title={value || undefined}
-			>
-				{displayContent}
-				<Copy className="h-3.5 w-3.5 text-muted-foreground" />
-			</Badge>
-		</div>
-	);
-};
 
 // Helper function to format date
 const formatDate = (dateString: string | null | undefined): string => {
@@ -61,13 +30,26 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-// Helper function to format price in MYR
-const formatPriceMYR = (price: number): string => {
-	return new Intl.NumberFormat("en-MY", {
-		style: "currency",
-		currency: "MYR",
-	}).format(price);
-};
+
+function SalesActionCell({ row }: { row: import("@tanstack/react-table").Row<SalesRow> }) {
+	const navigate = useNavigate();
+	return (
+		<div className="flex items-center gap-2">
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={() =>
+					navigate({
+						to: "/dashboard/sales/$id",
+						params: { id: row.original.id },
+					})
+				}
+			>
+				<Eye className="h-4 w-4 mr-1" /> View
+			</Button>
+		</div>
+	);
+}
 
 export const columns: ColumnDef<SalesRow>[] = [
 	{
@@ -102,7 +84,7 @@ export const columns: ColumnDef<SalesRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const totalSales = getValue<number>();
-			return totalSales !== undefined ? formatPriceMYR(totalSales) : "N/A";
+			return totalSales !== undefined ? formatPrice(totalSales, "MYR") : "N/A";
 		},
 		enableSorting: true,
 		enableHiding: false,
@@ -112,7 +94,22 @@ export const columns: ColumnDef<SalesRow>[] = [
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Customer Name" />
 		),
-		cell: ({ getValue }) => getValue<string>() || "N/A",
+		cell: ({ row }) => {
+			const name = row.original.customer_name;
+			const customerId = row.original.customerId;
+			if (customerId) {
+				return (
+					<Link
+						to="/dashboard/customers/view"
+						search={{ customerId }}
+						className="text-primary underline-offset-4 hover:underline"
+					>
+						{name || "N/A"}
+					</Link>
+				);
+			}
+			return name || "N/A";
+		},
 		enableSorting: true,
 		enableHiding: false,
 	},
@@ -139,36 +136,25 @@ export const columns: ColumnDef<SalesRow>[] = [
 		enableHiding: false,
 	},
 	{
+		accessorKey: "status",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Status" />
+		),
+		cell: ({ getValue }) => {
+			const status = getValue<string>();
+			return status ? (
+				<StatusBadge status={status as CanonicalStatus} />
+			) : "N/A";
+		},
+		enableSorting: true,
+		enableHiding: false,
+	},
+	{
 		id: "actions",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Action" />
 		),
-		cell: ({ row }) => {
-			return (
-				<div className="flex items-center gap-2">
-					<button
-						className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-						type="button"
-						onClick={() => {
-							// Handle view action
-							console.log("View sales order:", row.original);
-						}}
-					>
-						View
-					</button>
-					<button
-						className="text-green-600 hover:text-green-800 text-sm font-medium"
-						type="button"
-						onClick={() => {
-							// Handle edit action
-							console.log("Edit sales order:", row.original);
-						}}
-					>
-						Edit
-					</button>
-				</div>
-			);
-		},
+		cell: ({ row }) => <SalesActionCell row={row} />,
 		enableSorting: false,
 		enableHiding: false,
 	},

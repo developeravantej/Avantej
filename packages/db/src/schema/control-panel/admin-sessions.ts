@@ -10,7 +10,7 @@
  * - All actions logged for compliance audit
  */
 
-import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 import { organizations } from "./organizations";

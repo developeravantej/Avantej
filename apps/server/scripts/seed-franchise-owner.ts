@@ -532,8 +532,7 @@ async function seedFranchiseOwner() {
     });
 
     let countryNode: typeof hierarchyNodes.$inferSelect | undefined;
-    let regionNode: typeof hierarchyNodes.$inferSelect | undefined;
-    let areaNode: typeof hierarchyNodes.$inferSelect | undefined;
+    let stateNode: typeof hierarchyNodes.$inferSelect | undefined;
 
     if (existingCountry) {
       console.log("   ⚠️  Sample hierarchy already exists, skipping...\n");
@@ -554,41 +553,56 @@ async function seedFranchiseOwner() {
       countryNode = createdCountryNode;
       console.log("   ✅ Created country node: " + countryNode.id + " (USA)");
 
-      const [createdRegionNode] = await tenantDb
+      const [createdStateNode] = await tenantDb
         .insert(hierarchyNodes)
         .values({
-          name: "West Coast",
-          type: "region",
+          name: "California",
+          type: "state",
           depth: 2,
           parentId: countryNode.id,
         })
         .returning();
 
-      if (!createdRegionNode) {
-        throw new Error("Failed to create region node");
+      if (!createdStateNode) {
+        throw new Error("Failed to create state node");
       }
-      regionNode = createdRegionNode;
+      stateNode = createdStateNode;
       console.log(
-        "   ✅ Created region node: " + regionNode.id + " (West Coast)"
+        "   ✅ Created state node: " + stateNode.id + " (California)\n"
       );
 
-      const [createdAreaNode] = await tenantDb
-        .insert(hierarchyNodes)
-        .values({
-          name: "California",
-          type: "area",
-          depth: 3,
-          parentId: regionNode.id,
-        })
-        .returning();
+      // Create sample branch nodes under the state
+      if (stateNode) {
+        const branchNames = ["Los Angeles Branch", "San Francisco Branch"];
+        for (const branchName of branchNames) {
+          const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+            where: (nodes, { eq, and: andFn }) =>
+              andFn(eq(nodes.type, "branch"), eq(nodes.name, branchName)),
+          });
 
-      if (!createdAreaNode) {
-        throw new Error("Failed to create area node");
+          if (!existingBranch) {
+            const [createdBranch] = await tenantDb
+              .insert(hierarchyNodes)
+              .values({
+                name: branchName,
+                type: "branch",
+                depth: 3,
+                parentId: stateNode!.id,
+                address: branchName === "Los Angeles Branch"
+                  ? "123 Main St, Los Angeles, CA 90001"
+                  : "456 Market St, San Francisco, CA 94105",
+              })
+              .returning();
+
+            if (createdBranch) {
+              console.log(`   ✅ Created branch node: ${createdBranch.id} (${branchName})`);
+            }
+          } else {
+            console.log(`   ⚠️  Branch already exists: ${existingBranch.id} (${branchName})`);
+          }
+        }
+        console.log();
       }
-      areaNode = createdAreaNode;
-      console.log(
-        "   ✅ Created area node: " + areaNode.id + " (California)\n"
-      );
     }
 
     // ============================================
@@ -619,14 +633,12 @@ async function seedFranchiseOwner() {
     // Only show hierarchy details if sample hierarchy was created
     if (
       typeof countryNode !== "undefined" &&
-      typeof regionNode !== "undefined" &&
-      typeof areaNode !== "undefined"
+      typeof stateNode !== "undefined"
     ) {
       console.log("\n🌳 Hierarchy Details:");
       console.log("   Organization Node ID: " + orgNode.id);
       console.log("   Country Node ID: " + countryNode.id + " (USA)");
-      console.log("   Region Node ID: " + regionNode.id + " (West Coast)");
-      console.log("   Area Node ID: " + areaNode.id + " (California)");
+      console.log("   State Node ID: " + stateNode.id + " (California)");
     }
     console.log("\n👤 Member Details (TENANT DB):");
     console.log("   Member ID: " + member.id);
@@ -646,7 +658,7 @@ async function seedFranchiseOwner() {
     console.log("   3. Navigate to: /dashboard/branch/view");
     console.log("   4. Verify organization is selected and branches load");
     console.log("   5. Navigate to: /dashboard/branch/create");
-    console.log("   6. Test creating a branch under California area");
+    console.log("   6. Test creating a branch under California state");
     console.log("\n");
 
     return {
@@ -655,8 +667,7 @@ async function seedFranchiseOwner() {
       hierarchy: {
         orgNodeId: orgNode.id,
         countryNodeId: countryNode?.id,
-        regionNodeId: regionNode?.id,
-        areaNodeId: areaNode?.id,
+        stateNodeId: stateNode?.id,
       },
       member: {
         id: member.id,

@@ -3,7 +3,6 @@ import { ChevronDown, ChevronRight, Check, X, Minus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { PermissionResource, PermissionAction } from '../permission-matrix/PermissionMatrix';
@@ -59,7 +58,7 @@ function PermissionActionItem({
       case 'branch':
         return <Check className="w-3 h-3 text-indigo-700" />;
       default:
-        return <X className="w-3 h-3 text-gray-500" />;
+        return <X className="w-3 h-3 text-brand-secondary-1" />;
     }
   };
 
@@ -80,7 +79,7 @@ function PermissionActionItem({
       case 'branch':
         return "bg-indigo-100 hover:bg-indigo-200 border-indigo-300";
       default:
-        return "bg-gray-100 hover:bg-gray-200 border-gray-300";
+        return "bg-brand-secondary-3 hover:bg-brand-secondary-3 border-brand-secondary-3";
     }
   };
 
@@ -101,7 +100,7 @@ function PermissionActionItem({
       case 'branch':
         return 'bg-indigo-100 text-indigo-800 border-indigo-300';
       default:
-        return 'bg-gray-100 text-gray-500 border-gray-300';
+        return 'bg-brand-secondary-3 text-brand-secondary-1 border-brand-secondary-3';
     }
   };
 
@@ -115,7 +114,7 @@ function PermissionActionItem({
           size="sm"
           className={cn(
             "w-6 h-6 p-0 rounded-full",
-            hasPermission ? getScopeButtonStyle(scope) : "bg-gray-100 hover:bg-gray-200"
+            hasPermission ? getScopeButtonStyle(scope) : "bg-brand-secondary-3 hover:bg-brand-secondary-3"
           )}
           onClick={onCycle}
         >
@@ -216,10 +215,6 @@ export function PermissionGroupCollapsible({
     return resource.actions.every(action => hasPermission(action.id));
   };
 
-  const areAnyActionsEnabled = () => {
-    return resource.actions.some(action => hasPermission(action.id));
-  };
-
   const handleBulkToggle = () => {
     const allActionIds = getAllActionIds();
     const shouldEnable = !areAllActionsEnabled();
@@ -302,6 +297,7 @@ export function PermissionGroupCollapsible({
               <div className="flex items-center gap-2">
                 {showBulkActions && onBulkChange && (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={(e) => {

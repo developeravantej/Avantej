@@ -1,5 +1,7 @@
 import { expoClient } from "@better-auth/expo/client";
 import { createAuthClient } from "better-auth/react";
+import { inferAdditionalFields } from "better-auth/client/plugins";
+import type { auth } from "@avantej-core/auth";
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 
@@ -11,5 +13,6 @@ export const authClient = createAuthClient({
 			storagePrefix: Constants.expoConfig?.scheme as string,
 			storage: SecureStore,
 		}),
+		inferAdditionalFields<typeof auth>(),
 	],
 });

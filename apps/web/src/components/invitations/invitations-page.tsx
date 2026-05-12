@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 import { Button } from "@/components/ui/button";
 import { Plus, Mail, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { InvitationList, type Invitation } from "./invitation-list";
 import { CreateInvitationDialog } from "./create-invitation-dialog";
 import {
@@ -35,7 +35,7 @@ export function InvitationsPage() {
 
 			const result = await client.invitations.list({
 				organizationId,
-				status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+				status: statusFilter !== "all" ? (statusFilter as "pending" | "accepted" | "declined" | "expired") : undefined,
 			});
 
 			return result.invitations;
@@ -66,7 +66,7 @@ export function InvitationsPage() {
 	}));
 
 	// Revoke invitation mutation
-	const revokeMutation = useMutation({
+	const revokeMutation = useApiMutation({
 		mutationFn: async (invitationId: string) => {
 			if (!organizationId) throw new Error("Organization ID is required");
 			return await client.invitations.revoke({
@@ -74,19 +74,13 @@ export function InvitationsPage() {
 				invitationId,
 			});
 		},
-		onSuccess: () => {
-			toast.success("Invitation revoked successfully");
-			queryClient.invalidateQueries({
-				queryKey: ["invitations", organizationId],
-			});
-		},
-		onError: (error: Error) => {
-			toast.error(`Failed to revoke invitation: ${error.message}`);
-		},
+		successMessage: "Invitation revoked successfully",
+		errorMessage: (error) => `Failed to revoke invitation: ${error.message}`,
+		invalidate: [["invitations", organizationId]],
 	});
 
 	// Resend invitation mutation
-	const resendMutation = useMutation({
+	const resendMutation = useApiMutation({
 		mutationFn: async (invitationId: string) => {
 			if (!organizationId) throw new Error("Organization ID is required");
 			const result = await client.invitations.resend({
@@ -108,15 +102,9 @@ export function InvitationsPage() {
 
 			return result;
 		},
-		onSuccess: () => {
-			toast.success("Invitation resent successfully");
-			queryClient.invalidateQueries({
-				queryKey: ["invitations", organizationId],
-			});
-		},
-		onError: (error: Error) => {
-			toast.error(`Failed to resend invitation: ${error.message}`);
-		},
+		successMessage: "Invitation resent successfully",
+		errorMessage: (error) => `Failed to resend invitation: ${error.message}`,
+		invalidate: [["invitations", organizationId]],
 	});
 
 	const handleRevoke = async (invitationId: string) => {
@@ -199,7 +187,7 @@ export function InvitationsPage() {
 						<Badge variant="outline" className="gap-1 text-green-600">
 							Accepted: {statusCounts.accepted}
 						</Badge>
-						<Badge variant="outline" className="gap-1 text-gray-600">
+						<Badge variant="outline" className="gap-1 text-brand-secondary-1">
 							Expired: {statusCounts.expired}
 						</Badge>
 					</div>

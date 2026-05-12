@@ -18,10 +18,14 @@ import { authClient } from "@/lib/auth-client";
 
 const formSchema = z
 	.object({
-		firstName: z.string().min(1, "First name is required"),
-		lastName: z.string().min(1, "Last name is required"),
+		firstName: z.string().min(2, "First name must be at least 2 characters"),
+		lastName: z.string().min(2, "Last name must be at least 2 characters"),
 		email: z.string().email("Invalid email address"),
-		password: z.string().min(8, "Password must be at least 8 characters"),
+		password: z
+			.string()
+			.min(8, "Password must be at least 8 characters")
+			.regex(/[A-Z]/, "Must contain at least one uppercase letter")
+			.regex(/[0-9]/, "Must contain at least one number"),
 		confirmPassword: z.string().min(8, "Please confirm your password"),
 	})
 	.refine((data) => data.password === data.confirmPassword, {
@@ -85,7 +89,7 @@ export function SignupForm({
 					name: `${values.firstName} ${values.lastName}`,
 					firstName: values.firstName,
 					lastName: values.lastName,
-				},
+				} as any,
 				{
 					onSuccess: async () => {
 						toast.success("Account created successfully!");
@@ -136,9 +140,9 @@ export function SignupForm({
 					},
 				}
 			);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Signup error:", error);
-			const errorMessage = error.message || "Signup failed";
+			const errorMessage = error instanceof Error ? error.message : "Signup failed";
 			
 			// Check if user already exists
 			const isUserExists = 

@@ -13,13 +13,17 @@
 import { verifyEmailToken } from "@/services/auth.service";
 import type { Context } from "@avantej-core/api/context";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { permissions as permissionsTable } from "@avantej-core/db/schema/tenant/permissions";
+import { rolePermissions } from "@avantej-core/db/schema/tenant/role-permissions";
+import { roles } from "@avantej-core/db/schema/tenant/roles";
 import { getDescendantNodeIds } from "@avantej-core/services";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { ORPCError, os } from "@orpc/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle, type NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import { z } from "zod";
@@ -264,12 +268,19 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
     .from(organizationMembers)
     .where(eq(organizationMembers.userId, userId));
 
+  // Check if user is a platform admin
+  const platformAdmin = await controlPanelDb.query.platformAdmins.findFirst({
+    where: eq(platformAdmins.userId, userId),
+  });
+  const isSystemAdmin = !!platformAdmin;
+
   // Build organizations with hierarchy data
   const organizationsWithHierarchy: Array<{
     id: string;
     name: string;
     slug: string;
     role: string;
+    permissions: string[];
     hierarchy: {
       nodes: Array<{
         id: string;
@@ -281,6 +292,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
         updatedAt: Date | null;
       }>;
       member: {
+        id: string;
         role: string;
         hierarchyScopeId: string;
         hierarchyScopeName: string;
@@ -300,6 +312,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
     if (!org || org.paymentStatus !== "active") continue;
 
     // Get tenant database connection for this organization
+    let memberPermissions: string[] = [];
     let hierarchyData = {
       nodes: [] as Array<{
         id: string;
@@ -311,6 +324,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
         updatedAt: Date | null;
       }>,
       member: null as {
+        id: string;
         role: string;
         hierarchyScopeId: string;
         hierarchyScopeName: string;
@@ -363,11 +377,51 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
           });
 
           hierarchyData.member = {
+            id: member.id,
             role: member.role,
             hierarchyScopeId: member.hierarchyScopeId,
             hierarchyScopeName: scopeNode?.name || "Unknown",
             accessibleNodeIds,
           };
+
+          // Fetch permissions for the member's role (case-insensitive to handle "Admin" vs "admin")
+          const role = await tenantDb.query.roles.findFirst({
+            where: sql`LOWER(${roles.name}) = LOWER(${member.role})`,
+          });
+
+          if (!role) {
+            console.warn(`[userContext] No role found for member.role="${member.role}" in tenant DB`);
+          }
+
+          if (role) {
+            // Admin roles (priority >= 100) get all permissions
+            if (role.priority >= 100) {
+              const allPerms = await tenantDb
+                .select({
+                  resource: permissionsTable.resource,
+                  action: permissionsTable.action,
+                })
+                .from(permissionsTable);
+              if (allPerms.length === 0) {
+                console.warn(`[userContext] Admin role "${role.name}" has priority ${role.priority} but permissions table is empty`);
+              }
+              memberPermissions = allPerms.map((p) => `${p.resource}:${p.action}`);
+            } else {
+              // Fetch permissions assigned to this role
+              const rolePerms = await tenantDb
+                .select({
+                  resource: permissionsTable.resource,
+                  action: permissionsTable.action,
+                })
+                .from(rolePermissions)
+                .innerJoin(
+                  permissionsTable,
+                  eq(rolePermissions.permissionId, permissionsTable.id)
+                )
+                .where(eq(rolePermissions.roleId, role.id));
+              memberPermissions = rolePerms.map((p) => `${p.resource}:${p.action}`);
+            }
+          }
         }
       } finally {
         await tenantPool.end();
@@ -382,6 +436,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
       name: org.name,
       slug: org.slug,
       role: om.role,
+      permissions: memberPermissions,
       hierarchy: hierarchyData,
     });
   }
@@ -395,6 +450,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
       lastName: context.session!.user.lastName,
       emailVerified: context.session!.user.emailVerified,
     },
+    isSystemAdmin,
     organizations: organizationsWithHierarchy,
     currentOrganizationId: organizationsWithHierarchy[0]?.id || null,
   };

@@ -143,10 +143,21 @@ export function getControlPanelDb(
  * @deprecated Use getControlPanelDb(c) in request handlers for Cloudflare Workers compatibility.
  * This singleton pool cannot be shared across requests in Cloudflare Workers.
  * Only use this in test environments or scripts outside request handlers.
+ *
+ * Implemented as a lazy proxy so the pool is not created at module load time,
+ * which would fail Cloudflare Workers script validation when DATABASE_URL is unavailable.
  */
-export const controlPanelDb = drizzle({
-	client: getControlPanelPool(),
-	schema: controlPanelSchema,
+let _controlPanelDbInstance: NeonDatabase<typeof controlPanelSchema> | null = null;
+export const controlPanelDb = new Proxy({} as NeonDatabase<typeof controlPanelSchema>, {
+	get(_target, prop: string | symbol) {
+		if (!_controlPanelDbInstance) {
+			_controlPanelDbInstance = drizzle({
+				client: getControlPanelPool(),
+				schema: controlPanelSchema,
+			});
+		}
+		return (_controlPanelDbInstance as unknown as Record<string | symbol, unknown>)[prop];
+	},
 });
 
 /**

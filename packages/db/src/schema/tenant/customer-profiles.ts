@@ -16,6 +16,9 @@ import {
 	timestamp,
 	uuid,
 } from "drizzle-orm/pg-core";
+import { households } from "./households";
+import { leadSources } from "./lead-sources";
+import { members } from "./members";
 
 export const customerProfiles = pgTable("customer_profiles", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -41,6 +44,27 @@ export const customerProfiles = pgTable("customer_profiles", {
 	// Staff notes
 	notes: text("notes"),
 
+	// === 3.2 lead source / attribution ===
+	// Where this lead came from. ON DELETE SET NULL keeps the profile intact
+	// if the lookup row is removed; campaign tag is free-form for now.
+	leadSourceId: uuid("lead_source_id").references(() => leadSources.id, {
+		onDelete: "set null",
+	}),
+	referrerMemberId: uuid("referrer_member_id").references(() => members.id, {
+		onDelete: "set null",
+	}),
+	campaignId: text("campaign_id"),
+	// === /3.2 ===
+
+	// === 3.6 household linking ===
+	// Optional household membership. Profile survives household deletion
+	// (ON DELETE SET NULL). Reverse pointer households.primary_contact_profile_id
+	// lives in households table; cycle handled via DEFERRABLE FK in migration.
+	householdId: uuid("household_id").references(() => households.id, {
+		onDelete: "set null",
+	}),
+	// === /3.6 ===
+
 	// Soft-delete support for external sync integrations
 	isDeleted: boolean("is_deleted").default(false).notNull(),
 	deletedAt: timestamp("deleted_at"),
@@ -52,4 +76,13 @@ export const customerProfiles = pgTable("customer_profiles", {
 	userIdIdx: index("customer_profiles_user_idx").on(table.userId),
 	creditPointsIdx: index("customer_profiles_credits_idx").on(table.creditPoints),
 	isDeletedIdx: index("customer_profiles_is_deleted_idx").on(table.isDeleted),
+	// === 3.2 attribution lookup indexes ===
+	leadSourceIdx: index("customer_profiles_lead_source_idx").on(table.leadSourceId),
+	referrerMemberIdx: index("customer_profiles_referrer_member_idx").on(
+		table.referrerMemberId,
+	),
+	// === /3.2 ===
+	// === 3.6 household linking ===
+	householdIdx: index("customer_profiles_household_idx").on(table.householdId),
+	// === /3.6 ===
 }));

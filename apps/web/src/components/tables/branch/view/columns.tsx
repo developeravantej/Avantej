@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 // TODO: Replace with actual API types when backend is ready
 // import type apiClient from "@/lib/api";
-import type { ColumnDef, CellContext } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
@@ -35,12 +35,6 @@ interface BranchRead {
   location?: {
     address?: string;
   };
-}
-
-interface ActionColumnProps {
-  branch: BranchRead;
-  onEdit?: (branch: BranchRead) => void;
-  onDelete?: (branchId: string) => void;
 }
 
 // Helper component for copyable cells

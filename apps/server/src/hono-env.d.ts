@@ -49,5 +49,10 @@ declare module "hono" {
     // Admin middleware variables
     adminRecord: typeof platformAdmins.$inferSelect;
     adminRole: string;
+
+    // Impersonation cookie forwarding — set by impersonateUser / stopImpersonating,
+    // consumed by the /rpc/* Hono wrapper in index.ts to re-attach Set-Cookie headers
+    // that oRPC's RPCHandler would otherwise strip.
+    __impersonationSetCookie__: string[];
   }
 }

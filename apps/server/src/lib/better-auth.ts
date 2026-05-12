@@ -32,7 +32,6 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import type { Context } from "hono";
-import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import * as schema from "@avantej-core/db/schema/auth";
 
@@ -43,6 +42,9 @@ import {
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
 } from "@/lib/email";
+import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
+import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 /**
  * Get environment variable from Cloudflare Workers env or process.env (for Node.js/test environments)
@@ -96,6 +98,10 @@ function createBetterAuthDb(c?: Context) {
  * @returns Better-Auth instance configured with request-scoped database
  */
 function createBetterAuth(c?: Context) {
+  // Determine if we're running over HTTPS (production) or HTTP (development)
+  const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
+  const isHttps = betterAuthUrl.startsWith("https://");
+
   return betterAuth({
     database: drizzleAdapter(createBetterAuthDb(c), {
       provider: "pg",
@@ -105,18 +111,81 @@ function createBetterAuth(c?: Context) {
     additionalFields: {
       firstName: {
         type: "string",
-        required: true,
+        required: false,
         fieldName: "firstName",
+        defaultValue: "",
       },
       lastName: {
         type: "string",
-        required: true,
+        required: false,
         fieldName: "lastName",
+        defaultValue: "",
+      },
+      phone: {
+        type: "string",
+        required: false,
+        fieldName: "phone",
+      },
+      idPassportNo: {
+        type: "string",
+        required: false,
+        fieldName: "idPassportNo",
+      },
+      addressType: {
+        type: "string",
+        required: false,
+        fieldName: "addressType",
+      },
+      streetAddress: {
+        type: "string",
+        required: false,
+        fieldName: "streetAddress",
+      },
+      city: {
+        type: "string",
+        required: false,
+        fieldName: "city",
+      },
+      state: {
+        type: "string",
+        required: false,
+        fieldName: "state",
+      },
+      country: {
+        type: "string",
+        required: false,
+        fieldName: "country",
+      },
+      postalCode: {
+        type: "string",
+        required: false,
+        fieldName: "postalCode",
+      },
+      dateOfBirth: {
+        type: "string",
+        required: false,
+        fieldName: "dateOfBirth",
+      },
+      emergencyContactName: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactName",
+      },
+      emergencyContactRelationship: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactRelationship",
+      },
+      emergencyContactPhone: {
+        type: "string",
+        required: false,
+        fieldName: "emergencyContactPhone",
       },
     },
   },
   trustedOrigins: [
     getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+    "http://localhost:4001", // E2E alt port
     "mybettertapp://",
     "exp://",
   ],
@@ -194,6 +263,54 @@ function createBetterAuth(c?: Context) {
       );
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          return { data: { ...user, role: null } };
+        },
+      },
+      update: {
+        // Fire GHL profile sync after a user record changes. The dispatcher is
+        // idempotent and soft-fails — it is safe to invoke on every update
+        // (it short-circuits when the user has no GHL link rows or when
+        // GHL_AGENCY_ID is unset).
+        after: async (user) => {
+          try {
+            const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
+            if (!ghlAgencyId) return;
+            const databaseUrl = getEnvVar("DATABASE_URL");
+            if (!databaseUrl) return;
+
+            // Build a control-panel db scoped to this hook invocation. We
+            // can't reuse the request-scoped pool here because the betterAuth
+            // hook signature does not surface the Hono context. A short-lived
+            // pool is acceptable since dispatchProfileSync awaits its work.
+            const pool = new Pool({ connectionString: databaseUrl });
+            try {
+              const controlPanelDb = drizzle({
+                client: pool,
+                schema: controlPanelSchema,
+              }) as NeonDatabase<typeof controlPanelSchema>;
+
+              await dispatchProfileSync({
+                controlPanelDb,
+                userId: user.id,
+                env: { GHL_AGENCY_ID: ghlAgencyId },
+              });
+            } finally {
+              await pool.end();
+            }
+          } catch (err) {
+            console.error(
+              "dispatchProfileSync failed in user.update.after hook:",
+              err,
+            );
+          }
+        },
+      },
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 8, // 8 hours for development
     updateAge: 60 * 30, // Refresh every 30 minutes
@@ -204,8 +321,8 @@ function createBetterAuth(c?: Context) {
   baseURL: getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000",
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
+      sameSite: isHttps ? "none" : "lax",
+      secure: isHttps,
       httpOnly: true,
     },
     // uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains
@@ -261,7 +378,7 @@ function createBetterAuth(c?: Context) {
           const databaseUrl = getEnvVar("DATABASE_URL");
           if (databaseUrl) {
             const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool });
+            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),
@@ -294,28 +411,15 @@ function createBetterAuth(c?: Context) {
       },
     }),
     admin({
-      // 1 hour max impersonation session duration
       impersonationSessionDuration: 60 * 60,
     }),
   ],
   });
 }
 
-/**
- * Better-Auth instance with Organization and Admin plugins
- *
- * @deprecated Use getBetterAuth(c) in request handlers for Cloudflare Workers compatibility.
- * This singleton instance uses a singleton pool that cannot be shared across requests.
- * Only use this in test environments or scripts outside request handlers.
- *
- * Configuration:
- * - Database: Uses control panel database via Drizzle adapter
- * - Email/Password: Enabled with email verification required
- * - Session: 15-minute expiry, updates every 5 minutes
- * - Organization Plugin: Enables multi-tenant organization management
- * - Admin Plugin: Enables platform administration features
- */
-export const auth = createBetterAuth();
+// Lazy singleton — not initialized at module load time to avoid throwing during
+// Cloudflare Workers script validation when DATABASE_URL is unavailable.
+let _authInstance: ReturnType<typeof createBetterAuth> | null = null;
 
 /**
  * Get request-scoped Better-Auth instance
@@ -327,11 +431,24 @@ export const auth = createBetterAuth();
  * @returns Better-Auth instance configured with request-scoped database
  */
 export function getBetterAuth(c?: Context) {
-  // If context is provided, create request-scoped instance
   if (c) {
     return createBetterAuth(c);
   }
-
-  // Fall back to singleton instance (for non-request contexts)
-  return auth;
+  if (!_authInstance) {
+    _authInstance = createBetterAuth();
+  }
+  return _authInstance;
 }
+
+/**
+ * Better-Auth instance with Organization and Admin plugins
+ *
+ * @deprecated Use getBetterAuth(c) in request handlers for Cloudflare Workers compatibility.
+ * This singleton instance uses a singleton pool that cannot be shared across requests.
+ * Only use this in test environments or scripts outside request handlers.
+ */
+export const auth = new Proxy({} as ReturnType<typeof createBetterAuth>, {
+  get(_target, prop: string | symbol) {
+    return (getBetterAuth() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});

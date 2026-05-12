@@ -14,22 +14,68 @@
  * ```
  */
 
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { roles } from "@avantej-core/db/schema/tenant/roles";
-import { permissions } from "@avantej-core/db/schema/tenant/permissions";
-import { rolePermissions } from "@avantej-core/db/schema/tenant/role-permissions";
-import { eq, and } from "drizzle-orm";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type { members } from "@avantej-core/db/schema/tenant/members";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 type Member = typeof members.$inferSelect;
 
 export type Resource =
-  | "hierarchy_management"
-  | "user_management"
-  | "service_management"
-  | "appointment_management";
-export type Action = "create" | "read" | "update" | "delete";
+	// Organizational & access control
+	| "hierarchy_management"
+	| "user_management"
+	| "role_management"
+	| "users"
+	| "roles"
+	| "branches"
+	// Services & appointments
+	| "service_management"
+	| "appointment_management"
+	| "appointments"
+	| "services"
+	| "class_slot_management"
+	// Sales & payments
+	| "sales"
+	| "payments"
+	| "package_management"
+	| "promotion_management"
+	| "tax_configuration"
+	// Inventory & purchasing
+	| "inventory"
+	| "purchase_order_management"
+	| "stock_requests"
+	| "transfer_orders"
+	// Finance & HR
+	| "expense_management"
+	| "commission_management"
+	| "trainer_tier_management"
+	| "category_commission_management"
+	| "commission_payout"
+	// Communication
+	| "announcement_management"
+	// Customers
+	| "customer_management"
+	| "walk_in_customer_management"
+	// Reporting
+	| "reports"
+	// Audit log
+	| "audit_log"
+	// Attendance (tracking-pages P7)
+	| "attendance_management"
+	// Point of Sale (tracking-pages P4)
+	| "pos"
+	// Refunds Ledger (tracking-pages P5)
+	| "refund_management";
+export type Action =
+	| "create"
+	| "read"
+	| "update"
+	| "delete"
+	| "approve"
+	| "reject"
+	| "process"
+	| "export"
+	| "import";
 
 /**
  * Check if member has a specific permission
@@ -49,12 +95,23 @@ export async function hasPermission(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	member: Member,
 	resource: Resource,
-	action: Action
+	action: Action,
 ): Promise<boolean> {
-	// Get member's role
-	const role = await tenantDb.query.roles.findFirst({
-		where: (roles, { eq }) => eq(roles.name, member.role),
-	});
+	// Wave 3a Agent 2.1 (Journey J1): when member has a custom roleId set, resolve
+	// permissions via that role's role_permissions joins. Falls through to the
+	// legacy text-role path if roleId is null OR the referenced role no longer exists.
+	let role = member.roleId
+		? await tenantDb.query.roles.findFirst({
+			where: (roles, { eq }) => eq(roles.id, member.roleId as string),
+		})
+		: undefined;
+
+	if (!role) {
+		// Fast-path / fallback: look up role by legacy text name.
+		role = await tenantDb.query.roles.findFirst({
+			where: (roles, { eq }) => eq(roles.name, member.role),
+		});
+	}
 
 	if (!role) {
 		// Role not found in RBAC tables - fallback to simple check
@@ -69,10 +126,7 @@ export async function hasPermission(
 	// Check if role has the specific permission
 	const permission = await tenantDb.query.permissions.findFirst({
 		where: (permissions, { eq, and }) =>
-			and(
-				eq(permissions.resource, resource),
-				eq(permissions.action, action)
-			),
+			and(eq(permissions.resource, resource), eq(permissions.action, action)),
 	});
 
 	if (!permission) {
@@ -84,7 +138,7 @@ export async function hasPermission(
 		where: (rolePermissions, { eq, and }) =>
 			and(
 				eq(rolePermissions.roleId, role.id),
-				eq(rolePermissions.permissionId, permission.id)
+				eq(rolePermissions.permissionId, permission.id),
 			),
 	});
 
@@ -104,7 +158,7 @@ export async function hasPermission(
 export async function checkHierarchyPermission(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	member: Member,
-	action: Action = "create"
+	action: Action = "create",
 ): Promise<boolean> {
 	return hasPermission(tenantDb, member, "hierarchy_management", action);
 }
@@ -124,13 +178,12 @@ export async function requirePermission(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	member: Member,
 	resource: Resource,
-	action: Action
+	action: Action,
 ): Promise<void> {
 	const hasPerm = await hasPermission(tenantDb, member, resource, action);
 	if (!hasPerm) {
 		throw new Error(
-			`Permission denied: ${member.role} role does not have ${resource}:${action} permission`
+			`Permission denied: ${member.role} role does not have ${resource}:${action} permission`,
 		);
 	}
 }
-

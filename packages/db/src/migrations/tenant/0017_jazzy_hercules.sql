@@ -1,0 +1,1 @@
+ALTER TABLE "services" ADD COLUMN "time_preset_config" jsonb;

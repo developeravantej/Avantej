@@ -17,7 +17,7 @@
  * - Only one pending invitation per email in this organization (enforced in app layer)
  */
 
-import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 
 export const invitations = pgTable("invitations", {

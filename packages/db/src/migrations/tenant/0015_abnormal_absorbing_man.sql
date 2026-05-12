@@ -1,0 +1,1 @@
+ALTER TABLE "package_instances" ADD COLUMN "credits_admin_override" boolean DEFAULT false NOT NULL;

@@ -14,9 +14,9 @@ import { handleCheckoutCompleted } from "@/services/payment.service";
 import Stripe from "stripe";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
-import { ghlLocationLinks } from "@avantej-core/db/schema/control-panel/ghl-location-links";
+import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
@@ -62,15 +62,15 @@ async function ensureLocationAccess(
 	const controlPanelDb = getControlPanelDb(c);
 	const [location] = await controlPanelDb
 		.select({
-			id: ghlLocationLinks.id,
-			locationId: ghlLocationLinks.locationId,
-			organizationId: ghlLocationLinks.organizationId,
-			isActive: ghlLocationLinks.isActive,
-			createdAt: ghlLocationLinks.createdAt,
-			updatedAt: ghlLocationLinks.updatedAt,
+			id: ghlBranchLinks.id,
+			locationId: ghlBranchLinks.ghlLocationId,
+			organizationId: ghlBranchLinks.organizationId,
+			isActive: ghlBranchLinks.isActive,
+			createdAt: ghlBranchLinks.createdAt,
+			updatedAt: ghlBranchLinks.updatedAt,
 		})
-		.from(ghlLocationLinks)
-		.where(eq(ghlLocationLinks.locationId, locationId))
+		.from(ghlBranchLinks)
+		.where(eq(ghlBranchLinks.ghlLocationId, locationId))
 		.limit(1);
 
 	if (!location || !location.isActive) {
@@ -218,124 +218,6 @@ webhookRoutes.post("/stripe", async (c) => {
 					error instanceof Error
 						? error.message
 						: "Failed to process webhook",
-			},
-			500
-		);
-	}
-});
-
-/**
- * Demo endpoint: list accessible GHL locations for the authenticated user
- */
-webhookRoutes.get("/gohighlevel/locations", authMiddleware, async (c) => {
-	try {
-		const organizationIds = await getAccessibleLocationIds(c);
-		if (organizationIds.length === 0) {
-			return c.json({ locations: [] });
-		}
-
-		const controlPanelDb = getControlPanelDb(c);
-		const locations = await controlPanelDb
-			.select({
-				locationId: ghlLocationLinks.locationId,
-				organizationId: ghlLocationLinks.organizationId,
-				isActive: ghlLocationLinks.isActive,
-				createdAt: ghlLocationLinks.createdAt,
-				updatedAt: ghlLocationLinks.updatedAt,
-			})
-			.from(ghlLocationLinks)
-			.where(
-				and(
-					inArray(ghlLocationLinks.organizationId, organizationIds),
-					eq(ghlLocationLinks.isActive, true)
-				)
-			)
-			.orderBy(desc(ghlLocationLinks.updatedAt));
-
-		return c.json({ locations });
-	} catch (error) {
-		console.error("Failed to fetch GHL locations:", error);
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to fetch GHL locations",
-			},
-			500
-		);
-	}
-});
-
-/**
- * Demo setup endpoint: create/update a GHL location mapping
- */
-webhookRoutes.post("/gohighlevel/locations", authMiddleware, async (c) => {
-	try {
-		const body = (await c.req.json()) as {
-			locationId?: string;
-			organizationId?: string;
-			webhookSecret?: string;
-		};
-
-		const locationId = body.locationId?.trim();
-		if (!locationId) {
-			return c.json({ error: "locationId is required" }, 400);
-		}
-
-		const organizationIds = await getAccessibleLocationIds(c);
-		if (organizationIds.length === 0) {
-			return c.json({ error: "No active organization access" }, 403);
-		}
-
-		const defaultOrganizationId = organizationIds[0];
-		if (!defaultOrganizationId) {
-			return c.json({ error: "No active organization access" }, 403);
-		}
-
-		const organizationId = body.organizationId || defaultOrganizationId;
-		if (!organizationIds.includes(organizationId)) {
-			return c.json({ error: "Forbidden organization" }, 403);
-		}
-
-		const controlPanelDb = getControlPanelDb(c);
-		const now = new Date();
-		const [mapping] = await controlPanelDb
-			.insert(ghlLocationLinks)
-			.values({
-				locationId,
-				organizationId,
-				webhookSecret: body.webhookSecret || null,
-				isActive: true,
-				createdAt: now,
-				updatedAt: now,
-			})
-			.onConflictDoUpdate({
-				target: ghlLocationLinks.locationId,
-				set: {
-					organizationId,
-					webhookSecret: body.webhookSecret || null,
-					isActive: true,
-					updatedAt: now,
-				},
-			})
-			.returning({
-				locationId: ghlLocationLinks.locationId,
-				organizationId: ghlLocationLinks.organizationId,
-				isActive: ghlLocationLinks.isActive,
-				createdAt: ghlLocationLinks.createdAt,
-				updatedAt: ghlLocationLinks.updatedAt,
-			});
-
-		return c.json({ mapping }, 201);
-	} catch (error) {
-		console.error("Failed to upsert GHL location mapping:", error);
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to upsert GHL location mapping",
 			},
 			500
 		);

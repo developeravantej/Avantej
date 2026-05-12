@@ -18,7 +18,7 @@ export const expenses = pgTable("expenses", {
 	submittedBy: text("submitted_by").notNull(),
 
 	amount: integer("amount").notNull(),
-	currency: text("currency").default("usd").notNull(),
+	currency: text("currency").default("myr").notNull(),
 
 	category: text("category").notNull(), // "travel" | "equipment" | "supplies" | "training" | "other"
 	description: text("description").notNull(),

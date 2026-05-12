@@ -8,7 +8,7 @@
  * - Staff assignments determine commission splits
  */
 
-import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { appointments } from "./appointments";
 
 export const appointmentStaff = pgTable("appointment_staff", {
@@ -17,6 +17,7 @@ export const appointmentStaff = pgTable("appointment_staff", {
 		.notNull()
 		.references(() => appointments.id, { onDelete: "cascade" }),
 	staffId: text("staff_id").notNull(), // References members.userId
+	slotIndex: integer("slot_index"), // 0-based; maps to commission_coach_slots.slotIndex
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
 	appointmentStaffUniqueIdx: uniqueIndex("appointment_staff_unique_idx").on(

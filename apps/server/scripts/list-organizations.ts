@@ -9,7 +9,6 @@
  */
 
 import { getControlPanelDb } from "../src/lib/db";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 
 async function listOrganizations() {
   const controlPanelDb = getControlPanelDb();

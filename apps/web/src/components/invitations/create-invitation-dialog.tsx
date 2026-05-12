@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { Loader2, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +37,12 @@ interface CreateInvitationDialogProps {
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
 	onSuccess?: () => void;
+	/** When set, locks role to this value and hides the role selector. */
+	lockedRole?: "admin" | "trainer" | "staff" | "client";
+	/** Override the dialog title (e.g. "Add Customer"). */
+	title?: string;
+	/** Override the dialog description. */
+	description?: string;
 }
 
 interface HierarchyNode {
@@ -54,6 +59,9 @@ export function CreateInvitationDialog({
 	onOpenChange,
 	organizationId,
 	onSuccess,
+	lockedRole,
+	title,
+	description,
 }: CreateInvitationDialogProps) {
 	const {
 		register,
@@ -66,7 +74,7 @@ export function CreateInvitationDialog({
 		resolver: zodResolver(invitationSchema),
 		defaultValues: {
 			email: "",
-			role: "staff",
+			role: lockedRole ?? "staff",
 			hierarchyScopeId: "",
 		},
 	});
@@ -98,7 +106,7 @@ export function CreateInvitationDialog({
 	});
 
 	// Create invitation mutation
-	const createMutation = useMutation({
+	const createMutation = useApiMutation({
 		mutationFn: async (data: InvitationFormData) => {
 			const result = await client.invitations.create({
 				organizationId,
@@ -107,27 +115,31 @@ export function CreateInvitationDialog({
 				hierarchyScopeId: data.hierarchyScopeId,
 			});
 
-			// Send email via oRPC
-			await client.invitations.sendEmail({
-				invitation: {
-					token: result.invitation.token,
-					email: result.invitation.email,
-					role: result.invitation.role,
-				},
-				organizationId: result.organizationId,
-				organizationName: result.organizationName,
-				inviterName: result.inviterName,
-			});
+			// Email send is best-effort — if it fails (e.g. RESEND not configured in dev)
+			// we still consider the invitation creation a success.
+			try {
+				await client.invitations.sendEmail({
+					invitation: {
+						token: result.invitation.token,
+						email: result.invitation.email,
+						role: result.invitation.role,
+					},
+					organizationId: result.organizationId,
+					organizationName: result.organizationName,
+					inviterName: result.inviterName,
+				});
+			} catch (e) {
+				console.warn("Invitation email failed to send (invitation still created):", e);
+			}
 
 			return result;
 		},
+		successMessage: "Invitation sent successfully",
+		errorMessage: (error) => `Failed to create invitation: ${error.message}`,
 		onSuccess: () => {
-			toast.success("Invitation sent successfully");
 			reset();
 			onSuccess?.();
-		},
-		onError: (error: Error) => {
-			toast.error(`Failed to create invitation: ${error.message}`);
+			onOpenChange(false);
 		},
 	});
 
@@ -150,19 +162,21 @@ export function CreateInvitationDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px]">
-				<DialogHeader>
-					<DialogTitle>Invite Member</DialogTitle>
-					<DialogDescription>
-						Send an invitation to join your organization. The invitee will
-						receive an email with a link to accept the invitation.
+			<DialogContent className="sm:max-w-md rounded-2xl bg-white p-6">
+				<DialogHeader className="mb-4">
+					<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
+						{title ?? "Invite Member"}
+					</DialogTitle>
+					<DialogDescription className="text-sm text-brand-secondary-1">
+						{description ??
+							"Send an invitation to join your organization. The invitee will receive an email with a link to accept the invitation."}
 					</DialogDescription>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 					{/* Email */}
-					<div className="space-y-2">
-						<Label htmlFor="email">
+					<div>
+						<Label htmlFor="email" className="block text-sm font-medium text-brand-primary-1">
 							Email Address <span className="text-destructive">*</span>
 						</Label>
 						<Input
@@ -171,27 +185,29 @@ export function CreateInvitationDialog({
 							placeholder="user@example.com"
 							{...register("email")}
 							disabled={createMutation.isPending}
+							className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
 						/>
 						{errors.email && (
 							<p className="text-sm text-destructive">{errors.email.message}</p>
 						)}
 					</div>
 
-					{/* Role */}
-					<div className="space-y-2">
-						<Label htmlFor="role">
+					{/* Role — hidden when locked */}
+					{!lockedRole && (
+					<div>
+						<Label htmlFor="role" className="block text-sm font-medium text-brand-primary-1">
 							Role <span className="text-destructive">*</span>
 						</Label>
 						<Select
 							value={selectedRole}
 							onValueChange={(value) => {
-								setValue("role", value as any);
+								setValue("role", value as "admin" | "trainer" | "staff" | "client");
 								// Reset hierarchy scope when role changes
 								setValue("hierarchyScopeId", "");
 							}}
 							disabled={createMutation.isPending}
 						>
-							<SelectTrigger id="role">
+							<SelectTrigger id="role" className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm">
 								<SelectValue placeholder="Select role" />
 							</SelectTrigger>
 							<SelectContent>
@@ -205,14 +221,15 @@ export function CreateInvitationDialog({
 							<p className="text-sm text-destructive">{errors.role.message}</p>
 						)}
 					</div>
+					)}
 
 					{/* Hierarchy Scope */}
-					<div className="space-y-2">
-						<Label htmlFor="hierarchyScopeId">
+					<div>
+						<Label htmlFor="hierarchyScopeId" className="block text-sm font-medium text-brand-primary-1">
 							Hierarchy Scope <span className="text-destructive">*</span>
 						</Label>
 						{isLoadingHierarchy ? (
-							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<div className="flex items-center gap-2 mt-1 text-sm text-brand-secondary-1">
 								<Loader2 className="h-4 w-4 animate-spin" />
 								Loading hierarchy...
 							</div>
@@ -222,12 +239,12 @@ export function CreateInvitationDialog({
 								onValueChange={(value) => setValue("hierarchyScopeId", value)}
 								disabled={createMutation.isPending || availableScopes.length === 0}
 							>
-								<SelectTrigger id="hierarchyScopeId">
+								<SelectTrigger id="hierarchyScopeId" className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm">
 									<SelectValue placeholder="Select hierarchy scope" />
 								</SelectTrigger>
 								<SelectContent>
 									{availableScopes.length === 0 ? (
-										<div className="px-2 py-1.5 text-sm text-muted-foreground">
+										<div className="px-2 py-1.5 text-sm text-brand-secondary-1">
 											No available scopes for this role
 										</div>
 									) : (
@@ -245,14 +262,14 @@ export function CreateInvitationDialog({
 								{errors.hierarchyScopeId.message}
 							</p>
 						)}
-						<p className="text-xs text-muted-foreground">
+						<p className="text-xs text-brand-secondary-1 mt-1">
 							{selectedRole === "admin"
 								? "Admins are assigned to the organization root for organization-wide access."
 								: "Select the branch, area, region, or country where this member will have access."}
 						</p>
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="mt-6 flex justify-end space-x-3 gap-0">
 						<Button
 							type="button"
 							variant="outline"
@@ -261,10 +278,11 @@ export function CreateInvitationDialog({
 								onOpenChange(false);
 							}}
 							disabled={createMutation.isPending}
+							className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending}>
+						<Button type="submit" disabled={createMutation.isPending} className="bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">
 							{createMutation.isPending ? (
 								<>
 									<Loader2 className="h-4 w-4 mr-2 animate-spin" />

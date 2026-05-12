@@ -1,0 +1,12 @@
+-- Marker migration: superseded by embedded historical migrations.
+-- Originally a phantom drizzle-kit recreation of the entire Phase 1 service-category
+-- commission system that ships in 0029_service_category_commission (trainer_tiers,
+-- category_commission_configs, commission_coach_slots, commission_tier_rates,
+-- commission_conditions, commission_condition_rates + members.trainer_tier_id +
+-- appointments.sales_order_id + appointment_staff.slot_index + commission_splits ALTERs
+-- + service_category_config column drops). NOTE: the original newcomer also contained a
+-- destructive `TRUNCATE commission_splits CASCADE` and a `DROP COLUMN commission_percentage`
+-- — those were already executed on every existing tenant via 0029. Re-running them on a
+-- tenant past the historical baseline would be unsafe data loss, so they are intentionally
+-- NOT carried forward in this marker. Idempotent no-op for tenants past the baseline.
+SELECT 1;
