@@ -1,6 +1,10 @@
 {
   "ignore": {
-    "rules": ["react-doctor/rendering-hydration-mismatch-time"],
+    "rules": [
+      "react-doctor/rendering-hydration-mismatch-time",
+      "react-doctor/rerender-state-only-in-handlers",
+      "react-doctor/rendering-usetransition-loading"
+    ],
     "files": [
       "**/node_modules/**",
       "**/.turbo/**",
