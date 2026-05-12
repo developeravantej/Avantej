@@ -69,7 +69,7 @@ export function UnitsTabPage() {
 					<Ruler className="size-6 text-primary" />
 				</div>
 				<div>
-					<h1 className="text-2xl font-bold font-heading">Units of Measure</h1>
+					<h1 className="text-2xl font-semibold font-heading">Units of Measure</h1>
 					<p className="text-muted-foreground text-sm">Manage base units of measure for products.</p>
 				</div>
 			</div>

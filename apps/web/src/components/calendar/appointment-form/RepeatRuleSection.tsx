@@ -97,7 +97,7 @@ export function RepeatRuleSection({
 					{/* Repeat every */}
 					<div className="space-y-3">
 						<Label className="text-sm font-medium text-brand-primary-1">Repeat every</Label>
-						<div className="flex items-center space-x-3">
+						<div className="flex items-center gap-x-3">
 							<Input
 								type="number"
 								min="1"
@@ -174,7 +174,7 @@ export function RepeatRuleSection({
 					<div className="space-y-3">
 						<Label className="text-sm font-medium text-brand-primary-1">Ends</Label>
 						<div className="space-y-2">
-							<div className="flex items-center space-x-2">
+							<div className="flex items-center gap-x-2">
 								<input
 									type="radio"
 									id="ends-never"
@@ -189,7 +189,7 @@ export function RepeatRuleSection({
 								</Label>
 							</div>
 
-							<div className="flex items-center space-x-2">
+							<div className="flex items-center gap-x-2">
 								<input
 									type="radio"
 									id="ends-on"
@@ -212,7 +212,7 @@ export function RepeatRuleSection({
 								</div>
 							</div>
 
-							<div className="flex items-center space-x-2">
+							<div className="flex items-center gap-x-2">
 								<input
 									type="radio"
 									id="ends-after"
@@ -225,7 +225,7 @@ export function RepeatRuleSection({
 								<Label htmlFor="ends-after" className="text-sm text-brand-primary-1 cursor-pointer">
 									After
 								</Label>
-								<div className="ml-2 flex items-center space-x-1">
+								<div className="ml-2 flex items-center gap-x-1">
 									<Input
 										type="number"
 										min="1"

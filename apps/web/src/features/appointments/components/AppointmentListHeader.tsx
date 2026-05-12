@@ -23,7 +23,7 @@ export function AppointmentListHeader({
 	onAddAppointment,
 }: Props) {
 	return (
-		<CardHeader className="flex flex-row items-center justify-between space-y-0 px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+		<CardHeader className="flex flex-row items-center justify-between gap-y-0 px-6 py-4 border-b border-zinc-100 shrink-0 bg-white">
 			<div className="flex items-center gap-4">
 				<CardTitle className="text-xl font-semibold">Appointments</CardTitle>
 				<div className="flex items-center gap-1.5">
@@ -56,15 +56,15 @@ export function AppointmentListHeader({
 				</div>
 			</div>
 			<div className="flex items-center gap-2">
-				<div className="flex items-center rounded-xl border border-gray-200 p-0.5 bg-gray-50">
+				<div className="flex items-center rounded-xl border border-zinc-200 p-0.5 bg-zinc-50">
 					<button
 						type="button"
 						onClick={() => onViewChange("list")}
 						className={cn(
 							"flex size-7 items-center justify-center rounded-lg transition-colors",
 							view === "list"
-								? "bg-white shadow-sm text-gray-800"
-								: "text-gray-400 hover:text-gray-600",
+								? "bg-white shadow-sm text-zinc-800"
+								: "text-zinc-400 hover:text-zinc-600",
 						)}
 					>
 						<LayoutList className="size-3.5" />
@@ -75,8 +75,8 @@ export function AppointmentListHeader({
 						className={cn(
 							"flex size-7 items-center justify-center rounded-lg transition-colors",
 							view === "card"
-								? "bg-white shadow-sm text-gray-800"
-								: "text-gray-400 hover:text-gray-600",
+								? "bg-white shadow-sm text-zinc-800"
+								: "text-zinc-400 hover:text-zinc-600",
 						)}
 					>
 						<LayoutGrid className="size-3.5" />

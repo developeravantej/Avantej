@@ -249,7 +249,7 @@ function CustomersComponent() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold tracking-tight">Customers</h1>
+					<h1 className="text-3xl font-semibold tracking-tight">Customers</h1>
 					<p className="text-muted-foreground">
 						Manage your customer database and relationships
 					</p>
@@ -301,7 +301,7 @@ function CustomersComponent() {
 					<CardTitle>Customer Management</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="flex items-center space-x-2 mb-4">
+					<div className="flex items-center gap-2 mb-4">
 						<div className="relative flex-1">
 							<Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
 							<Input
@@ -341,7 +341,7 @@ function CustomersComponent() {
 								return (
 									<div key={customer.id} className="border rounded-lg p-4">
 										<div className="flex items-center justify-between">
-											<div className="flex items-center space-x-4">
+											<div className="flex items-center gap-4">
 												<div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
 													<Users className="size-5 text-blue-600" />
 												</div>
@@ -350,7 +350,7 @@ function CustomersComponent() {
 													<p className="text-sm text-muted-foreground">{customer.email}</p>
 												</div>
 											</div>
-											<div className="flex items-center space-x-2">
+											<div className="flex items-center gap-2">
 												<Badge variant={customer.status === "active" ? "default" : "destructive"}>
 													{customer.status}
 												</Badge>

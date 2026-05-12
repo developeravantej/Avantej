@@ -37,7 +37,7 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 	return (
 		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 			<Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+				<CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
 					<div className="flex items-center gap-2">
 						<CalendarIcon className="size-5 text-muted-foreground" />
 						<CardTitle className="text-xl font-semibold">Appointment Details</CardTitle>
@@ -74,7 +74,7 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 					</div>
 
 					<div>
-						<h2 className="text-2xl font-bold mb-1">{appointment.title}</h2>
+						<h2 className="text-2xl mb-1">{appointment.title}</h2>
 						<p className="text-muted-foreground">{appointment.service}</p>
 					</div>
 

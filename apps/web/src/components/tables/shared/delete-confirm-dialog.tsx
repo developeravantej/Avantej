@@ -25,7 +25,7 @@ export function DeleteConfirmDialog({
 					Are you sure you want to delete the {entityName.toLowerCase()} "
 					{itemLabel}"? This action cannot be undone.
 				</p>
-				<div className="flex justify-end space-x-3">
+				<div className="flex justify-end gap-x-3">
 					<Button variant="outline" onClick={onCancel}>
 						Cancel
 					</Button>

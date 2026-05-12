@@ -37,7 +37,7 @@ function CreateBranchComponent() {
 			{/* Main Form - Takes 2 columns on large screens */}
 			<div className="lg:col-span-2 space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold font-heading">Create Branch</h1>
+					<h1 className="text-3xl font-semibold font-heading">Create Branch</h1>
 				</div>
 				<HierarchicalBranchForm onSuccess={handleSuccess} />
 			</div>

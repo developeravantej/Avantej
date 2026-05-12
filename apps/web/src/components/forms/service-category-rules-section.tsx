@@ -41,7 +41,7 @@ export function ServiceCategoryRulesSection<T extends ServiceCategoryRulesValues
 					control={f.control}
 					name="requireAdvanceBooking"
 					render={({ field }) => (
-						<FormItem className="flex flex-row items-center gap-2 space-y-0">
+						<FormItem className="flex flex-row items-center gap-2 gap-y-0">
 							<FormControl>
 								<Checkbox
 									className="bg-white"
@@ -60,7 +60,7 @@ export function ServiceCategoryRulesSection<T extends ServiceCategoryRulesValues
 					control={f.control}
 					name="enableCancellationWindow"
 					render={({ field }) => (
-						<FormItem className="flex flex-row items-center gap-2 space-y-0">
+						<FormItem className="flex flex-row items-center gap-2 gap-y-0">
 							<FormControl>
 								<Checkbox
 									className="bg-white"

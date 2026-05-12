@@ -64,12 +64,12 @@ function FeatureCard({
 	description: string;
 }) {
 	return (
-		<div className="p-6 bg-white rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+		<div className="p-6 bg-white rounded-lg shadow-md border border-zinc-100 hover:shadow-lg transition-shadow">
 			<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 				<Icon className="size-6 text-black" />
 			</div>
 			<h3 className="text-xl font-semibold mb-2">{title}</h3>
-			<p className="text-gray-600">{description}</p>
+			<p className="text-zinc-600">{description}</p>
 		</div>
 	);
 }
@@ -78,7 +78,7 @@ function StatCard({ number, label }: { number: string; label: string }) {
 	return (
 		<div className="text-center">
 			<div className="text-4xl font-bold mb-2">{number}</div>
-			<div className="text-gray-600">{label}</div>
+			<div className="text-zinc-600">{label}</div>
 		</div>
 	);
 }
@@ -96,9 +96,9 @@ function TestimonialCard({
 }) {
 	return (
 		<div className="bg-white p-6 rounded-lg shadow-md">
-			<p className="text-gray-600 italic mb-4">"{quote}"</p>
+			<p className="text-zinc-600 italic mb-4">"{quote}"</p>
 			<div className="font-semibold">{author}</div>
-			<div className="text-sm text-gray-500">
+			<div className="text-sm text-zinc-500">
 				{role} at {company}
 			</div>
 		</div>
@@ -114,7 +114,7 @@ function HomeComponent() {
 	return (
 		<div className="min-h-screen">
 			{/* Header */}
-			<header className="w-full p-4 bg-white border-b border-gray-200 fixed top-0 z-50">
+			<header className="w-full p-4 bg-white border-b border-zinc-200 fixed top-0 z-50">
 				<div className="container mx-auto flex justify-between items-center">
 					<div className="flex items-center gap-2">
 						<img src="/logo_only.png" alt="Logo" className="h-8 w-auto" />
@@ -159,10 +159,10 @@ function HomeComponent() {
 		<section className="pt-32 pb-20 bg-brand-secondary-2">
 				<div className="container mx-auto px-4">
 					<div className="max-w-3xl mx-auto text-center">
-						<h1 className="text-5xl font-bold mb-6">
+						<h1 className="text-5xl font-semibold mb-6">
 							Streamline Your Business Operations with Powerful KPI Tracking
 						</h1>
-						<p className="text-xl text-gray-600 mb-8">
+						<p className="text-xl text-zinc-600 mb-8">
 							Get complete visibility into your branches, staff performance, and
 							financial metrics all in one place.
 						</p>
@@ -174,7 +174,7 @@ function HomeComponent() {
 								buttonVariants({
 									size: "lg",
 								}),
-								"bg-gray-950 text-white hover:bg-black/90"
+								"bg-zinc-950 text-white hover:bg-black/90"
 							)}
 						>
 							Get Started
@@ -200,8 +200,8 @@ function HomeComponent() {
 			<section className="py-20 bg-white">
 				<div className="container mx-auto px-4">
 					<div className="text-center mb-12">
-						<h1 className="text-3xl font-bold mb-4 ">Key Features</h1>
-						<h3 className="text-gray-600 max-w-2xl mx-auto">
+						<h1 className="text-3xl font-semibold mb-4 ">Key Features</h1>
+						<h3 className="text-zinc-600 max-w-2xl mx-auto">
 							Discover how Avantej helps you manage your business more
 							efficiently
 						</h3>
@@ -209,8 +209,8 @@ function HomeComponent() {
 
 					<div className="grid md:grid-cols-3 gap-8 mb-12">
 						{/* Client Management */}
-						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
+						<div className="p-8 bg-zinc-50 rounded-xl hover:shadow-lg transition-all group">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-zinc-950 group-hover:text-white transition-colors">
 								<UserCircle className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">Client Management</h3>
@@ -231,8 +231,8 @@ function HomeComponent() {
 						</div>
 
 						{/* Financial Management */}
-						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
+						<div className="p-8 bg-zinc-50 rounded-xl hover:shadow-lg transition-all group">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-zinc-950 group-hover:text-white transition-colors">
 								<DollarSign className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
@@ -255,8 +255,8 @@ function HomeComponent() {
 						</div>
 
 						{/* Analytics & Reporting */}
-						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
+						<div className="p-8 bg-zinc-50 rounded-xl hover:shadow-lg transition-all group">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-zinc-950 group-hover:text-white transition-colors">
 								<PieChart className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
@@ -312,86 +312,86 @@ function HomeComponent() {
 			{/* Core Features Section */}
 			<section className="py-20 bg-white">
 				<div className="container mx-auto px-4">
-					<h1 className="text-3xl font-bold text-center mb-4">
+					<h1 className="text-3xl font-semibold text-center mb-4">
 						Comprehensive Business Management
 					</h1>
-					<h3 className="text-center text-gray-600 mb-12">
+					<h3 className="text-center text-zinc-600 mb-12">
 						Everything you need to run your business efficiently
 					</h3>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 						{/* Dashboard & Analytics */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<HomeIcon className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Dashboard & Analytics
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Centralized dashboard with real-time insights and performance
 								metrics.
 							</p>
 						</div>
 
 						{/* Scoreboards */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<ClipboardList className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Performance Scoreboards
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Track and compare performance metrics across branches and teams.
 							</p>
 						</div>
 
 						{/* Client Management */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<UserCircle className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Client Management</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Comprehensive client database with profiles, history, and
 								interactions.
 							</p>
 						</div>
 
 						{/* Calendar */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Calendar className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Smart Calendar</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Schedule management with automated reminders and team
 								coordination.
 							</p>
 						</div>
 
 						{/* Payroll Management */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<DollarSign className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Payroll Management</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Automated payroll processing with tax calculations and direct
 								deposits.
 							</p>
 						</div>
 
 						{/* Admin Controls */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Settings className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Advanced Admin Settings
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Customizable controls for system configuration and management.
 							</p>
 						</div>
@@ -400,73 +400,73 @@ function HomeComponent() {
 					{/* Additional Features Grid */}
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
 						{/* Claims & Expenses */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<FileText className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Claims & Expenses</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Streamlined expense tracking and reimbursement processing.
 							</p>
 						</div>
 
 						{/* User Roles */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<UserCog className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Role Management</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Granular access control and permission management for team
 								members.
 							</p>
 						</div>
 
 						{/* Profit/Loss Tracking */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<PieChart className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Financial Analytics
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Detailed profit/loss tracking with customizable reporting.
 							</p>
 						</div>
 
 						{/* Packages */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Package className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Package Management</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Create and manage service packages with flexible pricing
 								options.
 							</p>
 						</div>
 
 						{/* Payments & Invoicing */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Receipt className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Payments & Invoicing
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Automated billing, invoicing, and payment processing solutions.
 							</p>
 						</div>
 
 						{/* Purchase Approval */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<CheckSquare className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Purchase Approval</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Streamlined purchase request and approval workflow system.
 							</p>
 						</div>
@@ -475,39 +475,39 @@ function HomeComponent() {
 					{/* System Features */}
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
 						{/* Data Center */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Database className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Data Center</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Centralized data management with robust backup and security
 								features.
 							</p>
 						</div>
 
 						{/* Announcements */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Bell className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Announcement System
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Internal communication tools for company-wide announcements.
 							</p>
 						</div>
 
 						{/* Branding */}
-						<div className="p-6 bg-gray-50 rounded-xl">
+						<div className="p-6 bg-zinc-50 rounded-xl">
 							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
 								<Palette className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Branding Customization
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-zinc-600 mb-4">
 								Customize the platform's appearance to match your brand
 								identity.
 							</p>
@@ -519,7 +519,7 @@ function HomeComponent() {
 			{/* Features Grid */}
 			<section className="py-20 bg-white">
 				<div className="container mx-auto px-4">
-					<h1 className="text-3xl font-bold text-center mb-12">
+					<h1 className="text-3xl font-semibold text-center mb-12">
 						Everything you need to scale your business
 					</h1>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -558,38 +558,38 @@ function HomeComponent() {
 			</section>
 
 			{/* How It Works Section */}
-			<section className="py-20 bg-gray-50">
+			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4">
-					<h1 className="text-3xl font-bold text-center mb-12">How It Works</h1>
+					<h1 className="text-3xl font-semibold text-center mb-12">How It Works</h1>
 					<div className="grid md:grid-cols-3 gap-8">
 						<div className="text-center">
-							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-zinc-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								1
 							</div>
 							<h3 className="text-xl font-semibold mb-2">
 								Set Up Your Account
 							</h3>
-							<p className="text-gray-600">
+							<p className="text-zinc-600">
 								Quick onboarding process with guided setup for your business
 								structure
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-zinc-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								2
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Import Your Data</h3>
-							<p className="text-gray-600">
+							<p className="text-zinc-600">
 								Easily import your existing data or start fresh with our
 								templates
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-zinc-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								3
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Track & Optimize</h3>
-							<p className="text-gray-600">
+							<p className="text-zinc-600">
 								Monitor KPIs in real-time and make data-driven decisions
 							</p>
 						</div>
@@ -600,7 +600,7 @@ function HomeComponent() {
 			{/* Testimonials Section */}
 			<section className="py-20 bg-white">
 				<div className="container mx-auto px-4">
-					<h1 className="text-3xl font-bold text-center mb-12">
+					<h1 className="text-3xl font-semibold text-center mb-12">
 						What Our Clients Say
 					</h1>
 					<div className="grid md:grid-cols-3 gap-8">
@@ -627,12 +627,12 @@ function HomeComponent() {
 			</section>
 
 			{/* Pricing Section */}
-			<section className="py-20 bg-gray-50">
+			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4">
-					<h1 className="text-3xl font-bold text-center mb-4">
+					<h1 className="text-3xl font-semibold text-center mb-4">
 						Simple, Transparent Pricing
 					</h1>
-					<h3 className="text-center text-gray-600 mb-12">
+					<h3 className="text-center text-zinc-600 mb-12">
 						Choose the plan that best fits your business needs
 					</h3>
 
@@ -746,7 +746,7 @@ function HomeComponent() {
 											buttonVariants({
 												size: "lg",
 											}),
-											"w-full bg-gray-950 text-white hover:bg-black/90"
+											"w-full bg-zinc-950 text-white hover:bg-black/90"
 										)}
 									>
 										Get Started
@@ -825,10 +825,10 @@ function HomeComponent() {
 		{/* CTA Section */}
 		<section className="py-20 bg-brand-secondary-3 text-white">
 				<div className="container mx-auto px-4 text-center">
-					<h1 className="text-3xl font-bold mb-6">
+					<h1 className="text-3xl font-semibold mb-6">
 						Ready to transform your business?
 					</h1>
-					<h3 className="text-xl mb-8 text-gray-300">
+					<h3 className="text-xl mb-8 text-zinc-300">
 						Join thousands of businesses using Avantej to scale their
 						operations.
 					</h3>
@@ -839,7 +839,7 @@ function HomeComponent() {
 							buttonVariants({
 								size: "lg",
 							}),
-							"bg-white text-black hover:bg-gray-100"
+							"bg-white text-black hover:bg-zinc-100"
 						)}
 					>
 						Get Started Now
@@ -848,12 +848,12 @@ function HomeComponent() {
 				</section>
 
 			{/* Add a small features teaser section */}
-			<section className="py-20 bg-gray-50">
+			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4 text-center">
-					<h1 className="text-3xl font-bold mb-6">
+					<h1 className="text-3xl font-semibold mb-6">
 						Powerful Features for Your Business
 					</h1>
-					<h3 className="text-xl mb-8 text-gray-600 max-w-3xl mx-auto">
+					<h3 className="text-xl mb-8 text-zinc-600 max-w-3xl mx-auto">
 						Discover all the tools and features that make Avantej the perfect
 						solution for managing your business operations.
 					</h3>
@@ -864,7 +864,7 @@ function HomeComponent() {
 							buttonVariants({
 								size: "lg",
 							}),
-							"bg-gray-950 text-white hover:bg-black/90"
+							"bg-zinc-950 text-white hover:bg-black/90"
 						)}
 					>
 						Explore All Features

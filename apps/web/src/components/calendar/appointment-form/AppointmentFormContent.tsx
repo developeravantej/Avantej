@@ -111,12 +111,12 @@ export function AppointmentFormContent({
 					<TooltipProvider>
 						<div className="grid grid-cols-6 grid-rows-5">
 							{/* Profile sidebar */}
-							<div className="col-span-1 row-span-5 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg p-6 flex flex-col space-y-4">
+							<div className="col-span-1 row-span-5 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg p-6 flex flex-col gap-y-4">
 								<div className="size-20 bg-brand-secondary-2 rounded-full flex items-center justify-center">
 									<UserPlus className="size-10 text-brand-secondary-1" />
 								</div>
 								<div className="space-y-2">
-									<h3 className="text-lg font-bold text-brand-primary-1">
+									<h3 className="text-lg font-semibold text-brand-primary-1">
 										{newAppointment.clientId
 											? (clients.find((c) => c.id === newAppointment.clientId)?.name ?? "Select Customer")
 											: "Select Customer"}
@@ -173,7 +173,7 @@ export function AppointmentFormContent({
 													</TooltipContent>
 												</Tooltip>
 											</div>
-											<div className="flex items-center space-x-3">
+											<div className="flex items-center gap-x-3">
 												<button
 													type="button"
 													onClick={handleMultiAppointmentToggle}
@@ -200,7 +200,7 @@ export function AppointmentFormContent({
 							<div className="col-span-5 row-span-5 rounded-lg py-2 flex flex-col items-center font-semibold">
 								<div>
 									<div className="text-center pb-6">
-										<h1 className="text-2xl font-bold text-brand-primary-1">Add New Appointment</h1>
+										<h1 className="text-2xl font-semibold text-brand-primary-1">Add New Appointment</h1>
 									</div>
 									<Button
 										variant="ghost"
@@ -299,7 +299,7 @@ export function AppointmentFormContent({
 													className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1"
 												/>
 											</div>
-											<div className="flex space-x-3 pt-4">
+											<div className="flex gap-x-3 pt-4">
 												<Button
 													variant="outline"
 													onClick={() => { setIsBlockedTiming(false); resetForm(); }}
@@ -323,7 +323,7 @@ export function AppointmentFormContent({
 								{newAppointment.clientId && (
 									<div className="grid grid-cols-6 grid-rows-5 w-full">
 										{/* Left column: client, slots/services */}
-										<div className="col-span-3 row-span-5 border-r border-brand-secondary-3 p-2 flex flex-col space-y-4">
+										<div className="col-span-3 row-span-5 border-r border-brand-secondary-3 p-2 flex flex-col gap-y-4">
 											{/* Customer row (shown again once selected) */}
 											<div className="space-y-2">
 												<div className="flex items-center gap-2">
@@ -545,7 +545,7 @@ export function AppointmentFormContent({
 										)}
 
 										{/* Right column: slot editor / single appointment form */}
-										<div className="col-span-3 row-span-5 p-2 flex flex-col space-y-4">
+										<div className="col-span-3 row-span-5 p-2 flex flex-col gap-y-4">
 											{/* Multi-slot selected slot editor */}
 											{isMultiAppointment && selectedAppointmentId && selectedSlot && (
 												<>
@@ -790,7 +790,7 @@ export function AppointmentFormContent({
 								{/* Action Buttons */}
 								{newAppointment.clientId && (
 									<div className="px-6 pt-4">
-										<div className="flex space-x-3">
+										<div className="flex gap-x-3">
 											<Button
 												variant="outline"
 												onClick={clearAllForm}

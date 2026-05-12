@@ -283,7 +283,7 @@ export function ProductFormDialog({
 							<Button
 								type="submit"
 								disabled={mutation.isPending}
-								className="bg-gray-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="bg-zinc-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{mutation.isPending
 									? mode === "create"

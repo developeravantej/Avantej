@@ -483,7 +483,7 @@ export function ServiceFormDialog({
 								control={form.control}
 								name="expirable"
 								render={({ field }) => (
-									<FormItem className="flex items-center gap-2 space-y-0">
+									<FormItem className="flex items-center gap-2 gap-y-0">
 										<FormControl>
 											<Checkbox
 												className="bg-white"
@@ -625,7 +625,7 @@ export function ServiceFormDialog({
 								control={form.control}
 								name="taxable"
 								render={({ field }) => (
-									<FormItem className="flex items-center gap-2 space-y-0 mt-2">
+									<FormItem className="flex items-center gap-2 gap-y-0 mt-2">
 										<FormControl>
 											<Checkbox
 												className="bg-white"

@@ -234,7 +234,7 @@ function MyServicesView() {
 					<Briefcase className="size-6 text-primary" />
 				</div>
 				<div>
-					<h1 className="text-2xl font-bold font-heading">My Services</h1>
+					<h1 className="text-2xl font-semibold font-heading">My Services</h1>
 					<p className="text-muted-foreground text-sm">
 						Manage your buffer time per assigned service.
 					</p>

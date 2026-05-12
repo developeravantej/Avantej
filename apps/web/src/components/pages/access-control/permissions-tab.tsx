@@ -271,7 +271,7 @@ export function PermissionsTabPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold font-heading">
+					<h1 className="text-2xl font-semibold font-heading">
 						Permission Management
 					</h1>
 					<p className="text-brand-secondary-1">

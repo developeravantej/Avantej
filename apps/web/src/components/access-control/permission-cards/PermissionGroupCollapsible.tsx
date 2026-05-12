@@ -56,7 +56,7 @@ function PermissionActionItem({
       case 'area':
         return <Check className="size-3 text-teal-700" />;
       case 'branch':
-        return <Check className="size-3 text-indigo-700" />;
+        return <Check className="size-3 text-zinc-700" />;
       default:
         return <X className="size-3 text-brand-secondary-1" />;
     }
@@ -77,7 +77,7 @@ function PermissionActionItem({
       case 'area':
         return "bg-teal-100 hover:bg-teal-200 border-teal-300";
       case 'branch':
-        return "bg-indigo-100 hover:bg-indigo-200 border-indigo-300";
+        return "bg-zinc-100 hover:bg-zinc-200 border-zinc-300";
       default:
         return "bg-brand-secondary-3 hover:bg-brand-secondary-3 border-brand-secondary-3";
     }
@@ -98,7 +98,7 @@ function PermissionActionItem({
       case 'area':
         return 'bg-teal-100 text-teal-800 border-teal-300';
       case 'branch':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+        return 'bg-zinc-100 text-zinc-800 border-zinc-300';
       default:
         return 'bg-brand-secondary-3 text-brand-secondary-1 border-brand-secondary-3';
     }

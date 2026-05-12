@@ -22,7 +22,7 @@
     "overrides": [
       {
         "files": ["**/apps/web/src/components/ui/**", "apps/web/src/components/ui/**", "src/components/ui/**"],
-        "rules": ["knip/exports", "knip/types"]
+        "rules": ["knip/exports", "knip/types", "eslint/no-unused-vars", "react-doctor/no-derived-useState", "react-doctor/no-usememo-simple-expression"]
       }
     ]
   }

@@ -269,7 +269,7 @@ export function CreateInvitationDialog({
 						</p>
 					</div>
 
-					<DialogFooter className="mt-6 flex justify-end space-x-3 gap-0">
+					<DialogFooter className="mt-6 flex justify-end gap-x-3 gap-0">
 						<Button
 							type="button"
 							variant="outline"
@@ -282,7 +282,7 @@ export function CreateInvitationDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending} className="bg-gray-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">
+						<Button type="submit" disabled={createMutation.isPending} className="bg-zinc-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">
 							{createMutation.isPending ? (
 								<>
 									<Loader2 className="size-4 mr-2 animate-spin" />

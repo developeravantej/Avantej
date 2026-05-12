@@ -481,7 +481,7 @@ export function StockRequestsTabPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold font-heading">Stock Requests</h1>
+					<h1 className="text-2xl font-semibold font-heading">Stock Requests</h1>
 					<p className="text-sm text-brand-secondary-1">
 						Manage inventory stock requests between branches
 					</p>

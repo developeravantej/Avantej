@@ -125,7 +125,7 @@ function NotificationsViewPage() {
 						<Bell className="size-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading">Notifications</h1>
+						<h1 className="text-2xl font-semibold font-heading">Notifications</h1>
 						<p className="text-brand-secondary-1 text-sm">
 							Your notification history.
 						</p>

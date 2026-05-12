@@ -73,9 +73,9 @@ function CalendarGrid({
 	}
 	const minHeight = view === "monthly" ? "min-h-[120px]" : "min-h-[150px]";
 	return (
-		<div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+		<div className="grid grid-cols-7 gap-px bg-zinc-200 rounded-lg overflow-hidden">
 			{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-				<div key={day} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+				<div key={day} className="bg-zinc-50 p-2 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wide">
 					{day}
 				</div>
 			))}
@@ -306,7 +306,7 @@ export function AppointmentCalendar({
 	return (
 		<>
 			<Card className="w-full">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+				<CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
 					<CardTitle className="text-xl font-semibold">Appointments</CardTitle>
 					<div className="flex items-center gap-2">
 						{isGroupSelectMode && selectedAppointments.size > 0 && (
@@ -327,22 +327,22 @@ export function AppointmentCalendar({
 				</CardHeader>
 				<CardContent>
 					<div className="flex items-center justify-between mb-4">
-						<div className="flex items-center bg-gray-100 rounded-lg p-1 gap-0.5">
+						<div className="flex items-center bg-zinc-100 rounded-lg p-1 gap-0.5">
 							<button
 								onClick={() => setView("monthly")}
-								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "monthly" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
+								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "monthly" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
 							>
 								<Calendar className="size-4" />Month
 							</button>
 							<button
 								onClick={() => setView("weekly")}
-								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "weekly" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
+								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "weekly" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
 							>
 								<CalendarDays className="size-4" />Week
 							</button>
 							<button
 								onClick={() => setView("daily")}
-								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "daily" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
+								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "daily" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
 							>
 								<Clock className="size-4" />Day
 							</button>
@@ -351,16 +351,16 @@ export function AppointmentCalendar({
 						<div className="flex items-center gap-2 text-sm">
 							<button
 								onClick={() => setShowConfirmed(!showConfirmed)}
-								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showConfirmed ? "bg-green-50 border-green-200 text-green-700" : "border-gray-200 text-gray-400")}
+								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showConfirmed ? "bg-green-50 border-green-200 text-green-700" : "border-zinc-200 text-zinc-400")}
 							>
-								<div className={cn("size-2.5 rounded-full", showConfirmed ? "bg-green-500" : "bg-gray-300")} />
+								<div className={cn("size-2.5 rounded-full", showConfirmed ? "bg-green-500" : "bg-zinc-300")} />
 								Came
 							</button>
 							<button
 								onClick={() => setShowCancelled(!showCancelled)}
-								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showCancelled ? "bg-red-50 border-red-200 text-red-700" : "border-gray-200 text-gray-400")}
+								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showCancelled ? "bg-red-50 border-red-200 text-red-700" : "border-zinc-200 text-zinc-400")}
 							>
-								<div className={cn("size-2.5 rounded-full", showCancelled ? "bg-red-500" : "bg-gray-300")} />
+								<div className={cn("size-2.5 rounded-full", showCancelled ? "bg-red-500" : "bg-zinc-300")} />
 								No-show
 							</button>
 						</div>
@@ -398,7 +398,7 @@ export function AppointmentCalendar({
 						openAddModal={openAddModal}
 					/>
 
-					<div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
+					<div className="mt-4 flex items-center justify-center gap-4 text-xs text-zinc-500">
 						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-green-500 inline-block" />Came (confirmed)</span>
 						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-yellow-400 inline-block" />Upcoming (pending)</span>
 						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-red-500 inline-block" />No-show (cancelled)</span>

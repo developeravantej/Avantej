@@ -413,7 +413,7 @@ export function RolesTabPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold font-heading">Role Management</h1>
+					<h1 className="text-2xl font-semibold font-heading">Role Management</h1>
 					<p className="text-brand-secondary-1">
 						Create and manage user roles and permissions
 					</p>

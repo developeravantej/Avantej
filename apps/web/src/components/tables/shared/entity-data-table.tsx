@@ -41,7 +41,7 @@ export function EntityDataTable<TData extends BaseRow>({
 				{showAddButton && (
 					<Button
 						onClick={onAddClick}
-						className="bg-gray-950 text-white hover:bg-black/90"
+						className="bg-zinc-950 text-white hover:bg-black/90"
 						type="button"
 					>
 						<Plus className="mr-2 size-4" />

@@ -37,14 +37,14 @@ export function AttendanceDialog({
 					return (
 						<>
 							{/* Header */}
-							<div className="px-6 pt-6 pb-5 border-b border-gray-100">
+							<div className="px-6 pt-6 pb-5 border-b border-zinc-100">
 								<div className="flex items-start gap-4">
-									<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-										<ClipboardCheck className="size-4.5 text-gray-500" />
+									<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+										<ClipboardCheck className="size-4.5 text-zinc-500" />
 									</div>
 									<div className="flex-1 min-w-0">
 										<DialogHeader className="p-0 space-y-0">
-											<DialogTitle className="text-base font-bold text-gray-900">
+											<DialogTitle className="text-base font-bold text-zinc-900">
 												{appt ? appt.title : "Mark Attendance"}
 											</DialogTitle>
 											{appt && start && end && (
@@ -53,13 +53,13 @@ export function AttendanceDialog({
 										</DialogHeader>
 										{start && end && (
 											<div className="flex items-center gap-1.5 mt-1.5">
-												<span className="text-xs font-medium text-gray-600">
+												<span className="text-xs font-medium text-zinc-600">
 													{start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
 												</span>
-												<span className="text-xs text-gray-400">·</span>
-												<span className="text-xs text-gray-500">{formatTime(start)}</span>
-												<span className="text-xs text-gray-400">·</span>
-												<span className="text-xs text-gray-500">{formatDuration(start, end)}</span>
+												<span className="text-xs text-zinc-400">·</span>
+												<span className="text-xs text-zinc-500">{formatTime(start)}</span>
+												<span className="text-xs text-zinc-400">·</span>
+												<span className="text-xs text-zinc-500">{formatDuration(start, end)}</span>
 											</div>
 										)}
 									</div>
@@ -75,14 +75,14 @@ export function AttendanceDialog({
 										if (!apptId) return;
 										onConfirm(apptId);
 									}}
-									className="group flex items-center gap-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-gray-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
+									className="group flex items-center gap-4 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-zinc-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
 								>
-									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-emerald-100 transition-colors">
-										<CheckCircle2 className="size-4.5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-emerald-100 transition-colors">
+										<CheckCircle2 className="size-4.5 text-zinc-400 group-hover:text-emerald-600 transition-colors" />
 									</div>
 									<div>
-										<p className="text-sm font-semibold text-gray-900">Attended</p>
-										<p className="text-xs text-gray-400 mt-0.5">Client showed up on time</p>
+										<p className="text-sm font-semibold text-zinc-900">Attended</p>
+										<p className="text-xs text-zinc-400 mt-0.5">Client showed up on time</p>
 									</div>
 								</button>
 
@@ -93,14 +93,14 @@ export function AttendanceDialog({
 										if (!apptId) return;
 										onCancel(apptId);
 									}}
-									className="group flex items-center gap-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-gray-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
+									className="group flex items-center gap-4 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-zinc-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
 								>
-									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-rose-100 transition-colors">
-										<XCircle className="size-4.5 text-gray-400 group-hover:text-rose-500 transition-colors" />
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-rose-100 transition-colors">
+										<XCircle className="size-4.5 text-zinc-400 group-hover:text-rose-500 transition-colors" />
 									</div>
 									<div>
-										<p className="text-sm font-semibold text-gray-900">No-show</p>
-										<p className="text-xs text-gray-400 mt-0.5">Client did not attend</p>
+										<p className="text-sm font-semibold text-zinc-900">No-show</p>
+										<p className="text-xs text-zinc-400 mt-0.5">Client did not attend</p>
 									</div>
 								</button>
 							</div>
@@ -110,7 +110,7 @@ export function AttendanceDialog({
 								<button
 									type="button"
 									onClick={onClose}
-									className="w-full rounded-xl border border-gray-100 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+									className="w-full rounded-xl border border-zinc-100 py-2.5 text-sm text-zinc-500 hover:bg-zinc-50 transition-colors"
 								>
 									Cancel
 								</button>

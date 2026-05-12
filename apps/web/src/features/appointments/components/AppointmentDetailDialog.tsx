@@ -41,9 +41,9 @@ export function AppointmentDetailDialog({
 					return (
 						<>
 							{/* Header */}
-							<div className="px-6 pt-6 pb-5 border-b border-gray-100">
+							<div className="px-6 pt-6 pb-5 border-b border-zinc-100">
 								<div className="flex items-start gap-4">
-									<div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-gray-100 text-gray-700 text-center">
+									<div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 text-center">
 										<span className="text-[10px] font-semibold leading-none tracking-wide">
 											{start.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
 										</span>
@@ -51,17 +51,17 @@ export function AppointmentDetailDialog({
 									</div>
 									<div className="flex-1 min-w-0 pt-0.5">
 										<DialogHeader className="p-0 space-y-0">
-											<DialogTitle className="text-base font-bold text-gray-900 leading-snug">{appt.title}</DialogTitle>
+											<DialogTitle className="text-base font-bold text-zinc-900 leading-snug">{appt.title}</DialogTitle>
 											{appt.service && appt.service !== "—" && (
 												<DialogDescription className="text-xs text-muted-foreground mt-0.5">{appt.service}</DialogDescription>
 											)}
 										</DialogHeader>
 										<div className="flex items-center gap-1.5 mt-2 flex-wrap">
-											<span className="text-xs font-semibold text-gray-700">{weekday}</span>
-											<span className="text-xs text-gray-400">·</span>
-											<span className="text-xs text-gray-500">{formatTime(start)}</span>
-											<span className="text-xs text-gray-400">·</span>
-											<span className="text-xs text-gray-500">{formatDuration(start, end)}</span>
+											<span className="text-xs font-semibold text-zinc-700">{weekday}</span>
+											<span className="text-xs text-zinc-400">·</span>
+											<span className="text-xs text-zinc-500">{formatTime(start)}</span>
+											<span className="text-xs text-zinc-400">·</span>
+											<span className="text-xs text-zinc-500">{formatDuration(start, end)}</span>
 										</div>
 									</div>
 									{cfg.label && (
@@ -74,43 +74,43 @@ export function AppointmentDetailDialog({
 
 							{/* Detail rows */}
 							<div className="px-5 py-4 space-y-1 bg-white">
-								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-										<CalendarIcon className="size-3.5 text-gray-500" />
+								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-zinc-50 transition-colors">
+									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+										<CalendarIcon className="size-3.5 text-zinc-500" />
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-[11px] text-gray-400 font-medium">Date</p>
-										<p className="text-sm text-gray-800 font-medium">{dateStr}</p>
+										<p className="text-[11px] text-zinc-400 font-medium">Date</p>
+										<p className="text-sm text-zinc-800 font-medium">{dateStr}</p>
 									</div>
 								</div>
-								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-										<Clock className="size-3.5 text-gray-500" />
+								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-zinc-50 transition-colors">
+									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+										<Clock className="size-3.5 text-zinc-500" />
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-[11px] text-gray-400 font-medium">Time</p>
-										<p className="text-sm text-gray-800 font-medium">{formatTime(start)} – {formatTime(end)} <span className="text-gray-400 font-normal">({formatDuration(start, end)})</span></p>
+										<p className="text-[11px] text-zinc-400 font-medium">Time</p>
+										<p className="text-sm text-zinc-800 font-medium">{formatTime(start)} – {formatTime(end)} <span className="text-zinc-400 font-normal">({formatDuration(start, end)})</span></p>
 									</div>
 								</div>
 								{appt.clientName && (
-									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-										<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-											<User className="size-3.5 text-gray-500" />
+									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-zinc-50 transition-colors">
+										<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+											<User className="size-3.5 text-zinc-500" />
 										</div>
 										<div className="flex-1 min-w-0">
-											<p className="text-[11px] text-gray-400 font-medium">Client</p>
-											<p className="text-sm text-gray-800 font-medium">{appt.clientName}</p>
+											<p className="text-[11px] text-zinc-400 font-medium">Client</p>
+											<p className="text-sm text-zinc-800 font-medium">{appt.clientName}</p>
 										</div>
 									</div>
 								)}
 								{trainerName && (
-									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-										<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
+									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-zinc-50 transition-colors">
+										<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 text-xs font-bold">
 											{getInitials(trainerName)}
 										</div>
 										<div className="flex-1 min-w-0">
-											<p className="text-[11px] text-gray-400 font-medium">Trainer</p>
-											<p className="text-sm text-gray-800 font-medium">{trainerName}</p>
+											<p className="text-[11px] text-zinc-400 font-medium">Trainer</p>
+											<p className="text-sm text-zinc-800 font-medium">{trainerName}</p>
 										</div>
 									</div>
 								)}
@@ -118,8 +118,8 @@ export function AppointmentDetailDialog({
 
 							{/* Status History */}
 							{organizationId && (
-								<div className="px-5 pt-3 pb-3 border-t border-gray-100 bg-white">
-									<p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+								<div className="px-5 pt-3 pb-3 border-t border-zinc-100 bg-white">
+									<p className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">
 										<History className="size-3.5" />
 										Status History
 									</p>
@@ -135,7 +135,7 @@ export function AppointmentDetailDialog({
 								<button
 									type="button"
 									onClick={() => onEdit(appt)}
-									className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+									className="flex items-center justify-center gap-2 w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
 								>
 									<Pencil className="size-3.5" />
 									Edit Appointment

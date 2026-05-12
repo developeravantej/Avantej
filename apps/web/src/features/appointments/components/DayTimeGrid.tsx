@@ -46,7 +46,7 @@ function HourLines({ hours, gridStart }: { hours: number[]; gridStart: number })
 	return (
 		<>
 			{hours.map((h) => (
-				<div key={h} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: (h - gridStart) * PX_PER_HOUR }} />
+				<div key={h} className="absolute left-0 right-0 border-t border-zinc-100" style={{ top: (h - gridStart) * PX_PER_HOUR }} />
 			))}
 		</>
 	);
@@ -132,7 +132,7 @@ function BufferBlocks({ sortedAppts, gridStart }: { sortedAppts: Appointment[]; 
 					: `${bufferMins}m buffer`;
 				return (
 					<div key={`buf-${appt.id}`} className="absolute left-0 right-0 z-0 flex items-center justify-center" style={{ top, height }}>
-						<div className="w-full h-full border-y border-dashed border-gray-300 bg-gray-50/60 flex items-center justify-center gap-1 text-[11px] text-gray-400 pointer-events-none">
+						<div className="w-full h-full border-y border-dashed border-zinc-300 bg-zinc-50/60 flex items-center justify-center gap-1 text-[11px] text-zinc-400 pointer-events-none">
 							<Clock className="size-3 shrink-0" />{label}
 						</div>
 					</div>
@@ -153,7 +153,7 @@ export function DayTimeGrid({
 	if (appts.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-				<Calendar className="size-12 text-gray-300" />
+				<Calendar className="size-12 text-zinc-300" />
 				<p className="text-base font-medium">No appointments this day</p>
 				<Button size="sm" onClick={onAddAppointment}><Plus className="size-4 mr-2" />Add Appointment</Button>
 			</div>
@@ -185,13 +185,13 @@ export function DayTimeGrid({
 		const trainers = Array.from(trainerMap.entries()).sort(([, a], [, b]) => a.name.localeCompare(b.name));
 
 		return (
-			<div ref={ref} className="overflow-auto rounded-lg border border-gray-200" style={{ maxHeight: 600 }}>
-				<div className="sticky top-0 z-30 flex border-b border-gray-200 bg-white">
-					<div className="shrink-0 w-16 border-r border-gray-200 bg-gray-50" />
+			<div ref={ref} className="overflow-auto rounded-lg border border-zinc-200" style={{ maxHeight: 600 }}>
+				<div className="sticky top-0 z-30 flex border-b border-zinc-200 bg-white">
+					<div className="shrink-0 w-16 border-r border-zinc-200 bg-zinc-50" />
 					{trainers.map(([id, { name, color }]) => (
 						<div
 							key={id}
-							className="flex items-center gap-1.5 border-r border-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 bg-white"
+							className="flex items-center gap-1.5 border-r border-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-700 bg-white"
 							style={{ minWidth: TRAINER_COL_WIDTH }}
 						>
 							{color && <div className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
@@ -200,9 +200,9 @@ export function DayTimeGrid({
 					))}
 				</div>
 				<div className="relative flex" style={{ height: gridHeight }}>
-					<div className="sticky left-0 z-20 shrink-0 w-16 border-r border-gray-200 bg-gray-50">
+					<div className="sticky left-0 z-20 shrink-0 w-16 border-r border-zinc-200 bg-zinc-50">
 						{hours.map((h) => (
-							<div key={h} className="flex items-start justify-end pr-2 text-xs text-gray-400" style={{ height: PX_PER_HOUR, paddingTop: 2 }}>
+							<div key={h} className="flex items-start justify-end pr-2 text-xs text-zinc-400" style={{ height: PX_PER_HOUR, paddingTop: 2 }}>
 								{formatHour(h)}
 							</div>
 						))}
@@ -211,7 +211,7 @@ export function DayTimeGrid({
 						const sorted = trainerAppts.toSorted((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 						const withCols = assignColumns(sorted);
 						return (
-							<div key={id} className="relative border-r border-gray-100" style={{ minWidth: TRAINER_COL_WIDTH }}>
+							<div key={id} className="relative border-r border-zinc-100" style={{ minWidth: TRAINER_COL_WIDTH }}>
 								<HourLines hours={hours} gridStart={gridStart} />
 								<NowLine nowTop={nowTop} gridHeight={gridHeight} />
 								{withCols.map(({ appt, col, totalCols }) => (
@@ -228,11 +228,11 @@ export function DayTimeGrid({
 
 	const withCols = assignColumns(appts);
 	return (
-		<div ref={ref} className="relative overflow-y-auto rounded-lg border border-gray-200" style={{ maxHeight: 600 }}>
+		<div ref={ref} className="relative overflow-y-auto rounded-lg border border-zinc-200" style={{ maxHeight: 600 }}>
 			<div className="relative flex" style={{ height: gridHeight }}>
-				<div className="shrink-0 w-16 border-r border-gray-200 bg-gray-50">
+				<div className="shrink-0 w-16 border-r border-zinc-200 bg-zinc-50">
 					{hours.map((h) => (
-						<div key={h} className="flex items-start justify-end pr-2 text-xs text-gray-400" style={{ height: PX_PER_HOUR, paddingTop: 2 }}>
+						<div key={h} className="flex items-start justify-end pr-2 text-xs text-zinc-400" style={{ height: PX_PER_HOUR, paddingTop: 2 }}>
 							{formatHour(h)}
 						</div>
 					))}

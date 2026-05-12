@@ -34,7 +34,7 @@ function UserViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Users</h1>
+				<h1 className="text-3xl font-semibold">Users</h1>
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-8 text-muted-foreground">

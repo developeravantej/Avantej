@@ -46,7 +46,7 @@ export function AcceptInvitationSignupCard({
 	onLoginInstead,
 }: Props) {
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+		<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
 			<div className="w-full max-w-md space-y-4">
 				<Card>
 					<CardHeader className="text-center space-y-2">

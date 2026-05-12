@@ -22,7 +22,7 @@ export function DateGroupHeader({
 					"flex size-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
 					todayDate
 						? "bg-blue-600 text-white"
-						: "bg-gray-100 text-gray-700",
+						: "bg-zinc-100 text-zinc-700",
 				)}
 			>
 				<span className="text-[10px] font-semibold leading-none tracking-wide">
@@ -38,14 +38,14 @@ export function DateGroupHeader({
 				<p
 					className={cn(
 						"text-sm font-semibold",
-						todayDate ? "text-blue-600" : "text-gray-800",
+						todayDate ? "text-blue-600" : "text-zinc-800",
 					)}
 				>
 					{label}
 				</p>
 				<p className="text-xs text-muted-foreground">{sub}</p>
 			</div>
-			<div className="flex-1 h-px bg-gray-100 ml-1" />
+			<div className="flex-1 h-px bg-zinc-100 ml-1" />
 			<span className="text-xs text-muted-foreground shrink-0">
 				{count} appointment{count !== 1 ? "s" : ""}
 			</span>

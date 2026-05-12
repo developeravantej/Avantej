@@ -456,7 +456,7 @@ function AnnouncementsViewPage() {
 						<Megaphone className="size-6 text-primary" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading">Announcements</h1>
+						<h1 className="text-2xl font-semibold font-heading">Announcements</h1>
 						<p className="text-brand-secondary-1 text-sm">
 							Manage organization-wide and branch-specific announcements.
 						</p>

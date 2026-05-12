@@ -254,7 +254,7 @@ function AcceptInvitationPage() {
 				: "Invalid invitation");
 
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+			<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-destructive">
@@ -280,7 +280,7 @@ function AcceptInvitationPage() {
 	// Processing acceptance
 	if (acceptMutation.isPending || acceptMutation.isSuccess) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+			<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">

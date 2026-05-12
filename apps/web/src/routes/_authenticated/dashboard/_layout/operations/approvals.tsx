@@ -127,7 +127,7 @@ function ApprovalsPage() {
 		<div className="space-y-4 p-4 md:p-6">
 			<div className="flex items-start justify-between">
 				<div>
-					<h1 className="font-bold text-2xl text-foreground">
+					<h1 className="font-semibold text-2xl text-foreground">
 						Pending Approvals
 					</h1>
 					<p className="mt-1 text-muted-foreground text-sm">

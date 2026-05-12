@@ -206,7 +206,7 @@ export function DataTable<TData extends UomRow, TValue>({
 				</div>
 			)}
 
-			<div className="flex shrink-0 items-center justify-end space-x-2 border-t border-border/40 px-6 py-3">
+			<div className="flex shrink-0 items-center justify-end gap-x-2 border-t border-border/40 px-6 py-3">
 				<div className="flex-1 text-sm text-muted-foreground">
 					{table.getFilteredRowModel().rows.length} of{" "}
 					{table.getCoreRowModel().rows.length} row(s) total.

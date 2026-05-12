@@ -484,7 +484,7 @@ export function PosWorkflow({
 							<ShoppingCart className="size-5 text-primary-foreground" />
 						</div>
 						<div>
-							<h1 className="font-bold font-heading text-xl leading-tight">
+							<h1 className="font-semibold font-heading text-xl leading-tight">
 								New Sale
 							</h1>
 							<p className="text-muted-foreground text-xs">Point of sale</p>

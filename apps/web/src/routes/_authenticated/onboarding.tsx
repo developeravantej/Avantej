@@ -59,14 +59,14 @@ function RouteComponent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-zinc-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">
               Welcome to Avantej!
             </CardTitle>
-            <p className="text-gray-600 mt-2">
+            <p className="text-zinc-600 mt-2">
               Let's set up your organization to get started.
             </p>
           </CardHeader>
@@ -88,7 +88,7 @@ function RouteComponent() {
                           {...field}
                         />
                       </FormControl>
-                      <div className="text-sm text-gray-500 font-light">
+                      <div className="text-sm text-zinc-500 font-light">
                         Your organization name will be confirmed when you
                         complete your subscription.
                       </div>
@@ -118,7 +118,7 @@ function RouteComponent() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-6 text-center text-sm text-zinc-500">
               <p>
                 Next, you'll choose a subscription plan to activate your
                 organization.

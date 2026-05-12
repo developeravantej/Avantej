@@ -319,7 +319,7 @@ function SidebarUserFooter() {
 
 			<DropdownMenuContent side="top" align="start" className="w-56 rounded-xl">
 				<DropdownMenuLabel className="font-normal">
-					<div className="flex flex-col space-y-1">
+					<div className="flex flex-col gap-y-1">
 						<p className="text-sm font-medium leading-none">{displayName}</p>
 						<p className="text-xs leading-none text-brand-secondary-1">{email}</p>
 					</div>

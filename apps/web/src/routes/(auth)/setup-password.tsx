@@ -187,8 +187,8 @@ function SetupPasswordPage() {
 
   if (isValidatingToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="flex items-center space-x-2">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-zinc-100 flex items-center justify-center p-4">
+        <div className="flex items-center gap-2">
           <Loader2 className="size-6 animate-spin" />
           <span>Validating setup link…</span>
         </div>
@@ -201,14 +201,14 @@ function SetupPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-zinc-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">
               Set Up Your Password
             </CardTitle>
-            <p className="text-gray-600 mt-2">
+            <p className="text-zinc-600 mt-2">
               Welcome, {tokenInfo.full_name}! Please set up your password to
               complete your account.
             </p>
@@ -220,7 +220,7 @@ function SetupPasswordPage() {
                 className="space-y-6"
               >
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <div className="text-sm text-blue-900 bg-blue-50 p-3 rounded-lg">
                     <strong>Account:</strong> {tokenInfo.email}
                   </div>
 
@@ -278,7 +278,7 @@ function SetupPasswordPage() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-6 text-center text-sm text-zinc-500">
               <p>
                 After setting up your password, you'll be taken to create your
                 organization.

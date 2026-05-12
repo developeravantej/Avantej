@@ -62,12 +62,12 @@ function DemoPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-50">
+		<div className="min-h-screen bg-zinc-50">
 			{/* Hero Section */}
 			<section className="py-20 bg-white border-b">
 				<div className="container mx-auto px-4 text-center">
-					<h1 className="text-4xl font-bold mb-4">Request a Demo</h1>
-					<p className="text-xl text-gray-600 max-w-2xl mx-auto">
+					<h1 className="text-4xl font-semibold mb-4">Request a Demo</h1>
+					<p className="text-xl text-zinc-600 max-w-2xl mx-auto">
 						See Avantej in action. Fill out the form below and our team will
 						reach out to schedule a personalized walkthrough.
 					</p>
@@ -161,7 +161,7 @@ function DemoPage() {
 										<Button
 											type="submit"
 											size="lg"
-											className="w-full bg-gray-950 text-white hover:bg-black/90"
+											className="w-full bg-zinc-950 text-white hover:bg-black/90"
 											disabled={form.formState.isSubmitting}
 										>
 											Request Demo

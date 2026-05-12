@@ -30,19 +30,19 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 						className="flex flex-col rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
 					>
 						<div className="flex items-stretch">
-							<div className="flex flex-col items-center justify-center px-5 py-4 min-w-[88px] shrink-0 bg-gray-50/60">
-								<span className="text-sm font-bold text-gray-800">{formatTime(start)}</span>
+							<div className="flex flex-col items-center justify-center px-5 py-4 min-w-[88px] shrink-0 bg-zinc-50/60">
+								<span className="text-sm font-bold text-zinc-800">{formatTime(start)}</span>
 								<span className="text-[11px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
 									<Clock className="size-3" />
 									{formatDuration(start, end)}
 								</span>
 							</div>
 
-							<div className="w-px self-stretch bg-gray-100 shrink-0" />
+							<div className="w-px self-stretch bg-zinc-100 shrink-0" />
 
 							<div className="flex flex-1 min-w-0 items-center gap-4 px-5 py-4">
 								<div className="flex-1 min-w-0">
-									<p className="text-sm font-semibold text-gray-900 truncate">{appt.title}</p>
+									<p className="text-sm font-semibold text-zinc-900 truncate">{appt.title}</p>
 									{appt.service && appt.service !== "—" && (
 										<p className="text-xs text-muted-foreground truncate mt-0.5">{appt.service}</p>
 									)}
@@ -50,17 +50,17 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 
 								<div className="hidden sm:flex flex-col w-32 shrink-0">
 									<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Client</span>
-									<span className="text-xs text-gray-700 truncate mt-0.5">{appt.clientName}</span>
+									<span className="text-xs text-zinc-700 truncate mt-0.5">{appt.clientName}</span>
 								</div>
 
 								<div className="hidden md:flex flex-col w-36 shrink-0">
 									<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Trainer</span>
 									{trainerName ? (
 										<div className="flex items-center gap-1.5 mt-0.5">
-											<span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[9px] font-bold">
+											<span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 text-[9px] font-bold">
 												{getInitials(trainerName)}
 											</span>
-											<span className="text-xs text-gray-700 truncate">{trainerName}</span>
+											<span className="text-xs text-zinc-700 truncate">{trainerName}</span>
 										</div>
 									) : (
 										<span className="text-xs text-muted-foreground mt-0.5">-</span>
@@ -118,9 +118,9 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 						<div className="flex flex-col flex-1 px-4 pt-4 pb-3 gap-3">
 							{/* Time row */}
 							<div className="flex items-center justify-between gap-2">
-								<div className="flex items-center gap-1.5 text-xs text-gray-500">
+								<div className="flex items-center gap-1.5 text-xs text-zinc-500">
 									<Clock className="size-3 shrink-0" />
-									<span className="font-semibold text-gray-800">{formatTime(start)}</span>
+									<span className="font-semibold text-zinc-800">{formatTime(start)}</span>
 									<span>·</span>
 									<span>{formatDuration(start, end)}</span>
 								</div>
@@ -135,7 +135,7 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 
 							{/* Title + service */}
 							<div className="min-w-0">
-								<p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{appt.title}</p>
+								<p className="text-sm font-bold text-zinc-900 leading-snug line-clamp-2">{appt.title}</p>
 								{appt.service && appt.service !== "—" && (
 									<p className="text-xs text-muted-foreground mt-0.5 truncate">{appt.service}</p>
 								)}
@@ -145,16 +145,16 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 							<div className="flex flex-col gap-1.5">
 								{appt.clientName && (
 									<div className="flex items-center gap-1.5">
-										<User className="size-3 text-gray-400 shrink-0" />
-										<span className="text-xs text-gray-600 truncate">{appt.clientName}</span>
+										<User className="size-3 text-zinc-400 shrink-0" />
+										<span className="text-xs text-zinc-600 truncate">{appt.clientName}</span>
 									</div>
 								)}
 								{trainerName && (
 									<div className="flex items-center gap-1.5">
-										<span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[8px] font-bold">
+										<span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 text-[8px] font-bold">
 											{getInitials(trainerName)}
 										</span>
-										<span className="text-xs text-gray-600 truncate">{trainerName}</span>
+										<span className="text-xs text-zinc-600 truncate">{trainerName}</span>
 									</div>
 								)}
 							</div>

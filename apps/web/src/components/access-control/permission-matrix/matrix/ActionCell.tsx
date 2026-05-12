@@ -138,8 +138,8 @@ export function ActionCell({
 					</SelectItem>
 					<SelectItem value="branch" className="flex items-center py-1 px-2">
 						<div className="flex items-center gap-2 w-full">
-							<div className="size-5 rounded-full bg-indigo-100 flex items-center justify-center">
-								<Check className="size-3 text-indigo-700" />
+							<div className="size-5 rounded-full bg-zinc-100 flex items-center justify-center">
+								<Check className="size-3 text-zinc-700" />
 							</div>
 							<span>Branch</span>
 						</div>

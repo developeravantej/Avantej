@@ -410,7 +410,7 @@ function SubscribePage() {
     <div className="container mx-auto max-w-6xl py-12 px-4">
       {/* Header */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">
+        <h1 className="text-4xl font-semibold tracking-tight mb-4">
           Flexible Business Software, Designed to Fit You
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">

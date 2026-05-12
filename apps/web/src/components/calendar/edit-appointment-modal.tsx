@@ -120,7 +120,7 @@ export function EditAppointmentModal({
 	return (
 		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 			<Card className="w-full max-w-md">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+				<CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
 					<div className="flex items-center gap-2">
 						<Users className="size-5 text-muted-foreground" />
 						<CardTitle className="text-lg font-semibold">Edit Staff Assignment</CardTitle>

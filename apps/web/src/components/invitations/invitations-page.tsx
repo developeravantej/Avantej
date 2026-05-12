@@ -133,7 +133,7 @@ export function InvitationsPage() {
 		return (
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold">Invitations</h1>
+					<h1 className="text-3xl font-semibold">Invitations</h1>
 				</div>
 				<div className="rounded-lg border border-destructive bg-destructive/10 p-4">
 					<p className="text-destructive">
@@ -149,7 +149,7 @@ export function InvitationsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Invitations</h1>
+					<h1 className="text-3xl font-semibold">Invitations</h1>
 					<p className="text-muted-foreground mt-1">
 						Manage invitations to join your organization
 					</p>

@@ -49,10 +49,10 @@ function ContactPage() {
 	return (
 		<div className="min-h-screen bg-white">
 			{/* Hero Section */}
-			<section className="py-20 bg-gray-50">
+			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4">
-					<h1 className="text-4xl font-bold text-center mb-4">Contact Us</h1>
-					<p className="text-xl text-center text-gray-600 max-w-3xl mx-auto">
+					<h1 className="text-4xl font-semibold text-center mb-4">Contact Us</h1>
+					<p className="text-xl text-center text-zinc-600 max-w-3xl mx-auto">
 						Have questions or need assistance? Our team is here to help you get
 						the most out of Avantej.
 					</p>
@@ -72,8 +72,8 @@ function ContactPage() {
 									<h3 className="text-xl font-semibold mb-2">
 										General Inquiries
 									</h3>
-									<p className="text-gray-600 mb-1">Email: info@avantej.com</p>
-									<p className="text-gray-600">Phone: (800) 123-4567</p>
+									<p className="text-zinc-600 mb-1">Email: info@avantej.com</p>
+									<p className="text-zinc-600">Phone: (800) 123-4567</p>
 								</div>
 							</div>
 
@@ -85,10 +85,10 @@ function ContactPage() {
 									<h3 className="text-xl font-semibold mb-2">
 										Technical Support
 									</h3>
-									<p className="text-gray-600 mb-1">
+									<p className="text-zinc-600 mb-1">
 										Email: support@avantej.com
 									</p>
-									<p className="text-gray-600">Phone: (800) 765-4321</p>
+									<p className="text-zinc-600">Phone: (800) 765-4321</p>
 								</div>
 							</div>
 
@@ -98,7 +98,7 @@ function ContactPage() {
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">Headquarters</h3>
-									<p className="text-gray-600">
+									<p className="text-zinc-600">
 										123 Business Plaza
 										<br />
 										Suite 500
@@ -115,7 +115,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -134,7 +134,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -149,7 +149,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -168,7 +168,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -262,7 +262,7 @@ function ContactPage() {
 									<Button
 										type="submit"
 										size="lg"
-										className="w-full bg-gray-950 text-white hover:bg-black/90"
+										className="w-full bg-zinc-950 text-white hover:bg-black/90"
 										disabled={form.formState.isSubmitting}
 									>
 										Send Message

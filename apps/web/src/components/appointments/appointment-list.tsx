@@ -169,7 +169,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 
 	return (
 		<>
-			<Card className="h-full flex flex-col shadow-sm border-gray-100 rounded-2xl overflow-hidden">
+			<Card className="h-full flex flex-col shadow-sm border-zinc-100 rounded-2xl overflow-hidden">
 				<AppointmentListHeader
 					monthLabel={monthLabel}
 					view={view}
@@ -207,18 +207,18 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				<CardContent className="flex-1 overflow-hidden p-0">
 					<div
 						ref={scrollRef}
-						className="h-full overflow-y-auto p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full"
+						className="h-full overflow-y-auto p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 [&::-webkit-scrollbar-thumb]:rounded-full"
 					>
 						{isLoading ? (
 							<div className="space-y-3">
 								{[1, 2, 3, 4].map((n) => (
-									<div key={`skel-${n}`} className="h-16 rounded-xl animate-pulse bg-gray-50" />
+									<div key={`skel-${n}`} className="h-16 rounded-xl animate-pulse bg-zinc-50" />
 								))}
 							</div>
 						) : dateKeys.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-								<CalendarDays className="size-12 text-gray-200" />
-								<p className="text-sm font-medium text-gray-500">No appointments in {monthLabel}</p>
+								<CalendarDays className="size-12 text-zinc-200" />
+								<p className="text-sm font-medium text-zinc-500">No appointments in {monthLabel}</p>
 								<Button size="sm" variant="outline" onClick={() => setShowAddModal(true)}>
 									<Plus className="size-4 mr-1.5" />
 									Add Appointment

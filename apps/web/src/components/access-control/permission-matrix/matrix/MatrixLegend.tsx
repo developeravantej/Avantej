@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export function MatrixLegend() {
 	const items: Array<{ bg: string; label: string; icon: ReactElement }> = [
-		{ bg: "bg-indigo-100", label: "Branch", icon: <Check className="size-3 text-indigo-700" /> },
+		{ bg: "bg-zinc-100", label: "Branch", icon: <Check className="size-3 text-zinc-700" /> },
 		{ bg: "bg-teal-100", label: "Area", icon: <Check className="size-3 text-teal-700" /> },
 		{ bg: "bg-purple-100", label: "Region", icon: <Check className="size-3 text-purple-700" /> },
 		{ bg: "bg-blue-100", label: "Country", icon: <Check className="size-3 text-blue-700" /> },

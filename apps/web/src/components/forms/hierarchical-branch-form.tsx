@@ -115,7 +115,7 @@ function StepHeader({ currentStep, selectedCountry, selectedState }: StepHeaderP
               <div
                 className={`flex size-10 items-center justify-center rounded-full ${
                   currentStep === step.number
-                    ? "bg-gray-950 text-white"
+                    ? "bg-zinc-950 text-white"
                     : step.completed
                       ? "bg-brand-primary-1 text-white"
                       : "bg-brand-secondary-3 text-brand-secondary-1"
@@ -463,7 +463,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const renderStep1 = () => (
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
+        <CardTitle className="flex items-center gap-x-2 text-lg font-medium text-brand-primary-1">
           <Globe className="size-5" />
           <span>Step 1: Select or Create Country</span>
         </CardTitle>
@@ -503,7 +503,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </p>
               )}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex gap-x-2">
               <Button
                 className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCreateCountry(false)}
@@ -513,11 +513,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(2)}
                 type="button"
               >
-                Continue
+                Continue to State
               </Button>
             </div>
           </div>
@@ -576,7 +576,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const renderStep2 = () => (
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
+        <CardTitle className="flex items-center gap-x-2 text-lg font-medium text-brand-primary-1">
           <MapIcon className="size-5" />
           <span>Step 2: Select or Create State</span>
         </CardTitle>
@@ -621,7 +621,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 </p>
               )}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex gap-x-2">
               <Button
                 className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCreateState(false)}
@@ -631,11 +631,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(3)}
                 type="button"
               >
-                Continue
+                Continue to Branch
               </Button>
             </div>
           </div>
@@ -694,7 +694,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const renderStep3 = () => (
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
+        <CardTitle className="flex items-center gap-x-2 text-lg font-medium text-brand-primary-1">
           <Target className="size-5" />
           <span>Step 3: Create Branch</span>
         </CardTitle>
@@ -759,7 +759,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-brand-primary-1">Create Branch</h1>
+        <h1 className="text-3xl font-semibold text-brand-primary-1">Create Branch</h1>
         <p className="text-sm text-brand-secondary-1 mt-1">Set up a new branch by selecting its location in the hierarchy.</p>
       </div>
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -786,7 +786,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             <Button
               disabled={isLoading}
               type="submit"
-              className="inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Creating..." : "Create Branch"}
             </Button>

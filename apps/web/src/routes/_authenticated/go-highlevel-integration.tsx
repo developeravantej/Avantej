@@ -197,7 +197,7 @@ function GoHighLevelIntegrationPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold tracking-tight">GoHighLevel Integration</h1>
+				<h1 className="text-3xl font-semibold tracking-tight">GoHighLevel Integration</h1>
 				<p className="text-muted-foreground">
 					Connect each branch to its GoHighLevel sub-account location.
 				</p>

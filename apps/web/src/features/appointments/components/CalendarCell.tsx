@@ -29,7 +29,7 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 			className={cn(
 				"bg-white p-2 cursor-pointer transition-colors hover:bg-blue-50/40 flex flex-col gap-1",
 				minHeight,
-				!inPeriod && "bg-gray-50 text-gray-400",
+				!inPeriod && "bg-zinc-50 text-zinc-400",
 				isTodayDate && "bg-blue-50 ring-2 ring-inset ring-blue-300",
 			)}
 			onClick={() => onCellClick(date)}
@@ -72,7 +72,7 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 			})()}
 
 			{appts.length > 1 && (
-				<div className="text-xs text-gray-400 text-right">+{appts.length - 1} more</div>
+				<div className="text-xs text-zinc-400 text-right">+{appts.length - 1} more</div>
 			)}
 		</div>
 	);

@@ -26,36 +26,36 @@ export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceAc
 				onKeyDown={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-lg font-semibold text-gray-900">Recurring Appointment</h3>
+					<h3 className="text-lg font-semibold text-zinc-900">Recurring Appointment</h3>
 					<button
 						type="button"
-						className="text-gray-400 hover:text-gray-600"
+						className="text-zinc-400 hover:text-zinc-600"
 						onClick={onClose}
 					>
 						<X className="size-5" />
 					</button>
 				</div>
-				<p className="text-sm text-gray-500 mb-4">
+				<p className="text-sm text-zinc-500 mb-4">
 					What would you like to do with this occurrence?
 				</p>
 				<div className="flex flex-col gap-2">
 					<button
 						type="button"
-						className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+						className="w-full text-left px-4 py-2.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
 						onClick={() => onAction("edit_this", appt)}
 					>
 						Edit this occurrence only
 					</button>
 					<button
 						type="button"
-						className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+						className="w-full text-left px-4 py-2.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
 						onClick={() => onAction("cancel_this", appt)}
 					>
 						Cancel this occurrence only
 					</button>
 					<button
 						type="button"
-						className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+						className="w-full text-left px-4 py-2.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
 						onClick={() => onAction("edit_future", appt)}
 					>
 						Edit this and all future occurrences
@@ -69,7 +69,7 @@ export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceAc
 					</button>
 					<button
 						type="button"
-						className="w-full text-left px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+						className="w-full text-left px-4 py-2.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
 						onClick={() => onAction("edit_all", appt)}
 					>
 						Edit all occurrences in this series
@@ -84,7 +84,7 @@ export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceAc
 				</div>
 				<button
 					type="button"
-					className="w-full mt-3 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-500 transition-colors"
+					className="w-full mt-3 px-4 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm text-zinc-500 transition-colors"
 					onClick={onClose}
 				>
 					Never mind

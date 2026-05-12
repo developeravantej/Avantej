@@ -30,7 +30,7 @@ export function GreetingBanner() {
 					</span>
 				</div>
 				<div>
-					<h1 className="font-heading text-3xl font-bold text-brand-primary-1">
+					<h1 className="font-heading text-3xl font-semibold text-brand-primary-1">
 						{getGreeting()}, {name}
 					</h1>
 					<p className="text-sm text-brand-secondary-1">{formatDate()}</p>

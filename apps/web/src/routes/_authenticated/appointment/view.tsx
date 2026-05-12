@@ -59,7 +59,7 @@ function AppointmentViewComponent() {
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
 				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
 			</div>
 		);
@@ -68,7 +68,7 @@ function AppointmentViewComponent() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
 				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
 			</div>
 		);
@@ -77,7 +77,7 @@ function AppointmentViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-24 text-muted-foreground">

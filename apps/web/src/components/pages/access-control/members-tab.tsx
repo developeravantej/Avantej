@@ -984,7 +984,7 @@ export function MembersTabPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold font-heading">
+					<h1 className="text-2xl font-semibold font-heading">
 						User Role Assignment
 					</h1>
 					<p className="text-brand-secondary-1">

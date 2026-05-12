@@ -70,7 +70,7 @@ export function MemberSelector({
 
   if (isLoading) {
     return (
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-x-2">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
         <span className="text-sm text-muted-foreground">Loading members…</span>
       </div>
@@ -97,7 +97,7 @@ export function MemberSelector({
         <SelectTrigger>
           <SelectValue placeholder={placeholder}>
             {selectedMember ? (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <span>{selectedMember.name}</span>
                 <span className="text-muted-foreground">
                   ({selectedMember.email})
@@ -128,7 +128,7 @@ export function MemberSelector({
             members.map((member: Member) => (
               <SelectItem key={member.userId} value={member.userId}>
                 <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-x-2 flex-1 min-w-0">
                     <span className="font-medium truncate">{member.name}</span>
                     <span className="text-muted-foreground truncate">
                       ({member.email})

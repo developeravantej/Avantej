@@ -70,7 +70,7 @@ function ServiceViewComponent() {
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Services</h1>
+				<h1 className="text-3xl font-semibold">Services</h1>
 				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
 			</div>
 		);
@@ -79,7 +79,7 @@ function ServiceViewComponent() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Services</h1>
+				<h1 className="text-3xl font-semibold">Services</h1>
 				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load services"}</p>
 			</div>
 		);
@@ -88,7 +88,7 @@ function ServiceViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Services</h1>
+				<h1 className="text-3xl font-semibold">Services</h1>
 			</div>
 			<DataTable
 				columns={columns}

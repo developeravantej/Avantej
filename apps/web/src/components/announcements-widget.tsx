@@ -36,7 +36,7 @@ export function AnnouncementsWidget() {
 			<CardContent>
 				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2">
-						<h1 className="font-heading font-bold text-2xl">Announcements</h1>
+						<h1 className="font-heading font-semibold text-2xl">Announcements</h1>
 						<ChevronsUpDown className="mr-3 size-4" />
 					</div>
 

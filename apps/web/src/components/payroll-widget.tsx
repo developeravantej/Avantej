@@ -27,7 +27,7 @@ export function PayrollWidget() {
         <CardTitle className="text-2xl font-bold">Payroll</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col space-y-4 max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
+        <div className="flex flex-col gap-y-4 max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
           {payrolls.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               No payroll data available

@@ -262,7 +262,7 @@ function NotificationPreferencesPage() {
 						<Bell className="size-6 text-brand-primary-1" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">
+						<h1 className="text-2xl font-semibold font-heading text-brand-primary-1">
 							Notification Preferences
 						</h1>
 						<p className="text-brand-secondary-1 text-sm">
