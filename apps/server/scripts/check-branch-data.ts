@@ -6,11 +6,8 @@
 
 import { decrypt } from "@avantej-core/db";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { organizations } from "@avantej-core/db/schema/control-panel/index";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import { hierarchyNodes, members } from "@avantej-core/db/schema/tenant/index";
 import { neonConfig, Pool } from "@neondatabase/serverless";
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";

@@ -151,7 +151,7 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		// The values passed to insert should have a synthesized UUID clientId
 		// mockValues is called twice: once for checkIns insert, once for audit_logs insert
 		expect(mockValues.mock.calls.length).toBeGreaterThanOrEqual(1);
-		const insertedValues = mockValues.mock.calls[0][0] as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
 		expect(typeof insertedValues.clientId).toBe("string");
 		expect(isValidUUID(insertedValues.clientId as string)).toBe(true);
 		expect((insertedValues.clientId as string).length).toBeGreaterThan(0);
@@ -212,7 +212,7 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		});
 
 		// First call is always the checkIns insert
-		const insertedValues = mockValues.mock.calls[0][0] as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
 		expect(insertedValues.clientDisplayName).toBe("Jane Walk-In");
 	});
 
@@ -232,7 +232,7 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		});
 
 		// First call is always the checkIns insert
-		const insertedValues = mockValues.mock.calls[0][0] as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
 		expect(insertedValues.clientDisplayName).toBeNull();
 	});
 });

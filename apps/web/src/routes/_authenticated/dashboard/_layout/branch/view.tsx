@@ -57,7 +57,7 @@ type BranchItem = {
   id: string;
   name: string;
   code: string;
-  area_id: string | null;
+  state_id: string | null;
   organization_id: string | null;
   branch_type: string;
   is_active: boolean;
@@ -66,7 +66,7 @@ type BranchItem = {
   address: string | null;
   picUserId: string | null;
   person_in_charge: { name: string; email: string };
-  area: { name: string; region: { name: string; country: { name: string } } };
+  state: { name: string; country: { name: string } };
   location: { address: string };
 };
 
@@ -82,14 +82,13 @@ function RouteComponent() {
     name: string;
     address: string | null;
     picUserId: string | null;
-    areaId: string | null;
+    stateId: string | null;
   } | null>(null);
   const [editBranchName, setEditBranchName] = useState("");
   const [editBranchAddress, setEditBranchAddress] = useState("");
   const [editBranchPicUserId, setEditBranchPicUserId] = useState("");
   const [editBranchCountryId, setEditBranchCountryId] = useState<string>("");
-  const [editBranchRegionId, setEditBranchRegionId] = useState<string>("");
-  const [editBranchAreaId, setEditBranchAreaId] = useState<string>("");
+  const [editBranchStateId, setEditBranchStateId] = useState<string>("");
   const [allHierarchyNodes, setAllHierarchyNodes] = useState<HierarchyNode[]>([]);
 
   // Get organizationId from React Query data (single source of truth).
@@ -111,26 +110,15 @@ function RouteComponent() {
     [allHierarchyNodes]
   );
 
-  const regions = useMemo(
+  const states = useMemo(
     () =>
       allHierarchyNodes.filter(
         (n) =>
-          n.type === "region" &&
+          n.type === "state" &&
           n.depth === 2 &&
           n.parentId === editBranchCountryId
       ),
     [allHierarchyNodes, editBranchCountryId]
-  );
-
-  const areas = useMemo(
-    () =>
-      allHierarchyNodes.filter(
-        (n) =>
-          n.type === "area" &&
-          n.depth === 3 &&
-          n.parentId === editBranchRegionId
-      ),
-    [allHierarchyNodes, editBranchRegionId]
   );
 
   // Use React Query to load all hierarchy nodes (for cascading dropdowns)
@@ -227,12 +215,9 @@ function RouteComponent() {
 
       return branches.map((branch) => {
         // Find parent nodes by traversing up the hierarchy
-        let areaNode = branch.parentId ? nodeMap.get(branch.parentId) : null;
-        let regionNode = areaNode?.parentId
-          ? nodeMap.get(areaNode.parentId)
-          : null;
-        let countryNode = regionNode?.parentId
-          ? nodeMap.get(regionNode.parentId)
+        const stateNode = branch.parentId ? nodeMap.get(branch.parentId) : null;
+        const countryNode = stateNode?.parentId
+          ? nodeMap.get(stateNode.parentId)
           : null;
 
         // Get PIC info - resolve picUserId to name/email via the members list
@@ -249,7 +234,7 @@ function RouteComponent() {
           name: branch.name,
           // `code` is not yet returned by listNodes — default to empty string
           code: (branch as { code?: string }).code ?? "",
-          area_id: branch.parentId,
+          state_id: branch.parentId,
           organization_id: orgId,
           branch_type: "standard",
           is_active: true,
@@ -260,13 +245,10 @@ function RouteComponent() {
           picUserId: picUserId ?? null,
           // Map to expected column structure
           person_in_charge: picInfo,
-          area: {
-            name: areaNode?.name || "N/A",
-            region: {
-              name: regionNode?.name || "N/A",
-              country: {
-                name: countryNode?.name || "N/A",
-              },
+          state: {
+            name: stateNode?.name ?? "N/A",
+            country: {
+              name: countryNode?.name ?? "N/A",
             },
           },
           location: {
@@ -472,10 +454,10 @@ function RouteComponent() {
   const moveMutation = useApiMutation({
     mutationFn: async ({
       branchId,
-      newAreaId,
+      newStateId,
     }: {
       branchId: string;
-      newAreaId: string;
+      newStateId: string;
     }) => {
       if (!organizationId) {
         throw new Error("Organization ID is required");
@@ -484,7 +466,7 @@ function RouteComponent() {
       return await client.hierarchy.moveNode({
         organizationId,
         nodeId: branchId,
-        newParentId: newAreaId,
+        newParentId: newStateId,
       });
     },
     successMessage: false,
@@ -494,7 +476,7 @@ function RouteComponent() {
         return "Cannot move branch: would create circular reference";
       }
       if (errorMessage.includes("already exists")) {
-        return "A branch with this name already exists in the selected area";
+        return "A branch with this name already exists in the selected state";
       }
       if (
         errorMessage.includes("Invalid parent type") ||
@@ -503,7 +485,7 @@ function RouteComponent() {
         return "Invalid move: parent type mismatch";
       }
       if (errorMessage.includes("not found")) {
-        return "Branch or area not found";
+        return "Branch or state not found";
       }
       if (
         errorMessage.includes("Permission denied") ||
@@ -584,15 +566,12 @@ function RouteComponent() {
       // Find current hierarchy position from hierarchy nodes
       const branchNode = hierarchyNodes.find((n) => n.id === branch.id);
       if (!branchNode) {
-        // Fallback: try to use branch's area_id if available
-        if (branch.area_id) {
-          const currentArea = hierarchyNodes.find((n) => n.id === branch.area_id);
-          if (currentArea) {
-            const currentRegion = currentArea.parentId
-              ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
-              : null;
-            const currentCountry = currentRegion?.parentId
-              ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
+        // Fallback: try to use branch's state_id if available
+        if (branch.state_id) {
+          const currentState = hierarchyNodes.find((n) => n.id === branch.state_id);
+          if (currentState) {
+            const currentCountry = currentState.parentId
+              ? hierarchyNodes.find((n) => n.id === currentState.parentId)
               : null;
 
             setEditingBranch({
@@ -600,14 +579,13 @@ function RouteComponent() {
               name: branch.name,
               address: branch.address || null,
               picUserId: branch.picUserId || null,
-              areaId: branch.area_id || null,
+              stateId: branch.state_id || null,
             });
             setEditBranchName(branch.name);
             setEditBranchAddress(branch.address || "");
             setEditBranchPicUserId(branch.picUserId || "");
             setEditBranchCountryId(currentCountry?.id || "");
-            setEditBranchRegionId(currentRegion?.id || "");
-            setEditBranchAreaId(currentArea?.id || "");
+            setEditBranchStateId(currentState?.id || "");
             setIsEditDialogOpen(true);
             return;
           }
@@ -616,15 +594,12 @@ function RouteComponent() {
         return;
       }
 
-      // Find current area, region, country by traversing up the hierarchy
-      const currentArea = branchNode.parentId
+      // Find current state, country by traversing up the hierarchy
+      const currentState = branchNode.parentId
         ? hierarchyNodes.find((n) => n.id === branchNode.parentId)
         : null;
-      const currentRegion = currentArea?.parentId
-        ? hierarchyNodes.find((n) => n.id === currentArea.parentId)
-        : null;
-      const currentCountry = currentRegion?.parentId
-        ? hierarchyNodes.find((n) => n.id === currentRegion.parentId)
+      const currentCountry = currentState?.parentId
+        ? hierarchyNodes.find((n) => n.id === currentState.parentId)
         : null;
 
       setEditingBranch({
@@ -632,14 +607,13 @@ function RouteComponent() {
         name: branch.name,
         address: branch.address || null,
         picUserId: branch.picUserId || null,
-        areaId: branchNode.parentId || null,
+        stateId: branchNode.parentId || null,
       });
       setEditBranchName(branch.name);
       setEditBranchAddress(branch.address || "");
       setEditBranchPicUserId(branch.picUserId || "");
       setEditBranchCountryId(currentCountry?.id || "");
-      setEditBranchRegionId(currentRegion?.id || "");
-      setEditBranchAreaId(currentArea?.id || "");
+      setEditBranchStateId(currentState?.id || "");
       setIsEditDialogOpen(true);
     },
     [allHierarchyNodes, hierarchyNodesData]
@@ -659,8 +633,8 @@ function RouteComponent() {
       return;
     }
 
-    if (!editBranchAreaId) {
-      toast.error("Please select an area");
+    if (!editBranchStateId) {
+      toast.error("Please select a state");
       return;
     }
 
@@ -669,9 +643,9 @@ function RouteComponent() {
     const addressChanged = trimmedAddress !== (editingBranch.address || "");
     const picUserIdChanged =
       trimmedPicUserId !== (editingBranch.picUserId || "");
-    const areaChanged = editBranchAreaId !== (editingBranch.areaId || "");
+    const stateChanged = editBranchStateId !== (editingBranch.stateId || "");
 
-    if (!nameChanged && !addressChanged && !picUserIdChanged && !areaChanged) {
+    if (!nameChanged && !addressChanged && !picUserIdChanged && !stateChanged) {
       toast.info("No changes made");
       setIsEditDialogOpen(false);
       return;
@@ -696,11 +670,11 @@ function RouteComponent() {
         await updateMutation.mutateAsync(updateParams);
       }
 
-      // Move branch if area changed
-      if (areaChanged) {
+      // Move branch if state changed
+      if (stateChanged) {
         await moveMutation.mutateAsync({
           branchId: editingBranch.id,
-          newAreaId: editBranchAreaId,
+          newStateId: editBranchStateId,
         });
       }
 
@@ -711,8 +685,7 @@ function RouteComponent() {
       setEditBranchAddress("");
       setEditBranchPicUserId("");
       setEditBranchCountryId("");
-      setEditBranchRegionId("");
-      setEditBranchAreaId("");
+      setEditBranchStateId("");
       toast.success("Branch updated successfully");
     } catch (err: unknown) {
       // Error handling is done in mutation onError callbacks
@@ -724,7 +697,7 @@ function RouteComponent() {
     editBranchName,
     editBranchAddress,
     editBranchPicUserId,
-    editBranchAreaId,
+    editBranchStateId,
     updateMutation,
     moveMutation,
   ]);
@@ -759,7 +732,7 @@ function RouteComponent() {
   const items: BranchItem[] = (branchData?.items ?? []) as BranchItem[];
   const totalBranches = items.length;
   const activeBranches = items.filter((b) => b.is_active !== false).length;
-  const uniqueRegions = new Set(items.map((b) => b.area?.region?.name).filter(Boolean)).size;
+  const uniqueStates = new Set(items.map((b) => b.state?.name).filter(Boolean)).size;
   const assignedPic = items.filter((b) => b.picUserId).length;
 
   return (
@@ -800,9 +773,9 @@ function RouteComponent() {
             <div className="text-xs text-muted-foreground">branches</div>
           </div>
           <div className="rounded-xl border bg-card p-3">
-            <div className="text-xs text-muted-foreground">Regions</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">{uniqueRegions}</div>
-            <div className="text-xs text-muted-foreground">top-level regions</div>
+            <div className="text-xs text-muted-foreground">States</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{uniqueStates}</div>
+            <div className="text-xs text-muted-foreground">top-level states</div>
           </div>
           <div className="rounded-xl border bg-card p-3">
             <div className="text-xs text-muted-foreground">PIC Assigned</div>
@@ -867,8 +840,7 @@ function RouteComponent() {
                         value={editBranchCountryId}
                         onValueChange={(value) => {
                           setEditBranchCountryId(value);
-                          setEditBranchRegionId(""); // Reset region when country changes
-                          setEditBranchAreaId(""); // Reset area when country changes
+                          setEditBranchStateId(""); // Reset state when country changes
                         }}
                       >
                         <SelectTrigger id="branch-country">
@@ -884,30 +856,29 @@ function RouteComponent() {
                       </Select>
                     </div>
 
-                    {/* Region Selection */}
+                    {/* State Selection */}
                     <div className="space-y-2">
-                      <Label htmlFor="branch-region">Region *</Label>
+                      <Label htmlFor="branch-state">State *</Label>
                       <Select
-                        value={editBranchRegionId}
+                        value={editBranchStateId}
                         onValueChange={(value) => {
-                          setEditBranchRegionId(value);
-                          setEditBranchAreaId(""); // Reset area when region changes
+                          setEditBranchStateId(value);
                         }}
                         disabled={!editBranchCountryId}
                       >
-                        <SelectTrigger id="branch-region">
+                        <SelectTrigger id="branch-state">
                           <SelectValue
                             placeholder={
                               editBranchCountryId
-                                ? "Select region"
+                                ? "Select state"
                                 : "Select country first"
                             }
                           />
                         </SelectTrigger>
                         <SelectContent>
-                          {regions.map((region) => (
-                            <SelectItem key={region.id} value={region.id}>
-                              {region.name}
+                          {states.map((state) => (
+                            <SelectItem key={state.id} value={state.id}>
+                              {state.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -915,38 +886,6 @@ function RouteComponent() {
                       {!editBranchCountryId && (
                         <p className="text-xs text-muted-foreground">
                           Please select a country first
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Area Selection */}
-                    <div className="space-y-2">
-                      <Label htmlFor="branch-area">Area *</Label>
-                      <Select
-                        value={editBranchAreaId}
-                        onValueChange={(value) => setEditBranchAreaId(value)}
-                        disabled={!editBranchRegionId}
-                      >
-                        <SelectTrigger id="branch-area">
-                          <SelectValue
-                            placeholder={
-                              editBranchRegionId
-                                ? "Select area"
-                                : "Select region first"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areas.map((area) => (
-                            <SelectItem key={area.id} value={area.id}>
-                              {area.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!editBranchRegionId && (
-                        <p className="text-xs text-muted-foreground">
-                          Please select a region first
                         </p>
                       )}
                     </div>
@@ -1026,8 +965,7 @@ function RouteComponent() {
                 setEditBranchAddress("");
                 setEditBranchPicUserId("");
                 setEditBranchCountryId("");
-                setEditBranchRegionId("");
-                setEditBranchAreaId("");
+                setEditBranchStateId("");
               }}
               disabled={
                 updateMutation.isPending || moveMutation.isPending
@@ -1039,7 +977,7 @@ function RouteComponent() {
               onClick={handleEditSubmit}
               disabled={
                 !editBranchName.trim() ||
-                !editBranchAreaId ||
+                !editBranchStateId ||
                 updateMutation.isPending ||
                 moveMutation.isPending
               }

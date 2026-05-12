@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -17,7 +17,10 @@ import {
 	Trash2,
 	Mail,
 	Calendar,
+	MoveRight,
+	Undo2,
 } from "lucide-react";
+import { GhlSyncBadge } from "@/components/ghl-sync-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BranchCombobox } from "@/components/ui/branch-combobox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { UserForAssignment, RoleResponse } from "@/types/user-assignment";
@@ -55,23 +59,35 @@ import { toast } from "sonner";
 interface UserCardProps {
 	user: UserForAssignment;
 	roles: RoleResponse[];
+	canMoveBranch?: boolean;
 	onEditRoles: () => void;
 	onEditDetails: () => void;
+	onMoveBranch?: () => void;
 	onDeactivate: () => void;
+	onSoftDelete: () => void;
+	onRestore: () => void;
+	onRetryGhlSync: () => void;
 	onSelect?: (selected: boolean) => void;
 	isSelected?: boolean;
 	isLoading?: boolean;
+	isRetryingGhlSync?: boolean;
 }
 
 function UserCard({
 	user,
 	roles,
+	canMoveBranch,
 	onEditRoles,
 	onEditDetails,
+	onMoveBranch,
 	onDeactivate,
+	onSoftDelete,
+	onRestore,
+	onRetryGhlSync,
 	onSelect,
 	isSelected,
 	isLoading: _isLoading,
+	isRetryingGhlSync,
 }: UserCardProps) {
 	const userRoles = roles.filter((role) => user.roles.includes(role.id));
 	const highestRole = userRoles.reduce(
@@ -131,10 +147,20 @@ function UserCard({
 						<div className="space-y-1 flex-1">
 							<div className="flex items-center gap-2">
 								<CardTitle className="text-base">{user.name}</CardTitle>
-								{!user.isActive && (
-									<Badge variant="secondary" className="text-xs">
-										Inactive
+								{user.isDeleted ? (
+									<Badge
+										variant="destructive"
+										className="text-xs"
+										data-testid="member-deleted-badge"
+									>
+										Deleted
 									</Badge>
+								) : (
+									!user.isActive && (
+										<Badge variant="secondary" className="text-xs">
+											Inactive
+										</Badge>
+									)
 								)}
 							</div>
 							<div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -170,6 +196,16 @@ function UserCard({
 								<Edit className="w-4 h-4 mr-2" />
 								Edit User
 							</DropdownMenuItem>
+							{canMoveBranch && onMoveBranch && (
+								<DropdownMenuItem
+									onClick={onMoveBranch}
+									className="cursor-pointer"
+									aria-label={`Move ${user.name} to a different branch`}
+								>
+									<MoveRight className="w-4 h-4 mr-2" />
+									Move to branch
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={onDeactivate}
@@ -178,6 +214,25 @@ function UserCard({
 								<Trash2 className="w-4 h-4 mr-2" />
 								{user.isActive ? "Deactivate" : "Activate"} User
 							</DropdownMenuItem>
+							{user.isDeleted ? (
+								<DropdownMenuItem
+									onClick={onRestore}
+									className="cursor-pointer"
+									data-testid="member-restore-action"
+								>
+									<Undo2 className="w-4 h-4 mr-2" />
+									Restore
+								</DropdownMenuItem>
+							) : (
+								<DropdownMenuItem
+									onClick={onSoftDelete}
+									className="cursor-pointer text-destructive focus:text-destructive"
+									data-testid="member-delete-action"
+								>
+									<Trash2 className="w-4 h-4 mr-2" />
+									Delete
+								</DropdownMenuItem>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
@@ -225,6 +280,15 @@ function UserCard({
 								</span>
 							)}
 						</div>
+					</div>
+
+					<div className="flex items-center justify-between text-sm pt-1">
+						<span className="text-muted-foreground">GHL Sync</span>
+						<GhlSyncBadge
+							ghlSync={user.ghlSync}
+							onRetry={onRetryGhlSync}
+							isRetrying={!!isRetryingGhlSync}
+						/>
 					</div>
 				</div>
 			</CardContent>
@@ -463,11 +527,16 @@ export function MembersTabPage() {
 	const inviterHierarchyScopeId =
 		currentOrg?.hierarchy.member?.hierarchyScopeId ?? null;
 
+	const [showDeleted, setShowDeleted] = useState(false);
+
 	const { data: membersApiData = EMPTY_MEMBERS, isLoading: membersLoading } = useQuery({
-		queryKey: ["members", organizationId],
+		queryKey: ["members", organizationId, { includeDeleted: showDeleted }],
 		queryFn: (): Promise<Awaited<ReturnType<typeof client.members.list>>> => {
 			if (!organizationId) return Promise.resolve([]);
-			return client.members.list({ organizationId });
+			return client.members.list({
+				organizationId,
+				includeDeleted: showDeleted,
+			});
 		},
 		enabled: !!organizationId,
 	});
@@ -501,32 +570,40 @@ export function MembersTabPage() {
 		priority: r.priority,
 	}));
 
-	const initialUsers: UserForAssignment[] = (
-		membersApiData as MemberApiItem[]
-	).map((m) => ({
-		id: m.id,
-		name: m.name,
-		firstName: m.name.split(" ")[0] ?? m.name,
-		lastName: m.name.split(" ").slice(1).join(" ") ?? "",
-		email: m.email,
-		roles: rolesApiData
-			? (rolesApiData as RoleApiItem[])
-					.filter(
-						(r) => r.name.toLowerCase() === (m.role ?? "").toLowerCase(),
-					)
-					.map((r) => r.id)
-			: [],
-		isActive: m.status === "active",
-	}));
+	// Derive `users` directly from query data. Previously this used
+	// useState + useEffect to mirror the API response, which caused an
+	// infinite render loop while the query was loading: the destructuring
+	// default `data: membersApiData = []` returns a fresh array each render,
+	// the effect's dep `[membersApiData]` therefore changed every render,
+	// `setUsers` fired on every render, and React threw "Maximum update
+	// depth exceeded".
+	const users = useMemo<UserForAssignment[]>(
+		() =>
+			(membersApiData as MemberApiItem[]).map((m) => ({
+				id: m.id,
+				name: m.name,
+				firstName: m.name.split(" ")[0] ?? m.name,
+				lastName: m.name.split(" ").slice(1).join(" ") ?? "",
+				email: m.email,
+				roles: rolesApiData
+					? (rolesApiData as RoleApiItem[])
+							.filter(
+								(r) =>
+									r.name.toLowerCase() === (m.role ?? "").toLowerCase(),
+							)
+							.map((r) => r.id)
+					: [],
+				isActive: m.status === "active",
+				isDeleted: m.deletedAt != null,
+				ghlSync: m.ghlSync ?? null,
+			})),
+		[membersApiData, rolesApiData],
+	);
 
-	const [users, setUsers] = useState<UserForAssignment[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
-
-	useEffect(() => {
-		setUsers(initialUsers);
-		// intentional: initialUsers is a stable initial snapshot; adding it to deps causes infinite render loop
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [membersApiData]);
+	const [retryingGhlSyncMemberId, setRetryingGhlSyncMemberId] = useState<
+		string | null
+	>(null);
 
 	const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 	const [searchQuery, setSearchQuery] = useState("");
@@ -540,6 +617,10 @@ export function MembersTabPage() {
 	// Wave 3a Agent 2.1 (Journey J1): tracks selected custom role row id (or "" = none/legacy text only).
 	const [editRoleId, setEditRoleId] = useState<string>("");
 	const [editHierarchyScopeId, setEditHierarchyScopeId] = useState<string>("");
+	const [movingUser, setMovingUser] = useState<UserForAssignment | null>(null);
+	const [moveBranchId, setMoveBranchId] = useState<string>("");
+	const [moveCurrentBranchId, setMoveCurrentBranchId] = useState<string>("");
+	const [isMovingBranch, setIsMovingBranch] = useState(false);
 
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
@@ -634,6 +715,46 @@ export function MembersTabPage() {
 		}
 	};
 
+	const handleSoftDeleteUser = async (userId: string) => {
+		if (!organizationId) return;
+		const user = users.find((u) => u.id === userId);
+		if (!user) return;
+		setIsSaving(true);
+		try {
+			await client.members.softDelete({ organizationId, memberId: userId });
+			toast.success(`${user.name} deleted`);
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to delete user",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const handleRestoreUser = async (userId: string) => {
+		if (!organizationId) return;
+		const user = users.find((u) => u.id === userId);
+		if (!user) return;
+		setIsSaving(true);
+		try {
+			await client.members.restore({ organizationId, memberId: userId });
+			toast.success(`${user.name} restored`);
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to restore user",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
 	const handleInviteUser = async (email: string, role: SystemRole) => {
 		if (!organizationId) return;
 		if (!inviterHierarchyScopeId) {
@@ -683,6 +804,114 @@ export function MembersTabPage() {
 			);
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleRetryGhlSync = async (memberId: string) => {
+		if (!organizationId) return;
+		setRetryingGhlSyncMemberId(memberId);
+		try {
+			const result = await client.members.retryGhlSync({
+				organizationId,
+				memberId,
+			});
+			const status = result?.ghlSync?.status;
+			if (status === "synced") {
+				toast.success("GHL sync succeeded");
+			} else if (status === "skipped") {
+				toast.info(
+					`GHL sync skipped${
+						result?.ghlSync?.reason ? `: ${result.ghlSync.reason}` : ""
+					}`,
+				);
+			} else {
+				toast.error(
+					`GHL sync failed${
+						result?.ghlSync?.error ? `: ${result.ghlSync.error}` : ""
+					}`,
+				);
+			}
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to retry GHL sync",
+			);
+		} finally {
+			setRetryingGhlSyncMemberId(null);
+		}
+	};
+
+	const getMemberRole = (
+		userId: string,
+	): "admin" | "trainer" | "staff" | "client" | undefined => {
+		const memberRaw = (membersApiData as MemberApiItem[]).find(
+			(m) => m.id === userId,
+		);
+		return (memberRaw as { role?: "admin" | "trainer" | "staff" | "client" })
+			?.role;
+	};
+
+	const canMoveBranch = (userId: string) => {
+		const role = getMemberRole(userId);
+		return role === "admin" || role === "trainer" || role === "staff";
+	};
+
+	const handleOpenMoveBranch = (user: UserForAssignment) => {
+		const memberRaw = (membersApiData as MemberApiItem[]).find(
+			(m) => m.id === user.id,
+		);
+		const currentScope =
+			(memberRaw as { hierarchyScopeId?: string })?.hierarchyScopeId ?? "";
+		setMovingUser(user);
+		setMoveCurrentBranchId(currentScope);
+		setMoveBranchId(currentScope);
+	};
+
+	const handleCloseMoveBranch = () => {
+		if (isMovingBranch) return;
+		setMovingUser(null);
+		setMoveBranchId("");
+		setMoveCurrentBranchId("");
+	};
+
+	const handleConfirmMoveBranch = async () => {
+		if (!movingUser || !organizationId || !moveBranchId) return;
+		if (moveBranchId === moveCurrentBranchId) return;
+		setIsMovingBranch(true);
+		try {
+			const result = await client.members.updateScope({
+				organizationId,
+				memberId: movingUser.id,
+				newHierarchyScopeId: moveBranchId,
+			});
+
+			const branchName =
+				hierarchyNodes.find((n) => n.id === moveBranchId)?.name ?? "branch";
+			toast.success(`${movingUser.name} moved to ${branchName}`);
+
+			if (result?.ghlSync?.status === "error") {
+				toast.warning(
+					`GHL sync failed${
+						result.ghlSync.error ? `: ${result.ghlSync.error}` : ""
+					}`,
+					{ duration: 8000 },
+				);
+			}
+
+			await queryClient.invalidateQueries({
+				queryKey: ["members", organizationId],
+			});
+			setMovingUser(null);
+			setMoveBranchId("");
+			setMoveCurrentBranchId("");
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to move member",
+			);
+		} finally {
+			setIsMovingBranch(false);
 		}
 	};
 
@@ -844,6 +1073,15 @@ export function MembersTabPage() {
 									<SelectItem value="inactive">Inactive</SelectItem>
 								</SelectContent>
 							</Select>
+
+							<label className="flex items-center gap-2 text-sm">
+								<Checkbox
+									checked={showDeleted}
+									onCheckedChange={(v) => setShowDeleted(v === true)}
+									data-testid="show-deleted-members-toggle"
+								/>
+								<span>Show deleted</span>
+							</label>
 						</div>
 
 						{selectedCount > 0 && (
@@ -918,11 +1156,17 @@ export function MembersTabPage() {
 						user={user}
 						roles={roles}
 						isSelected={selectedUsers.has(user.id)}
+						canMoveBranch={canMoveBranch(user.id)}
 						onSelect={(selected) => handleUserSelect(user.id, selected)}
 						onEditRoles={() => handleEditUserRoles(user)}
 						onEditDetails={() => handleOpenEditUser(user)}
+						onMoveBranch={() => handleOpenMoveBranch(user)}
 						onDeactivate={() => handleDeactivateUser(user.id)}
+						onSoftDelete={() => handleSoftDeleteUser(user.id)}
+						onRestore={() => handleRestoreUser(user.id)}
+						onRetryGhlSync={() => handleRetryGhlSync(user.id)}
 						isLoading={isSaving}
+						isRetryingGhlSync={retryingGhlSyncMemberId === user.id}
 					/>
 				))}
 			</div>
@@ -1085,6 +1329,60 @@ export function MembersTabPage() {
 						</Button>
 						<Button onClick={handleSaveUserDetails} disabled={isSaving}>
 							{isSaving ? "Saving..." : "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Move to Branch Dialog */}
+			<Dialog
+				open={!!movingUser}
+				onOpenChange={(open) => {
+					if (!open) handleCloseMoveBranch();
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>
+							Move {movingUser?.name ?? "member"} to a different branch
+						</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-3 py-2">
+						<Label htmlFor="move-branch-picker">Destination branch</Label>
+						{organizationId && (
+							<BranchCombobox
+								organizationId={organizationId}
+								value={moveBranchId}
+								onChange={setMoveBranchId}
+								placeholder="Select branch..."
+								disabled={isMovingBranch}
+							/>
+						)}
+						<p className="text-xs text-muted-foreground">
+							The member will be reassigned to the selected branch. GHL sync
+							runs automatically.
+						</p>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={handleCloseMoveBranch}
+							disabled={isMovingBranch}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleConfirmMoveBranch}
+							disabled={
+								isMovingBranch ||
+								!moveBranchId ||
+								moveBranchId === moveCurrentBranchId
+							}
+							aria-label="Confirm move to branch"
+						>
+							{isMovingBranch ? "Moving..." : "Move member"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

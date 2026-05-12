@@ -7,15 +7,15 @@ import {
 	deleteUom,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
+const mockFindMany = mock((..._args: any[]) => Promise.resolve([] as any[]));
+const mockFindFirst = mock((..._args: any[]) => Promise.resolve(null as any));
+const mockReturning = mock(() => Promise.resolve([] as any[]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock(() => ({ values: mockValues }));
 const mockWhere = mock(() => Promise.resolve());
 const mockDelete = mock(() => ({ where: mockWhere }));
 const mockUpdate = mock(() => ({
-	set: mock(() => ({
+	set: mock((..._args: any[]) => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
 }));
@@ -53,10 +53,10 @@ describe("listUnitsOfMeasure", () => {
 
 		const result = await listUnitsOfMeasure(mockTenantDb);
 
-		expect(result).toEqual(fakeUoms);
+		expect(result).toEqual(fakeUoms as any);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		// No where clause
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -65,7 +65,7 @@ describe("listUnitsOfMeasure", () => {
 
 		await listUnitsOfMeasure(mockTenantDb, { search: "Kilo" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0]!;
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -85,7 +85,7 @@ describe("getUomById", () => {
 
 		const result = await getUomById(mockTenantDb, "u1");
 
-		expect(result).toEqual(fakeUom);
+		expect(result).toEqual(fakeUom as any);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -105,9 +105,9 @@ describe("createUom", () => {
 
 		const result = await createUom(mockTenantDb, { name: "Kilogram" });
 
-		expect(result).toEqual(fakeUom);
+		expect(result).toEqual(fakeUom as any);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.conversionFactor).toBe("1");
 		expect(valuesArg.baseUomId).toBeNull();
 	});
@@ -122,8 +122,8 @@ describe("createUom", () => {
 			conversionFactor: "0.001",
 		});
 
-		expect(result).toEqual(fakeUom);
-		const valuesArg = mockValues.mock.calls[0][0];
+		expect(result).toEqual(fakeUom as any);
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.baseUomId).toBe("u1");
 		expect(valuesArg.conversionFactor).toBe("0.001");
 	});
@@ -147,7 +147,7 @@ describe("updateUom", () => {
 
 		const result = await updateUom(mockTenantDb, "u1", { name: "Updated Kilogram" });
 
-		expect(result).toEqual(updatedUom);
+		expect(result).toEqual(updatedUom as any);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 

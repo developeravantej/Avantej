@@ -108,22 +108,21 @@ function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
 	// Current assigned trainers
 	const { data: assigned, isLoading: loadingAssigned } = useQuery(
 		orpc.serviceMembers.listForService.queryOptions({
-			organizationId,
-			serviceId,
+			input: { organizationId, serviceId },
 		})
 	);
 
 	// All members — for the assign dropdown
 	const { data: allMembers, isLoading: loadingMembers } = useQuery(
-		orpc.members.list.queryOptions({ organizationId })
+		orpc.members.list.queryOptions({ input: { organizationId } })
 	);
 
 	const [selectedMemberId, setSelectedMemberId] = useState<string>("");
 
-	const assignedIds = new Set((assigned ?? []).map((m) => m.memberId));
+	const assignedIds = new Set((assigned ?? []).map((m: { memberId: string }) => m.memberId));
 
 	const unassigned = (allMembers ?? []).filter(
-		(m) => !assignedIds.has(m.id)
+		(m: { id: string }) => !assignedIds.has(m.id)
 	);
 
 	const assignMutation = useMutation({
@@ -132,7 +131,7 @@ function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
 		onSuccess: () => {
 			setSelectedMemberId("");
 			queryClient.invalidateQueries({
-				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+				queryKey: orpc.serviceMembers.listForService.key({ input: { organizationId, serviceId } }),
 			});
 			toast.success("Trainer assigned");
 		},
@@ -146,7 +145,7 @@ function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
 			client.serviceMembers.remove({ organizationId, serviceId, memberId }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+				queryKey: orpc.serviceMembers.listForService.key({ input: { organizationId, serviceId } }),
 			});
 			toast.success("Trainer removed");
 		},
@@ -182,7 +181,7 @@ function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
 						/>
 					</SelectTrigger>
 					<SelectContent>
-						{unassigned.map((m) => (
+						{unassigned.map((m: { id: string; name?: string | null; email?: string | null }) => (
 							<SelectItem key={m.id} value={m.id}>
 								{m.name ?? m.email ?? m.id}
 							</SelectItem>
@@ -211,7 +210,7 @@ function TrainersTab({ serviceId, organizationId }: TrainersTabProps) {
 				</p>
 			) : (
 				<ul className="space-y-2">
-					{(assigned ?? []).map((m) => (
+					{(assigned ?? []).map((m: { memberId: string; displayName: string }) => (
 						<li
 							key={m.memberId}
 							className="flex items-center justify-between rounded-lg border border-brand-secondary-3 bg-card px-4 py-3"

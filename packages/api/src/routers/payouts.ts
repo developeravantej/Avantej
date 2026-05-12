@@ -84,7 +84,9 @@ export const payoutsRouter = {
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(payouts.createdAt))
 				.limit(input.limit)
-				.then((rows) => rows.map((r) => r.payout));
+				.then((rows: Array<{ payout: typeof payouts.$inferSelect }>) =>
+					rows.map((r: { payout: typeof payouts.$inferSelect }) => r.payout),
+				);
 
 			if (payoutRows.length === 0) {
 				return [];
@@ -93,16 +95,16 @@ export const payoutsRouter = {
 			// Enrich with recipient names:
 			// 1. Get member records by recipientId (which is members.userId)
 			const recipientIds = [
-				...new Set(payoutRows.map((p) => p.recipientId)),
+				...new Set(payoutRows.map((p: any) => p.recipientId)),
 			];
 
 			// recipientId references members.userId, so find member records
 			const memberRows = await context.tenantDb
 				.select({ userId: members.userId })
 				.from(members)
-				.where(inArray(members.userId, recipientIds));
+				.where(inArray(members.userId, recipientIds as string[]));
 
-			const userIds = memberRows.map((m) => m.userId);
+			const userIds = memberRows.map((m: any) => m.userId);
 
 			// 2. Batch-fetch user names from control panel
 			const controlPanelDb = context.honoContext?.get(
@@ -122,7 +124,7 @@ export const payoutsRouter = {
 				}
 			}
 
-			return payoutRows.map((p) => ({
+			return payoutRows.map((p: any) => ({
 				id: p.id,
 				recipientId: p.recipientId,
 				recipientName: userMap.get(p.recipientId) ?? "Unknown",

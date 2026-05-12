@@ -22,7 +22,6 @@ import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { members, memberProfiles } from "@avantej-core/db/schema/tenant/index";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { eq } from "drizzle-orm";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";

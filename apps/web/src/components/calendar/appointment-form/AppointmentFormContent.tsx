@@ -839,7 +839,7 @@ export function AppointmentFormContent({
 						resetForm();
 						onClose();
 					} else if (data.type === "MULTIPLE APPOINTMENTS") {
-						data.appointments.forEach((appointment: unknown) => {
+						data.appointments!.forEach((appointment: unknown) => {
 							onSubmit(appointment as Parameters<typeof onSubmit>[0]);
 						});
 						setAppointmentSlots([]);

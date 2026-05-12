@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient, mockOrpc } from "../helpers/mock-client";
+import { mockClient } from "../helpers/mock-client";
 
 let RouteComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -9,18 +9,26 @@ vi.mock("@tanstack/react-router", () => ({
 		RouteComponent = opts.component;
 		return {
 			component: opts.component,
-			useSearch: vi.fn().mockReturnValue({ tab: "units" }),
-			useNavigate: vi.fn().mockReturnValue(vi.fn()),
+			useSearch: () => ({ tab: "units" }),
+			useNavigate: () => () => {},
 		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: vi.fn().mockReturnValue(vi.fn()),
+	useNavigate: () => () => {},
+	useSearch: () => ({ tab: "units" }),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {
+		unitsOfMeasure: { list: { key: () => ["unitsOfMeasure", "list"] } },
+	},
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee" },
-		hasPermission: vi.fn().mockReturnValue(true),
+		hasPermission: () => true,
+		hasAnyPermission: () => true,
+		hasRole: () => true,
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -46,7 +54,7 @@ describe("Unit of Measure page", () => {
 		renderWithProviders(<RouteComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("heading", { name: "Units of Measure" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: /add uom/i })).toBeInTheDocument();
 		});
 	});
 

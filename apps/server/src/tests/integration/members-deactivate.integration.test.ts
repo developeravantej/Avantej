@@ -4,28 +4,54 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_USER_ID,
 } from "../helpers/integration-setup";
+
+const TEST_ACTOR = {
+	userId: "test-user",
+	memberId: "00000000-0000-4000-8000-000000000001",
+	role: "admin",
+};
 import { deactivateMember } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 const createdMemberIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let testHierarchyNodeId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+	const [node] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Test Branch for Members Deactivate ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.returning();
+	if (!node) throw new Error("Failed to create test hierarchy node");
+	testHierarchyNodeId = node.id;
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdMemberIds.length === 0) return;
+	if (shouldSkipIntegration()) return;
 	// Restore test members to active status and clean up
 	for (const id of createdMemberIds) {
 		try {
 			await tenantDb
 				.delete(members)
 				.where(eq(members.id, id));
+		} catch {
+			// Ignore cleanup errors
+		}
+	}
+	if (testHierarchyNodeId) {
+		try {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, testHierarchyNodeId));
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -46,9 +72,9 @@ async function createTestMember(
 			userId: `test-user-deactivate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 			role: "staff",
 			status: "active",
-			hierarchyScopeId: null,
+			hierarchyScopeId: testHierarchyNodeId,
 			...overrides,
-		})
+		} as any)
 		.returning();
 
 	if (!member) {
@@ -70,7 +96,7 @@ describe("Members Deactivate Integration", () => {
 		expect(testMember.status).toBe("active");
 
 		// Deactivate
-		const updated = await deactivateMember(tenantDb, testMember.id);
+		const updated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// CRITICAL: Status should be 'inactive', NOT 'suspended'
 		expect(updated.status).toBe("inactive");
@@ -82,7 +108,7 @@ describe("Members Deactivate Integration", () => {
 			.from(members)
 			.where(eq(members.id, testMember.id));
 
-		expect(fromDb.status).toBe("inactive");
+		expect(fromDb!.status).toBe("inactive");
 	}, 30000);
 
 	test("deactivate non-existent member throws error", async () => {
@@ -90,7 +116,7 @@ describe("Members Deactivate Integration", () => {
 
 		const fakeId = "00000000-0000-4000-8000-000000000099";
 
-		await expect(deactivateMember(tenantDb, fakeId)).rejects.toThrow(
+		await expect(deactivateMember(tenantDb, fakeId, TEST_ACTOR)).rejects.toThrow(
 			`Member not found: ${fakeId}`,
 		);
 	}, 15000);
@@ -105,10 +131,10 @@ describe("Members Deactivate Integration", () => {
 		createdMemberIds.push(testMember.id);
 
 		// Deactivate first time
-		await deactivateMember(tenantDb, testMember.id);
+		await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// Deactivate second time - should still succeed (idempotent)
-		const updated = await deactivateMember(tenantDb, testMember.id);
+		const updated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 		expect(updated.status).toBe("inactive");
 	}, 30000);
 
@@ -121,7 +147,7 @@ describe("Members Deactivate Integration", () => {
 		});
 		createdMemberIds.push(testMember.id);
 
-		const deactivated = await deactivateMember(tenantDb, testMember.id);
+		const deactivated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
 
 		// Role and other fields should be preserved
 		expect(deactivated.role).toBe("admin");

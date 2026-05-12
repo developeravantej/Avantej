@@ -33,6 +33,11 @@ import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { mapPgError } from "../lib/orpc-error-mapper";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 const appointmentTypeSchema = z.enum(["private", "semi-private"]);
 const statusSchema = z.enum([
@@ -610,7 +615,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      return context.tenantDb.transaction(async (tx) => {
+      
+      return context.tenantDb.transaction(async (tx: TenantTx) => {
         // Fetch old parent + its rule
         const oldParent = await tx.query.appointments.findFirst({
           where: eq(appointments.id, input.parentId),
@@ -746,7 +752,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      await context.tenantDb.transaction(async (tx) => {
+      
+      await context.tenantDb.transaction(async (tx: TenantTx) => {
         const cancelledAt = new Date();
 
         // Cancel the parent (unless already completed)
@@ -798,7 +805,8 @@ export const appointmentsRouter = {
         throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
       }
 
-      await context.tenantDb.transaction(async (tx) => {
+      
+      await context.tenantDb.transaction(async (tx: TenantTx) => {
         const fromDateObj = new Date(input.fromDate + "T00:00:00.000Z");
         // End-of-day of the day before fromDate — preserves occurrences with time-of-day on that day.
         const prevDay = new Date(fromDateObj);

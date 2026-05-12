@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 
-const ORG_ID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 
@@ -10,22 +9,22 @@ const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 export function makeExpense(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
 		submittedBy: MEMBER_ID,
 		category: "travel",
 		description: "Flight to KL for training",
-		amountInCents: 15000, // RM 150.00
-		currency: "MYR",
+		amount: 15000, // RM 150.00
+		currency: "myr",
 		expenseDate: new Date("2026-02-01T00:00:00.000Z"),
 		receiptUrl: null,
 		status: "pending",
 		approvedBy: null,
 		approvedAt: null,
-		rejectedBy: null,
 		rejectionReason: null,
 		paidAt: null,
+		paidBy: null,
 		paymentReference: null,
+		notes: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -40,7 +39,6 @@ export function makeAnnouncement(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
 		title: "Branch Meeting Tomorrow",
 		message: "Please attend the branch meeting at 9am.",
@@ -53,6 +51,7 @@ export function makeAnnouncement(
 		createdBy: MEMBER_ID,
 		createdAt: new Date(),
 		updatedAt: new Date(),
+		scopedBranchIds: [] as string[],
 		...overrides,
 	};
 }
@@ -65,20 +64,20 @@ export function makePurchaseOrder(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
-		poNumber: "PO-20260227-0001",
+		purchaseOrderNumber: "PO-20260227-0001",
 		supplierId: randomUUID(),
 		status: "draft",
 		notes: null,
 		orderDate: new Date(),
 		expectedDeliveryDate: null,
-		subtotalInCents: 50000,
-		totalInCents: 50000,
+		receivedAt: null,
+		subtotal: 50000,
+		taxAmount: 0,
+		totalAmount: 50000,
+		createdBy: MEMBER_ID,
 		approvedBy: null,
 		approvedAt: null,
-		cancelledBy: null,
-		cancelledAt: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -93,11 +92,11 @@ export function makePurchaseOrderItem(
 		purchaseOrderId: randomUUID(),
 		productId: randomUUID(),
 		orderedQty: 10,
-		unitCostInCents: 5000, // RM 50.00 each
-		subtotalInCents: 50000,
 		receivedQty: 0,
+		unitCost: 5000, // RM 50.00 each
+		totalCost: 50000,
+		notes: null,
 		createdAt: new Date(),
-		updatedAt: new Date(),
 		...overrides,
 	};
 }
@@ -110,14 +109,13 @@ export function makePromotion(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
 		code: "PROMO10",
 		name: "10% Off Promo",
 		description: null,
 		type: "percentage",
 		value: 1000, // 10.00% (stored as basis points × 100)
-		minimumOrderAmount: null,
+		minimumOrderAmount: 0,
 		maximumDiscount: null,
 		usageLimit: null,
 		perCustomerLimit: 1,
@@ -125,6 +123,9 @@ export function makePromotion(
 		isActive: true,
 		validFrom: new Date("2026-01-01T00:00:00.000Z"),
 		validUntil: null,
+		applicableProductIds: null,
+		applicableServiceIds: null,
+		createdBy: MEMBER_ID,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -137,11 +138,10 @@ export function makePromotion(
 export function makeTaxRate(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		name: "SST 8%",
 		code: "SST08",
 		rateInBasisPoints: 800, // 8.00%
-		category: "standard",
+		category: "SST",
 		description: null,
 		isDefault: false,
 		isActive: true,
@@ -183,18 +183,19 @@ export function makeWalkInCustomer(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
 		name: "Jane Doe",
 		email: "jane@example.com",
-		phoneNumber: "+60123456789",
+		phone: "+60123456789",
 		dateOfBirth: null,
 		gender: "female",
+		address: null,
 		emergencyContactName: null,
 		emergencyContactPhone: null,
 		medicalNotes: null,
 		notes: null,
 		isActive: true,
+		createdBy: MEMBER_ID,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -208,15 +209,14 @@ export function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: randomUUID(),
 		userId: randomUUID(),
-		organizationId: ORG_ID,
 		role: "staff",
 		// Wave 3a Agent 2.1 (Journey J1): nullable FK to roles table.
 		// Default null so existing fixture consumers keep legacy text-role behaviour.
 		roleId: null,
 		status: "active",
 		hierarchyScopeId: BRANCH_NODE_ID,
-		createdAt: new Date(),
-		updatedAt: new Date(),
+		joinedAt: new Date(),
+		trainerTierId: null,
 		...overrides,
 	};
 }
@@ -227,16 +227,20 @@ export function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 export function makeClassSlot(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		branchId: BRANCH_NODE_ID,
 		serviceId: randomUUID(),
-		trainerId: MEMBER_ID,
-		startTime: new Date("2026-03-01T09:00:00.000Z"),
-		endTime: new Date("2026-03-01T10:00:00.000Z"),
+		instructorId: MEMBER_ID,
+		date: new Date("2026-03-01T00:00:00.000Z"),
+		startTime: "09:00",
+		endTime: "10:00",
 		capacity: 10,
-		enrolledCount: 0,
-		status: "scheduled",
-		notes: null,
+		spotsBooked: 0,
+		spotsAvailable: 10,
+		isFull: false,
+		isAvailable: true,
+		isCancelled: false,
+		cancellationReason: null,
+		location: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -251,13 +255,26 @@ export function makeCommissionSplit(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		appointmentId: randomUUID(),
+		salesOrderId: null,
 		staffId: MEMBER_ID,
-		splitPercentage: 5000, // 50%
+		splitPercentage: 50, // 50%
 		calculatedAmount: 5000, // RM 50.00 in cents
-		isPaid: false,
+		notes: null,
+		status: "pending",
+		approvedBy: null,
+		approvedAt: null,
+		paidBy: null,
 		paidAt: null,
+		payoutId: null,
+		slotIndex: null,
+		conditionId: null,
+		trainerTierId: null,
+		weightageBasisPoints: null,
+		baseAmountCents: null,
+		splitType: "automatic",
+		manualNote: null,
+		earnedAt: new Date(),
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -273,7 +290,6 @@ export function makeMemberProfile(
 	return {
 		id: randomUUID(),
 		memberId: MEMBER_ID,
-		organizationId: ORG_ID,
 		displayName: "John Trainer",
 		bio: "Certified personal trainer with 5 years experience.",
 		specialization: "Strength & Conditioning",
@@ -294,12 +310,14 @@ export function makeWaitlistEntry(
 ) {
 	return {
 		id: randomUUID(),
-		organizationId: ORG_ID,
 		classSlotId: randomUUID(),
-		customerId: randomUUID(),
+		userId: randomUUID(),
 		position: 1,
 		status: "waiting",
 		notifiedAt: null,
+		expiresAt: null,
+		bookedAt: null,
+		appointmentId: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,

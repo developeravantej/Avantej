@@ -10,7 +10,6 @@
 
 import { decrypt } from "@avantej-core/db";
 import { getControlPanelDb } from "../src/lib/db";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";

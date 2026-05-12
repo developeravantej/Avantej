@@ -9,16 +9,18 @@
     "serve": "vite preview",
     "start": "vite",
     "check-types": "tsc --noEmit",
-    "wrangler:dev": "wrangler dev --port=3001",
-    "deploy": "bun run build && wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "check:mutations": "bun scripts/check-no-raw-mutation-toast.ts"
+    "e2e:test": "playwright test --config playwright.config.ts",
+    "e2e:test:real": "E2E_REAL_GHL=1 playwright test --config playwright.config.real.ts",
+    "e2e:install": "playwright install chromium",
+    "wrangler:dev": "wrangler dev --port=3001",
+    "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",
     "@avantej-core/auth": "workspace:*",
+    "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.1.1",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
@@ -43,6 +45,8 @@
     "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lodash-es": "^4.17.21",
     "lucide-react": "^0.473.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.2",
@@ -66,13 +70,13 @@
     "@types/react": "~19.1.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.0.15",
     "typescript": "catalog:",
     "vite": "^6.2.2",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.0.18",
+    "vitest": "^4.1.5",
     "wrangler": "^4.40.3"
   }
 }

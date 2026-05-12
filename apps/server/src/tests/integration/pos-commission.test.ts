@@ -34,6 +34,7 @@ import { serviceCategories } from "@avantej-core/db/schema/tenant/service-catego
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 // ---- State tracking ----
 const createdTierIds: string[] = [];
@@ -109,6 +110,17 @@ beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+
+	// Ensure the test branch hierarchy node exists (FK target for members/services/etc.)
+	await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			id: TEST_BRANCH_NODE_ID,
+			name: `POS Integration Test Branch ${TS}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.onConflictDoNothing();
 
 	// Trainer tier
 	const { tier } = await createTrainerTier(tenantDb, {

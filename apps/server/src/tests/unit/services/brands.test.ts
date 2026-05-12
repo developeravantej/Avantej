@@ -8,9 +8,9 @@ import {
 } from "@avantej-core/services";
 
 // --- Mock chain builders ---
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
+const mockFindMany = mock((): Promise<any> => Promise.resolve([]));
+const mockFindFirst = mock((): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((): Promise<any[]> => Promise.resolve([]));
 const mockValues = mock(() => ({ returning: mockReturning }));
 const mockInsert = mock(() => ({ values: mockValues }));
 const mockWhere = mock(() => Promise.resolve());
@@ -20,7 +20,7 @@ const mockDelete = mock(() => ({ where: mockWhere }));
 const mockUpdateWhereReturning = mock(() => ({ returning: mockReturning }));
 const mockUpdateWhere = mock(() => ({ returning: mockUpdateWhereReturning() }));
 const mockSet = mock(() => ({ where: mockUpdateWhere }));
-const mockUpdate = mock(() => ({ set: mockSet }));
+const mockUpdate = mock((): any => ({ set: mockSet }));
 
 const mockTenantDb = {
 	insert: mockInsert,
@@ -58,7 +58,7 @@ describe("listBrands", () => {
 
 		const result = await listBrands(mockTenantDb);
 
-		expect(result).toEqual(fakeBrands);
+		expect(result as any).toEqual(fakeBrands);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 	});
 
@@ -70,7 +70,7 @@ describe("listBrands", () => {
 		expect(result).toHaveLength(1);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		// The call should have a where clause (ilike) - we just verify it's called
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = ((mockFindMany as any).mock.calls[0] ?? [])[0]!;
 		expect(callArg).toHaveProperty("where");
 	});
 
@@ -90,7 +90,7 @@ describe("getBrandById", () => {
 
 		const result = await getBrandById(mockTenantDb, "b1");
 
-		expect(result).toEqual(fakeBrand);
+		expect(result as any).toEqual(fakeBrand);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -110,7 +110,7 @@ describe("createBrand", () => {
 
 		const result = await createBrand(mockTenantDb, { name: "Nike" });
 
-		expect(result).toEqual(fakeBrand);
+		expect(result as any).toEqual(fakeBrand);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 		expect(mockValues).toHaveBeenCalledTimes(1);
 		expect(mockReturning).toHaveBeenCalledTimes(1);
@@ -122,8 +122,8 @@ describe("createBrand", () => {
 
 		const result = await createBrand(mockTenantDb, { name: "Adidas", description: "Sportswear" });
 
-		expect(result).toEqual(fakeBrand);
-		const valuesArg = mockValues.mock.calls[0][0];
+		expect(result as any).toEqual(fakeBrand);
+		const valuesArg = ((mockValues as any).mock.calls[0] ?? [])[0]! as any;
 		expect(valuesArg.description).toBe("Sportswear");
 	});
 
@@ -146,7 +146,7 @@ describe("updateBrand", () => {
 
 		const result = await updateBrand(mockTenantDb, "b1", { name: "Nike Updated" });
 
-		expect(result).toEqual(updatedBrand);
+		expect(result as any).toEqual(updatedBrand);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 

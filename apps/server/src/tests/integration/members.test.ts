@@ -103,10 +103,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 			.set({ roleId: customRole.id })
 			.where(eq(members.id, member.id));
 
-		const [updated] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const updated = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 
 		expect(updated.roleId).toBe(customRole.id);
 		// Legacy text role is untouched on this path.
@@ -124,10 +123,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 			.set({ role: "trainer" })
 			.where(eq(members.id, member.id));
 
-		const [updated] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const updated = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 
 		expect(updated.role).toBe("trainer");
 		expect(updated.roleId).toBeNull();
@@ -150,10 +148,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 			.set({ roleId: customRole.id })
 			.where(eq(members.id, member.id));
 
-		const [updated] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const updated = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 
 		expect(updated.role).toBe("admin");
 		expect(updated.roleId).toBe(customRole.id);
@@ -174,10 +171,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 			.set({ roleId: null })
 			.where(eq(members.id, member.id));
 
-		const [updated] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const updated = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 
 		expect(updated.roleId).toBeNull();
 		expect(updated.role).toBe("trainer");
@@ -193,10 +189,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 		});
 
 		// Verify pre-condition.
-		const [before] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const before = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 		expect(before.roleId).toBe(customRole.id);
 
 		// Delete the role row directly.
@@ -206,10 +201,9 @@ describe("Members updateRole — Wave 3a Agent 2.1 (Journey J1)", () => {
 		if (idx >= 0) createdRoleIds.splice(idx, 1);
 
 		// FK ON DELETE SET NULL should have nulled the member's roleId.
-		const [after] = await tenantDb
-			.select()
-			.from(members)
-			.where(eq(members.id, member.id));
+		const after = (
+			await tenantDb.select().from(members).where(eq(members.id, member.id))
+		)[0]!;
 		expect(after.roleId).toBeNull();
 		// Member row itself preserved; legacy text role intact.
 		expect(after.role).toBe("staff");

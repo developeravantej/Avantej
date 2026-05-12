@@ -11,7 +11,7 @@ import {
 	cancelPurchaseOrder,
 } from "@avantej-core/services/purchase-orders.service";
 
-let mockDb: ReturnType<typeof createMockTenantDb>;
+let mockDb: any;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 
@@ -37,7 +37,7 @@ describe("listPurchaseOrders", () => {
 
 		const result = await listPurchaseOrders(mockDb, {});
 
-		expect(result).toEqual(orders);
+		expect(result as any).toEqual(orders);
 		expect(mockDb.select).toHaveBeenCalledTimes(1);
 	});
 
@@ -67,8 +67,8 @@ describe("getPurchaseOrderById", () => {
 		const result = await getPurchaseOrderById(mockDb, order.id);
 
 		expect(result).toBeDefined();
-		expect(result!.order).toEqual(order);
-		expect(result!.items).toEqual(items);
+		expect(result!.order as any).toEqual(order);
+		expect(result!.items as any).toEqual(items);
 	});
 
 	test("returns undefined when order not found", async () => {
@@ -105,12 +105,12 @@ describe("createPurchaseOrder — PO number generation", () => {
 			items: [{ productId: "prod-1", orderedQty: 10, unitCost: 5000 }],
 		});
 
-		expect(result.poNumber).toMatch(/^PO-\d{8}-\d{4}$/);
+		expect((result as any).purchaseOrderNumber).toMatch(/^PO-\d{8}-\d{4}$/);
 		expect(result.status).toBe("draft");
 	});
 
 	test("increments sequence number for subsequent POs on the same day", async () => {
-		const createdPO = makePurchaseOrder({ poNumber: "PO-20260227-0006" });
+		const createdPO = makePurchaseOrder({ purchaseOrderNumber: "PO-20260227-0006" });
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
@@ -130,7 +130,7 @@ describe("createPurchaseOrder — PO number generation", () => {
 			items: [{ productId: "p1", orderedQty: 1, unitCost: 100 }],
 		});
 
-		expect(result.poNumber).toContain("0006");
+		expect((result as any).purchaseOrderNumber).toContain("0006");
 	});
 });
 
@@ -147,7 +147,7 @@ describe("approvePurchaseOrder", () => {
 
 		const result = await approvePurchaseOrder(mockDb, po.id, MEMBER_ID);
 
-		expect(result.status).toBe("approved");
+		expect(result!.status).toBe("approved");
 	});
 
 	test("throws when trying to approve non-draft PO", async () => {
@@ -194,7 +194,7 @@ describe("receiveItems", () => {
 
 		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 5 }]);
 
-		expect(result.status).toBe("partially_received");
+		expect(result!.status).toBe("partially_received");
 	});
 
 	test("sets status to received when all items fully received", async () => {
@@ -218,7 +218,7 @@ describe("receiveItems", () => {
 
 		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 5 }]);
 
-		expect(result.status).toBe("received");
+		expect(result!.status).toBe("received");
 	});
 
 	test("handles incremental receiving (partially received then received)", async () => {
@@ -242,7 +242,7 @@ describe("receiveItems", () => {
 
 		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 2 }]);
 
-		expect(result.status).toBe("received");
+		expect(result!.status).toBe("received");
 	});
 });
 
@@ -258,7 +258,7 @@ describe("cancelPurchaseOrder", () => {
 
 		const result = await cancelPurchaseOrder(mockDb, po.id);
 
-		expect(result.status).toBe("cancelled");
+		expect(result!.status).toBe("cancelled");
 	});
 
 	test("cancels an approved PO", async () => {
@@ -271,7 +271,7 @@ describe("cancelPurchaseOrder", () => {
 
 		const result = await cancelPurchaseOrder(mockDb, po.id);
 
-		expect(result.status).toBe("cancelled");
+		expect(result!.status).toBe("cancelled");
 	});
 
 	test("throws when cancelling a received PO", async () => {

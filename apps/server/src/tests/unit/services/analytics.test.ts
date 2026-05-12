@@ -6,7 +6,7 @@ import {
 	getStaffPerformance,
 } from "@avantej-core/services/analytics.service";
 
-let mockDb: ReturnType<typeof createMockTenantDb>;
+let mockDb: any;
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
@@ -149,8 +149,8 @@ describe("getDashboardKpis — return values", () => {
 		expect(result.completedAppointments).toBe(7);
 		expect(result.activeMembersCount).toBe(15);
 		expect(result.revenueByBranch).toHaveLength(1);
-		expect(result.revenueByBranch[0].branchId).toBe("branch-1");
-		expect(result.revenueByBranch[0].totalRevenue).toBe(30000);
+		expect(result.revenueByBranch[0]!.branchId).toBe("branch-1");
+		expect(result.revenueByBranch[0]!.totalRevenue).toBe(30000);
 	});
 });
 
@@ -216,9 +216,9 @@ describe("getStaffPerformance", () => {
 		});
 
 		expect(result).toHaveLength(2);
-		expect(result[0].staffId).toBe("user-1");
-		expect(result[0].memberId).toBe("member-1");
-		expect(result[0].appointmentsCompleted).toBe(5);
-		expect(result[0].totalCommission).toBe(25000);
+		expect(result[0]!.staffId).toBe("user-1");
+		expect(result[0]!.memberId).toBe("member-1");
+		expect(result[0]!.appointmentsCompleted).toBe(5);
+		expect(result[0]!.totalCommission).toBe(25000);
 	});
 });

@@ -119,23 +119,26 @@ function OrganizationSettingsPage() {
 	// ─── Form ─────────────────────────────────────────────────────────────────
 
 	const form = useForm<OrgSettingsValues>({
-		resolver: zodResolver(orgSettingsSchema),
+		resolver: zodResolver(orgSettingsSchema) as any,
 		defaultValues: DEFAULT_VALUES,
 	});
 
 	// Pre-fill form when queries resolve
 	useEffect(() => {
 		if (isLoading) return;
+		const grace = (gracePeriodData as any)?.value;
+		const commission = (commissionData as any)?.value;
+		const locale = (localeData as any)?.value;
 		form.reset({
-			gracePeriodDays: gracePeriodData?.value
-				? parseInt(gracePeriodData.value, 10) || DEFAULT_VALUES.gracePeriodDays
+			gracePeriodDays: grace
+				? parseInt(grace, 10) || DEFAULT_VALUES.gracePeriodDays
 				: DEFAULT_VALUES.gracePeriodDays,
-			commissionPct: commissionData?.value
-				? parseFloat(commissionData.value) || DEFAULT_VALUES.commissionPct
+			commissionPct: commission
+				? parseFloat(commission) || DEFAULT_VALUES.commissionPct
 				: DEFAULT_VALUES.commissionPct,
-			locale: (localeData?.value as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
+			locale: (locale as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
 			packageApprovalRequired:
-				(packageApprovalData?.value ?? "true") === "true",
+				(((packageApprovalData as any)?.value as string | undefined) ?? "true") === "true",
 		});
 	}, [isLoading, gracePeriodData, commissionData, localeData, packageApprovalData, form]);
 

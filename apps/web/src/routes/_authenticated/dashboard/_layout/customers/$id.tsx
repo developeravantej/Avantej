@@ -98,7 +98,7 @@ function Customer360Page() {
 				clientUserId: detail!.member.userId,
 				status: "confirmed",
 				limit: 3,
-			}),
+			} as any),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
@@ -116,7 +116,7 @@ function Customer360Page() {
 				organizationId: organizationId!,
 				clientUserId: detail!.member.userId,
 				limit: 50,
-			}),
+			} as any),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
@@ -152,7 +152,7 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" }}>
+					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
@@ -178,7 +178,7 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" }}>
+					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
@@ -199,7 +199,7 @@ function Customer360Page() {
 		<div className="space-y-6 p-6">
 			{/* Back navigation */}
 			<Button variant="ghost" size="sm" asChild className="-ml-1">
-				<Link to="/dashboard/customers/view" search={{ tab: "registered" }}>
+				<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
 					<ArrowLeft className="mr-1 h-4 w-4" />
 					Customers
 				</Link>

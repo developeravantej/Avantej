@@ -58,9 +58,9 @@ export const serviceMembersRouter = {
 				.from(memberServiceBufferOverrides)
 				.where(eq(memberServiceBufferOverrides.memberId, context.member.id));
 
-			const overrideMap = new Map(overrides.map((o) => [o.serviceId, o.bufferTimeMinutes]));
+			const overrideMap = new Map(overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]));
 
-			return serviceRows.map((r) => ({
+			return serviceRows.map((r: any) => ({
 				serviceId: r.serviceId,
 				serviceName: r.serviceName,
 				categoryId: r.categoryId ?? null,
@@ -190,9 +190,9 @@ export const serviceMembersRouter = {
 				.from(memberServiceBufferOverrides)
 				.where(eq(memberServiceBufferOverrides.memberId, input.memberId));
 
-			const overrideMap = new Map(overrides.map((o) => [o.serviceId, o.bufferTimeMinutes]));
+			const overrideMap = new Map(overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]));
 
-			return serviceRows.map((r) => ({
+			return serviceRows.map((r: any) => ({
 				serviceId: r.serviceId,
 				serviceName: r.serviceName,
 				categoryId: r.categoryId ?? null,
@@ -276,7 +276,7 @@ export const serviceMembersRouter = {
 				});
 			}
 
-			await context.tenantDb.transaction(async (tx) => {
+			await context.tenantDb.transaction(async (tx: any) => {
 				await tx
 					.delete(serviceMembers)
 					.where(
@@ -421,10 +421,16 @@ export const serviceMembersRouter = {
 				.leftJoin(memberProfiles, eq(memberProfiles.memberId, serviceMembers.memberId))
 				.where(eq(serviceMembers.serviceId, input.serviceId));
 
-			return rows.map((r) => ({
-				memberId: r.memberId,
-				isPrimary: r.isPrimary,
-				displayName: r.displayName ?? r.memberId,
-			}));
+			return rows.map(
+				(r: {
+					memberId: string;
+					isPrimary: boolean;
+					displayName: string | null;
+				}) => ({
+					memberId: r.memberId,
+					isPrimary: r.isPrimary,
+					displayName: r.displayName ?? r.memberId,
+				}),
+			);
 		}),
 };

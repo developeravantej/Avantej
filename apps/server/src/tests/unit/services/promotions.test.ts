@@ -6,7 +6,6 @@ import {
 	listPromotions,
 	validatePromoCode,
 	applyPromotion,
-	createPromotion,
 	updatePromotion,
 	deactivatePromotion,
 } from "@avantej-core/services/promotions.service";
@@ -36,7 +35,7 @@ describe("listPromotions", () => {
 
 		const result = await listPromotions(mockDb, {});
 
-		expect(result).toEqual(promos);
+		expect(result as any).toEqual(promos);
 	});
 
 	test("returns empty array when no promotions exist", async () => {
@@ -278,7 +277,7 @@ describe("applyPromotion", () => {
 		});
 
 		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
-		expect(result.usageCount).toBe(1);
+		expect(result!.usageCount).toBe(1);
 	});
 });
 
@@ -306,10 +305,20 @@ describe("updatePromotion", () => {
 describe("deactivatePromotion", () => {
 	test("sets isActive to false", async () => {
 		const deactivated = makePromotion({ isActive: false });
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deactivated])) })) };
-		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await deactivatePromotion(mockDb, deactivated.id);
+		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
+			const tx = createMockTenantDb();
+			const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deactivated])) })) };
+			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
+			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
+			return cb(tx);
+		});
+
+		const result = await deactivatePromotion(mockDb, deactivated.id, {
+			userId: "user-1",
+			memberId: "member-1",
+			role: "admin",
+		});
 
 		expect(result.isActive).toBe(false);
 	});

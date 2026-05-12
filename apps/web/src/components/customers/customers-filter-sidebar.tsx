@@ -9,6 +9,7 @@ interface CustomerOption {
 	id: string;
 	name: string;
 	email?: string | null;
+	isDeleted?: boolean | null;
 }
 
 interface CustomersFilterSidebarProps {
@@ -19,6 +20,8 @@ interface CustomersFilterSidebarProps {
 	onSelectCustomer: (customerId: string) => void;
 	search: string;
 	onSearchChange: (value: string) => void;
+	showDeleted?: boolean;
+	onShowDeletedChange?: (value: boolean) => void;
 }
 
 function getInitials(name: string) {
@@ -38,6 +41,8 @@ function CustomersFilterSidebarImpl({
 	onSelectCustomer,
 	search,
 	onSearchChange,
+	showDeleted = false,
+	onShowDeletedChange,
 }: CustomersFilterSidebarProps) {
 	return (
 		<div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -62,6 +67,18 @@ function CustomersFilterSidebarImpl({
 						className="h-9 rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm placeholder:text-gray-400 focus:bg-white"
 					/>
 				</div>
+				{onShowDeletedChange && (
+					<label className="mt-2 flex cursor-pointer select-none items-center gap-2 text-xs text-gray-600">
+						<input
+							type="checkbox"
+							className="h-3.5 w-3.5 rounded border-gray-300"
+							checked={showDeleted}
+							onChange={(e) => onShowDeletedChange(e.target.checked)}
+							data-testid="show-deleted-toggle"
+						/>
+						<span>Show deleted</span>
+					</label>
+				)}
 			</div>
 
 			<div className="flex-1 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1">
@@ -86,20 +103,28 @@ function CustomersFilterSidebarImpl({
 									isSelected
 										? "border-blue-500 border-l-2 bg-blue-50 pl-[calc(0.5rem-2px)]"
 										: "hover:bg-gray-50",
+									customer.isDeleted && "opacity-60",
 								)}
 							>
 								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-500 text-xs">
 									{getInitials(customer.name) || "?"}
 								</div>
 								<div className="min-w-0 flex-1">
-									<p
-										className={cn(
-											"truncate font-medium text-sm",
-											isSelected ? "text-blue-700" : "text-gray-900",
+									<div className="flex items-center gap-1.5">
+										<p
+											className={cn(
+												"truncate font-medium text-sm",
+												isSelected ? "text-blue-700" : "text-gray-900",
+											)}
+										>
+											{customer.name}
+										</p>
+										{customer.isDeleted && (
+											<span className="shrink-0 rounded px-1 py-0.5 bg-gray-200 text-gray-500 text-[10px] leading-none">
+												deleted
+											</span>
 										)}
-									>
-										{customer.name}
-									</p>
+									</div>
 									<p className="truncate text-gray-400 text-xs">
 										{customer.email ?? "Customer"}
 									</p>

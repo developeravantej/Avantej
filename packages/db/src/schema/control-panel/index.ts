@@ -14,4 +14,4 @@ export * from "./platform-admins";
 export * from "./admin-sessions";
 export * from "./admin-session-actions";
 export * from "./organization-analytics";
-export * from "./ghl-location-links";
+export * from "./ghl-branch-links";

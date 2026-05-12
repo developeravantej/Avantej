@@ -44,6 +44,11 @@ export const members = pgTable("members", {
 	leadSourceId: uuid("lead_source_id").references(() => leadSources.id, { onDelete: "set null" }),
 	householdId: uuid("household_id").references(() => households.id, { onDelete: "set null" }),
 	invitationId: uuid("invitation_id").references(() => invitations.id, { onDelete: "set null" }),
+	// Soft-delete marker. Additive to `status` (which captures active/suspended/inactive
+	// for the deactivate flow). When non-null, the row is hidden from default member
+	// queries and surfaced only when callers opt in via `includeDeleted`. Soft-delete
+	// is a GHL no-op (mirrors customer parity except customers also fire GHL DELETE).
+	deletedAt: timestamp("deleted_at"),
 }, (table) => ({
 	// Unique constraint: one membership per user in this tenant
 	userIdUniqueIdx: uniqueIndex("members_user_idx").on(table.userId),
@@ -56,5 +61,6 @@ export const members = pgTable("members", {
 	leadSourceIdx: index("members_lead_source_idx").on(table.leadSourceId),
 	householdIdx: index("members_household_idx").on(table.householdId),
 	invitationIdx: index("members_invitation_idx").on(table.invitationId),
+	deletedAtIdx: index("members_deleted_at_idx").on(table.deletedAt),
 }));
 

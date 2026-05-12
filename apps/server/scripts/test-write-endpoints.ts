@@ -77,8 +77,6 @@ function group(name: string) {
 
 // ─── HTTP Helpers ─────────────────────────────────────────────────────────────
 
-type Headers = Record<string, string>;
-
 async function rpc(
 	router: string,
 	procedure: string,
@@ -141,21 +139,6 @@ async function rpc(
 	}
 
 	return { ok: false, data: null, error: body, status: res.status };
-}
-
-function extractCookies(headers: Headers): string {
-	// In Node/Bun fetch, response.headers.get("set-cookie") returns comma-joined values
-	// We need to handle the raw Set-Cookie headers
-	const raw = headers["set-cookie"];
-	if (!raw) return "";
-
-	// Each cookie is separated by newlines in Bun's fetch implementation
-	// Extract only the name=value portion (before the first semicolon) of each cookie
-	return raw
-		.split(/,(?=[^ ])|\\n|\n/)
-		.map((c) => c.split(";")[0]?.trim())
-		.filter(Boolean)
-		.join("; ");
 }
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────

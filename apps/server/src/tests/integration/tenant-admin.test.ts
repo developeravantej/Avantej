@@ -189,32 +189,15 @@ describe("assertTenantAdminCanImpersonate — target must exist", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TODOs — require Better-Auth session (deferred to Chrome E2E, Phase 7)
+// HTTP-flow tests live in apps/web/e2e/tests/tenant-admin-impersonate.spec.ts
+//
+// What's covered there:
+//  - impersonate happy path → Set-Cookie returned, member_sessions row inserted
+//  - stopImpersonating → member_sessions.endedAt updated
+//
+// What's already covered by guard tests above (no Playwright needed):
+//  - impersonating a platform admin → FORBIDDEN (assertTenantAdminCanImpersonate
+//    checks platformAdmins table; target.role !== 'staff' also caught at line 82-86)
+//  - cross-tenant target → NOT_FOUND via tenantDb scope (guard tests + middleware:
+//    tenantDb is scoped to caller's org, so a foreign memberId returns null → NOT_FOUND)
 // ─────────────────────────────────────────────────────────────────────────────
-
-describe("tenantAdmin.impersonateMember — full session flow (TODO: Chrome E2E)", () => {
-	test.skip("tenant admin impersonates staff → cookie swapped, member_sessions row created", () => {
-		// TODO: Test via Chrome E2E in Phase 7.
-		// Requires: active Better-Auth session cookie for franchisee@gmail.com (admin role)
-		// Steps:
-		//   1. POST /rpc/tenantAdmin/impersonateMember { targetMemberId, organizationId }
-		//   2. Assert response has Set-Cookie header
-		//   3. Assert member_sessions row exists with endedAt = null
-		//   4. POST /rpc/tenantAdmin/stopImpersonating (with new cookie)
-		//   5. Assert member_sessions row has endedAt != null
-	});
-
-	test.skip("tenant admin impersonating platform admin → 403", () => {
-		// TODO: Test via Chrome E2E in Phase 7.
-		// Requires: a staff member whose userId is also in platform_admins
-	});
-
-	test.skip("cross-tenant impersonation blocked by tenantDb scope", () => {
-		// TODO: tenantDb is scoped to caller's org by orpcTenantMiddleware.
-		// A targetMemberId from another org simply won't be found → NOT_FOUND (403).
-	});
-
-	test.skip("stopImpersonating → member_sessions.endedAt updated", () => {
-		// TODO: Chrome E2E Phase 7.
-	});
-});

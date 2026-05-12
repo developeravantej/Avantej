@@ -97,7 +97,7 @@ export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProp
 	// Build a userId → name map for cross-referencing waitlist entries
 	// entry.userId holds the control panel userId (text); member.userId is the same
 	const userNameMap = new Map<string, string>(
-		membersData.map((m) => [m.userId, m.name]),
+		membersData.map((m: any) => [m.userId, m.name]),
 	);
 
 	// Limit member combobox to first 50 (S1 scalability note: members.list has no limit param)
@@ -234,7 +234,7 @@ export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProp
 										{userNameMap.get(entry.userId) ?? "Unknown"}
 									</td>
 									<td className="px-3 py-2 text-muted-foreground">
-										{new Date(entry.addedAt).toLocaleDateString()}
+										{new Date((entry as any).addedAt ?? entry.createdAt).toLocaleDateString()}
 									</td>
 									<td className="px-3 py-2">
 										<StatusBadge status={entry.status} />
@@ -272,7 +272,7 @@ export function WaitlistPanel({ classSlotId, organizationId }: WaitlistPanelProp
 							<SelectValue placeholder="Select a member" />
 						</SelectTrigger>
 						<SelectContent>
-							{memberOptions.map((m) => (
+							{memberOptions.map((m: any) => (
 								<SelectItem key={m.id} value={m.id}>
 									{m.name}
 								</SelectItem>

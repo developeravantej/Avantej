@@ -235,6 +235,42 @@ const serverInvitationRouterType = {
 		.handler((): { success: boolean; message: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	// Server override of base accept — adds post-acceptance GHL sync for clients.
+	accept: protectedProcedure
+		.input(
+			z.object({
+				token: z.string(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): { success: boolean; message: string; organizationId: string } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	// Atomic sign-up + accept + GHL sync (public — token+email match = auth proof).
+	acceptWithSignup: publicProcedure
+		.input(
+			z.object({
+				token: z.string().min(1),
+				organizationId: z.string().uuid(),
+				email: z.string().email(),
+				password: z.string().min(8),
+				firstName: z.string().min(1),
+				lastName: z.string().min(1),
+				phone: z.string().trim().min(1).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				success: boolean;
+				message: string;
+				organizationId: string;
+				userId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Admin router type definition for client type inference
@@ -510,11 +546,163 @@ const tenantAdminRouterType = {
 		),
 
 	/** Stop an active tenant-admin impersonation session. */
-	stopImpersonating: protectedProcedure.handler(
-		(): { success: true; redirectTo: string } => {
+	stopImpersonating: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): { success: true; redirectTo: string } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
+// Server-side customerProfiles overrides type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/customer-profiles.ts
+// (server-only: imports fireCustomerSync which requires server-only GHL deps).
+const serverCustomerProfilesRouterType = {
+	softDelete: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler((): { ok: boolean; profileId: string } => {
 			throw new Error("Not implemented - this is only for type inference");
-		},
-	),
+		}),
+	restore: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler((): Promise<{ ok: boolean; profileId: string }> => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	retryGhlSync: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				ghlSync:
+					| {
+							status: "synced" | "skipped" | "error";
+							ghlContactId?: string;
+							error?: string;
+							reason?: string;
+					  };
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
+// GHL router type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/ghl.ts
+// (server-only: uses encrypted API key, Neon control panel DB).
+const ghlRouterType = {
+	connectBranch: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+				ghlLocationId: z.string().min(1),
+				ghlApiKey: z.string().min(10),
+				existingBranchCustomFieldId: z
+					.string()
+					.trim()
+					.min(1)
+					.optional()
+					.nullable(),
+			}),
+		)
+		.handler((): { status: "connected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	disconnectBranch: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+			}),
+		)
+		.handler((): { status: "disconnected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	listBranchLinks: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): Array<{
+				id: string;
+				tenantBranchId: string;
+				ghlLocationId: string;
+				existingBranchCustomFieldId: string | null;
+				isActive: boolean;
+				createdAt: Date;
+				updatedAt: Date;
+				errorCount: number;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	retryFailedSyncs: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				tenantBranchId: z.string().uuid(),
+				limit: z.number().int().min(1).max(200).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				attempted: number;
+				recovered: number;
+				stillFailing: number;
+				cappedAt: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	// Phase G.2: Org-shared GHL connection (one GHL sub-account per org)
+	connectOrgShared: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				ghlLocationId: z.string().min(1),
+				ghlApiKey: z.string().min(10),
+			}),
+		)
+		.handler((): { status: "connected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	disconnectOrgShared: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): { status: "disconnected" } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	getOrgShared: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				ghlLocationId: string | null;
+				ghlSyncModel: string | null;
+				ghlProvisionedAt: Date | null;
+				hasApiKey: boolean;
+				countryFieldCount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Full appRouter with auth and server-specific procedures for type inference on the client
@@ -526,8 +714,14 @@ export const appRouter = {
 		...invitationRouter,
 		...serverInvitationRouterType,
 	},
+	// Extend customerProfiles router with server-specific softDelete procedure type
+	customerProfiles: {
+		...customerProfilesRouter,
+		...serverCustomerProfilesRouterType,
+	},
 	admin: adminRouterType,
 	tenantAdmin: tenantAdminRouterType,
+	ghl: ghlRouterType,
 };
 
 export type AppRouter = typeof appRouter;

@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { client, queryClient } from "@/utils/orpc";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
-import { Globe, Map as MapIcon, MapPin, Plus, Target } from "lucide-react";
+import { Globe, Map as MapIcon, Plus, Target } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -39,15 +39,10 @@ const hierarchicalBranchSchema = z.object({
     .min(1, "Organization name is required")
     .optional(),
 
-  // Region selection
-  region_id: z.string().optional(),
-  region_name: z.string().min(1, "Region name is required").optional(),
-  region_code: z.string().min(1, "Region code is required").optional(),
-
-  // Area selection
-  area_id: z.string().optional(),
-  area_name: z.string().min(1, "Area name is required").optional(),
-  area_code: z.string().min(1, "Area code is required").optional(),
+  // State selection
+  state_id: z.string().optional(),
+  state_name: z.string().min(1, "State name is required").optional(),
+  state_code: z.string().min(1, "State code is required").optional(),
 
   // Branch details
   branch_name: z.string().min(1, "Branch name is required"),
@@ -97,22 +92,19 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   const [countries, setCountries] = useState<HierarchyItem[]>([]);
   const [userOrganization, setUserOrganization] =
     useState<HierarchyItem | null>(null);
-  const [regions, setRegions] = useState<HierarchyItem[]>([]);
-  const [areas, setAreas] = useState<HierarchyItem[]>([]);
+  const [states, setStates] = useState<HierarchyItem[]>([]);
 
   // Selection states
   const [selectedCountry, setSelectedCountry] = useState<HierarchyItem | null>(
     null
   );
-  const [selectedRegion, setSelectedRegion] = useState<HierarchyItem | null>(
+  const [selectedState, setSelectedState] = useState<HierarchyItem | null>(
     null
   );
-  const [selectedArea, setSelectedArea] = useState<HierarchyItem | null>(null);
 
   // Creation modes
   const [createCountry, setCreateCountry] = useState(false);
-  const [createRegion, setCreateRegion] = useState(false);
-  const [createArea, setCreateArea] = useState(false);
+  const [createState, setCreateState] = useState(false);
 
   const {
     register,
@@ -132,19 +124,12 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     }
   }, [organizationId]);
 
-  // Load regions when country is selected
+  // Load states when country is selected
   useEffect(() => {
     if (selectedCountry) {
-      loadRegions(selectedCountry.id);
+      loadStates(selectedCountry.id);
     }
   }, [selectedCountry]);
-
-  // Load areas when region changes
-  useEffect(() => {
-    if (selectedRegion) {
-      loadAreas(selectedRegion.id);
-    }
-  }, [selectedRegion]);
 
   const loadCountries = async () => {
     try {
@@ -205,73 +190,38 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     }
   };
 
-  const loadRegions = async (countryId: string) => {
+  const loadStates = async (countryId: string) => {
     try {
       if (!organizationId) {
-        setRegions([]);
+        setStates([]);
         return;
       }
 
       // Fetch all hierarchy nodes from API
       const result = await client.hierarchy.listNodes({ organizationId });
 
-      // Filter for regions under the selected country
-      const allRegionNodes = (result.nodes || []) as HierarchyNodeResponse[];
-      const regionNodes = allRegionNodes.filter(
-        (node) => node.type === "region" && node.depth === 2 && node.parentId === countryId
+      // Filter for states under the selected country
+      const allStateNodes = (result.nodes || []) as HierarchyNodeResponse[];
+      const stateNodes = allStateNodes.filter(
+        (node) => node.type === "state" && node.depth === 2 && node.parentId === countryId
       );
 
-      const regionsList: HierarchyItem[] = regionNodes.map((node) => ({
+      const statesList: HierarchyItem[] = stateNodes.map((node) => ({
         id: node.id,
         name: node.name,
         code: node.code || "",
       }));
 
-      setRegions(regionsList);
+      setStates(statesList);
     } catch (error: unknown) {
-      console.error("Error loading regions:", error);
+      console.error("Error loading states:", error);
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes("Not authenticated")) {
         toast.error("Please log in to access this feature");
       } else {
-        toast.error("Failed to load regions. Please try again.");
+        toast.error("Failed to load states. Please try again.");
       }
-      setRegions([]);
-    }
-  };
-
-  const loadAreas = async (regionId: string) => {
-    try {
-      if (!organizationId) {
-        setAreas([]);
-        return;
-      }
-
-      // Fetch all hierarchy nodes from API
-      const result = await client.hierarchy.listNodes({ organizationId });
-
-      // Filter for areas under the selected region
-      const allAreaNodes = (result.nodes || []) as HierarchyNodeResponse[];
-      const areaNodes = allAreaNodes.filter(
-        (node) => node.type === "area" && node.depth === 3 && node.parentId === regionId
-      );
-
-      const areasList: HierarchyItem[] = areaNodes.map((node) => ({
-        id: node.id,
-        name: node.name,
-        code: node.code || "",
-      }));
-
-      setAreas(areasList);
-    } catch (error: unknown) {
-      console.error("Error loading areas:", error);
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Not authenticated")) {
-        toast.error("Please log in to access this feature");
-      } else {
-        toast.error("Failed to load areas. Please try again.");
-      }
-      setAreas([]);
+      setStates([]);
     }
   };
 
@@ -280,28 +230,17 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     if (country) {
       setSelectedCountry(country);
       setValue("country_id", country.id);
-      setSelectedRegion(null);
-      setSelectedArea(null);
+      setSelectedState(null);
       setCurrentStep(2);
     }
   };
 
-  const handleRegionSelect = (regionId: string) => {
-    const region = regions.find((r) => r.id === regionId);
-    if (region) {
-      setSelectedRegion(region);
-      setValue("region_id", region.id);
-      setSelectedArea(null);
+  const handleStateSelect = (stateId: string) => {
+    const state = states.find((s) => s.id === stateId);
+    if (state) {
+      setSelectedState(state);
+      setValue("state_id", state.id);
       setCurrentStep(3);
-    }
-  };
-
-  const handleAreaSelect = (areaId: string) => {
-    const area = areas.find((a) => a.id === areaId);
-    if (area) {
-      setSelectedArea(area);
-      setValue("area_id", area.id);
-      setCurrentStep(4);
     }
   };
 
@@ -332,8 +271,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
       // Create hierarchy nodes sequentially using oRPC client
       let countryNodeId = selectedCountry?.id;
-      let regionNodeId = selectedRegion?.id;
-      let areaNodeId = selectedArea?.id;
+      let stateNodeId = selectedState?.id;
 
       // Step 1: Create Country if needed
       if (!countryNodeId && data.country_name) {
@@ -348,35 +286,22 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         setSelectedCountry({ id: countryNode.id, name: countryNode.name });
       }
 
-      // Step 2: Create Region if needed
-      if (!regionNodeId && data.region_name && countryNodeId) {
-        const regionNode = await client.hierarchy.createNode({
+      // Step 2: Create State if needed
+      if (!stateNodeId && data.state_name && countryNodeId) {
+        const stateNode = await client.hierarchy.createNode({
           organizationId,
-          type: "region",
-          name: data.region_name,
-          code: data.region_code,
+          type: "state",
+          name: data.state_name,
+          code: data.state_code,
           parentId: countryNodeId,
         });
-        regionNodeId = regionNode.id;
-        setSelectedRegion({ id: regionNode.id, name: regionNode.name });
+        stateNodeId = stateNode.id;
+        setSelectedState({ id: stateNode.id, name: stateNode.name });
       }
 
-      // Step 3: Create Area if needed
-      if (!areaNodeId && data.area_name && regionNodeId) {
-        const areaNode = await client.hierarchy.createNode({
-          organizationId,
-          type: "area",
-          name: data.area_name,
-          code: data.area_code,
-          parentId: regionNodeId,
-        });
-        areaNodeId = areaNode.id;
-        setSelectedArea({ id: areaNode.id, name: areaNode.name });
-      }
-
-      // Step 4: Create Branch
-      if (!areaNodeId) {
-        toast.error("Area is required to create a branch");
+      // Step 3: Create Branch
+      if (!stateNodeId) {
+        toast.error("State is required to create a branch");
         setIsLoading(false);
         return;
       }
@@ -386,7 +311,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         type: "branch",
         name: data.branch_name,
         code: data.branch_code,
-        parentId: areaNodeId,
+        parentId: stateNodeId,
       });
 
       // Invalidate React Query caches to refresh data
@@ -407,8 +332,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       reset();
       setCurrentStep(1);
       setSelectedCountry(null);
-      setSelectedRegion(null);
-      setSelectedArea(null);
+      setSelectedState(null);
 
       // Navigate to branch view
       navigate({ to: "/dashboard/branch/view" });
@@ -434,7 +358,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         msg.includes("duplicate")
       ) {
         toast.error(
-          "A branch with this code already exists in the selected area"
+          "A branch with this code already exists in the selected state"
         );
       } else if (msg.includes("400")) {
         toast.error(
@@ -466,12 +390,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       },
       {
         number: 2,
-        title: "Region",
+        title: "State",
         icon: MapIcon,
-        completed: !!selectedRegion,
+        completed: !!selectedState,
       },
-      { number: 3, title: "Area", icon: MapPin, completed: !!selectedArea },
-      { number: 4, title: "Branch", icon: Target, completed: false },
+      { number: 3, title: "Branch", icon: Target, completed: false },
     ];
 
     return (
@@ -645,10 +568,10 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <MapIcon className="h-5 w-5" />
-          <span>Step 2: Select or Create Region</span>
+          <span>Step 2: Select or Create State</span>
         </CardTitle>
         <CardDescription className="text-sm text-brand-secondary-1">
-          Choose an existing region or create a new one
+          Choose an existing state or create a new one
           {userOrganization && (
             <Badge className="ml-2" variant="secondary">
               {userOrganization.name}
@@ -657,41 +580,41 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {createRegion ? (
+        {createState ? (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="region_name" className="block text-sm font-medium text-brand-primary-1">Region Name</Label>
+              <Label htmlFor="state_name" className="block text-sm font-medium text-brand-primary-1">State Name</Label>
               <Input
-                id="region_name"
-                {...register("region_name")}
-                placeholder="Enter region name"
+                id="state_name"
+                {...register("state_name")}
+                placeholder="Enter state name"
                 className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
-              {errors.region_name && (
+              {errors.state_name && (
                 <p className="mt-1 text-red-500 text-sm">
-                  {errors.region_name.message}
+                  {errors.state_name.message}
                 </p>
               )}
             </div>
             <div>
-              <Label htmlFor="region_code" className="block text-sm font-medium text-brand-primary-1">Region Code</Label>
+              <Label htmlFor="state_code" className="block text-sm font-medium text-brand-primary-1">State Code</Label>
               <Input
-                id="region_code"
-                {...register("region_code")}
+                id="state_code"
+                {...register("state_code")}
                 maxLength={50}
-                placeholder="Enter region code"
+                placeholder="Enter state code (e.g., CA)"
                 className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
               />
-              {errors.region_code && (
+              {errors.state_code && (
                 <p className="mt-1 text-red-500 text-sm">
-                  {errors.region_code.message}
+                  {errors.state_code.message}
                 </p>
               )}
             </div>
             <div className="flex space-x-2">
               <Button
                 className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-                onClick={() => setCreateRegion(false)}
+                onClick={() => setCreateState(false)}
                 type="button"
                 variant="outline"
               >
@@ -709,48 +632,48 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="region-select" className="block text-sm font-medium text-brand-primary-1">Select Region</Label>
+              <Label htmlFor="state-select" className="block text-sm font-medium text-brand-primary-1">Select State</Label>
               <Select
-                onValueChange={handleRegionSelect}
-                disabled={regions.length === 0}
+                onValueChange={handleStateSelect}
+                disabled={states.length === 0}
               >
                 <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
                   <SelectValue
                     placeholder={
-                      regions.length === 0
-                        ? "No regions available"
-                        : "Choose a region"
+                      states.length === 0
+                        ? "No states available"
+                        : "Choose a state"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {regions.length === 0 ? (
+                  {states.length === 0 ? (
                     <div className="px-2 py-1.5 text-sm text-brand-secondary-1">
-                      No regions available
+                      No states available
                     </div>
                   ) : (
-                    regions.map((region) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}{region.code ? ` (${region.code})` : ''}
+                    states.map((state) => (
+                      <SelectItem key={state.id} value={state.id}>
+                        {state.name}{state.code ? ` (${state.code})` : ''}
                       </SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
-              {regions.length === 0 && (
+              {states.length === 0 && (
                 <p className="mt-1 text-sm text-brand-secondary-1">
-                  Please create a new region to continue
+                  Please create a new state to continue
                 </p>
               )}
             </div>
             <Button
               className="w-full inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-              onClick={() => setCreateRegion(true)}
+              onClick={() => setCreateState(true)}
               type="button"
               variant="outline"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Create New Region
+              Create New State
             </Button>
           </div>
         )}
@@ -762,132 +685,14 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
-          <MapPin className="h-5 w-5" />
-          <span>Step 3: Select or Create Area</span>
-        </CardTitle>
-        <CardDescription className="text-sm text-brand-secondary-1">
-          Choose an existing area or create a new one
-          {selectedRegion && (
-            <Badge className="ml-2" variant="secondary">
-              {selectedRegion.name}
-            </Badge>
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {createArea ? (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="area_name" className="block text-sm font-medium text-brand-primary-1">Area Name</Label>
-              <Input
-                id="area_name"
-                {...register("area_name")}
-                placeholder="Enter area name"
-                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-              />
-              {errors.area_name && (
-                <p className="mt-1 text-red-500 text-sm">
-                  {errors.area_name.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="area_code" className="block text-sm font-medium text-brand-primary-1">Area Code</Label>
-              <Input
-                id="area_code"
-                {...register("area_code")}
-                maxLength={50}
-                placeholder="Enter area code"
-                className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-              />
-              {errors.area_code && (
-                <p className="mt-1 text-red-500 text-sm">
-                  {errors.area_code.message}
-                </p>
-              )}
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-                onClick={() => setCreateArea(false)}
-                type="button"
-                variant="outline"
-              >
-                Back to Select
-              </Button>
-              <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-                onClick={() => setCurrentStep(4)}
-                type="button"
-              >
-                Continue
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="area-select" className="block text-sm font-medium text-brand-primary-1">Select Area</Label>
-              <Select
-                onValueChange={handleAreaSelect}
-                disabled={areas.length === 0}
-              >
-                <SelectTrigger className="mt-1 w-full border-brand-secondary-3 focus:border-black focus:ring-black">
-                  <SelectValue
-                    placeholder={
-                      areas.length === 0
-                        ? "No areas available"
-                        : "Choose an area"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-brand-secondary-1">
-                      No areas available
-                    </div>
-                  ) : (
-                    areas.map((area) => (
-                      <SelectItem key={area.id} value={area.id}>
-                        {area.name}{area.code ? ` (${area.code})` : ''}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {areas.length === 0 && (
-                <p className="mt-1 text-sm text-brand-secondary-1">
-                  Please create a new area to continue
-                </p>
-              )}
-            </div>
-            <Button
-              className="w-full inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-              onClick={() => setCreateArea(true)}
-              type="button"
-              variant="outline"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Area
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  const renderStep4 = () => (
-    <Card className="bg-white border border-brand-secondary-3 rounded-lg">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
           <Target className="h-5 w-5" />
-          <span>Step 4: Create Branch</span>
+          <span>Step 3: Create Branch</span>
         </CardTitle>
         <CardDescription className="text-sm text-brand-secondary-1">
           Enter branch details to complete the creation
-          {selectedArea && (
+          {selectedState && (
             <Badge className="ml-2" variant="secondary">
-              {selectedArea.name}
+              {selectedState.name}
             </Badge>
           )}
         </CardDescription>
@@ -953,12 +758,11 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
 
-        {currentStep === 4 && (
+        {currentStep === 3 && (
           <div className="flex justify-between mt-6">
             <Button
-              onClick={() => setCurrentStep(3)}
+              onClick={() => setCurrentStep(2)}
               type="button"
               variant="outline"
               className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"

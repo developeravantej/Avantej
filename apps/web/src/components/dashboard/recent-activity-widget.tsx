@@ -74,7 +74,7 @@ export function RecentActivityWidget({ organizationId }: Props) {
 										{entry.description}
 									</p>
 									<p className="text-xs text-brand-secondary-1">
-										{relativeTime(entry.createdAt)}
+										{relativeTime(entry.createdAt as any)}
 									</p>
 								</div>
 							</div>

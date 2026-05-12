@@ -46,7 +46,7 @@ export function getTokenInfo(): TokenInfo {
   const info: TokenInfo = {
     exists: true,
     preview: token.substring(0, 50) + '...',
-    decoded
+    decoded: decoded ?? undefined
   };
 
   if (decoded && typeof decoded.exp === 'number') {

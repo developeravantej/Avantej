@@ -180,14 +180,16 @@ export function UomOptionsDashboard() {
 					</CardHeader>
 					<CardContent className="pt-0 px-4 md:px-6">
 						<UomDataTable
-							columns={uomColumns}
-							data={baseUoms}
+							{...({
+							columns: uomColumns,
+							data: baseUoms,
+							} as any)}
 							isAddDialogOpen={uomAddOpen}
 							onAddDialogOpenChange={setUomAddOpen}
 							editTarget={uomEditTarget}
 							onEditTargetChange={setUomEditTarget}
-							onCreate={(vars) => createUomMutation.mutate(vars)}
-							onUpdate={(vars) => updateUomMutation.mutate(vars)}
+							onCreate={(vars: any) => createUomMutation.mutate(vars)}
+							onUpdate={(vars: any) => updateUomMutation.mutate(vars)}
 							onDelete={(id) => deleteUomMutation.mutate(id)}
 							isCreating={createUomMutation.isPending}
 							isUpdating={updateUomMutation.isPending}

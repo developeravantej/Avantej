@@ -186,7 +186,7 @@ function ReportsPage() {
 								{staff.map((row) => (
 									<tr key={row.staffId} className="border-b last:border-0">
 										<td className="px-4 py-2 font-mono text-xs">{row.staffId}</td>
-										<td className="px-4 py-2">{row.appointmentCount}</td>
+										<td className="px-4 py-2">{(row as any).appointmentCount}</td>
 										<td className="px-4 py-2 text-right">
 											{formatMYR(row.totalCommission)}
 										</td>

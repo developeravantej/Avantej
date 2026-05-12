@@ -91,10 +91,10 @@ async function main() {
 		const serviceIds = allServices.map((s) => s.id);
 
 		console.log(`Found ${trainers.length} trainer(s), ${serviceIds.length} service(s), branch: ${branchId}`);
-		console.log("Trainers:", trainers.map((t) => `${t.name} (${t.id})`).join(", "));
+		console.log("Trainers:", trainers.map((t: any) => `${t.name ?? t.userId} (${t.id})`).join(", "));
 
 		// ── 2. Delete all existing appointments ─────────────────────────────────
-		const deleted = await db.delete(appointments);
+		await db.delete(appointments);
 		console.log(`\nDeleted all existing appointments.`);
 
 		// ── 3. Build seed data ───────────────────────────────────────────────────

@@ -66,7 +66,7 @@ export function ServicePricingPage() {
 	});
 
 	const branchMap = new Map(
-		(hierarchyData?.nodes ?? []).map((n) => [n.id, n.name]),
+		(hierarchyData?.nodes ?? []).map((n: { id: string; name: string }) => [n.id, n.name]),
 	);
 
 	const { data: overrides = [], isLoading: overridesLoading } = useQuery({
@@ -191,7 +191,7 @@ export function ServicePricingPage() {
 								<TableRow key={row.id}>
 									<TableCell>
 										{row.branchId
-											? (branchMap.get(row.branchId) ?? row.branchId)
+											? String(branchMap.get(row.branchId) ?? row.branchId)
 											: "Org-wide / All branches"}
 									</TableCell>
 									<TableCell>

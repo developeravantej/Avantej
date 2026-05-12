@@ -9,7 +9,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppointmentFormData, type ServiceListItem } from "@/hooks/useAppointmentFormData";
 import { validateAppointmentSlot, validateTimeConflicts } from "@/lib/appointment-scheduler";
-import type { TestAppointmentData } from "@/components/calendar/appointment-form/TestDataDialog";
+import type { TestAppointmentData, TestAppointmentSlot } from "@/components/calendar/appointment-form/TestDataDialog";
 import { toast } from "sonner";
 import type {
 	TeamMember,
@@ -207,7 +207,7 @@ export function useAppointmentFormState({
 
 	const qualifiedTrainerIds = useMemo<Set<string>>(() => {
 		if (!serviceTrainers) return new Set();
-		return new Set(serviceTrainers.map((t) => t.memberId));
+		return new Set(serviceTrainers.map((t: { memberId: string }) => t.memberId));
 	}, [serviceTrainers]);
 
 	// Clear employeeId when selected service changes and the current trainer is not qualified
@@ -670,7 +670,7 @@ export function useAppointmentFormState({
 					endsDate: slot.customRecurrence?.endsType === "on" ? slot.customRecurrence?.endsDate : undefined,
 					endsOccurrences: slot.customRecurrence?.endsType === "after" ? slot.customRecurrence?.endsOccurrences : undefined,
 				};
-			}).filter(Boolean);
+			}).filter((s): s is NonNullable<typeof s> => s !== null) as unknown as TestAppointmentSlot[];
 			setTestAppointmentData({
 				type: "MULTIPLE APPOINTMENTS",
 				appointments: allAppointments,

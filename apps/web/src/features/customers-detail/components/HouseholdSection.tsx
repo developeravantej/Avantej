@@ -242,7 +242,7 @@ export function HouseholdSection(props: {
 									<p className="text-muted-foreground">No members yet.</p>
 								) : (
 									<ul className="mt-1 space-y-1">
-										{household.members.map((m) => {
+										{household.members.map((m: { id: string; userId: string; phone?: string | null }) => {
 											const isPrimary =
 												household.primaryContactProfileId === m.id;
 											const isThis = m.id === profileId;
@@ -361,7 +361,7 @@ export function HouseholdSection(props: {
 											No households yet
 										</SelectItem>
 									) : (
-										allHouseholds.map((h) => (
+										allHouseholds.map((h: { id: string; name: string }) => (
 											<SelectItem key={h.id} value={h.id}>
 												{h.name}
 											</SelectItem>

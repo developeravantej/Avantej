@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
-	TEST_BRANCH_NODE_ID,
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
 import {
@@ -15,21 +14,44 @@ import {
 	deleteAnnouncement,
 } from "@avantej-core/services";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
 const createdIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
+let testBranchNodeId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
 	loadDevVars();
 	tenantDb = createTenantDb();
+	const [node] = await tenantDb
+		.insert(hierarchyNodes)
+		.values({
+			name: `Test Branch for Announcements ${Date.now()}`,
+			type: "branch",
+			depth: 4,
+		} as any)
+		.returning();
+	if (!node) throw new Error("Failed to create test hierarchy node");
+	testBranchNodeId = node.id;
 });
 
 afterAll(async () => {
-	if (shouldSkipIntegration() || createdIds.length === 0) return;
-	await tenantDb
-		.delete(announcements)
-		.where(inArray(announcements.id, createdIds));
+	if (shouldSkipIntegration()) return;
+	if (createdIds.length > 0) {
+		await tenantDb
+			.delete(announcements)
+			.where(inArray(announcements.id, createdIds));
+	}
+	if (testBranchNodeId) {
+		try {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, testBranchNodeId));
+		} catch {
+			// Ignore cleanup errors
+		}
+	}
 });
 
 describe("Announcements Integration", () => {
@@ -38,7 +60,7 @@ describe("Announcements Integration", () => {
 
 		// Create
 		const created = await createAnnouncement(tenantDb, {
-			branchId: TEST_BRANCH_NODE_ID,
+			branchId: testBranchNodeId,
 			title: "Integration Test Announcement",
 			message: "This is a test announcement for integration testing.",
 			priority: "high",

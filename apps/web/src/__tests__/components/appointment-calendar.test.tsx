@@ -28,9 +28,6 @@ import { AppointmentCalendar } from "@/components/calendar/appointment";
 describe("AppointmentCalendar", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockClient.appointments.cancelOccurrence.mockResolvedValue({});
-		mockClient.appointments.cancel.mockResolvedValue({});
-		mockClient.appointments.confirm.mockResolvedValue({});
 	});
 
 	it("renders without crashing with empty appointments", () => {

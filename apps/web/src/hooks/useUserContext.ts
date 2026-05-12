@@ -63,7 +63,7 @@ const _MOCK_USER_CONTEXT: UserContextResponse = {
           {
             id: "node-1",
             name: "Headquarters",
-            type: "region",
+            type: "state",
             depth: 0,
             parentId: null,
             createdAt: new Date(),

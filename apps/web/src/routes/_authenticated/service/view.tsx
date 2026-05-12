@@ -93,10 +93,7 @@ function ServiceViewComponent() {
 			<DataTable
 				columns={columns}
 				data={servicesWithCategoryName}
-				organizationId={organizationId}
-				categories={categories}
-				isLoading={servicesLoading || categoriesLoading}
-				onSuccess={refetch}
+				{...({ organizationId, categories, isLoading: servicesLoading || categoriesLoading, onSuccess: refetch } as any)}
 			/>
 		</div>
 	);

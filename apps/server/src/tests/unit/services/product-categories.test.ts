@@ -7,14 +7,14 @@ import {
 	deleteProductCategory,
 } from "@avantej-core/services";
 
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
+const mockFindMany = mock((): Promise<any> => Promise.resolve([]));
+const mockFindFirst = mock((): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((): Promise<any[]> => Promise.resolve([]));
 const mockValues = mock(() => ({ returning: mockReturning }));
 const mockInsert = mock(() => ({ values: mockValues }));
 const mockWhere = mock(() => Promise.resolve());
 const mockDelete = mock(() => ({ where: mockWhere }));
-const mockUpdate = mock(() => ({
+const mockUpdate = mock((): any => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
@@ -53,7 +53,7 @@ describe("listProductCategories", () => {
 
 		const result = await listProductCategories(mockTenantDb);
 
-		expect(result).toEqual(fakeCategories);
+		expect(result as any).toEqual(fakeCategories);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 	});
 
@@ -63,7 +63,7 @@ describe("listProductCategories", () => {
 		const result = await listProductCategories(mockTenantDb, { search: "App" });
 
 		expect(result).toHaveLength(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = ((mockFindMany as any).mock.calls[0] ?? [])[0]!;
 		expect(callArg).toHaveProperty("where");
 	});
 
@@ -83,7 +83,7 @@ describe("getProductCategoryById", () => {
 
 		const result = await getProductCategoryById(mockTenantDb, "c1");
 
-		expect(result).toEqual(fakeCategory);
+		expect(result as any).toEqual(fakeCategory);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -103,7 +103,7 @@ describe("createProductCategory", () => {
 
 		const result = await createProductCategory(mockTenantDb, { name: "Apparel" });
 
-		expect(result).toEqual(fakeCategory);
+		expect(result as any).toEqual(fakeCategory);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 		expect(mockValues).toHaveBeenCalledTimes(1);
 	});
@@ -118,8 +118,8 @@ describe("createProductCategory", () => {
 			description: "All footwear",
 		});
 
-		expect(result).toEqual(fakeCategory);
-		const valuesArg = mockValues.mock.calls[0][0];
+		expect(result as any).toEqual(fakeCategory);
+		const valuesArg = ((mockValues as any).mock.calls[0] ?? [])[0]! as any;
 		expect(valuesArg.externalCode).toBe("FW-01");
 		expect(valuesArg.description).toBe("All footwear");
 	});
@@ -143,7 +143,7 @@ describe("updateProductCategory", () => {
 
 		const result = await updateProductCategory(mockTenantDb, "c1", { name: "Updated Apparel" });
 
-		expect(result).toEqual(updatedCategory);
+		expect(result as any).toEqual(updatedCategory);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 	});
 

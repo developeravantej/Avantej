@@ -9,23 +9,23 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
-const mockUpdate = mock(() => ({
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
+const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
+const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockValues }));
+const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
 	})),
 }));
 
 // select chain for count queries
-const mockSelectWhere = mock(() => Promise.resolve([{ total: 0 }]));
-const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
-const mockSelect = mock(() => ({ from: mockSelectFrom }));
+const mockSelectWhere = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([{ total: 0 }]));
+const mockSelectFrom = mock<(...args: any[]) => any>(() => ({ where: mockSelectWhere }));
+const mockSelect = mock<(...args: any[]) => any>(() => ({ from: mockSelectFrom }));
 
-const mockTransaction = mock(async (fn: any) => fn(mockTx));
+const mockTransaction = mock<(fn: any) => Promise<any>>(async (fn: any) => fn(mockTx));
 const mockTx = {
 	insert: mockInsert,
 	update: mockUpdate,
@@ -69,9 +69,9 @@ describe("listStockRequests", () => {
 
 		const result = await listStockRequests(mockTenantDb);
 
-		expect(result).toEqual(fakeRequests);
+		expect(result as any).toEqual(fakeRequests);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -80,7 +80,7 @@ describe("listStockRequests", () => {
 
 		await listStockRequests(mockTenantDb, { status: "pending" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -89,7 +89,7 @@ describe("listStockRequests", () => {
 
 		await listStockRequests(mockTenantDb, { fromBranchId: "br1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -98,7 +98,7 @@ describe("listStockRequests", () => {
 
 		await listStockRequests(mockTenantDb, { toBranchId: "br2" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -144,7 +144,7 @@ describe("getStockRequestById", () => {
 		expect(result).not.toBeNull();
 		expect(result!.id).toBe("sr1");
 		expect(result!.items).toHaveLength(2);
-		expect(result!.items[0].productId).toBe("p1");
+		expect(result!.items[0]!.productId).toBe("p1");
 	});
 });
 
@@ -213,7 +213,7 @@ describe("createStockRequest", () => {
 
 		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
 
-		const result = await createStockRequest(mockTenantDb, {
+		await createStockRequest(mockTenantDb, {
 			dateIssued: new Date("2026-02-27"),
 			issuedByMemberId: "member-1",
 			fromBranchId: "br0",
@@ -221,8 +221,8 @@ describe("createStockRequest", () => {
 			items: [],
 		});
 
-		const headerValuesArg = txValuesHeader.mock.calls[0][0];
-		expect(headerValuesArg.fromBranchId).toBe("br0");
+		const headerValuesArg = ((txValuesHeader as any).mock.calls[0] ?? [])[0];
+		expect(headerValuesArg!.fromBranchId).toBe("br0");
 	});
 });
 
@@ -238,8 +238,8 @@ describe("approveStockRequest", () => {
 
 		expect(result.status).toBe("approved");
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
-		const setArg = mockSetUpd.mock.calls[0][0];
-		expect(setArg.status).toBe("approved");
+		const setArg = ((mockSetUpd as any).mock.calls[0] ?? [])[0];
+		expect(setArg!.status).toBe("approved");
 	});
 
 	test("throws 'Stock request not found' when update returns empty", async () => {
@@ -263,8 +263,8 @@ describe("rejectStockRequest", () => {
 		const result = await rejectStockRequest(mockTenantDb, "sr1");
 
 		expect(result.status).toBe("rejected");
-		const setArg = mockSetUpd.mock.calls[0][0];
-		expect(setArg.status).toBe("rejected");
+		const setArg = ((mockSetUpd as any).mock.calls[0] ?? [])[0];
+		expect(setArg!.status).toBe("rejected");
 	});
 
 	test("throws 'Stock request not found' when update returns empty", async () => {

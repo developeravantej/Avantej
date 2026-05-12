@@ -90,7 +90,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		createdPoIds.push(po.id);
 		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
-		const item = detail!.items[0];
+		const item = detail!.items[0]!;
 
 		const before = await readStock(item.productId, TEST_BRANCH_NODE_ID);
 
@@ -115,7 +115,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 
 		const refreshed = await getPurchaseOrderById(tenantDb, po.id);
 		expect(refreshed!.order.status).toBe("received");
-		expect(refreshed!.items[0].receivedQty).toBe(5);
+		expect(refreshed!.items[0]!.receivedQty).toBe(5);
 	}, 60_000);
 
 	test("cancelReceipt -> stock reverts + PO downgrades", async () => {
@@ -131,7 +131,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		createdPoIds.push(po.id);
 		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
-		const item = detail!.items[0];
+		const item = detail!.items[0]!;
 
 		const before = await readStock(item.productId, TEST_BRANCH_NODE_ID);
 
@@ -157,7 +157,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		expect(after).toBe(before);
 
 		const refreshed = await getPurchaseOrderById(tenantDb, po.id);
-		expect(refreshed!.items[0].receivedQty).toBe(0);
+		expect(refreshed!.items[0]!.receivedQty).toBe(0);
 	}, 60_000);
 
 	test("3-way match: PO ≈ receipt ≈ invoice within tolerance", async () => {
@@ -173,7 +173,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		createdPoIds.push(po.id);
 		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
-		const item = detail!.items[0];
+		const item = detail!.items[0]!;
 
 		const receipt = await createReceipt(tenantDb, {
 			purchaseOrderId: po.id,
@@ -223,7 +223,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		createdPoIds.push(po.id);
 		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
-		const item = detail!.items[0];
+		const item = detail!.items[0]!;
 
 		const receipt = await createReceipt(tenantDb, {
 			purchaseOrderId: po.id,

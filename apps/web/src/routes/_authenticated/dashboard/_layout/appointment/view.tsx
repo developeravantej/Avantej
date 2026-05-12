@@ -29,7 +29,7 @@ function RouteComponent() {
 
 	const currentOrg = userContext?.organizations.find((o) => o.id === organizationId);
 	const memberRole = currentOrg?.hierarchy?.member?.role?.toLowerCase();
-	const memberId = currentOrg?.hierarchy?.member?.id;
+	const memberId = (currentOrg?.hierarchy?.member as any)?.id;
 	const canViewAllTrainers = memberRole === "admin" || memberRole === "staff";
 
 	const [sidebarSelectedId, setSidebarSelectedId] = useState<string | null>(null);

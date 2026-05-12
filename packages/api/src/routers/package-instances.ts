@@ -35,6 +35,11 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { getControlPanelDb } from "../lib/context-helpers";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 const sourceSchema = z.enum(["assigned", "purchased"]);
 const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded"]);
@@ -544,16 +549,16 @@ export const packageInstancesRouter = {
       // Cross-DB: batch-lookup client names from control panel
       const controlPanelDb = getControlPanelDb(context);
       let userMap = new Map<string, string>();
-      const clientIds = [...new Set(rows.map((r) => r.clientId).filter((id): id is string => id != null))];
+      const clientIds = [...new Set(rows.map((r: any) => r.clientId).filter((id: any): id is string => id != null))];
       if (clientIds.length > 0) {
         const userRows = await controlPanelDb
           .select({ id: user.id, name: user.name })
           .from(user)
-          .where(inArray(user.id, clientIds));
+          .where(inArray(user.id, clientIds as string[]));
         userMap = new Map(userRows.map((u) => [u.id, u.name]));
       }
 
-      return rows.map((row) => ({
+      return rows.map((row: any) => ({
         ...row,
         clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
       }));
@@ -663,7 +668,8 @@ export const packageInstancesRouter = {
 
       // Transaction: update package + write staff slot + audit + notifications
       try {
-        const updated = await context.tenantDb.transaction(async (tx) => {
+        
+        const updated = await context.tenantDb.transaction(async (tx: TenantTx) => {
           const [row] = await tx
             .update(packageInstances)
             .set({
@@ -806,7 +812,8 @@ export const packageInstancesRouter = {
       }
 
       const now = new Date();
-      const updated = await context.tenantDb.transaction(async (tx) => {
+      
+      const updated = await context.tenantDb.transaction(async (tx: TenantTx) => {
         const [row] = await tx
           .update(packageInstances)
           .set({
@@ -936,9 +943,12 @@ export const packageInstancesRouter = {
 
       // Hydrate customer name (cross-DB) + customer's tenant member branch
       const controlPanelDb = getControlPanelDb(context);
-      const clientIds = [
-        ...new Set(
-          rows.map((r) => r.clientId).filter((id): id is string => !!id),
+      type PendingRow = (typeof rows)[number];
+      const clientIds: string[] = [
+        ...new Set<string>(
+          rows
+            .map((r: PendingRow) => r.clientId)
+            .filter((id: string | null): id is string => !!id),
         ),
       ];
       let customerMap = new Map<string, { name: string; email: string }>();
@@ -961,13 +971,18 @@ export const packageInstancesRouter = {
           })
           .from(members)
           .where(inArray(members.userId, clientIds));
-        memberBranchMap = new Map(memberRows.map((m) => [m.userId, m.scopeId]));
+        memberBranchMap = new Map(
+          memberRows.map((m: { userId: string; scopeId: string }) => [
+            m.userId,
+            m.scopeId,
+          ]),
+        );
       }
 
       // Apply branch-filter in JS using the resolved effective branch.
       const filtered =
         branchFilterIds && branchFilterIds.length > 0
-          ? rows.filter((r) => {
+          ? rows.filter((r: PendingRow) => {
               const effectiveBranch =
                 r.branchId ??
                 (r.clientId ? memberBranchMap.get(r.clientId) : null);
@@ -978,11 +993,11 @@ export const packageInstancesRouter = {
           : rows;
 
       // Batch-resolve preferred trainer names: members.id → members.userId → user.name
-      const preferredTrainerIds = [
-        ...new Set(
+      const preferredTrainerIds: string[] = [
+        ...new Set<string>(
           filtered
-            .map((r) => r.preferredTrainerId)
-            .filter((id): id is string => !!id),
+            .map((r: PendingRow) => r.preferredTrainerId)
+            .filter((id: string | null): id is string => !!id),
         ),
       ];
       const preferredTrainerNameMap = new Map<string, string>();
@@ -991,7 +1006,9 @@ export const packageInstancesRouter = {
           .select({ id: members.id, userId: members.userId })
           .from(members)
           .where(inArray(members.id, preferredTrainerIds));
-        const trainerUserIds = trainerMemberRows.map((m) => m.userId);
+        const trainerUserIds = trainerMemberRows.map(
+          (m: { id: string; userId: string }) => m.userId,
+        );
         if (trainerUserIds.length > 0) {
           const trainerUserRows = await controlPanelDb
             .select({ id: user.id, name: user.name })
@@ -1007,7 +1024,7 @@ export const packageInstancesRouter = {
         }
       }
 
-      return filtered.map((r) => ({
+      return filtered.map((r: PendingRow) => ({
         ...r,
         customerName: r.clientId
           ? (customerMap.get(r.clientId)?.name ?? null)

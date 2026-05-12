@@ -7,14 +7,14 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock(() => Promise.resolve([]));
-const mockFindFirst = mock(() => Promise.resolve(null));
-const mockReturning = mock(() => Promise.resolve([]));
-const mockValues = mock(() => ({ returning: mockReturning }));
-const mockInsert = mock(() => ({ values: mockValues }));
-const mockUpdate = mock(() => ({
-	set: mock(() => ({
-		where: mock(() => ({ returning: mockReturning })),
+const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
+const mockReturning = mock((): Promise<any[]> => Promise.resolve([]));
+const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
+const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
+const mockUpdate = mock((..._args: any[]) => ({
+	set: mock((..._setArgs: any[]) => ({
+		where: mock((..._whereArgs: any[]) => ({ returning: mockReturning })),
 	})),
 }));
 
@@ -48,11 +48,11 @@ describe("listServices", () => {
 
 		const result = await listServices(mockTenantDb);
 
-		expect(result).toEqual(
+		expect(result as any).toEqual(
 			fakeServices.map((s) => ({ ...s, service_category_name: null })),
 		);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 
@@ -61,7 +61,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { categoryId: "cat-1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -70,7 +70,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { branchId: "br-1" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -79,7 +79,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { isActive: true });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -88,7 +88,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { type: "private" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -97,7 +97,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { schedulingType: "class_slot" });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
 	});
 
@@ -134,7 +134,7 @@ describe("listServices", () => {
 
 		await listServices(mockTenantDb, { categoryId: null, branchId: null });
 
-		const callArg = mockFindMany.mock.calls[0][0];
+		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeUndefined();
 	});
 });
@@ -146,7 +146,7 @@ describe("getServiceById", () => {
 
 		const result = await getServiceById(mockTenantDb, "s1");
 
-		expect(result).toEqual(fakeService);
+		expect(result as any).toEqual(fakeService);
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 
@@ -177,10 +177,10 @@ describe("createService", () => {
 			maxAttendees: 1,
 		});
 
-		expect(result).toEqual(fakeService);
+		expect(result as any).toEqual(fakeService);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.name).toBe("Personal Training");
 		expect(valuesArg.duration).toBe(60);
 		expect(valuesArg.maxAttendees).toBe(1);
@@ -227,7 +227,7 @@ describe("createService", () => {
 			expiryDate: new Date("2026-12-31"),
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.categoryId).toBe("cat-1");
 		expect(valuesArg.attendanceThreshold).toBe(5);
 		expect(valuesArg.title).toBe("Beginner Yoga");
@@ -267,7 +267,7 @@ describe("createService", () => {
 			maxAttendees: 1,
 		});
 
-		const valuesArg = mockValues.mock.calls[0][0];
+		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.categoryId).toBeNull();
 		expect(valuesArg.branchId).toBeNull();
 		expect(valuesArg.attendanceThreshold).toBeNull();
@@ -289,17 +289,17 @@ describe("updateService", () => {
 		const mockReturningUpd = mock(() => Promise.resolve([updatedService]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd as any }));
 
 		const result = await updateService(mockTenantDb, "s1", {
 			name: "Updated Training",
 			isActive: false,
 		});
 
-		expect(result).toEqual(updatedService);
+		expect(result as any).toEqual(updatedService);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 
-		const setArg = mockSetUpd.mock.calls[0][0];
+		const setArg = ((mockSetUpd as any).mock.calls[0] ?? [])[0]!;
 		expect(setArg.name).toBe("Updated Training");
 		expect(setArg.isActive).toBe(false);
 		expect(setArg.updatedAt).toBeInstanceOf(Date);
@@ -314,7 +314,7 @@ describe("updateService", () => {
 			capturedSet.push(setArg);
 			return { where: mockWhereUpd };
 		});
-		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd as any }));
 
 		await updateService(mockTenantDb, "s1", { name: "Only Name" });
 
@@ -336,7 +336,7 @@ describe("updateService", () => {
 			capturedSet.push(setArg);
 			return { where: mockWhereUpd };
 		});
-		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd as any }));
 
 		await updateService(mockTenantDb, "s1", {
 			sessionCount: 10,
@@ -362,7 +362,7 @@ describe("updateService", () => {
 		const mockReturningUpd = mock(() => Promise.resolve([]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd as any }));
 
 		await expect(
 			updateService(mockTenantDb, "nonexistent", { name: "X" })

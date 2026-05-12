@@ -26,7 +26,6 @@ import { AppointmentList } from "@/components/appointments/appointment-list";
 describe("AppointmentList", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockClient.appointments.listForNode.mockResolvedValue([]);
 	});
 
 	it("renders without crashing when appointments array is empty", () => {
