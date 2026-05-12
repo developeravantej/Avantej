@@ -194,7 +194,7 @@ export default function SignUpScreen() {
 									!password.trim() ||
 									!confirmPassword.trim()
 								}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 								style={{
 									opacity:
 										isLoading ||

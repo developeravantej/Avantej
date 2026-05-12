@@ -49,7 +49,7 @@ export default function ForgotPasswordScreen() {
 					</Text>
 					<TouchableOpacity
 						onPress={() => router.replace("/(auth)/login")}
-						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Back to Sign In
@@ -105,7 +105,7 @@ export default function ForgotPasswordScreen() {
 							<TouchableOpacity
 								onPress={handleSubmit}
 								disabled={isLoading || !email.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 								style={{
 									opacity: isLoading || !email.trim() ? 0.6 : 1,
 								}}

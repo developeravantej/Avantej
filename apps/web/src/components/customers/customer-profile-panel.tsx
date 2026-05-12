@@ -340,10 +340,10 @@ export function CustomerProfilePanel({
 			// Non-empty => the value. (Never send undefined here — the field
 			// IS dirty either way; undefined would be "skip".)
 			const orNull = (s: string) => (s.trim() ? s : null);
-			const goals = profileForm.fitnessGoals
-				.split(",")
-				.map((g) => g.trim())
-				.filter(Boolean);
+			const goals = profileForm.fitnessGoals.split(",").flatMap((g) => {
+				const t = g.trim();
+				return t ? [t] : [];
+			});
 			return client.customerProfiles.upsertForCustomer({
 				organizationId: organizationId!,
 				targetUserId: detail.member.userId,

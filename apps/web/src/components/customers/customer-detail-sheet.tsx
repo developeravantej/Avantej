@@ -271,8 +271,10 @@ export function CustomerDetailSheet({
 				fitnessGoals: profileForm.fitnessGoals
 					? profileForm.fitnessGoals
 							.split(",")
-							.map((s) => s.trim())
-							.filter(Boolean)
+							.flatMap((s) => {
+								const t = s.trim();
+								return t ? [t] : [];
+							})
 					: undefined,
 				notes: profileForm.notes || undefined,
 			});

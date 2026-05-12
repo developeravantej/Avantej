@@ -57,7 +57,7 @@ export default function VerifyEmailScreen() {
 				<View className="w-full">
 					<TouchableOpacity
 						onPress={() => router.replace("/(auth)/login")}
-						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Go to Sign In

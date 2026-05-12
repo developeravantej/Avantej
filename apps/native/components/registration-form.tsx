@@ -892,7 +892,7 @@ function BranchSelectionStep({
 		return (
 			<View className="items-center py-8">
 				<ActivityIndicator size="large" color={colors.primary[1]} />
-				<Text className="mt-2 text-secondary-1">Loading countries...</Text>
+				<Text className="mt-2 text-secondary-1">Loading countries…</Text>
 			</View>
 		);
 	}

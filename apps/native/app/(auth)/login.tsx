@@ -123,7 +123,7 @@ export default function LoginScreen() {
 							<TouchableOpacity
 								onPress={handleLogin}
 								disabled={isLoading || !email.trim() || !password.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 								style={{
 									opacity:
 										isLoading || !email.trim() || !password.trim() ? 0.6 : 1,

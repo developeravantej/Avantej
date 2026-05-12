@@ -444,7 +444,7 @@ export default function PayScreen() {
 					>
 						{isProcessing ? (
 							<Text className="font-semibold text-base text-primary-2">
-								Processing...
+								Processing…
 							</Text>
 						) : (
 							<Text className="font-semibold text-base text-primary-2">

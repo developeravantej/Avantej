@@ -728,7 +728,7 @@ function RouteComponent() {
   const items: BranchItem[] = (branchData?.items ?? []) as BranchItem[];
   const totalBranches = items.length;
   const activeBranches = items.filter((b) => b.is_active !== false).length;
-  const uniqueStates = new Set(items.map((b) => b.state?.name).filter(Boolean)).size;
+  const uniqueStates = new Set(items.flatMap((b) => (b.state?.name ? [b.state.name] : []))).size;
   const assignedPic = items.filter((b) => b.picUserId).length;
 
   return (

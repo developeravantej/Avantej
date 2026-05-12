@@ -176,7 +176,7 @@ export default function CalendarScreen() {
 								color={colors.primary[1]}
 							/>
 							<Text className="mt-2 text-secondary-1 text-sm">
-								Loading appointments...
+								Loading appointments…
 							</Text>
 						</View>
 					)}

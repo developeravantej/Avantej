@@ -67,6 +67,10 @@ export default function BookWorkoutScreen() {
 	const totalSteps = 4;
 	const progressPercentage = 25;
 
+	// Stable "now" snapshot per mount so expiry / diffDays calculations don't
+	// drift across re-renders.
+	const nowMs = useMemo(() => Date.now(), []);
+
 	// Fetch user's active package instances
 	const { data: packageInstances, isLoading: packagesLoading } = useQuery(
 		orpc.packageInstances.listForClient.queryOptions({
@@ -312,7 +316,7 @@ export default function BookWorkoutScreen() {
 								if (inst.expiresAt) {
 									const expiry = new Date(inst.expiresAt);
 									const diffDays = Math.ceil(
-										(expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+										(expiry.getTime() - nowMs) / (1000 * 60 * 60 * 24),
 									);
 									if (diffDays < 0) expiryText = "Expired";
 									else if (diffDays === 0) expiryText = "Expires today";

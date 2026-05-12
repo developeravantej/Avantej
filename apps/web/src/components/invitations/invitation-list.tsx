@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,9 +62,13 @@ export function InvitationList({
 	isRevoking,
 	isResending,
 }: InvitationListProps) {
+	// Stable "now" snapshot per mount so expiry comparisons don't drift across
+	// re-renders and trigger hydration/render-mismatch concerns.
+	const now = useMemo(() => new Date(), []);
+
 	const getStatusBadge = (status: string, expiresAt: Date | string) => {
 		const expiresDate = new Date(expiresAt);
-		const isExpired = expiresDate < new Date() && status === "pending";
+		const isExpired = expiresDate < now && status === "pending";
 
 		switch (status) {
 			case "pending":
@@ -154,7 +159,7 @@ export function InvitationList({
 				<TableBody>
 					{invitations.map((invitation) => {
 						const expiresDate = new Date(invitation.expiresAt);
-						const isExpired = expiresDate < new Date() && invitation.status === "pending";
+						const isExpired = expiresDate < now && invitation.status === "pending";
 						const canResend = invitation.status === "pending" && isExpired;
 						const canRevoke = invitation.status === "pending" && !isExpired;
 

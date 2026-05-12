@@ -29,11 +29,13 @@ export const Route = createFileRoute(
 
 type Period = "today" | "this_week" | "this_month" | "this_year";
 
+const MYR_FORMATTER = new Intl.NumberFormat("en-MY", {
+	style: "currency",
+	currency: "MYR",
+});
+
 function formatMYR(cents: number): string {
-	return new Intl.NumberFormat("en-MY", {
-		style: "currency",
-		currency: "MYR",
-	}).format(cents / 100);
+	return MYR_FORMATTER.format(cents / 100);
 }
 
 function ReportsPage() {
