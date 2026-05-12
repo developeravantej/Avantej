@@ -138,6 +138,7 @@ const PAGE_LIMIT = 100;
 const TH = "px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 const TD = "px-5 py-4";
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function MembershipsPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;

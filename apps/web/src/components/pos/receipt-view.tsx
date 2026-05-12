@@ -99,6 +99,7 @@ export function ReceiptView({ data }: ReceiptViewProps) {
 			<div className="space-y-1.5">
 				{data.items.map((item, idx) => (
 					// biome-ignore lint/suspicious/noArrayIndexKey: receipt is static
+					// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: receipt line items are immutable once printed
 					<div key={idx} className="space-y-0.5">
 						<p className="leading-snug">{item.description}</p>
 						<div className="flex justify-between text-xs">

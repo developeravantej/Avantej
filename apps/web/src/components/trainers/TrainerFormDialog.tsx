@@ -112,6 +112,7 @@ export function TrainerFormDialog({
 	const [commissionsSectionOpen, setCommissionsSectionOpen] = useState(false);
 
 	// Seed form when trainer prop changes (e.g. switching from create to edit)
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 4 cohesive setState calls reseeding form + collapse panels on trainer prop change
 	useEffect(() => {
 		setForm(trainer ? trainerToForm(trainer) : EMPTY_FORM);
 		setProfileSectionOpen(true);

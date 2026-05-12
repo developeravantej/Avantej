@@ -65,6 +65,7 @@ export function BrandFormDialog({
 	});
 
 	// 4. Reset on dialog re-open with fresh initialData
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset (isOpen toggles externally), not a user event
 	useEffect(() => {
 		if (isOpen) form.reset({ name: initialData?.name ?? "" });
 	}, [isOpen, initialData, form]);

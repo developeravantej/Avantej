@@ -62,6 +62,7 @@ export const Route = createFileRoute("/subscribe")({
   },
 });
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 function SubscribePage() {
   const navigate = useNavigate();
   const { session_id, canceled } = Route.useSearch();
@@ -85,6 +86,7 @@ function SubscribePage() {
   const [hasNavigated, setHasNavigated] = useState(false);
 
   // Mutation to process successful payment
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: subscribe checkout completion navigates to dashboard, no cached queries to invalidate
   const processPaymentMutation = useMutation({
     mutationFn: async (sessionId: string) => {
       // Guest checkout: fetch session from guest endpoint
@@ -213,6 +215,7 @@ function SubscribePage() {
   });
 
   // Create checkout session mutation
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: redirects to Stripe checkout; queries are re-fetched on return
   const { mutate: createCheckout, isPending: isCreatingCheckout } = useMutation(
     {
       mutationFn: async (priceId: string) => {
@@ -258,6 +261,7 @@ function SubscribePage() {
 
   // Create guest checkout session mutation
   const { mutate: createGuestCheckout, isPending: isCreatingGuestCheckout } =
+    // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: redirects to Stripe checkout; queries are re-fetched on return
     useMutation({
       mutationFn: async ({
         priceId,

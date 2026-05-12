@@ -60,6 +60,7 @@ export function HouseholdSection(props: {
 		});
 	};
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries (line 55-58)
 	const createMutation = useMutation({
 		mutationFn: () =>
 			client.households.create({
@@ -100,6 +101,7 @@ export function HouseholdSection(props: {
 		},
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries
 	const attachMutation = useMutation({
 		mutationFn: () => {
 			if (!profileId || !pickedHouseholdId) {
@@ -123,6 +125,7 @@ export function HouseholdSection(props: {
 		},
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries
 	const detachMutation = useMutation({
 		mutationFn: () => {
 			if (!profileId) {

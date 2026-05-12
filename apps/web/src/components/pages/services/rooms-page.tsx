@@ -171,6 +171,7 @@ export function RoomsPage() {
 		},
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess calls invalidateRooms() helper (defined at line 131)
 	const deactivateMutation = useMutation({
 		mutationFn: (id: string) =>
 			client.rooms.update({
@@ -181,6 +182,7 @@ export function RoomsPage() {
 		onSuccess: () => invalidateRooms(),
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess calls invalidateRooms() helper (defined at line 131)
 	const reactivateMutation = useMutation({
 		mutationFn: (id: string) =>
 			client.rooms.update({

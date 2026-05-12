@@ -107,6 +107,7 @@ export function TimePresetEditor({
 								</div>
 								<div className="space-y-2">
 									{(config.timeSlotsPerDay[day] || []).map((time, index) => (
+										// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: ordered time-slot inputs, callbacks reference the same index
 										<div key={index} className="flex items-center gap-2">
 											<input
 												type="time"

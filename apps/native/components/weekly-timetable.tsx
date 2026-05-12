@@ -1,6 +1,24 @@
 import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/lib/colors";
+
+const styles = StyleSheet.create({
+	slotPill: {
+		position: "absolute",
+		top: 2,
+		bottom: 2,
+		backgroundColor: "rgba(0,0,0,0.5)",
+		borderRadius: 6,
+		borderWidth: 2,
+		borderStyle: "solid",
+		borderColor: colors.primary[1],
+		paddingHorizontal: 8,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 4,
+	},
+});
 
 type TimetableSlot = {
 	dayOfWeek: string; // "monday" through "sunday"
@@ -204,23 +222,7 @@ export function WeeklyTimetable({
 										return (
 											<View
 												key={`${slot.dayOfWeek}-${slot.startTime}-${slot.endTime}`}
-												style={{
-													position: "absolute",
-													top: 2,
-													bottom: 2,
-													left,
-													width,
-													backgroundColor: "rgba(0,0,0,0.5)",
-													borderRadius: 6,
-													borderWidth: 2,
-													borderStyle: "solid",
-													borderColor: colors.primary[1],
-													paddingHorizontal: 8,
-													flexDirection: "row",
-													alignItems: "center",
-													justifyContent: "center",
-													gap: 4,
-												}}
+												style={[styles.slotPill, { left, width }]}
 											>
 												<Text
 													numberOfLines={1}

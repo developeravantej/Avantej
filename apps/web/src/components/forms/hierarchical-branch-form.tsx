@@ -151,6 +151,7 @@ function StepHeader({ currentStep, selectedCountry, selectedState }: StepHeaderP
   );
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   onSuccess,
 }) => {
@@ -193,6 +194,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   });
 
   // Load countries and user organization on mount or when organizationId changes
+  // react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven fetch: loads countries when organizationId changes
   useEffect(() => {
     if (organizationId) {
       loadCountries();
@@ -201,6 +203,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
   }, [organizationId]);
 
   // Load states when country is selected
+  // react-doctor-disable-next-line react-doctor/no-effect-event-handler -- derived-state-driven fetch: loads states when selectedCountry changes
   useEffect(() => {
     if (selectedCountry) {
       loadStates(selectedCountry.id);

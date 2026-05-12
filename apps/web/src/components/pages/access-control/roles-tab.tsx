@@ -108,6 +108,7 @@ const RESOURCE_ICON_MAP: Record<
 	reports: FileText,
 };
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function RolesTabPage() {
 	const isMobile = useIsMobile();
 	const { data: userContext } = useUserContext();

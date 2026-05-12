@@ -48,6 +48,7 @@ export function PromoStep({
 			: [],
 	);
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- validation-only mutation: validates promo code, does not mutate server state; nothing to invalidate
 	const validateMutation = useMutation({
 		mutationFn: async (promoCode: string) => {
 			return client.promotions.validate({

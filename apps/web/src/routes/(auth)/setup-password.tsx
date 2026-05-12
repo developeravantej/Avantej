@@ -67,6 +67,8 @@ function SetupPasswordPage() {
   });
 
   // Validate token on mount
+  // react-doctor-disable-next-line react-doctor/no-fetch-in-effect -- one-shot token validation on mount; no caller can provide pre-fetched data
+  // react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 3 setState calls form a single mount-time validation state machine
   useEffect(() => {
     const validateToken = async () => {
       if (!token) {
@@ -120,6 +122,7 @@ function SetupPasswordPage() {
     validateToken();
   }, [token, navigate]);
 
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal auth flow: navigates to /login on success, no cached queries to invalidate
   const setupPasswordMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       const backendUrl = getServerUrl();

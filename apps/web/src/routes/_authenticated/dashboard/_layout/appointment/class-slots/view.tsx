@@ -108,6 +108,7 @@ const EMPTY_EDIT_FORM: EditFormState = {
 // Route component
 // ---------------------------------------------------------------------------
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 function ClassSlotsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -1095,6 +1096,7 @@ function ClassSlotsPage() {
 					) : (
 						<div className="space-y-2">
 							{signups.map((signup, i) => (
+								// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- composite key: appointmentId may repeat across recurring signups, index disambiguates
 								<div
 									key={`${signup.appointmentId}-${i}`}
 									className="rounded-lg border p-3 space-y-1"

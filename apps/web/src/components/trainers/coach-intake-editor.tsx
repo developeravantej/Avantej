@@ -92,6 +92,7 @@ export function CoachIntakeEditor({
 	});
 
 	// Populate local state from fetched data
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: populates local state from fetched intakeData
 	useEffect(() => {
 		if (intakeData) {
 			setSlots(

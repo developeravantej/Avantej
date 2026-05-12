@@ -73,6 +73,7 @@ interface UserCardProps {
 	isRetryingGhlSync?: boolean;
 }
 
+// react-doctor-disable-next-line react-doctor/no-many-boolean-props -- TODO: refactor to discriminated union (mode: "view" | "edit" | "syncing") once role-editor backlog clears
 function UserCard({
 	user,
 	roles,
@@ -516,6 +517,7 @@ function InviteUserDialog({
 	);
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function MembersTabPage() {
 	const isMobile = useIsMobile();
 	const { data: userContext } = useUserContext();

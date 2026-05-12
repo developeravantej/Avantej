@@ -1071,7 +1071,10 @@ export default function RegistrationForm() {
 		dateOfBirth: null,
 	});
 
-	// Auto-fill user details once session loads
+	// Auto-fill user details once session loads. This is a sync to async session
+	// state, not an event handler — there is no user action to attach to. The
+	// `prev.x || ...` guard preserves any in-progress edits, so re-running on
+	// session refresh is safe and idempotent.
 	useEffect(() => {
 		if (user) {
 			setPersonalDetails((prev) => ({

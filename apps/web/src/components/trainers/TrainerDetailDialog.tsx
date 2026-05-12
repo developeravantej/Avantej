@@ -27,8 +27,7 @@ type Props = {
 function getInitials(name: string) {
 	return name
 		.split(" ")
-		.map((p) => p[0])
-		.filter(Boolean)
+		.flatMap((p) => (p[0] ? [p[0]] : []))
 		.slice(0, 2)
 		.join("")
 		.toUpperCase();

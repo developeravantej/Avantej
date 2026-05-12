@@ -199,6 +199,7 @@ interface CustomerProfilePanelProps {
 	onDeleted?: () => void;
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function CustomerProfilePanel({
 	memberId,
 	showBackLink = true,

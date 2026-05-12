@@ -141,18 +141,7 @@ const AndroidTimePicker = ({
 			{/* Hour Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
 				/>
 				<ScrollView
 					ref={hourRef}
@@ -205,18 +194,7 @@ const AndroidTimePicker = ({
 			{/* Minute Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
 				/>
 				<ScrollView
 					ref={minuteRef}
@@ -263,18 +241,7 @@ const AndroidTimePicker = ({
 			{/* AM/PM Picker */}
 			<View style={{ flex: 0.8, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
 				/>
 				<ScrollView
 					showsVerticalScrollIndicator={false}
@@ -329,6 +296,44 @@ type PreferredTime = {
 const trainerRowStyles = StyleSheet.create({
 	name: { color: colors.primary[1] },
 	email: { color: colors.secondary[1] },
+});
+
+const pickerStyles = StyleSheet.create({
+	indicator: {
+		position: "absolute",
+		left: 0,
+		right: 0,
+		borderTopWidth: 1,
+		borderBottomWidth: 1,
+		borderColor: colors.primary[1],
+		zIndex: 1,
+		pointerEvents: "none",
+	},
+});
+
+const slotCardStyles = StyleSheet.create({
+	closeButton: {
+		position: "absolute",
+		top: 8,
+		right: 8,
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		backgroundColor: "rgba(255,255,255,0.18)",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	addCard: {
+		width: "48%",
+		minHeight: 110,
+		borderRadius: 16,
+		borderStyle: "dashed",
+		borderWidth: 1.5,
+		borderColor: colors.secondary[1],
+		alignItems: "center",
+		justifyContent: "center",
+		padding: 14,
+	},
 });
 
 type TrainerLike = { trainerId: string; trainerName: string; trainerEmail?: string | null };
@@ -416,16 +421,6 @@ export default function ScheduleScreen() {
 	const selectedTrainer = trainers.find(
 		(t) => t.trainerId === selectedTrainerId,
 	);
-
-	const handleSelectTrainer = (
-		trainer: { id: string; name: string } | null,
-	) => {
-		update({
-			preferredTrainerId: trainer?.id ?? null,
-			preferredTrainerName: trainer?.name ?? null,
-		});
-		setSelectedTrainerId(trainer?.id ?? null);
-	};
 
 	const handlePickTrainerFromList = useCallback(
 		(id: string, name: string) => {
@@ -794,17 +789,7 @@ export default function ScheduleScreen() {
 											>
 												<Pressable
 													onPress={() => handleRemovePreferredTime(slotIdx)}
-													style={{
-														position: "absolute",
-														top: 8,
-														right: 8,
-														width: 24,
-														height: 24,
-														borderRadius: 12,
-														backgroundColor: "rgba(255,255,255,0.18)",
-														alignItems: "center",
-														justifyContent: "center",
-													}}
+													style={slotCardStyles.closeButton}
 												>
 													<Ionicons
 														name="close"
@@ -857,17 +842,7 @@ export default function ScheduleScreen() {
 												if (!expandedDay) setExpandedDay(DAYS_OF_WEEK[0]);
 												setPickerOpen(true);
 											}}
-											style={{
-												width: "48%",
-												minHeight: 110,
-												borderRadius: 16,
-												borderStyle: "dashed",
-												borderWidth: 1.5,
-												borderColor: colors.secondary[1],
-												alignItems: "center",
-												justifyContent: "center",
-												padding: 14,
-											}}
+											style={slotCardStyles.addCard}
 										>
 											<Text
 												style={{

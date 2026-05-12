@@ -91,6 +91,7 @@ interface DataTableProps<TData, TValue> {
 	emptyAction?: { label: string; onClick: () => void };
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 function DataTable<TData extends UomConversionRow, TValue>({
 	columns,
 	data,
@@ -126,6 +127,8 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	const [editBaseUomId, setEditBaseUomId] = useState("");
 	const [editFactor, setEditFactor] = useState("1");
 
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: seeds inline edit form from editTarget prop
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 4 cohesive setState calls seeding edit-row inline form from editTarget prop
 	useEffect(() => {
 		if (editTarget) {
 			setEditName(editTarget.name);

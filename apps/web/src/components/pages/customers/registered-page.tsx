@@ -80,6 +80,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 	const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
 
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven: opens customer drawer from URL search param on mount
 	useEffect(() => {
 		if (initialCustomerId) {
 			setSelectedMemberId(initialCustomerId);

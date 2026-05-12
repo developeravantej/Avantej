@@ -39,6 +39,7 @@ export function RejectPackageDialog({
 }: RejectPackageDialogProps) {
 	const [reason, setReason] = useState("");
 
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: open toggles externally, not a user event
 	useEffect(() => {
 		if (open) setReason("");
 	}, [open]);

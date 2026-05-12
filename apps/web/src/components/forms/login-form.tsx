@@ -78,6 +78,7 @@ export default function LoginForm({
 		<div className={cn("flex flex-col gap-6", className)} {...props}>
 			<Card className="overflow-hidden p-0">
 				<CardContent className="grid p-0 md:grid-cols-2">
+					{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA: prevent native form GET nav, defer to tanstack-form handleSubmit */}
 					<form
 						onSubmit={(e) => {
 							e.preventDefault();

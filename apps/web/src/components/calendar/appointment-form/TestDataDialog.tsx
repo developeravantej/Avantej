@@ -129,6 +129,7 @@ export function TestDataDialog({ data, onClose, onConfirm }: TestDataDialogProps
 								<h4 className="text-sm font-semibold text-brand-primary-1">📊 Multiple Appointments Slots:</h4>
 								<div className="space-y-3">
 									{data.appointments.map((appointment, index) => (
+										// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: appointment slots displayed in fixed order in test/debug dialog
 										<div key={index} className="bg-orange-50 p-3 rounded-lg border">
 											<div className="text-sm font-medium text-brand-primary-1 mb-2">
 												Slot {index + 1}: {appointment.title}

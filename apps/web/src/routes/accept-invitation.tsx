@@ -49,6 +49,7 @@ function AcceptInvitationPage() {
 	const isValid = invitationData?.isValid;
 
 	// Pre-verify invited email (enables existing-but-unverified users to log in)
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal auth flow: navigates to login after invitation acceptance, no cached queries to invalidate
 	const verifyEmailMutation = useMutation({
 		mutationFn: async () => {
 			if (!token || !orgId) {

@@ -70,6 +70,7 @@ export function PreferredTimesEditor({
 		<div className="space-y-2">
 			{items.map((item, i) => (
 				// biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
+				// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: items are ordered preferences with no stable id
 				<div key={i} className="flex items-center gap-2">
 					<span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
 					<Select

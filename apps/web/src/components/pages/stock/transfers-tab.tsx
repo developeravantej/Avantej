@@ -71,6 +71,7 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 // Page component
 // ---------------------------------------------------------------------------
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function TransferOrdersTabPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -397,6 +398,7 @@ export function TransferOrdersTabPage() {
 	];
 
 	// ---- Branch combobox ----
+	// react-doctor-disable-next-line react-doctor/no-nested-component-definition -- closes over `branches` query result; lifting requires threading branches + filtering state through props
 	function BranchCombobox({
 		id,
 		value,

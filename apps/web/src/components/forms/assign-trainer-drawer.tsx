@@ -58,6 +58,7 @@ export function AssignTrainerDrawer({
 		defaultTrainerMemberId ?? null,
 	);
 
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: seeds form when drawer opens
 	useEffect(() => {
 		if (open) {
 			setTrainerMemberId(defaultTrainerMemberId ?? null);

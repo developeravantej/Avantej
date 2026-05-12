@@ -179,6 +179,7 @@ function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput 
 // 4. Component
 // ---------------------------------------------------------------------------
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function ServiceFormDialog({
 	isOpen,
 	onClose,
@@ -210,6 +211,7 @@ export function ServiceFormDialog({
 	});
 
 	// Reset on dialog re-open with fresh initialData
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
 	useEffect(() => {
 		if (isOpen) form.reset(buildDefaultValues(initialData));
 	}, [isOpen, initialData, form]);
