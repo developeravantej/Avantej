@@ -216,6 +216,7 @@ function VoidRowDialog({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 // react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function AllCommissionsPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;

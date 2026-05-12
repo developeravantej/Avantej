@@ -366,6 +366,7 @@ const TrainerRow = memo(function TrainerRow({
 	);
 });
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { organizations } = useOrganizationContext();

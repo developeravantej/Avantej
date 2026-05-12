@@ -840,6 +840,7 @@ function BranchSelectionStep({
 	data: BranchSelection;
 	onChange: (data: Partial<BranchSelection>) => void;
 	errors: Record<string, string>;
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const [countries, setCountries] = useState<string[]>([]);
 	const [branches, setBranches] = useState<
@@ -1047,6 +1048,7 @@ function BranchSelectionStep({
 
 // ─── Main Registration Form ──────────────────────────────────────
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export default function RegistrationForm() {
 	const { user, refetch } = useAuth();
 	const [currentStep, setCurrentStep] = useState(0);

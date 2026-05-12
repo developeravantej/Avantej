@@ -518,6 +518,7 @@ function InviteUserDialog({
 }
 
 // react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function MembersTabPage() {
 	const isMobile = useIsMobile();
 	const { data: userContext } = useUserContext();

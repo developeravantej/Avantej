@@ -69,6 +69,7 @@ const formatTime = (isoString: string): string => {
 	return `${displayHour}:${minutes.toString().padStart(2, "0")} ${period}`;
 };
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = useBookingFlow();

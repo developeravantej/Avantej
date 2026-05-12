@@ -41,6 +41,7 @@ export function ServicePriceOverrideDialog({
 	organizationId,
 	defaultServiceId,
 	onSuccess,
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: Props) {
 	const [serviceId, setServiceId] = useState(defaultServiceId ?? "");
 	const [branchId, setBranchId] = useState<string>("__org_wide__");

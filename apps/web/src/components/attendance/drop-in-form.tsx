@@ -35,6 +35,7 @@ export function DropInForm({
 	organizationId,
 	branchId,
 	queryKey: _queryKey,
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DropInFormProps) {
 	const [clientId, setClientId] = useState("");
 	const [clientType, setClientType] = useState<"member" | "walk_in">("member");

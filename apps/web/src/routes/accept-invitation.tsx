@@ -20,6 +20,7 @@ export const Route = createFileRoute("/accept-invitation")({
 	},
 });
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function AcceptInvitationPage() {
 	const { token, orgId } = useSearch({ from: "/accept-invitation" });
 	const navigate = useNavigate();

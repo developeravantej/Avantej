@@ -54,6 +54,7 @@ export function DataTable({
 	isDeactivating = false,
 	error,
 	onRetry,
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");

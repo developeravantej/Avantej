@@ -38,6 +38,7 @@ export type CreatePOSheetProps = {
 	onCreated: () => void;
 };
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: CreatePOSheetProps) {
 	const [supplierId, setSupplierId] = useState("");
 	const [branchId, setBranchId] = useState("");

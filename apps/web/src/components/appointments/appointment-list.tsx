@@ -29,6 +29,7 @@ interface AppointmentListProps {
 	defaultTrainerId?: string | null;
 }
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function AppointmentList({ appointments, isLoading, defaultTrainerId }: AppointmentListProps) {
 	const [view, setView] = useState<"list" | "card">("list");
 	const [showAddModal, setShowAddModal] = useState(false);

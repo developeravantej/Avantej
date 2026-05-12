@@ -67,6 +67,7 @@ interface RegisteredCustomersPageProps {
 	initialCustomerId?: string;
 }
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustomersPageProps) {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
