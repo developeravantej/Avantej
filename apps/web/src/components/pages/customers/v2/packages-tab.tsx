@@ -31,6 +31,7 @@ import {
 	type InstallmentPlanOption,
 } from "./packages-tab-filters";
 import { PackagesTabRowDrawer } from "./packages-tab-row-drawer";
+import { PackageInstanceRow } from "./package-instance-row";
 
 // ── Inferred API types ────────────────────────────────────────────────────────
 
@@ -560,101 +561,17 @@ export function PackagesTab({
 						</TableRow>
 					) : (
 						rows.map((row) => {
-							const name = row.clientName ?? "Unknown";
-							const initials = getInitials(name);
-							const dateStr = formatDate(row.expiresAt);
-							const expiry = expiryLabel(row.daysUntilExpiry);
 							const variant = statusVariant(row.status, row.isLocked);
 							const label = statusLabel(row.status, row.isLocked);
-
 							return (
-								<TableRow
+								<PackageInstanceRow
 									key={row.id}
-									className="cursor-pointer hover:bg-muted/20"
+									row={row}
+									showCustomer={!clientUserId}
+									variant={variant}
+									label={label}
 									onClick={() => setSelectedRow(row)}
-								>
-									{/* Customer — hidden per-customer */}
-									{!clientUserId && (
-										<TableCell className={TD}>
-											<div className="flex items-center gap-3.5">
-												<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xs">
-													{initials}
-												</span>
-												<span className="font-medium">{name}</span>
-											</div>
-										</TableCell>
-									)}
-
-									{/* Package */}
-									<TableCell className={TD}>
-										<div className="flex items-center gap-2">
-											<span className="font-medium">{row.serviceName ?? "—"}</span>
-											{row.installment && (
-												<Layers className="size-3.5 text-muted-foreground" />
-											)}
-										</div>
-									</TableCell>
-
-									{/* Credits */}
-									<TableCell className={TD}>
-										<div className="flex flex-col gap-1">
-											<span className="tabular-nums text-sm">
-												{row.creditsRemaining} / {row.creditsTotal}
-											</span>
-											<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-												<div
-													className="h-full rounded-full bg-primary transition-all"
-													style={{
-														width: `${Math.round(
-															(row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100,
-														)}%`,
-													}}
-												/>
-											</div>
-										</div>
-									</TableCell>
-
-									{/* Expires */}
-									<TableCell className={TD}>
-										<div className="flex flex-col gap-0.5">
-											<span className="text-sm">{dateStr}</span>
-											<span className={`text-xs ${expiry.className}`}>{expiry.text}</span>
-										</div>
-									</TableCell>
-
-									{/* Status */}
-									<TableCell className={TD}>
-										{row.isLocked && row.lockedReason ? (
-											<TooltipProvider>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<span>
-															<Badge variant={variant}>{label}</Badge>
-														</span>
-													</TooltipTrigger>
-													<TooltipContent>
-														<p>{row.lockedReason}</p>
-													</TooltipContent>
-												</Tooltip>
-											</TooltipProvider>
-										) : (
-											<Badge variant={variant}>{label}</Badge>
-										)}
-									</TableCell>
-
-									{/* Outstanding */}
-									<TableCell className={TD}>
-										<span
-											className={`tabular-nums ${
-												row.outstandingBalanceCents > 0
-													? "font-medium text-red-600"
-													: "text-muted-foreground"
-											}`}
-										>
-											{formatPrice(row.outstandingBalanceCents, "MYR")}
-										</span>
-									</TableCell>
-								</TableRow>
+								/>
 							);
 						})
 					)}

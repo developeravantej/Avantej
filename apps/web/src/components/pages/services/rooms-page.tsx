@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/tables/rooms/view/data-table";
 import type { RoomRow } from "@/components/tables/rooms/view/columns";
+import { RoomFormDialog } from "./room-form-dialog";
+import { RoomsActionBar } from "./rooms-action-bar";
 
 const ACTIVE_TABS = [
 	{ label: "Active", value: true as boolean | undefined },
@@ -288,34 +290,12 @@ export function RoomsPage() {
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			{/* Action bar + filter tabs */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-2">
-				<div className="flex items-end gap-0">
-					{ACTIVE_TABS.map((tab) => {
-						const isSelected = activeFilter === tab.value;
-						return (
-							<button
-								key={tab.label}
-								type="button"
-								onClick={() => setActiveFilter(tab.value)}
-								className={`px-3 pb-1.5 text-sm font-medium border-b-2 transition-colors ${
-									isSelected
-										? "border-foreground text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground"
-								}`}
-							>
-								{tab.label}
-							</button>
-						);
-					})}
-				</div>
-				{canCreate && (
-					<Button size="sm" onClick={openCreate}>
-						<Plus className="mr-2 size-4" />
-						Create Room
-					</Button>
-				)}
-			</div>
+			<RoomsActionBar
+				activeFilter={activeFilter}
+				setActiveFilter={setActiveFilter}
+				canCreate={canCreate}
+				onCreate={openCreate}
+			/>
 
 			{/* Content */}
 			<div className="min-h-0 flex-1 overflow-hidden">
@@ -347,137 +327,18 @@ export function RoomsPage() {
 				)}
 			</div>
 
-			{/* Create / Edit Dialog */}
-			<Dialog
+			<RoomFormDialog
 				open={isSheetOpen}
-				onOpenChange={(open) => {
-					if (!open) closeSheet();
-				}}
-			>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>
-							{editingRoom ? "Edit Room" : "Create Room"}
-						</DialogTitle>
-						<DialogDescription>
-							{editingRoom
-								? "Update the room details below."
-								: "Fill in the details to create a new room."}
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-4 px-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-name" className="text-sm font-medium">
-								Name <span className="text-destructive">*</span>
-							</label>
-							<Input
-								id="room-name"
-								value={form.name}
-								onChange={(e) =>
-									setForm((prev) => ({ ...prev, name: e.target.value }))
-								}
-								placeholder="e.g. Studio A"
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-type" className="text-sm font-medium">
-								Type <span className="text-destructive">*</span>
-							</label>
-							<Select
-								value={form.type}
-								onValueChange={(val) =>
-									setForm((prev) => ({ ...prev, type: val as RoomType }))
-								}
-							>
-								<SelectTrigger id="room-type">
-									<SelectValue placeholder="Select a type" />
-								</SelectTrigger>
-								<SelectContent>
-									{TYPE_OPTIONS.map((opt) => (
-										<SelectItem key={opt.value} value={opt.value}>
-											{opt.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-capacity" className="text-sm font-medium">
-								Capacity <span className="text-destructive">*</span>
-							</label>
-							<Input
-								id="room-capacity"
-								type="number"
-								min={1}
-								value={form.capacity}
-								onChange={(e) =>
-									setForm((prev) => ({ ...prev, capacity: e.target.value }))
-								}
-								placeholder="e.g. 10"
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-branch" className="text-sm font-medium">
-								Branch <span className="text-destructive">*</span>
-							</label>
-							{branches.length === 0 ? (
-								<p className="text-sm text-muted-foreground border border-dashed rounded-md p-3">
-									No branches found. Create a branch first.
-								</p>
-							) : (
-								<BranchCombobox
-									id="room-branch"
-									value={form.branchId}
-									onChange={(id) =>
-										setForm((prev) => ({ ...prev, branchId: id }))
-									}
-									branches={branches}
-									placeholder="Search branch..."
-								/>
-							)}
-						</div>
-
-						{editingRoom && (
-							<div className="flex items-center gap-3">
-								<input
-									id="room-active"
-									type="checkbox"
-									checked={form.isActive}
-									onChange={(e) =>
-										setForm((prev) => ({
-											...prev,
-											isActive: e.target.checked,
-										}))
-									}
-									className="size-4 rounded border-border text-primary focus:ring-primary"
-								/>
-								<label htmlFor="room-active" className="text-sm font-medium">
-									Active
-								</label>
-							</div>
-						)}
-					</div>
-
-					<DialogFooter className="px-4">
-						<Button variant="outline" onClick={closeSheet} disabled={isBusy}>
-							Cancel
-						</Button>
-						<Button onClick={handleSubmit} disabled={isBusy}>
-							{isBusy
-								? editingRoom
-									? "Saving..."
-									: "Creating..."
-								: editingRoom
-									? "Save Changes"
-									: "Create Room"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				onOpenChange={(open) => { if (!open) closeSheet(); }}
+				editingRoom={!!editingRoom}
+				form={form}
+				setForm={setForm}
+				branches={branches}
+				branchCombobox={(p) => <BranchCombobox {...p} />}
+				onCancel={closeSheet}
+				onSubmit={handleSubmit}
+				isBusy={isBusy}
+			/>
 		</div>
 	);
 }

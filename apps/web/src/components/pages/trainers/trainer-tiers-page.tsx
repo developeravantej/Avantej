@@ -6,23 +6,15 @@ import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertTriangle } from "lucide-react";
+import {
+	CreateTierDialog,
+	DeactivateTierDialog,
+	EMPTY_TIER_FORM as EMPTY_FORM,
+} from "./trainer-tier-dialogs";
 
 type MissingRateCategory = { categoryId: string; configId: string };
-
-const EMPTY_FORM = { name: "", rank: 0, description: "" };
 
 export function TrainerTiersPage() {
 	const { data: userContext } = useUserContext();
@@ -228,126 +220,27 @@ export function TrainerTiersPage() {
 				</div>
 			)}
 
-			<Dialog
+			<CreateTierDialog
 				open={createOpen}
-				onOpenChange={(open) => {
-					if (!open) {
-						setCreateOpen(false);
-						setCreateForm(EMPTY_FORM);
-					}
+				form={createForm}
+				setForm={setCreateForm}
+				onClose={() => {
+					setCreateOpen(false);
+					setCreateForm(EMPTY_FORM);
 				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>New Tier</DialogTitle>
-						<DialogDescription>
-							Create a new seniority tier for commission calculation.
-						</DialogDescription>
-					</DialogHeader>
-					<form onSubmit={handleCreate} className="flex flex-col gap-4 pt-2">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="tier-name"
-								placeholder="e.g. Senior Trainer"
-								value={createForm.name}
-								onChange={(e) =>
-									setCreateForm((f) => ({ ...f, name: e.target.value }))
-								}
-								autoComplete="off"
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-rank">Rank</Label>
-							<Input
-								id="tier-rank"
-								type="number"
-								min={0}
-								value={createForm.rank}
-								onChange={(e) =>
-									setCreateForm((f) => ({
-										...f,
-										rank: parseInt(e.target.value, 10) || 0,
-									}))
-								}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-description">Description</Label>
-							<Textarea
-								id="tier-description"
-								placeholder="Optional description..."
-								rows={3}
-								value={createForm.description}
-								onChange={(e) =>
-									setCreateForm((f) => ({ ...f, description: e.target.value }))
-								}
-							/>
-						</div>
-						<DialogFooter className="pt-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setCreateOpen(false);
-									setCreateForm(EMPTY_FORM);
-								}}
-								disabled={createMutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={createMutation.isPending}>
-								{createMutation.isPending ? "Creating..." : "Create Tier"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
+				onSubmit={handleCreate}
+				isPending={createMutation.isPending}
+			/>
 
-			<Dialog
+			<DeactivateTierDialog
 				open={deactivateTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) setDeactivateTarget(null);
+				targetName={tiers.find((t) => t.id === deactivateTarget)?.name ?? null}
+				onCancel={() => setDeactivateTarget(null)}
+				onConfirm={() => {
+					if (deactivateTarget) deactivateMutation.mutate(deactivateTarget);
 				}}
-			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Deactivate Tier</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to deactivate{" "}
-							<span className="font-semibold text-foreground">
-								{tiers.find((t) => t.id === deactivateTarget)?.name ??
-									"this tier"}
-							</span>
-							? Trainers assigned to it will have their commission skipped until
-							the tier is reactivated.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="pt-2">
-						<Button
-							variant="outline"
-							onClick={() => setDeactivateTarget(null)}
-							disabled={deactivateMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (deactivateTarget)
-									deactivateMutation.mutate(deactivateTarget);
-							}}
-							disabled={deactivateMutation.isPending}
-						>
-							{deactivateMutation.isPending
-								? "Deactivating..."
-								: "Deactivate"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				isPending={deactivateMutation.isPending}
+			/>
 		</div>
 	);
 }

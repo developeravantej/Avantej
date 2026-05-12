@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useState, useRef, useEffect } from "react";
-import { Plus, CalendarDays, ChevronLeft, ChevronRight, LayoutList, LayoutGrid } from "lucide-react";
+import { Plus, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { AppointmentListHeader } from "@/features/appointments/components/AppointmentListHeader";
+import { DateGroupHeader } from "@/features/appointments/components/DateGroupHeader";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
@@ -167,73 +169,39 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 	return (
 		<>
 			<Card className="h-full flex flex-col shadow-sm border-gray-100 rounded-2xl overflow-hidden">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
-					<div className="flex items-center gap-4">
-						<CardTitle className="text-xl font-semibold">Appointments</CardTitle>
-						<div className="flex items-center gap-1.5">
-							<Button
-								variant="ghost"
-								size="sm"
-								className="size-8 p-0 rounded-full"
-								onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-							>
-								<ChevronLeft className="size-4" />
-							</Button>
-							<span className="text-base font-semibold min-w-[140px] text-center">{monthLabel}</span>
-							<Button
-								variant="ghost"
-								size="sm"
-								className="size-8 p-0 rounded-full"
-								onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-							>
-								<ChevronRight className="size-4" />
-							</Button>
-							<button
-								type="button"
-								className="ml-1 text-xs font-medium text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-full hover:bg-blue-50 border border-blue-100 transition-colors"
-								onClick={() => {
-									setCurrentMonth(new Date());
-									setTimeout(() => {
-										if (todayRef.current && scrollRef.current) {
-											scrollRef.current.scrollTop = Math.max(0, todayRef.current.offsetTop - 16);
-										}
-									}, 0);
-								}}
-							>
-								Today
-							</button>
-						</div>
-					</div>
-					<div className="flex items-center gap-2">
-						{/* View toggle */}
-						<div className="flex items-center rounded-xl border border-gray-200 p-0.5 bg-gray-50">
-							<button
-								type="button"
-								onClick={() => setView("list")}
-								className={cn(
-									"flex size-7 items-center justify-center rounded-lg transition-colors",
-									view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-400 hover:text-gray-600",
-								)}
-							>
-								<LayoutList className="size-3.5" />
-							</button>
-							<button
-								type="button"
-								onClick={() => setView("card")}
-								className={cn(
-									"flex size-7 items-center justify-center rounded-lg transition-colors",
-									view === "card" ? "bg-white shadow-sm text-gray-800" : "text-gray-400 hover:text-gray-600",
-								)}
-							>
-								<LayoutGrid className="size-3.5" />
-							</button>
-						</div>
-						<Button size="sm" onClick={() => setShowAddModal(true)} className="gap-2 rounded-xl">
-							<Plus className="size-4" />
-							Add Appointment
-						</Button>
-					</div>
-				</CardHeader>
+				<AppointmentListHeader
+					monthLabel={monthLabel}
+					view={view}
+					onViewChange={setView}
+					onPrevMonth={() =>
+						setCurrentMonth(
+							new Date(
+								currentMonth.getFullYear(),
+								currentMonth.getMonth() - 1,
+							),
+						)
+					}
+					onNextMonth={() =>
+						setCurrentMonth(
+							new Date(
+								currentMonth.getFullYear(),
+								currentMonth.getMonth() + 1,
+							),
+						)
+					}
+					onToday={() => {
+						setCurrentMonth(new Date());
+						setTimeout(() => {
+							if (todayRef.current && scrollRef.current) {
+								scrollRef.current.scrollTop = Math.max(
+									0,
+									todayRef.current.offsetTop - 16,
+								);
+							}
+						}, 0);
+					}}
+					onAddAppointment={() => setShowAddModal(true)}
+				/>
 
 				<CardContent className="flex-1 overflow-hidden p-0">
 					<div
@@ -267,28 +235,13 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 										<Fragment key={key}>
 										{_insertBeforeKey === key && <div ref={todayRef} />}
 										<div ref={todayDate ? todayRef : undefined}>
-											{/* Date group header */}
-											<div className="flex items-center gap-3 mb-4">
-												<div
-													className={cn(
-														"flex size-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
-														todayDate ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700",
-													)}
-												>
-													<span className="text-[10px] font-semibold leading-none tracking-wide">
-														{dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
-													</span>
-													<span className="text-lg font-bold leading-none mt-1">{dateObj.getDate()}</span>
-												</div>
-												<div>
-													<p className={cn("text-sm font-semibold", todayDate ? "text-blue-600" : "text-gray-800")}>{label}</p>
-													<p className="text-xs text-muted-foreground">{sub}</p>
-												</div>
-												<div className="flex-1 h-px bg-gray-100 ml-1" />
-												<span className="text-xs text-muted-foreground shrink-0">
-													{dayAppts.length} appointment{dayAppts.length !== 1 ? "s" : ""}
-												</span>
-											</div>
+											<DateGroupHeader
+												dateObj={dateObj}
+												label={label}
+												sub={sub}
+												todayDate={todayDate}
+												count={dayAppts.length}
+											/>
 
 											{/* ── List view ── */}
 											{view === "list" && (

@@ -7,17 +7,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { CheckInRow } from "@/components/attendance/check-ins-log";
 import { CheckInsLog } from "@/components/attendance/check-ins-log";
+import { AttendanceFiltersBand } from "@/components/attendance/attendance-filters-band";
+import { AttendancePageHeader } from "@/components/attendance/attendance-page-header";
 import { DropInForm } from "@/components/attendance/drop-in-form";
 import type { TodaysBookingRow } from "@/components/attendance/today-bookings";
 import { TodayBookingsSection } from "@/components/attendance/today-bookings";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageCard } from "@/components/ui/page-card";
@@ -172,14 +166,8 @@ function AttendancePage() {
 	if (!organizationId) {
 		return (
 			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Attendance</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">Today's check-ins and drop-ins</p>
-					</div>
+				<div className="flex shrink-0 items-center px-6 pt-6 pb-4">
+					<AttendancePageHeader />
 				</div>
 				<div className="flex flex-1 items-center justify-center text-muted-foreground">
 					<p className="text-sm">Select an organization to view attendance.</p>
@@ -191,14 +179,8 @@ function AttendancePage() {
 	if (!canRead) {
 		return (
 			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Attendance</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">Today's check-ins and drop-ins</p>
-					</div>
+				<div className="flex shrink-0 items-center px-6 pt-6 pb-4">
+					<AttendancePageHeader />
 				</div>
 				<div className="flex flex-1 items-center justify-center">
 					<div className="space-y-2 text-center">
@@ -218,56 +200,17 @@ function AttendancePage() {
 		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
 			{/* Fixed header */}
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Attendance</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Today's check-ins and drop-ins
-						</p>
-					</div>
-				</div>
+				<AttendancePageHeader />
 			</div>
 
 			{/* Filters band */}
-			<div className="shrink-0 border-b border-border/40 px-6 py-3">
-				<div className="flex flex-wrap items-end gap-3">
-					{/* Branch selector */}
-					{branchOptions.length > 0 && (
-						<div className="flex flex-col gap-1">
-							<Label className="text-xs">Branch</Label>
-							<Select
-								value={branchId || ""}
-								onValueChange={(v) => setBranchId(v)}
-							>
-								<SelectTrigger className="h-9 w-56">
-									<SelectValue placeholder="Select branch..." />
-								</SelectTrigger>
-								<SelectContent>
-									{branchOptions.map((node) => (
-										<SelectItem key={node.id} value={node.id}>
-											{node.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
-
-					{/* Date picker */}
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Date</Label>
-						<input
-							type="date"
-							value={date}
-							onChange={(e) => setDate(e.target.value)}
-							className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-						/>
-					</div>
-				</div>
-			</div>
+			<AttendanceFiltersBand
+				branchOptions={branchOptions}
+				branchId={branchId}
+				onBranchChange={setBranchId}
+				date={date}
+				onDateChange={setDate}
+			/>
 
 			{/* Scroll region */}
 			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">

@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Download, Eye, Pencil, Search, Users } from "lucide-react";
+import { Download, Search, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { useEffect, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
-import { CopyableCell } from "@/components/tables/copyable-cell";
+import { CustomerRow } from "@/components/pages/customers/customer-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,15 +54,6 @@ type CustomerDirectoryRow = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getInitials(name: string): string {
-	return name
-		.split(" ")
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((n) => n[0].toUpperCase())
-		.join("");
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -310,109 +299,16 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 										</TableCell>
 									</TableRow>
 								) : (
-									rows.map((row) => {
-										const initials = getInitials(row.name);
-										return (
-											<TableRow
-												key={row.memberId}
-												className="transition-colors hover:bg-muted/30"
-											>
-												{/* Customer */}
-												<TableCell className={TD}>
-													<div className="flex items-center gap-3.5">
-														<span className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold bg-primary text-primary-foreground">
-															{initials}
-														</span>
-														<div className="min-w-0">
-															<p className="truncate font-medium text-sm leading-snug">
-																{row.name}
-															</p>
-															<p className="truncate text-xs text-muted-foreground">
-																{row.email}
-															</p>
-														</div>
-													</div>
-												</TableCell>
-
-												{/* Phone */}
-												<TableCell className={`${TD} text-sm`}>
-													{row.phone
-														? <CopyableCell value={row.phone} />
-														: <span className="text-muted-foreground">-</span>}
-												</TableCell>
-
-												{/* Packages */}
-												<TableCell className={TD}>
-													{row.activePackageCount > 0 ? (
-														<Badge variant="secondary" className="tabular-nums">
-															{row.activePackageCount}
-														</Badge>
-													) : (
-														<span className="text-muted-foreground text-sm">-</span>
-													)}
-												</TableCell>
-
-												{/* LTV */}
-												<TableCell className={TD}>
-													<span className="tabular-nums text-sm">
-														{formatPrice(row.lifetimeValueCents, "MYR")}
-													</span>
-												</TableCell>
-
-												{/* Outstanding */}
-												<TableCell className={TD}>
-													<span className={`tabular-nums text-sm ${row.outstandingBalanceCents > 0 ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
-														{row.outstandingBalanceCents > 0
-															? formatPrice(row.outstandingBalanceCents, "MYR")
-															: "—"}
-													</span>
-												</TableCell>
-
-												{/* Actions */}
-												<TableCell className={TD}>
-													<div className="flex items-center gap-0.5">
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="size-8 text-muted-foreground hover:text-foreground"
-																	onClick={() => {
-																		setSelectedMemberId(row.memberId);
-																		setSheetOpen(true);
-																	}}
-																>
-																	<Pencil className="size-3.5" />
-																	<span className="sr-only">Edit</span>
-																</Button>
-															</TooltipTrigger>
-															<TooltipContent>Edit profile</TooltipContent>
-														</Tooltip>
-
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="size-8 text-muted-foreground hover:text-foreground"
-																	asChild
-																>
-																	<Link
-																		to="/dashboard/customers/$id"
-																		params={{ id: row.memberId }}
-																	>
-																		<Eye className="size-3.5" />
-																		<span className="sr-only">View 360°</span>
-																	</Link>
-																</Button>
-															</TooltipTrigger>
-															<TooltipContent>View 360°</TooltipContent>
-														</Tooltip>
-													</div>
-												</TableCell>
-											</TableRow>
-										);
-									})
+									rows.map((row) => (
+										<CustomerRow
+											key={row.memberId}
+											row={row}
+											onEdit={(id) => {
+												setSelectedMemberId(id);
+												setSheetOpen(true);
+											}}
+										/>
+									))
 								)}
 							</TableBody>
 						</Table>

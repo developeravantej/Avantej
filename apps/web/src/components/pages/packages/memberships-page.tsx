@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Clock, CreditCard, Lock, Search } from "lucide-react";
 import { useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
+import { MembershipTableRow } from "@/components/pages/packages/membership-table-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -418,91 +419,19 @@ export function MembershipsPage() {
 							</TableRow>
 						) : (
 							rows.map((row) => {
-								const name = row.clientName || "Unknown member";
-								const initials = getInitials(name);
-								const dateStr = formatDate(row.expiresAt);
-								const expiry = expiryLabel(row.daysUntilExpiry);
 								const variant = membershipStatusVariant(row.status, row.isLocked);
 								const label = membershipStatusLabel(row.status, row.isLocked);
-
 								return (
-									<TableRow key={row.packageInstanceId} className="hover:bg-muted/20">
-										{/* Customer */}
-										<TableCell className={TD}>
-											<button
-												type="button"
-												className="flex items-center gap-3.5 text-left hover:underline focus:outline-none"
-												onClick={() => {
-													setSelectedMemberId(row.memberId || null);
-													setSheetOpen(true);
-												}}
-											>
-												<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xs">
-													{initials}
-												</span>
-												<span className="font-medium">{name}</span>
-											</button>
-										</TableCell>
-
-										{/* Package */}
-										<TableCell className={TD}>
-											<span className="font-medium">{row.serviceName}</span>
-										</TableCell>
-
-										{/* Credits */}
-										<TableCell className={TD}>
-											<div className="flex flex-col gap-1">
-												<span className="tabular-nums text-sm">
-													{row.creditsRemaining} / {row.creditsTotal}
-												</span>
-												<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-													<div
-														className="h-full rounded-full bg-primary transition-all"
-														style={{
-															width: `${Math.round((row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100)}%`,
-														}}
-													/>
-												</div>
-											</div>
-										</TableCell>
-
-										{/* Expires */}
-										<TableCell className={TD}>
-											<div className="flex flex-col gap-0.5">
-												<span className="text-sm">{dateStr}</span>
-												<span className={`text-xs ${expiry.className}`}>{expiry.text}</span>
-											</div>
-										</TableCell>
-
-										{/* Outstanding */}
-										<TableCell className={TD}>
-											<span
-												className={`tabular-nums ${row.outstandingBalanceCents > 0 ? "font-medium text-red-600" : "text-muted-foreground"}`}
-											>
-												{formatPrice(row.outstandingBalanceCents, "MYR")}
-											</span>
-										</TableCell>
-
-										{/* Status */}
-										<TableCell className={TD}>
-											{row.isLocked && row.lockedReason ? (
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<span>
-																<Badge variant={variant}>{label}</Badge>
-															</span>
-														</TooltipTrigger>
-														<TooltipContent>
-															<p>{row.lockedReason}</p>
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-											) : (
-												<Badge variant={variant}>{label}</Badge>
-											)}
-										</TableCell>
-									</TableRow>
+									<MembershipTableRow
+										key={row.packageInstanceId}
+										row={row}
+										variant={variant}
+										label={label}
+										onCustomerClick={(mid) => {
+											setSelectedMemberId(mid);
+											setSheetOpen(true);
+										}}
+									/>
 								);
 							})
 						)}

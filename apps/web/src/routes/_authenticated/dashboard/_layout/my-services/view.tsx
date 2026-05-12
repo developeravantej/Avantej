@@ -11,17 +11,8 @@ import DataTable from "@/components/tables/sales/view/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { EditBufferDialog } from "./edit-buffer-dialog";
 import { Briefcase, Edit } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 
@@ -292,98 +283,20 @@ function MyServicesView() {
 				)}
 			</div>
 
-		{/* Edit Buffer Dialog */}
-			<Dialog
+		<EditBufferDialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
-			>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Set Buffer Time</DialogTitle>
-						<DialogDescription>
-							Override the default buffer time for this service.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-5 p-4">
-						{/* Read-only: Service name */}
-						<div className="flex flex-col gap-1.5">
-							<Label className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
-								Service
-							</Label>
-							<p className="text-sm font-medium">
-								{selectedService?.serviceName ?? "—"}
-							</p>
-						</div>
-
-						{/* Read-only: Category name */}
-						{selectedService?.categoryName && (
-							<div className="flex flex-col gap-1.5">
-								<Label className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
-									Category
-								</Label>
-								<p className="text-sm text-muted-foreground">
-									{selectedService.categoryName}
-								</p>
-							</div>
-						)}
-
-						<Separator />
-
-						{/* Buffer input */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="buffer-input">My Buffer (minutes)</Label>
-							<Input
-								id="buffer-input"
-								type="number"
-								min={0}
-								step={1}
-								placeholder="Leave blank to use category default"
-								value={bufferInput}
-								onChange={(e) => setBufferInput(e.target.value)}
-							/>
-							<p className="text-xs text-muted-foreground">
-								Category default:{" "}
-								{selectedService && selectedService.categoryDefaultBuffer > 0
-									? `${selectedService.categoryDefaultBuffer} min`
-									: "None"}
-							</p>
-						</div>
-
-						<DialogFooter className="px-0 pt-2 flex-col gap-2 sm:flex-row">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={closeSheet}
-								disabled={saveMutation.isPending}
-							>
-								Cancel
-							</Button>
-							{selectedService?.bufferTimeMinutes != null && (
-								<Button
-									type="button"
-									variant="outline"
-									className="text-destructive border-destructive hover:bg-destructive/5"
-									onClick={handleClearOverride}
-									disabled={saveMutation.isPending}
-								>
-									Clear Override
-								</Button>
-							)}
-							<Button
-								type="button"
-								onClick={handleSave}
-								disabled={saveMutation.isPending}
-							>
-								{saveMutation.isPending ? "Saving..." : "Save"}
-							</Button>
-						</DialogFooter>
-					</div>
-				</DialogContent>
-			</Dialog>
+				selectedService={selectedService}
+				bufferInput={bufferInput}
+				setBufferInput={setBufferInput}
+				onSave={handleSave}
+				onClearOverride={handleClearOverride}
+				onCancel={closeSheet}
+				isPending={saveMutation.isPending}
+			/>
 		</div>
 	);
 }
