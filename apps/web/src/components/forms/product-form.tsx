@@ -33,13 +33,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { centsToRm, rmToCents } from "@/lib/money";
 
 // 1. Schema — colocated, defines UI shape + validation. Server validates separately.

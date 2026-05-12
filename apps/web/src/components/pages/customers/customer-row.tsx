@@ -13,7 +13,7 @@ import { formatPrice } from "@/lib/money";
 
 const TD = "px-5 py-4";
 
-export type CustomerRowData = {
+type CustomerRowData = {
 	memberId: string;
 	name: string;
 	email: string;

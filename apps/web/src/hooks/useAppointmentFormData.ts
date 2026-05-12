@@ -48,14 +48,14 @@ type ServiceRow = {
 	schedulingType: string;
 };
 
-export type RoomRow = {
+type RoomRow = {
 	id: string;
 	name: string;
 	capacity?: number | null;
 	type: string;
 };
 
-export type TrainerRow = {
+type TrainerRow = {
 	id: string;
 	userId: string;
 	name: string;

@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Layers, Package } from "lucide-react";
+import { Package } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -13,15 +12,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import {
 	PackagesTabFilters,
@@ -222,36 +214,6 @@ function fromInstallmentOverview(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(value: Date | string | null | undefined): string {
-	if (!value) return "—";
-	try {
-		const d = value instanceof Date ? value : new Date(value as string);
-		if (Number.isNaN(d.getTime())) return "—";
-		return d.toISOString().slice(0, 10);
-	} catch {
-		return "—";
-	}
-}
-
-function expiryLabel(days: number | null): { text: string; className: string } {
-	if (days === null) return { text: "No expiry", className: "text-muted-foreground" };
-	if (days <= 0) return { text: "Expired", className: "text-red-600 font-medium" };
-	if (days <= 7)
-		return { text: `in ${days} day${days !== 1 ? "s" : ""}`, className: "text-red-600 font-medium" };
-	if (days <= 30)
-		return { text: `in ${days} days`, className: "text-amber-600 font-medium" };
-	return { text: `in ${days} days`, className: "text-muted-foreground" };
-}
-
-function getInitials(name: string): string {
-	return name
-		.split(" ")
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((n) => n[0].toUpperCase())
-		.join("");
-}
-
 function statusVariant(
 	status: PackageRowVM["status"],
 	isLocked: boolean,
@@ -292,7 +254,7 @@ const TD = "px-5 py-4";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface PackagesTabProps {
+interface PackagesTabProps {
 	organizationId: string;
 	/** When set, filter rows to this client and hide search/branch controls. */
 	clientUserId?: string;

@@ -4,36 +4,14 @@ import { useState, useMemo, useRef } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { DataTable } from "@/components/tables/rooms/view/data-table";
 import type { RoomRow } from "@/components/tables/rooms/view/columns";
 import { RoomFormDialog } from "./room-form-dialog";
 import { RoomsActionBar } from "./rooms-action-bar";
-
-const ACTIVE_TABS = [
-	{ label: "Active", value: true as boolean | undefined },
-	{ label: "All", value: undefined as boolean | undefined },
-	{ label: "Inactive", value: false as boolean | undefined },
-];
 
 const TYPE_OPTIONS = [
 	{ value: "consultation", label: "Consultation" },

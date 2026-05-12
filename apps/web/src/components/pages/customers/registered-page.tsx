@@ -5,7 +5,6 @@ import { StatusCallout } from "@/components/ui/status-callout";
 import { useEffect, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { CustomerRow } from "@/components/pages/customers/customer-row";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

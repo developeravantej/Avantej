@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppointmentListHeader } from "@/features/appointments/components/AppointmentListHeader";
 import { DateGroupHeader } from "@/features/appointments/components/DateGroupHeader";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { client } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";

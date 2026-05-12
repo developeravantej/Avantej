@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
-import type { Installment, InstallmentOverviewItem } from "./installment-types";
+import type { Installment } from "./installment-types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -133,5 +133,3 @@ export function InstallmentTimeline({
 	);
 }
 
-// Re-export type so callers that import from this file can use it
-export type { Installment, InstallmentOverviewItem };

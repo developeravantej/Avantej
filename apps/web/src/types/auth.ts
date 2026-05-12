@@ -8,7 +8,7 @@
  */
 
 // Base permission data structure
-export interface PermissionData {
+interface PermissionData {
   resource: string;
   actions: string[];
   scope: "own" | "team" | "organization";
@@ -33,7 +33,7 @@ export interface OrganizationData {
 }
 
 // Base user interface (matches backend UserResponse)
-export interface User {
+interface User {
   id: string;
   email: string;
   full_name: string;
@@ -72,7 +72,7 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterData extends LoginCredentials {
+interface RegisterData extends LoginCredentials {
   full_name: string;
   phone?: string;
 }
@@ -90,7 +90,7 @@ export interface PermissionCheckResult {
 }
 
 // Organization context interface
-export interface OrganizationContext {
+interface OrganizationContext {
   currentOrganization: OrganizationData | null;
   availableOrganizations: OrganizationData[];
   switchOrganization: (orgId: string) => void;
@@ -113,7 +113,7 @@ export interface RoutePermissionConfig {
 }
 
 // Common permissions interface for quick access
-export interface CommonPermissions {
+interface CommonPermissions {
   // User management
   canViewUsers: boolean;
   canCreateUsers: boolean;

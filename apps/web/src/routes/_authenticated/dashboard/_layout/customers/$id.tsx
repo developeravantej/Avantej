@@ -27,7 +27,6 @@ import { LeadSourceSection } from "@/features/customers-detail/components/LeadSo
 import { OverviewTab } from "@/features/customers-detail/components/OverviewTab";
 import { PageSkeleton } from "@/features/customers-detail/components/PageSkeleton";
 import { PaymentsTab } from "@/features/customers-detail/components/PaymentsTab";
-import { formatDate } from "@/features/customers-detail/utils";
 
 // ─── Route ─────────────────────────────────────────────────────────────────────
 

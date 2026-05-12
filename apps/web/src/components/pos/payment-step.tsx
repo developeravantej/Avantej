@@ -94,9 +94,9 @@ export function PaymentStep({
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
 
-	// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
 	useEffect(() => {
 		if (method === "cash" && amountTenderedCents === 0 && totalCents > 0) {
+			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
 			onAmountTenderedChange(totalCents);
 		}
 	}, [method, amountTenderedCents, totalCents, onAmountTenderedChange]);

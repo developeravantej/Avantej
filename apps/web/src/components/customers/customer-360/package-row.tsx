@@ -21,7 +21,7 @@ import {
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 // PackageInstanceRow fields we rely on (matches what getById returns)
-export interface PackageInstanceRow {
+interface PackageInstanceRow {
 	id: string;
 	clientId: string;
 	status: string | null;

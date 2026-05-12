@@ -27,7 +27,7 @@ const TYPE_OPTIONS = [
 
 type RoomType = (typeof TYPE_OPTIONS)[number]["value"];
 
-export type RoomFormState = {
+type RoomFormState = {
 	name: string;
 	type: RoomType | "";
 	capacity: string;
