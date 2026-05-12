@@ -550,7 +550,7 @@ export default function BookingDetailScreen() {
 					edges={["bottom"]}
 					className="border-gray-200 border-t bg-white"
 				>
-					<View className="px-4 py-4">
+					<View className="p-4">
 						<TouchableOpacity
 							onPress={handleCancel}
 							disabled={cancelMutation.isPending}

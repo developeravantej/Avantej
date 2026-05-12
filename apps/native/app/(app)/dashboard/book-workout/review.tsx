@@ -399,7 +399,7 @@ export default function ReviewScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
-				<View className="px-4 py-4">
+				<View className="p-4">
 					<TouchableOpacity
 						onPress={() => confirmMutation.mutate()}
 						disabled={confirmMutation.isPending || !userId}

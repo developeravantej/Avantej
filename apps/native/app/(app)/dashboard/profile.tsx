@@ -377,7 +377,7 @@ function ChangePasswordModal({
 			onRequestClose={onClose}
 		>
 			<View className="flex-1 bg-secondary-3">
-				<View className="flex-row items-center justify-between border-secondary-3 border-b bg-primary-2 px-4 py-4">
+				<View className="flex-row items-center justify-between border-secondary-3 border-b bg-primary-2 p-4">
 					<TouchableOpacity onPress={onClose}>
 						<Text className="text-base text-primary-1">Cancel</Text>
 					</TouchableOpacity>

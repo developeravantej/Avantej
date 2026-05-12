@@ -433,7 +433,7 @@ export default function PayScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-white"
 			>
-				<View className="px-4 py-4">
+				<View className="p-4">
 					<TouchableOpacity
 						onPress={handlePayment}
 						disabled={isProcessing}

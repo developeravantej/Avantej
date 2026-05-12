@@ -434,7 +434,7 @@ export default function ServiceDetailScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
-				<View className="flex-row gap-3 px-4 py-4">
+				<View className="flex-row gap-3 p-4">
 					<TouchableOpacity
 						onPress={handleBuyPackage}
 						className="flex-1 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"

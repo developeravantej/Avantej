@@ -868,7 +868,7 @@ function BranchSelectionStep({
 							onChange({ country, branchId: "", organizationId: "" });
 							setDropdownOpen(false);
 						}}
-						className={`items-center rounded-2xl border bg-primary-2 px-3 py-3 ${
+						className={`items-center rounded-2xl border bg-primary-2 p-3 ${
 							data.country === country
 								? "border-primary-1"
 								: "border-secondary-2"
@@ -1341,7 +1341,7 @@ export default function RegistrationForm() {
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
-					<View className="flex-row gap-3 px-4 py-4">
+					<View className="flex-row gap-3 p-4">
 						{currentStep > 0 && (
 							<TouchableOpacity
 								onPress={handlePrev}
