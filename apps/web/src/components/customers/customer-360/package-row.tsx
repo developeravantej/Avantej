@@ -202,7 +202,7 @@ function PreferredTimesSection({
 	}
 
 	// Sort by priority ascending
-	const sorted = [...data].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+	const sorted = data.toSorted((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 
 	return (
 		<div className="flex flex-wrap gap-2">

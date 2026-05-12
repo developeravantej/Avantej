@@ -42,9 +42,11 @@ export function PromoStep({
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
 	const subtotalCents = calcSubtotalCents(items);
-	const serviceIds = items
-		.filter((i) => i.refId && (i.type === "service" || i.type === "package"))
-		.map((i) => i.refId as string);
+	const serviceIds = items.flatMap((i) =>
+		i.refId && (i.type === "service" || i.type === "package")
+			? [i.refId]
+			: [],
+	);
 
 	const validateMutation = useMutation({
 		mutationFn: async (promoCode: string) => {

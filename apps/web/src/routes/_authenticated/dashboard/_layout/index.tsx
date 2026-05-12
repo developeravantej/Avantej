@@ -269,8 +269,8 @@ function StaffPerformanceCard({
 							<span className="text-right">Commission</span>
 						</div>
 						<div className="divide-y divide-brand-secondary-3">
-							{[...data]
-								.sort((a, b) => b.appointmentsCompleted - a.appointmentsCompleted)
+							{data
+								.toSorted((a, b) => b.appointmentsCompleted - a.appointmentsCompleted)
 								.slice(0, 10)
 								.map((staff) => (
 									<div

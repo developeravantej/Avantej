@@ -74,8 +74,8 @@ export function TimePresetEditor({
 					Time Slots per Day <span className="text-destructive">*</span>
 				</label>
 				<div className="space-y-4">
-					{[...config.recurringDays]
-						.sort(
+					{config.recurringDays
+						.toSorted(
 							(a, b) =>
 								DAY_ORDER.indexOf(a as DayOfWeek) -
 								DAY_ORDER.indexOf(b as DayOfWeek),

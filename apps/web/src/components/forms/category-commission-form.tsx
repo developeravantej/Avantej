@@ -171,9 +171,11 @@ export function CategoryCommissionForm({
 
 	function removeSlot(index: number) {
 		setSlots((prev) =>
-			prev
-				.filter((_, i) => i !== index)
-				.map((sl, i) => ({ ...sl, slotIndex: i })),
+			prev.reduce<SlotEntry[]>((acc, sl, i) => {
+				if (i === index) return acc;
+				acc.push({ ...sl, slotIndex: acc.length });
+				return acc;
+			}, []),
 		);
 	}
 
@@ -204,9 +206,11 @@ export function CategoryCommissionForm({
 
 	function removeCondition(index: number) {
 		setConditions((prev) =>
-			prev
-				.filter((_, i) => i !== index)
-				.map((c, i) => ({ ...c, conditionIndex: i })),
+			prev.reduce<ConditionEntry[]>((acc, c, i) => {
+				if (i === index) return acc;
+				acc.push({ ...c, conditionIndex: acc.length });
+				return acc;
+			}, []),
 		);
 	}
 

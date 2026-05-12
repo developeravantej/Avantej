@@ -108,7 +108,7 @@ export function TrainerPickerStep({
 	const hasUnassignedItem = serviceItems.some((item) => {
 		const idx = items.indexOf(item);
 		const a = assignments[idx];
-		return !a || a.length === 0 || a.every((x) => !x.staffId);
+		return !a || a.every((x) => !x.staffId);
 	});
 
 	return (

@@ -31,19 +31,19 @@ interface RoleStatsProps {
 
 function RoleStats({ role, resources = [], userCount = 0 }: RoleStatsProps) {
   const getResourceStats = () => {
-    const resourceStats = resources.map(resource => {
+    const resourceStats = resources.flatMap(resource => {
       const permissions = role.permissions.filter(p => p.resourceId === resource.id);
       const totalActions = resource.actions.length;
       const permissionCount = Math.min(permissions.length, totalActions); // Cap at total actions
-      
-      return {
+      if (permissionCount === 0) return [];
+      return [{
         name: resource.name,
         icon: resource.icon,
         permissionCount,
         totalActions,
         permissions: permissions,
-      };
-    }).filter(stat => stat.permissionCount > 0);
+      }];
+    });
 
     return resourceStats;
   };

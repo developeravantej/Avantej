@@ -384,15 +384,14 @@ export function PosWorkflow({
 			}
 
 			const filteredAssignments = Object.fromEntries(
-				Object.entries(trainerAssignments)
-					.map(([k, arr]) => [
-						k,
-						arr.filter((a) => a.staffId !== "").map((a) => ({
-							staffId: a.staffId,
-							slotIndex: a.slotIndex,
-						})),
-					])
-					.filter(([, arr]) => (arr as unknown[]).length > 0),
+				Object.entries(trainerAssignments).flatMap(([k, arr]) => {
+					const mapped = arr.flatMap((a) =>
+						a.staffId !== ""
+							? [{ staffId: a.staffId, slotIndex: a.slotIndex }]
+							: [],
+					);
+					return mapped.length > 0 ? [[k, mapped] as const] : [];
+				}),
 			);
 
 			return client.pos.recordSale({

@@ -470,16 +470,19 @@ export function RolesTabPage() {
 									resources={resources}
 									initialPermissions={
 										isCreating
-											? Object.entries(wizardPermissions)
-													.filter(([, enabled]) => enabled)
-													.map(([key]) => {
+											? Object.entries(wizardPermissions).flatMap(
+													([key, enabled]) => {
+														if (!enabled) return [];
 														const [resourceId, actionId] = key.split(":");
-														return {
-															resourceId,
-															actionId,
-															scope: "own" as const,
-														};
-													})
+														return [
+															{
+																resourceId,
+																actionId,
+																scope: "own" as const,
+															},
+														];
+													},
+												)
 											: undefined
 									}
 									onSave={handleSaveRole}

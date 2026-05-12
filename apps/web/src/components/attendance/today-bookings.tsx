@@ -313,9 +313,9 @@ export function TodayBookingsSection({
 		if (!bulkDialogForBucket) return;
 		const grouped = groupByTimeBucket(bookings);
 		const bucketRows = grouped.get(bulkDialogForBucket) ?? [];
-		const bookingIds = bucketRows
-			.filter((r) => r.attendanceStatus === "pending")
-			.map((r) => r.appointmentClientId);
+		const bookingIds = bucketRows.flatMap((r) =>
+			r.attendanceStatus === "pending" ? [r.appointmentClientId] : [],
+		);
 		if (bookingIds.length === 0) {
 			setBulkDialogForBucket(null);
 			return;

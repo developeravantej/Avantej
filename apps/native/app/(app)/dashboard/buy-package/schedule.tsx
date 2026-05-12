@@ -402,7 +402,7 @@ export default function ScheduleScreen() {
 				(pt) => pt.day === day && pt.time === time,
 			);
 			if (!exists) {
-				setPreferredTimes([...preferredTimes, { day, time }]);
+				setPreferredTimes((prev) => [...prev, { day, time }]);
 			}
 		}
 	};

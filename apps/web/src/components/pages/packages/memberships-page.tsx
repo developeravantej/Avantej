@@ -527,7 +527,7 @@ export function MembershipsPage() {
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setOffset(offset + PAGE_LIMIT)}
+								onClick={() => setOffset((prev) => prev + PAGE_LIMIT)}
 								disabled={offset + PAGE_LIMIT >= total}
 							>
 								Next

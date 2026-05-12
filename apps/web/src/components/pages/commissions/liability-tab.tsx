@@ -252,7 +252,7 @@ export function LiabilityTab() {
 	// ── Sort by netPayableCents DESC ───────────────────────────────────────────
 	const sortedTrainers = useMemo<TrainerLiabilityRow[]>(() => {
 		const trainers = (data as LiabilitySummaryOutput | null)?.trainers ?? [];
-		return [...trainers].sort((a, b) => b.netPayableCents - a.netPayableCents);
+		return trainers.toSorted((a, b) => b.netPayableCents - a.netPayableCents);
 	}, [data]);
 
 	const totals = (data as LiabilitySummaryOutput | null)?.totals ?? {

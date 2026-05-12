@@ -586,12 +586,11 @@ export function MembersTabPage() {
 				lastName: m.name.split(" ").slice(1).join(" ") ?? "",
 				email: m.email,
 				roles: rolesApiData
-					? (rolesApiData as RoleApiItem[])
-							.filter(
-								(r) =>
-									r.name.toLowerCase() === (m.role ?? "").toLowerCase(),
-							)
-							.map((r) => r.id)
+					? (rolesApiData as RoleApiItem[]).flatMap((r) =>
+							r.name.toLowerCase() === (m.role ?? "").toLowerCase()
+								? [r.id]
+								: [],
+						)
 					: [],
 				isActive: m.status === "active",
 				isDeleted: m.deletedAt != null,

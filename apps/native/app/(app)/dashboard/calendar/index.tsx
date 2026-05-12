@@ -29,10 +29,7 @@ export default function CalendarScreen() {
 	});
 
 	// Compute month boundaries for API query
-	const monthStart = useMemo(
-		() => `${currentMonth}-01T00:00:00.000Z`,
-		[currentMonth],
-	);
+	const monthStart = `${currentMonth}-01T00:00:00.000Z`;
 	const monthEnd = useMemo(() => {
 		const [y, m] = currentMonth.split("-").map(Number);
 		const lastDay = new Date(y, m, 0).getDate();
@@ -71,25 +68,26 @@ export default function CalendarScreen() {
 	}, [appointments, selectedDate]);
 
 	const selectedDateBookings = useMemo(() => {
-		return (appointments ?? [])
-			.filter((apt: any) => {
-				const dateKey = new Date(apt.startTime).toISOString().split("T")[0];
-				return dateKey === selectedDate;
-			})
-			.map((apt: any) => ({
-				id: apt.id,
-				name:
-					apt.type === "private" ? "Personal Training" : "Class Session",
-				time: new Date(apt.startTime).toLocaleTimeString("en-US", {
-					hour: "numeric",
-					minute: "2-digit",
-					hour12: true,
-				}),
-				credits: apt.creditsUsed ?? 1,
-				icon: apt.type === "private" ? "person" : "people",
-				location: apt.location ?? undefined,
-				status: apt.status,
-			}));
+		return (appointments ?? []).flatMap((apt: any) => {
+			const dateKey = new Date(apt.startTime).toISOString().split("T")[0];
+			if (dateKey !== selectedDate) return [];
+			return [
+				{
+					id: apt.id,
+					name:
+						apt.type === "private" ? "Personal Training" : "Class Session",
+					time: new Date(apt.startTime).toLocaleTimeString("en-US", {
+						hour: "numeric",
+						minute: "2-digit",
+						hour12: true,
+					}),
+					credits: apt.creditsUsed ?? 1,
+					icon: apt.type === "private" ? "person" : "people",
+					location: apt.location ?? undefined,
+					status: apt.status,
+				},
+			];
+		});
 	}, [appointments, selectedDate]);
 
 	return (

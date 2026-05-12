@@ -157,9 +157,9 @@ export function TrainerAvailabilityEditor({
 	return (
 		<div className="space-y-4">
 			{DAYS.map((day) => {
-				const dayShifts = shifts
-					.map((shift, originalIndex) => ({ shift, originalIndex }))
-					.filter(({ shift }) => shift.dayOfWeek === day);
+				const dayShifts = shifts.flatMap((shift, originalIndex) =>
+					shift.dayOfWeek === day ? [{ shift, originalIndex }] : [],
+				);
 
 				return (
 					<div key={day} className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2">

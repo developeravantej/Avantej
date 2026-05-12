@@ -325,37 +325,33 @@ function RouteComponent() {
       }
 
       // Fallback to API
-      try {
-        const result = await client.hierarchy.listNodes({ organizationId });
+      const result = await client.hierarchy.listNodes({ organizationId });
 
-        if (!result.nodes || result.nodes.length === 0) {
-          // Clear stale cache
-          localStorage.removeItem(`org_${organizationId}_hierarchy`);
-          return { items: [] };
-        }
-
-        const mappedBranches = mapBranchesWithHierarchy(
-          result.nodes,
-          currentUser,
-          organizationId
-        );
-
-        // Cache the hierarchy data for future use
-        localStorage.setItem(
-          `org_${organizationId}_hierarchy`,
-          JSON.stringify({
-            nodes: result.nodes,
-          })
-        );
-        localStorage.setItem(
-          `org_${organizationId}_hierarchy_timestamp`,
-          Date.now().toString()
-        );
-
-        return { items: mappedBranches };
-      } catch (err: unknown) {
-        throw err; // Re-throw so React Query can handle it
+      if (!result.nodes || result.nodes.length === 0) {
+        // Clear stale cache
+        localStorage.removeItem(`org_${organizationId}_hierarchy`);
+        return { items: [] };
       }
+
+      const mappedBranches = mapBranchesWithHierarchy(
+        result.nodes,
+        currentUser,
+        organizationId
+      );
+
+      // Cache the hierarchy data for future use
+      localStorage.setItem(
+        `org_${organizationId}_hierarchy`,
+        JSON.stringify({
+          nodes: result.nodes,
+        })
+      );
+      localStorage.setItem(
+        `org_${organizationId}_hierarchy_timestamp`,
+        Date.now().toString()
+      );
+
+      return { items: mappedBranches };
     },
     enabled: !!organizationId && isAuthenticated,
     staleTime: 30 * 1000, // 30 seconds - shorter to ensure fresh data

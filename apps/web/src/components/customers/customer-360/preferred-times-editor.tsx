@@ -50,9 +50,11 @@ export function PreferredTimesEditor({
 	}
 
 	function removeItem(index: number) {
-		const next = items
-			.filter((_, i) => i !== index)
-			.map((item, i) => ({ ...item, priority: i + 1 }));
+		const next = items.reduce<typeof items>((acc, item, i) => {
+			if (i === index) return acc;
+			acc.push({ ...item, priority: acc.length + 1 });
+			return acc;
+		}, []);
 		onChange(next);
 	}
 

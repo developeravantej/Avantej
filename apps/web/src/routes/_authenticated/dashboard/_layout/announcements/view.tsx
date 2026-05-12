@@ -283,25 +283,27 @@ function AnnouncementsViewPage() {
 	}
 
 	// Filter by audience on the client side (API doesn't support targetAudience filter)
-	const filteredData: AnnouncementRow[] = apiData
-		.filter((item) => {
-			if (audienceFilter === "all") return true;
-			return item.targetAudience === audienceFilter;
-		})
-		.map((item) => ({
-			id: item.id,
-			title: item.title,
-			message: item.message,
-			priority: item.priority as Priority,
-			targetAudience: item.targetAudience as TargetAudience,
-			branchId: item.branchId ?? null,
-			startDate: item.startDate ? String(item.startDate) : null,
-			endDate: item.endDate ? String(item.endDate) : null,
-			isPinned: item.isPinned ?? false,
-			isActive: item.isActive ?? true,
-			createdAt: item.createdAt ? String(item.createdAt) : "",
-			scopedBranchIds: item.scopedBranchIds ?? [],
-		}));
+	const filteredData: AnnouncementRow[] = apiData.flatMap((item) => {
+		if (audienceFilter !== "all" && item.targetAudience !== audienceFilter) {
+			return [];
+		}
+		return [
+			{
+				id: item.id,
+				title: item.title,
+				message: item.message,
+				priority: item.priority as Priority,
+				targetAudience: item.targetAudience as TargetAudience,
+				branchId: item.branchId ?? null,
+				startDate: item.startDate ? String(item.startDate) : null,
+				endDate: item.endDate ? String(item.endDate) : null,
+				isPinned: item.isPinned ?? false,
+				isActive: item.isActive ?? true,
+				createdAt: item.createdAt ? String(item.createdAt) : "",
+				scopedBranchIds: item.scopedBranchIds ?? [],
+			},
+		];
+	});
 
 	const isMutating =
 		createMutation.isPending ||

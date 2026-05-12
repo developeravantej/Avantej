@@ -195,7 +195,7 @@ export const DayTimeGrid = forwardRef<HTMLDivElement, DayTimeGridProps>(function
 						))}
 					</div>
 					{trainers.map(([id, { appts: trainerAppts }]) => {
-						const sorted = [...trainerAppts].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+						const sorted = trainerAppts.toSorted((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 						const withCols = assignColumns(sorted);
 						return (
 							<div key={id} className="relative border-r border-gray-100" style={{ minWidth: TRAINER_COL_WIDTH }}>

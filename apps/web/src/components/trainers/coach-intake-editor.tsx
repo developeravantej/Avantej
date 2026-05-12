@@ -187,9 +187,9 @@ export function CoachIntakeEditor({
 					) : (
 						<div className="space-y-4">
 							{DAYS.map((day) => {
-								const daySlots = slots
-									.map((slot, originalIndex) => ({ slot, originalIndex }))
-									.filter(({ slot }) => slot.dayOfWeek === day);
+								const daySlots = slots.flatMap((slot, originalIndex) =>
+									slot.dayOfWeek === day ? [{ slot, originalIndex }] : [],
+								);
 
 								return (
 									<div

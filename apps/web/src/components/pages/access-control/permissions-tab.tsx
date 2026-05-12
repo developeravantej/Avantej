@@ -223,9 +223,9 @@ export function PermissionsTabPage() {
 		setIsRemoving(true);
 		try {
 			// Find all permission IDs that belong to this resource
-			const resourcePermIds = permissions
-				.filter((p) => p.resource === confirmResource.id)
-				.map((p) => p.id);
+			const resourcePermIds = permissions.flatMap((p) =>
+				p.resource === confirmResource.id ? [p.id] : [],
+			);
 
 			// Find all role-permission assignments for those permissions
 			const assignmentsToRemove = rolePermissionAssignments.filter((rp) =>

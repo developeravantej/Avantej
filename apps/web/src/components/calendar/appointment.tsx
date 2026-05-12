@@ -195,7 +195,11 @@ export function AppointmentCalendar({
 	const handleAppointmentClick = (appointment: Appointment) => {
 		if (isGroupSelectMode && appointment.status === "pending") {
 			const next = new Set(selectedAppointments);
-			next.has(appointment.id) ? next.delete(appointment.id) : next.add(appointment.id);
+			if (next.has(appointment.id)) {
+				next.delete(appointment.id);
+			} else {
+				next.add(appointment.id);
+			}
 			setSelectedAppointments(next);
 		} else if (appointment.isVirtual || appointment.parentId) {
 			setOccurrenceDialogAppt(appointment);

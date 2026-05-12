@@ -60,12 +60,10 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 	function handleSubmit() {
 		if (!poId || !detail) return;
 
-		const itemsToSubmit = (detail.items ?? [])
-			.map((item) => ({
-				itemId: item.id,
-				receivedQty: parseInt(quantities[item.id] ?? "0", 10) || 0,
-			}))
-			.filter((i) => i.receivedQty > 0);
+		const itemsToSubmit = (detail.items ?? []).flatMap((item) => {
+			const receivedQty = parseInt(quantities[item.id] ?? "0", 10) || 0;
+			return receivedQty > 0 ? [{ itemId: item.id, receivedQty }] : [];
+		});
 
 		if (itemsToSubmit.length === 0) {
 			toast.error("Enter a received quantity for at least one item.");
