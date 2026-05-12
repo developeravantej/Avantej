@@ -1049,7 +1049,7 @@ function BranchSelectionStep({
 
 // ─── Main Registration Form ──────────────────────────────────────
 
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+// react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: multi-step registration form with tight step+state coupling, needs further refactor PR
 export default function RegistrationForm() {
 	const { user, refetch } = useAuth();
 	const [currentStep, setCurrentStep] = useState(0);
@@ -1078,6 +1078,7 @@ export default function RegistrationForm() {
 	// state, not an event handler — there is no user action to attach to. The
 	// `prev.x || ...` guard preserves any in-progress edits, so re-running on
 	// session refresh is safe and idempotent.
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- syncs async session into form state, not user-triggered
 	useEffect(() => {
 		if (user) {
 			setPersonalDetails((prev) => ({

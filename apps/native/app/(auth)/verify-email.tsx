@@ -40,7 +40,7 @@ export default function VerifyEmailScreen() {
 					Check Your Email
 				</Text>
 
-				<Text className="mb-2 text-center text-base text-gray-600">
+				<Text className="mb-2 text-center text-base text-zinc-600">
 					We've sent a verification link to
 				</Text>
 				{email && (
@@ -49,7 +49,7 @@ export default function VerifyEmailScreen() {
 					</Text>
 				)}
 
-				<Text className="mb-8 text-center text-sm text-gray-500">
+				<Text className="mb-8 text-center text-sm text-zinc-500">
 					Click the link in your email to verify your account, then come back
 					here to sign in.
 				</Text>
@@ -57,7 +57,7 @@ export default function VerifyEmailScreen() {
 				<View className="w-full">
 					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
-						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
+						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Go to Sign In
@@ -67,7 +67,7 @@ export default function VerifyEmailScreen() {
 					<Pressable
 						onPress={handleResend}
 						disabled={isResending || resent}
-						className="h-14 w-full flex-row items-center justify-center rounded-xl border border-gray-300"
+						className="h-14 w-full flex-row items-center justify-center rounded-xl border border-zinc-300"
 						style={{ opacity: isResending || resent ? 0.6 : 1 }}
 					>
 						{isResending ? (

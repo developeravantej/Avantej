@@ -548,7 +548,7 @@ export default function BookingDetailScreen() {
 			{isUpcoming && (
 				<SafeAreaView
 					edges={["bottom"]}
-					className="border-gray-200 border-t bg-white"
+					className="border-zinc-200 border-t bg-white"
 				>
 					<View className="p-4">
 						<Pressable

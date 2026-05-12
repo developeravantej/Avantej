@@ -159,6 +159,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (12 hours), FlatList breaks snapToInterval UX */}
 					{HOURS.map((hour) => {
 						const isSelected = displayHour === hour;
 						return (
@@ -212,6 +213,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (12 minutes), FlatList breaks snapToInterval UX */}
 					{MINUTES.map((minute) => {
 						const isSelected = displayMinuteStr === minute;
 						return (
@@ -259,6 +261,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (2 items AM/PM), FlatList breaks snapToInterval UX */}
 					{(["AM", "PM"] as const).map((period) => {
 						const isSelected = isPM === (period === "PM");
 						return (
@@ -366,7 +369,7 @@ const TrainerRow = memo(function TrainerRow({
 	);
 });
 
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+// react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: buy-package schedule with nested snap pickers, calendar, recurrence config, needs further refactor PR
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { organizations } = useOrganizationContext();
@@ -803,6 +806,7 @@ export default function ScheduleScreen() {
 														color: colors.primary[2],
 														fontSize: 12,
 														fontWeight: "800",
+														// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 														letterSpacing: 1.4,
 														opacity: 0.6,
 													}}
@@ -861,6 +865,7 @@ export default function ScheduleScreen() {
 													fontSize: 12,
 													fontWeight: "700",
 													marginTop: 4,
+													// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 													letterSpacing: 1.2,
 												}}
 											>
@@ -1006,6 +1011,7 @@ export default function ScheduleScreen() {
 								className="font-bold text-base uppercase"
 								style={{
 									color: colors.primary[1],
+									// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 									letterSpacing: 1.4,
 								}}
 							>
@@ -1035,6 +1041,7 @@ export default function ScheduleScreen() {
 							className="mb-2 font-semibold text-xs uppercase"
 							style={{
 								color: colors.secondary[1],
+								// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 								letterSpacing: 1.2,
 							}}
 						>
@@ -1082,6 +1089,7 @@ export default function ScheduleScreen() {
 							className="mb-2 font-semibold text-xs uppercase"
 							style={{
 								color: colors.secondary[1],
+								// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 								letterSpacing: 1.2,
 							}}
 						>

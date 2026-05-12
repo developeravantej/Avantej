@@ -99,221 +99,17 @@ export default function ProfileScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				<View className="px-4 pt-4">
-					{/* User Summary Section */}
-					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-						<View className="flex-row items-center">
-							<View
-								className="mr-4 size-16 items-center justify-center rounded-full"
-								style={{ backgroundColor: colors.secondary[2] }}
-							>
-								<Ionicons
-									name="person"
-									size={32}
-									color={colors.secondary[1]}
-								/>
-							</View>
-							<View className="flex-1">
-								<Text className="mb-1 font-bold text-primary-1 text-xl">
-									{userName || "User"}
-								</Text>
-								<Text className="text-secondary-1 text-sm">
-									Member since {memberSince}
-								</Text>
-							</View>
-						</View>
-					</View>
-
-					{/* Personal Information Section (read-only) */}
-					<View className="mb-4">
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							PERSONAL INFORMATION
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-							{/* Full Name */}
-							<View className="mb-4 border-secondary-3 border-b pb-4">
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Full Name
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userName || "—"}
-								</Text>
-							</View>
-
-							{/* Email */}
-							<View className="mb-4 border-secondary-3 border-b pb-4">
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Email
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userEmail || "—"}
-								</Text>
-							</View>
-
-							{/* Phone Number */}
-							<View>
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Phone Number
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userPhone || "—"}
-								</Text>
-							</View>
-						</View>
-					</View>
-
-					{/* Notification Preferences Section */}
-					<View className="mb-4">
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							NOTIFICATION PREFERENCES
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
-							{/* Email Notifications */}
-							<View className="border-secondary-3 border-b p-4">
-								<View className="flex-row items-center justify-between">
-									<View className="mr-4 flex-1">
-										<Text className="mb-1 font-semibold text-base text-primary-1">
-											Email Notifications
-										</Text>
-										<Text className="text-secondary-1 text-sm">
-											Receive updates about your workouts and bookings
-										</Text>
-									</View>
-									<Switch
-										value={emailEnabled}
-										onValueChange={(v) =>
-											handleToggleNotifPref("emailEnabled", v)
-										}
-										trackColor={{
-											false: colors.secondary[3],
-											true: colors.primary[1],
-										}}
-										thumbColor={colors.primary[2]}
-									/>
-								</View>
-							</View>
-
-							{/* Push Notifications */}
-							<View className="p-4">
-								<View className="flex-row items-center justify-between">
-									<View className="mr-4 flex-1">
-										<Text className="mb-1 font-semibold text-base text-primary-1">
-											Push Notifications
-										</Text>
-										<Text className="text-secondary-1 text-sm">
-											Get instant alerts on your device
-										</Text>
-									</View>
-									<Switch
-										value={pushEnabled}
-										onValueChange={(v) =>
-											handleToggleNotifPref("pushEnabled", v)
-										}
-										trackColor={{
-											false: colors.secondary[3],
-											true: colors.primary[1],
-										}}
-										thumbColor={colors.primary[2]}
-									/>
-								</View>
-							</View>
-						</View>
-					</View>
-
-					{/* Account Section */}
-					<View>
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							ACCOUNT
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
-							{/* Change Password */}
-							<Pressable
-								onPress={() => setShowPasswordModal(true)}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="lock-closed-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Change Password
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</Pressable>
-
-							{/* Help & Support */}
-							<Pressable
-								onPress={() =>
-									Linking.openURL("mailto:support@avantej.com")
-								}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="help-circle-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Help & Support
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</Pressable>
-
-							{/* Terms & Privacy */}
-							<Pressable
-								onPress={() =>
-									Linking.openURL("https://avantej.com/terms")
-								}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="document-text-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Terms & Privacy
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</Pressable>
-
-							{/* Sign Out */}
-							<Pressable
-								onPress={handleLogout}
-								className="flex-row items-center p-4"
-							>
-								<Ionicons
-									name="log-out-outline"
-									size={20}
-									color="#EF4444"
-								/>
-								<Text className="ml-3 flex-1 text-base text-red-500">
-									Sign Out
-								</Text>
-							</Pressable>
-						</View>
-					</View>
+					<UserSummaryCard name={userName} memberSince={memberSince} />
+					<PersonalInfoSection name={userName} email={userEmail} phone={userPhone} />
+					<NotificationPrefsSection
+						emailEnabled={emailEnabled}
+						pushEnabled={pushEnabled}
+						onToggle={handleToggleNotifPref}
+					/>
+					<AccountSection
+						onChangePassword={() => setShowPasswordModal(true)}
+						onLogout={handleLogout}
+					/>
 				</View>
 			</ScrollView>
 
@@ -459,3 +255,198 @@ function ChangePasswordModal({
 		</Modal>
 	);
 }
+
+function UserSummaryCard({ name, memberSince }: { name: string; memberSince: string }) {
+	return (
+		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View className="flex-row items-center">
+				<View
+					className="mr-4 size-16 items-center justify-center rounded-full"
+					style={{ backgroundColor: colors.secondary[2] }}
+				>
+					<Ionicons name="person" size={32} color={colors.secondary[1]} />
+				</View>
+				<View className="flex-1">
+					<Text className="mb-1 font-bold text-primary-1 text-xl">
+						{name || "User"}
+					</Text>
+					<Text className="text-secondary-1 text-sm">
+						Member since {memberSince}
+					</Text>
+				</View>
+			</View>
+		</View>
+	);
+}
+
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+	return (
+		<View className={last ? "" : "mb-4 border-secondary-3 border-b pb-4"}>
+			<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
+				{label}
+			</Text>
+			<Text className="text-base" style={{ color: colors.primary[1] }}>
+				{value || "—"}
+			</Text>
+		</View>
+	);
+}
+
+function PersonalInfoSection({ name, email, phone }: { name: string; email: string; phone: string }) {
+	return (
+		<View className="mb-4">
+			<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+				PERSONAL INFORMATION
+			</Text>
+			<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+				<InfoRow label="Full Name" value={name} />
+				<InfoRow label="Email" value={email} />
+				<InfoRow label="Phone Number" value={phone} last />
+			</View>
+		</View>
+	);
+}
+
+function NotifToggleRow({
+	title,
+	description,
+	value,
+	onChange,
+	last,
+}: {
+	title: string;
+	description: string;
+	value: boolean;
+	onChange: (v: boolean) => void;
+	last?: boolean;
+}) {
+	return (
+		<View className={last ? "p-4" : "border-secondary-3 border-b p-4"}>
+			<View className="flex-row items-center justify-between">
+				<View className="mr-4 flex-1">
+					<Text className="mb-1 font-semibold text-base text-primary-1">{title}</Text>
+					<Text className="text-secondary-1 text-sm">{description}</Text>
+				</View>
+				<Switch
+					value={value}
+					onValueChange={onChange}
+					trackColor={{ false: colors.secondary[3], true: colors.primary[1] }}
+					thumbColor={colors.primary[2]}
+				/>
+			</View>
+		</View>
+	);
+}
+
+function NotificationPrefsSection({
+	emailEnabled,
+	pushEnabled,
+	onToggle,
+}: {
+	emailEnabled: boolean;
+	pushEnabled: boolean;
+	onToggle: (key: "emailEnabled" | "pushEnabled" | "smsEnabled", value: boolean) => void;
+}) {
+	return (
+		<View className="mb-4">
+			<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+				NOTIFICATION PREFERENCES
+			</Text>
+			<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
+				<NotifToggleRow
+					title="Email Notifications"
+					description="Receive updates about your workouts and bookings"
+					value={emailEnabled}
+					onChange={(v) => onToggle("emailEnabled", v)}
+				/>
+				<NotifToggleRow
+					title="Push Notifications"
+					description="Get instant alerts on your device"
+					value={pushEnabled}
+					onChange={(v) => onToggle("pushEnabled", v)}
+					last
+				/>
+			</View>
+		</View>
+	);
+}
+
+function AccountRow({
+	icon,
+	label,
+	onPress,
+	destructive,
+	last,
+}: {
+	icon: keyof typeof Ionicons.glyphMap;
+	label: string;
+	onPress: () => void;
+	destructive?: boolean;
+	last?: boolean;
+}) {
+	return (
+		<Pressable
+			onPress={onPress}
+			className={last ? "flex-row items-center p-4" : "flex-row items-center border-secondary-3 border-b p-4"}
+		>
+			<Ionicons
+				name={icon}
+				size={20}
+				color={destructive ? "#EF4444" : colors.primary[1]}
+			/>
+			<Text
+				className={`ml-3 flex-1 text-base ${destructive ? "text-red-500" : "text-primary-1"}`}
+			>
+				{label}
+			</Text>
+			{!destructive && (
+				<Ionicons
+					name="chevron-forward"
+					size={20}
+					color={colors.secondary[1]}
+				/>
+			)}
+		</Pressable>
+	);
+}
+
+function AccountSection({
+	onChangePassword,
+	onLogout,
+}: {
+	onChangePassword: () => void;
+	onLogout: () => void;
+}) {
+	return (
+		<View>
+			<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+				ACCOUNT
+			</Text>
+			<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
+				<AccountRow
+					icon="lock-closed-outline"
+					label="Change Password"
+					onPress={onChangePassword}
+				/>
+				<AccountRow
+					icon="help-circle-outline"
+					label="Help & Support"
+					onPress={() => Linking.openURL("mailto:support@avantej.com")}
+				/>
+				<AccountRow
+					icon="document-text-outline"
+					label="Terms & Privacy"
+					onPress={() => Linking.openURL("https://avantej.com/terms")}
+				/>
+				<AccountRow
+					icon="log-out-outline"
+					label="Sign Out"
+					onPress={onLogout}
+					destructive
+					last
+				/>
+			</View>
+		</View>
+	);
+}
+

@@ -127,7 +127,7 @@ export default function SignUpScreen() {
 								First Name
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your first name"
 								placeholderTextColor="#9CA3AF"
 								value={firstName}
@@ -139,7 +139,7 @@ export default function SignUpScreen() {
 								Last Name
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your last name"
 								placeholderTextColor="#9CA3AF"
 								value={lastName}
@@ -151,7 +151,7 @@ export default function SignUpScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -165,7 +165,7 @@ export default function SignUpScreen() {
 								Password
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="At least 8 characters"
 								placeholderTextColor="#9CA3AF"
 								value={password}
@@ -177,7 +177,7 @@ export default function SignUpScreen() {
 								Confirm Password
 							</Text>
 							<TextInput
-								className="mb-6 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-6 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Confirm your password"
 								placeholderTextColor="#9CA3AF"
 								value={confirmPassword}
@@ -195,7 +195,7 @@ export default function SignUpScreen() {
 									!password.trim() ||
 									!confirmPassword.trim()
 								}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity:
 										isLoading ||
@@ -221,7 +221,7 @@ export default function SignUpScreen() {
 
 					{/* Sign In Link */}
 					<View className="mb-8 flex-row items-center justify-center">
-						<Text className="text-base text-gray-500">
+						<Text className="text-base text-zinc-500">
 							Already have an account?{" "}
 						</Text>
 						<Pressable onPress={() => router.replace("/(auth)/login")}>

@@ -43,13 +43,13 @@ export default function ForgotPasswordScreen() {
 					<Text className="mb-3 font-bold text-2xl text-black">
 						Check Your Email
 					</Text>
-					<Text className="mb-8 text-center text-base text-gray-600">
+					<Text className="mb-8 text-center text-base text-zinc-600">
 						If an account exists with that email, we've sent password reset
 						instructions.
 					</Text>
 					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
-						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
+						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Back to Sign In
@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen() {
 					<Text className="mb-3 font-bold text-2xl text-black">
 						Forgot Password?
 					</Text>
-					<Text className="mb-8 text-center text-base text-gray-600">
+					<Text className="mb-8 text-center text-base text-zinc-600">
 						Enter your email and we'll send you instructions to reset your
 						password.
 					</Text>
@@ -92,7 +92,7 @@ export default function ForgotPasswordScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-6 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-6 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -105,7 +105,7 @@ export default function ForgotPasswordScreen() {
 							<Pressable
 								onPress={handleSubmit}
 								disabled={isLoading || !email.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity: isLoading || !email.trim() ? 0.6 : 1,
 								}}

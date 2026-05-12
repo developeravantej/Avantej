@@ -88,7 +88,7 @@ export default function LoginScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
 								Password
 							</Text>
 							<TextInput
-								className="mb-2 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-2 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your password"
 								placeholderTextColor="#9CA3AF"
 								value={password}
@@ -116,14 +116,14 @@ export default function LoginScreen() {
 								onPress={() => router.push("/(auth)/forgot-password")}
 								className="mb-6 self-end"
 							>
-								<Text className="text-sm text-gray-500">Forgot Password?</Text>
+								<Text className="text-sm text-zinc-500">Forgot Password?</Text>
 							</Pressable>
 
 							{/* Login Button */}
 							<Pressable
 								onPress={handleLogin}
 								disabled={isLoading || !email.trim() || !password.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity:
 										isLoading || !email.trim() || !password.trim() ? 0.6 : 1,
@@ -142,7 +142,7 @@ export default function LoginScreen() {
 
 					{/* Sign Up Link */}
 					<View className="mt-4 flex-row items-center">
-						<Text className="text-base text-gray-500">
+						<Text className="text-base text-zinc-500">
 							Don't have an account?{" "}
 						</Text>
 						<Pressable onPress={() => router.push("/(auth)/sign-up")}>

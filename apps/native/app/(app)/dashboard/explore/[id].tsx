@@ -252,6 +252,7 @@ export default function ServiceDetailScreen() {
 					</View>
 
 					{/* Highlights */}
+					{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
 					<SectionHeader>Highlights</SectionHeader>
 					<View className="mb-3 flex-row gap-2">
 						{duration && (
@@ -305,6 +306,7 @@ export default function ServiceDetailScreen() {
 					{/* Description */}
 					{svc.description && (
 						<>
+							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
 							<SectionHeader>About</SectionHeader>
 							<View className="mb-5 rounded-2xl bg-primary-2 p-4">
 								<Text
@@ -320,6 +322,7 @@ export default function ServiceDetailScreen() {
 					{/* Features */}
 					{Array.isArray(svc.features) && svc.features.length > 0 && (
 						<>
+							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
 							<SectionHeader>What's included</SectionHeader>
 							<View className="mb-5 rounded-2xl bg-primary-2 p-4">
 								{(svc.features as string[]).map((f) => (
@@ -347,6 +350,7 @@ export default function ServiceDetailScreen() {
 					{/* Location */}
 					{svc.location && (
 						<>
+							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
 							<SectionHeader>Location</SectionHeader>
 							<View className="mb-5 flex-row items-center rounded-2xl bg-primary-2 p-4">
 								<Ionicons
@@ -367,6 +371,7 @@ export default function ServiceDetailScreen() {
 					{/* Related */}
 					{related.length > 0 && (
 						<>
+							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
 							<SectionHeader>Related Services</SectionHeader>
 							{related.map((relSvc: any) => (
 								<Pressable

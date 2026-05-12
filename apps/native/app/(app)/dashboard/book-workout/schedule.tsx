@@ -69,7 +69,7 @@ const formatTime = (isoString: string): string => {
 	return `${displayHour}:${minutes.toString().padStart(2, "0")} ${period}`;
 };
 
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+// react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: book-workout schedule with date carousel, time pickers, recurrence, needs further refactor PR
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = useBookingFlow();
@@ -386,6 +386,7 @@ export default function ScheduleScreen() {
 											horizontal
 											showsHorizontalScrollIndicator={false}
 										>
+											{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size day picker (max 7 days), horizontal ScrollView preserves layout */}
 											{state.timePresetConfig.recurringDays.map((day) => {
 												const isSelected = selectedRecurringDay === day;
 												return (
@@ -502,6 +503,7 @@ export default function ScheduleScreen() {
 									Select Date
 								</Text>
 								<ScrollView horizontal showsHorizontalScrollIndicator={false}>
+									{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size date picker (max 14 days), horizontal ScrollView preserves layout */}
 									{dates.map((date) => {
 										const isSelected =
 											selectedDate &&
@@ -672,6 +674,7 @@ export default function ScheduleScreen() {
 									showsHorizontalScrollIndicator={false}
 									className="mb-4"
 								>
+									{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size date card carousel (max 14 days), horizontal ScrollView preserves layout */}
 									{dates.map((date) => {
 										const isSelected =
 											selectedDate &&
