@@ -160,7 +160,7 @@ function RouteComponent() {
 			cell: ({ row }) => {
 				const { id, status } = row.original;
 				if (!canUpdate && !canCreate) {
-					return <span className="text-muted-foreground text-xs">—</span>;
+					return <span className="text-muted-foreground text-xs">-</span>;
 				}
 				const isApprovable = status === "draft";
 				const isReceivable = ["approved", "ordered", "partially_received"].includes(status);

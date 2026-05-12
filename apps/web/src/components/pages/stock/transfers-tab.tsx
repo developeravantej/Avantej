@@ -336,7 +336,7 @@ export function TransferOrdersTabPage() {
 			cell: ({ row }) => {
 				const { id, status } = row.original;
 				if (!canUpdate) {
-					return <span className="text-muted-foreground text-xs">—</span>;
+					return <span className="text-muted-foreground text-xs">-</span>;
 				}
 
 				if (status === "pending") {
@@ -391,7 +391,7 @@ export function TransferOrdersTabPage() {
 					);
 				}
 
-				return <span className="text-muted-foreground text-xs">—</span>;
+				return <span className="text-muted-foreground text-xs">-</span>;
 			},
 		},
 	];

@@ -20,7 +20,7 @@ export const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }
 			})
 	}
 
-	if (!value) return <span className="text-muted-foreground">—</span>
+	if (!value) return <span className="text-muted-foreground">-</span>
 
 	const displayContent = displayText || value
 

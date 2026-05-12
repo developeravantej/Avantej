@@ -288,9 +288,9 @@ function AddAdminDialog({
 								<SelectValue placeholder="Select role" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="super_admin">Super Admin — Full access</SelectItem>
-								<SelectItem value="support">Support — Impersonation + read access</SelectItem>
-								<SelectItem value="billing">Billing — Billing access only</SelectItem>
+								<SelectItem value="super_admin">Super Admin: Full access</SelectItem>
+								<SelectItem value="support">Support: Impersonation + read access</SelectItem>
+								<SelectItem value="billing">Billing: Billing access only</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -346,7 +346,7 @@ function PlatformAdminAdminsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Platform Admin — Admins</h1>
+					<h1 className="text-2xl font-bold">Platform Admin: Admins</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Manage platform admin accounts. Only super admins can view or modify
 						this list.

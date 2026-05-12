@@ -250,8 +250,8 @@ export function AppointmentCalendar({
 						{day}
 					</div>
 				))}
-				{calendarDays.map((date, i) => (
-					<React.Fragment key={i}>
+				{calendarDays.map((date) => (
+					<React.Fragment key={date.toISOString()}>
 						<CalendarCell
 							date={date}
 							appts={getSortedAppointmentsForDate(date)}

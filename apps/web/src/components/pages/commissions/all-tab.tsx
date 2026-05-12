@@ -115,7 +115,7 @@ function SourceCell({ row }: { row: CommissionLedgerRow }) {
 			</Link>
 		);
 	}
-	return <span className="text-muted-foreground">—</span>;
+	return <span className="text-muted-foreground">-</span>;
 }
 
 // ─── KPI Cards ────────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ function VoidRowDialog({
 				<DialogHeader>
 					<DialogTitle>Void Commission Split</DialogTitle>
 					<DialogDescription>
-						Provide a required reason — this is recorded in the audit trail.
+						Provide a required reason. This is recorded in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3 py-2">
@@ -450,7 +450,7 @@ export function AllCommissionsPage() {
 			cell: ({ row }) => (
 				<span className="text-sm">
 					{row.original.serviceName ?? (
-						<span className="text-muted-foreground">—</span>
+						<span className="text-muted-foreground">-</span>
 					)}
 				</span>
 			),

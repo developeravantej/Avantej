@@ -338,7 +338,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 												<TableCell className={`${TD} text-sm`}>
 													{row.phone
 														? <CopyableCell value={row.phone} />
-														: <span className="text-muted-foreground">—</span>}
+														: <span className="text-muted-foreground">-</span>}
 												</TableCell>
 
 												{/* Packages */}
@@ -348,7 +348,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 															{row.activePackageCount}
 														</Badge>
 													) : (
-														<span className="text-muted-foreground text-sm">—</span>
+														<span className="text-muted-foreground text-sm">-</span>
 													)}
 												</TableCell>
 

@@ -125,7 +125,7 @@ export const columns: ColumnDef<PayoutRow>[] = [
 			return id ? (
 				<CopyableCell value={id} displayText={id.slice(0, 8)} />
 			) : (
-				<span className="text-muted-foreground">—</span>
+				<span className="text-muted-foreground">-</span>
 			);
 		},
 		enableSorting: true,

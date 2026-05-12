@@ -301,7 +301,7 @@ function GoHighLevelIntegrationPage() {
 
 			<div>
 				<p className="text-xs text-muted-foreground italic">
-					Legacy per-branch connection (Option X) — use only if your franchise
+					Legacy per-branch connection (Option X). Use only if your franchise
 					model requires separate GHL locations per branch.
 				</p>
 			</div>
@@ -357,7 +357,7 @@ function GoHighLevelIntegrationPage() {
 															{errorCount} failed
 														</Badge>
 													) : (
-														<span className="text-muted-foreground">—</span>
+														<span className="text-muted-foreground">-</span>
 													)}
 												</td>
 												<td className="py-3">
@@ -424,7 +424,7 @@ function GoHighLevelIntegrationPage() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>
-							Connect GHL —{" "}
+							Connect GHL:{" "}
 							{branchNodes.find((b) => b.id === connectBranchId)?.name ?? ""}
 						</DialogTitle>
 					</DialogHeader>

@@ -178,7 +178,7 @@ export function TrainerAvailabilityEditor({
 						</div>
 
 						{dayShifts.length === 0 ? (
-							<p className="text-xs text-brand-secondary-1 pl-1">No shifts — day off</p>
+							<p className="text-xs text-brand-secondary-1 pl-1">No shifts, day off</p>
 						) : (
 							<div className="space-y-1.5 pl-1">
 								{dayShifts.map(({ shift, originalIndex }) => (

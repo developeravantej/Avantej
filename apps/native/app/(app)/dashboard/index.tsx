@@ -660,9 +660,9 @@ export default function Home() {
 						</Text>
 						{recentLoading ? (
 							<>
-								{[1, 2].map((i) => (
+								{[1, 2].map((n) => (
 									<View
-										key={i}
+										key={`skel-${n}`}
 										className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 									>
 										<SkeletonBox className="mr-3 size-10 rounded-lg" />

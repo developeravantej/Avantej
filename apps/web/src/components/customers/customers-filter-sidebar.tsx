@@ -84,8 +84,8 @@ function CustomersFilterSidebarImpl({
 			<div className="flex-1 overflow-y-auto p-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1">
 				{isLoading && (
 					<div className="space-y-1.5">
-						{[1, 2, 3, 4].map((i) => (
-							<div key={i} className="h-12 animate-pulse rounded-xl bg-gray-100" />
+						{[1, 2, 3, 4].map((n) => (
+							<div key={`skel-${n}`} className="h-12 animate-pulse rounded-xl bg-gray-100" />
 						))}
 					</div>
 				)}

@@ -106,7 +106,7 @@ export function AppTopbar({
 							</BreadcrumbItem>
 						)}
 						{breadcrumbs.map((crumb, index) => (
-							<React.Fragment key={index}>
+							<React.Fragment key={`${crumb.href ?? "page"}-${crumb.title}`}>
 								<BreadcrumbItem>
 									{index === breadcrumbs.length - 1 ? (
 										<BreadcrumbPage>{crumb.title}</BreadcrumbPage>

@@ -523,12 +523,12 @@ export function PosWorkflow({
 											Customer
 											{customerTypeMode === "member" && selectedCustomer && (
 												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													— {selectedCustomer.name}
+													({selectedCustomer.name})
 												</span>
 											)}
 											{customerTypeMode === "walk_in" && (
 												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													— Walk-in
+													(Walk-in)
 												</span>
 											)}
 										</span>
@@ -605,7 +605,7 @@ export function PosWorkflow({
 										Items
 										{items.length > 0 && (
 											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												— {items.length} item{items.length !== 1 ? "s" : ""}
+												({items.length} item{items.length !== 1 ? "s" : ""})
 											</span>
 										)}
 									</span>
@@ -676,7 +676,7 @@ export function PosWorkflow({
 										Promotion
 										{appliedPromo && (
 											<span className="ml-1 font-normal text-green-600 text-sm">
-												— {appliedPromo.code}
+												({appliedPromo.code})
 											</span>
 										)}
 										<span className="font-normal text-muted-foreground text-xs">
@@ -718,7 +718,7 @@ export function PosWorkflow({
 										Tax
 										{selectedTaxRate && (
 											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												— {selectedTaxRate.name} (
+												({selectedTaxRate.name},{" "}
 												{(selectedTaxRate.rateInBasisPoints / 100).toFixed(0)}%)
 											</span>
 										)}
@@ -761,11 +761,12 @@ export function PosWorkflow({
 										Payment
 										{paymentMethod && (
 											<span className="ml-1 font-normal text-muted-foreground text-sm capitalize">
-												—{" "}
+												({" "}
 												{paymentMethod === "bank_transfer"
 													? "Bank Transfer"
 													: paymentMethod.charAt(0).toUpperCase() +
 														paymentMethod.slice(1)}
+												)
 											</span>
 										)}
 									</span>

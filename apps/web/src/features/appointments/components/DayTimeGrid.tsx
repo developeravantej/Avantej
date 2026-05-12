@@ -122,7 +122,7 @@ function BufferBlocks({ sortedAppts, gridStart }: { sortedAppts: Appointment[]; 
 					? `${Math.floor(bufferMins / 60)}h${bufferMins % 60 > 0 ? ` ${bufferMins % 60}m` : ""} buffer`
 					: `${bufferMins}m buffer`;
 				return (
-					<div key={`buf-${i}`} className="absolute left-0 right-0 z-0 flex items-center justify-center" style={{ top, height }}>
+					<div key={`buf-${appt.id}`} className="absolute left-0 right-0 z-0 flex items-center justify-center" style={{ top, height }}>
 						<div className="w-full h-full border-y border-dashed border-gray-300 bg-gray-50/60 flex items-center justify-center gap-1 text-[11px] text-gray-400 pointer-events-none">
 							<Clock className="size-3 shrink-0" />{label}
 						</div>

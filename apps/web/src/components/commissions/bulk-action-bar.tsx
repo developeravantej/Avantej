@@ -115,7 +115,7 @@ function VoidConfirmDialog({
 					<DialogTitle>Void Commission Splits</DialogTitle>
 					<DialogDescription>
 						You are about to void {count} commission split{count !== 1 ? "s" : ""}
-						. Provide a required reason — this is recorded in the audit trail.
+						. Provide a required reason. This is recorded in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3 py-2">

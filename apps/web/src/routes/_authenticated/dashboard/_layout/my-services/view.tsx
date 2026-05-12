@@ -179,7 +179,7 @@ function MyServicesView() {
 				const val = row.original.bufferTimeMinutes;
 				if (val == null) {
 					return (
-						<span className="text-muted-foreground">— (using default)</span>
+						<span className="text-muted-foreground">- (using default)</span>
 					);
 				}
 				return <Badge variant="outline">{val} min</Badge>;

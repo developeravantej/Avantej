@@ -165,7 +165,7 @@ function TargetCell({ refund }: { refund: RefundRow }) {
 			</span>
 		);
 	}
-	return <span className="text-muted-foreground">—</span>;
+	return <span className="text-muted-foreground">-</span>;
 }
 
 // ─── Detail drawer ────────────────────────────────────────────────────────────

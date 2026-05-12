@@ -71,7 +71,7 @@ export const columns: ColumnDef<ProductRow>[] = [
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Barcode" />,
 		cell: ({ getValue }) => {
 			const barcode = getValue<string | null | undefined>();
-			return barcode ? <CopyableCell value={barcode} /> : <span className="text-muted-foreground text-sm">—</span>;
+			return barcode ? <CopyableCell value={barcode} /> : <span className="text-muted-foreground text-sm">-</span>;
 		},
 		enableSorting: true,
 		enableHiding: true,

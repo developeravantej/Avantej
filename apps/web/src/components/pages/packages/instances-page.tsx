@@ -503,7 +503,7 @@ export function PackageInstancesPage() {
 										{row.totalPrice != null ? (
 											formatPrice(row.totalPrice, "MYR")
 										) : (
-											<span className="text-muted-foreground">—</span>
+											<span className="text-muted-foreground">-</span>
 										)}
 									</TableCell>
 									<TableCell className={TD}>{formatDate(row.startsAt)}</TableCell>
@@ -631,7 +631,7 @@ export function PackageInstancesPage() {
 								</SelectContent>
 							</Select>
 							<p className="text-xs text-muted-foreground">
-								Optional — choose a plan to split the total into installments.
+								Optional: choose a plan to split the total into installments.
 							</p>
 						</div>
 

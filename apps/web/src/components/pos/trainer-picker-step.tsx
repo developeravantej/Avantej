@@ -114,7 +114,7 @@ export function TrainerPickerStep({
 	return (
 		<div className="flex flex-col gap-4">
 			<p className="text-sm text-muted-foreground">
-				Assign trainers to commission-configured items. This step is optional —
+				Assign trainers to commission-configured items. This step is optional;
 				skip if the trainer is not yet known.
 			</p>
 

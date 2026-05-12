@@ -333,7 +333,7 @@ export function StockRequestsTabPage() {
 			cell: ({ row }) => {
 				const { id, status } = row.original;
 				if (!canUpdate) {
-					return <span className="text-muted-foreground text-xs">—</span>;
+					return <span className="text-muted-foreground text-xs">-</span>;
 				}
 				if (status === "pending") {
 					return (
@@ -375,7 +375,7 @@ export function StockRequestsTabPage() {
 						</Button>
 					);
 				}
-				return <span className="text-muted-foreground text-xs">—</span>;
+				return <span className="text-muted-foreground text-xs">-</span>;
 			},
 		},
 	];

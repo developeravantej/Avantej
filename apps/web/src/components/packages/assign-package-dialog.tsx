@@ -277,7 +277,7 @@ export function AssignPackageDialog({
 							</SelectContent>
 						</Select>
 						<p className="text-xs text-muted-foreground">
-							Optional — choose a plan to split the total into installments.
+							Optional: choose a plan to split the total into installments.
 						</p>
 					</div>
 

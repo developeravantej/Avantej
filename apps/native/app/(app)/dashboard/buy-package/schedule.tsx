@@ -747,14 +747,14 @@ export default function ScheduleScreen() {
 									gap: 10,
 								}}
 							>
-								{[0, 1, 2, 3].map((i) => {
-									const pref = preferredTimes[i];
-									const label = `PREF ${String(i + 1).padStart(2, "0")}`;
+								{[0, 1, 2, 3].map((slotIdx) => {
+									const pref = preferredTimes[slotIdx];
+									const label = `PREF ${String(slotIdx + 1).padStart(2, "0")}`;
 
 									if (pref) {
 										return (
 											<View
-												key={i}
+												key={`pref-${slotIdx}`}
 												style={{
 													width: "48%",
 													minHeight: 110,
@@ -766,7 +766,7 @@ export default function ScheduleScreen() {
 												}}
 											>
 												<TouchableOpacity
-													onPress={() => handleRemovePreferredTime(i)}
+													onPress={() => handleRemovePreferredTime(slotIdx)}
 													style={{
 														position: "absolute",
 														top: 8,
@@ -825,7 +825,7 @@ export default function ScheduleScreen() {
 
 									return (
 										<TouchableOpacity
-											key={i}
+											key={`pref-${slotIdx}`}
 											onPress={() => {
 												if (!expandedDay) setExpandedDay(DAYS_OF_WEEK[0]);
 												setPickerOpen(true);
@@ -906,9 +906,9 @@ export default function ScheduleScreen() {
 													</Text>
 													<View className="flex-row flex-wrap gap-2">
 														{slots.length > 0 ? (
-															slots.map((time, i) => (
+															slots.map((time) => (
 																<View
-																	key={`${day}-${i}`}
+																	key={`${day}-${time}`}
 																	className="rounded-full border border-secondary-3 bg-secondary-3 px-3 py-1.5"
 																>
 																	<Text

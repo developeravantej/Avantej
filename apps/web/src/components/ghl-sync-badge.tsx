@@ -45,7 +45,7 @@ export function GhlSyncBadge({
 	isRetrying,
 }: GhlSyncBadgeProps) {
 	if (!ghlSync) {
-		return <span className="text-xs text-muted-foreground">—</span>;
+		return <span className="text-xs text-muted-foreground">-</span>;
 	}
 
 	const status = ghlSync.syncStatus;

@@ -421,9 +421,9 @@ export default function PackageDetailScreen() {
 														</Text>
 														<View className="flex-row flex-wrap gap-2">
 															{slots.length > 0 ? (
-																slots.map((time, i) => (
+																slots.map((time) => (
 																	<View
-																		key={`${day}-${i}`}
+																		key={`${day}-${time}`}
 																		className="rounded-full border border-secondary-3 bg-secondary-3 px-3 py-1.5"
 																	>
 																		<Text

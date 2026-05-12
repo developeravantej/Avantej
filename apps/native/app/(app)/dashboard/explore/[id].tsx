@@ -322,9 +322,9 @@ export default function ServiceDetailScreen() {
 						<>
 							<SectionHeader>What's included</SectionHeader>
 							<View className="mb-5 rounded-2xl bg-primary-2 p-4">
-								{(svc.features as string[]).map((f, i) => (
+								{(svc.features as string[]).map((f) => (
 									<View
-										key={`${i}-${f}`}
+										key={f}
 										className="mb-2 flex-row items-start last:mb-0"
 									>
 										<Ionicons

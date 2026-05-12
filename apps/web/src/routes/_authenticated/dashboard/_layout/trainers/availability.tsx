@@ -141,7 +141,7 @@ function IntakeTab({
 										if (slots.length === 0) {
 											return (
 												<TableCell key={d.key} className="text-muted-foreground">
-													—
+													-
 												</TableCell>
 											);
 										}

@@ -177,7 +177,7 @@ export function MarkPaidDialog({
 									<FormLabel>
 										Payout ID{" "}
 										<span className="font-normal text-muted-foreground text-xs">
-											optional — link to an existing payout record
+											optional, link to an existing payout record
 										</span>
 									</FormLabel>
 									<FormControl>

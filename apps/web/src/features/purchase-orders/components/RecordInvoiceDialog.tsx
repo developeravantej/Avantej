@@ -156,10 +156,10 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 											<SelectValue placeholder="Select posted receipt…" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="">— None —</SelectItem>
+											<SelectItem value="">None</SelectItem>
 											{postedReceipts.map((r) => (
 												<SelectItem key={r.id} value={r.id}>
-													{r.receiptNumber} — {formatDate(r.receivedAt)}
+													{r.receiptNumber}, {formatDate(r.receivedAt)}
 												</SelectItem>
 											))}
 										</SelectContent>

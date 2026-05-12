@@ -363,7 +363,7 @@ function ExpensesViewPage() {
 			cell: ({ row }) => {
 				const { id, status } = row.original;
 				if (!canUpdate) {
-					return <span className="text-muted-foreground text-xs">—</span>;
+					return <span className="text-muted-foreground text-xs">-</span>;
 				}
 				if (status === "pending") {
 					return (
@@ -409,7 +409,7 @@ function ExpensesViewPage() {
 						</Button>
 					);
 				}
-				return <span className="text-muted-foreground text-xs">—</span>;
+				return <span className="text-muted-foreground text-xs">-</span>;
 			},
 		},
 	];

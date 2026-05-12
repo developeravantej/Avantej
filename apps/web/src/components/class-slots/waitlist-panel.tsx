@@ -49,8 +49,8 @@ function StatusBadge({ status }: { status: string }) {
 function WaitlistSkeleton() {
 	return (
 		<div className="space-y-3 mt-4">
-			{[1, 2, 3].map((i) => (
-				<div key={i} className="flex items-center gap-3">
+			{[1, 2, 3].map((n) => (
+				<div key={`skel-${n}`} className="flex items-center gap-3">
 					<Skeleton className="h-5 w-6" />
 					<Skeleton className="h-5 flex-1" />
 					<Skeleton className="h-5 w-20" />

@@ -451,8 +451,8 @@ export function ServiceDetailDialog({
 																			{day}
 																		</span>
 																		{slots.length > 0 ? (
-																			slots.map((time, i) => (
-																				<Badge key={i} variant="secondary">
+																			slots.map((time) => (
+																				<Badge key={`${day}-${time}`} variant="secondary">
 																					{time}
 																				</Badge>
 																			))
@@ -511,8 +511,8 @@ export function ServiceDetailDialog({
 												{service.features && service.features.length > 0 && (
 													<Field label="Features">
 														<div className="flex flex-wrap gap-1">
-															{service.features.map((f, i) => (
-																<Badge key={i} variant="secondary">
+															{service.features.map((f) => (
+																<Badge key={f} variant="secondary">
 																	{f}
 																</Badge>
 															))}

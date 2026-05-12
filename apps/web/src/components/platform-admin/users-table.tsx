@@ -63,7 +63,7 @@ interface UsersTableProps {
 // ─── Role badge ───────────────────────────────────────────────────────────────
 
 function PlatformRoleBadge({ role }: { role: string | null }) {
-	if (!role) return <span className="text-muted-foreground">—</span>;
+	if (!role) return <span className="text-muted-foreground">-</span>;
 
 	const variantMap: Record<string, "default" | "secondary" | "outline"> = {
 		super_admin: "default",
@@ -115,12 +115,12 @@ export function UsersTable({
 		{
 			accessorKey: "firstName",
 			header: "First Name",
-			cell: ({ row }) => row.original.firstName || <span className="text-muted-foreground">—</span>,
+			cell: ({ row }) => row.original.firstName || <span className="text-muted-foreground">-</span>,
 		},
 		{
 			accessorKey: "lastName",
 			header: "Last Name",
-			cell: ({ row }) => row.original.lastName || <span className="text-muted-foreground">—</span>,
+			cell: ({ row }) => row.original.lastName || <span className="text-muted-foreground">-</span>,
 		},
 		{
 			accessorKey: "lastLoginAt",

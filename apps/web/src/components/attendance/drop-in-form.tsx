@@ -152,7 +152,7 @@ export function DropInForm({
 								className="font-mono text-xs"
 							/>
 							<p className="text-[11px] text-muted-foreground">
-								Find via Customer Directory — copy the user ID.
+								Find via Customer Directory, copy the user ID.
 							</p>
 							{/* Credits lookup result */}
 							{clientType === "member" && isValidUuid && (
@@ -180,7 +180,7 @@ export function DropInForm({
 								onChange={(e) => setDisplayName(e.target.value)}
 							/>
 							<p className="text-[11px] text-muted-foreground">
-								Optional — shown in the check-in log.
+								Optional, shown in the check-in log.
 							</p>
 						</div>
 					)}

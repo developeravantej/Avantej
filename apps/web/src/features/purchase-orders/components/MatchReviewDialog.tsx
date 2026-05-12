@@ -128,14 +128,14 @@ export function MatchReviewDialog({ invoiceId, organizationId, onClose, onAction
 
 							{preview.isWithinTolerance ? (
 								<div className="rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700 font-medium">
-									Within Tolerance — Ready to approve
+									Within Tolerance: Ready to approve
 								</div>
 							) : (
 								<div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
 									<p className="font-medium mb-1">Mismatch Detected</p>
 									<ul className="list-disc list-inside space-y-0.5">
-										{preview.mismatches.map((m, i) => (
-											<li key={i}>{m}</li>
+										{preview.mismatches.map((m) => (
+											<li key={m}>{m}</li>
 										))}
 									</ul>
 								</div>

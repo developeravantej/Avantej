@@ -1216,7 +1216,7 @@ export function MembersTabPage() {
 			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle>Edit User — {editingUserDetails?.name}</DialogTitle>
+						<DialogTitle>Edit User: {editingUserDetails?.name}</DialogTitle>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">

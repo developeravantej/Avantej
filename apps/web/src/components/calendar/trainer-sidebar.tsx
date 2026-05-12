@@ -100,8 +100,8 @@ export function TrainerSidebar({
 
 				{isLoading && (
 					<div className="space-y-1.5 mt-1.5">
-						{[1, 2, 3].map((i) => (
-							<div key={i} className="h-12 rounded-xl animate-pulse bg-gray-100" />
+						{[1, 2, 3].map((n) => (
+							<div key={`skel-${n}`} className="h-12 rounded-xl animate-pulse bg-gray-100" />
 						))}
 					</div>
 				)}

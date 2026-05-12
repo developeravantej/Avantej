@@ -1036,7 +1036,7 @@ function ClassSlotsPage() {
 						</DialogTitle>
 						{viewingSignupsSlot && (
 							<DialogDescription>
-								{serviceNameById(viewingSignupsSlot.serviceId)} —{" "}
+								{serviceNameById(viewingSignupsSlot.serviceId)},{" "}
 								{new Date(viewingSignupsSlot.date).toLocaleDateString()} at{" "}
 								{viewingSignupsSlot.startTime}
 							</DialogDescription>
@@ -1060,7 +1060,7 @@ function ClassSlotsPage() {
 										<SelectContent>
 											{customerMembers.length === 0 ? (
 												<div className="px-2 py-1.5 text-xs text-muted-foreground">
-													No active customers — invite one first.
+													No active customers. Invite one first.
 												</div>
 											) : (
 												customerMembers.map(

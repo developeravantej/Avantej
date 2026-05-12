@@ -59,7 +59,7 @@ export function StaffPicker({
 			)}
 			{trainerFilterFallback && (
 				<p className="text-xs text-amber-600">
-					No trainers assigned to this service — showing all trainers.
+					No trainers assigned to this service, showing all trainers.
 				</p>
 			)}
 

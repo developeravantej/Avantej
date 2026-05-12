@@ -102,7 +102,7 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			accessorKey: "dueDate",
 			cell: ({ row }) => (
 				<span className="text-sm">
-					{row.original.dueDate ? formatDate(row.original.dueDate) : <span className="text-muted-foreground">—</span>}
+					{row.original.dueDate ? formatDate(row.original.dueDate) : <span className="text-muted-foreground">-</span>}
 				</span>
 			),
 		},
@@ -125,7 +125,7 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			header: "Actions",
 			cell: ({ row }) => {
 				const { id, status, invoiceNumber } = row.original;
-				if (!canUpdate) return <span className="text-muted-foreground text-xs">—</span>;
+				if (!canUpdate) return <span className="text-muted-foreground text-xs">-</span>;
 				return (
 					<div className="flex items-center gap-1.5">
 						{(status === "pending" || status === "disputed") && (

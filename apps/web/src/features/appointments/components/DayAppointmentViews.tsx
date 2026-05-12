@@ -63,7 +63,7 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 											<span className="text-xs text-gray-700 truncate">{trainerName}</span>
 										</div>
 									) : (
-										<span className="text-xs text-muted-foreground mt-0.5">—</span>
+										<span className="text-xs text-muted-foreground mt-0.5">-</span>
 									)}
 								</div>
 

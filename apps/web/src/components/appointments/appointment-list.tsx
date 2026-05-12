@@ -242,8 +242,8 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 					>
 						{isLoading ? (
 							<div className="space-y-3">
-								{[1, 2, 3, 4].map((i) => (
-									<div key={i} className="h-16 rounded-xl animate-pulse bg-gray-50" />
+								{[1, 2, 3, 4].map((n) => (
+									<div key={`skel-${n}`} className="h-16 rounded-xl animate-pulse bg-gray-50" />
 								))}
 							</div>
 						) : dateKeys.length === 0 ? (

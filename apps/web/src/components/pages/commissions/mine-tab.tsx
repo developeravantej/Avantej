@@ -65,7 +65,7 @@ function SourceCell({ row }: { row: MyCommissionRow }) {
 			</Link>
 		);
 	}
-	return <span className="text-muted-foreground">—</span>;
+	return <span className="text-muted-foreground">-</span>;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ export function MyCommissionsPage() {
 			cell: ({ row }) => (
 				<span className="text-sm">
 					{row.original.serviceName ?? (
-						<span className="text-muted-foreground">—</span>
+						<span className="text-muted-foreground">-</span>
 					)}
 				</span>
 			),
