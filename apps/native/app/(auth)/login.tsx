@@ -6,9 +6,9 @@ import {
 	Image,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -112,15 +112,15 @@ export default function LoginScreen() {
 							/>
 
 							{/* Forgot Password */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() => router.push("/(auth)/forgot-password")}
 								className="mb-6 self-end"
 							>
 								<Text className="text-sm text-gray-500">Forgot Password?</Text>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Login Button */}
-							<TouchableOpacity
+							<Pressable
 								onPress={handleLogin}
 								disabled={isLoading || !email.trim() || !password.trim()}
 								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
@@ -136,7 +136,7 @@ export default function LoginScreen() {
 										Sign In
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 
@@ -145,9 +145,9 @@ export default function LoginScreen() {
 						<Text className="text-base text-gray-500">
 							Don't have an account?{" "}
 						</Text>
-						<TouchableOpacity onPress={() => router.push("/(auth)/sign-up")}>
+						<Pressable onPress={() => router.push("/(auth)/sign-up")}>
 							<Text className="font-medium text-base text-black">Sign Up</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</View>
 			</KeyboardAvoidingView>

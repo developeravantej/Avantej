@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
@@ -126,22 +126,22 @@ export default function ExploreScreen() {
 								style={{ color: colors.primary[1] }}
 							/>
 							{searchQuery.length > 0 && (
-								<TouchableOpacity onPress={() => setSearchQuery("")}>
+								<Pressable onPress={() => setSearchQuery("")}>
 									<Ionicons
 										name="close-circle"
 										size={20}
 										color={colors.secondary[1]}
 									/>
-								</TouchableOpacity>
+								</Pressable>
 							)}
 						</View>
-						<TouchableOpacity className="p-3">
+						<Pressable className="p-3">
 							<Ionicons
 								name="filter-outline"
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
 					{/* Category Filters */}
@@ -154,7 +154,7 @@ export default function ExploreScreen() {
 							{filterTabs.map((tab) => {
 								const isSelected = tab.id === selectedCategoryId;
 								return (
-									<TouchableOpacity
+									<Pressable
 										key={tab.id ?? "all"}
 										onPress={() => setSelectedCategoryId(tab.id)}
 										className={`mr-2 rounded-full px-4 py-2 ${
@@ -175,7 +175,7 @@ export default function ExploreScreen() {
 										>
 											{tab.name}
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 								);
 							})}
 						</View>
@@ -201,7 +201,7 @@ export default function ExploreScreen() {
 								</Text>
 
 								{recommended.map((service: any) => (
-									<TouchableOpacity
+									<Pressable
 										key={service.id}
 										onPress={() => {
 											router.push({
@@ -249,7 +249,7 @@ export default function ExploreScreen() {
 												</View>
 											</View>
 										</View>
-									</TouchableOpacity>
+									</Pressable>
 								))}
 							</View>
 						)}
@@ -289,7 +289,7 @@ export default function ExploreScreen() {
 								</View>
 							) : (
 								browse.map((service: any) => (
-									<TouchableOpacity
+									<Pressable
 										key={service.id}
 										onPress={() => {
 											router.push({
@@ -337,7 +337,7 @@ export default function ExploreScreen() {
 												</View>
 											</View>
 										</View>
-									</TouchableOpacity>
+									</Pressable>
 								))
 							)}
 						</View>

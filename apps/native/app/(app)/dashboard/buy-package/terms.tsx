@@ -9,10 +9,10 @@ import {
 	Alert,
 	Linking,
 	Platform,
+	Pressable,
 	ScrollView,
 	StyleSheet,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -150,12 +150,12 @@ export default function TermsScreen() {
 		return (
 			<Container>
 				<View style={styles.pdfHeader}>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="mr-3 size-10 items-center justify-center"
 					>
 						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-					</TouchableOpacity>
+					</Pressable>
 					<Text
 						className="flex-1 font-bold text-2xl"
 						style={{ color: colors.primary[1] }}
@@ -177,12 +177,12 @@ export default function TermsScreen() {
 		return (
 			<Container>
 				<View style={styles.pdfHeader}>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="mr-3 size-10 items-center justify-center"
 					>
 						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-					</TouchableOpacity>
+					</Pressable>
 					<Text
 						className="flex-1 font-bold text-2xl"
 						style={{ color: colors.primary[1] }}
@@ -213,12 +213,12 @@ export default function TermsScreen() {
 				{/* Header */}
 				<View className="border-secondary-3 border-b bg-primary-2 px-4 pt-4 pb-4">
 					<View className="flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text
 							className="flex-1 font-bold text-2xl"
 							style={{ color: colors.primary[1] }}

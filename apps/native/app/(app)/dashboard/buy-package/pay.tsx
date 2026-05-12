@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -137,7 +137,7 @@ export default function PayScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -146,7 +146,7 @@ export default function PayScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Payment
 						</Text>
@@ -434,7 +434,7 @@ export default function PayScreen() {
 				className="border-secondary-3 border-t bg-white"
 			>
 				<View className="p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={handlePayment}
 						disabled={isProcessing}
 						className={`items-center justify-center rounded-xl py-4 ${
@@ -451,7 +451,7 @@ export default function PayScreen() {
 								Pay {fmt(total)}
 							</Text>
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

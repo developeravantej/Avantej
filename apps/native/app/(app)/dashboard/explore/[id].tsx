@@ -4,9 +4,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import {
 	ActivityIndicator,
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -144,12 +144,12 @@ export default function ServiceDetailScreen() {
 					>
 						Service not found
 					</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="mt-4 items-center justify-center rounded-xl bg-primary-1 px-6 py-3"
 					>
 						<Text className="font-semibold text-primary-2">Go Back</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</Container>
 		);
@@ -181,13 +181,13 @@ export default function ServiceDetailScreen() {
 						className="h-72 w-full"
 						resizeMode="cover"
 					/>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="absolute left-4 top-12 size-10 items-center justify-center rounded-full"
 						style={{ backgroundColor: "rgba(255,255,255,0.92)" }}
 					>
 						<Ionicons name="arrow-back" size={22} color={colors.primary[1]} />
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 
 				<View className="px-4 pt-5 pb-6">
@@ -369,7 +369,7 @@ export default function ServiceDetailScreen() {
 						<>
 							<SectionHeader>Related Services</SectionHeader>
 							{related.map((relSvc: any) => (
-								<TouchableOpacity
+								<Pressable
 									key={relSvc.id}
 									onPress={() => {
 										router.push({
@@ -422,7 +422,7 @@ export default function ServiceDetailScreen() {
 										size={20}
 										color={colors.secondary[1]}
 									/>
-								</TouchableOpacity>
+								</Pressable>
 							))}
 						</>
 					)}
@@ -435,22 +435,22 @@ export default function ServiceDetailScreen() {
 				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="flex-row gap-3 p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={handleBuyPackage}
 						className="flex-1 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-1">
 							Buy Package
 						</Text>
-					</TouchableOpacity>
-					<TouchableOpacity
+					</Pressable>
+					<Pressable
 						onPress={handleBookNow}
 						className="flex-1 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Book Now
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

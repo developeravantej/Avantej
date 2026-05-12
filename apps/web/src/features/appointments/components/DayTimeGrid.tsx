@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import { Clock, Calendar, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ interface DayTimeGridProps {
 	defaultTrainerId?: string | null;
 	onAppointmentClick: (appt: Appointment) => void;
 	onAddAppointment: () => void;
+	ref?: Ref<HTMLDivElement>;
 }
 
 function formatTime(date: Date) {
@@ -141,10 +142,14 @@ function BufferBlocks({ sortedAppts, gridStart }: { sortedAppts: Appointment[]; 
 	);
 }
 
-export const DayTimeGrid = forwardRef<HTMLDivElement, DayTimeGridProps>(function DayTimeGrid(
-	{ appts, currentDate, defaultTrainerId, onAppointmentClick, onAddAppointment },
+export function DayTimeGrid({
+	appts,
+	currentDate,
+	defaultTrainerId,
+	onAppointmentClick,
+	onAddAppointment,
 	ref,
-) {
+}: DayTimeGridProps) {
 	if (appts.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
@@ -243,4 +248,4 @@ export const DayTimeGrid = forwardRef<HTMLDivElement, DayTimeGridProps>(function
 			</div>
 		</div>
 	);
-});
+}

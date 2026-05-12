@@ -3,9 +3,9 @@ import { queryClient } from "@/utils/orpc";
 import { useState } from "react";
 import {
 	ActivityIndicator,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 
@@ -72,7 +72,7 @@ export function SignIn() {
 				secureTextEntry
 			/>
 
-			<TouchableOpacity
+			<Pressable
 				onPress={handleLogin}
 				disabled={isLoading}
 				className="bg-primary p-4 rounded-md flex-row justify-center items-center"
@@ -82,7 +82,7 @@ export function SignIn() {
 				) : (
 					<Text className="text-primary-foreground font-medium">Sign In</Text>
 				)}
-			</TouchableOpacity>
+			</Pressable>
 		</View>
 	);
 }

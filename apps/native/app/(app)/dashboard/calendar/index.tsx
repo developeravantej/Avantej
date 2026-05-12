@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
@@ -108,7 +108,7 @@ export default function CalendarScreen() {
 					{/* Header Section */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center">
-							<TouchableOpacity
+							<Pressable
 								onPress={() => router.back()}
 								className="mr-3 size-10 items-center justify-center"
 							>
@@ -117,7 +117,7 @@ export default function CalendarScreen() {
 									size={24}
 									color={colors.primary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 							<Text className="flex-1 font-bold text-2xl text-primary-1">
 								Calendar
 							</Text>

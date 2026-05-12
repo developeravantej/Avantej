@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
@@ -208,7 +208,7 @@ export default function NotificationsScreen() {
 					{/* Header */}
 					<View className="mb-6 flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<TouchableOpacity
+							<Pressable
 								onPress={() => router.back()}
 								className="mr-4"
 							>
@@ -217,7 +217,7 @@ export default function NotificationsScreen() {
 									size={24}
 									color={colors.primary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 							<Text className="font-bold text-2xl text-primary-1">
 								Notifications
 							</Text>
@@ -230,11 +230,11 @@ export default function NotificationsScreen() {
 							)}
 						</View>
 						{unreadCount > 0 && (
-							<TouchableOpacity onPress={handleMarkAllRead}>
+							<Pressable onPress={handleMarkAllRead}>
 								<Text className="font-medium text-primary-1 text-sm">
 									Mark all read
 								</Text>
-							</TouchableOpacity>
+							</Pressable>
 						)}
 					</View>
 
@@ -262,7 +262,7 @@ export default function NotificationsScreen() {
 					) : (
 						!isLoading &&
 						notificationList.map((notification: any) => (
-							<TouchableOpacity
+							<Pressable
 								key={notification.id}
 								onPress={() => handleNotificationPress(notification)}
 								className={`mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm ${
@@ -304,7 +304,7 @@ export default function NotificationsScreen() {
 										</Text>
 									</View>
 								</View>
-							</TouchableOpacity>
+							</Pressable>
 						))
 					)}
 				</View>

@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -203,12 +203,12 @@ export default function ScheduleScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -388,7 +388,7 @@ export default function ScheduleScreen() {
 											{state.timePresetConfig.recurringDays.map((day) => {
 												const isSelected = selectedRecurringDay === day;
 												return (
-													<TouchableOpacity
+													<Pressable
 														key={day}
 														onPress={() => {
 															setSelectedRecurringDay(day);
@@ -415,7 +415,7 @@ export default function ScheduleScreen() {
 														>
 															{day}
 														</Text>
-													</TouchableOpacity>
+													</Pressable>
 												);
 											})}
 										</ScrollView>
@@ -450,7 +450,7 @@ export default function ScheduleScreen() {
 												]!.map((time) => {
 													const isSelected = selectedTime === time;
 													return (
-														<TouchableOpacity
+														<Pressable
 															key={time}
 															onPress={() => setSelectedTime(time)}
 															className={`mr-3 mb-3 rounded-xl p-3 ${
@@ -473,7 +473,7 @@ export default function ScheduleScreen() {
 															>
 																{time}
 															</Text>
-														</TouchableOpacity>
+														</Pressable>
 													);
 												})}
 											</View>
@@ -514,7 +514,7 @@ export default function ScheduleScreen() {
 										});
 
 										return (
-											<TouchableOpacity
+											<Pressable
 												key={date.toISOString()}
 												onPress={() => setSelectedDate(date)}
 												className={`mr-3 rounded-2xl p-3 ${
@@ -558,7 +558,7 @@ export default function ScheduleScreen() {
 												>
 													{monthName}
 												</Text>
-											</TouchableOpacity>
+											</Pressable>
 										);
 									})}
 								</ScrollView>
@@ -576,7 +576,7 @@ export default function ScheduleScreen() {
 									{privateTimeSlots.map((time) => {
 										const isSelected = selectedTime === time;
 										return (
-											<TouchableOpacity
+											<Pressable
 												key={time}
 												onPress={() => setSelectedTime(time)}
 												className={`mr-3 mb-3 rounded-xl p-3 ${
@@ -599,7 +599,7 @@ export default function ScheduleScreen() {
 												>
 													{time}
 												</Text>
-											</TouchableOpacity>
+											</Pressable>
 										);
 									})}
 								</View>
@@ -618,7 +618,7 @@ export default function ScheduleScreen() {
 										SELECT DATE
 									</Text>
 									<View className="flex-row">
-										<TouchableOpacity
+										<Pressable
 											onPress={() => setViewMode("week")}
 											className={`mr-2 rounded-lg px-3 py-1 ${
 												viewMode === "week"
@@ -639,8 +639,8 @@ export default function ScheduleScreen() {
 											>
 												Week
 											</Text>
-										</TouchableOpacity>
-										<TouchableOpacity
+										</Pressable>
+										<Pressable
 											onPress={() => setViewMode("month")}
 											className={`rounded-lg px-3 py-1 ${
 												viewMode === "month"
@@ -661,7 +661,7 @@ export default function ScheduleScreen() {
 											>
 												Month
 											</Text>
-										</TouchableOpacity>
+										</Pressable>
 									</View>
 								</View>
 
@@ -684,7 +684,7 @@ export default function ScheduleScreen() {
 										});
 
 										return (
-											<TouchableOpacity
+											<Pressable
 												key={date.toISOString()}
 												onPress={() => {
 													setSelectedDate(date);
@@ -732,7 +732,7 @@ export default function ScheduleScreen() {
 												>
 													{monthName}
 												</Text>
-											</TouchableOpacity>
+											</Pressable>
 										);
 									})}
 								</ScrollView>
@@ -779,7 +779,7 @@ export default function ScheduleScreen() {
 											const displayTime = formatTime(slot.startTime);
 
 											return (
-												<TouchableOpacity
+												<Pressable
 													key={slot.id}
 													onPress={() => {
 														if (!isUnavailable) {
@@ -831,16 +831,16 @@ export default function ScheduleScreen() {
 															{spotsLeft} spots left
 														</Text>
 													)}
-												</TouchableOpacity>
+												</Pressable>
 											);
 										})}
 									</View>
 								)}
 
 								{/* Waitlist Option */}
-								<TouchableOpacity className="mt-2 items-center">
+								<Pressable className="mt-2 items-center">
 									<Text className="text-primary-1 text-sm">Join waitlist</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						</View>
 					)}
@@ -856,14 +856,14 @@ export default function ScheduleScreen() {
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="p-4">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

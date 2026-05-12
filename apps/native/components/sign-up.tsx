@@ -4,9 +4,9 @@ import { useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 
@@ -98,7 +98,7 @@ export function SignUp() {
 				secureTextEntry
 			/>
 
-			<TouchableOpacity
+			<Pressable
 				onPress={handleSignUp}
 				disabled={isLoading}
 				className="bg-primary p-4 rounded-md flex-row justify-center items-center"
@@ -108,7 +108,7 @@ export function SignUp() {
 				) : (
 					<Text className="text-primary-foreground font-medium">Sign Up</Text>
 				)}
-			</TouchableOpacity>
+			</Pressable>
 		</View>
 	);
 }

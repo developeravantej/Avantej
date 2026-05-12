@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import {
 	Alert,
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -156,12 +156,12 @@ export default function BookWorkoutScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -333,7 +333,7 @@ export default function BookWorkoutScreen() {
 											: "Private";
 
 								return (
-									<TouchableOpacity
+									<Pressable
 										key={inst.id}
 										onPress={() => {
 											setSelectedPackageInstanceId(inst.id);
@@ -471,7 +471,7 @@ export default function BookWorkoutScreen() {
 												</View>
 											)}
 										</View>
-									</TouchableOpacity>
+									</Pressable>
 								);
 							})
 						)}
@@ -487,14 +487,14 @@ export default function BookWorkoutScreen() {
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="p-4">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

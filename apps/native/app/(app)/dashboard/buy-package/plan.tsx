@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -82,7 +82,7 @@ export default function PlanScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -91,7 +91,7 @@ export default function PlanScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Payment Plan
 						</Text>
@@ -235,7 +235,7 @@ export default function PlanScreen() {
 							const isSelected = selectedPlan === planKey;
 
 							return (
-								<TouchableOpacity
+								<Pressable
 									key={planKey}
 									onPress={() => setSelectedPlan(planKey)}
 									className={`mb-3 rounded-2xl border bg-primary-2 p-4 shadow-sm ${
@@ -306,7 +306,7 @@ export default function PlanScreen() {
 											</Text>
 										</View>
 									</View>
-								</TouchableOpacity>
+								</Pressable>
 							);
 						})}
 					</View>
@@ -319,14 +319,14 @@ export default function PlanScreen() {
 				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={handleContinue}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Continue
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

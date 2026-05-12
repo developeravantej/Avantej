@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
@@ -178,7 +178,7 @@ export default function PackageDetailScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -187,7 +187,7 @@ export default function PackageDetailScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text
 							className="flex-1 font-bold text-2xl"
 							style={{ color: colors.primary[1] }}
@@ -617,7 +617,7 @@ export default function PackageDetailScreen() {
 							{/* Action Buttons */}
 							<View className="mt-2 mb-4">
 								{status !== "pending" && (
-									<TouchableOpacity
+									<Pressable
 										onPress={() =>
 											router.push(
 												"/dashboard/book-workout/book-workout" as never,
@@ -628,9 +628,9 @@ export default function PackageDetailScreen() {
 										<Text className="font-semibold text-base text-primary-2">
 											Start Booking
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 								)}
-								<TouchableOpacity
+								<Pressable
 									onPress={() => router.back()}
 									className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 								>
@@ -640,7 +640,7 @@ export default function PackageDetailScreen() {
 									>
 										Back
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						</>
 					)}

@@ -8,10 +8,10 @@ import {
 	Image,
 	Modal,
 	Platform,
+	Pressable,
 	ScrollView,
 	StyleSheet,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -345,7 +345,7 @@ const TrainerRow = memo(function TrainerRow({
 		[item.trainerId, item.trainerName, onPick],
 	);
 	return (
-		<TouchableOpacity
+		<Pressable
 			onPress={handlePress}
 			className="border-b border-secondary-3 py-3"
 		>
@@ -357,7 +357,7 @@ const TrainerRow = memo(function TrainerRow({
 					{item.trainerEmail}
 				</Text>
 			) : null}
-		</TouchableOpacity>
+		</Pressable>
 	);
 });
 
@@ -479,7 +479,7 @@ export default function ScheduleScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -488,7 +488,7 @@ export default function ScheduleScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Select Schedule
 						</Text>
@@ -638,9 +638,8 @@ export default function ScheduleScreen() {
 						{trainersQuery.isLoading ? (
 							<View className="h-12 rounded-xl bg-secondary-3" />
 						) : (
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setTrainerDropdownOpen(true)}
-								activeOpacity={0.8}
 								className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
 							>
 								<Text
@@ -657,7 +656,7 @@ export default function ScheduleScreen() {
 									size={16}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 						)}
 					</View>
 
@@ -699,9 +698,8 @@ export default function ScheduleScreen() {
 						animationType="fade"
 						onRequestClose={() => setTrainerDropdownOpen(false)}
 					>
-						<TouchableOpacity
+						<Pressable
 							style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
-							activeOpacity={1}
 							onPress={() => setTrainerDropdownOpen(false)}
 						>
 							<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
@@ -716,14 +714,14 @@ export default function ScheduleScreen() {
 									keyExtractor={(item) => item.trainerId}
 									renderItem={renderTrainerItem}
 								/>
-								<TouchableOpacity
+								<Pressable
 									onPress={() => setTrainerDropdownOpen(false)}
 									className="mt-3 items-center py-3"
 								>
 									<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
-						</TouchableOpacity>
+						</Pressable>
 					</Modal>
 					</>
 					)}
@@ -794,7 +792,7 @@ export default function ScheduleScreen() {
 													position: "relative",
 												}}
 											>
-												<TouchableOpacity
+												<Pressable
 													onPress={() => handleRemovePreferredTime(slotIdx)}
 													style={{
 														position: "absolute",
@@ -813,7 +811,7 @@ export default function ScheduleScreen() {
 														size={14}
 														color={colors.primary[2]}
 													/>
-												</TouchableOpacity>
+												</Pressable>
 												<Text
 													style={{
 														color: colors.primary[2],
@@ -853,7 +851,7 @@ export default function ScheduleScreen() {
 									}
 
 									return (
-										<TouchableOpacity
+										<Pressable
 											key={`pref-${slotIdx}`}
 											onPress={() => {
 												if (!expandedDay) setExpandedDay(DAYS_OF_WEEK[0]);
@@ -892,7 +890,7 @@ export default function ScheduleScreen() {
 											>
 												ADD {String(slotIdx + 1).padStart(2, "0")}
 											</Text>
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
@@ -981,17 +979,16 @@ export default function ScheduleScreen() {
 				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={handleContinue}
 						disabled={!canContinue}
-						activeOpacity={0.8}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						style={{ opacity: canContinue ? 1 : 0.4 }}
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Continue
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 
@@ -1003,9 +1000,8 @@ export default function ScheduleScreen() {
 				onRequestClose={() => setPickerOpen(false)}
 			>
 				<View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
-					<TouchableOpacity
+					<Pressable
 						style={{ flex: 1 }}
-						activeOpacity={1}
 						onPress={() => setPickerOpen(false)}
 					/>
 					<View
@@ -1040,7 +1036,7 @@ export default function ScheduleScreen() {
 								Add slot{" "}
 								{String(preferredTimes.length + 1).padStart(2, "0")}
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setPickerOpen(false)}
 								style={{
 									width: 32,
@@ -1056,7 +1052,7 @@ export default function ScheduleScreen() {
 									size={18}
 									color={colors.primary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 
 						<Text
@@ -1077,7 +1073,7 @@ export default function ScheduleScreen() {
 								{DAYS_OF_WEEK.map((day) => {
 									const active = expandedDay === day;
 									return (
-										<TouchableOpacity
+										<Pressable
 											key={day}
 											onPress={() => setExpandedDay(day)}
 											className="rounded-xl border px-4 py-3"
@@ -1100,7 +1096,7 @@ export default function ScheduleScreen() {
 											>
 												{day.substring(0, 3)}
 											</Text>
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
@@ -1146,7 +1142,7 @@ export default function ScheduleScreen() {
 							)}
 						</View>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() => {
 								if (!expandedDay) return;
 								const timeString = formatTime(selectedTime);
@@ -1165,7 +1161,7 @@ export default function ScheduleScreen() {
 							<Text className="font-semibold text-base text-primary-2">
 								Add This Slot
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</View>
 			</Modal>

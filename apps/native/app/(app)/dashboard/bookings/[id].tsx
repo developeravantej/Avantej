@@ -6,9 +6,9 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -155,13 +155,13 @@ export default function BookingDetailScreen() {
 					>
 						Booking not found
 					</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="mt-4 rounded-xl px-6 py-3"
 						style={{ backgroundColor: "#2563EB" }}
 					>
 						<Text className="font-semibold text-white">Go Back</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</Container>
 		);
@@ -195,12 +195,12 @@ export default function BookingDetailScreen() {
 			>
 				{/* Header with Back Button */}
 				<View className="px-4 pt-4 pb-2">
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.back()}
 						className="mb-4 flex-row items-center"
 					>
 						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 
 				{/* Booking Image */}
@@ -551,7 +551,7 @@ export default function BookingDetailScreen() {
 					className="border-gray-200 border-t bg-white"
 				>
 					<View className="p-4">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleCancel}
 							disabled={cancelMutation.isPending}
 							className="items-center justify-center rounded-xl bg-white py-4"
@@ -571,7 +571,7 @@ export default function BookingDetailScreen() {
 									Cancel Booking
 								</Text>
 							)}
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

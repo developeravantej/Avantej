@@ -1,6 +1,6 @@
 import { authClient } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
@@ -31,7 +31,7 @@ export default function Home() {
                 {session.user.email}
               </Text>
 
-              <TouchableOpacity
+              <Pressable
                 className="bg-destructive py-2 px-4 rounded-md self-start"
                 onPress={() => {
                   authClient.signOut();
@@ -39,7 +39,7 @@ export default function Home() {
                 }}
               >
                 <Text className="text-white font-medium">Sign Out</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ) : null}
           <View className="mb-6 rounded-lg border border-border p-4">

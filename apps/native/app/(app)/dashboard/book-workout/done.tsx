@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useBookingFlow } from "@/contexts/booking-flow-context";
@@ -54,12 +54,12 @@ export default function DoneScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleBackToHome}
 							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -302,23 +302,23 @@ export default function DoneScreen() {
 				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={handleBackToHome}
 						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Back to Home
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 
-					<TouchableOpacity
+					<Pressable
 						onPress={handleViewBookings}
 						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-1">
 							View My Bookings
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

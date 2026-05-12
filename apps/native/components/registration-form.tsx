@@ -11,11 +11,11 @@ import {
 	Image,
 	Modal,
 	Platform,
+	Pressable,
 	ScrollView,
 	StyleSheet,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -303,7 +303,7 @@ const CountryRow = memo(function CountryRow({
 }) {
 	const handlePress = useCallback(() => onPick(item), [item, onPick]);
 	return (
-		<TouchableOpacity
+		<Pressable
 			onPress={handlePress}
 			className="mx-4 flex-row items-center border-b px-2 py-3"
 			style={isSelected ? countryRowStyles.rowSelected : countryRowStyles.rowBase}
@@ -329,7 +329,7 @@ const CountryRow = memo(function CountryRow({
 					style={countryRowStyles.checkmark}
 				/>
 			)}
-		</TouchableOpacity>
+		</Pressable>
 	);
 });
 
@@ -382,9 +382,8 @@ function CountryCodePicker({
 	return (
 		<Modal visible={visible} animationType="slide" transparent>
 			<View className="flex-1 justify-end">
-				<TouchableOpacity
+				<Pressable
 					className="flex-1"
-					activeOpacity={1}
 					onPress={onClose}
 				/>
 				<View
@@ -427,13 +426,13 @@ function CountryCodePicker({
 								autoCorrect={false}
 							/>
 							{search.length > 0 && (
-								<TouchableOpacity onPress={() => setSearch("")}>
+								<Pressable onPress={() => setSearch("")}>
 									<Ionicons
 										name="close-circle"
 										size={18}
 										color={colors.secondary[1]}
 									/>
-								</TouchableOpacity>
+								</Pressable>
 							)}
 						</View>
 					</View>
@@ -484,7 +483,7 @@ function PhoneInput({
 				style={{ borderColor: error ? "#E53935" : colors.secondary[2] }}
 			>
 				{/* Country code selector */}
-				<TouchableOpacity
+				<Pressable
 					onPress={() => setPickerVisible(true)}
 					className="flex-row items-center border-r py-3 pl-4 pr-3"
 					style={{ borderRightColor: colors.secondary[2] }}
@@ -501,7 +500,7 @@ function PhoneInput({
 						size={14}
 						color={colors.secondary[1]}
 					/>
-				</TouchableOpacity>
+				</Pressable>
 
 				{/* Phone number input */}
 				<TextInput
@@ -606,7 +605,7 @@ function PersonalDetailsStep({
 
 			<FormLabel text="Address Type" required />
 			<View className="mb-4 flex-row gap-4">
-				<TouchableOpacity
+				<Pressable
 					onPress={() => onChange({ addressType: "home" })}
 					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
 						data.addressType === "home"
@@ -636,9 +635,9 @@ function PersonalDetailsStep({
 					>
 						Home
 					</Text>
-				</TouchableOpacity>
+				</Pressable>
 
-				<TouchableOpacity
+				<Pressable
 					onPress={() => onChange({ addressType: "work" })}
 					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
 						data.addressType === "work"
@@ -668,7 +667,7 @@ function PersonalDetailsStep({
 					>
 						Work
 					</Text>
-				</TouchableOpacity>
+				</Pressable>
 			</View>
 
 			<FormLabel text="Street Address" required />
@@ -723,7 +722,7 @@ function PersonalDetailsStep({
 			</View>
 
 			<FormLabel text="Date of Birth" required />
-			<TouchableOpacity
+			<Pressable
 				onPress={() => setShowDatePicker(true)}
 				className="mb-4 rounded-xl border bg-primary-2 px-4 py-3"
 				style={{
@@ -748,7 +747,7 @@ function PersonalDetailsStep({
 							})
 						: "Select date of birth"}
 				</Text>
-			</TouchableOpacity>
+			</Pressable>
 			{errors.dateOfBirth && (
 				<Text
 					className="-mt-3 mb-4 text-xs"
@@ -771,7 +770,7 @@ function PersonalDetailsStep({
 					}}
 				/>
 			)}
-						<TouchableOpacity
+						<Pressable
 				onPress={handleSignOut}
 				className="mb-4 self-start flex-row items-center gap-2 rounded-xl border border-red-400 bg-red-50 px-4 py-2"
 			>
@@ -779,7 +778,7 @@ function PersonalDetailsStep({
 				<Text className="text-sm font-medium" style={{ color: "#E53935" }}>
 					Sign Out
 				</Text>
-			</TouchableOpacity>
+			</Pressable>
 		</>
 	);
 }
@@ -902,7 +901,7 @@ function BranchSelectionStep({
 			<FormLabel text="Country" required />
 			<View className="mb-6 flex-row flex-wrap justify-center gap-4">
 				{countries.map((country) => (
-					<TouchableOpacity
+					<Pressable
 						key={country}
 						onPress={() => {
 							onChange({ country, branchId: "", organizationId: "" });
@@ -924,7 +923,7 @@ function BranchSelectionStep({
 						>
 							{country}
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				))}
 			</View>
 			{errors.country && (
@@ -947,7 +946,7 @@ function BranchSelectionStep({
 					) : (
 						<>
 							{/* Dropdown trigger */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setDropdownOpen(!dropdownOpen)}
 								className={`mb-1 flex-row items-center justify-between rounded-xl border bg-primary-2 px-4 py-3 ${
 									errors.branchId
@@ -977,13 +976,13 @@ function BranchSelectionStep({
 									size={18}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Dropdown list */}
 							{dropdownOpen && (
 								<View className="mb-1 overflow-hidden rounded-xl border border-secondary-2 bg-primary-2">
 									{branches.map((branch, index) => (
-										<TouchableOpacity
+										<Pressable
 											key={branch.id}
 											onPress={() => {
 												onChange({
@@ -1025,7 +1024,7 @@ function BranchSelectionStep({
 													color={colors.primary[1]}
 												/>
 											)}
-										</TouchableOpacity>
+										</Pressable>
 									))}
 								</View>
 							)}
@@ -1384,7 +1383,7 @@ export default function RegistrationForm() {
 				>
 					<View className="flex-row gap-3 p-4">
 						{currentStep > 0 && (
-							<TouchableOpacity
+							<Pressable
 								onPress={handlePrev}
 								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
 							>
@@ -1396,10 +1395,10 @@ export default function RegistrationForm() {
 								<Text className="font-semibold text-base text-primary-1">
 									Back
 								</Text>
-							</TouchableOpacity>
+							</Pressable>
 						)}
 
-						<TouchableOpacity
+						<Pressable
 							onPress={currentStep === 2 ? handleSubmit : handleNext}
 							disabled={isSubmitting}
 							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
@@ -1421,7 +1420,7 @@ export default function RegistrationForm() {
 									)}
 								</>
 							)}
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 		</View>

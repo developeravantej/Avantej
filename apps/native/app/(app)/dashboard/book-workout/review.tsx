@@ -5,9 +5,9 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -139,12 +139,12 @@ export default function ReviewScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -400,7 +400,7 @@ export default function ReviewScreen() {
 				className="border-secondary-3 border-t bg-primary-2"
 			>
 				<View className="p-4">
-					<TouchableOpacity
+					<Pressable
 						onPress={() => confirmMutation.mutate()}
 						disabled={confirmMutation.isPending || !userId}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
@@ -415,7 +415,7 @@ export default function ReviewScreen() {
 								Confirm Booking
 							</Text>
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

@@ -6,9 +6,9 @@ import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -47,14 +47,14 @@ export default function ForgotPasswordScreen() {
 						If an account exists with that email, we've sent password reset
 						instructions.
 					</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
 						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Back to Sign In
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		);
@@ -69,9 +69,9 @@ export default function ForgotPasswordScreen() {
 				<View className="flex-1 items-center justify-center px-6">
 					{/* Back Button */}
 					<View className="absolute left-6 top-4">
-						<TouchableOpacity onPress={() => router.back()}>
+						<Pressable onPress={() => router.back()}>
 							<Ionicons name="arrow-back" size={24} color="#000" />
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
 					<View className="mb-6">
@@ -102,7 +102,7 @@ export default function ForgotPasswordScreen() {
 								autoCorrect={false}
 							/>
 
-							<TouchableOpacity
+							<Pressable
 								onPress={handleSubmit}
 								disabled={isLoading || !email.trim()}
 								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
@@ -117,7 +117,7 @@ export default function ForgotPasswordScreen() {
 										Send Reset Link
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 				</View>

@@ -4,9 +4,9 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
 	Image,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -129,7 +129,7 @@ export default function SetupScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -138,7 +138,7 @@ export default function SetupScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Buy Package
 						</Text>
@@ -269,7 +269,7 @@ export default function SetupScreen() {
 							</>
 						) : (
 							(categories ?? []).map((category: any) => (
-								<TouchableOpacity
+								<Pressable
 									key={category.id}
 									onPress={() => {
 										setSelectedCategoryId(category.id);
@@ -297,7 +297,7 @@ export default function SetupScreen() {
 											{category.description}
 										</Text>
 									)}
-								</TouchableOpacity>
+								</Pressable>
 							))
 						)}
 					</View>
@@ -342,7 +342,7 @@ export default function SetupScreen() {
 							</View>
 						) : (
 							purchasableServices.map((service: any) => (
-								<TouchableOpacity
+								<Pressable
 									key={service.id}
 									onPress={() => {
 										setSelectedServiceId(service.id);
@@ -415,7 +415,7 @@ export default function SetupScreen() {
 											</Text>
 										)}
 									</View>
-								</TouchableOpacity>
+								</Pressable>
 							))
 						)}
 					</View>
@@ -429,14 +429,14 @@ export default function SetupScreen() {
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="p-4">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

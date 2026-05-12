@@ -7,10 +7,10 @@ import {
 	Image,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	ScrollView,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -184,7 +184,7 @@ export default function SignUpScreen() {
 								secureTextEntry
 							/>
 
-							<TouchableOpacity
+							<Pressable
 								onPress={handleSignUp}
 								disabled={
 									isLoading ||
@@ -214,7 +214,7 @@ export default function SignUpScreen() {
 										Create Account
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 
@@ -223,9 +223,9 @@ export default function SignUpScreen() {
 						<Text className="text-base text-gray-500">
 							Already have an account?{" "}
 						</Text>
-						<TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
+						<Pressable onPress={() => router.replace("/(auth)/login")}>
 							<Text className="font-medium text-base text-black">Sign In</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>

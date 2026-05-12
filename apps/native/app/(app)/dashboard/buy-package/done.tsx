@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
@@ -44,7 +44,7 @@ export default function DoneScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleGoHome}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -53,7 +53,7 @@ export default function DoneScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Purchase Complete
 						</Text>
@@ -294,32 +294,32 @@ export default function DoneScreen() {
 
 					{/* Action Buttons (inline; scroll with content) */}
 					<View className="mt-6 w-full">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleViewPackages}
 							className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								View My Packages
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={handleStartBooking}
 							className="mb-3 items-center justify-center rounded-xl border border-primary-1 bg-primary-2 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-1">
 								Start Booking
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={handleGoHome}
 							className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-1">
 								Back to Home
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</View>
 			</ScrollView>

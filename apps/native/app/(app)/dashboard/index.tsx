@@ -5,10 +5,10 @@ import { useCallback, useMemo } from "react";
 import {
 	ActivityIndicator,
 	Image,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
@@ -302,7 +302,7 @@ export default function Home() {
 								{currentDate}
 							</Text>
 						</View>
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/notifications/" as never)
 							}
@@ -323,7 +323,7 @@ export default function Home() {
 									</Text>
 								</View>
 							)}
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
 					{/* Fitness Plan Card */}
@@ -403,7 +403,7 @@ export default function Home() {
 									<Text className="text-secondary-1 text-sm">
 										Renews on {planStats.renewalDate}
 									</Text>
-									<TouchableOpacity
+									<Pressable
 										onPress={() =>
 											router.push("/dashboard/packages" as never)
 										}
@@ -416,7 +416,7 @@ export default function Home() {
 												color={colors.primary[1]}
 											/>
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 								</View>
 							)}
 						</View>
@@ -431,7 +431,7 @@ export default function Home() {
 							<Text className="mb-4 text-secondary-1 text-sm">
 								Get started with a fitness package to track your progress.
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={() =>
 									router.push("/dashboard/buy-package/setup" as never)
 								}
@@ -443,7 +443,7 @@ export default function Home() {
 								>
 									Browse Packages
 								</Text>
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					)}
 
@@ -466,7 +466,7 @@ export default function Home() {
 
 					{/* Action Buttons Grid */}
 					<View className="mb-8 flex-row justify-between">
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/book-workout/book-workout")
 							}
@@ -480,9 +480,9 @@ export default function Home() {
 							<Text className="mt-2 text-center font-medium text-primary-2 text-xs">
 								Book{"\n"}Session
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/calendar" as never)
 							}
@@ -496,9 +496,9 @@ export default function Home() {
 							<Text className="mt-2 font-medium text-primary-1 text-xs">
 								Calendar
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/buy-package/setup" as never)
 							}
@@ -512,9 +512,9 @@ export default function Home() {
 							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								Buy{"\n"}Package
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/packages" as never)
 							}
@@ -528,7 +528,7 @@ export default function Home() {
 							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								My{"\n"}Credits
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
 					{/* UP NEXT Section */}
@@ -550,7 +550,7 @@ export default function Home() {
 							<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 								UP NEXT
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={() =>
 									router.push(
 										`/dashboard/bookings/${upcomingActivity.id}` as never,
@@ -615,7 +615,7 @@ export default function Home() {
 										/>
 									</View>
 								</View>
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					) : (
 						<View className="mb-6">
@@ -637,7 +637,7 @@ export default function Home() {
 								<Text className="mt-1 mb-3 text-center text-secondary-1 text-sm">
 									Book a workout to get started
 								</Text>
-								<TouchableOpacity
+								<Pressable
 									onPress={() =>
 										router.push(
 											"/dashboard/book-workout/book-workout",
@@ -648,7 +648,7 @@ export default function Home() {
 									<Text className="font-medium text-primary-2 text-sm">
 										Book Now
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						</View>
 					)}
@@ -681,7 +681,7 @@ export default function Home() {
 							</View>
 						) : recentActivities.length > 0 ? (
 							recentActivities.map((activity: any) => (
-								<TouchableOpacity
+								<Pressable
 									key={activity.id}
 									className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 								>
@@ -706,7 +706,7 @@ export default function Home() {
 											{activity.credits} credit
 										</Text>
 									)}
-								</TouchableOpacity>
+								</Pressable>
 							))
 						) : (
 							<View className="items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">

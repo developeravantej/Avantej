@@ -5,10 +5,10 @@ import { useCallback, useMemo } from "react";
 import {
 	ActivityIndicator,
 	Image,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
@@ -222,7 +222,7 @@ export default function BookingsScreen() {
 					</View>
 
 					{/* Quick Link to Packages */}
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.push("/dashboard/packages" as never)}
 						className="mb-6 flex-row items-center justify-between rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 					>
@@ -248,7 +248,7 @@ export default function BookingsScreen() {
 							size={20}
 							color={colors.primary[1]}
 						/>
-					</TouchableOpacity>
+					</Pressable>
 
 					{/* UPCOMING Section */}
 					<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
@@ -378,7 +378,7 @@ export default function BookingsScreen() {
 
 								{/* Action Buttons */}
 								<View className="flex-row justify-between">
-									<TouchableOpacity
+									<Pressable
 										onPress={() => {
 											router.push({
 												pathname:
@@ -393,13 +393,13 @@ export default function BookingsScreen() {
 										<Text className="font-medium text-base text-primary-1">
 											View details
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 
-									<TouchableOpacity className="ml-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3">
+									<Pressable className="ml-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3">
 										<Text className="font-medium text-base text-primary-1">
 											Reschedule
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 								</View>
 							</View>
 						))
@@ -530,7 +530,7 @@ export default function BookingsScreen() {
 								</View>
 
 								{/* View Details Button */}
-								<TouchableOpacity
+								<Pressable
 									onPress={() => {
 										router.push({
 											pathname:
@@ -545,7 +545,7 @@ export default function BookingsScreen() {
 									<Text className="font-medium text-base text-primary-1">
 										View details
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						))
 					)}

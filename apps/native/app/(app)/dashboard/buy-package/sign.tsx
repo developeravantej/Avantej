@@ -6,9 +6,9 @@ import {
 	Alert,
 	Image,
 	Modal,
+	Pressable,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -132,7 +132,7 @@ export default function SignScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
@@ -141,7 +141,7 @@ export default function SignScreen() {
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							E-Signature
 						</Text>
@@ -292,7 +292,7 @@ export default function SignScreen() {
 								{TERMS_DOCUMENTS.map((doc) => {
 									const viewed = viewedDocs[doc.id];
 									return (
-										<TouchableOpacity
+										<Pressable
 											key={doc.id}
 											onPress={() => handleOpenTermsSection(doc.id)}
 											className="mb-1 flex-row items-center"
@@ -323,16 +323,15 @@ export default function SignScreen() {
 													style={{ marginLeft: 4 }}
 												/>
 											)}
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
 						</View>
 
 						{/* Agreement Checkbox */}
-						<TouchableOpacity
+						<Pressable
 							onPress={handleAgreementPress}
-							activeOpacity={0.7}
 							className="mb-4 flex-row items-start rounded-xl border border-secondary-3 bg-primary-2 p-4"
 						>
 							<View
@@ -356,16 +355,15 @@ export default function SignScreen() {
 									information provided is accurate
 								</Text>
 							</View>
-						</TouchableOpacity>
+						</Pressable>
 
 						{/* Signature area */}
 						<View className="mb-4">
 							<Text className="mb-2 font-semibold text-primary-1 text-sm">
 								Sign Below
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={handleOpenSignatureModal}
-								activeOpacity={0.8}
 								className="mb-2 overflow-hidden rounded-xl border-2 border-secondary-2 bg-primary-2"
 								style={{
 									height: 200,
@@ -401,9 +399,9 @@ export default function SignScreen() {
 										</Text>
 									</View>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 							{signature && (
-								<TouchableOpacity
+								<Pressable
 									onPress={() => {
 										setSignature("");
 										handleOpenSignatureModal();
@@ -413,7 +411,7 @@ export default function SignScreen() {
 									<Text className="font-medium text-primary-1 text-sm">
 										Re-sign
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							)}
 							<Text
 								className="mt-2 text-xs"
@@ -457,7 +455,7 @@ export default function SignScreen() {
 													Sign Here (Landscape Mode)
 												</Text>
 											</View>
-											<TouchableOpacity
+											<Pressable
 												onPress={handleCloseSignatureModal}
 												className="absolute right-6"
 											>
@@ -466,7 +464,7 @@ export default function SignScreen() {
 													size={28}
 													color={colors.primary[1]}
 												/>
-											</TouchableOpacity>
+											</Pressable>
 										</View>
 										<View className="mt-2 flex-row items-center justify-center">
 											<View
@@ -526,7 +524,7 @@ export default function SignScreen() {
 									{/* Modal Footer Buttons */}
 									<View className="border-secondary-3 border-t bg-primary-2 px-6 py-4">
 										<View className="flex-row justify-end gap-4">
-											<TouchableOpacity
+											<Pressable
 												onPress={handleClear}
 												className="rounded-lg border-2 border-secondary-3 bg-primary-2 px-8 py-3"
 											>
@@ -536,15 +534,15 @@ export default function SignScreen() {
 												>
 													Clear
 												</Text>
-											</TouchableOpacity>
-											<TouchableOpacity
+											</Pressable>
+											<Pressable
 												onPress={handleConfirm}
 												className="rounded-lg bg-primary-1 px-8 py-3"
 											>
 												<Text className="font-semibold text-base text-primary-2">
 													Confirm Signature
 												</Text>
-											</TouchableOpacity>
+											</Pressable>
 										</View>
 									</View>
 								</SafeAreaView>
@@ -561,14 +559,14 @@ export default function SignScreen() {
 					className="border-secondary-3 border-t bg-primary-2"
 				>
 					<View className="p-4">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Proceed to Payment
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

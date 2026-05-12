@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
 	Image,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
@@ -141,7 +141,7 @@ export default function PackagesScreen() {
 					{/* Header Section */}
 					<View className="mb-6">
 						<View className="mb-2 flex-row items-center">
-							<TouchableOpacity
+							<Pressable
 								onPress={() => router.back()}
 								className="mr-3 size-10 items-center justify-center"
 							>
@@ -150,7 +150,7 @@ export default function PackagesScreen() {
 									size={24}
 									color={colors.primary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 							<Text
 								className="flex-1 font-bold text-2xl"
 								style={{ color: colors.primary[1] }}
@@ -171,7 +171,7 @@ export default function PackagesScreen() {
 					>
 						<View className="flex-row gap-2">
 							{STATUS_TABS.map((tab) => (
-								<TouchableOpacity
+								<Pressable
 									key={tab.key}
 									onPress={() => setStatusFilter(tab.key)}
 									className="rounded-full px-4 py-2"
@@ -198,7 +198,7 @@ export default function PackagesScreen() {
 									>
 										{tab.label}
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							))}
 						</View>
 					</ScrollView>
@@ -366,7 +366,7 @@ export default function PackagesScreen() {
 									)}
 
 									{/* Action Button */}
-									<TouchableOpacity
+									<Pressable
 										onPress={() => {
 											router.push({
 												pathname: "/dashboard/packages/[id]" as never,
@@ -385,7 +385,7 @@ export default function PackagesScreen() {
 										>
 											View Package Details
 										</Text>
-									</TouchableOpacity>
+									</Pressable>
 								</View>
 							);
 						})}
@@ -411,7 +411,7 @@ export default function PackagesScreen() {
 								>
 									Purchase a package to get started with your fitness journey
 								</Text>
-								<TouchableOpacity
+								<Pressable
 									onPress={() =>
 										router.push("/dashboard/buy-package/setup" as never)
 									}
@@ -421,7 +421,7 @@ export default function PackagesScreen() {
 									<Text className="font-semibold text-base text-white">
 										Buy Package
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						</View>
 					)}

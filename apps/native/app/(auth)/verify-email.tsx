@@ -3,8 +3,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
 	ActivityIndicator,
+	Pressable,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -55,16 +55,16 @@ export default function VerifyEmailScreen() {
 				</Text>
 
 				<View className="w-full">
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
 						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-gray-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Go to Sign In
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 
-					<TouchableOpacity
+					<Pressable
 						onPress={handleResend}
 						disabled={isResending || resent}
 						className="h-14 w-full flex-row items-center justify-center rounded-xl border border-gray-300"
@@ -77,7 +77,7 @@ export default function VerifyEmailScreen() {
 								{resent ? "Email Sent" : "Resend Verification Email"}
 							</Text>
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</View>
 		</SafeAreaView>

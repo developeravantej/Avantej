@@ -5,11 +5,11 @@ import {
 	Alert,
 	Linking,
 	Modal,
+	Pressable,
 	ScrollView,
 	Switch,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
@@ -235,7 +235,7 @@ export default function ProfileScreen() {
 						</Text>
 						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
 							{/* Change Password */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setShowPasswordModal(true)}
 								className="flex-row items-center border-secondary-3 border-b p-4"
 							>
@@ -252,10 +252,10 @@ export default function ProfileScreen() {
 									size={20}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Help & Support */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() =>
 									Linking.openURL("mailto:support@avantej.com")
 								}
@@ -274,10 +274,10 @@ export default function ProfileScreen() {
 									size={20}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Terms & Privacy */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() =>
 									Linking.openURL("https://avantej.com/terms")
 								}
@@ -296,10 +296,10 @@ export default function ProfileScreen() {
 									size={20}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Sign Out */}
-							<TouchableOpacity
+							<Pressable
 								onPress={handleLogout}
 								className="flex-row items-center p-4"
 							>
@@ -311,7 +311,7 @@ export default function ProfileScreen() {
 								<Text className="ml-3 flex-1 text-base text-red-500">
 									Sign Out
 								</Text>
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 				</View>
@@ -378,9 +378,9 @@ function ChangePasswordModal({
 		>
 			<View className="flex-1 bg-secondary-3">
 				<View className="flex-row items-center justify-between border-secondary-3 border-b bg-primary-2 p-4">
-					<TouchableOpacity onPress={onClose}>
+					<Pressable onPress={onClose}>
 						<Text className="text-base text-primary-1">Cancel</Text>
-					</TouchableOpacity>
+					</Pressable>
 					<Text className="font-bold text-lg text-primary-1">
 						Change Password
 					</Text>
@@ -433,7 +433,7 @@ function ChangePasswordModal({
 						/>
 					</View>
 
-					<TouchableOpacity
+					<Pressable
 						onPress={handleSubmit}
 						disabled={
 							isSubmitting ||
@@ -453,7 +453,7 @@ function ChangePasswordModal({
 						<Text className="font-semibold text-base text-primary-2">
 							{isSubmitting ? "Changing..." : "Change Password"}
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</View>
 		</Modal>
