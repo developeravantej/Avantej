@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
 	Image,
@@ -11,8 +11,9 @@ import {
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { fonts } from "@/lib/font";
 import { formatMoney } from "@/lib/money";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
 	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
@@ -114,12 +115,30 @@ function Field({
 export default function PackageDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const { organizationId } = useOrganization();
+	const queryClient = useQueryClient();
 
 	const { data: instance, isLoading: instanceLoading } = useQuery({
 		...orpc.packageInstances.getById.queryOptions({
 			input: { organizationId, id: id! },
 		}),
 		enabled: !!id && !!organizationId,
+	});
+
+	const isPinned = !!(instance as any)?.isPinnedToDashboard;
+
+	const togglePin = useMutation({
+		mutationFn: (pinned: boolean) =>
+			client.packageInstances.togglePin({
+				organizationId,
+				packageInstanceId: id!,
+				pinned,
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				predicate: (q) =>
+					JSON.stringify(q.queryKey).includes("packageInstances"),
+			});
+		},
 	});
 
 	const serviceId = (instance as any)?.serviceId ?? null;
@@ -192,10 +211,37 @@ export default function PackageDetailScreen() {
 						</TouchableOpacity>
 						<Text
 							className="flex-1 font-bold text-2xl"
-							style={{ color: colors.primary[1] }}
+							style={{ color: colors.primary[1], fontFamily: fonts.heading }}
 						>
 							Package Details
 						</Text>
+						{status === "active" && !instanceLoading && inst && (
+							<TouchableOpacity
+								onPress={() =>
+									togglePin.mutate(!isPinned)
+								}
+								disabled={togglePin.isPending}
+								className="ml-2 h-10 w-10 items-center justify-center rounded-full"
+								style={{
+									backgroundColor: isPinned
+										? colors.primary[1]
+										: colors.primary[2],
+									borderWidth: isPinned ? 0 : 1,
+									borderColor: colors.secondary[3],
+									opacity: togglePin.isPending ? 0.5 : 1,
+								}}
+							>
+								<Ionicons
+									name={isPinned ? "star" : "star-outline"}
+									size={18}
+									color={
+										isPinned
+											? colors.primary[2]
+											: colors.secondary[1]
+									}
+								/>
+							</TouchableOpacity>
+						)}
 					</View>
 				</View>
 

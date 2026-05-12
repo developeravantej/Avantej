@@ -59,6 +59,7 @@ export type ListAppointmentsForUserParams = {
   startFrom?: Date;
   startTo?: Date;
   limit?: number;
+  orderDesc?: boolean;
 };
 
 export type AppointmentForUser = typeof appointments.$inferSelect & {
@@ -220,7 +221,7 @@ export async function listAppointmentsForUser(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   params: ListAppointmentsForUserParams
 ): Promise<AppointmentForUser[]> {
-  const { userId, status, statuses, startFrom, startTo, limit = 50 } = params;
+  const { userId, status, statuses, startFrom, startTo, limit = 50, orderDesc = false } = params;
 
   const conditions = [eq(appointments.userId, userId)];
   if (statuses && statuses.length > 0) {
@@ -243,7 +244,7 @@ export async function listAppointmentsForUser(
     .from(appointments)
     .leftJoin(services, eq(appointments.serviceId, services.id))
     .where(and(...conditions))
-    .orderBy(appointments.startTime)
+    .orderBy(orderDesc ? desc(appointments.startTime) : appointments.startTime)
     .limit(Math.min(limit, 200));
 
   return joined.map(({ appointment, serviceName }) => ({
