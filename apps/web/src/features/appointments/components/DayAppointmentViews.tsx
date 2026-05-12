@@ -33,7 +33,7 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 							<div className="flex flex-col items-center justify-center px-5 py-4 min-w-[88px] shrink-0 bg-gray-50/60">
 								<span className="text-sm font-bold text-gray-800">{formatTime(start)}</span>
 								<span className="text-[11px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
-									<Clock className="h-3 w-3" />
+									<Clock className="size-3" />
 									{formatDuration(start, end)}
 								</span>
 							</div>
@@ -57,7 +57,7 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 									<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Trainer</span>
 									{trainerName ? (
 										<div className="flex items-center gap-1.5 mt-0.5">
-											<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[9px] font-bold">
+											<span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[9px] font-bold">
 												{getInitials(trainerName)}
 											</span>
 											<span className="text-xs text-gray-700 truncate">{trainerName}</span>
@@ -83,7 +83,7 @@ export function DayListView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 										className="h-7 px-2.5 text-xs rounded-full gap-1.5 shrink-0"
 										onClick={(e) => { e.stopPropagation(); onMarkAttendance(appt.id); }}
 									>
-										<ClipboardCheck className="h-3.5 w-3.5" />
+										<ClipboardCheck className="size-3.5" />
 										Attendance
 									</Button>
 								)}
@@ -119,7 +119,7 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 							{/* Time row */}
 							<div className="flex items-center justify-between gap-2">
 								<div className="flex items-center gap-1.5 text-xs text-gray-500">
-									<Clock className="h-3 w-3 shrink-0" />
+									<Clock className="size-3 shrink-0" />
 									<span className="font-semibold text-gray-800">{formatTime(start)}</span>
 									<span>·</span>
 									<span>{formatDuration(start, end)}</span>
@@ -129,7 +129,7 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 										{cfg.label}
 									</Badge>
 								) : (
-									<span className="flex h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+									<span className="flex size-2 shrink-0 rounded-full bg-amber-400" />
 								)}
 							</div>
 
@@ -145,13 +145,13 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 							<div className="flex flex-col gap-1.5">
 								{appt.clientName && (
 									<div className="flex items-center gap-1.5">
-										<User className="h-3 w-3 text-gray-400 shrink-0" />
+										<User className="size-3 text-gray-400 shrink-0" />
 										<span className="text-xs text-gray-600 truncate">{appt.clientName}</span>
 									</div>
 								)}
 								{trainerName && (
 									<div className="flex items-center gap-1.5">
-										<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[8px] font-bold">
+										<span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[8px] font-bold">
 											{getInitials(trainerName)}
 										</span>
 										<span className="text-xs text-gray-600 truncate">{trainerName}</span>
@@ -166,7 +166,7 @@ export function DayCardView({ dayAppts, onSelectAppt, onMarkAttendance }: DayVie
 									className="w-full h-7 text-xs rounded-lg gap-1.5 mt-auto"
 									onClick={(e) => { e.stopPropagation(); onMarkAttendance(appt.id); }}
 								>
-									<ClipboardCheck className="h-3.5 w-3.5" />
+									<ClipboardCheck className="size-3.5" />
 									Mark Attendance
 								</Button>
 							)}

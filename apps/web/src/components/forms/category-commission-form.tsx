@@ -350,16 +350,16 @@ export function CategoryCommissionForm({
 											variant="ghost"
 											onClick={() => removeSlot(i)}
 											disabled={slots.length === 1}
-											className="h-8 w-8 p-0"
+											className="size-8 p-0"
 										>
-											<Trash2 className="h-3.5 w-3.5" />
+											<Trash2 className="size-3.5" />
 										</Button>
 									</div>
 								))}
 							</div>
 
 							<Button size="sm" variant="outline" onClick={addSlot} className="w-fit">
-								<Plus className="mr-2 h-3.5 w-3.5" />
+								<Plus className="mr-2 size-3.5" />
 								Add Slot
 							</Button>
 
@@ -439,7 +439,7 @@ export function CategoryCommissionForm({
 								<div className="flex items-center justify-between">
 									<Label className="text-sm font-medium">Conditions</Label>
 									<Button size="sm" variant="outline" onClick={addCondition}>
-										<Plus className="mr-2 h-3.5 w-3.5" />
+										<Plus className="mr-2 size-3.5" />
 										Add Condition
 									</Button>
 								</div>
@@ -467,9 +467,9 @@ export function CategoryCommissionForm({
 													size="sm"
 													variant="ghost"
 													onClick={() => removeCondition(ci)}
-													className="h-7 w-7 p-0"
+													className="size-7 p-0"
 												>
-													<Trash2 className="h-3.5 w-3.5" />
+													<Trash2 className="size-3.5" />
 												</Button>
 											</div>
 

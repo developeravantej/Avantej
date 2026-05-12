@@ -296,7 +296,7 @@ export function StockRequestsTabPage() {
 					className="-ml-3"
 				>
 					Request #
-					<ArrowUpDown className="ml-2 h-4 w-4" />
+					<ArrowUpDown className="ml-2 size-4" />
 				</Button>
 			),
 			cell: ({ getValue }) => <CopyableCell value={getValue<string>()} />,
@@ -345,7 +345,7 @@ export function StockRequestsTabPage() {
 								onClick={() => approveMutation.mutate(id)}
 								disabled={approveMutation.isPending}
 							>
-								<CheckCircle className="h-3.5 w-3.5" />
+								<CheckCircle className="size-3.5" />
 								Approve
 							</Button>
 							<Button
@@ -355,7 +355,7 @@ export function StockRequestsTabPage() {
 								onClick={() => rejectMutation.mutate(id)}
 								disabled={rejectMutation.isPending}
 							>
-								<XCircle className="h-3.5 w-3.5" />
+								<XCircle className="size-3.5" />
 								Reject
 							</Button>
 						</div>
@@ -370,7 +370,7 @@ export function StockRequestsTabPage() {
 							onClick={() => openFulfillDialog(row.original)}
 							disabled={isFetchingFulfillItems}
 						>
-							<PackageCheck className="h-3.5 w-3.5" />
+							<PackageCheck className="size-3.5" />
 							{isFetchingFulfillItems ? "Loading…" : "Fulfill"}
 						</Button>
 					);
@@ -488,7 +488,7 @@ export function StockRequestsTabPage() {
 						}}
 						className="gap-2"
 					>
-						<Plus className="h-4 w-4" />
+						<Plus className="size-4" />
 						New Request
 					</Button>
 				)}

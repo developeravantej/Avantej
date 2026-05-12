@@ -9,7 +9,7 @@ interface KpiCardProps {
 export function KpiCard({ label, value, valueClassName }: KpiCardProps) {
 	return (
 		<Card>
-			<CardContent className="px-4 py-4">
+			<CardContent className="p-4">
 				<p className="text-muted-foreground text-xs">{label}</p>
 				<p className={`mt-1 font-semibold text-xl tabular-nums ${valueClassName ?? ""}`}>
 					{value}

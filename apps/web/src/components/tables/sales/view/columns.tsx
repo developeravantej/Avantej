@@ -45,7 +45,7 @@ function SalesActionCell({ row }: { row: import("@tanstack/react-table").Row<Sal
 					})
 				}
 			>
-				<Eye className="h-4 w-4 mr-1" /> View
+				<Eye className="size-4 mr-1" /> View
 			</Button>
 		</div>
 	);
@@ -122,7 +122,7 @@ export const columns: ColumnDef<SalesRow>[] = [
 			const createdBy = getValue<string>();
 			return (
 				<div className="flex items-center gap-2">
-					<Avatar className="h-6 w-6">
+					<Avatar className="size-6">
 						<AvatarImage src="" alt={createdBy} />
 						<AvatarFallback className="text-xs">
 							{createdBy ? createdBy.charAt(0).toUpperCase() : "U"}

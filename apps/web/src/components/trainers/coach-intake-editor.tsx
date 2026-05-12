@@ -165,13 +165,13 @@ export function CoachIntakeEditor({
 			<SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
 				<SheetHeader className="border-b border-border/40">
 					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-							<CalendarClock className="h-5 w-5 text-primary" />
+						<div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+							<CalendarClock className="size-5 text-primary" />
 						</div>
 						<div className="min-w-0">
 							<SheetTitle className="truncate text-lg">{trainerName}</SheetTitle>
 							<SheetDescription className="flex items-center gap-1.5 text-xs">
-								<Mail className="h-3 w-3" />
+								<Mail className="size-3" />
 								<span className="truncate">Intake Availability Schedule</span>
 							</SheetDescription>
 						</div>
@@ -205,7 +205,7 @@ export function CoachIntakeEditor({
 												className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
 												onClick={() => addSlot(day)}
 											>
-												<Plus className="h-3 w-3 mr-1" />
+												<Plus className="size-3 mr-1" />
 												Add Window
 											</Button>
 										</div>
@@ -257,11 +257,11 @@ export function CoachIntakeEditor({
 															type="button"
 															variant="ghost"
 															size="sm"
-															className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+															className="size-7 p-0 text-muted-foreground hover:text-red-600"
 															onClick={() => removeSlot(originalIndex)}
 															aria-label={`Remove ${DAY_LABELS[day]} intake window`}
 														>
-															<X className="h-3.5 w-3.5" />
+															<X className="size-3.5" />
 														</Button>
 													</div>
 												))}
@@ -279,7 +279,7 @@ export function CoachIntakeEditor({
 									disabled={saveMutation.isPending}
 									className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
-									<Save className="h-4 w-4 mr-2" />
+									<Save className="size-4 mr-2" />
 									{saveMutation.isPending ? "Saving..." : "Save Intake Availability"}
 								</button>
 							</div>

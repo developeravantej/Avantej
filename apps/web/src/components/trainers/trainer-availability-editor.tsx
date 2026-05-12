@@ -173,7 +173,7 @@ export function TrainerAvailabilityEditor({
 								className="h-7 px-2 text-xs text-brand-secondary-1 hover:text-brand-primary-1"
 								onClick={() => addShift(day)}
 							>
-								<Plus className="h-3 w-3 mr-1" />
+								<Plus className="size-3 mr-1" />
 								Add Shift
 							</Button>
 						</div>
@@ -228,11 +228,11 @@ export function TrainerAvailabilityEditor({
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-7 w-7 p-0 text-brand-secondary-1 hover:text-red-600"
+											className="size-7 p-0 text-brand-secondary-1 hover:text-red-600"
 											onClick={() => removeShift(originalIndex)}
 											aria-label={`Remove ${DAY_LABELS[day]} shift`}
 										>
-											<X className="h-3.5 w-3.5" />
+											<X className="size-3.5" />
 										</Button>
 									</div>
 								))}
@@ -250,7 +250,7 @@ export function TrainerAvailabilityEditor({
 					disabled={saveMutation.isPending}
 					className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					<Save className="h-4 w-4 mr-2" />
+					<Save className="size-4 mr-2" />
 					{saveMutation.isPending ? "Saving..." : "Save Availability"}
 				</button>
 			</div>

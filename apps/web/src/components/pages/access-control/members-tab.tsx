@@ -141,7 +141,7 @@ function UserCard({
 								className="mt-1"
 							/>
 						)}
-						<Avatar className="w-10 h-10">
+						<Avatar className="size-10">
 							<AvatarFallback>{user.name.slice(0, 2)}</AvatarFallback>
 						</Avatar>
 						<div className="space-y-1 flex-1">
@@ -164,7 +164,7 @@ function UserCard({
 								)}
 							</div>
 							<div className="flex items-center gap-1 text-sm text-muted-foreground">
-								<Mail className="w-3 h-3" />
+								<Mail className="size-3" />
 								<span>{user.email}</span>
 							</div>
 							{user.department && (
@@ -177,8 +177,8 @@ function UserCard({
 
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-								<MoreVertical className="w-4 h-4" />
+							<Button variant="ghost" size="sm" className="size-8 p-0">
+								<MoreVertical className="size-4" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-48">
@@ -186,14 +186,14 @@ function UserCard({
 								onClick={onEditRoles}
 								className="cursor-pointer"
 							>
-								<Shield className="w-4 h-4 mr-2" />
+								<Shield className="size-4 mr-2" />
 								Edit Roles
 							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={onEditDetails}
 								className="cursor-pointer"
 							>
-								<Edit className="w-4 h-4 mr-2" />
+								<Edit className="size-4 mr-2" />
 								Edit User
 							</DropdownMenuItem>
 							{canMoveBranch && onMoveBranch && (
@@ -202,7 +202,7 @@ function UserCard({
 									className="cursor-pointer"
 									aria-label={`Move ${user.name} to a different branch`}
 								>
-									<MoveRight className="w-4 h-4 mr-2" />
+									<MoveRight className="size-4 mr-2" />
 									Move to branch
 								</DropdownMenuItem>
 							)}
@@ -211,7 +211,7 @@ function UserCard({
 								onClick={onDeactivate}
 								className="cursor-pointer text-destructive focus:text-destructive"
 							>
-								<Trash2 className="w-4 h-4 mr-2" />
+								<Trash2 className="size-4 mr-2" />
 								{user.isActive ? "Deactivate" : "Activate"} User
 							</DropdownMenuItem>
 							{user.isDeleted ? (
@@ -220,7 +220,7 @@ function UserCard({
 									className="cursor-pointer"
 									data-testid="member-restore-action"
 								>
-									<Undo2 className="w-4 h-4 mr-2" />
+									<Undo2 className="size-4 mr-2" />
 									Restore
 								</DropdownMenuItem>
 							) : (
@@ -229,7 +229,7 @@ function UserCard({
 									className="cursor-pointer text-destructive focus:text-destructive"
 									data-testid="member-delete-action"
 								>
-									<Trash2 className="w-4 h-4 mr-2" />
+									<Trash2 className="size-4 mr-2" />
 									Delete
 								</DropdownMenuItem>
 							)}
@@ -259,7 +259,7 @@ function UserCard({
 					<div className="flex items-center justify-between text-sm">
 						<span className="text-muted-foreground">Last Login</span>
 						<div className="flex items-center gap-1">
-							<Calendar className="w-3 h-3 text-muted-foreground" />
+							<Calendar className="size-3 text-muted-foreground" />
 							<span>{formatLastLogin(user.lastLogin)}</span>
 						</div>
 					</div>
@@ -393,7 +393,7 @@ function RoleAssignmentSheet({
 								<div className="flex items-center gap-3">
 									<div
 										className={cn(
-											"w-4 h-4 rounded-full border-2 flex-shrink-0",
+											"size-4 rounded-full border-2 flex-shrink-0",
 											selectedRole === role.value
 												? "border-primary bg-primary"
 												: "border-muted-foreground",
@@ -990,7 +990,7 @@ export function MembersTabPage() {
 				</div>
 
 				<Button onClick={() => setShowInviteDialog(true)}>
-					<UserPlus className="w-4 h-4 mr-2" />
+					<UserPlus className="size-4 mr-2" />
 					Invite User
 				</Button>
 			</div>
@@ -1038,7 +1038,7 @@ export function MembersTabPage() {
 				<CardContent className="py-4">
 					<div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
 						<div className="relative flex-1 max-w-md">
-							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
 							<Input
 								placeholder="Search users..."
 								value={searchQuery}
@@ -1090,7 +1090,7 @@ export function MembersTabPage() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline" size="sm">
-											<MoreVertical className="w-4 h-4" />
+											<MoreVertical className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
@@ -1391,7 +1391,7 @@ export function MembersTabPage() {
 			{isLoading && (
 				<div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
 					<div className="text-center">
-						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
+						<div className="animate-spin rounded-full size-8 border-b-2 border-primary mx-auto mb-2" />
 						<p className="text-sm text-muted-foreground">Loading...</p>
 					</div>
 				</div>

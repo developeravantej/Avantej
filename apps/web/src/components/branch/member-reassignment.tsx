@@ -296,7 +296,7 @@ export function MemberReassignment({
   if (isLoading || isLoadingAllMembers) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -305,7 +305,7 @@ export function MemberReassignment({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Users className="h-5 w-5 text-muted-foreground" />
+          <Users className="size-5 text-muted-foreground" />
           <h3 className="font-semibold">
             Assigned Members ({displayMembers.length})
             {picMember && (
@@ -356,12 +356,12 @@ export function MemberReassignment({
                 variant="outline"
                 disabled={assigningMemberId !== null}
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="size-4 mr-2" />
                 Assign Member
               </Button>
             )}
             {assigningMemberId && (
-              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
             )}
           </div>
         )}
@@ -369,7 +369,7 @@ export function MemberReassignment({
 
       {displayMembers.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
-          <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
+          <Users className="mx-auto size-8 mb-2 opacity-50" />
           <p>No members assigned to this branch</p>
           {unassignedMembers.length > 0 && (
             <p className="mt-2 text-xs">
@@ -417,7 +417,7 @@ export function MemberReassignment({
                         variant="secondary"
                         className="h-5 px-1.5 text-[10px] font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
                       >
-                        <UserCheck className="h-3 w-3 mr-1" />
+                        <UserCheck className="size-3 mr-1" />
                         Person In Charge
                       </Badge>
                     )}
@@ -426,7 +426,7 @@ export function MemberReassignment({
                         variant="destructive"
                         className="h-5 px-1.5 text-[10px] font-medium"
                       >
-                        <Shield className="h-3 w-3 mr-1" />
+                        <Shield className="size-3 mr-1" />
                         Admin
                       </Badge>
                     )}
@@ -477,25 +477,25 @@ export function MemberReassignment({
 
                   {!isActuallyAssigned && isPic && !isAdmin && !hasAccess && (
                     <p className="text-[11px] font-medium text-destructive flex items-center">
-                      <span className="w-1 h-1 rounded-full bg-destructive mr-1.5" />
+                      <span className="size-1 rounded-full bg-destructive mr-1.5" />
                       Assign to branch to grant access
                     </p>
                   )}
                   {isAdmin && isOrgLevel && (
                     <p className="text-[11px] font-medium text-purple-600 flex items-center">
-                      <Shield className="h-3 w-3 mr-1.5" />
+                      <Shield className="size-3 mr-1.5" />
                       Organization-wide access (all branches)
                     </p>
                   )}
                   {isAdmin && !isOrgLevel && scopeInfo && (
                     <p className="text-[11px] font-medium text-blue-600 flex items-center">
-                      <Shield className="h-3 w-3 mr-1.5" />
+                      <Shield className="size-3 mr-1.5" />
                       Admin access to {scopeInfo.name} and all below
                     </p>
                   )}
                   {!isAdmin && hasAccess && !isActuallyAssigned && scopeInfo && (
                     <p className="text-[11px] font-medium text-blue-600 flex items-center">
-                      <span className="w-1 h-1 rounded-full bg-blue-600 mr-1.5" />
+                      <span className="size-1 rounded-full bg-blue-600 mr-1.5" />
                       Has access via {scopeInfo.name} scope
                     </p>
                   )}
@@ -538,7 +538,7 @@ export function MemberReassignment({
                         </SelectContent>
                       </Select>
                       {reassigningMemberId === member.id && (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
                       )}
                     </>
                   ) : isAdmin && isOrgLevel ? (
@@ -558,12 +558,12 @@ export function MemberReassignment({
                     >
                       {assigningMemberId === member.id ? (
                         <>
-                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          <Loader2 className="size-3 mr-2 animate-spin" />
                           Assigning...
                         </>
                       ) : (
                         <>
-                          <Plus className="h-3 w-3 mr-2" />
+                          <Plus className="size-3 mr-2" />
                           Assign to Branch
                         </>
                       )}

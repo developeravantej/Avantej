@@ -194,7 +194,7 @@ function OrganizationSettingsPage() {
 			{/* Page header */}
 			<div className="flex items-center gap-3">
 				<div className="p-2 rounded-lg bg-brand-primary-1/10">
-					<Settings className="h-6 w-6 text-brand-primary-1" />
+					<Settings className="size-6 text-brand-primary-1" />
 				</div>
 				<div>
 					<h1 className="text-2xl font-bold font-heading text-brand-primary-1">

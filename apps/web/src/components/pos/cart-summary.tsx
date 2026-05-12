@@ -55,7 +55,7 @@ export function CartSummary({
 			<div className="bg-zinc-900 px-5 pb-4 min-h-[140px]">
 				{items.length === 0 ? (
 					<div className="flex flex-col items-center justify-center gap-3 py-10 text-zinc-600">
-						<ShoppingCart className="h-9 w-9" />
+						<ShoppingCart className="size-9" />
 						<p className="text-sm">No items added yet</p>
 					</div>
 				) : (
@@ -113,7 +113,7 @@ export function CartSummary({
 			</div>
 
 			{/* Total */}
-			<div className="bg-zinc-950 px-5 py-5">
+			<div className="bg-zinc-950 p-5">
 				<div className="flex items-baseline justify-between">
 					<span className="font-medium text-zinc-400 text-sm">Total</span>
 					<span className="font-bold text-3xl text-white tabular-nums">

@@ -367,7 +367,7 @@ function AnnouncementsViewPage() {
 			header: "Pinned",
 			cell: ({ row }) =>
 				row.original.isPinned ? (
-					<Pin className="h-4 w-4 text-amber-500" />
+					<Pin className="size-4 text-amber-500" />
 				) : null,
 		},
 		{
@@ -393,7 +393,7 @@ function AnnouncementsViewPage() {
 						onClick={() => openEdit(row.original)}
 						disabled={isMutating}
 					>
-						<Edit className="h-4 w-4 mr-1" />
+						<Edit className="size-4 mr-1" />
 						Edit
 					</Button>
 					{row.original.isActive && (
@@ -414,7 +414,7 @@ function AnnouncementsViewPage() {
 						onClick={() => setDeleteTarget(row.original.id)}
 						disabled={isMutating}
 					>
-						<Trash2 className="h-4 w-4" />
+						<Trash2 className="size-4" />
 					</Button>
 				</div>
 			),
@@ -449,7 +449,7 @@ function AnnouncementsViewPage() {
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<Megaphone className="h-6 w-6 text-primary" />
+						<Megaphone className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-2xl font-bold font-heading">Announcements</h1>
@@ -459,7 +459,7 @@ function AnnouncementsViewPage() {
 					</div>
 				</div>
 				<Button onClick={openCreate} disabled={isMutating}>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					Create Announcement
 				</Button>
 			</div>

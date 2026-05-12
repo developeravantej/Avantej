@@ -174,19 +174,19 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-8 w-8 p-0 rounded-full"
+								className="size-8 p-0 rounded-full"
 								onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
 							>
-								<ChevronLeft className="h-4 w-4" />
+								<ChevronLeft className="size-4" />
 							</Button>
 							<span className="text-base font-semibold min-w-[140px] text-center">{monthLabel}</span>
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-8 w-8 p-0 rounded-full"
+								className="size-8 p-0 rounded-full"
 								onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
 							>
-								<ChevronRight className="h-4 w-4" />
+								<ChevronRight className="size-4" />
 							</Button>
 							<button
 								type="button"
@@ -211,25 +211,25 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 								type="button"
 								onClick={() => setView("list")}
 								className={cn(
-									"flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+									"flex size-7 items-center justify-center rounded-lg transition-colors",
 									view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-400 hover:text-gray-600",
 								)}
 							>
-								<LayoutList className="h-3.5 w-3.5" />
+								<LayoutList className="size-3.5" />
 							</button>
 							<button
 								type="button"
 								onClick={() => setView("card")}
 								className={cn(
-									"flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+									"flex size-7 items-center justify-center rounded-lg transition-colors",
 									view === "card" ? "bg-white shadow-sm text-gray-800" : "text-gray-400 hover:text-gray-600",
 								)}
 							>
-								<LayoutGrid className="h-3.5 w-3.5" />
+								<LayoutGrid className="size-3.5" />
 							</button>
 						</div>
 						<Button size="sm" onClick={() => setShowAddModal(true)} className="gap-2 rounded-xl">
-							<Plus className="h-4 w-4" />
+							<Plus className="size-4" />
 							Add Appointment
 						</Button>
 					</div>
@@ -238,7 +238,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 				<CardContent className="flex-1 overflow-hidden p-0">
 					<div
 						ref={scrollRef}
-						className="h-full overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full"
+						className="h-full overflow-y-auto p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full"
 					>
 						{isLoading ? (
 							<div className="space-y-3">
@@ -248,10 +248,10 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 							</div>
 						) : dateKeys.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-								<CalendarDays className="h-12 w-12 text-gray-200" />
+								<CalendarDays className="size-12 text-gray-200" />
 								<p className="text-sm font-medium text-gray-500">No appointments in {monthLabel}</p>
 								<Button size="sm" variant="outline" onClick={() => setShowAddModal(true)}>
-									<Plus className="h-4 w-4 mr-1.5" />
+									<Plus className="size-4 mr-1.5" />
 									Add Appointment
 								</Button>
 							</div>
@@ -271,7 +271,7 @@ export function AppointmentList({ appointments, isLoading, defaultTrainerId }: A
 											<div className="flex items-center gap-3 mb-4">
 												<div
 													className={cn(
-														"flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
+														"flex size-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
 														todayDate ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700",
 													)}
 												>

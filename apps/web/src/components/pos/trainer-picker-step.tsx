@@ -168,13 +168,13 @@ export function TrainerPickerStep({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 shrink-0"
+									className="size-8 shrink-0"
 									onClick={() =>
 										handleRemoveTrainer(itemIndex, assignment.slotIndex)
 									}
 									type="button"
 								>
-									<X className="h-3.5 w-3.5" />
+									<X className="size-3.5" />
 								</Button>
 							</div>
 						))}
@@ -186,7 +186,7 @@ export function TrainerPickerStep({
 							onClick={() => handleAddTrainer(itemIndex)}
 							type="button"
 						>
-							<UserPlus className="h-3.5 w-3.5 mr-1" />
+							<UserPlus className="size-3.5 mr-1" />
 							Add Trainer
 						</Button>
 					</div>

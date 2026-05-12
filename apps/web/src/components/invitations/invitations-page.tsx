@@ -158,7 +158,7 @@ export function InvitationsPage() {
 					onClick={() => setIsCreateDialogOpen(true)}
 					disabled={!organizationId}
 				>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					Invite Member
 				</Button>
 			</div>
@@ -181,7 +181,7 @@ export function InvitationsPage() {
 
 					<div className="flex items-center gap-2">
 						<Badge variant="outline" className="gap-1">
-							<Mail className="h-3 w-3" />
+							<Mail className="size-3" />
 							Pending: {statusCounts.pending}
 						</Badge>
 						<Badge variant="outline" className="gap-1 text-green-600">
@@ -197,7 +197,7 @@ export function InvitationsPage() {
 			{/* Invitations List */}
 			{isLoading ? (
 				<div className="flex items-center justify-center py-12">
-					<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+					<Loader2 className="size-6 animate-spin text-muted-foreground" />
 				</div>
 			) : (
 				<InvitationList

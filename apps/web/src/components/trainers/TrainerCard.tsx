@@ -72,7 +72,7 @@ export function TrainerCard({
 			className="flex flex-col rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
 		>
 			<div className="flex items-start gap-3 px-4 pt-4 pb-3">
-				<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-sm font-bold">
+				<div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-sm font-bold">
 					{initials}
 				</div>
 				<div className="flex-1 min-w-0">

@@ -283,7 +283,7 @@ export function AppointmentCalendar({
 							</div>
 						)}
 						<Button variant="outline" size="sm" onClick={openAddModal}>
-							<Plus className="h-4 w-4 mr-2" />
+							<Plus className="size-4 mr-2" />
 							Add Appointment
 						</Button>
 					</div>
@@ -295,19 +295,19 @@ export function AppointmentCalendar({
 								onClick={() => setView("monthly")}
 								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "monthly" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
 							>
-								<Calendar className="h-4 w-4" />Month
+								<Calendar className="size-4" />Month
 							</button>
 							<button
 								onClick={() => setView("weekly")}
 								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "weekly" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
 							>
-								<CalendarDays className="h-4 w-4" />Week
+								<CalendarDays className="size-4" />Week
 							</button>
 							<button
 								onClick={() => setView("daily")}
 								className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", view === "daily" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900")}
 							>
-								<Clock className="h-4 w-4" />Day
+								<Clock className="size-4" />Day
 							</button>
 						</div>
 
@@ -316,22 +316,22 @@ export function AppointmentCalendar({
 								onClick={() => setShowConfirmed(!showConfirmed)}
 								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showConfirmed ? "bg-green-50 border-green-200 text-green-700" : "border-gray-200 text-gray-400")}
 							>
-								<div className={cn("h-2.5 w-2.5 rounded-full", showConfirmed ? "bg-green-500" : "bg-gray-300")} />
+								<div className={cn("size-2.5 rounded-full", showConfirmed ? "bg-green-500" : "bg-gray-300")} />
 								Came
 							</button>
 							<button
 								onClick={() => setShowCancelled(!showCancelled)}
 								className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors", showCancelled ? "bg-red-50 border-red-200 text-red-700" : "border-gray-200 text-gray-400")}
 							>
-								<div className={cn("h-2.5 w-2.5 rounded-full", showCancelled ? "bg-red-500" : "bg-gray-300")} />
+								<div className={cn("size-2.5 rounded-full", showCancelled ? "bg-red-500" : "bg-gray-300")} />
 								No-show
 							</button>
 						</div>
 					</div>
 
 					<div className="flex items-center justify-between mb-4">
-						<Button variant="outline" size="sm" onClick={prevPeriod} className="h-8 w-8 p-0">
-							<ChevronLeft className="h-4 w-4" />
+						<Button variant="outline" size="sm" onClick={prevPeriod} className="size-8 p-0">
+							<ChevronLeft className="size-4" />
 						</Button>
 						<div className="flex items-center gap-2">
 							<h2 className="text-base font-semibold">{dateDisplay}</h2>
@@ -342,17 +342,17 @@ export function AppointmentCalendar({
 								Today
 							</button>
 						</div>
-						<Button variant="outline" size="sm" onClick={nextPeriod} className="h-8 w-8 p-0">
-							<ChevronRight className="h-4 w-4" />
+						<Button variant="outline" size="sm" onClick={nextPeriod} className="size-8 p-0">
+							<ChevronRight className="size-4" />
 						</Button>
 					</div>
 
 					{renderCalendarGrid()}
 
 					<div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
-						<span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500 inline-block" />Came (confirmed)</span>
-						<span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-400 inline-block" />Upcoming (pending)</span>
-						<span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />No-show (cancelled)</span>
+						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-green-500 inline-block" />Came (confirmed)</span>
+						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-yellow-400 inline-block" />Upcoming (pending)</span>
+						<span className="flex items-center gap-1"><span className="size-2 rounded-full bg-red-500 inline-block" />No-show (cancelled)</span>
 					</div>
 				</CardContent>
 			</Card>

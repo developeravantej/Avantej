@@ -84,7 +84,7 @@ export function AppointmentsWidget() {
 				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2 mb-2">
 						<h1 className="font-heading font-bold text-2xl">Appointments Today</h1>
-						<ChevronsUpDown className="mr-3 h-4 w-4" />
+						<ChevronsUpDown className="mr-3 size-4" />
 					</div>
 
 					{!organizationId ? (
@@ -97,7 +97,7 @@ export function AppointmentsWidget() {
 						</div>
 					) : appointments.length === 0 ? (
 						<div className="text-center py-8 text-brand-secondary-1">
-							<Calendar className="h-12 w-12 mx-auto mb-4 text-brand-secondary-2" />
+							<Calendar className="size-12 mx-auto mb-4 text-brand-secondary-2" />
 							<p className="text-lg font-medium">No appointments today</p>
 							<p className="text-sm">You're all caught up!</p>
 						</div>
@@ -120,7 +120,7 @@ export function AppointmentsWidget() {
 										</div>
 									</div>
 									<div className="flex-shrink-0 w-4 flex flex-col items-center">
-										<div className="w-3 h-3 rounded-full bg-brand-primary-1" />
+										<div className="size-3 rounded-full bg-brand-primary-1" />
 										{index < appointments.length - 1 && (
 											<div className="w-0.5 h-8 bg-brand-secondary-3 mt-1" />
 										)}
@@ -132,13 +132,13 @@ export function AppointmentsWidget() {
 													{appointment.title}
 												</h3>
 												<div className="flex items-center gap-1 mt-1">
-													<User className="h-3 w-3 text-brand-secondary-1" />
+													<User className="size-3 text-brand-secondary-1" />
 													<p className="text-xs text-brand-secondary-1 truncate">
 														{appointment.clientName}
 													</p>
 												</div>
 												<div className="flex items-center gap-1 mt-1">
-													<Clock className="h-3 w-3 text-brand-secondary-1" />
+													<Clock className="size-3 text-brand-secondary-1" />
 													<p className="text-xs text-brand-secondary-1 truncate">
 														{appointment.service} • {formatDuration(appointment.start, appointment.end)}
 													</p>

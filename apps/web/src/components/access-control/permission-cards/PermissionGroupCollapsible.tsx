@@ -44,21 +44,21 @@ function PermissionActionItem({
   const getScopeIcon = (scope?: 'own' | 'team' | 'organization' | 'country' | 'region' | 'area' | 'branch') => {
     switch (scope) {
       case 'own':
-        return <Minus className="w-3 h-3 text-yellow-700" />;
+        return <Minus className="size-3 text-yellow-700" />;
       case 'team':
-        return <Check className="w-3 h-3 text-orange-700" />;
+        return <Check className="size-3 text-orange-700" />;
       case 'organization':
-        return <Check className="w-3 h-3 text-green-700" />;
+        return <Check className="size-3 text-green-700" />;
       case 'country':
-        return <Check className="w-3 h-3 text-blue-700" />;
+        return <Check className="size-3 text-blue-700" />;
       case 'region':
-        return <Check className="w-3 h-3 text-purple-700" />;
+        return <Check className="size-3 text-purple-700" />;
       case 'area':
-        return <Check className="w-3 h-3 text-teal-700" />;
+        return <Check className="size-3 text-teal-700" />;
       case 'branch':
-        return <Check className="w-3 h-3 text-indigo-700" />;
+        return <Check className="size-3 text-indigo-700" />;
       default:
-        return <X className="w-3 h-3 text-brand-secondary-1" />;
+        return <X className="size-3 text-brand-secondary-1" />;
     }
   };
 
@@ -113,7 +113,7 @@ function PermissionActionItem({
           variant="ghost"
           size="sm"
           className={cn(
-            "w-6 h-6 p-0 rounded-full",
+            "size-6 p-0 rounded-full",
             hasPermission ? getScopeButtonStyle(scope) : "bg-brand-secondary-3 hover:bg-brand-secondary-3"
           )}
           onClick={onCycle}
@@ -144,7 +144,7 @@ function PermissionActionItem({
             variant="ghost"
             size="sm"
             onClick={() => setShowScopeDropdown(!showScopeDropdown)}
-            className="h-6 w-6 p-0"
+            className="size-6 p-0"
           >
             {getScopeIcon(scope)}
           </Button>
@@ -280,7 +280,7 @@ export function PermissionGroupCollapsible({
           <CardHeader className="cursor-pointer hover:bg-muted/50 pb-3">
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {Icon && <Icon className="w-5 h-5 text-primary" />}
+                {Icon && <Icon className="size-5 text-primary" />}
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-base">{resource.name}</span>
@@ -311,9 +311,9 @@ export function PermissionGroupCollapsible({
                 )}
                 
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="size-4" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="size-4" />
                 )}
               </div>
             </CardTitle>

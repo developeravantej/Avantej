@@ -716,7 +716,7 @@ function RouteComponent() {
     return (
       <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
         <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-          <div className="w-8 h-8 border-2 border-current rounded-full animate-spin border-r-transparent">
+          <div className="size-8 border-2 border-current rounded-full animate-spin border-r-transparent">
             <span className="sr-only">Loading...</span>
           </div>
         </div>
@@ -741,7 +741,7 @@ function RouteComponent() {
       <div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
-            <Store className="h-6 w-6 text-primary" />
+            <Store className="size-6 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-semibold">Branches</h1>
@@ -752,7 +752,7 @@ function RouteComponent() {
         </div>
         <Link to="/dashboard/branch/create">
           <Button className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4" />
             Create Branch
           </Button>
         </Link>

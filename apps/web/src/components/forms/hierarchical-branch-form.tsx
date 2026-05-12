@@ -412,7 +412,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 }`}
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                  className={`flex size-10 items-center justify-center rounded-full ${
                     currentStep === step.number
                       ? "bg-black text-white"
                       : step.completed
@@ -420,7 +420,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                         : "bg-brand-secondary-3 text-brand-secondary-1"
                   }`}
                 >
-                  <step.icon className="h-5 w-5" />
+                  <step.icon className="size-5" />
                 </div>
               </div>
               <span
@@ -454,7 +454,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
-          <Globe className="h-5 w-5" />
+          <Globe className="size-5" />
           <span>Step 1: Select or Create Country</span>
         </CardTitle>
         <CardDescription className="text-sm text-brand-secondary-1">
@@ -554,7 +554,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               type="button"
               variant="outline"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 size-4" />
               Create New Country
             </Button>
           </div>
@@ -567,7 +567,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
-          <MapIcon className="h-5 w-5" />
+          <MapIcon className="size-5" />
           <span>Step 2: Select or Create State</span>
         </CardTitle>
         <CardDescription className="text-sm text-brand-secondary-1">
@@ -672,7 +672,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
               type="button"
               variant="outline"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 size-4" />
               Create New State
             </Button>
           </div>
@@ -685,7 +685,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     <Card className="bg-white border border-brand-secondary-3 rounded-lg">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-lg font-medium text-brand-primary-1">
-          <Target className="h-5 w-5" />
+          <Target className="size-5" />
           <span>Step 3: Create Branch</span>
         </CardTitle>
         <CardDescription className="text-sm text-brand-secondary-1">

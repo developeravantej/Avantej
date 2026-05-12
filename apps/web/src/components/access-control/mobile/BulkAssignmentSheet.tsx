@@ -119,21 +119,21 @@ export function BulkAssignmentSheet({
     switch (mode) {
       case 'add':
         return {
-          icon: <UserPlus className="w-4 h-4" />,
+          icon: <UserPlus className="size-4" />,
           title: 'Add Roles',
           description: 'Add selected roles to users (keeps existing roles)',
           variant: 'default' as const,
         };
       case 'remove':
         return {
-          icon: <UserMinus className="w-4 h-4" />,
+          icon: <UserMinus className="size-4" />,
           title: 'Remove Roles',
           description: 'Remove selected roles from users',
           variant: 'destructive' as const,
         };
       case 'replace':
         return {
-          icon: <Shield className="w-4 h-4" />,
+          icon: <Shield className="size-4" />,
           title: 'Replace Roles',
           description: 'Replace all user roles with selected roles',
           variant: 'secondary' as const,
@@ -149,7 +149,7 @@ export function BulkAssignmentSheet({
       <SheetContent side="bottom" className="h-[90vh] flex flex-col">
         <SheetHeader className="flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Users className="size-5" />
             Bulk Role Assignment ({selectedUsers.length} users)
           </SheetTitle>
         </SheetHeader>
@@ -260,14 +260,14 @@ export function BulkAssignmentSheet({
                 {/* Preview Summary */}
                 {usersWithChanges.length === 0 ? (
                   <Alert>
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="size-4" />
                     <AlertDescription>
                       No changes will be made with the current selection.
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <Alert>
-                    <Check className="h-4 w-4" />
+                    <Check className="size-4" />
                     <AlertDescription>
                       {usersWithChanges.length} user(s) will have their roles modified.
                     </AlertDescription>
@@ -286,7 +286,7 @@ export function BulkAssignmentSheet({
                         <CardContent className="p-4">
                           <div className="space-y-3">
                             <div className="flex items-center gap-3">
-                              <Avatar className="w-8 h-8">
+                              <Avatar className="size-8">
                                 <IconAvatar fallback={user.name.slice(0, 2)} />
                               </Avatar>
                               <div className="flex-1">
@@ -368,14 +368,14 @@ export function BulkAssignmentSheet({
                   onClick={onClose}
                   disabled={isLoading}
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="size-4 mr-2" />
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSave}
                   disabled={!isFormValid || usersWithChanges.length === 0 || isLoading}
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  <Save className="size-4 mr-2" />
                   {isLoading ? 'Saving...' : `Apply Changes (${usersWithChanges.length})`}
                 </Button>
               </div>

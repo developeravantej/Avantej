@@ -38,7 +38,7 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
         title={value || undefined}
       >
         {displayContent}
-        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+        <Copy className="size-3.5 text-muted-foreground" />
       </Badge>
     </div>
   );
@@ -98,7 +98,7 @@ export function createColumns(options: CreateColumnsOptions): ColumnDef<MemberRo
 
       return (
         <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
+          <Avatar className="size-8">
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <span className={isFallback ? "text-muted-foreground text-sm" : "font-medium"}>
@@ -159,9 +159,9 @@ export function createColumns(options: CreateColumnsOptions): ColumnDef<MemberRo
           className="flex items-center gap-x-1 w-fit"
         >
           {isActive ? (
-            <CheckCircle className="h-3 w-3" />
+            <CheckCircle className="size-3" />
           ) : (
-            <XCircle className="h-3 w-3" />
+            <XCircle className="size-3" />
           )}
           {isActive ? "Active" : "Suspended"}
         </Badge>

@@ -149,7 +149,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="outline"
 					size="icon"
-					className="h-8 w-8 shrink-0"
+					className="size-8 shrink-0"
 					onClick={() => onUpdate({ quantity: Math.max(1, item.quantity - 1) })}
 					disabled={item.quantity <= 1}
 				>
@@ -162,7 +162,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="outline"
 					size="icon"
-					className="h-8 w-8 shrink-0"
+					className="size-8 shrink-0"
 					onClick={() => onUpdate({ quantity: item.quantity + 1 })}
 				>
 					+
@@ -177,7 +177,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					</span>
 					{isPriceLoading ? (
 						<div className="flex h-9 items-center pl-9">
-							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+							<Loader2 className="size-4 animate-spin text-muted-foreground" />
 						</div>
 					) : (
 						<Input
@@ -206,11 +206,11 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-8 w-8 text-destructive hover:bg-destructive/10"
+					className="size-8 text-destructive hover:bg-destructive/10"
 					onClick={onRemove}
 					aria-label="Remove item"
 				>
-					<Trash2 className="h-4 w-4" />
+					<Trash2 className="size-4" />
 				</Button>
 			</div>
 		</div>
@@ -294,7 +294,7 @@ export function ItemsStep({
 						size="sm"
 						onClick={() => addItem("service")}
 					>
-						<Plus className="mr-1 h-3.5 w-3.5" />
+						<Plus className="mr-1 size-3.5" />
 						Service
 					</Button>
 					<Button
@@ -303,7 +303,7 @@ export function ItemsStep({
 						size="sm"
 						onClick={() => addItem("custom")}
 					>
-						<Plus className="mr-1 h-3.5 w-3.5" />
+						<Plus className="mr-1 size-3.5" />
 						Custom
 					</Button>
 				</div>

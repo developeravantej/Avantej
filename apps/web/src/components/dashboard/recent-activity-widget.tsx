@@ -23,7 +23,7 @@ function relativeTime(dateStr: string): string {
 function ActivitySkeleton() {
 	return (
 		<div className="flex items-start gap-3 py-3">
-			<Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded-full" />
+			<Skeleton className="mt-0.5 size-5 shrink-0 rounded-full" />
 			<div className="flex-1 space-y-1.5">
 				<Skeleton className="h-4 w-3/4" />
 				<Skeleton className="h-3 w-16" />
@@ -68,7 +68,7 @@ export function RecentActivityWidget({ organizationId }: Props) {
 					<div className="divide-y divide-brand-secondary-3">
 						{entries.slice(0, 10).map((entry) => (
 							<div key={entry.id} className="flex items-start gap-3 py-3">
-								<ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-brand-secondary-1" />
+								<ScrollText className="mt-0.5 size-4 shrink-0 text-brand-secondary-1" />
 								<div className="flex-1 min-w-0">
 									<p className="truncate text-sm text-brand-primary-1">
 										{entry.description}

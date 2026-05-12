@@ -75,7 +75,7 @@ export function PendingApprovalsWidget() {
 			<CardContent className="pt-6">
 				<div className="mb-3 flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<ClipboardCheck className="h-4 w-4 text-brand-secondary-1" />
+						<ClipboardCheck className="size-4 text-brand-secondary-1" />
 						<p className="text-xs font-bold uppercase tracking-wide text-brand-secondary-1">
 							Pending Approvals
 						</p>

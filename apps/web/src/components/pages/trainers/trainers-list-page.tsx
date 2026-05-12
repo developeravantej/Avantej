@@ -85,7 +85,7 @@ export function TrainersListPage() {
 			{/* Action bar */}
 			<div className="flex items-center justify-between gap-4">
 				<div className="relative w-72">
-					<Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search name, email, or specialization..."
 						value={search}
@@ -100,7 +100,7 @@ export function TrainersListPage() {
 					}}
 					disabled={isAnyPending}
 				>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					Add Trainer
 				</Button>
 			</div>

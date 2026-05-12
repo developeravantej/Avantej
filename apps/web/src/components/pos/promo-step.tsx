@@ -93,7 +93,7 @@ export function PromoStep({
 	if (applied) {
 		return (
 			<div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
-				<Tag className="h-4 w-4 shrink-0 text-green-600" />
+				<Tag className="size-4 shrink-0 text-green-600" />
 				<div className="min-w-0 flex-1">
 					<p className="font-medium font-mono text-green-800 text-sm">
 						{applied.code}
@@ -104,11 +104,11 @@ export function PromoStep({
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 shrink-0 text-green-700 hover:text-green-900"
+					className="size-7 shrink-0 text-green-700 hover:text-green-900"
 					onClick={handleRemove}
 					aria-label="Remove promo code"
 				>
-					<X className="h-4 w-4" />
+					<X className="size-4" />
 				</Button>
 			</div>
 		);

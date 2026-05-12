@@ -425,7 +425,7 @@ function ClassSlotsPage() {
 						onClick={() => handleViewSignups(slot)}
 						className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
 					>
-						<Users className="h-3.5 w-3.5" />
+						<Users className="size-3.5" />
 						{count}
 					</button>
 				);
@@ -461,7 +461,7 @@ function ClassSlotsPage() {
 							size="sm"
 							onClick={() => handleViewSignups(slot)}
 						>
-							<Users className="h-3.5 w-3.5 mr-1" />
+							<Users className="size-3.5 mr-1" />
 							Signups
 						</Button>
 						<Button
@@ -496,7 +496,7 @@ function ClassSlotsPage() {
 			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
 				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<Grid3x3 className="h-6 w-6 text-primary" />
+						<Grid3x3 className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Class Slots</h1>
@@ -544,7 +544,7 @@ function ClassSlotsPage() {
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<Grid3x3 className="h-6 w-6 text-primary" />
+						<Grid3x3 className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Class Slots</h1>
@@ -554,7 +554,7 @@ function ClassSlotsPage() {
 					</div>
 				</div>
 				<Button onClick={() => setCreateSheetOpen(true)}>
-					<Plus className="mr-2 h-4 w-4" />
+					<Plus className="mr-2 size-4" />
 					Create Class Slot
 				</Button>
 			</div>
@@ -650,7 +650,7 @@ function ClassSlotsPage() {
 				<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
 					<div className="rounded-xl border bg-card p-3 shadow-sm">
 						<div className="flex items-center gap-1.5">
-							<Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+							<Calendar className="size-3.5 text-muted-foreground" />
 							<p className="text-muted-foreground text-xs uppercase tracking-wide">Today</p>
 						</div>
 						<p className="mt-1 font-bold text-2xl tabular-nums">{todayCount}</p>
@@ -658,7 +658,7 @@ function ClassSlotsPage() {
 					</div>
 					<div className="rounded-xl border bg-card p-3 shadow-sm">
 						<div className="flex items-center gap-1.5">
-							<Clock className="h-3.5 w-3.5 text-muted-foreground" />
+							<Clock className="size-3.5 text-muted-foreground" />
 							<p className="text-muted-foreground text-xs uppercase tracking-wide">This Week</p>
 						</div>
 						<p className="mt-1 font-bold text-2xl tabular-nums">{thisWeekCount}</p>
@@ -666,7 +666,7 @@ function ClassSlotsPage() {
 					</div>
 					<div className="rounded-xl border bg-card p-3 shadow-sm">
 						<div className="flex items-center gap-1.5">
-							<Users className="h-3.5 w-3.5 text-muted-foreground" />
+							<Users className="size-3.5 text-muted-foreground" />
 							<p className="text-muted-foreground text-xs uppercase tracking-wide">Available Spots</p>
 						</div>
 						<p className="mt-1 font-bold text-2xl tabular-nums text-green-700">{availableCapacity}</p>
@@ -674,7 +674,7 @@ function ClassSlotsPage() {
 					</div>
 					<div className="rounded-xl border bg-card p-3 shadow-sm">
 						<div className="flex items-center gap-1.5">
-							<Grid3x3 className="h-3.5 w-3.5 text-muted-foreground" />
+							<Grid3x3 className="size-3.5 text-muted-foreground" />
 							<p className="text-muted-foreground text-xs uppercase tracking-wide">Full Slots</p>
 						</div>
 						<p className="mt-1 font-bold text-2xl tabular-nums text-destructive">{fullSlotsCount}</p>
@@ -1032,7 +1032,7 @@ function ClassSlotsPage() {
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<Users className="h-5 w-5" />
+							<Users className="size-5" />
 							Signups
 						</DialogTitle>
 						{viewingSignupsSlot && (

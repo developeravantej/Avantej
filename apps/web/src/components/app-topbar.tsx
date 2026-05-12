@@ -127,21 +127,21 @@ export function AppTopbar({
 						to="/dashboard/notifications/view"
 						className="hover:bg-brand-secondary-3 rounded-full p-1.5 transition-colors"
 					>
-						<Bell className="h-5 w-5" />
+						<Bell className="size-5" />
 					</Link>
 
 					{user && (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button variant="ghost" className="group relative rounded-full">
-									<Avatar className="h-8 w-8">
+									<Avatar className="size-8">
 										<AvatarImage src={user.avatar} alt={user.name} />
 										<AvatarFallback>
-											<User className="h-4 w-4" />
+											<User className="size-4" />
 										</AvatarFallback>
 									</Avatar>
 									<span className="mr-1">{user.name}</span>
-									<ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+									<ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent

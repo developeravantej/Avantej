@@ -74,12 +74,12 @@ export function InvitationList({
 					>
 						{isExpired ? (
 							<>
-								<AlertCircle className="h-3 w-3" />
+								<AlertCircle className="size-3" />
 								Expired
 							</>
 						) : (
 							<>
-								<Clock className="h-3 w-3" />
+								<Clock className="size-3" />
 								Pending
 							</>
 						)}
@@ -88,21 +88,21 @@ export function InvitationList({
 			case "accepted":
 				return (
 					<Badge variant="outline" className="gap-1 text-green-600 border-green-200">
-						<CheckCircle className="h-3 w-3" />
+						<CheckCircle className="size-3" />
 						Accepted
 					</Badge>
 				);
 			case "declined":
 				return (
 					<Badge variant="outline" className="gap-1 text-brand-secondary-1">
-						<XCircle className="h-3 w-3" />
+						<XCircle className="size-3" />
 						Declined
 					</Badge>
 				);
 			case "expired":
 				return (
 					<Badge variant="destructive" className="gap-1">
-						<AlertCircle className="h-3 w-3" />
+						<AlertCircle className="size-3" />
 						Expired
 					</Badge>
 				);
@@ -129,7 +129,7 @@ export function InvitationList({
 	if (invitations.length === 0) {
 		return (
 			<div className="rounded-lg border border-dashed p-12 text-center">
-				<Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+				<Mail className="size-12 mx-auto text-muted-foreground mb-4" />
 				<h3 className="text-lg font-semibold mb-2">No invitations found</h3>
 				<p className="text-muted-foreground">
 					Get started by inviting a new member to your organization.
@@ -188,7 +188,7 @@ export function InvitationList({
 												onClick={() => onResend(invitation.id)}
 												disabled={isResending}
 											>
-												<RefreshCw className="h-4 w-4 mr-1" />
+												<RefreshCw className="size-4 mr-1" />
 												Resend
 											</Button>
 										)}
@@ -199,7 +199,7 @@ export function InvitationList({
 												onClick={() => onRevoke(invitation.id)}
 												disabled={isRevoking}
 											>
-												<X className="h-4 w-4 mr-1" />
+												<X className="size-4 mr-1" />
 												Revoke
 											</Button>
 										)}

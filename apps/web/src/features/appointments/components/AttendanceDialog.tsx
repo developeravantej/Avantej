@@ -39,8 +39,8 @@ export function AttendanceDialog({
 							{/* Header */}
 							<div className="px-6 pt-6 pb-5 border-b border-gray-100">
 								<div className="flex items-start gap-4">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-										<ClipboardCheck className="h-4.5 w-4.5 text-gray-500" />
+									<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+										<ClipboardCheck className="size-4.5 text-gray-500" />
 									</div>
 									<div className="flex-1 min-w-0">
 										<DialogHeader className="p-0 space-y-0">
@@ -67,7 +67,7 @@ export function AttendanceDialog({
 							</div>
 
 							{/* Options */}
-							<div className="px-4 py-4 flex flex-col gap-2 bg-white">
+							<div className="p-4 flex flex-col gap-2 bg-white">
 								<button
 									type="button"
 									disabled={isPending}
@@ -77,8 +77,8 @@ export function AttendanceDialog({
 									}}
 									className="group flex items-center gap-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-gray-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
 								>
-									<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-emerald-100 transition-colors">
-										<CheckCircle2 className="h-4.5 w-4.5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-emerald-100 transition-colors">
+										<CheckCircle2 className="size-4.5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
 									</div>
 									<div>
 										<p className="text-sm font-semibold text-gray-900">Attended</p>
@@ -95,8 +95,8 @@ export function AttendanceDialog({
 									}}
 									className="group flex items-center gap-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:bg-gray-50 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
 								>
-									<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-rose-100 transition-colors">
-										<XCircle className="h-4.5 w-4.5 text-gray-400 group-hover:text-rose-500 transition-colors" />
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-rose-100 transition-colors">
+										<XCircle className="size-4.5 text-gray-400 group-hover:text-rose-500 transition-colors" />
 									</div>
 									<div>
 										<p className="text-sm font-semibold text-gray-900">No-show</p>

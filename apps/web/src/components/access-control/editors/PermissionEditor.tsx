@@ -135,9 +135,9 @@ function ActionEditor({ action, onUpdate, onRemove, canRemove }: ActionEditorPro
             variant="ghost"
             size="sm"
             onClick={() => setIsEditing(true)}
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
           >
-            <Settings className="w-3 h-3" />
+            <Settings className="size-3" />
           </Button>
           {canRemove && (
             <Button
@@ -145,9 +145,9 @@ function ActionEditor({ action, onUpdate, onRemove, canRemove }: ActionEditorPro
               variant="ghost"
               size="sm"
               onClick={onRemove}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+              className="size-8 p-0 text-destructive hover:text-destructive"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="size-3" />
             </Button>
           )}
         </div>
@@ -250,7 +250,7 @@ export function PermissionEditor({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+            <Shield className="size-5" />
             {resource ? 'Edit Permission Resource' : 'Create New Permission Resource'}
           </CardTitle>
         </CardHeader>
@@ -381,7 +381,7 @@ export function PermissionEditor({
                   onClick={addNewAction}
                   className="w-full"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="size-4 mr-2" />
                   Add Custom Action
                 </Button>
               </div>
@@ -405,7 +405,7 @@ export function PermissionEditor({
                       onClick={onCancel}
                       disabled={isLoading}
                     >
-                      <X className="w-4 h-4 mr-2" />
+                      <X className="size-4 mr-2" />
                       Cancel
                     </Button>
                   )}
@@ -414,7 +414,7 @@ export function PermissionEditor({
                     disabled={!isFormValid || isLoading}
                     className="min-w-[140px]"
                   >
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save className="size-4 mr-2" />
                     {isLoading ? 'Saving...' : resource ? 'Update Resource' : 'Create Resource'}
                   </Button>
                 </div>

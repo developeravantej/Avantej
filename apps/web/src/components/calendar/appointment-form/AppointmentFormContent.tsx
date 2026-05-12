@@ -110,8 +110,8 @@ export function AppointmentFormContent({
 						<div className="grid grid-cols-6 grid-rows-5">
 							{/* Profile sidebar */}
 							<div className="col-span-1 row-span-5 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg p-6 flex flex-col space-y-4">
-								<div className="w-20 h-20 bg-brand-secondary-2 rounded-full flex items-center justify-center">
-									<UserPlus className="h-10 w-10 text-brand-secondary-1" />
+								<div className="size-20 bg-brand-secondary-2 rounded-full flex items-center justify-center">
+									<UserPlus className="size-10 text-brand-secondary-1" />
 								</div>
 								<div className="space-y-2">
 									<h3 className="text-lg font-bold text-brand-primary-1">
@@ -121,8 +121,8 @@ export function AppointmentFormContent({
 									</h3>
 									{newAppointment.clientId && (
 										<div className="flex gap-1 text-sm text-brand-secondary-1 items-center">
-											<div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-												<ThumbsDown className="h-4 w-4 text-white" />
+											<div className="size-6 bg-red-500 rounded-full flex items-center justify-center">
+												<ThumbsDown className="size-4 text-white" />
 											</div>
 											<span>0 No show(s)</span>
 										</div>
@@ -134,7 +134,7 @@ export function AppointmentFormContent({
 										<div className="flex flex-col gap-0 text-sm text-brand-primary-1">
 											<span className="font-medium">MOVE PRIVATE FITNESS -</span>
 											<div className="flex gap-2 items-center">
-												<Calendar className="h-4 w-4 text-brand-secondary-1" />
+												<Calendar className="size-4 text-brand-secondary-1" />
 												<span className="text-brand-secondary-1">
 													{new Date().toLocaleDateString("en-US", {
 														month: "2-digit",
@@ -155,7 +155,7 @@ export function AppointmentFormContent({
 													<TooltipTrigger asChild>
 														<button
 															type="button"
-															className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+															className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 														>
 															?
 														</button>
@@ -180,7 +180,7 @@ export function AppointmentFormContent({
 													}`}
 												>
 													<span
-														className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+														className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
 															isMultiAppointment ? "translate-x-6" : "translate-x-1"
 														}`}
 													/>
@@ -204,9 +204,9 @@ export function AppointmentFormContent({
 										variant="ghost"
 										size="sm"
 										onClick={handleClose}
-										className="absolute top-4 right-4 h-8 w-8 p-0 hover:bg-brand-secondary-3 z-10"
+										className="absolute top-4 right-4 size-8 p-0 hover:bg-brand-secondary-3 z-10"
 									>
-										<X className="h-4 w-4" />
+										<X className="size-4" />
 									</Button>
 								</div>
 
@@ -256,7 +256,7 @@ export function AppointmentFormContent({
 														<TooltipTrigger asChild>
 															<button
 																type="button"
-																className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+																className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 															>
 																?
 															</button>
@@ -352,7 +352,7 @@ export function AppointmentFormContent({
 														className="px-5 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
 														onClick={() => { /* Add your plus button functionality here */ }}
 													>
-														<UserPlus className="h-5 w-5" />
+														<UserPlus className="size-5" />
 													</Button>
 												</div>
 											</div>
@@ -367,7 +367,7 @@ export function AppointmentFormContent({
 														onClick={addNewAppointmentSlot}
 														disabled={appointmentSlots.length >= 5}
 													>
-														<Plus className="h-4 w-4 mr-2" />
+														<Plus className="size-4 mr-2" />
 														Add New Appointment {appointmentSlots.length >= 5 ? "(Max 5)" : ""}
 													</Button>
 
@@ -388,7 +388,7 @@ export function AppointmentFormContent({
 																		<CardContent className="p-3">
 																			<div className="flex items-center justify-between mb-3">
 																				<div className="flex items-center gap-2">
-																					<div className={`w-3 h-3 rounded-full ${selectedAppointmentId === slot.id ? "bg-blue-500" : "bg-brand-secondary-2"}`} />
+																					<div className={`size-3 rounded-full ${selectedAppointmentId === slot.id ? "bg-blue-500" : "bg-brand-secondary-2"}`} />
 																					<div>
 																						<div className="text-sm font-medium text-brand-primary-1">
 																							Appointment {index + 1}
@@ -405,9 +405,9 @@ export function AppointmentFormContent({
 																					variant="ghost"
 																					size="sm"
 																					onClick={(e) => { e.stopPropagation(); removeAppointmentSlot(slot.id); }}
-																					className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+																					className="size-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
 																				>
-																					<X className="h-3 w-3" />
+																					<X className="size-3" />
 																				</Button>
 																			</div>
 																			{/* Service list for this slot */}
@@ -425,7 +425,7 @@ export function AppointmentFormContent({
 																							setMultiSlotDialogOpen(true);
 																						}}
 																					>
-																						<Plus className="h-3 w-3 mr-1" />
+																						<Plus className="size-3 mr-1" />
 																						Add
 																					</Button>
 																				</div>
@@ -436,7 +436,7 @@ export function AppointmentFormContent({
 																							return svc ? (
 																								<div key={serviceId} className="flex items-center justify-between p-2 bg-white border border-brand-secondary-3 rounded text-xs">
 																									<div className="flex items-center gap-2">
-																										<div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+																										<div className="size-1.5 bg-green-500 rounded-full" />
 																										<span className="font-medium text-brand-primary-1">{svc.name}</span>
 																										<span className="text-brand-secondary-1">({svc.durationMinutes}m)</span>
 																									</div>
@@ -445,9 +445,9 @@ export function AppointmentFormContent({
 																										variant="ghost"
 																										size="sm"
 																										onClick={(e) => { e.stopPropagation(); removeServiceFromSlot(slot.id, serviceId); }}
-																										className="h-4 w-4 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+																										className="size-4 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
 																									>
-																										<X className="h-2.5 w-2.5" />
+																										<X className="size-2.5" />
 																									</Button>
 																								</div>
 																							) : null;
@@ -500,9 +500,9 @@ export function AppointmentFormContent({
 																variant="ghost"
 																size="sm"
 																onClick={() => setMultiSlotDialogOpen(false)}
-																className="h-8 w-8 p-0 hover:bg-brand-secondary-3"
+																className="size-8 p-0 hover:bg-brand-secondary-3"
 															>
-																<X className="h-4 w-4" />
+																<X className="size-4" />
 															</Button>
 														</div>
 														<div className="space-y-2 max-h-60 overflow-y-auto">
@@ -548,7 +548,7 @@ export function AppointmentFormContent({
 												<>
 													<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
 														<div className="flex items-center gap-2">
-															<div className="w-2 h-2 bg-blue-500 rounded-full" />
+															<div className="size-2 bg-blue-500 rounded-full" />
 															<h3 className="text-sm font-semibold text-blue-900">
 																Editing: Appointment {appointmentSlots.findIndex((s) => s.id === selectedAppointmentId) + 1}
 															</h3>
@@ -664,10 +664,10 @@ export function AppointmentFormContent({
 																	variant="outline"
 																	size="sm"
 																	onClick={() => updateAppointmentSlot(selectedSlot.id, "duration", Math.max(5, selectedSlot.duration - 5))}
-																	className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
+																	className="size-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
 																	disabled={selectedSlot.duration <= 5}
 																>
-																	<Minus className="h-4 w-4" />
+																	<Minus className="size-4" />
 																</Button>
 																<div className="flex-1 text-center py-2 px-3 bg-white border border-brand-secondary-3 rounded-md">
 																	<span className="text-sm font-medium text-brand-primary-1">{formatDuration(selectedSlot.duration)}</span>
@@ -677,9 +677,9 @@ export function AppointmentFormContent({
 																	variant="outline"
 																	size="sm"
 																	onClick={() => updateAppointmentSlot(selectedSlot.id, "duration", selectedSlot.duration + 5)}
-																	className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
+																	className="size-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
 																>
-																	<Plus className="h-4 w-4" />
+																	<Plus className="size-4" />
 																</Button>
 															</div>
 															<div className="text-xs text-brand-secondary-1 text-center">

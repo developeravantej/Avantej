@@ -108,7 +108,7 @@ function SalesTab({
 						<p className="mt-1 text-2xl font-bold">{isLoading ? "—" : total}</p>
 					</div>
 					<div className="rounded-lg bg-muted p-2">
-						<ShoppingCart className="h-4 w-4 text-muted-foreground" />
+						<ShoppingCart className="size-4 text-muted-foreground" />
 					</div>
 				</div>
 				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
@@ -117,7 +117,7 @@ function SalesTab({
 						<p className="mt-1 text-xl font-bold">{formatPrice(totalRevenue, "MYR")}</p>
 					</div>
 					<div className="rounded-lg bg-muted p-2">
-						<TrendingUp className="h-4 w-4 text-muted-foreground" />
+						<TrendingUp className="size-4 text-muted-foreground" />
 					</div>
 				</div>
 				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
@@ -126,7 +126,7 @@ function SalesTab({
 						<p className="mt-1 text-2xl font-bold">{completedCount}</p>
 					</div>
 					<div className="rounded-lg bg-muted p-2">
-						<CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+						<CheckCircle2 className="size-4 text-muted-foreground" />
 					</div>
 				</div>
 				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
@@ -135,7 +135,7 @@ function SalesTab({
 						<p className="mt-1 text-2xl font-bold">{cancelledCount}</p>
 					</div>
 					<div className="rounded-lg bg-muted p-2">
-						<XCircle className="h-4 w-4 text-muted-foreground" />
+						<XCircle className="size-4 text-muted-foreground" />
 					</div>
 				</div>
 			</div>
@@ -303,7 +303,7 @@ function RouteComponent() {
 				</div>
 				<Link to="/dashboard/sales/create">
 					<Button size="sm">
-						<Plus className="mr-2 h-4 w-4" />
+						<Plus className="mr-2 size-4" />
 						New Sale
 					</Button>
 				</Link>

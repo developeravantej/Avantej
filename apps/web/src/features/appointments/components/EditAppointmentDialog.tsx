@@ -49,8 +49,8 @@ export function EditAppointmentDialog({
 							{/* Header */}
 							<div className="px-6 pt-6 pb-5 border-b border-gray-100">
 								<div className="flex items-center gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-										<Pencil className="h-4 w-4 text-gray-500" />
+									<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+										<Pencil className="size-4 text-gray-500" />
 									</div>
 									<DialogHeader className="p-0 space-y-0">
 										<DialogTitle className="text-base font-bold text-gray-900">Edit Appointment</DialogTitle>

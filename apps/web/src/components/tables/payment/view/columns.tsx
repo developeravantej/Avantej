@@ -52,7 +52,7 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 				title={value || undefined}
 			>
 				{displayContent}
-				<Copy className="h-3.5 w-3.5 text-muted-foreground" />
+				<Copy className="size-3.5 text-muted-foreground" />
 			</Badge>
 		</div>
 	);
@@ -116,7 +116,7 @@ function PaymentActionCell({
 					})
 				}
 			>
-				<Eye className="h-4 w-4 mr-1" /> View
+				<Eye className="size-4 mr-1" /> View
 			</Button>
 			{row.original.payment_id && onHistoryClick && (
 				<Button
@@ -124,7 +124,7 @@ function PaymentActionCell({
 					size="sm"
 					onClick={() => onHistoryClick(row.original.payment_id!)}
 				>
-					<History className="h-4 w-4 mr-1" /> History
+					<History className="size-4 mr-1" /> History
 				</Button>
 			)}
 		</div>
@@ -229,7 +229,7 @@ export function buildColumns(
 			const createdBy = getValue<string>();
 			return (
 				<div className="flex items-center gap-2">
-					<Avatar className="h-6 w-6">
+					<Avatar className="size-6">
 						<AvatarImage src="" alt={createdBy} />
 						<AvatarFallback className="text-xs">
 							{createdBy ? createdBy.charAt(0).toUpperCase() : "U"}

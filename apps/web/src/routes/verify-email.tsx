@@ -85,19 +85,19 @@ function VerifyEmailPage() {
         <CardContent className="space-y-4">
           {status === "loading" && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
               Verifying…
             </div>
           )}
           {status === "success" && (
             <div className="flex items-center gap-2 text-sm text-green-600">
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle className="size-4" />
               Email verified. Redirecting…
             </div>
           )}
           {status === "error" && (
             <div className="flex items-start gap-2 text-sm text-red-600">
-              <XCircle className="mt-0.5 h-4 w-4" />
+              <XCircle className="mt-0.5 size-4" />
               <div>
                 <div className="font-medium">Verification failed</div>
                 <div className="text-red-600/90">{errorMessage}</div>

@@ -21,7 +21,7 @@ export function QuickActions() {
 							: "border border-brand-secondary-3 bg-card text-brand-primary-1 hover:bg-brand-secondary-3"
 					}`}
 				>
-					<action.icon className="h-6 w-6" />
+					<action.icon className="size-6" />
 					<span className="text-sm font-medium">{action.label}</span>
 				</Link>
 			))}

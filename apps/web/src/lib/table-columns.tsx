@@ -89,7 +89,7 @@ export function actionsColumn<T>(cfg: {
 								disabled={isDisabled}
 								onClick={() => a.onClick(row.original)}
 							>
-								{Icon ? <Icon className="h-4 w-4" /> : null}
+								{Icon ? <Icon className="size-4" /> : null}
 								<span className={Icon ? "sr-only" : undefined}>{a.label}</span>
 							</Button>
 						);

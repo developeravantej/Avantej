@@ -365,7 +365,7 @@ export function PackageInstancesPage() {
 						</p>
 					</div>
 					<Button size="sm" onClick={() => setCreateOpen(true)}>
-						<Plus className="h-4 w-4 mr-1.5" />
+						<Plus className="size-4 mr-1.5" />
 						Assign Pack
 					</Button>
 				</div>
@@ -378,7 +378,7 @@ export function PackageInstancesPage() {
 							<p className="mt-1 text-2xl font-bold">{data.length}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<Layers className="h-4 w-4 text-muted-foreground" />
+							<Layers className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -387,7 +387,7 @@ export function PackageInstancesPage() {
 							<p className="mt-1 text-2xl font-bold">{totalActive}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<CheckCircle className="h-4 w-4 text-muted-foreground" />
+							<CheckCircle className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -396,7 +396,7 @@ export function PackageInstancesPage() {
 							<p className="mt-1 text-2xl font-bold">{totalCreditsUsed}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<Zap className="h-4 w-4 text-muted-foreground" />
+							<Zap className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -405,7 +405,7 @@ export function PackageInstancesPage() {
 							<p className="mt-1 text-2xl font-bold">{formatPrice(totalRevenue, "MYR")}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<DollarSign className="h-4 w-4 text-muted-foreground" />
+							<DollarSign className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 				</div>
@@ -460,7 +460,7 @@ export function PackageInstancesPage() {
 								<TableCell colSpan={10} className="h-60">
 									<div className="flex flex-col items-center justify-center gap-3 text-center">
 										<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-											<Layers className="h-6 w-6 text-muted-foreground" />
+											<Layers className="size-6 text-muted-foreground" />
 										</div>
 										<p className="text-sm font-medium">No session packs found</p>
 										<p className="text-xs text-muted-foreground">Assign a pack to get started.</p>
@@ -523,7 +523,7 @@ export function PackageInstancesPage() {
 												setStaffInstanceId(row.id);
 											}}
 										>
-											<Users className="h-3.5 w-3.5 mr-1" />
+											<Users className="size-3.5 mr-1" />
 											Staff
 										</Button>
 									</TableCell>
@@ -549,7 +549,7 @@ export function PackageInstancesPage() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 px-4 py-4">
+					<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 p-4">
 						{/* Package selector */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="inst-package">
@@ -764,7 +764,7 @@ export function PackageInstancesPage() {
 				<DialogContent className="sm:max-w-md overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<History className="h-4 w-4 text-muted-foreground" />
+							<History className="size-4 text-muted-foreground" />
 							Status History
 						</DialogTitle>
 						<DialogDescription>
@@ -793,7 +793,7 @@ export function PackageInstancesPage() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<Users className="h-4 w-4 text-muted-foreground" />
+							<Users className="size-4 text-muted-foreground" />
 							Assigned Staff
 						</DialogTitle>
 						<DialogDescription>
@@ -833,11 +833,11 @@ export function PackageInstancesPage() {
 											<Button
 												variant="ghost"
 												size="sm"
-												className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+												className="size-7 p-0 text-destructive hover:text-destructive"
 												disabled={removeStaffMutation.isPending}
 												onClick={() => removeStaffMutation.mutate(sr.staffId)}
 											>
-												<Trash2 className="h-3.5 w-3.5" />
+												<Trash2 className="size-3.5" />
 											</Button>
 										</div>
 									);
@@ -870,7 +870,7 @@ export function PackageInstancesPage() {
 								disabled={!assignStaffId || assignStaffMutation.isPending}
 								onClick={handleAssignStaff}
 							>
-								<Plus className="h-4 w-4 mr-1" />
+								<Plus className="size-4 mr-1" />
 								Add
 							</Button>
 						</div>

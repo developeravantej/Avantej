@@ -63,7 +63,7 @@ function StatusHistoryCard({
 		<Card className="mt-6">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<Clock className="h-4 w-4" />
+					<Clock className="size-4" />
 					Status History
 				</CardTitle>
 			</CardHeader>
@@ -80,7 +80,7 @@ function StatusHistoryCard({
 					<ol className="relative border-l border-muted ml-3 space-y-4">
 						{data.rows.map((entry) => (
 							<li key={entry.id} className="ml-4">
-								<div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-muted-foreground" />
+								<div className="absolute -left-1.5 mt-1.5 size-3 rounded-full border border-white bg-muted-foreground" />
 								<div className="flex flex-wrap items-center gap-2">
 									{entry.fromStatus !== null ? (
 										<span className="text-muted-foreground text-sm">
@@ -168,7 +168,7 @@ function SalesOrderDetailPage() {
 			<div className="mx-auto max-w-4xl p-6">
 				<Link to="/dashboard/sales/view">
 					<Button variant="ghost" size="sm" className="mb-4">
-						<ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales Orders
+						<ArrowLeft className="mr-2 size-4" /> Back to Sales Orders
 					</Button>
 				</Link>
 				<StatusCallout
@@ -184,7 +184,7 @@ function SalesOrderDetailPage() {
 		<div className="mx-auto max-w-4xl p-6">
 			<Link to="/dashboard/sales/view">
 				<Button variant="ghost" size="sm" className="mb-4">
-					<ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales Orders
+					<ArrowLeft className="mr-2 size-4" /> Back to Sales Orders
 				</Button>
 			</Link>
 
@@ -226,7 +226,7 @@ function SalesOrderDetailPage() {
 						size="sm"
 						onClick={() => setPrintDialogOpen(true)}
 					>
-						<Printer className="mr-2 h-4 w-4" />
+						<Printer className="mr-2 size-4" />
 						Print Receipt
 					</Button>
 				</div>
@@ -346,7 +346,7 @@ function SalesOrderDetailPage() {
 							Close
 						</Button>
 						<Button onClick={() => window.print()}>
-							<Printer className="mr-2 h-4 w-4" />
+							<Printer className="mr-2 size-4" />
 							Print
 						</Button>
 					</div>

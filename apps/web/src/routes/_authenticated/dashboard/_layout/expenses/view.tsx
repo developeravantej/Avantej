@@ -375,7 +375,7 @@ function ExpensesViewPage() {
 								onClick={() => approveMutation.mutate(id)}
 								disabled={approveMutation.isPending}
 							>
-								<CheckCircle className="h-3.5 w-3.5" />
+								<CheckCircle className="size-3.5" />
 								Approve
 							</Button>
 							<Button
@@ -387,7 +387,7 @@ function ExpensesViewPage() {
 									setRejectionReason("");
 								}}
 							>
-								<XCircle className="h-3.5 w-3.5" />
+								<XCircle className="size-3.5" />
 								Reject
 							</Button>
 						</div>
@@ -404,7 +404,7 @@ function ExpensesViewPage() {
 								setPaymentReference("");
 							}}
 						>
-							<DollarSign className="h-3.5 w-3.5" />
+							<DollarSign className="size-3.5" />
 							Mark Paid
 						</Button>
 					);
@@ -444,7 +444,7 @@ function ExpensesViewPage() {
 							}}
 							className="gap-2"
 						>
-							<Plus className="h-4 w-4" />
+							<Plus className="size-4" />
 							Submit Expense
 						</Button>
 					) : undefined

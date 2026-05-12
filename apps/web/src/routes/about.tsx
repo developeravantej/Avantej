@@ -45,8 +45,8 @@ function AboutPage() {
                 <h3 className="text-2xl font-semibold mb-4">Our Values</h3>
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <Check className="h-4 w-4 text-white" />
+                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check className="size-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1">Customer Success</h4>
@@ -57,8 +57,8 @@ function AboutPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <Check className="h-4 w-4 text-white" />
+                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check className="size-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1">Innovation</h4>
@@ -69,8 +69,8 @@ function AboutPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <Check className="h-4 w-4 text-white" />
+                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check className="size-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1">Integrity</h4>
@@ -90,22 +90,22 @@ function AboutPage() {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                  <div className="size-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
                   <h4 className="font-semibold">Sarah Johnson</h4>
                   <p className="text-gray-600 text-sm">CEO & Co-Founder</p>
                 </div>
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                  <div className="size-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
                   <h4 className="font-semibold">Michael Chen</h4>
                   <p className="text-gray-600 text-sm">CTO & Co-Founder</p>
                 </div>
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                  <div className="size-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
                   <h4 className="font-semibold">Amanda Rodriguez</h4>
                   <p className="text-gray-600 text-sm">COO</p>
                 </div>
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                  <div className="size-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
                   <h4 className="font-semibold">David Kim</h4>
                   <p className="text-gray-600 text-sm">Head of Product</p>
                 </div>

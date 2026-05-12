@@ -89,14 +89,14 @@ export function InstallmentsTable({
 					onClick={() => setShowFilters((v) => !v)}
 					className="gap-1.5"
 				>
-					<SlidersHorizontal className="h-3.5 w-3.5" />
+					<SlidersHorizontal className="size-3.5" />
 					Filters
 					{activeFilterCount > 0 && (
 						<span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
 							{activeFilterCount}
 						</span>
 					)}
-					{showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+					{showFilters ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
 				</Button>
 			</div>
 
@@ -171,7 +171,7 @@ export function InstallmentsTable({
 							setPlanCode(undefined);
 						}}
 					>
-						<X className="h-3.5 w-3.5" />
+						<X className="size-3.5" />
 						Clear
 					</Button>
 				</div>
@@ -230,7 +230,7 @@ export function InstallmentsTable({
 							<TableCell colSpan={statusFilter === "due_soon" ? 7 : 6} className="h-60">
 								<div className="flex flex-col items-center justify-center gap-3 text-center">
 									<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-										<CreditCard className="h-6 w-6 text-muted-foreground" />
+										<CreditCard className="size-6 text-muted-foreground" />
 									</div>
 									<p className="text-sm font-medium">No installment packages found</p>
 									<p className="text-xs text-muted-foreground">Try adjusting your filters.</p>

@@ -253,7 +253,7 @@ function CustomersComponent() {
 					</p>
 				</div>
 				<Button onClick={() => setIsAddCustomerOpen(true)}>
-					<Plus className="mr-2 h-4 w-4" />
+					<Plus className="mr-2 size-4" />
 					Add Customer
 				</Button>
 			</div>
@@ -262,7 +262,7 @@ function CustomersComponent() {
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between">
 						<CardTitle className="flex items-center gap-2">
-							<User className="h-5 w-5" />
+							<User className="size-5" />
 							My profile
 						</CardTitle>
 						<Button variant="outline" size="sm" onClick={openEditProfile}>
@@ -301,7 +301,7 @@ function CustomersComponent() {
 				<CardContent>
 					<div className="flex items-center space-x-2 mb-4">
 						<div className="relative flex-1">
-							<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+							<Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
 							<Input
 								placeholder="Search customers..."
 								value={searchQuery}
@@ -340,8 +340,8 @@ function CustomersComponent() {
 									<div key={customer.id} className="border rounded-lg p-4">
 										<div className="flex items-center justify-between">
 											<div className="flex items-center space-x-4">
-												<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-													<Users className="h-5 w-5 text-blue-600" />
+												<div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
+													<Users className="size-5 text-blue-600" />
 												</div>
 												<div>
 													<h3 className="font-semibold">{customer.name ?? customer.email ?? "Unknown"}</h3>
@@ -369,7 +369,7 @@ function CustomersComponent() {
 													size="sm"
 													onClick={() => { window.location.href = `mailto:${customer.email}`; }}
 												>
-													<Mail className="h-4 w-4 mr-1" />
+													<Mail className="size-4 mr-1" />
 													Contact
 												</Button>
 												<Button
@@ -377,7 +377,7 @@ function CustomersComponent() {
 													size="sm"
 													onClick={() => navigate({ to: "/dashboard/appointment/view" })}
 												>
-													<Calendar className="h-4 w-4 mr-1" />
+													<Calendar className="size-4 mr-1" />
 													Schedule
 												</Button>
 											</div>

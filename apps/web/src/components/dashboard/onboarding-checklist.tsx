@@ -133,12 +133,12 @@ export function OnboardingChecklist({ organizationId }: Props) {
 					<Link
 						key={item.label}
 						to={item.href}
-						className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-brand-secondary-3"
+						className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-brand-secondary-3"
 					>
 						{item.done ? (
-							<CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+							<CheckCircle2 className="size-4 shrink-0 text-green-500" />
 						) : (
-							<Link2 className="h-4 w-4 shrink-0 text-brand-secondary-1" />
+							<Link2 className="size-4 shrink-0 text-brand-secondary-1" />
 						)}
 						<span
 							className={`text-sm ${

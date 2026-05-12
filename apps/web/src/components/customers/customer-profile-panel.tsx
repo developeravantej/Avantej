@@ -176,7 +176,7 @@ interface KpiCardProps {
 function KpiCard({ label, value, valueClassName }: KpiCardProps) {
 	return (
 		<Card>
-			<CardContent className="px-4 py-4">
+			<CardContent className="p-4">
 				<p className="text-muted-foreground text-xs">{label}</p>
 				<p
 					className={`mt-1 font-semibold text-xl tabular-nums ${valueClassName ?? ""}`}
@@ -465,7 +465,7 @@ export function CustomerProfilePanel({
 			{showBackLink && (
 				<Button variant="ghost" size="sm" asChild className="-ml-1">
 					<Link to="/dashboard/customers/view">
-						<ArrowLeft className="mr-1 h-4 w-4" />
+						<ArrowLeft className="mr-1 size-4" />
 						Customers
 					</Link>
 				</Button>

@@ -72,7 +72,7 @@ export function SupplierDetailsDialog({
 					{/* Basic Information */}
 					<div className="space-y-4">
 						<h3 className="text-lg font-semibold flex items-center gap-2">
-							<Building className="h-5 w-5" />
+							<Building className="size-5" />
 							Basic Information
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -100,7 +100,7 @@ export function SupplierDetailsDialog({
 					{/* Contact Information */}
 					<div className="space-y-4">
 						<h3 className="text-lg font-semibold flex items-center gap-2">
-							<User className="h-5 w-5" />
+							<User className="size-5" />
 							Contact Information
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -110,7 +110,7 @@ export function SupplierDetailsDialog({
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Phone className="h-4 w-4" />
+									<Phone className="size-4" />
 									Mobile
 								</label>
 								{supplier.contactPhone ? (
@@ -126,7 +126,7 @@ export function SupplierDetailsDialog({
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Phone className="h-4 w-4" />
+									<Phone className="size-4" />
 									Office Phone
 								</label>
 								{supplier.officePhone ? (
@@ -142,7 +142,7 @@ export function SupplierDetailsDialog({
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Mail className="h-4 w-4" />
+									<Mail className="size-4" />
 									Email
 								</label>
 								{supplier.email ? (
@@ -158,7 +158,7 @@ export function SupplierDetailsDialog({
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Globe className="h-4 w-4" />
+									<Globe className="size-4" />
 									Website
 								</label>
 								{supplier.website ? (
@@ -182,20 +182,20 @@ export function SupplierDetailsDialog({
 					{/* System Information */}
 					<div className="space-y-4">
 						<h3 className="text-lg font-semibold flex items-center gap-2">
-							<Hash className="h-5 w-5" />
+							<Hash className="size-5" />
 							System Information
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Calendar className="h-4 w-4" />
+									<Calendar className="size-4" />
 									Created At
 								</label>
 								<p className="text-sm">{formatDate(supplier.createdAt)}</p>
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
-									<Calendar className="h-4 w-4" />
+									<Calendar className="size-4" />
 									Updated At
 								</label>
 								<p className="text-sm">{formatDate(supplier.updatedAt)}</p>

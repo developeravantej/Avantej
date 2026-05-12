@@ -88,8 +88,8 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 			<CardHeader className="pb-3">
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-3 flex-1">
-						<div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-							<Icon className="w-5 h-5 text-primary" />
+						<div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+							<Icon className="size-5 text-primary" />
 						</div>
 						<div className="space-y-1 flex-1">
 							<CardTitle className="text-base">{resource.name}</CardTitle>
@@ -101,8 +101,8 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-								<MoreVertical className="w-4 h-4" />
+							<Button variant="ghost" size="sm" className="size-8 p-0">
+								<MoreVertical className="size-4" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-48">
@@ -111,7 +111,7 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 								onClick={onRemovePermissions}
 								className="cursor-pointer text-destructive focus:text-destructive"
 							>
-								<Trash2 className="w-4 h-4 mr-2" />
+								<Trash2 className="size-4 mr-2" />
 								Remove All Permissions
 							</DropdownMenuItem>
 						</DropdownMenuContent>
@@ -356,7 +356,7 @@ export function PermissionsTabPage() {
 			<Card>
 				<CardContent className="py-4">
 					<div className="relative max-w-md">
-						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
 						<Input
 							placeholder="Search resources or actions..."
 							value={searchQuery}
@@ -372,7 +372,7 @@ export function PermissionsTabPage() {
 				<Card>
 					<CardContent className="py-12">
 						<div className="text-center">
-							<Loader2 className="w-8 h-8 mx-auto text-muted-foreground mb-4 animate-spin" />
+							<Loader2 className="size-8 mx-auto text-muted-foreground mb-4 animate-spin" />
 							<p className="text-muted-foreground">Loading permissions...</p>
 						</div>
 					</CardContent>
@@ -400,7 +400,7 @@ export function PermissionsTabPage() {
 						<Card>
 							<CardContent className="py-12">
 								<div className="text-center">
-									<Shield className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
+									<Shield className="size-12 mx-auto text-brand-secondary-2 mb-4" />
 									<h3 className="text-lg font-medium mb-2 text-brand-primary-1">
 										No resources found
 									</h3>

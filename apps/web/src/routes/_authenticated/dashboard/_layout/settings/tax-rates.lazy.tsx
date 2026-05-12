@@ -357,7 +357,7 @@ function TaxRatesPage() {
 						className="flex items-center justify-center disabled:cursor-not-allowed"
 					>
 						<Star
-							className={`h-4 w-4 transition-colors ${
+							className={`size-4 transition-colors ${
 								isDefault
 									? "fill-amber-400 text-amber-400"
 									: "text-muted-foreground hover:text-amber-400"
@@ -405,7 +405,7 @@ function TaxRatesPage() {
 						onClick={() => openEdit(row.original)}
 						disabled={isMutating}
 					>
-						<Edit className="h-4 w-4 mr-1" />
+						<Edit className="size-4 mr-1" />
 						Edit
 					</Button>
 					{row.original.isActive && (
@@ -453,7 +453,7 @@ function TaxRatesPage() {
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<Tag className="h-6 w-6 text-primary" />
+						<Tag className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Tax Rates</h1>
@@ -463,7 +463,7 @@ function TaxRatesPage() {
 					</div>
 				</div>
 				<Button onClick={openCreate} disabled={isMutating}>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					New Tax Rate
 				</Button>
 			</div>
@@ -513,7 +513,7 @@ function TaxRatesPage() {
 									Default Rate
 								</div>
 								<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-									<Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+									<Star className="size-3 fill-amber-500 text-amber-500" />
 									Default
 								</span>
 							</div>

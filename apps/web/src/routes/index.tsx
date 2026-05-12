@@ -65,8 +65,8 @@ function FeatureCard({
 }) {
 	return (
 		<div className="p-6 bg-white rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-			<div className="h-12 w-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-				<Icon className="h-6 w-6 text-black" />
+			<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+				<Icon className="size-6 text-black" />
 			</div>
 			<h3 className="text-xl font-semibold mb-2">{title}</h3>
 			<p className="text-gray-600">{description}</p>
@@ -209,21 +209,21 @@ function HomeComponent() {
 					<div className="grid md:grid-cols-3 gap-8 mb-12">
 						{/* Client Management */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
-								<UserCircle className="h-6 w-6" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+								<UserCircle className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">Client Management</h3>
 							<ul className="space-y-3 mb-6">
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Comprehensive client profiles</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Interaction history tracking</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Automated notifications</span>
 								</li>
 							</ul>
@@ -231,23 +231,23 @@ function HomeComponent() {
 
 						{/* Financial Management */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
-								<DollarSign className="h-6 w-6" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+								<DollarSign className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
 								Financial Management
 							</h3>
 							<ul className="space-y-3 mb-6">
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Automated payroll processing</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Expense tracking</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Financial reporting</span>
 								</li>
 							</ul>
@@ -255,23 +255,23 @@ function HomeComponent() {
 
 						{/* Analytics & Reporting */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
-								<PieChart className="h-6 w-6" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+								<PieChart className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
 								Analytics & Reporting
 							</h3>
 							<ul className="space-y-3 mb-6">
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Real-time KPI tracking</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Custom report generation</span>
 								</li>
 								<li className="flex items-center gap-2">
-									<Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+									<Check className="size-5 text-green-500 flex-shrink-0" />
 									<span>Performance insights</span>
 								</li>
 							</ul>
@@ -290,7 +290,7 @@ function HomeComponent() {
 							)}
 						>
 							Explore All Features
-							<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+							<ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
 						</Link>
 					</div>
 				</div>
@@ -321,8 +321,8 @@ function HomeComponent() {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 						{/* Dashboard & Analytics */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<HomeIcon className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<HomeIcon className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Dashboard & Analytics
@@ -335,8 +335,8 @@ function HomeComponent() {
 
 						{/* Scoreboards */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<ClipboardList className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<ClipboardList className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Performance Scoreboards
@@ -348,8 +348,8 @@ function HomeComponent() {
 
 						{/* Client Management */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<UserCircle className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<UserCircle className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Client Management</h3>
 							<p className="text-gray-600 mb-4">
@@ -360,8 +360,8 @@ function HomeComponent() {
 
 						{/* Calendar */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Calendar className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Calendar className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Smart Calendar</h3>
 							<p className="text-gray-600 mb-4">
@@ -372,8 +372,8 @@ function HomeComponent() {
 
 						{/* Payroll Management */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<DollarSign className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<DollarSign className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Payroll Management</h3>
 							<p className="text-gray-600 mb-4">
@@ -384,8 +384,8 @@ function HomeComponent() {
 
 						{/* Admin Controls */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Settings className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Settings className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Advanced Admin Settings
@@ -400,8 +400,8 @@ function HomeComponent() {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
 						{/* Claims & Expenses */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<FileText className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<FileText className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Claims & Expenses</h3>
 							<p className="text-gray-600 mb-4">
@@ -411,8 +411,8 @@ function HomeComponent() {
 
 						{/* User Roles */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<UserCog className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<UserCog className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Role Management</h3>
 							<p className="text-gray-600 mb-4">
@@ -423,8 +423,8 @@ function HomeComponent() {
 
 						{/* Profit/Loss Tracking */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<PieChart className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<PieChart className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Financial Analytics
@@ -436,8 +436,8 @@ function HomeComponent() {
 
 						{/* Packages */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Package className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Package className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Package Management</h3>
 							<p className="text-gray-600 mb-4">
@@ -448,8 +448,8 @@ function HomeComponent() {
 
 						{/* Payments & Invoicing */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Receipt className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Receipt className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Payments & Invoicing
@@ -461,8 +461,8 @@ function HomeComponent() {
 
 						{/* Purchase Approval */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<CheckSquare className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<CheckSquare className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Purchase Approval</h3>
 							<p className="text-gray-600 mb-4">
@@ -475,8 +475,8 @@ function HomeComponent() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
 						{/* Data Center */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Database className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Database className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">Data Center</h3>
 							<p className="text-gray-600 mb-4">
@@ -487,8 +487,8 @@ function HomeComponent() {
 
 						{/* Announcements */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Bell className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Bell className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Announcement System
@@ -500,8 +500,8 @@ function HomeComponent() {
 
 						{/* Branding */}
 						<div className="p-6 bg-gray-50 rounded-xl">
-							<div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-								<Palette className="h-6 w-6 text-black" />
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+								<Palette className="size-6 text-black" />
 							</div>
 							<h3 className="text-xl font-semibold mb-3">
 								Branding Customization
@@ -562,7 +562,7 @@ function HomeComponent() {
 					<h1 className="text-3xl font-bold text-center mb-12">How It Works</h1>
 					<div className="grid md:grid-cols-3 gap-8">
 						<div className="text-center">
-							<div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								1
 							</div>
 							<h3 className="text-xl font-semibold mb-2">
@@ -574,7 +574,7 @@ function HomeComponent() {
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								2
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Import Your Data</h3>
@@ -584,7 +584,7 @@ function HomeComponent() {
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								3
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Track & Optimize</h3>
@@ -656,23 +656,23 @@ function HomeComponent() {
 									</div>
 									<ul className="space-y-2 text-sm text-muted-foreground pt-2">
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Up to 3 branches</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>10 staff members</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Basic KPI dashboard</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Email support</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Weekly reports</span>
 										</li>
 									</ul>
@@ -712,27 +712,27 @@ function HomeComponent() {
 									</div>
 									<ul className="space-y-2 text-sm text-muted-foreground pt-2">
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Up to 10 branches</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>50 staff members</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Advanced KPI dashboard</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Priority support</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Daily reports</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Custom analytics</span>
 										</li>
 									</ul>
@@ -772,31 +772,31 @@ function HomeComponent() {
 									</div>
 									<ul className="space-y-2 text-sm text-muted-foreground pt-2">
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Unlimited branches</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Unlimited staff</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Custom KPI dashboard</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>24/7 dedicated support</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>Real-time reporting</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>API access</span>
 										</li>
 										<li className="flex items-center">
-											<Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+											<Check className="size-4 mr-2 text-green-500 flex-shrink-0" />
 											<span>White-label options</span>
 										</li>
 									</ul>

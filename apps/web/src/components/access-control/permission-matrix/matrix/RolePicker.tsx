@@ -33,7 +33,7 @@ export function RolePicker({
 								<Checkbox
 									checked={selectedBatchRoles.has(role.id)}
 									onCheckedChange={() => onToggleBatchRole(role.id)}
-									className="w-3 h-3"
+									className="size-3"
 								/>
 								<span className="font-medium text-xs leading-tight">
 									{role.name}

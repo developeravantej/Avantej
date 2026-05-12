@@ -151,7 +151,7 @@ export function TrainerFormDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-4">
+				<form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4">
 					{/* ── Member Info (create only) ─────────────────────────── */}
 					{!isEditing && (
 						<>
@@ -227,7 +227,7 @@ export function TrainerFormDialog({
 									<Separator />
 								</div>
 								<ChevronDown
-									className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+									className={`size-4 text-muted-foreground transition-transform duration-200 ${
 										profileSectionOpen ? "rotate-180" : ""
 									}`}
 								/>
@@ -315,7 +315,7 @@ export function TrainerFormDialog({
 									</div>
 									<ChevronDown
 										className={cn(
-											"h-4 w-4 text-muted-foreground transition-transform duration-200",
+											"size-4 text-muted-foreground transition-transform duration-200",
 											availabilitySectionOpen && "rotate-180",
 										)}
 									/>

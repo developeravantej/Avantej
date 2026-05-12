@@ -47,7 +47,7 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 				title={value || undefined}
 			>
 				{displayContent}
-				<Copy className="h-3.5 w-3.5 text-muted-foreground" />
+				<Copy className="size-3.5 text-muted-foreground" />
 			</Badge>
 		</div>
 	);
@@ -134,7 +134,7 @@ export const columns: ColumnDef<CancelledSaleRow>[] = [
 			const createdBy = getValue<string>();
 			return (
 				<div className="flex items-center gap-2">
-					<Avatar className="h-6 w-6">
+					<Avatar className="size-6">
 						<AvatarImage src="" alt={createdBy} />
 						<AvatarFallback className="text-xs">
 							{createdBy ? createdBy.charAt(0).toUpperCase() : "U"}

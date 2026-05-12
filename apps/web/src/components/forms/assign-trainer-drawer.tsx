@@ -117,7 +117,7 @@ export function AssignTrainerDrawer({
 					</SheetDescription>
 				</SheetHeader>
 
-				<div className="flex-1 px-4 py-4">
+				<div className="flex-1 p-4">
 					{pkg && (
 						<div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm">
 							<div className="mb-1 font-medium text-foreground">

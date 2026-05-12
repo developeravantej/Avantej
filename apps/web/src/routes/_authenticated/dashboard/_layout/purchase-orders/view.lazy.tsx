@@ -177,7 +177,7 @@ function RouteComponent() {
 								onClick={() => approveMutation.mutate(id)}
 								disabled={approveMutation.isPending}
 							>
-								<CheckCircle className="h-3 w-3 mr-1" />
+								<CheckCircle className="size-3 mr-1" />
 								Approve
 							</Button>
 						)}
@@ -188,7 +188,7 @@ function RouteComponent() {
 								className="h-7 text-xs"
 								onClick={() => setReceivePoId(id)}
 							>
-								<Package className="h-3 w-3 mr-1" />
+								<Package className="size-3 mr-1" />
 								Receive
 							</Button>
 						)}
@@ -210,7 +210,7 @@ function RouteComponent() {
 								className="h-7 text-xs"
 								onClick={() => setInvoicePoId(id)}
 							>
-								<FileText className="h-3 w-3 mr-1" />
+								<FileText className="size-3 mr-1" />
 								Invoice
 							</Button>
 						)}
@@ -242,12 +242,12 @@ function RouteComponent() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<ShoppingCart className="h-5 w-5 text-brand-secondary-1" />
+					<ShoppingCart className="size-5 text-brand-secondary-1" />
 					<h1 className="text-xl font-semibold font-heading">Purchase Orders</h1>
 				</div>
 				{organizationId && canCreate && (
 					<Button size="sm" onClick={() => setCreateSheetOpen(true)}>
-						<Plus className="h-4 w-4 mr-1" />
+						<Plus className="size-4 mr-1" />
 						New PO
 					</Button>
 				)}

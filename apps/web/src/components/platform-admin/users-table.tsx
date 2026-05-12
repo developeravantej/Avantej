@@ -176,7 +176,7 @@ export function UsersTable({
 			{/* Search bar */}
 			<div className="flex items-center gap-2">
 				<div className="relative w-80">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search by email or name..."
 						value={searchValue}

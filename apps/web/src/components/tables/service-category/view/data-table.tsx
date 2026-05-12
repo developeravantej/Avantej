@@ -131,7 +131,7 @@ export default function DataTable<TData, TValue>({
 		<div className="flex h-full flex-col">
 			<div className="flex shrink-0 items-center justify-between border-b border-border/40 px-6 py-3">
 				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search categories..."
 						value={globalFilter ?? ""}
@@ -143,7 +143,7 @@ export default function DataTable<TData, TValue>({
 					size="sm"
 					onClick={() => setIsAddDialogOpen(true)}
 				>
-					<Plus className="mr-2 h-4 w-4" />
+					<Plus className="mr-2 size-4" />
 					Add Category
 				</Button>
 			</div>

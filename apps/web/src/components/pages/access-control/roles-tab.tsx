@@ -423,7 +423,7 @@ export function RolesTabPage() {
 									size="icon"
 									onClick={() => setShowGuide(!showGuide)}
 								>
-									<HelpCircle className="h-4 w-4" />
+									<HelpCircle className="size-4" />
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent>
@@ -443,7 +443,7 @@ export function RolesTabPage() {
 					>
 						<DialogTrigger asChild>
 							<Button onClick={handleCreateRole}>
-								<Plus className="w-4 h-4 mr-2" />
+								<Plus className="size-4 mr-2" />
 								Create Role
 							</Button>
 						</DialogTrigger>
@@ -500,7 +500,7 @@ export function RolesTabPage() {
 				<Card>
 					<CardContent className="py-12">
 						<div className="text-center">
-							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+							<div className="animate-spin rounded-full size-12 border-b-2 border-primary mx-auto mb-4" />
 							<h3 className="text-lg font-medium mb-2">Loading roles...</h3>
 							<p className="text-muted-foreground">
 								Please wait while we fetch your role configuration.
@@ -515,7 +515,7 @@ export function RolesTabPage() {
 				<Card className="border-destructive">
 					<CardContent className="py-12">
 						<div className="text-center">
-							<X className="w-12 h-12 mx-auto text-destructive mb-4" />
+							<X className="size-12 mx-auto text-destructive mb-4" />
 							<h3 className="text-lg font-medium mb-2">Failed to load roles</h3>
 							<p className="text-muted-foreground mb-4">
 								{error || "An error occurred while loading role data."}
@@ -545,7 +545,7 @@ export function RolesTabPage() {
 									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 										<div className="bg-white p-4 rounded-lg border shadow-sm">
 											<div className="flex items-center gap-3 mb-2">
-												<div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+												<div className="size-8 rounded-full bg-primary/10 flex items-center justify-center">
 													<span className="font-bold">1</span>
 												</div>
 												<h3 className="font-medium">Start with a Template</h3>
@@ -565,7 +565,7 @@ export function RolesTabPage() {
 															handleCreateFromTemplate(template.id)
 														}
 													>
-														<template.icon className="w-3 h-3 mr-2" />
+														<template.icon className="size-3 mr-2" />
 														{template.name}
 													</Button>
 												))}
@@ -574,7 +574,7 @@ export function RolesTabPage() {
 
 										<div className="bg-white p-4 rounded-lg border shadow-sm">
 											<div className="flex items-center gap-3 mb-2">
-												<div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+												<div className="size-8 rounded-full bg-primary/10 flex items-center justify-center">
 													<span className="font-bold">2</span>
 												</div>
 												<h3 className="font-medium">Customize Permissions</h3>
@@ -585,17 +585,17 @@ export function RolesTabPage() {
 											</p>
 											<div className="flex items-center gap-2">
 												<Badge variant="outline" className="gap-1 items-center">
-													<Check className="w-3 h-3" /> Enabled
+													<Check className="size-3" /> Enabled
 												</Badge>
 												<Badge variant="outline" className="gap-1 items-center">
-													<X className="w-3 h-3" /> Disabled
+													<X className="size-3" /> Disabled
 												</Badge>
 											</div>
 										</div>
 
 										<div className="bg-white p-4 rounded-lg border shadow-sm">
 											<div className="flex items-center gap-3 mb-2">
-												<div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+												<div className="size-8 rounded-full bg-primary/10 flex items-center justify-center">
 													<span className="font-bold">3</span>
 												</div>
 												<h3 className="font-medium">Assign to Users</h3>
@@ -606,7 +606,7 @@ export function RolesTabPage() {
 											</p>
 											<Button asChild variant="outline" size="sm">
 												<a href="/dashboard/access-control/user-assignment">
-													<Users className="w-3 h-3 mr-2" />
+													<Users className="size-3 mr-2" />
 													User Assignment
 												</a>
 											</Button>
@@ -619,7 +619,7 @@ export function RolesTabPage() {
 											size="sm"
 											onClick={() => setShowGuide(false)}
 										>
-											<X className="w-3 h-3 mr-2" />
+											<X className="size-3 mr-2" />
 											Hide Guide
 										</Button>
 									</div>
@@ -633,7 +633,7 @@ export function RolesTabPage() {
 						<CardContent className="py-4">
 							<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 								<div className="relative flex-1 max-w-md">
-									<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+									<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
 									<Input
 										placeholder="Search roles..."
 										value={searchQuery}
@@ -690,7 +690,7 @@ export function RolesTabPage() {
 							{pendingUpdates.size > 0 && (
 								<div className="absolute top-0 right-0 z-50 m-4">
 									<div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-										<div className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+										<div className="size-3 rounded-full bg-blue-600 animate-pulse" />
 										{pendingUpdates.size} update
 										{pendingUpdates.size > 1 ? "s" : ""} in progress
 									</div>
@@ -723,7 +723,7 @@ export function RolesTabPage() {
 											<div key={step} className="flex flex-col items-center">
 												<div
 													className={cn(
-														"w-10 h-10 rounded-full flex items-center justify-center",
+														"size-10 rounded-full flex items-center justify-center",
 														wizardStep === step
 															? "bg-primary text-primary-foreground"
 															: wizardStep > step
@@ -732,7 +732,7 @@ export function RolesTabPage() {
 													)}
 												>
 													{wizardStep > step ? (
-														<Check className="w-5 h-5" />
+														<Check className="size-5" />
 													) : (
 														step
 													)}
@@ -773,8 +773,8 @@ export function RolesTabPage() {
 														>
 															<CardContent className="p-4">
 																<div className="flex items-center gap-3">
-																	<div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-																		<template.icon className="w-5 h-5 text-primary" />
+																	<div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+																		<template.icon className="size-5 text-primary" />
 																	</div>
 																	<div>
 																		<h4 className="font-medium">
@@ -785,7 +785,7 @@ export function RolesTabPage() {
 																		</p>
 																	</div>
 																	{selectedTemplate === template.id && (
-																		<Check className="w-5 h-5 text-primary ml-auto" />
+																		<Check className="size-5 text-primary ml-auto" />
 																	)}
 																</div>
 															</CardContent>
@@ -802,8 +802,8 @@ export function RolesTabPage() {
 													>
 														<CardContent className="p-4">
 															<div className="flex items-center gap-3">
-																<div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-																	<Plus className="w-5 h-5 text-primary" />
+																<div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+																	<Plus className="size-5 text-primary" />
 																</div>
 																<div>
 																	<h4 className="font-medium">Custom Role</h4>
@@ -812,7 +812,7 @@ export function RolesTabPage() {
 																	</p>
 																</div>
 																{selectedTemplate === "custom" && (
-																	<Check className="w-5 h-5 text-primary ml-auto" />
+																	<Check className="size-5 text-primary ml-auto" />
 																)}
 															</div>
 														</CardContent>
@@ -848,8 +848,8 @@ export function RolesTabPage() {
 																		<CardHeader className="p-4">
 																			<div className="flex items-center justify-between">
 																				<div className="flex items-center gap-3">
-																					<div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-																						<Icon className="w-5 h-5 text-primary" />
+																					<div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+																						<Icon className="size-5 text-primary" />
 																					</div>
 																					<div>
 																						<h4 className="font-medium">
@@ -873,7 +873,7 @@ export function RolesTabPage() {
 																							);
 																						}}
 																					>
-																						<Check className="w-3 h-3" /> All
+																						<Check className="size-3" /> All
 																					</Button>
 																					<Button
 																						variant="outline"
@@ -887,12 +887,12 @@ export function RolesTabPage() {
 																							);
 																						}}
 																					>
-																						<X className="w-3 h-3" /> None
+																						<X className="size-3" /> None
 																					</Button>
 																					{isExpanded ? (
-																						<ChevronDown className="w-5 h-5" />
+																						<ChevronDown className="size-5" />
 																					) : (
-																						<ChevronRight className="w-5 h-5" />
+																						<ChevronRight className="size-5" />
 																					)}
 																				</div>
 																			</div>
@@ -1055,7 +1055,7 @@ export function RolesTabPage() {
 						<Card>
 							<CardContent className="py-12">
 								<div className="text-center">
-									<Shield className="w-12 h-12 mx-auto text-brand-secondary-2 mb-4" />
+									<Shield className="size-12 mx-auto text-brand-secondary-2 mb-4" />
 									<h3 className="text-lg font-medium mb-2 text-brand-primary-1">
 										No roles found
 									</h3>
@@ -1066,7 +1066,7 @@ export function RolesTabPage() {
 									</p>
 									{!searchQuery && (
 										<Button onClick={handleCreateRole}>
-											<Plus className="w-4 h-4 mr-2" />
+											<Plus className="size-4 mr-2" />
 											Create Role
 										</Button>
 									)}

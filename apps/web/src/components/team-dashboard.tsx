@@ -56,7 +56,7 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
                 <span className="flex justify-center w-full font-semibold">
                   {selectedTeam.name}
                 </span>
-                <ChevronsUpDown className="mr-3 h-4 w-4" />
+                <ChevronsUpDown className="mr-3 size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-full">
@@ -95,7 +95,7 @@ export function TeamDashboard({ teams, initialTeam }: TeamDashboardProps) {
                     >
                       {key}
                       <ChevronUp
-                        className="h-4 w-4 transition-transform duration-200"
+                        className="size-4 transition-transform duration-200"
                         style={{
                           transform: showValues[key]
                             ? "rotate(180deg)"

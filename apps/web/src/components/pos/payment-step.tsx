@@ -146,12 +146,12 @@ export function PaymentStep({
 								}`}
 							>
 								{isSelected && (
-									<span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
-										<Check className="h-2.5 w-2.5 text-primary-foreground" />
+									<span className="absolute top-2 right-2 flex size-4 items-center justify-center rounded-full bg-primary">
+										<Check className="size-2.5 text-primary-foreground" />
 									</span>
 								)}
 								<Icon
-									className={`h-6 w-6 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
+									className={`size-6 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
 								/>
 								<div className="text-center">
 									<p

@@ -29,7 +29,7 @@ export function RoomPicker({ rooms, value, onChange, onNavigateAway }: RoomPicke
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+							className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 						>
 							?
 						</button>

@@ -80,7 +80,7 @@ export function CompactView({
 								return (
 									<div key={resource.id} className="bg-muted/30 rounded p-3">
 										<div className="flex items-center gap-2 mb-2">
-											{Icon && <Icon className="w-4 h-4" />}
+											{Icon && <Icon className="size-4" />}
 											<span className="font-medium text-sm">
 												{formatResourceName(resource.name)}
 											</span>

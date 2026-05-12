@@ -159,11 +159,11 @@ export function PermissionSelector({
   const getScopeIcon = (scope: 'own' | 'team' | 'organization') => {
     switch (scope) {
       case 'own':
-        return <Minus className="w-3 h-3 text-yellow-600" />;
+        return <Minus className="size-3 text-yellow-600" />;
       case 'team':
-        return <Check className="w-3 h-3 text-blue-600" />;
+        return <Check className="size-3 text-blue-600" />;
       case 'organization':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
     }
   };
 
@@ -216,7 +216,7 @@ export function PermissionSelector({
       <SheetContent side="bottom" className="h-[90vh] flex flex-col">
         <SheetHeader className="flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+            <Shield className="size-5" />
             {title}
           </SheetTitle>
           {description && (
@@ -272,7 +272,7 @@ export function PermissionSelector({
           <div className="flex-shrink-0 mb-4">
             <div className="space-y-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
                 <Input
                   placeholder="Search permissions..."
                   value={searchQuery}
@@ -333,7 +333,7 @@ export function PermissionSelector({
                                 onCheckedChange={(checked) => handleBulkToggleResource(resource.id, !!checked)}
                                 onClick={(e) => e.stopPropagation()}
                               />
-                              {Icon && <Icon className="w-4 h-4 text-primary" />}
+                              {Icon && <Icon className="size-4 text-primary" />}
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span>{resource.name}</span>
@@ -347,9 +347,9 @@ export function PermissionSelector({
                               </div>
                             </div>
                             {isExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="size-4" />
                             ) : (
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="size-4" />
                             )}
                           </CardTitle>
                         </CardHeader>
@@ -433,14 +433,14 @@ export function PermissionSelector({
                   variant="outline"
                   onClick={handleCancel}
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="size-4 mr-2" />
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSave}
                   disabled={!hasChanges}
                 >
-                  <Check className="w-4 h-4 mr-2" />
+                  <Check className="size-4 mr-2" />
                   Apply Selection
                 </Button>
               </div>

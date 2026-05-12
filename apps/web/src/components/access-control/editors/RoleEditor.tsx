@@ -153,7 +153,7 @@ export function RoleEditor({
       {isMobile ? (
         <div className="space-y-6 px-4">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+            <Shield className="size-5" />
             <h3 className="text-lg font-semibold">
               {role ? 'Edit Role' : 'Create New Role'}
             </h3>
@@ -244,7 +244,7 @@ export function RoleEditor({
 
                 {getTotalPermissions() === 0 && (
                   <Alert>
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="size-4" />
                     <AlertDescription>
                       This role has no permissions assigned. Users with this role won't be able to access any features.
                     </AlertDescription>
@@ -297,7 +297,7 @@ export function RoleEditor({
                       disabled={isLoading}
                       className={isMobile ? "w-full" : ""}
                     >
-                      <X className="w-4 h-4 mr-2" />
+                      <X className="size-4 mr-2" />
                       Cancel
                     </Button>
                   )}
@@ -309,7 +309,7 @@ export function RoleEditor({
                       isMobile && "w-full"
                     )}
                   >
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save className="size-4 mr-2" />
                     {isLoading ? 'Saving...' : role ? 'Update Role' : 'Create Role'}
                   </Button>
                 </div>
@@ -321,7 +321,7 @@ export function RoleEditor({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
+              <Shield className="size-5" />
               {role ? 'Edit Role' : 'Create New Role'}
             </CardTitle>
           </CardHeader>
@@ -410,7 +410,7 @@ export function RoleEditor({
 
                   {!isFormValid && getTotalPermissions() === 0 && (
                     <Alert>
-                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTriangle className="size-4" />
                       <AlertDescription>
                         At least one permission must be assigned to create this role.
                       </AlertDescription>
@@ -463,7 +463,7 @@ export function RoleEditor({
                         disabled={isLoading}
                         className={isMobile ? "w-full" : ""}
                       >
-                        <X className="w-4 h-4 mr-2" />
+                        <X className="size-4 mr-2" />
                         Cancel
                       </Button>
                     )}
@@ -475,7 +475,7 @@ export function RoleEditor({
                         isMobile && "w-full"
                       )}
                     >
-                      <Save className="w-4 h-4 mr-2" />
+                      <Save className="size-4 mr-2" />
                       {isLoading ? 'Saving...' : role ? 'Update Role' : 'Create Role'}
                     </Button>
                   </div>

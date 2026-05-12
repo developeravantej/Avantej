@@ -35,7 +35,7 @@ export const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }
 				title={value}
 			>
 				{displayContent}
-				<Copy className="h-3 w-3 text-muted-foreground" />
+				<Copy className="size-3 text-muted-foreground" />
 			</Badge>
 		</div>
 	)

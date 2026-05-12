@@ -159,7 +159,7 @@ export default function DataTable<TData, TValue>({
 						className="bg-black text-white hover:bg-black/90"
 						type="button"
 					>
-						<Plus className="mr-2 h-4 w-4" />
+						<Plus className="mr-2 size-4" />
 						Add Service
 					</Button>
 				}

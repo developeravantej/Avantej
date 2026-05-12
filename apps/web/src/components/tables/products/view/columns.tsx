@@ -29,9 +29,9 @@ export const columns: ColumnDef<ProductRow>[] = [
 		id: "image",
 		header: ({ column }) => <DataTableColumnHeader column={column} title="" />,
 		cell: () => (
-			<div className="flex items-center justify-center w-10 h-10">
-				<div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-					<Package className="h-5 w-5 text-muted-foreground" />
+			<div className="flex items-center justify-center size-10">
+				<div className="size-10 bg-muted rounded-md flex items-center justify-center">
+					<Package className="size-5 text-muted-foreground" />
 				</div>
 			</div>
 		),

@@ -71,7 +71,7 @@ export function TrainerCommissionsSection({
 					</div>
 					<ChevronDown
 						className={cn(
-							"h-4 w-4 text-muted-foreground transition-transform duration-200",
+							"size-4 text-muted-foreground transition-transform duration-200",
 							isOpen && "rotate-180",
 						)}
 					/>

@@ -80,7 +80,7 @@ function RouteComponent() {
 		<div className="p-6 space-y-6">
 			<div className="space-y-1">
 				<div className="flex items-center gap-2">
-					<CreditCard className="h-5 w-5 text-muted-foreground" />
+					<CreditCard className="size-5 text-muted-foreground" />
 					<h1 className="text-xl font-semibold">Payments</h1>
 				</div>
 				<p className="text-sm text-muted-foreground">
@@ -113,7 +113,7 @@ function RouteComponent() {
 				<DialogContent className="sm:max-w-md overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<History className="h-4 w-4 text-muted-foreground" />
+							<History className="size-4 text-muted-foreground" />
 							Payment Status History
 						</DialogTitle>
 						<DialogDescription>

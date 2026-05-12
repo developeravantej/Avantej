@@ -57,7 +57,7 @@ export function RepeatRuleSection({
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+							className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 						>
 							?
 						</button>
@@ -135,7 +135,7 @@ export function RepeatRuleSection({
 										key={day.key}
 										type="button"
 										onClick={() => onToggleDay(day.key)}
-										className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-colors ${
+										className={`size-10 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-colors ${
 											customRecurrence?.repeatOn.includes(day.key)
 												? "bg-blue-600 border-blue-600 text-white"
 												: "bg-white border-brand-secondary-3 text-brand-secondary-1 hover:border-brand-secondary-2"
@@ -182,7 +182,7 @@ export function RepeatRuleSection({
 									value="never"
 									checked={customRecurrence?.endsType === "never"}
 									onChange={() => onChangeCustomRecurrence("endsType", "never")}
-									className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
+									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
 								<Label htmlFor="ends-never" className="text-sm text-brand-primary-1 cursor-pointer">
 									Never
@@ -197,7 +197,7 @@ export function RepeatRuleSection({
 									value="on"
 									checked={customRecurrence?.endsType === "on"}
 									onChange={() => onChangeCustomRecurrence("endsType", "on")}
-									className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
+									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
 								<Label htmlFor="ends-on" className="text-sm text-brand-primary-1 cursor-pointer">
 									On
@@ -220,7 +220,7 @@ export function RepeatRuleSection({
 									value="after"
 									checked={customRecurrence?.endsType === "after"}
 									onChange={() => onChangeCustomRecurrence("endsType", "after")}
-									className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
+									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
 								<Label htmlFor="ends-after" className="text-sm text-brand-primary-1 cursor-pointer">
 									After

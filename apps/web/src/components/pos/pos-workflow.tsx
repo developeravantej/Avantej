@@ -61,20 +61,20 @@ function StepBadge({
 }) {
 	if (isComplete) {
 		return (
-			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500">
-				<Check className="h-3.5 w-3.5 text-white" />
+			<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-green-500">
+				<Check className="size-3.5 text-white" />
 			</span>
 		);
 	}
 	if (isLocked) {
 		return (
-			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground text-xs">
+			<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground text-xs">
 				{n}
 			</span>
 		);
 	}
 	return (
-		<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
+		<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
 			{n}
 		</span>
 	);
@@ -473,13 +473,13 @@ export function PosWorkflow({
 			{showHeader && (
 				<div className="flex items-center gap-3">
 					<Link to="/dashboard/sales/view">
-						<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-							<ArrowLeft className="h-4 w-4" />
+						<Button variant="ghost" size="icon" className="size-8 shrink-0">
+							<ArrowLeft className="size-4" />
 						</Button>
 					</Link>
 					<div className="flex items-center gap-3">
 						<div className="rounded-xl bg-primary p-2.5 shadow-sm">
-							<ShoppingCart className="h-5 w-5 text-primary-foreground" />
+							<ShoppingCart className="size-5 text-primary-foreground" />
 						</div>
 						<div>
 							<h1 className="font-bold font-heading text-xl leading-tight">
@@ -572,8 +572,8 @@ export function PosWorkflow({
 
 											{customerTypeMode === "walk_in" && (
 												<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-													<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
-														<UserX className="h-4 w-4 text-muted-foreground" />
+													<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
+														<UserX className="size-4 text-muted-foreground" />
 													</div>
 													<div>
 														<p className="font-medium text-sm">

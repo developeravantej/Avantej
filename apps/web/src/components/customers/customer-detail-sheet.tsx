@@ -160,13 +160,13 @@ function Section({
 					className="flex w-full items-center justify-between py-2 text-left"
 				>
 					<div className="flex items-center gap-2">
-						<Icon className="h-4 w-4 text-muted-foreground" />
+						<Icon className="size-4 text-muted-foreground" />
 						<span className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
 							{title}
 						</span>
 					</div>
 					<ChevronDown
-						className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+						className={`size-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
 					/>
 				</button>
 			</CollapsibleTrigger>
@@ -606,7 +606,7 @@ export function CustomerDetailSheet({
 							{/* ── Section 4: Stats ───────────────────────── */}
 							<Section title="Stats" icon={BarChart2} defaultOpen={true}>
 								<div className="grid grid-cols-3 gap-4">
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
+									<div className="flex flex-col gap-1 rounded-lg border p-3">
 										<span className="text-muted-foreground text-xs">
 											Outstanding
 										</span>
@@ -616,7 +616,7 @@ export function CustomerDetailSheet({
 											{formatPrice(outstandingBalanceCents, "MYR")}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
+									<div className="flex flex-col gap-1 rounded-lg border p-3">
 										<span className="text-muted-foreground text-xs">
 											Appointments
 										</span>
@@ -624,7 +624,7 @@ export function CustomerDetailSheet({
 											{appointmentCount}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
+									<div className="flex flex-col gap-1 rounded-lg border p-3">
 										<span className="text-muted-foreground text-xs">
 											Last Visit
 										</span>

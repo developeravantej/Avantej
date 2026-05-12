@@ -63,8 +63,8 @@ export function TrainerAvailabilitySheet({
 			>
 				<SheetHeader className="border-b border-border/40">
 					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-							<CalendarRange className="h-5 w-5 text-primary" />
+						<div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+							<CalendarRange className="size-5 text-primary" />
 						</div>
 						<div className="min-w-0">
 							<SheetTitle className="truncate text-lg">
@@ -72,7 +72,7 @@ export function TrainerAvailabilitySheet({
 							</SheetTitle>
 							{trainer?.trainerEmail ? (
 								<SheetDescription className="flex items-center gap-1.5 text-xs">
-									<Mail className="h-3 w-3" />
+									<Mail className="size-3" />
 									<span className="truncate">{trainer.trainerEmail}</span>
 								</SheetDescription>
 							) : null}

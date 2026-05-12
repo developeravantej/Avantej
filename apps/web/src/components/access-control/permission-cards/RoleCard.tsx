@@ -77,7 +77,7 @@ function RoleStats({ role, resources = [], userCount = 0 }: RoleStatsProps) {
             return (
               <div key={stat.name} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  {Icon && <Icon className="w-4 h-4" />}
+                  {Icon && <Icon className="size-4" />}
                   <span>{stat.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -166,8 +166,8 @@ export function RoleCard({
             )}
             <div className="flex items-center gap-3 flex-1">
               <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary" />
+                <div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <Shield className="size-5 text-primary" />
                 </div>
               </div>
               <div className="space-y-1 flex-1">
@@ -187,12 +187,12 @@ export function RoleCard({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="h-8 w-8 p-0"
+                className="size-8 p-0"
               >
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="size-4" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="size-4" />
                 )}
               </Button>
             )}
@@ -202,27 +202,27 @@ export function RoleCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="size-8 p-0"
                 >
-                  <MoreVertical className="w-4 h-4" />
+                  <MoreVertical className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 {onEdit && (
                   <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
-                    <Edit className="w-4 h-4 mr-2" />
+                    <Edit className="size-4 mr-2" />
                     Edit Role
                   </DropdownMenuItem>
                 )}
                 {onDuplicate && (
                   <DropdownMenuItem onClick={onDuplicate} className="cursor-pointer">
-                    <Shield className="w-4 h-4 mr-2" />
+                    <Shield className="size-4 mr-2" />
                     Duplicate Role
                   </DropdownMenuItem>
                 )}
                 {onAssignUsers && (
                   <DropdownMenuItem onClick={onAssignUsers} className="cursor-pointer">
-                    <Users className="w-4 h-4 mr-2" />
+                    <Users className="size-4 mr-2" />
                     Assign Users
                   </DropdownMenuItem>
                 )}
@@ -234,7 +234,7 @@ export function RoleCard({
                     onClick={onDelete}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="size-4 mr-2" />
                     Delete Role
                   </DropdownMenuItem>
                 )}
@@ -255,7 +255,7 @@ export function RoleCard({
           </Badge>
           {userCount > 0 && (
             <Badge variant="outline" className="text-xs">
-              <Users className="w-3 h-3 mr-1" />
+              <Users className="size-3 mr-1" />
               {userCount} users
             </Badge>
           )}

@@ -211,11 +211,11 @@ export function CheckInsLog({
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+								className="size-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
 								onClick={() => setDeleteTarget(row.original)}
 								aria-label="Delete check-in"
 							>
-								<Trash2 className="h-4 w-4" />
+								<Trash2 className="size-4" />
 							</Button>
 						),
 					} satisfies ColumnDef<CheckInRow>,

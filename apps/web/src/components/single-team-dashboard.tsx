@@ -32,7 +32,7 @@ export function SingleTeamDashboard({ team }: SingleTeamDashboardProps) {
         <div className="overflow-y-auto pr-4 -mr-4 [&::-webkit-scrollbar]:w-0.5 [&::-webkit-scrollbar-thumb]:bg-brand-secondary-2 [&::-webkit-scrollbar-thumb]:rounded-full">
           <div className="flex justify-between items-center p-2">
             <h1 className="font-heading font-bold text-2xl">{team.name}</h1>
-            <ChevronsUpDown className="mr-3 h-4 w-4" />
+            <ChevronsUpDown className="mr-3 size-4" />
           </div>
           <div className="space-y-6 max-w-2xl mx-auto">
             {customDataKeys.map((key) => {
@@ -54,7 +54,7 @@ export function SingleTeamDashboard({ team }: SingleTeamDashboardProps) {
                     >
                       {key}
                       <ChevronUp
-                        className="h-4 w-4 transition-transform duration-200"
+                        className="size-4 transition-transform duration-200"
                         style={{
                           transform: showValues[key]
                             ? "rotate(180deg)"

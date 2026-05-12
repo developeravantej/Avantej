@@ -186,7 +186,7 @@ function SetupPasswordPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="size-6 animate-spin" />
           <span>Validating setup link...</span>
         </div>
       </div>
@@ -265,7 +265,7 @@ function SetupPasswordPage() {
                 >
                   {setupPasswordMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 size-4 animate-spin" />
                       Setting up password...
                     </>
                   ) : (

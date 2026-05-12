@@ -118,14 +118,14 @@ export function TrainerTiersPage() {
 		<div className="p-6">
 			<div className="flex items-center justify-end mb-4">
 				<Button onClick={() => setCreateOpen(true)}>
-					<Plus className="w-4 h-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					New Tier
 				</Button>
 			</div>
 
 			{missingRateBanner && missingRateBanner.length > 0 && (
 				<Alert variant="destructive" className="mb-4">
-					<AlertTriangle className="h-4 w-4" />
+					<AlertTriangle className="size-4" />
 					<AlertDescription>
 						The following categories don't have a commission rate for this tier
 						yet. Commission for trainers with this tier will be silently skipped
@@ -141,7 +141,7 @@ export function TrainerTiersPage() {
 
 			{isError ? (
 				<Alert variant="destructive" className="mb-4">
-					<AlertTriangle className="h-4 w-4" />
+					<AlertTriangle className="size-4" />
 					<AlertDescription className="flex items-center justify-between">
 						<span>
 							{error instanceof Error

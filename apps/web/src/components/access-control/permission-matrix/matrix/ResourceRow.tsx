@@ -42,7 +42,7 @@ export function ResourceRow({
 			<tr className="border-b bg-muted/50">
 				<td className="p-3 font-medium sticky left-0 bg-muted/50 z-10">
 					<div className="flex items-center gap-2">
-						{Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
+						{Icon && <Icon className="size-4 flex-shrink-0" />}
 						<span className="text-sm font-medium">
 							{formatResourceName(resource.name)}
 						</span>

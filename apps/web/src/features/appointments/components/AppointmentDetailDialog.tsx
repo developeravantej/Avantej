@@ -43,7 +43,7 @@ export function AppointmentDetailDialog({
 							{/* Header */}
 							<div className="px-6 pt-6 pb-5 border-b border-gray-100">
 								<div className="flex items-start gap-4">
-									<div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-gray-100 text-gray-700 text-center">
+									<div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-gray-100 text-gray-700 text-center">
 										<span className="text-[10px] font-semibold leading-none tracking-wide">
 											{start.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
 										</span>
@@ -75,8 +75,8 @@ export function AppointmentDetailDialog({
 							{/* Detail rows */}
 							<div className="px-5 py-4 space-y-1 bg-white">
 								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-										<CalendarIcon className="h-3.5 w-3.5 text-gray-500" />
+									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+										<CalendarIcon className="size-3.5 text-gray-500" />
 									</div>
 									<div className="flex-1 min-w-0">
 										<p className="text-[11px] text-gray-400 font-medium">Date</p>
@@ -84,8 +84,8 @@ export function AppointmentDetailDialog({
 									</div>
 								</div>
 								<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-										<Clock className="h-3.5 w-3.5 text-gray-500" />
+									<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+										<Clock className="size-3.5 text-gray-500" />
 									</div>
 									<div className="flex-1 min-w-0">
 										<p className="text-[11px] text-gray-400 font-medium">Time</p>
@@ -94,8 +94,8 @@ export function AppointmentDetailDialog({
 								</div>
 								{appt.clientName && (
 									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-											<User className="h-3.5 w-3.5 text-gray-500" />
+										<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+											<User className="size-3.5 text-gray-500" />
 										</div>
 										<div className="flex-1 min-w-0">
 											<p className="text-[11px] text-gray-400 font-medium">Client</p>
@@ -105,7 +105,7 @@ export function AppointmentDetailDialog({
 								)}
 								{trainerName && (
 									<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
+										<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
 											{getInitials(trainerName)}
 										</div>
 										<div className="flex-1 min-w-0">
@@ -120,7 +120,7 @@ export function AppointmentDetailDialog({
 							{organizationId && (
 								<div className="px-5 pt-3 pb-3 border-t border-gray-100 bg-white">
 									<p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-										<History className="h-3.5 w-3.5" />
+										<History className="size-3.5" />
 										Status History
 									</p>
 									<AppointmentStatusHistory
@@ -137,7 +137,7 @@ export function AppointmentDetailDialog({
 									onClick={() => onEdit(appt)}
 									className="flex items-center justify-center gap-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
 								>
-									<Pencil className="h-3.5 w-3.5" />
+									<Pencil className="size-3.5" />
 									Edit Appointment
 								</button>
 								{appt.status === "pending" && (
@@ -145,7 +145,7 @@ export function AppointmentDetailDialog({
 										className="w-full gap-2 rounded-xl h-10"
 										onClick={() => { onClose(); onMarkAttendance(appt.id); }}
 									>
-										<ClipboardCheck className="h-4 w-4" />
+										<ClipboardCheck className="size-4" />
 										Mark Attendance
 									</Button>
 								)}

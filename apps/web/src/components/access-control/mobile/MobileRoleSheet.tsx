@@ -42,43 +42,43 @@ function ScopeIndicator({ scope, onScopeChange, interactive = false }: ScopeIndi
     switch (scope) {
       case 'own':
         return {
-          icon: <Minus className="w-3 h-3 text-yellow-600" />,
+          icon: <Minus className="size-3 text-yellow-600" />,
           label: 'Own',
           className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
         };
       case 'team':
         return {
-          icon: <Check className="w-3 h-3 text-blue-600" />,
+          icon: <Check className="size-3 text-blue-600" />,
           label: 'Team',
           className: 'bg-blue-100 text-blue-800 border-blue-300',
         };
       case 'organization':
         return {
-          icon: <Check className="w-3 h-3 text-green-600" />,
+          icon: <Check className="size-3 text-green-600" />,
           label: 'Organization',
           className: 'bg-green-100 text-green-800 border-green-300',
         };
       case 'country':
         return {
-          icon: <Check className="w-3 h-3 text-purple-600" />,
+          icon: <Check className="size-3 text-purple-600" />,
           label: 'Country',
           className: 'bg-purple-100 text-purple-800 border-purple-300',
         };
       case 'region':
         return {
-          icon: <Check className="w-3 h-3 text-indigo-600" />,
+          icon: <Check className="size-3 text-indigo-600" />,
           label: 'Region',
           className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
         };
       case 'area':
         return {
-          icon: <Check className="w-3 h-3 text-pink-600" />,
+          icon: <Check className="size-3 text-pink-600" />,
           label: 'Area',
           className: 'bg-pink-100 text-pink-800 border-pink-300',
         };
       case 'branch':
         return {
-          icon: <Check className="w-3 h-3 text-orange-600" />,
+          icon: <Check className="size-3 text-orange-600" />,
           label: 'Branch',
           className: 'bg-orange-100 text-orange-800 border-orange-300',
         };
@@ -110,7 +110,7 @@ function ScopeIndicator({ scope, onScopeChange, interactive = false }: ScopeIndi
       >
         {config.icon}
         <span>{config.label}</span>
-        <ChevronDown className="w-3 h-3" />
+        <ChevronDown className="size-3" />
       </Button>
       
       {showDropdown && (
@@ -231,7 +231,7 @@ export function MobileRoleSheet({
       <SheetContent side="bottom" className="h-[90vh] flex flex-col">
         <SheetHeader className="flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+            <Shield className="size-5" />
             {role ? 'Edit Role' : 'Create New Role'}
           </SheetTitle>
         </SheetHeader>
@@ -365,16 +365,16 @@ export function MobileRoleSheet({
                           <CardHeader className="cursor-pointer hover:bg-muted/50 pb-3">
                             <CardTitle className="flex items-center justify-between text-base">
                               <div className="flex items-center gap-2">
-                                {Icon && <Icon className="w-4 h-4 text-primary" />}
+                                {Icon && <Icon className="size-4 text-primary" />}
                                 <span>{resource.name}</span>
                                 <Badge variant="secondary" className="text-xs">
                                   {resourcePermissions.length}/{resource.actions.length}
                                 </Badge>
                               </div>
                               {isExpanded ? (
-                                <ChevronDown className="w-4 h-4" />
+                                <ChevronDown className="size-4" />
                               ) : (
-                                <ChevronRight className="w-4 h-4" />
+                                <ChevronRight className="size-4" />
                               )}
                             </CardTitle>
                           </CardHeader>
@@ -443,14 +443,14 @@ export function MobileRoleSheet({
                   onClick={onClose}
                   disabled={isLoading}
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="size-4 mr-2" />
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSave}
                   disabled={!isFormValid || isLoading}
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  <Save className="size-4 mr-2" />
                   {isLoading ? 'Saving...' : role ? 'Update' : 'Create'}
                 </Button>
               </div>

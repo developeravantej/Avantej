@@ -52,8 +52,8 @@ interface KpiCardProps {
 function KpiCard({ icon: Icon, label, value, iconClass = "text-primary" }: KpiCardProps) {
 	return (
 		<div className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3">
-			<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-				<Icon className={`h-4 w-4 ${iconClass}`} />
+			<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+				<Icon className={`size-4 ${iconClass}`} />
 			</div>
 			<div>
 				<p className="text-xl font-bold leading-none">{value}</p>
@@ -174,7 +174,7 @@ function AttendancePage() {
 			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
 				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="h-6 w-6 text-primary" />
+						<ClipboardCheck className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Attendance</h1>
@@ -193,7 +193,7 @@ function AttendancePage() {
 			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
 				<div className="flex shrink-0 items-center gap-3 px-6 pt-6 pb-4">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="h-6 w-6 text-primary" />
+						<ClipboardCheck className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Attendance</h1>
@@ -220,7 +220,7 @@ function AttendancePage() {
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<ClipboardCheck className="h-6 w-6 text-primary" />
+						<ClipboardCheck className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Attendance</h1>

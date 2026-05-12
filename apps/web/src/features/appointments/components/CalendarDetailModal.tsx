@@ -39,11 +39,11 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 			<Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
 				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 					<div className="flex items-center gap-2">
-						<CalendarIcon className="h-5 w-5 text-muted-foreground" />
+						<CalendarIcon className="size-5 text-muted-foreground" />
 						<CardTitle className="text-xl font-semibold">Appointment Details</CardTitle>
 					</div>
-					<Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-						<X className="h-4 w-4" />
+					<Button variant="ghost" size="sm" onClick={onClose} className="size-8 p-0">
+						<X className="size-4" />
 					</Button>
 				</CardHeader>
 				<CardContent className="overflow-y-auto max-h-[70vh] space-y-6">
@@ -79,7 +79,7 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 					</div>
 
 					<div className="space-y-2">
-						<h3 className="text-sm font-semibold flex items-center gap-2"><CalendarIcon className="h-4 w-4" />Date & Time</h3>
+						<h3 className="text-sm font-semibold flex items-center gap-2"><CalendarIcon className="size-4" />Date & Time</h3>
 						<div className="bg-muted/30 rounded-lg p-4 text-sm space-y-1.5">
 							<div className="flex justify-between"><span className="font-medium">Date</span><span>{formatDate(new Date(appointment.start))}</span></div>
 							<div className="flex justify-between"><span className="font-medium">Start</span><span>{formatTime(new Date(appointment.start))}</span></div>
@@ -89,18 +89,18 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 					</div>
 
 					<div className="space-y-2">
-						<h3 className="text-sm font-semibold flex items-center gap-2"><User className="h-4 w-4" />Client</h3>
+						<h3 className="text-sm font-semibold flex items-center gap-2"><User className="size-4" />Client</h3>
 						<div className="bg-muted/30 rounded-lg p-4 text-sm space-y-1.5">
 							<div className="flex justify-between"><span className="font-medium">Name</span><span>{appointment.clientName}</span></div>
 							{appointment.clientEmail && (
 								<div className="flex justify-between">
-									<span className="font-medium flex items-center gap-1"><Mail className="h-3 w-3" />Email</span>
+									<span className="font-medium flex items-center gap-1"><Mail className="size-3" />Email</span>
 									<span>{appointment.clientEmail}</span>
 								</div>
 							)}
 							{appointment.clientPhone && (
 								<div className="flex justify-between">
-									<span className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" />Phone</span>
+									<span className="font-medium flex items-center gap-1"><Phone className="size-3" />Phone</span>
 									<span>{appointment.clientPhone}</span>
 								</div>
 							)}
@@ -109,7 +109,7 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 
 					{appointment.location && (
 						<div className="space-y-2">
-							<h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" />Location</h3>
+							<h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="size-4" />Location</h3>
 							<div className="bg-muted/30 rounded-lg p-4 text-sm">{appointment.location}</div>
 						</div>
 					)}

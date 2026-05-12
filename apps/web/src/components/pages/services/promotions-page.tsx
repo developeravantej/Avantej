@@ -206,7 +206,7 @@ function buildColumns(
 						onClick={() => onEdit(row.original)}
 						className="h-7 px-2 text-xs"
 					>
-						<Edit className="h-3 w-3 mr-1" />
+						<Edit className="size-3 mr-1" />
 						Edit
 					</Button>
 					{row.original.isActive && (
@@ -453,7 +453,7 @@ export function PromotionsPage() {
 			{/* Action bar */}
 			<div className="flex shrink-0 items-center justify-end px-6 pt-4 pb-2">
 				<Button onClick={() => setCreateOpen(true)} className="gap-2" size="sm">
-					<Plus className="h-4 w-4" />
+					<Plus className="size-4" />
 					New Promotion
 				</Button>
 			</div>
@@ -476,7 +476,7 @@ export function PromotionsPage() {
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader className="pb-4">
 						<DialogTitle className="flex items-center gap-2">
-							<Percent className="h-4 w-4 text-primary" />
+							<Percent className="size-4 text-primary" />
 							New Promotion
 						</DialogTitle>
 						<DialogDescription>
@@ -755,7 +755,7 @@ export function PromotionsPage() {
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader className="pb-4">
 						<DialogTitle className="flex items-center gap-2">
-							<Edit className="h-4 w-4 text-primary" />
+							<Edit className="size-4 text-primary" />
 							Edit Promotion
 						</DialogTitle>
 						<DialogDescription>

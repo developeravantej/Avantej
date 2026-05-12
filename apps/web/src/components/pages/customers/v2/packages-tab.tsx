@@ -549,7 +549,7 @@ export function PackagesTab({
 							<TableCell colSpan={clientUserId ? 5 : 6} className="h-60">
 								<div className="flex flex-col items-center justify-center gap-3 text-center">
 									<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-										<Package className="h-6 w-6 text-muted-foreground" />
+										<Package className="size-6 text-muted-foreground" />
 									</div>
 									<p className="text-sm font-medium">No packages found</p>
 									<p className="text-xs text-muted-foreground">
@@ -590,7 +590,7 @@ export function PackagesTab({
 										<div className="flex items-center gap-2">
 											<span className="font-medium">{row.serviceName ?? "—"}</span>
 											{row.installment && (
-												<Layers className="h-3.5 w-3.5 text-muted-foreground" />
+												<Layers className="size-3.5 text-muted-foreground" />
 											)}
 										</div>
 									</TableCell>

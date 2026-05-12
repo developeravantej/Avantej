@@ -24,7 +24,7 @@ export function ClientPicker({ clients, clientId, onClientChange, onBlockedTimin
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+							className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 						>
 							?
 						</button>
@@ -67,7 +67,7 @@ export function ClientPicker({ clients, clientId, onClientChange, onBlockedTimin
 						// Add your plus button functionality here
 					}}
 				>
-					<UserPlus className="h-5 w-5" />
+					<UserPlus className="size-5" />
 				</Button>
 			</div>
 
@@ -85,7 +85,7 @@ export function ClientPicker({ clients, clientId, onClientChange, onBlockedTimin
 					className="border-red-300 text-red-600 hover:bg-red-50 justify-center py-2"
 					onClick={onBlockedTimingToggle}
 				>
-					<X className="h-4 w-4 mr-2" />
+					<X className="size-4 mr-2" />
 					Blocked Timing
 				</Button>
 			</div>

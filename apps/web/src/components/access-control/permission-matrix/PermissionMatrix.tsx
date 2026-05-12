@@ -173,21 +173,21 @@ export function PermissionMatrix({
   const getScopeIcon = (scope?: 'own' | 'team' | 'organization' | 'country' | 'region' | 'area' | 'branch') => {
     switch (scope) {
       case 'own':
-        return <Minus className="w-3 h-3 text-yellow-600" />;
+        return <Minus className="size-3 text-yellow-600" />;
       case 'team':
-        return <Check className="w-3 h-3 text-orange-600" />;
+        return <Check className="size-3 text-orange-600" />;
       case 'organization':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
       case 'country':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
       case 'region':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
       case 'area':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
       case 'branch':
-        return <Check className="w-3 h-3 text-green-600" />;
+        return <Check className="size-3 text-green-600" />;
       default:
-        return <X className="w-3 h-3 text-brand-secondary-2" />;
+        return <X className="size-3 text-brand-secondary-2" />;
     }
   };
 
@@ -209,13 +209,13 @@ export function PermissionMatrix({
                   <CardHeader className="cursor-pointer hover:bg-muted/50">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Icon className="w-5 h-5" />
+                        <Icon className="size-5" />
                         <span>{resource.name}</span>
                       </div>
                       {isExpanded ? (
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="size-4" />
                       ) : (
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="size-4" />
                       )}
                     </CardTitle>
                   </CardHeader>
@@ -283,15 +283,15 @@ export function PermissionMatrix({
             <span>Permission Matrix</span>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
-                <Check className="w-3 h-3 text-green-600" />
+                <Check className="size-3 text-green-600" />
                 <span>Organization</span>
               </div>
               <div className="flex items-center gap-1">
-                <Check className="w-3 h-3 text-orange-600" />
+                <Check className="size-3 text-orange-600" />
                 <span>Team</span>
               </div>
               <div className="flex items-center gap-1">
-                <Minus className="w-3 h-3 text-yellow-600" />
+                <Minus className="size-3 text-yellow-600" />
                 <span>Own</span>
               </div>
             </div>
@@ -326,7 +326,7 @@ export function PermissionMatrix({
                       <tr className="border-b bg-muted/50">
                         <td className="p-3 font-medium sticky left-0 bg-muted/50 z-10">
                           <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4" />
+                            <Icon className="size-4" />
                             <span>{resource.name}</span>
                           </div>
                         </td>
@@ -355,7 +355,7 @@ export function PermissionMatrix({
                                     variant="ghost"
                                     size="sm"
                                     className={cn(
-                                      "w-8 h-8 p-0 rounded-full",
+                                      "size-8 p-0 rounded-full",
                                       hasAccess && "bg-green-100 hover:bg-green-200"
                                     )}
                                     onClick={() =>

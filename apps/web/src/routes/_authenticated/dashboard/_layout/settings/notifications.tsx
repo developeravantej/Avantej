@@ -238,7 +238,7 @@ function NotificationPreferencesPage() {
 				{/* Page header skeleton */}
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<Bell className="h-6 w-6 text-brand-primary-1" />
+						<Bell className="size-6 text-brand-primary-1" />
 					</div>
 					<div className="space-y-1">
 						<div className="h-6 w-52 rounded bg-muted animate-pulse" />
@@ -259,7 +259,7 @@ function NotificationPreferencesPage() {
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<Bell className="h-6 w-6 text-brand-primary-1" />
+						<Bell className="size-6 text-brand-primary-1" />
 					</div>
 					<div>
 						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">
@@ -276,14 +276,14 @@ function NotificationPreferencesPage() {
 					{saveState === "saving" && (
 						<span className="flex items-center gap-1.5 justify-end">
 							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
-							<span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+							<span className="size-2 rounded-full bg-amber-400 animate-pulse" />
 							Saving…
 						</span>
 					)}
 					{saveState === "saved" && (
 						<span className="flex items-center gap-1.5 justify-end text-green-600">
 							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
-							<span className="h-2 w-2 rounded-full bg-green-500" />
+							<span className="size-2 rounded-full bg-green-500" />
 							Saved
 						</span>
 					)}

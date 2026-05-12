@@ -131,10 +131,10 @@ export function DateTimePicker({
 						variant="outline"
 						size="sm"
 						onClick={() => onChangePatch({ duration: Math.max(5, duration - 5) })}
-						className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
+						className="size-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
 						disabled={duration <= 5}
 					>
-						<Minus className="h-4 w-4" />
+						<Minus className="size-4" />
 					</Button>
 
 					<div className="flex-1 text-center py-2 px-3 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-md">
@@ -146,9 +146,9 @@ export function DateTimePicker({
 						variant="outline"
 						size="sm"
 						onClick={() => onChangePatch({ duration: duration + 5 })}
-						className="h-10 w-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
+						className="size-10 p-0 border-brand-secondary-3 hover:bg-brand-secondary-3/50"
 					>
-						<Plus className="h-4 w-4" />
+						<Plus className="size-4" />
 					</Button>
 				</div>
 

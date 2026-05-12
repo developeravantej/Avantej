@@ -134,7 +134,7 @@ export function PermissionMatrixRow({
               />
             )}
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" />
+              <Shield className="size-4 text-primary" />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{role.name}</span>
@@ -156,7 +156,7 @@ export function PermissionMatrixRow({
 
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              <Users className="w-3 h-3 mr-1" />
+              <Users className="size-3 mr-1" />
               {getTotalPermissions()} permissions
             </Badge>
             
@@ -166,9 +166,9 @@ export function PermissionMatrixRow({
                   variant="ghost"
                   size="sm"
                   onClick={onEditRole}
-                  className="h-8 w-8 p-0"
+                  className="size-8 p-0"
                 >
-                  <Edit className="w-3 h-3" />
+                  <Edit className="size-3" />
                 </Button>
               )}
               {onDeleteRole && (
@@ -176,9 +176,9 @@ export function PermissionMatrixRow({
                   variant="ghost"
                   size="sm"
                   onClick={onDeleteRole}
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  className="size-8 p-0 text-destructive hover:text-destructive"
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="size-3" />
                 </Button>
               )}
             </div>
@@ -187,12 +187,12 @@ export function PermissionMatrixRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0"
+                className="size-8 p-0"
               >
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="size-4" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="size-4" />
                 )}
               </Button>
             </CollapsibleTrigger>
@@ -212,7 +212,7 @@ export function PermissionMatrixRow({
                   return (
                     <div key={resource.id} className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium">
-                        {Icon && <Icon className="w-4 h-4" />}
+                        {Icon && <Icon className="size-4" />}
                         <span>{resource.name}</span>
                         <Badge variant="outline" className="text-xs">
                           {resourcePermissions.length} permissions

@@ -55,7 +55,7 @@ function NowLine({ nowTop, gridHeight }: { nowTop: number | null; gridHeight: nu
 	if (nowTop === null || nowTop < 0 || nowTop > gridHeight) return null;
 	return (
 		<div className="absolute left-0 right-0 z-20 flex items-center pointer-events-none" style={{ top: nowTop }}>
-			<div className="h-2 w-2 rounded-full bg-red-500 -ml-1 shrink-0" />
+			<div className="size-2 rounded-full bg-red-500 -ml-1 shrink-0" />
 			<div className="flex-1 border-t-2 border-red-500" />
 		</div>
 	);
@@ -96,7 +96,7 @@ function AppointmentCard({
 		>
 			<div className="font-semibold text-xs truncate leading-tight flex items-center gap-1">
 				{isVirtualOccurrence && (
-					<RefreshCw className="h-2.5 w-2.5 shrink-0 opacity-60" aria-label="Recurring occurrence" />
+					<RefreshCw className="size-2.5 shrink-0 opacity-60" aria-label="Recurring occurrence" />
 				)}
 				<span className="truncate">{appt.title}</span>
 			</div>
@@ -124,7 +124,7 @@ function BufferBlocks({ sortedAppts, gridStart }: { sortedAppts: Appointment[]; 
 				return (
 					<div key={`buf-${i}`} className="absolute left-0 right-0 z-0 flex items-center justify-center" style={{ top, height }}>
 						<div className="w-full h-full border-y border-dashed border-gray-300 bg-gray-50/60 flex items-center justify-center gap-1 text-[11px] text-gray-400 pointer-events-none">
-							<Clock className="h-3 w-3 shrink-0" />{label}
+							<Clock className="size-3 shrink-0" />{label}
 						</div>
 					</div>
 				);
@@ -140,9 +140,9 @@ export const DayTimeGrid = forwardRef<HTMLDivElement, DayTimeGridProps>(function
 	if (appts.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-				<Calendar className="h-12 w-12 text-gray-300" />
+				<Calendar className="size-12 text-gray-300" />
 				<p className="text-base font-medium">No appointments this day</p>
-				<Button size="sm" onClick={onAddAppointment}><Plus className="h-4 w-4 mr-2" />Add Appointment</Button>
+				<Button size="sm" onClick={onAddAppointment}><Plus className="size-4 mr-2" />Add Appointment</Button>
 			</div>
 		);
 	}
@@ -181,7 +181,7 @@ export const DayTimeGrid = forwardRef<HTMLDivElement, DayTimeGridProps>(function
 							className="flex items-center gap-1.5 border-r border-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 bg-white"
 							style={{ minWidth: TRAINER_COL_WIDTH }}
 						>
-							{color && <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+							{color && <div className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
 							<span className="truncate">{name}</span>
 						</div>
 					))}

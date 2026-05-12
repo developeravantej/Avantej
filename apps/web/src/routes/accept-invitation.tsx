@@ -222,7 +222,7 @@ function AcceptInvitationPage() {
 						<CardHeader className="text-center space-y-2">
 							<div className="flex justify-center">
 								<div className="rounded-full bg-primary/10 p-3">
-									<UserPlus className="h-6 w-6 text-primary" />
+									<UserPlus className="size-6 text-primary" />
 								</div>
 							</div>
 							<CardTitle className="text-2xl">You've Been Invited!</CardTitle>
@@ -235,7 +235,7 @@ function AcceptInvitationPage() {
 							{/* Invitation details */}
 							<div className="rounded-lg bg-muted/50 p-4 space-y-2">
 								<div className="flex items-center gap-2 text-sm">
-									<Mail className="h-4 w-4 text-muted-foreground" />
+									<Mail className="size-4 text-muted-foreground" />
 									<span className="text-muted-foreground">Invited email:</span>
 									<span className="font-medium">{invitation.email}</span>
 								</div>
@@ -357,7 +357,7 @@ function AcceptInvitationPage() {
 	if (isSessionLoading || isLoadingInvitation) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<Loader2 className="size-8 animate-spin text-muted-foreground" />
 			</div>
 		);
 	}
@@ -375,7 +375,7 @@ function AcceptInvitationPage() {
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-destructive">
-							<XCircle className="h-5 w-5" />
+							<XCircle className="size-5" />
 							Invalid Invitation
 						</CardTitle>
 						<CardDescription>{errorMessage}</CardDescription>
@@ -403,12 +403,12 @@ function AcceptInvitationPage() {
 						<CardTitle className="flex items-center gap-2">
 							{acceptMutation.isSuccess ? (
 								<>
-									<CheckCircle className="h-5 w-5 text-green-600" />
+									<CheckCircle className="size-5 text-green-600" />
 									Success!
 								</>
 							) : (
 								<>
-									<Loader2 className="h-5 w-5 animate-spin" />
+									<Loader2 className="size-5 animate-spin" />
 									Accepting Invitation...
 								</>
 							)}
@@ -427,7 +427,7 @@ function AcceptInvitationPage() {
 	// Default loading state
 	return (
 		<div className="min-h-screen flex items-center justify-center">
-			<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader2 className="size-8 animate-spin text-muted-foreground" />
 		</div>
 	);
 }

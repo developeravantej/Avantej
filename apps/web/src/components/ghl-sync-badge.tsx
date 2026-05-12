@@ -102,7 +102,7 @@ export function GhlSyncBadge({
 					aria-label="Retry GHL sync"
 				>
 					<RefreshCw
-						className={cn("w-3 h-3 mr-1", isRetrying && "animate-spin")}
+						className={cn("size-3 mr-1", isRetrying && "animate-spin")}
 					/>
 					{isRetrying ? "Retrying" : "Retry"}
 				</Button>

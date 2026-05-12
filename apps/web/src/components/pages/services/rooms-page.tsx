@@ -311,7 +311,7 @@ export function RoomsPage() {
 				</div>
 				{canCreate && (
 					<Button size="sm" onClick={openCreate}>
-						<Plus className="mr-2 h-4 w-4" />
+						<Plus className="mr-2 size-4" />
 						Create Room
 					</Button>
 				)}
@@ -452,7 +452,7 @@ export function RoomsPage() {
 											isActive: e.target.checked,
 										}))
 									}
-									className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+									className="size-4 rounded border-border text-primary focus:ring-primary"
 								/>
 								<label htmlFor="room-active" className="text-sm font-medium">
 									Active

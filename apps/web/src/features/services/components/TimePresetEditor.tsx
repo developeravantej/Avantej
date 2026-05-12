@@ -92,7 +92,7 @@ export function TimePresetEditor({
 									>
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
-											className="h-3 w-3 mr-1"
+											className="size-3 mr-1"
 											viewBox="0 0 20 20"
 											fill="currentColor"
 										>
@@ -126,7 +126,7 @@ export function TimePresetEditor({
 											>
 												<svg
 													xmlns="http://www.w3.org/2000/svg"
-													className="h-4 w-4"
+													className="size-4"
 													viewBox="0 0 20 20"
 													fill="currentColor"
 												>

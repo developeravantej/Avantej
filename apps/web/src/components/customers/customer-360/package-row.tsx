@@ -290,16 +290,16 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 						{pkg.status ?? "unknown"}
 					</Badge>
 					{expanded ? (
-						<ChevronDown className="h-4 w-4 text-muted-foreground" />
+						<ChevronDown className="size-4 text-muted-foreground" />
 					) : (
-						<ChevronRight className="h-4 w-4 text-muted-foreground" />
+						<ChevronRight className="size-4 text-muted-foreground" />
 					)}
 				</div>
 			</button>
 
 			{/* Expanded content */}
 			{expanded && (
-				<div className="space-y-4 border-t bg-muted/10 px-4 py-4">
+				<div className="space-y-4 border-t bg-muted/10 p-4">
 					{/* Installments */}
 					<div>
 						<p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">

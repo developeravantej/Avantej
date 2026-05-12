@@ -191,7 +191,7 @@ export function TrainerServicesSection({
 					</div>
 					<ChevronDown
 						className={cn(
-							"h-4 w-4 text-muted-foreground transition-transform duration-200",
+							"size-4 text-muted-foreground transition-transform duration-200",
 							isOpen && "rotate-180",
 						)}
 					/>
@@ -337,7 +337,7 @@ export function TrainerServicesSection({
 																			);
 																		}}
 																	>
-																		<Edit className="h-3 w-3" />
+																		<Edit className="size-3" />
 																	</Button>
 																</div>
 															)}

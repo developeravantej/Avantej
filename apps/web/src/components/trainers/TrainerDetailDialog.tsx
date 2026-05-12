@@ -61,7 +61,7 @@ export function TrainerDetailDialog({
 				{/* Header */}
 				<div className="px-6 pt-6 pb-5 border-b border-border">
 					<div className="flex items-start gap-4">
-						<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-xl font-bold">
+						<div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-xl font-bold">
 							{initials}
 						</div>
 						<div className="flex-1 min-w-0 pt-1">
@@ -91,8 +91,8 @@ export function TrainerDetailDialog({
 				{/* Detail rows */}
 				<div className="px-5 py-4 space-y-1 bg-white">
 					<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
-						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-							<Mail className="h-3.5 w-3.5 text-muted-foreground" />
+						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+							<Mail className="size-3.5 text-muted-foreground" />
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="text-[11px] text-muted-foreground font-medium">Email</p>
@@ -101,8 +101,8 @@ export function TrainerDetailDialog({
 					</div>
 					{trainer.phoneNumber && (
 						<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
-							<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Phone className="h-3.5 w-3.5 text-muted-foreground" />
+							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+								<Phone className="size-3.5 text-muted-foreground" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-[11px] text-muted-foreground font-medium">Phone</p>
@@ -114,8 +114,8 @@ export function TrainerDetailDialog({
 					)}
 					{trainer.bio && (
 						<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
-							<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Users className="h-3.5 w-3.5 text-muted-foreground" />
+							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+								<Users className="size-3.5 text-muted-foreground" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-[11px] text-muted-foreground font-medium">Bio</p>
@@ -125,8 +125,8 @@ export function TrainerDetailDialog({
 					)}
 					{trainer.certifications && trainer.certifications.length > 0 && (
 						<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
-							<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Award className="h-3.5 w-3.5 text-muted-foreground" />
+							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
+								<Award className="size-3.5 text-muted-foreground" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-[11px] text-muted-foreground font-medium">
@@ -157,7 +157,7 @@ export function TrainerDetailDialog({
 						}}
 						className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
 					>
-						<Edit className="h-3.5 w-3.5" />
+						<Edit className="size-3.5" />
 						Edit Profile
 					</button>
 					{isActive && (

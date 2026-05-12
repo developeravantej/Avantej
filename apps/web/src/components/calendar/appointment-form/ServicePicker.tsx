@@ -59,7 +59,7 @@ export function ServicePicker({
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+							className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 						>
 							?
 						</button>
@@ -83,7 +83,7 @@ export function ServicePicker({
 				className="border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 justify-start"
 				onClick={() => setIsDialogOpen(true)}
 			>
-				<Plus className="h-4 w-4 mr-2" />
+				<Plus className="size-4 mr-2" />
 				Add Service
 			</Button>
 
@@ -100,7 +100,7 @@ export function ServicePicker({
 									className="flex items-center justify-between p-3 bg-brand-secondary-3/50 border border-brand-secondary-3 rounded-lg"
 								>
 									<div className="flex items-center gap-3">
-										<div className="w-2 h-2 bg-blue-500 rounded-full" />
+										<div className="size-2 bg-blue-500 rounded-full" />
 										<div>
 											<span className="font-medium text-brand-primary-1">{service.name}</span>
 											<span className="text-sm text-brand-secondary-1 ml-2">
@@ -113,9 +113,9 @@ export function ServicePicker({
 										variant="ghost"
 										size="sm"
 										onClick={() => onRemoveService(serviceId)}
-										className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+										className="size-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
 									>
-										<X className="h-4 w-4" />
+										<X className="size-4" />
 									</Button>
 								</div>
 							) : null;
@@ -145,7 +145,7 @@ export function ServicePicker({
 						</SelectTrigger>
 						<SelectContent className="z-[10001]">
 							{classSlotOptions.length === 0 ? (
-								<div className="px-3 py-3 text-center text-brand-secondary-1 text-sm">
+								<div className="p-3 text-center text-brand-secondary-1 text-sm">
 									No upcoming sessions available
 								</div>
 							) : (
@@ -185,9 +185,9 @@ export function ServicePicker({
 									variant="ghost"
 									size="sm"
 									onClick={() => setIsDialogOpen(false)}
-									className="h-8 w-8 p-0 hover:bg-brand-secondary-3"
+									className="size-8 p-0 hover:bg-brand-secondary-3"
 								>
-									<X className="h-4 w-4" />
+									<X className="size-4" />
 								</Button>
 							</div>
 

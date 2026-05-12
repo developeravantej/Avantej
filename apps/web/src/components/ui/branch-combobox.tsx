@@ -87,7 +87,7 @@ export function BranchCombobox({
 					<span className={cn(!selectedName && "text-muted-foreground")}>
 						{selectedName ?? placeholder}
 					</span>
-					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+					<ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
@@ -120,7 +120,7 @@ export function BranchCombobox({
 							>
 								<Check
 									className={cn(
-										"h-4 w-4 shrink-0",
+										"size-4 shrink-0",
 										value === branch.id ? "opacity-100" : "opacity-0",
 									)}
 								/>

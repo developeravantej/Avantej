@@ -197,7 +197,7 @@ function MyServicesView() {
 					onClick={() => openEdit(row.original)}
 					disabled={saveMutation.isPending}
 				>
-					<Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+					<Edit className="size-4 mr-1" aria-hidden="true" />
 					Edit
 				</Button>
 			),
@@ -240,7 +240,7 @@ function MyServicesView() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<div className="p-2 rounded-lg bg-primary/10">
-					<Briefcase className="h-6 w-6 text-primary" />
+					<Briefcase className="size-6 text-primary" />
 				</div>
 				<div>
 					<h1 className="text-2xl font-bold font-heading">My Services</h1>
@@ -308,7 +308,7 @@ function MyServicesView() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex flex-col gap-5 px-4 py-4">
+					<div className="flex flex-col gap-5 p-4">
 						{/* Read-only: Service name */}
 						<div className="flex flex-col gap-1.5">
 							<Label className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">

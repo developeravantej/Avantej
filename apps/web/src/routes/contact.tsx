@@ -65,8 +65,8 @@ function ContactPage() {
 					<div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
 						<div className="space-y-8">
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<MessageSquare className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<MessageSquare className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">
@@ -78,8 +78,8 @@ function ContactPage() {
 							</div>
 
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<Zap className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<Zap className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">
@@ -93,8 +93,8 @@ function ContactPage() {
 							</div>
 
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<Building2 className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<Building2 className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">Headquarters</h3>
@@ -115,10 +115,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -134,10 +134,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -149,10 +149,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -168,10 +168,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"

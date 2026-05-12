@@ -24,7 +24,7 @@ export const columns: ColumnDef<BrandRow>[] = [
 						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 					>
 						Name
-						<ArrowUpDown className="ml-2 h-4 w-4" />
+						<ArrowUpDown className="ml-2 size-4" />
 					</Button>
 				</div>
 			);
@@ -43,7 +43,7 @@ export const columns: ColumnDef<BrandRow>[] = [
 						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 					>
 						Products Assigned
-						<ArrowUpDown className="ml-2 h-4 w-4" />
+						<ArrowUpDown className="ml-2 size-4" />
 					</Button>
 				</div>
 			);
@@ -68,20 +68,20 @@ export const columns: ColumnDef<BrandRow>[] = [
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+						className="size-8 p-0 text-primary hover:bg-primary/10"
 						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onEdit?.(brand)}
 					>
 						<span className="sr-only">Edit brand</span>
-						<Edit className="h-4 w-4" />
+						<Edit className="size-4" />
 					</Button>
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+						className="size-8 p-0 text-destructive hover:bg-destructive/10"
 						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onDelete?.(brand)}
 					>
 						<span className="sr-only">Delete brand</span>
-						<Trash2 className="h-4 w-4" />
+						<Trash2 className="size-4" />
 					</Button>
 				</div>
 			);

@@ -213,7 +213,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 
 						{/* Search */}
 						<div className="relative w-60">
-							<Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+							<Search className="absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
 							<Input
 								placeholder="Search…"
 								value={search}
@@ -253,7 +253,7 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 							<TooltipTrigger asChild>
 								<span>
 									<Button variant="outline" size="sm" disabled className="gap-1.5">
-										<Download className="h-3.5 w-3.5" />
+										<Download className="size-3.5" />
 										Export
 									</Button>
 								</span>
@@ -379,13 +379,13 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 																<Button
 																	variant="ghost"
 																	size="icon"
-																	className="h-8 w-8 text-muted-foreground hover:text-foreground"
+																	className="size-8 text-muted-foreground hover:text-foreground"
 																	onClick={() => {
 																		setSelectedMemberId(row.memberId);
 																		setSheetOpen(true);
 																	}}
 																>
-																	<Pencil className="h-3.5 w-3.5" />
+																	<Pencil className="size-3.5" />
 																	<span className="sr-only">Edit</span>
 																</Button>
 															</TooltipTrigger>
@@ -397,14 +397,14 @@ export function RegisteredCustomersPage({ initialCustomerId }: RegisteredCustome
 																<Button
 																	variant="ghost"
 																	size="icon"
-																	className="h-8 w-8 text-muted-foreground hover:text-foreground"
+																	className="size-8 text-muted-foreground hover:text-foreground"
 																	asChild
 																>
 																	<Link
 																		to="/dashboard/customers/$id"
 																		params={{ id: row.memberId }}
 																	>
-																		<Eye className="h-3.5 w-3.5" />
+																		<Eye className="size-3.5" />
 																		<span className="sr-only">View 360°</span>
 																	</Link>
 																</Button>

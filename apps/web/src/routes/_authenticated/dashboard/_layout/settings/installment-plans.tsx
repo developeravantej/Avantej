@@ -373,7 +373,7 @@ function InstallmentPlansPage() {
 						className="flex items-center justify-center disabled:cursor-not-allowed"
 					>
 						<Star
-							className={`h-4 w-4 transition-colors ${
+							className={`size-4 transition-colors ${
 								isDefault
 									? "fill-amber-400 text-amber-400"
 									: "text-muted-foreground hover:text-amber-400"
@@ -406,7 +406,7 @@ function InstallmentPlansPage() {
 						onClick={() => openEdit(row.original)}
 						disabled={isMutating}
 					>
-						<Edit className="h-4 w-4 mr-1" />
+						<Edit className="size-4 mr-1" />
 						Edit
 					</Button>
 					{row.original.isActive && (
@@ -449,7 +449,7 @@ function InstallmentPlansPage() {
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<CreditCard className="h-6 w-6 text-primary" />
+						<CreditCard className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Installment Plans</h1>
@@ -459,7 +459,7 @@ function InstallmentPlansPage() {
 					</div>
 				</div>
 				<Button onClick={openCreate} disabled={isMutating}>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					New Plan
 				</Button>
 			</div>

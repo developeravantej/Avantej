@@ -399,9 +399,9 @@ function SubscribePage() {
   // Helper function to get plan icon
   const getPlanIcon = (plan: SubscriptionPlan) => {
     const planName = plan.name.toLowerCase();
-    if (planName.includes("enterprise")) return <Shield className="h-6 w-6" />;
-    if (planName.includes("pro")) return <Zap className="h-6 w-6" />;
-    return <Users className="h-6 w-6" />;
+    if (planName.includes("enterprise")) return <Shield className="size-6" />;
+    if (planName.includes("pro")) return <Zap className="size-6" />;
+    return <Users className="size-6" />;
   };
 
   // Helper function to check if plan is popular
@@ -435,7 +435,7 @@ function SubscribePage() {
       {session_id && processPaymentMutation.isPending && (
         <div className="flex justify-center items-center py-16">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <Loader2 className="size-8 animate-spin text-primary mx-auto mb-4" />
             <p className="text-lg font-medium">Processing your payment...</p>
             <p className="text-muted-foreground">
               Please wait while we set up your subscription.
@@ -447,7 +447,7 @@ function SubscribePage() {
       {/* Loading State */}
       {isLoadingPlans && !session_id && (
         <div className="flex justify-center items-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="size-8 animate-spin text-primary" />
           <span className="ml-3 text-lg text-muted-foreground">
             Loading plans...
           </span>
@@ -492,7 +492,7 @@ function SubscribePage() {
                   {popular && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                       <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                        <Star className="h-3 w-3" />
+                        <Star className="size-3" />
                         Most Popular
                       </div>
                     </div>
@@ -525,7 +525,7 @@ function SubscribePage() {
                     <ul className="space-y-3">
                       {features.map((feature, index) => (
                         <li key={index} className="flex items-start gap-3">
-                          <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                          <Check className="size-5 text-green-500 flex-shrink-0 mt-0.5" />
                           <span className="text-sm">{feature}</span>
                         </li>
                       ))}
@@ -542,14 +542,14 @@ function SubscribePage() {
                     >
                       {isCreatingCheckout || isCreatingGuestCheckout ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 size-4 animate-spin" />
                           Processing...
                         </>
                       ) : isAuthenticated ? (
                         "Get Started"
                       ) : (
                         <>
-                          <Mail className="mr-2 h-4 w-4" />
+                          <Mail className="mr-2 size-4" />
                           Subscribe Now
                         </>
                       )}
@@ -625,7 +625,7 @@ function SubscribePage() {
         <DialogContent className="sm:max-w-md p-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
+              <Mail className="size-5" />
               Complete Your Subscription
             </DialogTitle>
             <DialogDescription>
@@ -677,7 +677,7 @@ function SubscribePage() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-blue-600 mt-0.5" />
+                <User className="size-5 text-blue-600 mt-0.5" />
                 <div className="text-sm text-blue-800">
                   <p className="font-medium mb-1">What happens next?</p>
                   <ul className="space-y-1 text-blue-700">
@@ -708,12 +708,12 @@ function SubscribePage() {
               >
                 {isCreatingGuestCheckout ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 size-4 animate-spin" />
                     Processing...
                   </>
                 ) : (
                   <>
-                    <Zap className="mr-2 h-4 w-4" />
+                    <Zap className="mr-2 size-4" />
                     Continue to Payment
                   </>
                 )}

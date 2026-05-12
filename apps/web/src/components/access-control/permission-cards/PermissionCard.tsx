@@ -154,7 +154,7 @@ export function PermissionCard({
               />
             )}
             <div className="flex items-center gap-2 flex-1">
-              <Shield className="w-5 h-5 text-primary" />
+              <Shield className="size-5 text-primary" />
               <div className="space-y-1 flex-1">
                 <CardTitle className="text-base">{role.name}</CardTitle>
                 {role.description && (
@@ -170,9 +170,9 @@ export function PermissionCard({
                 variant="ghost"
                 size="sm"
                 onClick={onEditRole}
-                className="h-8 w-8 p-0"
+                className="size-8 p-0"
               >
-                <Edit className="w-3 h-3" />
+                <Edit className="size-3" />
               </Button>
             )}
             {onDeleteRole && (
@@ -180,9 +180,9 @@ export function PermissionCard({
                 variant="ghost"
                 size="sm"
                 onClick={onDeleteRole}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                className="size-8 p-0 text-destructive hover:text-destructive"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="size-3" />
               </Button>
             )}
           </div>
@@ -196,7 +196,7 @@ export function PermissionCard({
             Priority {role.priority}
           </Badge>
           <Badge variant="secondary" className="text-xs">
-            <Users className="w-3 h-3 mr-1" />
+            <Users className="size-3 mr-1" />
             {getTotalPermissions()} permissions
           </Badge>
         </div>
@@ -220,16 +220,16 @@ export function PermissionCard({
                 <CollapsibleTrigger asChild>
                   <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 cursor-pointer">
                     <div className="flex items-center gap-2">
-                      {Icon && <Icon className="w-4 h-4 text-primary" />}
+                      {Icon && <Icon className="size-4 text-primary" />}
                       <span className="font-medium text-sm">{resource.name}</span>
                       <Badge variant="outline" className="text-xs">
                         {resourcePermissionCount}
                       </Badge>
                     </div>
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="size-4" />
                     ) : (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="size-4" />
                     )}
                   </div>
                 </CollapsibleTrigger>
@@ -271,7 +271,7 @@ export function PermissionCard({
           
           {getTotalPermissions() === 0 && (
             <div className="text-center py-4 text-muted-foreground">
-              <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <Shield className="size-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No permissions assigned</p>
             </div>
           )}

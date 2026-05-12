@@ -79,7 +79,7 @@ export function DataTable<TData, TValue>({
 			{/* Search bar */}
 			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
 				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search stock requests..."
 						value={globalFilter ?? ""}

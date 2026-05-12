@@ -19,7 +19,7 @@ export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceAc
 						className="text-gray-400 hover:text-gray-600"
 						onClick={onClose}
 					>
-						<X className="h-5 w-5" />
+						<X className="size-5" />
 					</button>
 				</div>
 				<p className="text-sm text-gray-500 mb-4">

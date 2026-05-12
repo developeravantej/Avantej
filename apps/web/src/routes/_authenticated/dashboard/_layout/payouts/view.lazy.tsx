@@ -109,7 +109,7 @@ function PayoutsViewPage() {
 			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
 				<div className="flex items-center gap-3">
 					<div className="p-2 rounded-lg bg-primary/10">
-						<Banknote className="h-6 w-6 text-primary" />
+						<Banknote className="size-6 text-primary" />
 					</div>
 					<div>
 						<h1 className="text-xl font-semibold">Payouts</h1>

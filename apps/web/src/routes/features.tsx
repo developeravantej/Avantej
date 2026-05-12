@@ -50,8 +50,8 @@ function FeaturesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Dashboard & Analytics */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <HomeIcon className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <HomeIcon className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Dashboard & Analytics
@@ -64,8 +64,8 @@ function FeaturesPage() {
 
             {/* Scoreboards */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <ClipboardList className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <ClipboardList className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Performance Scoreboards
@@ -77,8 +77,8 @@ function FeaturesPage() {
 
             {/* Client Management */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <UserCircle className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <UserCircle className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Client Management</h3>
               <p className="text-gray-600 mb-4">
@@ -89,8 +89,8 @@ function FeaturesPage() {
 
             {/* Calendar */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Calendar className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Calendar className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Smart Calendar</h3>
               <p className="text-gray-600 mb-4">
@@ -101,8 +101,8 @@ function FeaturesPage() {
 
             {/* Payroll Management */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <DollarSign className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <DollarSign className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Payroll Management</h3>
               <p className="text-gray-600 mb-4">
@@ -113,8 +113,8 @@ function FeaturesPage() {
 
             {/* Admin Controls */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Settings className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Settings className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Advanced Admin Settings
@@ -129,8 +129,8 @@ function FeaturesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
             {/* Claims & Expenses */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <FileText className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <FileText className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Claims & Expenses</h3>
               <p className="text-gray-600 mb-4">
@@ -140,8 +140,8 @@ function FeaturesPage() {
 
             {/* User Roles */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <UserCog className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <UserCog className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Role Management</h3>
               <p className="text-gray-600 mb-4">
@@ -152,8 +152,8 @@ function FeaturesPage() {
 
             {/* Profit/Loss Tracking */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <PieChart className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <PieChart className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Financial Analytics
@@ -165,8 +165,8 @@ function FeaturesPage() {
 
             {/* Packages */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Package className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Package className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Package Management</h3>
               <p className="text-gray-600 mb-4">
@@ -177,8 +177,8 @@ function FeaturesPage() {
 
             {/* Payments & Invoicing */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Receipt className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Receipt className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Payments & Invoicing
@@ -190,8 +190,8 @@ function FeaturesPage() {
 
             {/* Purchase Approval */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <CheckSquare className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <CheckSquare className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Purchase Approval</h3>
               <p className="text-gray-600 mb-4">
@@ -204,8 +204,8 @@ function FeaturesPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
             {/* Data Center */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Database className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Database className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">Data Center</h3>
               <p className="text-gray-600 mb-4">
@@ -216,8 +216,8 @@ function FeaturesPage() {
 
             {/* Announcements */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Bell className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Bell className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Announcement System
@@ -229,8 +229,8 @@ function FeaturesPage() {
 
             {/* Branding */}
             <div className="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
-                <Palette className="h-6 w-6 text-black" />
+              <div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-4">
+                <Palette className="size-6 text-black" />
               </div>
               <h3 className="text-xl font-semibold mb-3">
                 Branding Customization

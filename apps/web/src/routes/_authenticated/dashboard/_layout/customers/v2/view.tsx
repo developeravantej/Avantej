@@ -160,7 +160,7 @@ function CustomersV2Page() {
 					</div>
 					{canInvite && (
 						<Button size="sm" className="mr-3 gap-1.5" onClick={() => setInviteOpen(true)}>
-							<Plus className="h-3.5 w-3.5" />
+							<Plus className="size-3.5" />
 							Add Customer
 						</Button>
 					)}

@@ -122,11 +122,11 @@ export function EditAppointmentModal({
 			<Card className="w-full max-w-md">
 				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 					<div className="flex items-center gap-2">
-						<Users className="h-5 w-5 text-muted-foreground" />
+						<Users className="size-5 text-muted-foreground" />
 						<CardTitle className="text-lg font-semibold">Edit Staff Assignment</CardTitle>
 					</div>
-					<Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-						<X className="h-4 w-4" />
+					<Button variant="ghost" size="sm" onClick={onClose} className="size-8 p-0">
+						<X className="size-4" />
 					</Button>
 				</CardHeader>
 				<CardContent className="space-y-4">

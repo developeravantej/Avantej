@@ -216,7 +216,7 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 						<div className="flex items-center justify-between">
 							<span className="text-sm font-medium">Line Items</span>
 							<Button type="button" size="sm" variant="outline" onClick={addLine}>
-								<Plus className="h-3.5 w-3.5 mr-1" />
+								<Plus className="size-3.5 mr-1" />
 								Add Item
 							</Button>
 						</div>
@@ -277,11 +277,11 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 									type="button"
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 text-muted-foreground hover:text-destructive"
+									className="size-8 text-muted-foreground hover:text-destructive"
 									onClick={() => removeLine(line.key)}
 									disabled={lineItems.length === 1}
 								>
-									<Trash2 className="h-3.5 w-3.5" />
+									<Trash2 className="size-3.5" />
 								</Button>
 							</div>
 						))}

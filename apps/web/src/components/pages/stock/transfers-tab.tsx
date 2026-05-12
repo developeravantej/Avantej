@@ -299,7 +299,7 @@ export function TransferOrdersTabPage() {
 					className="-ml-3"
 				>
 					Transfer #
-					<ArrowUpDown className="ml-2 h-4 w-4" />
+					<ArrowUpDown className="ml-2 size-4" />
 				</Button>
 			),
 			cell: ({ getValue }) => <CopyableCell value={getValue<string>()} />,
@@ -349,7 +349,7 @@ export function TransferOrdersTabPage() {
 								onClick={() => markInTransitMutation.mutate(id)}
 								disabled={markInTransitMutation.isPending}
 							>
-								<Truck className="h-3.5 w-3.5" />
+								<Truck className="size-3.5" />
 								Mark In Transit
 							</Button>
 							<Button
@@ -358,7 +358,7 @@ export function TransferOrdersTabPage() {
 								className="h-7 gap-1 text-red-700 border-red-300 hover:bg-red-50"
 								onClick={() => setCancelTarget(id)}
 							>
-								<XCircle className="h-3.5 w-3.5" />
+								<XCircle className="size-3.5" />
 								Cancel
 							</Button>
 						</div>
@@ -375,7 +375,7 @@ export function TransferOrdersTabPage() {
 								onClick={() => openCompleteDialog(row.original)}
 								disabled={isFetchingCompleteItems}
 							>
-								<CheckCircle className="h-3.5 w-3.5" />
+								<CheckCircle className="size-3.5" />
 								{isFetchingCompleteItems ? "Loading…" : "Complete"}
 							</Button>
 							<Button
@@ -384,7 +384,7 @@ export function TransferOrdersTabPage() {
 								className="h-7 gap-1 text-red-700 border-red-300 hover:bg-red-50"
 								onClick={() => setCancelTarget(id)}
 							>
-								<XCircle className="h-3.5 w-3.5" />
+								<XCircle className="size-3.5" />
 								Cancel
 							</Button>
 						</div>
@@ -504,7 +504,7 @@ export function TransferOrdersTabPage() {
 						}}
 						className="gap-2"
 					>
-						<Plus className="h-4 w-4" />
+						<Plus className="size-4" />
 						New Transfer
 					</Button>
 				)}

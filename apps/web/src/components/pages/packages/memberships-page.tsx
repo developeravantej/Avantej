@@ -275,7 +275,7 @@ export function MembershipsPage() {
 					</div>
 					{/* Search */}
 					<div className="relative w-60">
-						<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+						<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
 						<Input
 							placeholder="Search customer…"
 							value={search}
@@ -315,7 +315,7 @@ export function MembershipsPage() {
 							<p className="mt-1 text-2xl font-bold tabular-nums">{total}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<BadgeCheck className="h-4 w-4 text-muted-foreground" />
+							<BadgeCheck className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -326,7 +326,7 @@ export function MembershipsPage() {
 							</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<Clock className="h-4 w-4 text-muted-foreground" />
+							<Clock className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -335,7 +335,7 @@ export function MembershipsPage() {
 							<p className="mt-1 text-2xl font-bold tabular-nums">{frozenCount}</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<Lock className="h-4 w-4 text-muted-foreground" />
+							<Lock className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
@@ -346,7 +346,7 @@ export function MembershipsPage() {
 							</p>
 						</div>
 						<div className="rounded-lg bg-muted p-2">
-							<CreditCard className="h-4 w-4 text-muted-foreground" />
+							<CreditCard className="size-4 text-muted-foreground" />
 						</div>
 					</div>
 				</div>
@@ -409,7 +409,7 @@ export function MembershipsPage() {
 								<TableCell colSpan={6} className="h-60">
 									<div className="flex flex-col items-center justify-center gap-3 text-center">
 										<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-											<BadgeCheck className="h-6 w-6 text-muted-foreground" />
+											<BadgeCheck className="size-6 text-muted-foreground" />
 										</div>
 										<p className="text-sm font-medium">No memberships found</p>
 										<p className="text-xs text-muted-foreground">Try adjusting your filters.</p>

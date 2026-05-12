@@ -195,7 +195,7 @@ export function AssignPackageDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 px-4 py-4">
+				<form onSubmit={handleCreateSubmit} className="flex flex-col gap-5 p-4">
 					{/* Package selector */}
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="inst-package">

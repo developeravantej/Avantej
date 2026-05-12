@@ -155,7 +155,7 @@ export function ProductPricingPage() {
 					onClick={() => setAddDialogOpen(true)}
 					disabled={!selectedProductId}
 				>
-					<Plus className="mr-1 h-4 w-4" />
+					<Plus className="mr-1 size-4" />
 					Add Override
 				</Button>
 			</div>

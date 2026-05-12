@@ -56,7 +56,7 @@ function CreateBranchComponent() {
 						<div className="space-y-4">
 							{/* Step 1: Country */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+								<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									1
 								</div>
 								<div className="flex-1">
@@ -69,7 +69,7 @@ function CreateBranchComponent() {
 
 							{/* Step 2: Region */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+								<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									2
 								</div>
 								<div className="flex-1">
@@ -82,7 +82,7 @@ function CreateBranchComponent() {
 
 							{/* Step 3: Area */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+								<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									3
 								</div>
 								<div className="flex-1">
@@ -95,7 +95,7 @@ function CreateBranchComponent() {
 
 							{/* Step 4: Branch */}
 							<div className="flex items-start gap-3">
-								<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+								<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
 									4
 								</div>
 								<div className="flex-1">

@@ -68,7 +68,7 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
         title={value || undefined}
       >
         {displayContent}
-        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+        <Copy className="size-3.5 text-muted-foreground" />
       </Badge>
     </div>
   );
@@ -161,9 +161,9 @@ export const columns: ColumnDef<BranchRead>[] = [
         <div className="flex justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
+              <Button variant="ghost" className="size-8 p-0">
                 <span className="sr-only">Open menu</span>
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -172,7 +172,7 @@ export const columns: ColumnDef<BranchRead>[] = [
                   onClick={() => meta.onEdit?.(branch)}
                   className="cursor-pointer"
                 >
-                  <Edit className="mr-2 h-4 w-4" />
+                  <Edit className="mr-2 size-4" />
                   Edit Branch
                 </DropdownMenuItem>
               )}
@@ -191,7 +191,7 @@ export const columns: ColumnDef<BranchRead>[] = [
                     }}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="mr-2 size-4" />
                     Delete Branch
                   </DropdownMenuItem>
                 </>

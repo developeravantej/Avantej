@@ -153,7 +153,7 @@ function Customer360Page() {
 				</Alert>
 				<Button variant="outline" asChild>
 					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-						<ArrowLeft className="mr-2 h-4 w-4" />
+						<ArrowLeft className="mr-2 size-4" />
 						Back to Customers
 					</Link>
 				</Button>
@@ -179,7 +179,7 @@ function Customer360Page() {
 				</Alert>
 				<Button variant="outline" asChild>
 					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-						<ArrowLeft className="mr-2 h-4 w-4" />
+						<ArrowLeft className="mr-2 size-4" />
 						Back to Customers
 					</Link>
 				</Button>
@@ -200,7 +200,7 @@ function Customer360Page() {
 			{/* Back navigation */}
 			<Button variant="ghost" size="sm" asChild className="-ml-1">
 				<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-					<ArrowLeft className="mr-1 h-4 w-4" />
+					<ArrowLeft className="mr-1 size-4" />
 					Customers
 				</Link>
 			</Button>
@@ -235,7 +235,7 @@ function Customer360Page() {
 							size="sm"
 							onClick={() => setFreezeOpen(true)}
 						>
-							<PauseCircle className="mr-1.5 h-4 w-4" />
+							<PauseCircle className="mr-1.5 size-4" />
 							Pause Membership
 						</Button>
 					)}
