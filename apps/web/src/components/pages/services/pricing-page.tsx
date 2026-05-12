@@ -142,7 +142,7 @@ export function ServicePricingPage() {
 							<SelectValue placeholder="Select a service to view overrides..." />
 						</SelectTrigger>
 						<SelectContent>
-							{services.map((s) => (
+							{services.map((s: any) => (
 								<SelectItem key={s.id} value={s.id}>
 									{s.name}
 								</SelectItem>
@@ -187,7 +187,7 @@ export function ServicePricingPage() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{overrides.map((row) => (
+							{overrides.map((row: any) => (
 								<TableRow key={row.id}>
 									<TableCell>
 										{row.branchId

@@ -415,7 +415,7 @@ export function ServiceFormDialog({
 											<option value="">
 												{isLoadingCategories ? "Loading categories..." : "Select a category"}
 											</option>
-											{serviceCategories.map((category) => (
+											{serviceCategories.map((category: any) => (
 												<option key={category.id} value={category.id}>
 													{category.name}
 												</option>

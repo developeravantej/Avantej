@@ -103,7 +103,7 @@ export function AppointmentsWidget() {
 						</div>
 					) : (
 						<div className="space-y-3">
-							{appointments.map((appointment, index) => (
+							{appointments.map((appointment: any, index: any) => (
 								<div
 									key={appointment.id}
 									className={cn(

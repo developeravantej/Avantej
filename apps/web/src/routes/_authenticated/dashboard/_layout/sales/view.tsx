@@ -264,7 +264,7 @@ function RouteComponent() {
 	const salesApiRows = salesApiResponse?.rows ?? [];
 	const total = salesApiResponse?.total ?? 0;
 
-	const salesData: SalesRow[] = salesApiRows.map((item) => ({
+	const salesData: SalesRow[] = salesApiRows.map((item: any) => ({
 		id: item.id,
 		date: item.date ? item.date.toISOString() : null,
 		sales_order: item.salesOrderNumber,
@@ -275,7 +275,7 @@ function RouteComponent() {
 		customerId: item.customerId ?? null,
 	}));
 
-	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
+	const paymentsData: PaymentRow[] = invoicesApiData.map((item: any) => ({
 		date: item.date ? item.date.toISOString() : null,
 		invoice: item.invoiceNumber,
 		sales_order: item.salesOrderId ?? null,

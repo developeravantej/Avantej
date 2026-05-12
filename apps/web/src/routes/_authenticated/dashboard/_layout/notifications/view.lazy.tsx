@@ -71,7 +71,7 @@ function NotificationsViewPage() {
 		},
 	});
 
-	const data: NotificationRow[] = apiData.map((item) => ({
+	const data: NotificationRow[] = apiData.map((item: any) => ({
 		id: item.id,
 		title: item.title,
 		message: item.message,

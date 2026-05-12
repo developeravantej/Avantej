@@ -147,7 +147,7 @@ function InstallmentsSection({
 					</tr>
 				</thead>
 				<tbody className="divide-y">
-					{data.map((inst, idx) => (
+					{data.map((inst: any, idx: any) => (
 						<tr key={inst.id} className="bg-background">
 							<td className="px-3 py-2 text-muted-foreground">{idx + 1}</td>
 							<td className="px-3 py-2 tabular-nums">
@@ -324,7 +324,7 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 									className="h-6 px-2 text-xs"
 									onClick={() => {
 										setDraftTimes(
-											(preferredData ?? []).map((t) => ({
+											(preferredData ?? []).map((t: any) => ({
 												dayOfWeek: t.dayOfWeek as PreferredTimeItem["dayOfWeek"],
 												time: t.time,
 												priority: t.priority,

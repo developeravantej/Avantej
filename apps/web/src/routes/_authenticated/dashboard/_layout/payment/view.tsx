@@ -59,7 +59,7 @@ function RouteComponent() {
 		enabled: !!organizationId,
 	});
 
-	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
+	const paymentsData: PaymentRow[] = invoicesApiData.map((item: any) => ({
 		date: item.date ? item.date.toISOString() : null,
 		invoice: item.invoiceNumber,
 		sales_order: item.salesOrderId ?? null,

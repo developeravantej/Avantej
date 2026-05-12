@@ -183,10 +183,12 @@ export async function createHierarchyNode(
   const depth = getDepthForType(type);
 
   try {
+    const slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const [node] = await tenantDb
       .insert(hierarchyNodes)
       .values({
         name,
+        slug,
         type,
         parentId: parentId || null,
         depth,

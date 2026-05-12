@@ -253,7 +253,7 @@ export function TransferOrdersTabPage() {
 			});
 			const rowWithItems: TransferOrderRow = {
 				...row,
-				items: detail.items.map((item) => ({
+				items: detail.items.map((item: any) => ({
 					id: item.id,
 					productId: item.productId,
 					quantityTransferred: item.quantityTransferred,
@@ -275,7 +275,7 @@ export function TransferOrdersTabPage() {
 	}
 
 	// ---- Table data ----
-	const data: TransferOrderRow[] = apiData.map((item) => ({
+	const data: TransferOrderRow[] = apiData.map((item: any) => ({
 		id: item.id,
 		transferNumber: item.transferNumber,
 		dateIssued: item.dateIssued ? new Date(item.dateIssued).toLocaleDateString() : "",

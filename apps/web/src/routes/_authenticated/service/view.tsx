@@ -61,7 +61,7 @@ function ServiceViewComponent() {
 	}, [categories]);
 
 	const servicesWithCategoryName = useMemo(() => {
-		return services.map((s) => ({
+		return services.map((s: any) => ({
 			...s,
 			service_category_name: s.categoryId ? categoryNameMap[s.categoryId] ?? null : null,
 		}));

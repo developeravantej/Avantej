@@ -142,7 +142,7 @@ export function ProductPricingPage() {
 							<SelectValue placeholder="Select a product to view overrides..." />
 						</SelectTrigger>
 						<SelectContent>
-							{products.map((p) => (
+							{products.map((p: any) => (
 								<SelectItem key={p.id} value={p.id}>
 									{p.name}
 								</SelectItem>
@@ -187,7 +187,7 @@ export function ProductPricingPage() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{overrides.map((row) => (
+							{overrides.map((row: any) => (
 								<TableRow key={row.id}>
 									<TableCell>
 										{row.branchId

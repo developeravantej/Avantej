@@ -41,7 +41,7 @@ export function BrandsTabPage() {
 
 	const productCountByBrand = useMemo(() => {
 		const counts = new Map<string, number>();
-		products?.forEach((p) => {
+		products?.forEach((p: any) => {
 			if (p.brandId) counts.set(p.brandId, (counts.get(p.brandId) ?? 0) + 1);
 		});
 		return counts;
@@ -88,7 +88,7 @@ export function BrandsTabPage() {
 		);
 	}
 
-	const tableData: BrandRow[] = brands.map((b) => ({
+	const tableData: BrandRow[] = brands.map((b: any) => ({
 		ID: b.id,
 		Name: b.name,
 		"Products Assigned": productCountByBrand.get(b.id) ?? 0,

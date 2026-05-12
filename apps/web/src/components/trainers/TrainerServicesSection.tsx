@@ -162,7 +162,7 @@ export function TrainerServicesSection({
 		categoryName: string;
 		services: typeof allServices;
 	};
-	const categoryById = new Map(allCategories.map((c) => [c.id, c]));
+	const categoryById = new Map(allCategories.map((c: any) => [c.id, c]));
 	const groupMap = new Map<string, ServiceGroup>();
 	for (const svc of allServices) {
 		const key = svc.categoryId ?? "__none__";
@@ -170,7 +170,7 @@ export function TrainerServicesSection({
 			const cat = svc.categoryId ? categoryById.get(svc.categoryId) : undefined;
 			groupMap.set(key, {
 				categoryId: svc.categoryId ?? null,
-				categoryName: cat?.name ?? "Uncategorized",
+				categoryName: (cat as any)?.name ?? "Uncategorized",
 				services: [],
 			});
 		}
@@ -206,7 +206,7 @@ export function TrainerServicesSection({
 				) : (
 					<div className="space-y-4">
 						{groups.map((group) => {
-							const assignedCount = group.services.filter((s) =>
+							const assignedCount = group.services.filter((s: any) =>
 								assignedServiceIds.has(s.id),
 							).length;
 							const allAssigned = assignedCount === group.services.length;
@@ -221,17 +221,17 @@ export function TrainerServicesSection({
 											onCheckedChange={async (checked) => {
 												if (checked) {
 													const toAssign = group.services.filter(
-														(s) => !assignedServiceIds.has(s.id),
+														(s: any) => !assignedServiceIds.has(s.id),
 													);
 													await Promise.allSettled(
-														toAssign.map((s) => assignMutation.mutateAsync(s.id)),
+														toAssign.map((s: any) => assignMutation.mutateAsync(s.id)),
 													);
 												} else {
 													const toRemove = group.services.filter(
-														(s) => assignedServiceIds.has(s.id),
+														(s: any) => assignedServiceIds.has(s.id),
 													);
 													await Promise.allSettled(
-														toRemove.map((s) => removeMutation.mutateAsync(s.id)),
+														toRemove.map((s: any) => removeMutation.mutateAsync(s.id)),
 													);
 												}
 												queryClient.invalidateQueries({
@@ -248,7 +248,7 @@ export function TrainerServicesSection({
 
 									{/* Service rows */}
 									<div className="ml-6 space-y-0.5">
-										{group.services.map((svc) => {
+										{group.services.map((svc: any) => {
 											const isAssigned = assignedServiceIds.has(svc.id);
 											const assignedDetails = (trainerServices as TrainerService[]).find(
 												(ts) => ts.serviceId === svc.id,
@@ -369,7 +369,7 @@ export function TrainerServicesSection({
 					</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{categoryBuffers.map((cat) => (
+						{categoryBuffers.map((cat: any) => (
 							<CategoryBufferRow
 								key={cat.categoryId}
 								cat={cat as CategoryBufferRowData}

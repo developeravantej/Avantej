@@ -130,6 +130,7 @@ beforeAll(async () => {
 		.insert(hierarchyNodes)
 		.values({
 			name: `AC Test Branch ${TS}`,
+			slug: `ac-test-branch-${TS}`,
 			type: "branch",
 			depth: 4,
 		})

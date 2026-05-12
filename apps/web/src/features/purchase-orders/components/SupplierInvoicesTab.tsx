@@ -59,7 +59,7 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 	});
 
 	const supplierMap = useMemo(
-		() => new Map(suppliers.map((s) => [s.id, s.name])),
+		() => new Map(suppliers.map((s: any) => [s.id, s.name])),
 		[suppliers],
 	);
 
@@ -77,7 +77,7 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			header: "Supplier",
 			accessorKey: "supplierId",
 			cell: ({ row }) => (
-				<span className="text-sm">{supplierMap.get(row.original.supplierId) ?? row.original.supplierId.slice(0, 8) + "…"}</span>
+				<span className="text-sm">{(supplierMap.get(row.original.supplierId) as any) ?? row.original.supplierId.slice(0, 8) + "…"}</span>
 			),
 		},
 		{

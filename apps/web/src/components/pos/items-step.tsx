@@ -237,7 +237,7 @@ export function ItemsStep({
 		enabled: !!organizationId,
 	});
 
-	const services: ServiceOption[] = rawServices.map((s) => ({
+	const services: ServiceOption[] = rawServices.map((s: any) => ({
 		id: s.id,
 		name: s.name,
 		price: typeof s.price === "number" ? s.price : null,

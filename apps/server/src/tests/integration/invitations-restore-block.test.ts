@@ -48,6 +48,7 @@ beforeAll(async () => {
 		.insert(hierarchyNodes)
 		.values({
 			name: `RestoreBlock Test Node ${RUN_ID}`,
+			slug: `restoreblock-test-node-${RUN_ID}`,
 			type: "branch",
 			depth: 4,
 		})

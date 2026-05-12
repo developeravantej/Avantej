@@ -41,7 +41,7 @@ export function CategoriesTabPage() {
 
 	const productCountByCategory = useMemo(() => {
 		const counts = new Map<string, number>();
-		products?.forEach((p) => {
+		products?.forEach((p: any) => {
 			if (p.categoryId)
 				counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
 		});
@@ -93,7 +93,7 @@ export function CategoriesTabPage() {
 		);
 	}
 
-	const tableData: CategoryRow[] = categories.map((c) => ({
+	const tableData: CategoryRow[] = categories.map((c: any) => ({
 		ID: c.id,
 		Name: c.name,
 		externalCode: c.externalCode ?? "",

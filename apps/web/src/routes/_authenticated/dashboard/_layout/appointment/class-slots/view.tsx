@@ -322,7 +322,7 @@ function ClassSlotsPage() {
 	// ---------------------------------------------------------------------------
 
 	const serviceNameById = (id: string) => {
-		const svc = services.find((s) => s.id === id);
+		const svc = services.find((s: any) => s.id === id);
 		return svc ? svc.name : id;
 	};
 
@@ -575,7 +575,7 @@ function ClassSlotsPage() {
 									<SelectValue placeholder="All services" />
 								</SelectTrigger>
 								<SelectContent>
-									{services.map((svc) => (
+									{services.map((svc: any) => (
 										<SelectItem key={svc.id} value={svc.id}>
 											{svc.name}
 										</SelectItem>
@@ -729,7 +729,7 @@ function ClassSlotsPage() {
 									<SelectValue placeholder="Select a service" />
 								</SelectTrigger>
 								<SelectContent>
-									{services.map((svc) => (
+									{services.map((svc: any) => (
 										<SelectItem key={svc.id} value={svc.id}>
 											{svc.name}
 										</SelectItem>

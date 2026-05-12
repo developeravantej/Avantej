@@ -78,7 +78,7 @@ function StatusHistoryCard({
 					<p className="text-muted-foreground text-sm">No history available.</p>
 				) : (
 					<ol className="relative border-l border-muted ml-3 space-y-4">
-						{data.rows.map((entry) => (
+						{data.rows.map((entry: any) => (
 							<li key={entry.id} className="ml-4">
 								<div className="absolute -left-1.5 mt-1.5 size-3 rounded-full border border-white bg-muted-foreground" />
 								<div className="flex flex-wrap items-center gap-2">
@@ -288,7 +288,7 @@ function SalesOrderDetailPage() {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-2">
-							{invoices.map((inv) => (
+							{invoices.map((inv: any) => (
 								<div
 									key={inv.id}
 									className="flex items-center justify-between rounded border p-3"

@@ -56,7 +56,7 @@ export function SuppliersTabPage() {
 	});
 
 	// ---- Map API data to SupplierRow ----
-	const tableData: SupplierRow[] = apiData.map((s) => ({
+	const tableData: SupplierRow[] = apiData.map((s: any) => ({
 		id: s.id,
 		name: s.name,
 		description: s.description ?? null,

@@ -202,7 +202,7 @@ export const ghlRouter = {
 					.where(eq(ghlContactLinks.syncStatus, "error"))
 					.groupBy(ghlContactLinks.branchNodeId);
 				errorCounts = new Map(
-					errorRows.map((r) => [r.branchNodeId, Number(r.n)]),
+					errorRows.map((r: { branchNodeId: string; n: number }) => [r.branchNodeId, Number(r.n)]),
 				);
 			}
 

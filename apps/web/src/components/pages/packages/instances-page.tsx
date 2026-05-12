@@ -171,7 +171,7 @@ export function PackageInstancesPage() {
 		queryFn: async () => {
 			if (!organizationId) return [];
 			const services = await client.services.list({ organizationId, isActive: true });
-			return services.filter((s) => s.sessionCount != null && s.sessionCount > 0);
+			return services.filter((s: any) => s.sessionCount != null && s.sessionCount > 0);
 		},
 		enabled: !!organizationId && createOpen,
 	});
@@ -267,7 +267,7 @@ export function PackageInstancesPage() {
 		if (!assignStaffId || !staffInstanceId || !organizationId) return;
 		// slotIndex = next available index
 		const nextSlot = staffRows.length > 0
-			? Math.max(...staffRows.map((r) => r.slotIndex)) + 1
+			? Math.max(...staffRows.map((r: any) => r.slotIndex)) + 1
 			: 0;
 		assignStaffMutation.mutate({ staffId: assignStaffId, slotIndex: nextSlot });
 	}
@@ -563,7 +563,7 @@ export function PackageInstancesPage() {
 									<SelectValue placeholder="Select a package…" />
 								</SelectTrigger>
 								<SelectContent>
-									{packagesList.map((pkg) => (
+									{packagesList.map((pkg: any) => (
 										<SelectItem key={pkg.id} value={pkg.id}>
 											{pkg.name}
 										</SelectItem>
@@ -809,7 +809,7 @@ export function PackageInstancesPage() {
 							<p className="text-sm text-muted-foreground">No staff assigned yet.</p>
 						) : (
 							<div className="space-y-2">
-								{staffRows.map((sr) => {
+								{staffRows.map((sr: any) => {
 									type TrainerItem = { id: string; userId?: string; name?: string | null; email?: string | null };
 									const trainer = (trainerList as TrainerItem[]).find(
 										(t) => t.userId === sr.staffId,
@@ -855,7 +855,7 @@ export function PackageInstancesPage() {
 								</SelectTrigger>
 								<SelectContent>
 									{(trainerList as Array<{ id: string; userId?: string; name?: string | null; email?: string | null }>).map((t) => {
-										const alreadyAssigned = staffRows.some((sr) => sr.staffId === t.userId);
+										const alreadyAssigned = staffRows.some((sr: any) => sr.staffId === t.userId);
 										if (alreadyAssigned) return null;
 										return (
 											<SelectItem key={t.id} value={t.userId ?? t.id}>

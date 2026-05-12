@@ -213,6 +213,7 @@ export async function handleCheckoutCompleted(
       .insert(hierarchyNodes)
       .values({
         name: organization.name,
+        slug: organization.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
         type: "organization",
         depth: 0,
         parentId: null,

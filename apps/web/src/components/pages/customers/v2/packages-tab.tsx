@@ -412,7 +412,7 @@ export function PackagesTab({
 					limit: 50,
 					offset: 0,
 				});
-				return result.items.map((item) => fromInstallmentOverview(item, plansMap));
+				return result.items.map((item: any) => fromInstallmentOverview(item, plansMap));
 			}
 
 			if (isMembershipFilter) {

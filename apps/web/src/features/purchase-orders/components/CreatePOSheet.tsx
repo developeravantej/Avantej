@@ -155,7 +155,7 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 								<SelectValue placeholder="Select supplier…" />
 							</SelectTrigger>
 							<SelectContent>
-								{suppliers.map((s) => (
+								{suppliers.map((s: any) => (
 									<SelectItem key={s.id} value={s.id}>
 										{s.name}
 									</SelectItem>
@@ -239,7 +239,7 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 											<SelectValue placeholder="Select…" />
 										</SelectTrigger>
 										<SelectContent>
-											{products.map((p) => (
+											{products.map((p: any) => (
 												<SelectItem key={p.id} value={p.id}>
 													{p.name} ({p.sku})
 												</SelectItem>

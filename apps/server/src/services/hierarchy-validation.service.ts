@@ -24,8 +24,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 export type HierarchyNodeType =
   | "organization"
   | "country"
-  | "region"
-  | "area"
+  | "state"
   | "branch";
 
 export interface CreateHierarchyNodeParams {
@@ -42,9 +41,8 @@ export function getDepthForType(type: HierarchyNodeType): number {
   const depthMap: Record<HierarchyNodeType, number> = {
     organization: 0,
     country: 1,
-    region: 2,
-    area: 3,
-    branch: 4,
+    state: 2,
+    branch: 3,
   };
   return depthMap[type];
 }
@@ -58,9 +56,8 @@ export function getParentTypeForType(
   const parentMap: Record<HierarchyNodeType, HierarchyNodeType | null> = {
     organization: null,
     country: "organization",
-    region: "country",
-    area: "region",
-    branch: "area",
+    state: "country",
+    branch: "state",
   };
   return parentMap[type];
 }

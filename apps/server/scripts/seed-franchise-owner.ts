@@ -444,6 +444,7 @@ async function seedFranchiseOwner() {
         .insert(hierarchyNodes)
         .values({
           name: organization.name,
+          slug: organization.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
           type: "organization",
           depth: 0,
           parentId: null,
@@ -541,6 +542,7 @@ async function seedFranchiseOwner() {
         .insert(hierarchyNodes)
         .values({
           name: "USA",
+          slug: "usa",
           type: "country",
           depth: 1,
           parentId: orgNode.id,
@@ -557,6 +559,7 @@ async function seedFranchiseOwner() {
         .insert(hierarchyNodes)
         .values({
           name: "California",
+          slug: "california",
           type: "state",
           depth: 2,
           parentId: countryNode.id,
@@ -585,12 +588,10 @@ async function seedFranchiseOwner() {
               .insert(hierarchyNodes)
               .values({
                 name: branchName,
+                slug: branchName.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
                 type: "branch",
                 depth: 3,
                 parentId: stateNode!.id,
-                address: branchName === "Los Angeles Branch"
-                  ? "123 Main St, Los Angeles, CA 90001"
-                  : "456 Market St, San Francisco, CA 94105",
               })
               .returning();
 

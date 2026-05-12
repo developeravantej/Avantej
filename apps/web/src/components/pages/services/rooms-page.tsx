@@ -114,7 +114,7 @@ export function RoomsPage() {
 		enabled: !!organizationId,
 	});
 
-	const tableData: RoomRow[] = apiData.map((r) => ({
+	const tableData: RoomRow[] = apiData.map((r: any) => ({
 		id: r.id,
 		name: r.name,
 		type: r.type as RoomRow["type"],

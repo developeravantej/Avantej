@@ -806,7 +806,7 @@ export function CustomerProfilePanel({
 								</p>
 							) : (
 								<div className="space-y-2">
-									{upcomingAppts.map((appt) => (
+									{upcomingAppts.map((appt: any) => (
 										<div
 											key={appt.id}
 											className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
@@ -944,7 +944,7 @@ export function CustomerProfilePanel({
 											</tr>
 										</thead>
 										<tbody className="divide-y">
-											{allAppts.map((appt) => {
+											{allAppts.map((appt: any) => {
 												const start = appt.startTime
 													? appt.startTime instanceof Date
 														? appt.startTime

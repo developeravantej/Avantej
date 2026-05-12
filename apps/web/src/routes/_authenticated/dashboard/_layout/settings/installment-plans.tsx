@@ -261,7 +261,7 @@ function InstallmentPlansPage() {
 					organizationId,
 					isActive: true,
 				});
-				const affectedCount = allServices.filter((svc) =>
+				const affectedCount = allServices.filter((svc: any) =>
 					(svc.availablePaymentPlans ?? []).includes(row.code),
 				).length;
 

@@ -42,7 +42,7 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 	});
 
 	const productNameMap = useMemo(
-		() => new Map(products.map((p) => [p.id, p.name])),
+		() => new Map(products.map((p: any) => [p.id, p.name])),
 		[products],
 	);
 
@@ -111,7 +111,7 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 							<div key={item.id} className="space-y-1.5">
 								<div className="flex items-center justify-between">
 									<Label className="text-sm font-medium truncate max-w-[60%]">
-										{productNameMap.get(item.productId) ?? item.productId}
+										{(productNameMap.get(item.productId) as any) ?? item.productId}
 									</Label>
 									<span className="text-xs text-muted-foreground">
 										Ordered: {item.orderedQty} | Received: {item.receivedQty ?? 0} | Remaining: {remaining}

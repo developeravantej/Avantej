@@ -60,7 +60,7 @@ function ProductsViewPage() {
 	const { brands, categories, suppliers, uoms } = useProductData(organizationId);
 
 	// Map API response to ProductRow shape
-	const tableData: ProductRow[] = products.map((p) => ({
+	const tableData: ProductRow[] = products.map((p: any) => ({
 		id: p.id,
 		sku: p.sku,
 		name: p.name,

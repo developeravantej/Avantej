@@ -134,7 +134,7 @@ export function MatchReviewDialog({ invoiceId, organizationId, onClose, onAction
 								<div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
 									<p className="font-medium mb-1">Mismatch Detected</p>
 									<ul className="list-disc list-inside space-y-0.5">
-										{preview.mismatches.map((m) => (
+										{preview.mismatches.map((m: any) => (
 											<li key={m}>{m}</li>
 										))}
 									</ul>

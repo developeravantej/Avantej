@@ -97,7 +97,7 @@ export function useInstallmentMutations({
 			}),
 		onSuccess: (updated) => {
 			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			setSelectedInstance((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+			setSelectedInstance((prev: any) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
 			toast.success("Credits adjusted successfully.");
 			setShowAdjustCreditsDialog(false);
 			setAdjustUnlocked("");

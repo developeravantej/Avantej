@@ -279,7 +279,7 @@ function MyServicesView() {
 					</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{categoryBuffers.map((cat) => (
+						{categoryBuffers.map((cat: any) => (
 							<CategoryBufferRow
 								key={cat.categoryId}
 								cat={cat as CategoryBufferRowData}
