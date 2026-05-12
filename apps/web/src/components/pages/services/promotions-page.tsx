@@ -539,7 +539,7 @@ export function PromotionsPage() {
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<label htmlFor="promo-type" className="text-sm font-medium">
 								Type <span className="text-destructive">*</span>
 							</label>
 							<Select
@@ -548,7 +548,7 @@ export function PromotionsPage() {
 									setCreateForm((f) => ({ ...f, type: v as PromotionType, value: "" }))
 								}
 							>
-								<SelectTrigger className="w-full">
+								<SelectTrigger id="promo-type" className="w-full">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>

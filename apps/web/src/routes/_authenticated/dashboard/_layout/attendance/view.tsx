@@ -95,7 +95,7 @@ function AttendancePage() {
 	// ── Filters ────────────────────────────────────────────────────────────
 
 	const [branchId, setBranchId] = useState<string>(branchOptions[0]?.id ?? "");
-	const [date, setDate] = useState<string>(toLocalDateString(new Date()));
+	const [date, setDate] = useState<string>(() => toLocalDateString(new Date()));
 
 	// ── Query keys ─────────────────────────────────────────────────────────
 

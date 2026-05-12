@@ -773,9 +773,9 @@ export function ServiceFormDialog({
 
 							<div className="space-y-4">
 								<div>
-									<label className="block text-sm font-medium text-foreground mb-2">
+									<span className="block text-sm font-medium text-foreground mb-2">
 										Scheduling Type <span className="text-destructive">*</span>
-									</label>
+									</span>
 									<div className="flex gap-4">
 										<div className="flex items-center">
 											<input

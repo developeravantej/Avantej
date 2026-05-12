@@ -41,7 +41,7 @@ export type CreatePOSheetProps = {
 export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: CreatePOSheetProps) {
 	const [supplierId, setSupplierId] = useState("");
 	const [branchId, setBranchId] = useState("");
-	const [orderDate, setOrderDate] = useState(todayISO());
+	const [orderDate, setOrderDate] = useState(() => todayISO());
 	const [expectedDelivery, setExpectedDelivery] = useState("");
 	const [notes, setNotes] = useState("");
 	const [lineItems, setLineItems] = useState<LineItem[]>([

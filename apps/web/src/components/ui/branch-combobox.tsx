@@ -81,6 +81,7 @@ export function BranchCombobox({
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
+					aria-controls="branch-combobox-list"
 					disabled={disabled}
 					className="w-full justify-between font-normal"
 				>
@@ -91,6 +92,7 @@ export function BranchCombobox({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
+				id="branch-combobox-list"
 				className="w-[--radix-popover-trigger-width] p-0"
 				align="start"
 			>

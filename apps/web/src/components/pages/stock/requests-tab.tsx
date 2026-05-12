@@ -382,11 +382,13 @@ export function StockRequestsTabPage() {
 
 	// ---- Branch combobox ----
 	function BranchCombobox({
+		id,
 		value,
 		onChange,
 		placeholder,
 		required: _required,
 	}: {
+		id?: string;
 		value: string;
 		onChange: (id: string) => void;
 		placeholder: string;
@@ -405,6 +407,7 @@ export function StockRequestsTabPage() {
 		return (
 			<div className="relative" ref={containerRef}>
 				<Input
+					id={id}
 					placeholder={placeholder}
 					value={displayValue}
 					onChange={(e) => {
@@ -537,10 +540,11 @@ export function StockRequestsTabPage() {
 
 					<div className="flex flex-col gap-4 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<label htmlFor="stock-req-to-branch" className="text-sm font-medium">
 								To Branch <span className="text-destructive">*</span>
 							</label>
 							<BranchCombobox
+								id="stock-req-to-branch"
 								value={formToBranchId}
 								onChange={setFormToBranchId}
 								placeholder="Search destination branch..."
@@ -590,10 +594,11 @@ export function StockRequestsTabPage() {
 
 							<div className="flex flex-col gap-3">
 								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
+									<label htmlFor="stock-req-product-id" className="text-sm font-medium">
 										Product ID <span className="text-destructive">*</span>
 									</label>
 									<Input
+										id="stock-req-product-id"
 										placeholder="UUID of product"
 										value={formProductId}
 										onChange={(e) => setFormProductId(e.target.value)}
@@ -601,10 +606,11 @@ export function StockRequestsTabPage() {
 								</div>
 
 								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
+									<label htmlFor="stock-req-qty" className="text-sm font-medium">
 										Quantity <span className="text-destructive">*</span>
 									</label>
 									<Input
+										id="stock-req-qty"
 										type="number"
 										min="1"
 										placeholder="1"

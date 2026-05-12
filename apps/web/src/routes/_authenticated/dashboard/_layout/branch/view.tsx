@@ -825,7 +825,6 @@ function RouteComponent() {
                         value={editBranchName}
                         onChange={(e) => setEditBranchName(e.target.value)}
                         placeholder="Enter branch name"
-                        autoFocus
                       />
                     </div>
 

@@ -51,7 +51,7 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 	const [goodsReceiptId, setGoodsReceiptId] = useState("");
 	const [totalRM, setTotalRM] = useState("");
 	const [taxRM, setTaxRM] = useState("");
-	const [invoiceDate, setInvoiceDate] = useState(todayISO());
+	const [invoiceDate, setInvoiceDate] = useState(() => todayISO());
 	const [dueDate, setDueDate] = useState("");
 	const qc = useQueryClient();
 

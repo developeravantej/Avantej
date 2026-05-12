@@ -188,13 +188,15 @@ export function BulkActionBar({
 	const voidMutation = useApiMutation({
 		mutationFn: async (reason: string) => {
 			// Backend void operates on one id at a time per plan §6.4
-			for (const id of selectedIds) {
-				await client.commissionSplits.void({
-					organizationId,
-					id,
-					reason,
-				});
-			}
+			await Promise.all(
+				selectedIds.map((id) =>
+					client.commissionSplits.void({
+						organizationId,
+						id,
+						reason,
+					}),
+				),
+			);
 		},
 		successMessage: `Voided ${count} commission split${count !== 1 ? "s" : ""}.`,
 		errorMessage: (err) => err.message || "Failed to void commission splits.",

@@ -46,7 +46,7 @@ export function ServicePriceOverrideDialog({
 	const [branchId, setBranchId] = useState<string>("__org_wide__");
 	const [customerType, setCustomerType] = useState<string>("__all__");
 	const [priceRm, setPriceRm] = useState("");
-	const [effectiveFrom, setEffectiveFrom] = useState(localDatetimeDefault());
+	const [effectiveFrom, setEffectiveFrom] = useState(() => localDatetimeDefault());
 	const [effectiveUntil, setEffectiveUntil] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 

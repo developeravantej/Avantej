@@ -382,7 +382,7 @@ export function RoomsPage() {
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<label htmlFor="room-type" className="text-sm font-medium">
 								Type <span className="text-destructive">*</span>
 							</label>
 							<Select
@@ -391,7 +391,7 @@ export function RoomsPage() {
 									setForm((prev) => ({ ...prev, type: val as RoomType }))
 								}
 							>
-								<SelectTrigger>
+								<SelectTrigger id="room-type">
 									<SelectValue placeholder="Select a type" />
 								</SelectTrigger>
 								<SelectContent>
@@ -421,7 +421,7 @@ export function RoomsPage() {
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<label htmlFor="room-branch" className="text-sm font-medium">
 								Branch <span className="text-destructive">*</span>
 							</label>
 							{branches.length === 0 ? (
@@ -430,6 +430,7 @@ export function RoomsPage() {
 								</p>
 							) : (
 								<BranchCombobox
+									id="room-branch"
 									value={form.branchId}
 									onChange={(id) =>
 										setForm((prev) => ({ ...prev, branchId: id }))
@@ -488,11 +489,13 @@ interface BranchNode {
 }
 
 function BranchCombobox({
+	id,
 	value,
 	onChange,
 	branches,
 	placeholder,
 }: {
+	id?: string;
 	value: string;
 	onChange: (id: string) => void;
 	branches: BranchNode[];
@@ -511,6 +514,7 @@ function BranchCombobox({
 	return (
 		<div className="relative" ref={containerRef}>
 			<Input
+				id={id}
 				placeholder={placeholder}
 				value={displayValue}
 				onChange={(e) => {

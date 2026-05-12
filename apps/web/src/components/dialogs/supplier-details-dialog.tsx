@@ -77,19 +77,19 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Description</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Description</span>
 								<p className="text-sm">{supplier.description || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Account Number</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Account Number</span>
 								<p className="text-sm font-mono">{supplier.accountNumber || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Payment Terms</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Payment Terms</span>
 								<p className="text-sm">{supplier.paymentTerms || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Barcode</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Barcode</span>
 								<p className="text-sm font-mono">{supplier.barcode || "N/A"}</p>
 							</div>
 						</div>
@@ -105,14 +105,14 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Contact Person</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Contact Person</span>
 								<p className="text-sm">{supplier.contactPerson || "N/A"}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Phone className="size-4" />
 									Mobile
-								</label>
+								</span>
 								{supplier.contactPhone ? (
 									<a
 										href={`tel:${supplier.contactPhone}`}
@@ -125,10 +125,10 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Phone className="size-4" />
 									Office Phone
-								</label>
+								</span>
 								{supplier.officePhone ? (
 									<a
 										href={`tel:${supplier.officePhone}`}
@@ -141,10 +141,10 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Mail className="size-4" />
 									Email
-								</label>
+								</span>
 								{supplier.email ? (
 									<a
 										href={`mailto:${supplier.email}`}
@@ -157,10 +157,10 @@ export function SupplierDetailsDialog({
 								)}
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Globe className="size-4" />
 									Website
-								</label>
+								</span>
 								{supplier.website ? (
 									<a
 										href={supplier.website}
@@ -187,21 +187,21 @@ export function SupplierDetailsDialog({
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Calendar className="size-4" />
 									Created At
-								</label>
+								</span>
 								<p className="text-sm">{formatDate(supplier.createdAt)}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
+								<span className="block text-sm font-medium text-brand-secondary-1 flex items-center gap-1">
 									<Calendar className="size-4" />
 									Updated At
-								</label>
+								</span>
 								<p className="text-sm">{formatDate(supplier.updatedAt)}</p>
 							</div>
 							<div className="space-y-2">
-								<label className="text-sm font-medium text-brand-secondary-1">Supplier ID</label>
+								<span className="block text-sm font-medium text-brand-secondary-1">Supplier ID</span>
 								<p className="text-sm font-mono text-brand-secondary-1">{supplier.id}</p>
 							</div>
 						</div>

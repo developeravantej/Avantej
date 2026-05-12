@@ -32,9 +32,6 @@ export function StatusTimeline({
 	statusBadgeRenderer,
 	isLoading,
 }: StatusTimelineProps) {
-	const renderBadge = (status: string) =>
-		statusBadgeRenderer ? statusBadgeRenderer(status) : <DefaultStatusBadge status={status} />;
-
 	if (isLoading) {
 		return (
 			<div className="space-y-3">
@@ -57,7 +54,7 @@ export function StatusTimeline({
 					<div className="flex flex-wrap items-center gap-2">
 						{entry.fromStatus !== null ? (
 							<span className="flex items-center gap-1 text-sm text-muted-foreground">
-								{renderBadge(entry.fromStatus)}
+								{statusBadgeRenderer ? statusBadgeRenderer(entry.fromStatus) : <DefaultStatusBadge status={entry.fromStatus} />}
 								<span>→</span>
 							</span>
 						) : (
@@ -65,7 +62,7 @@ export function StatusTimeline({
 								Initial state →
 							</span>
 						)}
-						{renderBadge(entry.toStatus)}
+						{statusBadgeRenderer ? statusBadgeRenderer(entry.toStatus) : <DefaultStatusBadge status={entry.toStatus} />}
 					</div>
 					<p className="mt-0.5 text-xs text-muted-foreground">
 						{entry.changedByName} &middot;{" "}

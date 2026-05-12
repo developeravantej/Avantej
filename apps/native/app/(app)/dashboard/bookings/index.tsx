@@ -200,7 +200,7 @@ export default function BookingsScreen() {
 		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
+				contentInset={{ bottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
 					<RefreshControl

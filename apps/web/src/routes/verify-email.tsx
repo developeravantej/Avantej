@@ -37,6 +37,7 @@ function VerifyEmailPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let redirectTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function run() {
       if (!token) {
@@ -53,7 +54,7 @@ function VerifyEmailPage() {
         setStatus("success");
 
         // Redirect after short delay (to login by default)
-        setTimeout(() => {
+        redirectTimer = setTimeout(() => {
           navigate({ to: callbackURL });
         }, 1200);
       } catch (e) {
@@ -69,6 +70,7 @@ function VerifyEmailPage() {
     run();
     return () => {
       cancelled = true;
+      if (redirectTimer !== null) clearTimeout(redirectTimer);
     };
   }, [token, callbackURL, navigate]);
 

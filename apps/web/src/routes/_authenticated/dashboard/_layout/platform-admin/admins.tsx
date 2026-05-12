@@ -221,10 +221,11 @@ function AddAdminDialog({
 				<div className="space-y-4 py-2">
 					{/* User search */}
 					<div className="space-y-2">
-						<label className="text-sm font-medium">Search user by email or name</label>
+						<label htmlFor="admin-user-search" className="text-sm font-medium">Search user by email or name</label>
 						<div className="relative">
 							<Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
+								id="admin-user-search"
 								placeholder="Search users..."
 								value={search}
 								onChange={(e) => {
@@ -282,9 +283,9 @@ function AddAdminDialog({
 
 					{/* Role selection */}
 					<div className="space-y-2">
-						<label className="text-sm font-medium">Role</label>
+						<label htmlFor="admin-role-select" className="text-sm font-medium">Role</label>
 						<Select value={role} onValueChange={(v) => setRole(v as AdminRole)}>
-							<SelectTrigger>
+							<SelectTrigger id="admin-role-select">
 								<SelectValue placeholder="Select role" />
 							</SelectTrigger>
 							<SelectContent>

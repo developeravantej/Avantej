@@ -17,7 +17,6 @@ export function BrandsTabPage() {
 
 	// Dialog state
 	const [_editTarget, _setEditTarget] = useState<BrandRow | null>(null);
-	const [_deleteTarget, setDeleteTarget] = useState<BrandRow | null>(null);
 
 	// Query
 	const {
@@ -57,7 +56,6 @@ export function BrandsTabPage() {
 		invalidate: [
 			[orpc.brands.list.key({ input: { organizationId: organizationId! } })],
 		],
-		onSuccess: () => setDeleteTarget(null),
 	});
 
 	if (!organizationId) {

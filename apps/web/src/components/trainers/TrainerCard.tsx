@@ -105,7 +105,9 @@ export function TrainerCard({
 				)}
 			/>
 			{/* Tier selector — stop propagation so click doesn't open detail dialog */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: wrapper for stopPropagation only, contains interactive child */}
 			<div
+				role="presentation"
 				className="px-4 py-2 border-t border-border"
 				onClick={(e) => e.stopPropagation()}
 				onKeyDown={(e) => e.stopPropagation()}

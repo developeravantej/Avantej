@@ -104,10 +104,11 @@ export function InstallmentsTable({
 			{showFilters && (
 				<div className="flex flex-wrap items-end gap-3 border-b bg-muted/30 px-5 py-4">
 					<div className="flex min-w-[200px] flex-1 flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label htmlFor="installments-search" className="font-medium text-muted-foreground text-xs">
 							Search
 						</label>
 						<Input
+							id="installments-search"
 							placeholder="Search client ID or purchase number"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -115,10 +116,11 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label htmlFor="installments-due-after" className="font-medium text-muted-foreground text-xs">
 							Due After
 						</label>
 						<Input
+							id="installments-due-after"
 							type="date"
 							value={dueAfter ?? ""}
 							onChange={(e) => setDueAfter(e.target.value || undefined)}
@@ -127,10 +129,11 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label htmlFor="installments-due-before" className="font-medium text-muted-foreground text-xs">
 							Due Before
 						</label>
 						<Input
+							id="installments-due-before"
 							type="date"
 							value={dueBefore ?? ""}
 							onChange={(e) => setDueBefore(e.target.value || undefined)}
@@ -139,14 +142,14 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex min-w-[160px] flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label htmlFor="installments-plan" className="font-medium text-muted-foreground text-xs">
 							Plan
 						</label>
 						<Select
 							value={planCode ?? "__all__"}
 							onValueChange={(v) => setPlanCode(v === "__all__" ? undefined : v)}
 						>
-							<SelectTrigger>
+							<SelectTrigger id="installments-plan">
 								<SelectValue placeholder="All plans" />
 							</SelectTrigger>
 							<SelectContent>

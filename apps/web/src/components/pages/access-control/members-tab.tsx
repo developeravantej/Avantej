@@ -357,12 +357,12 @@ function RoleAssignmentSheet({
 
 				<div className="p-4 mt-6 space-y-4">
 					<div className="space-y-2">
-						<label className="text-sm font-medium">System Role</label>
+						<label htmlFor="member-system-role" className="text-sm font-medium">System Role</label>
 						<Select
 							value={selectedRole}
 							onValueChange={(value) => setSelectedRole(value as SystemRole)}
 						>
-							<SelectTrigger>
+							<SelectTrigger id="member-system-role">
 								<SelectValue placeholder="Select a role" />
 							</SelectTrigger>
 							<SelectContent>
@@ -468,8 +468,9 @@ function InviteUserDialog({
 
 				<div className="p-4 mt-6 space-y-4">
 					<div className="space-y-2">
-						<label className="text-sm font-medium">Email</label>
+						<label htmlFor="invite-user-email" className="text-sm font-medium">Email</label>
 						<Input
+							id="invite-user-email"
 							type="email"
 							placeholder="Enter user email"
 							value={email}
@@ -478,12 +479,12 @@ function InviteUserDialog({
 					</div>
 
 					<div className="space-y-2">
-						<label className="text-sm font-medium">Role</label>
+						<label htmlFor="invite-user-role" className="text-sm font-medium">Role</label>
 						<Select
 							value={role}
 							onValueChange={(value) => setRole(value as SystemRole)}
 						>
-							<SelectTrigger>
+							<SelectTrigger id="invite-user-role">
 								<SelectValue placeholder="Select a role" />
 							</SelectTrigger>
 							<SelectContent>
@@ -1073,8 +1074,9 @@ export function MembersTabPage() {
 								</SelectContent>
 							</Select>
 
-							<label className="flex items-center gap-2 text-sm">
+							<label htmlFor="members-show-deleted" className="flex items-center gap-2 text-sm">
 								<Checkbox
+									id="members-show-deleted"
 									checked={showDeleted}
 									onCheckedChange={(v) => setShowDeleted(v === true)}
 									data-testid="show-deleted-members-toggle"

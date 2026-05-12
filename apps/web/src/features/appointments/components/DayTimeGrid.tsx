@@ -86,6 +86,8 @@ function AppointmentCard({
 	return (
 		<div
 			key={appt.id}
+			role="button"
+			tabIndex={0}
 			className={cn(
 				"absolute z-10 rounded border-l-[3px] px-2 py-1 cursor-pointer hover:brightness-95 transition-all overflow-hidden",
 				s.bg, s.border, s.text,
@@ -93,6 +95,12 @@ function AppointmentCard({
 			)}
 			style={{ top, height, left: `calc(${col * colWidth}% + 2px)`, width: `calc(${colWidth}% - 4px)` }}
 			onClick={() => onClick(appt)}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onClick(appt);
+				}
+			}}
 		>
 			<div className="font-semibold text-xs truncate leading-tight flex items-center gap-1">
 				{isVirtualOccurrence && (

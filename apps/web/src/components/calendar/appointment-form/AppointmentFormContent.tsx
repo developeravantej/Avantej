@@ -520,9 +520,10 @@ export function AppointmentFormContent({
 																	);
 																}
 																return available.map((svc) => (
-																	<div
+																	<button
 																		key={svc.id}
-																		className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer"
+																		type="button"
+																		className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
 																		onClick={() => {
 																			addServiceToSlot(selectedAppointmentId, svc.id);
 																			setMultiSlotDialogOpen(false);
@@ -532,7 +533,7 @@ export function AppointmentFormContent({
 																			<span className="font-medium pr-2">{svc.name}</span>
 																			<span className="text-sm text-brand-secondary-1">{svc.durationMinutes} min</span>
 																		</div>
-																	</div>
+																	</button>
 																));
 															})()}
 														</div>

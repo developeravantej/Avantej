@@ -21,6 +21,8 @@ import { useOccurrenceActions } from "@/features/appointments/hooks/useOccurrenc
 
 export type { Appointment, CalendarView };
 
+const EMPTY_APPOINTMENTS: Appointment[] = [];
+
 interface AppointmentCalendarProps {
 	appointments?: Appointment[];
 	onDateSelect?: (date: Date) => void;
@@ -31,7 +33,7 @@ interface AppointmentCalendarProps {
 }
 
 export function AppointmentCalendar({
-	appointments = [],
+	appointments = EMPTY_APPOINTMENTS,
 	onDateSelect,
 	onAppointmentClick,
 	onAddAppointment,
@@ -47,7 +49,6 @@ export function AppointmentCalendar({
 	const [showConfirmed, setShowConfirmed] = useState(true);
 	const [showCancelled, setShowCancelled] = useState(true);
 	const [showAddModal, setShowAddModal] = useState(false);
-	const [_editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 	const [editStaffAppointmentId, setEditStaffAppointmentId] = useState<string | null>(null);
 	const [occurrenceDialogAppt, setOccurrenceDialogAppt] = useState<Appointment | null>(null);
 
@@ -72,6 +73,9 @@ export function AppointmentCalendar({
 				id: params.id,
 				status: params.status,
 			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["appointments"] });
+		},
 	});
 
 	const createMutation = useApiMutation({
@@ -177,7 +181,7 @@ export function AppointmentCalendar({
 
 	const closeAppointmentModal = () => setSelectedAppointment(null);
 	const openAddModal = () => { setShowAddModal(true); onAddAppointment?.(); };
-	const closeAddModal = () => { setShowAddModal(false); setEditingAppointment(null); };
+	const closeAddModal = () => { setShowAddModal(false); };
 
 	const handleSubmitAppointment = (appointment: OnSubmitPayload) => {
 		if (!organizationId) { toast.error("No organization selected."); return; }

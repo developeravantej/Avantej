@@ -206,9 +206,10 @@ export function ServicePicker({
 									</div>
 								) : (
 									availableServices.map((svc) => (
-										<div
+										<button
 											key={svc.id}
-											className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer"
+											type="button"
+											className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
 											onClick={() => handleServiceClick(svc.id)}
 										>
 											<div className="flex justify-between w-full">
@@ -217,7 +218,7 @@ export function ServicePicker({
 													{svc.durationMinutes} min
 												</span>
 											</div>
-										</div>
+										</button>
 									))
 								)}
 							</div>

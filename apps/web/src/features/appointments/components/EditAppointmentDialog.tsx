@@ -63,8 +63,9 @@ export function EditAppointmentDialog({
 							<div className="px-6 py-5 space-y-4 bg-white">
 								<div className="grid grid-cols-2 gap-3">
 									<div className="space-y-1.5">
-										<label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</label>
+										<label htmlFor="edit-appt-date" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</label>
 										<input
+											id="edit-appt-date"
 											type="date"
 											value={editForm.date}
 											onChange={(e) => onFormChange((f) => f ? { ...f, date: e.target.value } : f)}
@@ -72,8 +73,9 @@ export function EditAppointmentDialog({
 										/>
 									</div>
 									<div className="space-y-1.5">
-										<label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Time</label>
+										<label htmlFor="edit-appt-time" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Time</label>
 										<input
+											id="edit-appt-time"
 											type="time"
 											value={editForm.time}
 											onChange={(e) => onFormChange((f) => f ? { ...f, time: e.target.value } : f)}
@@ -83,7 +85,7 @@ export function EditAppointmentDialog({
 								</div>
 
 								<div className="space-y-1.5">
-									<label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Duration</label>
+									<span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Duration</span>
 									<div className="flex flex-wrap gap-2">
 										{DURATIONS.map((d) => (
 											<button
@@ -104,8 +106,9 @@ export function EditAppointmentDialog({
 								</div>
 
 								<div className="space-y-1.5">
-									<label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
+									<label htmlFor="edit-appt-notes" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
 									<textarea
+										id="edit-appt-notes"
 										value={editForm.notes}
 										onChange={(e) => onFormChange((f) => f ? { ...f, notes: e.target.value } : f)}
 										placeholder="Internal notes..."
@@ -115,8 +118,9 @@ export function EditAppointmentDialog({
 								</div>
 
 								<div className="space-y-1.5">
-									<label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+									<label htmlFor="edit-appt-description" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
 									<textarea
+										id="edit-appt-description"
 										value={editForm.description}
 										onChange={(e) => onFormChange((f) => f ? { ...f, description: e.target.value } : f)}
 										placeholder="Visible to client..."

@@ -117,6 +117,13 @@ export function MemberReassignment({
     return map;
   }, [hierarchyNodes]);
 
+  // O(1) lookup by node id for hierarchy traversal
+  const hierarchyNodeById = useMemo(() => {
+    const map = new Map<string, HierarchyNode>();
+    hierarchyNodes.forEach((node) => map.set(node.id, node));
+    return map;
+  }, [hierarchyNodes]);
+
   // Get Person In Charge member details if picUserId is set
   const picMember = picUserId
     ? allMembers.find((m: MemberWithDetails) => m.userId === picUserId)
@@ -274,7 +281,7 @@ export function MemberReassignment({
     // Check if this branch is under their scope by traversing up the hierarchy
     if (scopeInfo.depth < 4) {
       // Find the branch node in hierarchy
-      const branchNode = hierarchyNodes.find((n) => n.id === branchId);
+      const branchNode = hierarchyNodeById.get(branchId);
       if (!branchNode) return false;
 
       // Traverse up from branch to see if we reach the member's scope
@@ -285,7 +292,7 @@ export function MemberReassignment({
         }
         // Move up to parent
         currentNode = currentNode.parentId
-          ? hierarchyNodes.find((n) => n.id === currentNode!.parentId)
+          ? hierarchyNodeById.get(currentNode.parentId)
           : undefined;
       }
     }

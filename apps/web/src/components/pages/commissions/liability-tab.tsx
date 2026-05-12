@@ -211,8 +211,8 @@ export function LiabilityTab() {
 			: allNodes.filter((n) => accessibleNodeIds.includes(n.id));
 
 	// ── Filters ────────────────────────────────────────────────────────────────
-	const [fromDate, setFromDate] = useState<string>(firstOfMonth());
-	const [toDate, setToDate] = useState<string>(today());
+	const [fromDate, setFromDate] = useState<string>(() => firstOfMonth());
+	const [toDate, setToDate] = useState<string>(() => today());
 	const [hierarchyNodeId, setHierarchyNodeId] = useState<string>("");
 	const [categoryId, setCategoryId] = useState<string>("");
 

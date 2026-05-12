@@ -2,13 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
 	FlatList,
 	Image,
 	Modal,
 	Platform,
 	ScrollView,
+	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
@@ -325,6 +326,41 @@ type PreferredTime = {
 	time: string;
 };
 
+const trainerRowStyles = StyleSheet.create({
+	name: { color: colors.primary[1] },
+	email: { color: colors.secondary[1] },
+});
+
+type TrainerLike = { trainerId: string; trainerName: string; trainerEmail?: string | null };
+
+const TrainerRow = memo(function TrainerRow({
+	item,
+	onPick,
+}: {
+	item: TrainerLike;
+	onPick: (id: string, name: string) => void;
+}) {
+	const handlePress = useCallback(
+		() => onPick(item.trainerId, item.trainerName),
+		[item.trainerId, item.trainerName, onPick],
+	);
+	return (
+		<TouchableOpacity
+			onPress={handlePress}
+			className="border-b border-secondary-3 py-3"
+		>
+			<Text style={trainerRowStyles.name} className="font-medium text-base">
+				{item.trainerName}
+			</Text>
+			{item.trainerEmail ? (
+				<Text style={trainerRowStyles.email} className="text-xs">
+					{item.trainerEmail}
+				</Text>
+			) : null}
+		</TouchableOpacity>
+	);
+});
+
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { organizations } = useOrganizationContext();
@@ -390,6 +426,25 @@ export default function ScheduleScreen() {
 		});
 		setSelectedTrainerId(trainer?.id ?? null);
 	};
+
+	const handlePickTrainerFromList = useCallback(
+		(id: string, name: string) => {
+			update({
+				preferredTrainerId: id,
+				preferredTrainerName: name,
+			});
+			setSelectedTrainerId(id);
+			setTrainerDropdownOpen(false);
+		},
+		[update],
+	);
+
+	const renderTrainerItem = useCallback(
+		({ item }: { item: TrainerLike }) => (
+			<TrainerRow item={item} onPick={handlePickTrainerFromList} />
+		),
+		[handlePickTrainerFromList],
+	);
 
 	const canContinue = isAppointment
 		? !!selectedTrainerId && preferredTimes.length > 0
@@ -659,33 +714,7 @@ export default function ScheduleScreen() {
 								<FlatList
 									data={trainers}
 									keyExtractor={(item) => item.trainerId}
-									renderItem={({ item }) => (
-										<TouchableOpacity
-											onPress={() => {
-												handleSelectTrainer({
-													id: item.trainerId,
-													name: item.trainerName,
-												});
-												setTrainerDropdownOpen(false);
-											}}
-											className="border-b border-secondary-3 py-3"
-										>
-											<Text
-												style={{ color: colors.primary[1] }}
-												className="font-medium text-base"
-											>
-												{item.trainerName}
-											</Text>
-											{item.trainerEmail ? (
-												<Text
-													style={{ color: colors.secondary[1] }}
-													className="text-xs"
-												>
-													{item.trainerEmail}
-												</Text>
-											) : null}
-										</TouchableOpacity>
-									)}
+									renderItem={renderTrainerItem}
 								/>
 								<TouchableOpacity
 									onPress={() => setTrainerDropdownOpen(false)}
@@ -861,7 +890,7 @@ export default function ScheduleScreen() {
 													letterSpacing: 1.2,
 												}}
 											>
-												ADD {String(i + 1).padStart(2, "0")}
+												ADD {String(slotIdx + 1).padStart(2, "0")}
 											</Text>
 										</TouchableOpacity>
 									);

@@ -25,8 +25,9 @@ export const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }
 	const displayContent = displayText || value
 
 	return (
-		<div
-			className="cursor-pointer flex items-center group"
+		<button
+			type="button"
+			className="cursor-pointer flex items-center group bg-transparent border-0 p-0"
 			onClick={() => onCopy(value)}
 		>
 			<Badge
@@ -37,6 +38,6 @@ export const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }
 				{displayContent}
 				<Copy className="size-3 text-muted-foreground" />
 			</Badge>
-		</div>
+		</button>
 	)
 }

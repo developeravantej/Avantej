@@ -8,6 +8,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
+const EMPTY_STRING_ARRAY: string[] = [];
+
 export interface PermissionAction {
   id: string;
   name: string;
@@ -139,7 +141,7 @@ export function PermissionMatrix({
   resources = MOCK_RESOURCES,
   onPermissionChange,
   onRoleSelect: _onRoleSelect,
-  selectedRoles: _selectedRoles = [],
+  selectedRoles: _selectedRoles = EMPTY_STRING_ARRAY,
 }: PermissionMatrixProps) {
   const isMobile = useIsMobile();
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['users']));

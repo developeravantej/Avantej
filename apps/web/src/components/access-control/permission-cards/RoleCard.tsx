@@ -9,6 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { cn } from '@/lib/utils';
 import type { Role, PermissionResource } from '../permission-matrix/PermissionMatrix';
 
+const EMPTY_RESOURCES: PermissionResource[] = [];
+
 interface RoleCardProps {
   role: Role;
   resources?: PermissionResource[];
@@ -29,7 +31,7 @@ interface RoleStatsProps {
   userCount?: number;
 }
 
-function RoleStats({ role, resources = [], userCount = 0 }: RoleStatsProps) {
+function RoleStats({ role, resources = EMPTY_RESOURCES, userCount = 0 }: RoleStatsProps) {
   const getResourceStats = () => {
     const resourceStats = resources.flatMap(resource => {
       const permissions = role.permissions.filter(p => p.resourceId === resource.id);
@@ -105,7 +107,7 @@ function RoleStats({ role, resources = [], userCount = 0 }: RoleStatsProps) {
 
 export function RoleCard({
   role,
-  resources = [],
+  resources = EMPTY_RESOURCES,
   onEdit,
   onDelete,
   onDuplicate,

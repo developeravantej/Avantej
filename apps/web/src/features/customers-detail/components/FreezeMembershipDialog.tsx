@@ -153,8 +153,9 @@ export function FreezeMembershipDialog(props: {
 						</Select>
 					</div>
 
-					<label className="flex items-center gap-2 text-sm">
+					<label htmlFor="freeze-fee-waived" className="flex items-center gap-2 text-sm">
 						<Checkbox
+							id="freeze-fee-waived"
 							checked={form.feeWaived}
 							onCheckedChange={(v) =>
 								setForm((f) => ({ ...f, feeWaived: v === true }))

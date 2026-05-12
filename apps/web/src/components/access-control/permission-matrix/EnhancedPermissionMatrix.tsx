@@ -20,6 +20,8 @@ import { RolePagination } from "./matrix/RolePagination";
 import { RolePicker } from "./matrix/RolePicker";
 import { ROLE_GROUPS } from "./matrix/scope-style";
 
+const EMPTY_SELECTED_ROLES: string[] = [];
+
 interface EnhancedPermissionMatrixProps {
 	roles: Role[];
 	resources: PermissionResource[];
@@ -41,7 +43,7 @@ export function EnhancedPermissionMatrix({
 	resources,
 	onPermissionChange,
 	onRoleSelect: _onRoleSelect,
-	selectedRoles: _selectedRoles = [],
+	selectedRoles: _selectedRoles = EMPTY_SELECTED_ROLES,
 	maxVisibleRoles = 6,
 	hideControls = false,
 }: EnhancedPermissionMatrixProps) {

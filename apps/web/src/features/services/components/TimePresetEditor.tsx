@@ -46,9 +46,9 @@ export function TimePresetEditor({
 
 			{/* Recurring Days */}
 			<div>
-				<label className="block text-sm font-medium text-foreground mb-2">
+				<span className="block text-sm font-medium text-foreground mb-2">
 					Recurring Days <span className="text-destructive">*</span>
-				</label>
+				</span>
 				<div className="grid grid-cols-7 gap-2">
 					{DAY_ORDER.map((day) => (
 						<div key={day} className="flex items-center">
@@ -70,9 +70,9 @@ export function TimePresetEditor({
 
 			{/* Time Slots per Day */}
 			<div>
-				<label className="block text-sm font-medium text-foreground mb-2">
+				<span className="block text-sm font-medium text-foreground mb-2">
 					Time Slots per Day <span className="text-destructive">*</span>
-				</label>
+				</span>
 				<div className="space-y-4">
 					{config.recurringDays
 						.toSorted(

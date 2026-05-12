@@ -3,7 +3,7 @@ import { colors } from "@/lib/colors";
 import { client } from "@/utils/orpc";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -12,6 +12,7 @@ import {
 	Modal,
 	Platform,
 	ScrollView,
+	StyleSheet,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -279,6 +280,59 @@ function FormInput({
 	);
 }
 
+const countryRowStyles = StyleSheet.create({
+	checkmark: { marginLeft: 8 },
+	rowBase: {
+		borderBottomColor: colors.secondary[3],
+		backgroundColor: "transparent",
+	},
+	rowSelected: {
+		borderBottomColor: colors.secondary[3],
+		backgroundColor: colors.secondary[3],
+	},
+});
+
+const CountryRow = memo(function CountryRow({
+	item,
+	isSelected,
+	onPick,
+}: {
+	item: CountryCode;
+	isSelected: boolean;
+	onPick: (code: CountryCode) => void;
+}) {
+	const handlePress = useCallback(() => onPick(item), [item, onPick]);
+	return (
+		<TouchableOpacity
+			onPress={handlePress}
+			className="mx-4 flex-row items-center border-b px-2 py-3"
+			style={isSelected ? countryRowStyles.rowSelected : countryRowStyles.rowBase}
+		>
+			<Text className="mr-3 text-2xl">{item.flag}</Text>
+			<Text
+				className="flex-1 text-base"
+				style={{ color: colors.primary[1] }}
+			>
+				{item.name}
+			</Text>
+			<Text
+				className="font-medium text-sm"
+				style={{ color: colors.secondary[1] }}
+			>
+				{item.dialCode}
+			</Text>
+			{isSelected && (
+				<Ionicons
+					name="checkmark"
+					size={20}
+					color={colors.primary[1]}
+					style={countryRowStyles.checkmark}
+				/>
+			)}
+		</TouchableOpacity>
+	);
+});
+
 function CountryCodePicker({
 	selected,
 	onSelect,
@@ -292,14 +346,38 @@ function CountryCodePicker({
 }) {
 	const [search, setSearch] = useState("");
 
-	const filtered = search.trim()
-		? COUNTRY_CODES.filter(
-				(c) =>
-					c.name.toLowerCase().includes(search.toLowerCase()) ||
-					c.dialCode.includes(search) ||
-					c.code.toLowerCase().includes(search.toLowerCase()),
-			)
-		: COUNTRY_CODES;
+	const filtered = useMemo(
+		() =>
+			search.trim()
+				? COUNTRY_CODES.filter(
+						(c) =>
+							c.name.toLowerCase().includes(search.toLowerCase()) ||
+							c.dialCode.includes(search) ||
+							c.code.toLowerCase().includes(search.toLowerCase()),
+					)
+				: COUNTRY_CODES,
+		[search],
+	);
+
+	const handlePick = useCallback(
+		(country: CountryCode) => {
+			onSelect(country);
+			setSearch("");
+			onClose();
+		},
+		[onSelect, onClose],
+	);
+
+	const renderCountry = useCallback(
+		({ item }: { item: CountryCode }) => (
+			<CountryRow
+				item={item}
+				isSelected={selected.code === item.code}
+				onPick={handlePick}
+			/>
+		),
+		[selected.code, handlePick],
+	);
 
 	return (
 		<Modal visible={visible} animationType="slide" transparent>
@@ -365,45 +443,7 @@ function CountryCodePicker({
 						data={filtered}
 						keyExtractor={(item) => item.code}
 						keyboardShouldPersistTaps="handled"
-						renderItem={({ item }) => (
-							<TouchableOpacity
-								onPress={() => {
-									onSelect(item);
-									setSearch("");
-									onClose();
-								}}
-								className="mx-4 flex-row items-center border-b px-2 py-3"
-								style={{
-									borderBottomColor: colors.secondary[3],
-									backgroundColor:
-										selected.code === item.code
-											? colors.secondary[3]
-											: "transparent",
-								}}
-							>
-								<Text className="mr-3 text-2xl">{item.flag}</Text>
-								<Text
-									className="flex-1 text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{item.name}
-								</Text>
-								<Text
-									className="font-medium text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									{item.dialCode}
-								</Text>
-								{selected.code === item.code && (
-									<Ionicons
-										name="checkmark"
-										size={20}
-										color={colors.primary[1]}
-										style={{ marginLeft: 8 }}
-									/>
-								)}
-							</TouchableOpacity>
-						)}
+						renderItem={renderCountry}
 						ListEmptyComponent={
 							<Text
 								className="py-8 text-center text-sm"
@@ -1156,10 +1196,11 @@ export default function RegistrationForm() {
 	};
 
 	return (
-		<SafeAreaView edges={["top"]} className="flex-1 bg-secondary-3">
+		<View className="flex-1 bg-secondary-3">
 			<ScrollView
 				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 120 }}
+				contentInsetAdjustmentBehavior="automatic"
 				keyboardShouldPersistTaps="handled"
 				showsVerticalScrollIndicator={false}
 				automaticallyAdjustKeyboardInsets
@@ -1383,6 +1424,6 @@ export default function RegistrationForm() {
 						</TouchableOpacity>
 					</View>
 				</SafeAreaView>
-		</SafeAreaView>
+		</View>
 	);
 }

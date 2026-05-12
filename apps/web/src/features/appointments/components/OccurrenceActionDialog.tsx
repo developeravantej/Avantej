@@ -10,8 +10,21 @@ interface OccurrenceActionDialogProps {
 
 export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceActionDialogProps) {
 	return (
-		<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40" onClick={onClose}>
-			<div className="bg-white rounded-lg shadow-xl p-6 w-[360px] max-w-[95vw]" onClick={(e) => e.stopPropagation()}>
+		<div
+			role="presentation"
+			className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40"
+			onClick={onClose}
+			onKeyDown={(e) => {
+				if (e.key === "Escape") onClose();
+			}}
+		>
+			<div
+				role="dialog"
+				aria-modal="true"
+				className="bg-white rounded-lg shadow-xl p-6 w-[360px] max-w-[95vw]"
+				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
+			>
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="text-lg font-semibold text-gray-900">Recurring Appointment</h3>
 					<button

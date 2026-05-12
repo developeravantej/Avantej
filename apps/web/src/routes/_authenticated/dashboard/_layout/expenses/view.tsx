@@ -120,7 +120,7 @@ function ExpensesViewPage() {
 		useState<ExpenseCategory>("travel");
 	const [formDescription, setFormDescription] = useState("");
 	const [formAmountRm, setFormAmountRm] = useState("");
-	const [formDate, setFormDate] = useState(getTodayDateString());
+	const [formDate, setFormDate] = useState(() => getTodayDateString());
 	const [formReceiptUrl, setFormReceiptUrl] = useState("");
 
 	// ---- Reject dialog state ----
@@ -497,14 +497,14 @@ function ExpensesViewPage() {
 					<div className="flex flex-col gap-4 px-4 py-2">
 						{/* Category */}
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">Category</label>
+							<label htmlFor="expense-category" className="text-sm font-medium">Category</label>
 							<Select
 								value={formCategory}
 								onValueChange={(val) =>
 									setFormCategory(val as ExpenseCategory)
 								}
 							>
-								<SelectTrigger className="w-full">
+								<SelectTrigger id="expense-category" className="w-full">
 									<SelectValue placeholder="Select category" />
 								</SelectTrigger>
 								<SelectContent>

@@ -162,11 +162,12 @@ export function TrainerServicesSection({
 		categoryName: string;
 		services: typeof allServices;
 	};
+	const categoryById = new Map(allCategories.map((c) => [c.id, c]));
 	const groupMap = new Map<string, ServiceGroup>();
 	for (const svc of allServices) {
 		const key = svc.categoryId ?? "__none__";
 		if (!groupMap.has(key)) {
-			const cat = allCategories.find((c) => c.id === svc.categoryId);
+			const cat = svc.categoryId ? categoryById.get(svc.categoryId) : undefined;
 			groupMap.set(key, {
 				categoryId: svc.categoryId ?? null,
 				categoryName: cat?.name ?? "Uncategorized",

@@ -28,8 +28,10 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
   const displayContent = displayText || value || "N/A";
 
   return (
-    <div
-      className={`flex items-center group ${value ? "cursor-pointer" : "cursor-default opacity-50"}`}
+    <button
+      type="button"
+      disabled={!value}
+      className={`flex items-center group bg-transparent border-0 p-0 ${value ? "cursor-pointer" : "cursor-default opacity-50"}`}
       onClick={() => { if (value) onCopy(value); }}
     >
       <Badge
@@ -40,7 +42,7 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
         {displayContent}
         <Copy className="size-3.5 text-muted-foreground" />
       </Badge>
-    </div>
+    </button>
   );
 };
 

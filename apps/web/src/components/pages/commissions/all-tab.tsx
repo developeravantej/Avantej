@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -286,16 +286,17 @@ export function AllCommissionsPage() {
 	);
 
 	// ── Per-row void state ─────────────────────────────────────────────────────
-	const [voidRowId, setVoidRowId] = useState<string | null>(null);
+	const voidRowIdRef = useRef<string | null>(null);
 	const [voidDialogOpen, setVoidDialogOpen] = useState(false);
 	const [voidingId, setVoidingId] = useState<string | null>(null);
 
 	function handleVoidRow(id: string) {
-		setVoidRowId(id);
+		voidRowIdRef.current = id;
 		setVoidDialogOpen(true);
 	}
 
 	async function confirmVoidRow(reason: string) {
+		const voidRowId = voidRowIdRef.current;
 		if (!voidRowId || !organizationId) return;
 		setVoidingId(voidRowId);
 		try {
@@ -307,7 +308,7 @@ export function AllCommissionsPage() {
 			toast.success("Commission split voided.");
 			queryClient.invalidateQueries({ queryKey: ["commissions"] });
 			setVoidDialogOpen(false);
-			setVoidRowId(null);
+			voidRowIdRef.current = null;
 		} catch (err) {
 			toast.error(
 				err instanceof Error ? err.message : "Failed to void commission split.",
@@ -726,7 +727,7 @@ export function AllCommissionsPage() {
 				open={voidDialogOpen}
 				onOpenChange={(o) => {
 					setVoidDialogOpen(o);
-					if (!o) setVoidRowId(null);
+					if (!o) voidRowIdRef.current = null;
 				}}
 				onConfirm={confirmVoidRow}
 				isPending={voidingId !== null}

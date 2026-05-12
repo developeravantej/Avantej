@@ -191,13 +191,13 @@ export function RolesTabPage() {
 	// Count members per role
 	const userCounts = useMemo<Record<string, number>>(() => {
 		const counts: Record<string, number> = {};
+		const roleByLowerName = new Map(
+			displayRoles.map((r) => [r.name.toLowerCase(), r]),
+		);
 		for (const member of membersData) {
 			const role = member.role;
 			if (role) {
-				// roles from API have names; find matching role by name
-				const matched = displayRoles.find(
-					(r) => r.name.toLowerCase() === role.toLowerCase(),
-				);
+				const matched = roleByLowerName.get(role.toLowerCase());
 				if (matched) {
 					counts[matched.id] = (counts[matched.id] ?? 0) + 1;
 				}
@@ -295,16 +295,19 @@ export function RolesTabPage() {
 				priority: roleData.priority,
 			});
 
-			for (const perm of rolePerms) {
-				const matched = permissionsData.find(
-					(p) => p.resource === perm.resourceId && p.action === perm.actionId,
-				);
-				if (!matched) continue;
-				await addPermission.mutateAsync({
-					roleId: newRole.id,
-					permissionId: matched.id,
-				});
-			}
+			const permByKey = new Map(
+				permissionsData.map((p) => [`${p.resource}::${p.action}`, p]),
+			);
+			await Promise.all(
+				rolePerms.map((perm) => {
+					const matched = permByKey.get(`${perm.resourceId}::${perm.actionId}`);
+					if (!matched) return Promise.resolve();
+					return addPermission.mutateAsync({
+						roleId: newRole.id,
+						permissionId: matched.id,
+					});
+				}),
+			);
 
 			toast.success("Role created.");
 		} catch (err) {

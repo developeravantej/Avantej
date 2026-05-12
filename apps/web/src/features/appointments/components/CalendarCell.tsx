@@ -24,6 +24,8 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 
 	return (
 		<div
+			role="button"
+			tabIndex={0}
 			className={cn(
 				"bg-white p-2 cursor-pointer transition-colors hover:bg-blue-50/40 flex flex-col gap-1",
 				minHeight,
@@ -31,6 +33,12 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 				isTodayDate && "bg-blue-50 ring-2 ring-inset ring-blue-300",
 			)}
 			onClick={() => onCellClick(date)}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onCellClick(date);
+				}
+			}}
 		>
 			<div className="flex items-center justify-between">
 				<span className={cn("text-sm font-medium", isTodayDate && "text-blue-600 font-bold")}>{date.getDate()}</span>
@@ -45,8 +53,17 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 				const s = statusStyle(preview.status);
 				return (
 					<div
+						role="button"
+						tabIndex={0}
 						className={cn("rounded border-l-[3px] px-1.5 py-1 text-xs leading-tight", s.bg, s.border, s.text)}
 						onClick={(e) => { e.stopPropagation(); onCellClick(date); }}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								e.stopPropagation();
+								onCellClick(date);
+							}
+						}}
 					>
 						<div className="font-medium truncate">{preview.title}</div>
 						<div className="opacity-75 truncate">{formatTime(new Date(preview.start))}</div>
