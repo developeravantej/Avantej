@@ -32,6 +32,10 @@ export const organizations = pgTable("organizations", {
 	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
 	// Tenant schema migration tracking
 	schemaVersion: text("schema_version").default("0000"),
+	// IANA timezone identifier for the org's local wall-clock. Used by booking/availability
+	// math so HH:MM windows stored in tenant tables are interpreted in the admin's local TZ
+	// rather than the Worker's UTC. Default mirrors current customer base (Malaysia).
+	timezone: text("timezone").default("Asia/Kuala_Lumpur").notNull(),
 	// GHL org-shared sync model (Phase G). NULL = not yet provisioned.
 	// One GHL sub-account per Avantej org. Branches differentiated via per-country
 	// SINGLE_OPTIONS custom field on contacts/users (key = "<slug>_location").

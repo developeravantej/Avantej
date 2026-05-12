@@ -22,6 +22,8 @@ export interface BookingFlowState {
 	classSlotId: string | null;
 	branchId: string | null;
 	branchName: string | null;
+	status: string | null;
+	expiresAt: string | null;
 }
 
 const initialState: BookingFlowState = {
@@ -43,6 +45,8 @@ const initialState: BookingFlowState = {
 	classSlotId: null,
 	branchId: null,
 	branchName: null,
+	status: null,
+	expiresAt: null,
 };
 
 interface BookingFlowContextValue {

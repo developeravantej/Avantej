@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -46,12 +47,46 @@ export default function ReviewScreen() {
 	const { data: session } = authClient.useSession();
 	const userId = session?.user?.id ?? null;
 
+	// CONFLICT-aware UX: when appointments.create rejects with ORPCError
+	// "CONFLICT" (slot taken or trainer window changed since the picker
+	// loaded), we surface an inline banner instead of a generic Alert so the
+	// user can jump straight back to /schedule with fresh availability.
+	const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+
 	const currentStep = 3;
 	const totalSteps = 4;
 	const progressPercentage = 75;
 
+	const handlePickAnotherTime = () => {
+		setConflictMessage(null);
+		// Best-effort invalidation. We don't reliably have the exact input
+		// args used by the schedule screen here (start/end dates), so we use
+		// the prefix form which TanStack matches partially against the
+		// generated oRPC key.
+		queryClient.invalidateQueries({ queryKey: ["trainerAvailability"] });
+		router.back();
+	};
+
 	const confirmMutation = useMutation({
+		onMutate: () => {
+			// Clear any previous conflict banner before retrying
+			setConflictMessage(null);
+		},
 		mutationFn: () => {
+			// Status gate: never call the API for non-active packages. Schedule
+			// step should have prevented this, but a stale state.status from a
+			// back-nav into review must not slip through.
+			if (state.status !== "active") {
+				Alert.alert(
+					"Package not active",
+					state.status === "pending"
+						? "Your package is awaiting trainer assignment."
+						: "This package is no longer active. Please contact your branch.",
+				);
+				router.back();
+				throw new Error("Package not active");
+			}
+
 			// Pre-flight: surface obvious missing fields with a clear message
 			// instead of letting them hit the server's "Input validation failed".
 			const missing: string[] = [];
@@ -119,6 +154,25 @@ export default function ReviewScreen() {
 					2,
 				),
 			);
+
+			// CONFLICT detection — oRPC surfaces the error code on `code`, but
+			// some transports nest it under `data.code`. We also string-match
+			// the known server messages as a last resort so a transport quirk
+			// can never demote a real conflict to the generic Alert.
+			const msg: string = error?.message ?? "";
+			const isConflict =
+				error?.code === "CONFLICT" ||
+				error?.data?.code === "CONFLICT" ||
+				error?.status === 409 ||
+				/no longer available|no longer available for this time/i.test(msg);
+
+			if (isConflict) {
+				setConflictMessage(
+					msg || "That slot is no longer available.",
+				);
+				return;
+			}
+
 			const issues =
 				(error?.data?.issues as Array<{ path?: any[]; message?: string }>) ??
 				[];
@@ -127,8 +181,7 @@ export default function ReviewScreen() {
 					? issues
 							.map((i) => `${i.path?.join(".") ?? "?"}: ${i.message}`)
 							.join("\n")
-					: error?.message ||
-						"Could not create booking. Please try again.";
+					: msg || "Could not create booking. Please try again.";
 			Alert.alert("Booking Failed", detail);
 		},
 	});
@@ -394,18 +447,66 @@ export default function ReviewScreen() {
 				</View>
 			</ScrollView>
 
-			{/* Confirm Button */}
+			{/* Confirm Button (+ optional conflict banner above it) */}
 			<SafeAreaView
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
+				{conflictMessage ? (
+					<View className="px-4 pt-4">
+						<View
+							className="rounded-2xl border p-4"
+							style={{
+								borderColor: colors.primary[1],
+								backgroundColor: "#FFF7ED",
+							}}
+						>
+							<View className="mb-2 flex-row items-center">
+								<Ionicons
+									name="alert-circle-outline"
+									size={20}
+									color={colors.primary[1]}
+								/>
+								<Text
+									className="ml-2 font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									Slot unavailable
+								</Text>
+							</View>
+							<Text
+								className="mb-3 text-sm"
+								style={{ color: colors.primary[1] }}
+							>
+								{conflictMessage}
+							</Text>
+							<TouchableOpacity
+								onPress={handlePickAnotherTime}
+								className="items-center justify-center rounded-xl border py-3"
+								style={{ borderColor: colors.primary[1] }}
+							>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									Pick another time
+								</Text>
+							</TouchableOpacity>
+						</View>
+					</View>
+				) : null}
 				<View className="px-4 py-4">
 					<TouchableOpacity
 						onPress={() => confirmMutation.mutate()}
-						disabled={confirmMutation.isPending || !userId}
+						disabled={
+							confirmMutation.isPending || !userId || !!conflictMessage
+						}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						style={{
-							opacity: confirmMutation.isPending || !userId ? 0.6 : 1,
+							opacity:
+								confirmMutation.isPending || !userId || !!conflictMessage
+									? 0.6
+									: 1,
 						}}
 					>
 						{confirmMutation.isPending ? (

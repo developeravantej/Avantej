@@ -99,23 +99,28 @@ export const preferredTimesRouter = {
       const isClient = clientId && instance.clientId === clientId;
       const isStaff = context.member;
 
-      if (isStaff) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member!,
-            "service_management",
-            "update"
-          );
-        } catch (error) {
+      // Owner of the instance can always upsert their own preferred times,
+      // even if they happen to also be a tenant member (e.g. "client" role).
+      // Otherwise fall back to the staff permission check.
+      if (!isClient) {
+        if (isStaff) {
+          try {
+            await requirePermission(
+              context.tenantDb,
+              context.member!,
+              "service_management",
+              "update"
+            );
+          } catch (error) {
+            throw new ORPCError("FORBIDDEN", {
+              message: error instanceof Error ? error.message : "Permission denied",
+            });
+          }
+        } else {
           throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
+            message: "Access denied",
           });
         }
-      } else if (!isClient) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "Access denied",
-        });
       }
 
       try {

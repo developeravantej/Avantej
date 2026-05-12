@@ -8,13 +8,27 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Inbox } from "lucide-react";
+import {
+	CalendarClock,
+	CheckCircle2,
+	ClipboardList,
+	Eye,
+	Wallet,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	Table,
 	TableBody,
@@ -28,6 +42,12 @@ import { RejectPackageDialog } from "@/components/forms/reject-package-dialog";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
+type PreferredTime = {
+	dayOfWeek: string;
+	time: string;
+	priority: number;
+};
+
 type PendingRow = {
 	id: string;
 	clientId: string | null;
@@ -35,13 +55,54 @@ type PendingRow = {
 	serviceName: string | null;
 	branchId: string | null;
 	totalPrice: number | null;
+	taxAmount: number | null;
 	creditsTotal: number;
 	createdAt: string | Date;
 	customerName: string | null;
 	customerEmail: string | null;
 	preferredTrainerId: string | null;
 	preferredTrainerName: string | null;
+	remark: string | null;
+	paymentStatus: string | null;
+	paymentMethod: string | null;
+	paymentPlanType: string | null;
+	installmentsTotal: number | null;
+	installmentsPaid: number | null;
+	startsAt: string | Date | null;
+	expiresAt: string | Date | null;
+	preferredTimes: PreferredTime[];
 };
+
+function paymentStatusVariant(
+	status: string | null,
+): "default" | "secondary" | "destructive" | "outline" {
+	switch (status) {
+		case "paid":
+			return "default";
+		case "pending":
+			return "secondary";
+		case "failed":
+		case "refunded":
+			return "destructive";
+		default:
+			return "outline";
+	}
+}
+
+function formatPaymentPlan(
+	planType: string | null,
+	total: number | null,
+	paid: number | null,
+): string {
+	if (!planType || planType === "full") return "Full payment";
+	const label = planType === "half" ? "Half (2×)" : "Quarterly (4×)";
+	if (total != null && paid != null) return `${label} · ${paid}/${total} paid`;
+	return label;
+}
+
+function capitalize(s: string): string {
+	return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
 
 function formatDate(value: string | Date | null | undefined): string {
 	if (!value) return "—";
@@ -106,6 +167,7 @@ function ApprovalsPage() {
 	const [drawerPkg, setDrawerPkg] = useState<PendingRow | null>(null);
 	const [drawerSelfAssign, setDrawerSelfAssign] = useState(false);
 	const [rejectPkg, setRejectPkg] = useState<PendingRow | null>(null);
+	const [detailsPkg, setDetailsPkg] = useState<PendingRow | null>(null);
 
 	const list = useMemo(() => (rows ?? []) as PendingRow[], [rows]);
 
@@ -160,10 +222,10 @@ function ApprovalsPage() {
 						<TableHeader>
 							<TableRow>
 								<TableHead>Customer</TableHead>
+								<TableHead>Preferred Trainer</TableHead>
 								<TableHead>Service</TableHead>
-								<TableHead className="text-right">Credits</TableHead>
 								<TableHead className="text-right">Price</TableHead>
-								<TableHead>Purchased</TableHead>
+								<TableHead>Payment Status</TableHead>
 								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
@@ -171,32 +233,48 @@ function ApprovalsPage() {
 							{list.map((row) => (
 								<TableRow key={row.id}>
 									<TableCell>
-										<div className="flex items-center gap-2">
-											<span className="font-medium text-foreground">
-												{row.customerName ?? "—"}
-											</span>
-											{row.preferredTrainerName && (
-												<Badge variant="outline" className="text-xs">
-													Preferred: {row.preferredTrainerName}
-												</Badge>
-											)}
+										<div className="font-medium text-foreground">
+											{row.customerName ?? "—"}
 										</div>
 										<div className="text-muted-foreground text-xs">
 											{row.customerEmail ?? ""}
 										</div>
 									</TableCell>
+									<TableCell>
+										{row.preferredTrainerName ?? (
+											<span className="text-muted-foreground text-xs">
+												No preference
+											</span>
+										)}
+									</TableCell>
 									<TableCell>{row.serviceName ?? "—"}</TableCell>
 									<TableCell className="text-right">
-										{row.creditsTotal}
+										<div>{formatPrice(row.totalPrice)}</div>
+										{row.taxAmount != null && row.taxAmount > 0 && (
+											<div className="text-muted-foreground text-xs">
+												incl. tax {formatPrice(row.taxAmount)}
+											</div>
+										)}
 									</TableCell>
-									<TableCell className="text-right">
-										{formatPrice(row.totalPrice)}
-									</TableCell>
-									<TableCell className="text-muted-foreground text-xs">
-										{formatDate(row.createdAt)}
+									<TableCell>
+										<Badge
+											variant={paymentStatusVariant(row.paymentStatus)}
+											className="w-fit text-xs capitalize"
+										>
+											<Wallet className="mr-1 h-3 w-3" />
+											{row.paymentStatus ?? "—"}
+										</Badge>
 									</TableCell>
 									<TableCell className="text-right">
 										<div className="flex justify-end gap-2">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setDetailsPkg(row)}
+											>
+												<Eye className="mr-1 h-4 w-4" />
+												Details
+											</Button>
 											{isAdmin && (
 												<>
 													<Button
@@ -270,6 +348,228 @@ function ApprovalsPage() {
 				serviceName={rejectPkg?.serviceName ?? null}
 				onRejected={() => refetch()}
 			/>
+
+			<Dialog
+				open={!!detailsPkg}
+				onOpenChange={(o) => {
+					if (!o) setDetailsPkg(null);
+				}}
+			>
+				<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Package Request Details</DialogTitle>
+						<DialogDescription>
+							Full submission from the customer.
+						</DialogDescription>
+					</DialogHeader>
+
+					{detailsPkg && (
+						<div className="space-y-5">
+							{/* Customer */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Customer
+								</h3>
+								<div className="space-y-1">
+									<div className="font-medium text-base text-foreground">
+										{detailsPkg.customerName ?? "—"}
+									</div>
+									<div className="text-muted-foreground text-sm">
+										{detailsPkg.customerEmail ?? "—"}
+									</div>
+								</div>
+							</section>
+
+							{/* Package */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Package
+								</h3>
+								<dl className="grid grid-cols-2 gap-3 text-sm">
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Service
+										</dt>
+										<dd className="font-medium">
+											{detailsPkg.serviceName ?? "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Credits
+										</dt>
+										<dd className="font-medium">{detailsPkg.creditsTotal}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Starts
+										</dt>
+										<dd className="font-medium">
+											{formatDate(detailsPkg.startsAt)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Expires
+										</dt>
+										<dd className="font-medium">
+											{formatDate(detailsPkg.expiresAt)}
+										</dd>
+									</div>
+								</dl>
+							</section>
+
+							{/* Trainer preference */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Preferred Trainer
+								</h3>
+								{detailsPkg.preferredTrainerName ? (
+									<Badge variant="outline">
+										{detailsPkg.preferredTrainerName}
+									</Badge>
+								) : (
+									<span className="text-muted-foreground text-sm">
+										No preference provided
+									</span>
+								)}
+							</section>
+
+							{/* Preferred times */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Preferred Times
+								</h3>
+								{detailsPkg.preferredTimes.length > 0 ? (
+									<div className="flex flex-wrap items-center gap-2">
+										<CalendarClock className="h-4 w-4 text-muted-foreground" />
+										{detailsPkg.preferredTimes.map((pt) => (
+											<Badge
+												key={`${pt.dayOfWeek}-${pt.time}-${pt.priority}`}
+												variant="outline"
+											>
+												#{pt.priority} · {capitalize(pt.dayOfWeek)} {pt.time}
+											</Badge>
+										))}
+									</div>
+								) : (
+									<span className="text-muted-foreground text-sm">
+										None provided
+									</span>
+								)}
+							</section>
+
+							{/* Remark */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Customer Remark
+								</h3>
+								{detailsPkg.remark ? (
+									<div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-sm">
+										<ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+										<span className="whitespace-pre-wrap">
+											{detailsPkg.remark}
+										</span>
+									</div>
+								) : (
+									<span className="text-muted-foreground text-sm">
+										No remark
+									</span>
+								)}
+							</section>
+
+							{/* Payment */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Payment
+								</h3>
+								<dl className="grid grid-cols-2 gap-3 text-sm">
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Subtotal
+										</dt>
+										<dd className="font-medium">
+											{formatPrice(
+												(detailsPkg.totalPrice ?? 0) -
+													(detailsPkg.taxAmount ?? 0),
+											)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">Tax</dt>
+										<dd className="font-medium">
+											{formatPrice(detailsPkg.taxAmount ?? 0)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Total
+										</dt>
+										<dd className="font-bold text-base">
+											{formatPrice(detailsPkg.totalPrice)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Status
+										</dt>
+										<dd>
+											<Badge
+												variant={paymentStatusVariant(
+													detailsPkg.paymentStatus,
+												)}
+												className="capitalize"
+											>
+												<Wallet className="mr-1 h-3 w-3" />
+												{detailsPkg.paymentStatus ?? "—"}
+											</Badge>
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Method
+										</dt>
+										<dd className="font-medium capitalize">
+											{detailsPkg.paymentMethod ?? "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground text-xs">
+											Plan
+										</dt>
+										<dd className="font-medium">
+											{formatPaymentPlan(
+												detailsPkg.paymentPlanType,
+												detailsPkg.installmentsTotal,
+												detailsPkg.installmentsPaid,
+											)}
+										</dd>
+									</div>
+								</dl>
+							</section>
+
+							{/* Meta */}
+							<section>
+								<h3 className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+									Submitted
+								</h3>
+								<div className="text-sm">
+									{formatDate(detailsPkg.createdAt)}
+								</div>
+							</section>
+						</div>
+					)}
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDetailsPkg(null)}
+						>
+							Close
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

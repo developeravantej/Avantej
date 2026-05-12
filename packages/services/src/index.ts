@@ -357,10 +357,12 @@ export {
 } from "./coach-intake.service";
 // Trainer availability services
 export {
+	assertTrainerSlotAvailable,
 	type AvailabilitySlot,
 	type ComputedDayAvailability,
 	computeAvailableSlots,
 	deleteTrainerAvailabilitySlot,
+	listCoachIntakeAvailability,
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
 	type TrainerAvailabilityByBranchRow,

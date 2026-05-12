@@ -1,5 +1,6 @@
-import { and, eq, gte, lte, inArray, not } from "drizzle-orm";
+import { and, eq, gte, lte, lt, gt, inArray, isNull, not } from "drizzle-orm";
 import { trainerAvailability } from "@avantej-core/db/schema/tenant/trainer-availability";
+import { coachIntakeAvailability } from "@avantej-core/db/schema/tenant/coach-intake-availability";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
@@ -41,9 +42,66 @@ export async function listTrainerAvailability(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	trainerId: string,
 ): Promise<(typeof trainerAvailability.$inferSelect)[]> {
-	const rows = await tenantDb.query.trainerAvailability.findMany({
-		where: eq(trainerAvailability.trainerId, trainerId),
+	// Soft-deleted members must not surface availability. JOIN ensures the trainer
+	// member row is alive (deletedAt IS NULL).
+	const rows = await tenantDb
+		.select({
+			id: trainerAvailability.id,
+			trainerId: trainerAvailability.trainerId,
+			dayOfWeek: trainerAvailability.dayOfWeek,
+			startTime: trainerAvailability.startTime,
+			endTime: trainerAvailability.endTime,
+			isActive: trainerAvailability.isActive,
+			createdAt: trainerAvailability.createdAt,
+			updatedAt: trainerAvailability.updatedAt,
+		})
+		.from(trainerAvailability)
+		.innerJoin(members, eq(members.id, trainerAvailability.trainerId))
+		.where(
+			and(
+				eq(trainerAvailability.trainerId, trainerId),
+				isNull(members.deletedAt),
+			),
+		);
+	return rows.sort((a, b) => {
+		const dayDiff =
+			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
+		if (dayDiff !== 0) return dayDiff;
+		return a.startTime.localeCompare(b.startTime);
 	});
+}
+
+/**
+ * List a trainer's intake-specific recurring availability windows (from
+ * `coach_intake_availability`). Mirrors {@link listTrainerAvailability} —
+ * active rows only, soft-deleted members hidden. The web admin "Trainer
+ * Availability" page writes here today, so the booking flow must union read
+ * to avoid silent invisibility of legitimate windows.
+ */
+export async function listCoachIntakeAvailability(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	trainerId: string,
+): Promise<(typeof coachIntakeAvailability.$inferSelect)[]> {
+	const rows = await tenantDb
+		.select({
+			id: coachIntakeAvailability.id,
+			trainerId: coachIntakeAvailability.trainerId,
+			dayOfWeek: coachIntakeAvailability.dayOfWeek,
+			startTime: coachIntakeAvailability.startTime,
+			endTime: coachIntakeAvailability.endTime,
+			isActive: coachIntakeAvailability.isActive,
+			createdAt: coachIntakeAvailability.createdAt,
+			updatedAt: coachIntakeAvailability.updatedAt,
+		})
+		.from(coachIntakeAvailability)
+		.innerJoin(members, eq(members.id, coachIntakeAvailability.trainerId))
+		.where(
+			and(
+				eq(coachIntakeAvailability.trainerId, trainerId),
+				eq(coachIntakeAvailability.isActive, true),
+				isNull(members.deletedAt),
+			),
+		);
 	return rows.sort((a, b) => {
 		const dayDiff =
 			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
@@ -214,16 +272,6 @@ export async function deleteTrainerAvailabilitySlot(
 
 // ─── Computed Available Slots ─────────────────────────────────────
 
-const JS_DAY_TO_NAME: Record<number, string> = {
-	0: "sunday",
-	1: "monday",
-	2: "tuesday",
-	3: "wednesday",
-	4: "thursday",
-	5: "friday",
-	6: "saturday",
-};
-
 /**
  * Convert "HH:MM" to minutes since midnight for easy arithmetic.
  */
@@ -286,29 +334,65 @@ function subtractBookings(
 }
 
 /**
- * Format a Date to "YYYY-MM-DD".
+ * Format a Date to "YYYY-MM-DD" in the given IANA timezone.
+ * Workers-compatible (uses Intl.DateTimeFormat, not Date.getFullYear()).
  */
-function toDateString(d: Date): string {
-	const y = d.getFullYear();
-	const m = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	return `${y}-${m}-${day}`;
+function toDateStringInTz(date: Date, tz: string): string {
+	const parts = new Intl.DateTimeFormat("en-CA", {
+		timeZone: tz,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(date);
+	const y = parts.find((p) => p.type === "year")?.value ?? "0000";
+	const m = parts.find((p) => p.type === "month")?.value ?? "01";
+	const d = parts.find((p) => p.type === "day")?.value ?? "01";
+	return `${y}-${m}-${d}`;
 }
 
 /**
- * Extract "HH:MM" from a Date/timestamp (in the timezone the Date is constructed).
+ * Extract "HH:MM" from a Date in the given IANA timezone. Workers' Date.getHours()
+ * returns UTC — this preserves the admin's wall-clock semantics.
  */
-function toHHMM(d: Date): string {
-	return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function toHHMMInTz(date: Date, tz: string): string {
+	const parts = new Intl.DateTimeFormat("en-GB", {
+		timeZone: tz,
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	}).formatToParts(date);
+	const h = parts.find((p) => p.type === "hour")?.value ?? "00";
+	const m = parts.find((p) => p.type === "minute")?.value ?? "00";
+	return `${h === "24" ? "00" : h}:${m}`;
+}
+
+/**
+ * Day-of-week name ("monday"..."sunday") for a Date in the given IANA timezone.
+ */
+function dayNameInTz(date: Date, tz: string): string {
+	return new Intl.DateTimeFormat("en-US", {
+		timeZone: tz,
+		weekday: "long",
+	})
+		.format(date)
+		.toLowerCase();
 }
 
 /**
  * Compute actual available time windows for a trainer over a date range.
  *
+ * Reads the **union** of `trainer_availability` ∪ `coach_intake_availability`
+ * (deduped by `(dayOfWeek, startTime, endTime)`). All HH:MM math is performed
+ * in `orgTimezone` (sourced from `organizations.timezone` in the control-panel
+ * DB), because the recurring rows store the admin's local wall-clock — using
+ * UTC `Date.getHours()` on Cloudflare Workers would silently misalign windows
+ * against bookings and let double-bookings slip through.
+ *
  * Algorithm:
- * 1. Fetch trainer's recurring weekly windows
+ * 1. Fetch recurring weekly windows from BOTH tables in parallel, then dedupe
  * 2. Fetch all non-cancelled appointments for the trainer in [startDate, endDate]
- * 3. For each calendar day, overlay recurring windows and subtract booked appointments
+ * 3. For each calendar day (interpreted in `orgTimezone`), overlay recurring
+ *    windows and subtract booked appointments (also interpreted in `orgTimezone`)
  * 4. Return date-by-date free windows
  */
 export async function computeAvailableSlots(
@@ -316,13 +400,20 @@ export async function computeAvailableSlots(
 	trainerId: string,
 	startDate: Date,
 	endDate: Date,
+	orgTimezone: string,
 ): Promise<ComputedDayAvailability[]> {
-	// 1. Get recurring availability
-	const recurringSlots = await listTrainerAvailability(tenantDb, trainerId);
+	// 1. Get recurring availability from BOTH sources in parallel, then merge + dedupe.
+	const [primary, intake] = await Promise.all([
+		listTrainerAvailability(tenantDb, trainerId),
+		listCoachIntakeAvailability(tenantDb, trainerId),
+	]);
 
-	// Group by day-of-week for fast lookup
+	const seen = new Set<string>();
 	const slotsByDay = new Map<string, TimeWindow[]>();
-	for (const slot of recurringSlots) {
+	for (const slot of [...primary, ...intake]) {
+		const key = `${slot.dayOfWeek}|${slot.startTime}|${slot.endTime}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
 		const list = slotsByDay.get(slot.dayOfWeek) ?? [];
 		list.push({ startTime: slot.startTime, endTime: slot.endTime });
 		slotsByDay.set(slot.dayOfWeek, list);
@@ -344,14 +435,14 @@ export async function computeAvailableSlots(
 			),
 		);
 
-	// Index appointments by date string for fast lookup
+	// Index appointments by date string for fast lookup (in org tz, not UTC)
 	const apptsByDate = new Map<string, TimeWindow[]>();
 	for (const appt of bookedAppts) {
-		const dateStr = toDateString(appt.startTime);
+		const dateStr = toDateStringInTz(appt.startTime, orgTimezone);
 		const list = apptsByDate.get(dateStr) ?? [];
 		list.push({
-			startTime: toHHMM(appt.startTime),
-			endTime: toHHMM(appt.endTime),
+			startTime: toHHMMInTz(appt.startTime, orgTimezone),
+			endTime: toHHMMInTz(appt.endTime, orgTimezone),
 		});
 		apptsByDate.set(dateStr, list);
 	}
@@ -364,11 +455,11 @@ export async function computeAvailableSlots(
 	end.setHours(23, 59, 59, 999);
 
 	while (current <= end) {
-		const dayName = JS_DAY_TO_NAME[current.getDay()] ?? "monday";
+		const dayName = dayNameInTz(current, orgTimezone);
 		const dayWindows = slotsByDay.get(dayName);
 
 		if (dayWindows && dayWindows.length > 0) {
-			const dateStr = toDateString(current);
+			const dateStr = toDateStringInTz(current, orgTimezone);
 			const dayBookings = apptsByDate.get(dateStr) ?? [];
 
 			const freeWindows = subtractBookings(dayWindows, dayBookings);
@@ -386,4 +477,73 @@ export async function computeAvailableSlots(
 	}
 
 	return result;
+}
+
+// ─── Slot Lock & Re-check (concurrency guard) ──────────────────────
+
+/**
+ * Asserts that the given trainer is free for [startTime, endTime). Must be
+ * called inside a transaction with row locking. Throws Error('SLOT_TAKEN')
+ * on overlap or Error('OUT_OF_WINDOW') if the slot is no longer within any
+ * free availability window.
+ */
+export async function assertTrainerSlotAvailable(
+	tx: NeonDatabase<typeof tenantSchema>,
+	trainerId: string,
+	startTime: Date,
+	endTime: Date,
+	orgTimezone: string,
+): Promise<void> {
+	// 1. Lock + read conflicting non-cancelled appointments. The FOR UPDATE
+	//    lock serializes concurrent bookers — the second TX blocks until the
+	//    first commits, then sees the row this query inserted and bails out.
+	const conflicts = await tx
+		.select({
+			id: appointments.id,
+			startTime: appointments.startTime,
+			endTime: appointments.endTime,
+		})
+		.from(appointments)
+		.where(
+			and(
+				eq(appointments.trainerId, trainerId),
+				not(eq(appointments.status, "cancelled")),
+				lt(appointments.startTime, endTime),
+				gt(appointments.endTime, startTime),
+			),
+		)
+		.for("update");
+
+	if (conflicts.length > 0) {
+		throw new Error("SLOT_TAKEN");
+	}
+
+	// 2. Re-derive the day-of-week and HH:MM bounds in orgTimezone so we
+	//    interpret the slot against the admin's wall-clock — matching the
+	//    semantics used by computeAvailableSlots and the booking UI.
+	const requestedStartHHMM = toHHMMInTz(startTime, orgTimezone);
+	const requestedEndHHMM = toHHMMInTz(endTime, orgTimezone);
+	const requestedDate = toDateStringInTz(startTime, orgTimezone);
+
+	// computeAvailableSlots already subtracts non-cancelled bookings. We
+	// hand it a single-day window (startTime, startTime) — it expands to
+	// the full org-local day and returns free windows for that day.
+	const dayAvailability = await computeAvailableSlots(
+		tx,
+		trainerId,
+		startTime,
+		startTime,
+		orgTimezone,
+	);
+	const today = dayAvailability.find((d) => d.date === requestedDate);
+	if (!today) {
+		throw new Error("OUT_OF_WINDOW");
+	}
+	const covered = today.windows.some(
+		(w) =>
+			w.startTime <= requestedStartHHMM && w.endTime >= requestedEndHHMM,
+	);
+	if (!covered) {
+		throw new Error("OUT_OF_WINDOW");
+	}
 }

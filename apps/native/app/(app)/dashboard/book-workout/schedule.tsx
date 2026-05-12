@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Image,
@@ -24,6 +24,15 @@ const steps = [
 	{ number: 4, label: "Done", active: false },
 ];
 
+// Granularity (in minutes) used to slice trainer free windows into bookable
+// start times. 30 min keeps the picker dense enough that a 2h service inside
+// a 9-13 window still surfaces 9:00, 9:30, 10:00, 10:30, 11:00.
+const SLOT_STEP_MIN = 30;
+
+// Minimum lead time (in minutes) before a slot is bookable on today's date.
+// Filters out times that are already in the past or imminently in the past.
+const MIN_LEAD_MIN = 15;
+
 // Generate dates for the next 7 days
 const generateDates = () => {
 	const dates = [];
@@ -36,16 +45,71 @@ const generateDates = () => {
 	return dates;
 };
 
-// Generate 1-on-1 time slots from 8AM to 7PM
-const generatePrivateTimeSlots = () => {
-	const slots = [];
-	for (let hour = 8; hour <= 19; hour++) {
-		const period = hour >= 12 ? "PM" : "AM";
-		const displayHour = hour > 12 ? hour - 12 : hour;
-		slots.push(`${displayHour}:00 ${period}`);
+// Format a "HH:MM" 24h string into the display format used elsewhere
+// ("9:00 AM"). Mirrors the parseTime invariants so round-tripping stays safe.
+const formatHHMMToDisplay = (hhmm: string): string => {
+	const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
+	if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+	const period = h >= 12 ? "PM" : "AM";
+	const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+	return `${displayHour}:${m.toString().padStart(2, "0")} ${period}`;
+};
+
+// Convert "HH:MM" to total minutes-since-midnight for arithmetic.
+const hhmmToMinutes = (hhmm: string): number => {
+	const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
+	return (h || 0) * 60 + (m || 0);
+};
+
+// Slice a free window into bookable start-time slots that fit `durationMin`.
+// Step defaults to the duration so slots don't overlap.
+const sliceWindowIntoSlots = (
+	startHHMM: string,
+	endHHMM: string,
+	durationMin: number,
+	stepMin: number = SLOT_STEP_MIN,
+): string[] => {
+	const startMin = hhmmToMinutes(startHHMM);
+	const endMin = hhmmToMinutes(endHHMM);
+	const slots: string[] = [];
+	for (let t = startMin; t + durationMin <= endMin; t += stepMin) {
+		const hh = Math.floor(t / 60)
+			.toString()
+			.padStart(2, "0");
+		const mm = (t % 60).toString().padStart(2, "0");
+		slots.push(formatHHMMToDisplay(`${hh}:${mm}`));
 	}
 	return slots;
 };
+
+// Format a Date to YYYY-MM-DD for matching against availability `date` keys.
+const toLocalDateString = (d: Date): string => {
+	const y = d.getFullYear();
+	const m = (d.getMonth() + 1).toString().padStart(2, "0");
+	const day = d.getDate().toString().padStart(2, "0");
+	return `${y}-${m}-${day}`;
+};
+
+// Filter out slots whose start time has already passed (or is within
+// MIN_LEAD_MIN of now) when dateKey is today. Returns slots unchanged for
+// future dates.
+function dropPastTimes(slots: string[], dateKey: string): string[] {
+	const today = toLocalDateString(new Date());
+	if (dateKey !== today) return slots;
+	const now = new Date();
+	const nowMin = now.getHours() * 60 + now.getMinutes();
+	return slots.filter((displayTime) => {
+		const m = displayTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+		if (!m) return true;
+		let h = Number(m[1]);
+		const mm = Number(m[2]);
+		const period = m[3].toUpperCase();
+		if (period === "PM" && h !== 12) h += 12;
+		if (period === "AM" && h === 12) h = 0;
+		const slotMin = h * 60 + mm;
+		return slotMin >= nowMin + MIN_LEAD_MIN;
+	});
+}
 
 // Parse time string like "10:00 AM" into [hours24, minutes]
 const parseTime = (timeStr: string): [number, number] => {
@@ -72,6 +136,16 @@ const formatTime = (isoString: string): string => {
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = useBookingFlow();
+	const queryClient = useQueryClient();
+
+	// When we return here from a conflict on /review, force a refetch of
+	// trainer availability so the now-taken slot disappears from the picker.
+	// Prefix-match invalidates every cached availability window regardless of
+	// date-range args. Empty dep array = run once on mount.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only
+	useEffect(() => {
+		queryClient.invalidateQueries({ queryKey: ["trainerAvailability"] });
+	}, []);
 
 	const isClassSlot = state.schedulingType === "class_slot";
 	const isPrivate = !isClassSlot && state.serviceType === "private";
@@ -92,7 +166,56 @@ export default function ScheduleScreen() {
 	>(null);
 
 	const dates = generateDates();
-	const privateTimeSlots = generatePrivateTimeSlots();
+
+	// Trainer availability window covering the 7-day picker. Only fetched for
+	// private (appointment) services that have a trainer assigned.
+	const trainerId = state.trainerId ?? null;
+	const sessionDuration = state.serviceDuration ?? 60;
+	const availabilityStartDate = toLocalDateString(dates[0]);
+	const availabilityEndDate = toLocalDateString(dates[dates.length - 1]);
+
+	const {
+		data: trainerAvailability,
+		isLoading: availabilityLoading,
+	} = useQuery({
+		...orpc.trainerAvailability.getComputedSlots.queryOptions({
+			input: {
+				organizationId,
+				trainerId: trainerId!,
+				startDate: availabilityStartDate,
+				endDate: availabilityEndDate,
+			},
+		}),
+		enabled: isPrivate && !!trainerId && !!organizationId,
+		// Slot data goes stale fast — once someone books a slot it must
+		// disappear from other devices' pickers. 30s + onMount invalidate
+		// keeps the picker honest without spamming the server.
+		staleTime: 30_000,
+	});
+
+	// Map: YYYY-MM-DD -> Array<{startTime: "HH:MM", endTime: "HH:MM"}>
+	const availabilityByDate = useMemo(() => {
+		const map = new Map<string, Array<{ startTime: string; endTime: string }>>();
+		for (const day of (trainerAvailability ?? []) as Array<{
+			date: string;
+			windows: Array<{ startTime: string; endTime: string }>;
+		}>) {
+			map.set(day.date, day.windows);
+		}
+		return map;
+	}, [trainerAvailability]);
+
+	// Bookable start times for the currently-selected private date.
+	const privateTimeSlots: string[] = useMemo(() => {
+		if (!isPrivate || !selectedDate) return [];
+		const key = toLocalDateString(selectedDate);
+		const windows = availabilityByDate.get(key) ?? [];
+		const slots: string[] = [];
+		for (const w of windows) {
+			slots.push(...sliceWindowIntoSlots(w.startTime, w.endTime, sessionDuration));
+		}
+		return dropPastTimes(slots, key);
+	}, [isPrivate, selectedDate, availabilityByDate, sessionDuration]);
 
 	// Resolve the next upcoming concrete date (>= today) for a given day name
 	// like "Monday" so downstream review/done can show a real date.
@@ -353,8 +476,46 @@ export default function ScheduleScreen() {
 						</View>
 					</View>
 
-					{/* Schedule Selection Section */}
-					{isClassSlot ? (
+					{/* Status gate — packages must be active and not expired to book.
+					    Pending packages have no trainer assignment yet; expired packages
+					    can no longer be drawn from. */}
+					{state.status !== "active" ||
+					(state.expiresAt && new Date(state.expiresAt).getTime() < Date.now()) ? (
+						<View className="mb-4">
+							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-6">
+								<View className="mb-3 items-center">
+									<Ionicons
+										name={
+											state.status === "pending"
+												? "hourglass-outline"
+												: "alert-circle-outline"
+										}
+										size={36}
+										color={colors.secondary[1]}
+									/>
+								</View>
+								<Text
+									className="text-center text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{state.status === "pending"
+										? "Your package is awaiting trainer assignment. You'll be notified once it's approved."
+										: "This package is no longer active. Please contact your branch."}
+								</Text>
+								<TouchableOpacity
+									onPress={() => router.back()}
+									className="mt-4 items-center justify-center rounded-xl border border-primary-1 py-3"
+								>
+									<Text
+										className="font-semibold text-sm"
+										style={{ color: colors.primary[1] }}
+									>
+										Go Back
+									</Text>
+								</TouchableOpacity>
+							</View>
+						</View>
+					) : isClassSlot ? (
 						/* Class-slot: pick from preset recurring day + time */
 						<View className="mb-4">
 							<Text
@@ -516,7 +677,10 @@ export default function ScheduleScreen() {
 										return (
 											<TouchableOpacity
 												key={date.toISOString()}
-												onPress={() => setSelectedDate(date)}
+												onPress={() => {
+													setSelectedDate(date);
+													setSelectedTime(null);
+												}}
 												className={`mr-3 rounded-2xl p-3 ${
 													isSelected ? "" : "border border-secondary-3"
 												}`}
@@ -564,7 +728,8 @@ export default function ScheduleScreen() {
 								</ScrollView>
 							</View>
 
-							{/* Time Selection - Grid of time options */}
+							{/* Time Selection — driven by the assigned trainer's
+							    availability for the selected date. */}
 							<View>
 								<Text
 									className="mb-3 text-sm"
@@ -572,37 +737,68 @@ export default function ScheduleScreen() {
 								>
 									Select Time
 								</Text>
-								<View className="flex-row flex-wrap">
-									{privateTimeSlots.map((time) => {
-										const isSelected = selectedTime === time;
-										return (
-											<TouchableOpacity
-												key={time}
-												onPress={() => setSelectedTime(time)}
-												className={`mr-3 mb-3 rounded-xl p-3 ${
-													isSelected ? "border-2" : "border border-secondary-3"
-												}`}
-												style={{
-													backgroundColor: colors.primary[2],
-													borderColor: isSelected
-														? colors.primary[1]
-														: "transparent",
-													width: "30%",
-													minWidth: 100,
-												}}
-											>
-												<Text
-													className="text-center text-sm"
+								{!trainerId ? (
+									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+										<Text className="text-center text-secondary-1 text-sm">
+											No trainer assigned to this package yet. Please contact
+											your branch to assign a trainer.
+										</Text>
+									</View>
+								) : !selectedDate ? (
+									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+										<Text className="text-center text-secondary-1 text-sm">
+											Please select a date first
+										</Text>
+									</View>
+								) : availabilityLoading ? (
+									<View className="items-center py-8">
+										<ActivityIndicator
+											size="large"
+											color={colors.primary[1]}
+										/>
+									</View>
+								) : privateTimeSlots.length === 0 ? (
+									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
+										<Text className="text-center text-secondary-1 text-sm">
+											{state.trainerName ?? "Your trainer"} is not available
+											on this date. Try another date.
+										</Text>
+									</View>
+								) : (
+									<View className="flex-row flex-wrap">
+										{privateTimeSlots.map((time) => {
+											const isSelected = selectedTime === time;
+											return (
+												<TouchableOpacity
+													key={time}
+													onPress={() => setSelectedTime(time)}
+													className={`mr-3 mb-3 rounded-xl p-3 ${
+														isSelected
+															? "border-2"
+															: "border border-secondary-3"
+													}`}
 													style={{
-														color: colors.primary[1],
+														backgroundColor: colors.primary[2],
+														borderColor: isSelected
+															? colors.primary[1]
+															: "transparent",
+														width: "30%",
+														minWidth: 100,
 													}}
 												>
-													{time}
-												</Text>
-											</TouchableOpacity>
-										);
-									})}
-								</View>
+													<Text
+														className="text-center text-sm"
+														style={{
+															color: colors.primary[1],
+														}}
+													>
+														{time}
+													</Text>
+												</TouchableOpacity>
+											);
+										})}
+									</View>
+								)}
 							</View>
 						</View>
 					) : (

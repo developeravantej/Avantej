@@ -74,6 +74,15 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database not available",
 				});
 			}
+			// Pull the org's wall-clock timezone from the control panel — the
+			// recurring availability rows and the booking math are interpreted
+			// in this tz, not the Worker's UTC.
+			const controlPanelDb = getControlPanelDb(context);
+			const org = await controlPanelDb.query.organizations.findFirst({
+				where: (orgs, { eq }) => eq(orgs.id, input.organizationId),
+				columns: { timezone: true },
+			});
+			const orgTimezone = org?.timezone ?? "Asia/Kuala_Lumpur";
 			const startDate = new Date(`${input.startDate}T00:00:00`);
 			const endDate = new Date(`${input.endDate}T23:59:59`);
 			return computeAvailableSlots(
@@ -81,6 +90,7 @@ export const trainerAvailabilityRouter = {
 				input.trainerId,
 				startDate,
 				endDate,
+				orgTimezone,
 			);
 		}),
 

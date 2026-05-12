@@ -11,7 +11,6 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
@@ -193,14 +192,33 @@ export default function BookingDetailScreen() {
 				contentContainerStyle={{ paddingBottom: 8 }}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Header with Back Button */}
+				{/* Header with Back + Overflow */}
 				<View className="px-4 pt-4 pb-2">
-					<TouchableOpacity
-						onPress={() => router.back()}
-						className="mb-4 flex-row items-center"
-					>
-						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-					</TouchableOpacity>
+					<View className="mb-4 flex-row items-center justify-between">
+						<TouchableOpacity onPress={() => router.back()}>
+							<Ionicons
+								name="arrow-back"
+								size={24}
+								color={colors.primary[1]}
+							/>
+						</TouchableOpacity>
+						{isUpcoming && (
+							<TouchableOpacity
+								onPress={handleCancel}
+								disabled={cancelMutation.isPending}
+								className="px-2 py-1"
+								style={{ opacity: cancelMutation.isPending ? 0.5 : 1 }}
+								accessibilityLabel="Cancel booking"
+							>
+								<Text
+									className="font-semibold text-sm"
+									style={{ color: "#EF4444" }}
+								>
+									Cancel
+								</Text>
+							</TouchableOpacity>
+						)}
+					</View>
 				</View>
 
 				{/* Booking Image */}
@@ -447,6 +465,60 @@ export default function BookingDetailScreen() {
 						</>
 					)}
 
+					{/* TRAINER */}
+					{(appointment as any).trainerName && (
+						<>
+							<Text
+								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
+								style={{ color: colors.secondary[1] }}
+							>
+								Trainer
+							</Text>
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<View className="flex-row items-center">
+									<Ionicons
+										name="person-circle-outline"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-2 flex-1 font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{(appointment as any).trainerName}
+									</Text>
+								</View>
+							</View>
+						</>
+					)}
+
+					{/* BRANCH */}
+					{(appointment as any).branchName && (
+						<>
+							<Text
+								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
+								style={{ color: colors.secondary[1] }}
+							>
+								Branch
+							</Text>
+							<View className="mb-4 rounded-xl bg-white p-4">
+								<View className="flex-row items-center">
+									<Ionicons
+										name="business-outline"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="ml-2 flex-1 text-sm"
+										style={{ color: colors.primary[1] }}
+									>
+										{(appointment as any).branchName}
+									</Text>
+								</View>
+							</View>
+						</>
+					)}
+
 					{/* LOCATION */}
 					{appointment.location && (
 						<>
@@ -473,6 +545,7 @@ export default function BookingDetailScreen() {
 							</View>
 						</>
 					)}
+
 
 					{/* Cancellation Info */}
 					{appointment.status === "cancelled" &&
@@ -544,37 +617,8 @@ export default function BookingDetailScreen() {
 				</View>
 			</ScrollView>
 
-			{/* Action Buttons - Only show for confirmed future bookings */}
-			{isUpcoming && (
-				<SafeAreaView
-					edges={["bottom"]}
-					className="border-gray-200 border-t bg-white"
-				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
-							onPress={handleCancel}
-							disabled={cancelMutation.isPending}
-							className="items-center justify-center rounded-xl bg-white py-4"
-							style={{
-								borderWidth: 1,
-								borderColor: "#EF4444",
-								opacity: cancelMutation.isPending ? 0.5 : 1,
-							}}
-						>
-							{cancelMutation.isPending ? (
-								<ActivityIndicator size="small" color="#EF4444" />
-							) : (
-								<Text
-									className="font-semibold text-base"
-									style={{ color: "#EF4444" }}
-								>
-									Cancel Booking
-								</Text>
-							)}
-						</TouchableOpacity>
-					</View>
-				</SafeAreaView>
-			)}
+			{/* Cancel moved to header overflow menu (top-right `...`) so it isn't
+			    inside the bottom thumb-zone where mis-taps were happening. */}
 		</Container>
 	);
 }

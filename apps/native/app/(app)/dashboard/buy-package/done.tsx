@@ -20,8 +20,11 @@ export default function DoneScreen() {
 	const { state, reset } = usePurchaseFlow();
 
 	const subtotal = state.price ?? 0;
-	// Use same calculation approach as pay screen
-	const total = subtotal * 1.1; // Approximate with tax
+	// Use the actual total persisted at pay-time (computed with the real org
+	// tax rate). Fall back to subtotal only if the pay step somehow skipped
+	// writing it — never re-derive with a hardcoded percentage.
+	const taxAmount = state.finalTaxAmount ?? 0;
+	const total = state.finalTotal ?? subtotal;
 
 	const handleGoHome = () => {
 		reset();
@@ -55,7 +58,7 @@ export default function DoneScreen() {
 							/>
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
-							Purchase Complete
+							Order Submitted
 						</Text>
 					</View>
 				</View>
@@ -157,19 +160,45 @@ export default function DoneScreen() {
 							className="mb-2 text-center font-bold text-2xl"
 							style={{ color: colors.primary[1] }}
 						>
-							{state.packageInstanceStatus === "pending"
-								? "Package Submitted!"
-								: "Package Purchased!"}
+							Order Submitted!
 						</Text>
 
 						<Text
-							className="mb-6 text-center text-base"
+							className="mb-3 text-center text-base"
 							style={{ color: colors.secondary[1] }}
 						>
 							{state.packageInstanceStatus === "pending"
-								? "Your package is being reviewed. You'll be notified once a trainer is assigned and you can start booking sessions."
-								: "Your package has been successfully purchased. You'll receive a confirmation email shortly."}
+								? "Your package is being reviewed. Complete offline payment to activate your credits."
+								: "Your order is reserved. Complete offline payment to activate your credits."}
 						</Text>
+
+						{/* Offline payment next-steps callout */}
+						<View
+							className="mb-6 w-full rounded-2xl p-4"
+							style={{ backgroundColor: "#FEF3C7" }}
+						>
+							<View className="mb-2 flex-row items-center">
+								<Ionicons
+									name="alert-circle"
+									size={18}
+									color="#92400E"
+								/>
+								<Text
+									className="ml-2 font-bold text-sm"
+									style={{ color: "#92400E" }}
+								>
+									Next: Pay Offline
+								</Text>
+							</View>
+							<Text
+								className="text-sm leading-5"
+								style={{ color: "#92400E" }}
+							>
+								Pay via bank transfer or at the branch (cash / card),
+								then send the receipt to your branch or trainer. Credits
+								unlock once staff confirms payment.
+							</Text>
+						</View>
 
 						{/* Package Summary Card */}
 						<View className="w-full rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
@@ -220,6 +249,30 @@ export default function DoneScreen() {
 								</View>
 							)}
 
+							{state.preferredTrainerName && (
+								<View className="mb-3">
+									<Text
+										className="mb-1 text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Preferred Trainer
+									</Text>
+									<View className="flex-row items-center">
+										<Ionicons
+											name="person-circle-outline"
+											size={18}
+											color={colors.primary[1]}
+										/>
+										<Text
+											className="ml-1 font-semibold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											{state.preferredTrainerName}
+										</Text>
+									</View>
+								</View>
+							)}
+
 							{state.serviceType === "private" &&
 								state.preferredTimes.length > 0 && (
 									<View className="mb-3">
@@ -230,14 +283,54 @@ export default function DoneScreen() {
 											Preferred Times
 										</Text>
 										{state.preferredTimes.map((pt) => (
-											<Text
+											<View
 												key={`${pt.day}-${pt.time}`}
-												className="mb-1 font-semibold text-base"
-												style={{ color: colors.primary[1] }}
+												className="mb-1 flex-row items-center"
 											>
-												{pt.day} at {pt.time}
-											</Text>
+												<Ionicons
+													name="time-outline"
+													size={16}
+													color={colors.primary[1]}
+												/>
+												<Text
+													className="ml-1 font-semibold text-base"
+													style={{ color: colors.primary[1] }}
+												>
+													{pt.day} at {pt.time}
+												</Text>
+											</View>
 										))}
+									</View>
+								)}
+
+							{state.paymentPlanType &&
+								state.paymentPlanType !== "full" && (
+									<View className="mb-3">
+										<Text
+											className="mb-1 text-xs"
+											style={{ color: colors.secondary[1] }}
+										>
+											Payment Plan
+										</Text>
+										<Text
+											className="font-semibold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											{state.paymentPlanType === "half"
+												? "Half Payment (2 installments)"
+												: "Quarterly (4 installments)"}
+										</Text>
+										<Text
+											className="mt-1 text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											First installment:{" "}
+											{formatMoney(
+												total /
+													(state.paymentPlanType === "half" ? 2 : 4),
+											)}{" "}
+											· every {state.installmentIntervalDays} days
+										</Text>
 									</View>
 								)}
 
@@ -276,18 +369,69 @@ export default function DoneScreen() {
 							)}
 
 							<View className="border-secondary-3 border-t pt-3">
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									Total Paid
-								</Text>
-								<Text
-									className="font-bold text-lg"
-									style={{ color: colors.primary[1] }}
-								>
-									{formatMoney(total)}
-								</Text>
+								<View className="mb-1 flex-row items-center justify-between">
+									<Text
+										className="text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Subtotal
+									</Text>
+									<Text
+										className="text-sm"
+										style={{ color: colors.primary[1] }}
+									>
+										{formatMoney(subtotal)}
+									</Text>
+								</View>
+								{taxAmount > 0 && (
+									<View className="mb-1 flex-row items-center justify-between">
+										<Text
+											className="text-xs"
+											style={{ color: colors.secondary[1] }}
+										>
+											Tax
+										</Text>
+										<Text
+											className="text-sm"
+											style={{ color: colors.primary[1] }}
+										>
+											{formatMoney(taxAmount)}
+										</Text>
+									</View>
+								)}
+								<View className="mb-2 flex-row items-center justify-between border-secondary-3 border-t pt-2">
+									<Text
+										className="text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Total Amount
+									</Text>
+									<Text
+										className="font-bold text-lg"
+										style={{ color: colors.primary[1] }}
+									>
+										{formatMoney(total)}
+									</Text>
+								</View>
+								<View className="flex-row items-center justify-between">
+									<Text
+										className="text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Payment Status
+									</Text>
+									<View
+										className="rounded-full px-3 py-1"
+										style={{ backgroundColor: "#FEF3C7" }}
+									>
+										<Text
+											className="font-semibold text-xs"
+											style={{ color: "#92400E" }}
+										>
+											Pending · Offline
+										</Text>
+									</View>
+								</View>
 							</View>
 						</View>
 					</View>

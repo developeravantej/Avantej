@@ -126,6 +126,18 @@ export default function BookWorkoutScreen() {
 		const serviceType: "private" | "semi-private" =
 			svc?.type === "semi_private" ? "semi-private" : "private";
 
+		// Hydrate trainer from the package itself. Admin-assigned trainer takes
+		// precedence; fall back to the customer's preferred trainer captured at
+		// purchase time. Schedule step queries this trainer's availability.
+		const hydratedTrainerId =
+			selectedPackage?.assignedTrainerId ??
+			selectedPackage?.preferredTrainerId ??
+			null;
+		const hydratedTrainerName =
+			(selectedPackage?.assignedTrainerId
+				? selectedPackage?.assignedTrainerName
+				: selectedPackage?.preferredTrainerName) ?? null;
+
 		update({
 			packageInstanceId: selectedPackageInstanceId,
 			packageName: svc?.name ?? null,
@@ -138,10 +150,13 @@ export default function BookWorkoutScreen() {
 				svc?.schedulingType === "class_slot" ? "class_slot" : "appointment",
 			timePresetConfig: svc?.timePresetConfig ?? null,
 			serviceDuration: svc?.duration ?? 60,
-			// Provider is auto-assigned now; trainer step removed.
-			trainerId: null,
-			trainerName: "Auto-assign",
+			trainerId: hydratedTrainerId,
+			trainerName: hydratedTrainerName,
 			branchId: svc?.branchId ?? fallbackBranchId ?? null,
+			status: selectedPackage?.status ?? null,
+			expiresAt: selectedPackage?.expiresAt
+				? String(selectedPackage.expiresAt)
+				: null,
 		});
 		router.push("./schedule");
 	};
@@ -322,11 +337,9 @@ export default function BookWorkoutScreen() {
 								}
 
 								const typeLabel =
-									svc?.type === "semi_private"
-										? "Semi-Private"
-										: svc?.type === "both"
-											? "All Types"
-											: "Private";
+									svc?.schedulingType === "class_slot"
+										? "Class Slot"
+										: "Appointment";
 
 								return (
 									<TouchableOpacity

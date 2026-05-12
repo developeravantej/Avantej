@@ -17,6 +17,7 @@ import {
   getAppointmentStatusHistory,
   listAppointmentsWithRecurrence,
   isVirtualId,
+  assertTrainerSlotAvailable,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -30,6 +31,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { mapPgError } from "../lib/orpc-error-mapper";
@@ -279,8 +281,44 @@ export const appointmentsRouter = {
       const isClient = userId && appointment.userId === userId;
       const isStaff = context.member;
 
+      // Hydrate trainer name (member.id → user.name) and branch name for the
+      // detail screen. Both are scoped to the appointment's tenant DB.
+      const hydrate = async (): Promise<{
+        trainerName: string | null;
+        branchName: string | null;
+      }> => {
+        let trainerName: string | null = null;
+        if (appointment.trainerId) {
+          const trainerRows = await context.tenantDb
+            .select({ userId: members.userId })
+            .from(members)
+            .where(eq(members.id, appointment.trainerId));
+          const trainerUserId = trainerRows[0]?.userId;
+          if (trainerUserId) {
+            const cpDb = getControlPanelDb(context);
+            const userRows = await cpDb
+              .select({ name: cpUsers.name })
+              .from(cpUsers)
+              .where(eq(cpUsers.id, trainerUserId));
+            trainerName = userRows[0]?.name ?? null;
+          }
+        }
+
+        let branchName: string | null = null;
+        if (appointment.branchId) {
+          const branchRows = await context.tenantDb
+            .select({ name: hierarchyNodes.name })
+            .from(hierarchyNodes)
+            .where(eq(hierarchyNodes.id, appointment.branchId));
+          branchName = branchRows[0]?.name ?? null;
+        }
+
+        return { trainerName, branchName };
+      };
+
       if (isClient) {
-        return appointment;
+        const extra = await hydrate();
+        return { ...appointment, ...extra };
       }
 
       if (isStaff) {
@@ -309,7 +347,8 @@ export const appointmentsRouter = {
             message: "User does not have access to this appointment",
           });
         }
-        return appointment;
+        const extra = await hydrate();
+        return { ...appointment, ...extra };
       }
 
       throw new ORPCError("FORBIDDEN", {
@@ -409,23 +448,66 @@ export const appointmentsRouter = {
         }
       }
 
-      // Defensive guard: a booking against a `pending` package_instance is
-      // never allowed (package is awaiting trainer assignment / approval).
-      // The booking transaction in package-instance.service.ts also enforces
-      // this — this router-level check just returns a friendlier error.
+      // Phase 4 task #19 — Gate on package status. Only applies when the
+      // caller passes a packageInstanceId (staff web-flow may create
+      // appointments without one; those skip this gate).
       if (input.packageInstanceId) {
         const pkg = await context.tenantDb.query.packageInstances.findFirst({
           where: eq(packageInstances.id, input.packageInstanceId),
         });
-        if (pkg && pkg.status === "pending") {
+        if (!pkg) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Package instance not found",
+          });
+        }
+        if (pkg.status === "pending") {
+          // Friendlier message preserved from previous behaviour.
           throw new ORPCError("FORBIDDEN", {
             message: "Package is awaiting trainer assignment.",
           });
         }
+        if (pkg.status !== "active") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: `Package not active (status: ${pkg.status})`,
+          });
+        }
       }
 
+      // Phase 4 task #18 — Source orgTimezone for the concurrency re-check.
+      // The recurring availability rows store the admin's wall-clock, so the
+      // window-coverage check must interpret start/end in that tz.
+      const controlPanelDb = getControlPanelDb(context);
+      const org = await controlPanelDb.query.organizations.findFirst({
+        where: (orgs, { eq: eqOrg }) => eqOrg(orgs.id, input.organizationId),
+        columns: { timezone: true },
+      });
+      const orgTimezone = org?.timezone ?? "Asia/Kuala_Lumpur";
+
       try {
-        const created = await createAppointment(context.tenantDb, {
+        // Phase 4 task #18 — Wrap the assert + create in a transaction so the
+        // FOR UPDATE lock acquired by assertTrainerSlotAvailable serializes
+        // concurrent bookings for the same trainer slot. Note: createAppointment
+        // opens its own internal transaction; we pass the outer tx so it nests
+        // as a savepoint (matching the existing `tx as unknown as TenantDb`
+        // pattern used elsewhere in the codebase). If a trainerId is not
+        // supplied (legacy / non-trainer bookings), we skip the assert.
+        const requestedStart = new Date(input.startTime);
+        const requestedEnd = new Date(
+          requestedStart.getTime() + input.duration * 60 * 1000,
+        );
+
+        const created = await context.tenantDb.transaction(async (tx: TenantTx) => {
+          if (input.trainerId) {
+            await assertTrainerSlotAvailable(
+              tx as unknown as TenantDb,
+              input.trainerId,
+              requestedStart,
+              requestedEnd,
+              orgTimezone,
+            );
+          }
+
+          return await createAppointment(tx as unknown as TenantDb, {
           type: input.type,
           startTime: new Date(input.startTime),
           duration: input.duration,
@@ -452,6 +534,7 @@ export const appointmentsRouter = {
                 endsOn: input.recurrence.endsOn ? new Date(input.recurrence.endsOn) : undefined,
               }
             : undefined,
+          });
         });
 
         // Fire-and-forget Google Calendar sync — never blocks the response
@@ -465,6 +548,20 @@ export const appointmentsRouter = {
 
         return created;
       } catch (error) {
+        // Phase 4 task #18 — Translate the concurrency-guard errors into
+        // typed ORPCError("CONFLICT") so the UI can show an actionable toast.
+        if (error instanceof Error) {
+          if (error.message === "SLOT_TAKEN") {
+            throw new ORPCError("CONFLICT", {
+              message: "That slot is no longer available.",
+            });
+          }
+          if (error.message === "OUT_OF_WINDOW") {
+            throw new ORPCError("CONFLICT", {
+              message: "Trainer is no longer available for this time.",
+            });
+          }
+        }
         // J3 — translate PG exclusion / FK violations into typed ORPCError so
         // the UI can show a "trainer/room already booked" toast instead of a
         // generic "Failed to create appointment" message.

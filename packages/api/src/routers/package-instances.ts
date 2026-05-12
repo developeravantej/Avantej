@@ -28,6 +28,7 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import { listExpiringMemberships } from "@avantej-core/services/memberships.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
+import { preferredTimes } from "@avantej-core/db/schema/tenant/preferred-times";
 import { user, user as cpUsers } from "@avantej-core/db/schema/auth";
 import { desc, and, eq, inArray } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
@@ -91,7 +92,53 @@ export const packageInstancesRouter = {
         limit: input.limit,
       });
 
-      return items;
+      // Hydrate trainer names (preferred + assigned) so the native booking
+      // flow can display them without needing user_management:read.
+      const trainerMemberIds: string[] = [
+        ...new Set<string>(
+          items
+            .flatMap((i: typeof items[number]) => [
+              i.preferredTrainerId,
+              i.assignedTrainerId,
+            ])
+            .filter((id: string | null): id is string => !!id),
+        ),
+      ];
+
+      let trainerNameByMemberId = new Map<string, string>();
+      if (trainerMemberIds.length > 0) {
+        const trainerMembers = await context.tenantDb
+          .select({ id: members.id, userId: members.userId })
+          .from(members)
+          .where(inArray(members.id, trainerMemberIds));
+        const trainerUserIds = trainerMembers.map(
+          (m: { id: string; userId: string }) => m.userId,
+        );
+        if (trainerUserIds.length > 0) {
+          const controlPanelDb = getControlPanelDb(context);
+          const userRows = await controlPanelDb
+            .select({ id: user.id, name: user.name })
+            .from(user)
+            .where(inArray(user.id, trainerUserIds));
+          const userIdToName = new Map(userRows.map((u) => [u.id, u.name]));
+          const entries: Array<[string, string]> = [];
+          for (const m of trainerMembers as Array<{ id: string; userId: string }>) {
+            const name = userIdToName.get(m.userId);
+            if (name) entries.push([m.id, name]);
+          }
+          trainerNameByMemberId = new Map(entries);
+        }
+      }
+
+      return items.map((i: typeof items[number]) => ({
+        ...i,
+        preferredTrainerName: i.preferredTrainerId
+          ? trainerNameByMemberId.get(i.preferredTrainerId) ?? null
+          : null,
+        assignedTrainerName: i.assignedTrainerId
+          ? trainerNameByMemberId.get(i.assignedTrainerId) ?? null
+          : null,
+      }));
     }),
 
   /**
@@ -924,9 +971,18 @@ export const packageInstancesRouter = {
           clientId: packageInstances.clientId,
           serviceId: packageInstances.serviceId,
           totalPrice: packageInstances.totalPrice,
+          taxAmount: packageInstances.taxAmount,
           creditsTotal: packageInstances.creditsTotal,
           createdAt: packageInstances.createdAt,
           preferredTrainerId: packageInstances.preferredTrainerId,
+          remark: packageInstances.remark,
+          paymentStatus: packageInstances.paymentStatus,
+          paymentMethod: packageInstances.paymentMethod,
+          paymentPlanType: packageInstances.paymentPlanType,
+          installmentsTotal: packageInstances.installmentsTotal,
+          installmentsPaid: packageInstances.installmentsPaid,
+          startsAt: packageInstances.startsAt,
+          expiresAt: packageInstances.expiresAt,
           serviceName: services.name,
           branchId: services.branchId,
         })
@@ -1024,6 +1080,34 @@ export const packageInstancesRouter = {
         }
       }
 
+      // Batch-fetch preferred times for all filtered packages
+      const filteredIds = filtered.map((r: PendingRow) => r.id);
+      const preferredTimesMap = new Map<
+        string,
+        Array<{ dayOfWeek: string; time: string; priority: number }>
+      >();
+      if (filteredIds.length > 0) {
+        const ptRows = await context.tenantDb
+          .select({
+            packageInstanceId: preferredTimes.packageInstanceId,
+            dayOfWeek: preferredTimes.dayOfWeek,
+            time: preferredTimes.time,
+            priority: preferredTimes.priority,
+          })
+          .from(preferredTimes)
+          .where(inArray(preferredTimes.packageInstanceId, filteredIds))
+          .orderBy(preferredTimes.priority);
+        for (const pt of ptRows) {
+          const list = preferredTimesMap.get(pt.packageInstanceId) ?? [];
+          list.push({
+            dayOfWeek: pt.dayOfWeek,
+            time: pt.time,
+            priority: pt.priority,
+          });
+          preferredTimesMap.set(pt.packageInstanceId, list);
+        }
+      }
+
       return filtered.map((r: PendingRow) => ({
         ...r,
         customerName: r.clientId
@@ -1035,6 +1119,7 @@ export const packageInstancesRouter = {
         preferredTrainerName: r.preferredTrainerId
           ? (preferredTrainerNameMap.get(r.preferredTrainerId) ?? null)
           : null,
+        preferredTimes: preferredTimesMap.get(r.id) ?? [],
       }));
     }),
 

@@ -374,21 +374,19 @@ export default function SetupScreen() {
 													</Text>
 												</View>
 											)}
-											{service.type && (
-												<View
-													className="rounded-full px-2 py-1"
-													style={{ backgroundColor: colors.secondary[3] }}
+											<View
+												className="rounded-full px-2 py-1"
+												style={{ backgroundColor: colors.secondary[3] }}
+											>
+												<Text
+													className="font-medium text-xs"
+													style={{ color: colors.primary[1] }}
 												>
-													<Text
-														className="font-medium text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{service.type === "semi_private"
-															? "Semi-Private"
-															: "Private"}
-													</Text>
-												</View>
-											)}
+													{service.schedulingType === "class_slot"
+														? "Class Slot"
+														: "Appointment"}
+												</Text>
+											</View>
 										</View>
 									</View>
 									{service.description && (

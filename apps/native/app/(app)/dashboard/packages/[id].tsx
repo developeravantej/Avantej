@@ -152,9 +152,11 @@ export default function PackageDetailScreen() {
 	const progressPercent =
 		totalCredits > 0 ? (usedCredits / totalCredits) * 100 : 0;
 
-	const subtotal: number = inst?.totalPrice ?? 0;
+	// `totalPrice` on package_instances is the gross total (tax inclusive),
+	// so derive subtotal by subtracting tax — don't add it back in.
+	const total: number = inst?.totalPrice ?? 0;
 	const taxAmount: number = inst?.taxAmount ?? 0;
-	const total = subtotal + taxAmount;
+	const subtotal = Math.max(total - taxAmount, 0);
 
 	const schedulingType: "appointment" | "class_slot" =
 		svc?.schedulingType === "class_slot" ? "class_slot" : "appointment";

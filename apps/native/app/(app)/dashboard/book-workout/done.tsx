@@ -271,7 +271,7 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									{state.trainerName ?? "Auto-assign"}
+									{state.trainerName ?? "—"}
 								</Text>
 							</View>
 
