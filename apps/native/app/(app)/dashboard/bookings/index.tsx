@@ -69,7 +69,7 @@ function BookingCardSkeleton() {
 	return (
 		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="mb-4 flex-row">
-				<SkeletonBox className="mr-4 h-24 w-24 rounded-xl" />
+				<SkeletonBox className="mr-4 size-24 rounded-xl" />
 				<View className="flex-1">
 					<SkeletonBox className="mb-3 h-5 w-36" />
 					<SkeletonBox className="mb-2 h-4 w-28" />
@@ -89,7 +89,7 @@ function PastBookingCardSkeleton() {
 	return (
 		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="mb-4 flex-row">
-				<SkeletonBox className="mr-4 h-24 w-24 rounded-xl" />
+				<SkeletonBox className="mr-4 size-24 rounded-xl" />
 				<View className="flex-1">
 					<SkeletonBox className="mb-3 h-5 w-36" />
 					<SkeletonBox className="mb-2 h-4 w-28" />
@@ -227,7 +227,7 @@ export default function BookingsScreen() {
 						className="mb-6 flex-row items-center justify-between rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 					>
 						<View className="flex-1 flex-row items-center">
-							<View className="mr-3 h-12 w-12 items-center justify-center rounded-xl bg-secondary-3">
+							<View className="mr-3 size-12 items-center justify-center rounded-xl bg-secondary-3">
 								<Ionicons
 									name="cube-outline"
 									size={24}
@@ -293,7 +293,7 @@ export default function BookingsScreen() {
 										source={{
 											uri: booking.imageUrl || DEFAULT_IMAGE,
 										}}
-										className="mr-4 h-24 w-24 rounded-xl"
+										className="mr-4 size-24 rounded-xl"
 										resizeMode="cover"
 									/>
 
@@ -448,7 +448,7 @@ export default function BookingsScreen() {
 										source={{
 											uri: booking.imageUrl || DEFAULT_IMAGE,
 										}}
-										className="mr-4 h-24 w-24 rounded-xl"
+										className="mr-4 size-24 rounded-xl"
 										resizeMode="cover"
 									/>
 

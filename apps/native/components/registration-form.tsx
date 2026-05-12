@@ -575,7 +575,7 @@ function PersonalDetailsStep({
 					} bg-primary-2`}
 				>
 					<View
-						className="h-5 w-5 items-center justify-center rounded-full border-2"
+						className="size-5 items-center justify-center rounded-full border-2"
 						style={{
 							borderColor:
 								data.addressType === "home"
@@ -585,7 +585,7 @@ function PersonalDetailsStep({
 					>
 						{data.addressType === "home" && (
 							<View
-								className="h-2.5 w-2.5 rounded-full"
+								className="size-2.5 rounded-full"
 								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
@@ -607,7 +607,7 @@ function PersonalDetailsStep({
 					} bg-primary-2`}
 				>
 					<View
-						className="h-5 w-5 items-center justify-center rounded-full border-2"
+						className="size-5 items-center justify-center rounded-full border-2"
 						style={{
 							borderColor:
 								data.addressType === "work"
@@ -617,7 +617,7 @@ function PersonalDetailsStep({
 					>
 						{data.addressType === "work" && (
 							<View
-								className="h-2.5 w-2.5 rounded-full"
+								className="size-2.5 rounded-full"
 								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
@@ -1168,7 +1168,7 @@ export default function RegistrationForm() {
 					<View className="items-center px-4 pt-4 pb-2">
 						<Image
 							source={require("../assets/images/Logo-B.png")}
-							className="mb-2 h-12 w-12"
+							className="mb-2 size-12"
 							resizeMode="contain"
 						/>
 						<Text className="font-bold text-2xl text-primary-1">
@@ -1227,7 +1227,7 @@ export default function RegistrationForm() {
 											{index <= currentStep ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor:
 																index === currentStep
@@ -1244,7 +1244,7 @@ export default function RegistrationForm() {
 															/>
 														) : (
 															<View
-																className="h-2 w-2 rounded-full"
+																className="size-2 rounded-full"
 																style={{
 																	backgroundColor: colors.primary[2],
 																}}
@@ -1255,7 +1255,7 @@ export default function RegistrationForm() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
 														style={{ zIndex: 2 }}
 													>
 														<Text className="font-semibold text-primary-1 text-xs">

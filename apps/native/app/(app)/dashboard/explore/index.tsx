@@ -25,7 +25,7 @@ function SkeletonCard() {
 		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="flex-row">
 				<View
-					className="mr-4 h-24 w-24 rounded-xl"
+					className="mr-4 size-24 rounded-xl"
 					style={{ backgroundColor: colors.secondary[3] }}
 				/>
 				<View className="flex-1">
@@ -216,7 +216,7 @@ export default function ExploreScreen() {
 												source={{
 													uri: service.imageUrl ?? DEFAULT_IMAGE,
 												}}
-												className="mr-4 h-24 w-24 rounded-xl"
+												className="mr-4 size-24 rounded-xl"
 												resizeMode="cover"
 											/>
 											<View className="flex-1">
@@ -304,7 +304,7 @@ export default function ExploreScreen() {
 												source={{
 													uri: service.imageUrl ?? DEFAULT_IMAGE,
 												}}
-												className="mr-4 h-24 w-24 rounded-xl"
+												className="mr-4 size-24 rounded-xl"
 												resizeMode="cover"
 											/>
 											<View className="flex-1">

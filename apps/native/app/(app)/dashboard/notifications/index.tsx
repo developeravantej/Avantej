@@ -76,7 +76,7 @@ function SkeletonNotification() {
 		<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="flex-row">
 				<View
-					className="mr-3 h-12 w-12 rounded-full"
+					className="mr-3 size-12 rounded-full"
 					style={{ backgroundColor: colors.secondary[3] }}
 				/>
 				<View className="flex-1">
@@ -278,7 +278,7 @@ export default function NotificationsScreen() {
 							>
 								<View className="flex-row">
 									{/* Icon */}
-									<View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-secondary-3">
+									<View className="mr-3 size-12 items-center justify-center rounded-full bg-secondary-3">
 										<Ionicons
 											name={notification.icon as never}
 											size={24}
@@ -293,7 +293,7 @@ export default function NotificationsScreen() {
 												{notification.title}
 											</Text>
 											{!notification.read && (
-												<View className="ml-2 h-2 w-2 rounded-full bg-primary-1" />
+												<View className="ml-2 size-2 rounded-full bg-primary-1" />
 											)}
 										</View>
 										<Text className="mb-2 text-secondary-1 text-sm">

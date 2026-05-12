@@ -180,7 +180,7 @@ export default function PackageDetailScreen() {
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons
 								name="arrow-back"
@@ -504,7 +504,7 @@ export default function PackageDetailScreen() {
 								<Section title="Your Trainer">
 									<View className="flex-row items-center">
 										<View
-											className="mr-3 h-10 w-10 items-center justify-center rounded-full"
+											className="mr-3 size-10 items-center justify-center rounded-full"
 											style={{ backgroundColor: "#DCFCE7" }}
 										>
 											<Ionicons
@@ -530,7 +530,7 @@ export default function PackageDetailScreen() {
 									<Section title="Preferred Trainer">
 										<View className="flex-row items-center">
 											<View
-												className="mr-3 h-10 w-10 items-center justify-center rounded-full"
+												className="mr-3 size-10 items-center justify-center rounded-full"
 												style={{ backgroundColor: "#E0E7FF" }}
 											>
 												<Ionicons

@@ -112,7 +112,7 @@ export default function CalendarScreen() {
 						<View className="mb-2 flex-row items-center">
 							<TouchableOpacity
 								onPress={() => router.back()}
-								className="mr-3 h-10 w-10 items-center justify-center"
+								className="mr-3 size-10 items-center justify-center"
 							>
 								<Ionicons
 									name="arrow-back"

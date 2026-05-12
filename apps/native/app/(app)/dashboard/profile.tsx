@@ -103,7 +103,7 @@ export default function ProfileScreen() {
 					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 						<View className="flex-row items-center">
 							<View
-								className="mr-4 h-16 w-16 items-center justify-center rounded-full"
+								className="mr-4 size-16 items-center justify-center rounded-full"
 								style={{ backgroundColor: colors.secondary[2] }}
 							>
 								<Ionicons

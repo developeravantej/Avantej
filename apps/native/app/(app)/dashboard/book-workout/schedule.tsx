@@ -205,7 +205,7 @@ export default function ScheduleScreen() {
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
@@ -281,7 +281,7 @@ export default function ScheduleScreen() {
 												<View className="mb-1 items-center justify-center">
 													{/* Completed step: Check icon with blue background */}
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -298,14 +298,14 @@ export default function ScheduleScreen() {
 												<View className="mb-1 items-center justify-center">
 													{/* Active step: Blue circle with white dot inside - covers the line */}
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
 														<View
-															className="h-2 w-2 rounded-full"
+															className="size-2 rounded-full"
 															style={{ backgroundColor: colors.primary[2] }}
 														/>
 													</View>

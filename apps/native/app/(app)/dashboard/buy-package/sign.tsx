@@ -134,7 +134,7 @@ export default function SignScreen() {
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons
 								name="arrow-back"
@@ -211,7 +211,7 @@ export default function SignScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -227,14 +227,14 @@ export default function SignScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
 														<View
-															className="h-2 w-2 rounded-full"
+															className="size-2 rounded-full"
 															style={{ backgroundColor: colors.primary[2] }}
 														/>
 													</View>
@@ -242,7 +242,7 @@ export default function SignScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														className="size-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
 														style={{ zIndex: 2 }}
 													>
 														<Text className="font-semibold text-primary-1 text-xs">
@@ -336,11 +336,11 @@ export default function SignScreen() {
 							className="mb-4 flex-row items-start rounded-xl border border-secondary-3 bg-primary-2 p-4"
 						>
 							<View
-								className={`mr-3 h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
-									agreedToTerms
-										? "border-primary-1 bg-primary-1"
-										: "border-secondary-2 bg-primary-2"
-								}`}
+								className={`mr-3 size-6 shrink-0 items-center justify-center rounded-md border-2 ${
+ agreedToTerms
+ ? "border-primary-1 bg-primary-1"
+ : "border-secondary-2 bg-primary-2"
+ }`}
 							>
 								{agreedToTerms && (
 									<Ionicons
@@ -470,7 +470,7 @@ export default function SignScreen() {
 										</View>
 										<View className="mt-2 flex-row items-center justify-center">
 											<View
-												className="mr-2 h-2 w-2 rounded-full"
+												className="mr-2 size-2 rounded-full"
 												style={{ backgroundColor: "#10B981" }}
 											/>
 											<Text

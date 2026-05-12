@@ -152,7 +152,7 @@ export default function TermsScreen() {
 				<View style={styles.pdfHeader}>
 					<TouchableOpacity
 						onPress={() => router.back()}
-						className="mr-3 h-10 w-10 items-center justify-center"
+						className="mr-3 size-10 items-center justify-center"
 					>
 						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 					</TouchableOpacity>
@@ -179,7 +179,7 @@ export default function TermsScreen() {
 				<View style={styles.pdfHeader}>
 					<TouchableOpacity
 						onPress={() => router.back()}
-						className="mr-3 h-10 w-10 items-center justify-center"
+						className="mr-3 size-10 items-center justify-center"
 					>
 						<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 					</TouchableOpacity>
@@ -215,7 +215,7 @@ export default function TermsScreen() {
 					<View className="flex-row items-center">
 						<TouchableOpacity
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>

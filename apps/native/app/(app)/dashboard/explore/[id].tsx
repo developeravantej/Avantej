@@ -183,7 +183,7 @@ export default function ServiceDetailScreen() {
 					/>
 					<TouchableOpacity
 						onPress={() => router.back()}
-						className="absolute left-4 top-12 h-10 w-10 items-center justify-center rounded-full"
+						className="absolute left-4 top-12 size-10 items-center justify-center rounded-full"
 						style={{ backgroundColor: "rgba(255,255,255,0.92)" }}
 					>
 						<Ionicons name="arrow-back" size={22} color={colors.primary[1]} />
@@ -381,7 +381,7 @@ export default function ServiceDetailScreen() {
 								>
 									<Image
 										source={{ uri: relSvc.imageUrl ?? DEFAULT_IMAGE }}
-										className="mr-3 h-14 w-14 rounded-lg"
+										className="mr-3 size-14 rounded-lg"
 										resizeMode="cover"
 									/>
 									<View className="flex-1">

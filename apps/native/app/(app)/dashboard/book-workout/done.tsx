@@ -56,7 +56,7 @@ export default function DoneScreen() {
 					<View className="mb-4 flex-row items-center">
 						<TouchableOpacity
 							onPress={handleBackToHome}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
@@ -129,7 +129,7 @@ export default function DoneScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -145,7 +145,7 @@ export default function DoneScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -202,7 +202,7 @@ export default function DoneScreen() {
 
 					{/* Success Section */}
 					<View className="mb-4 items-center">
-						<View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-primary-1">
+						<View className="mb-4 size-20 items-center justify-center rounded-full bg-primary-1">
 							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
 						</View>
 

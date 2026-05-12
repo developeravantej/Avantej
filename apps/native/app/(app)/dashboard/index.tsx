@@ -102,7 +102,7 @@ function UpcomingSkeleton() {
 			</Text>
 			<View className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 				<View className="flex-row items-center">
-					<SkeletonBox className="mr-3 h-16 w-16 rounded-lg" />
+					<SkeletonBox className="mr-3 size-16 rounded-lg" />
 					<View className="flex-1">
 						<SkeletonBox className="mb-2 h-5 w-36" />
 						<SkeletonBox className="h-4 w-28" />
@@ -282,7 +282,7 @@ export default function Home() {
 					{/* Header Section */}
 					<View className="mb-6 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
 						<View
-							className="mr-3 h-12 w-12 items-center justify-center overflow-hidden rounded-full"
+							className="mr-3 size-12 items-center justify-center overflow-hidden rounded-full"
 							style={{ backgroundColor: colors.secondary[2] }}
 						>
 							<Image
@@ -306,7 +306,7 @@ export default function Home() {
 							onPress={() =>
 								router.push("/dashboard/notifications/" as never)
 							}
-							className="relative h-10 w-10 items-center justify-center"
+							className="relative size-10 items-center justify-center"
 						>
 							<Ionicons
 								name="notifications-outline"
@@ -314,7 +314,7 @@ export default function Home() {
 								color={colors.primary[1]}
 							/>
 							{unreadCount > 0 && (
-								<View className="-right-1 -top-1 absolute h-5 w-5 items-center justify-center rounded-full bg-primary-1">
+								<View className="-right-1 -top-1 absolute size-5 items-center justify-center rounded-full bg-primary-1">
 									<Text
 										className="text-primary-2 text-xs"
 										style={{ fontFamily: fonts.heading }}
@@ -665,7 +665,7 @@ export default function Home() {
 										key={i}
 										className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 									>
-										<SkeletonBox className="mr-3 h-10 w-10 rounded-lg" />
+										<SkeletonBox className="mr-3 size-10 rounded-lg" />
 										<View className="flex-1">
 											<SkeletonBox className="mb-2 h-4 w-32" />
 											<SkeletonBox className="h-3 w-24" />
@@ -685,7 +685,7 @@ export default function Home() {
 									key={activity.id}
 									className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 								>
-									<View className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-secondary-3">
+									<View className="mr-3 size-10 items-center justify-center rounded-lg bg-secondary-3">
 										<Ionicons
 											name={activity.icon as never}
 											size={20}

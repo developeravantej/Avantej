@@ -44,7 +44,7 @@ function SkeletonCard() {
 		<View className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
 			<View className="mb-4 flex-row">
 				<View
-					className="mr-4 h-24 w-24 rounded-xl"
+					className="mr-4 size-24 rounded-xl"
 					style={{ backgroundColor: colors.secondary[3] }}
 				/>
 				<View className="flex-1">
@@ -143,7 +143,7 @@ export default function PackagesScreen() {
 						<View className="mb-2 flex-row items-center">
 							<TouchableOpacity
 								onPress={() => router.back()}
-								className="mr-3 h-10 w-10 items-center justify-center"
+								className="mr-3 size-10 items-center justify-center"
 							>
 								<Ionicons
 									name="arrow-back"
@@ -232,7 +232,7 @@ export default function PackagesScreen() {
 									<View className="mb-4 flex-row">
 										<Image
 											source={{ uri: pkg.imageUrl }}
-											className="mr-4 h-24 w-24 rounded-xl"
+											className="mr-4 size-24 rounded-xl"
 											resizeMode="cover"
 										/>
 										<View className="flex-1">
