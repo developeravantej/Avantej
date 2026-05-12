@@ -3,7 +3,10 @@ import { router } from "expo-router";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Container } from "@/components/container";
-import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
+import {
+	type PurchaseFlowState,
+	usePurchaseFlow,
+} from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
 import { formatMoney } from "@/lib/money";
 
@@ -16,6 +19,124 @@ const steps = [
 	{ number: 6, label: "Pay", active: false },
 	{ number: 7, label: "Done", active: true },
 ];
+
+type PackageSummaryCardProps = {
+	state: PurchaseFlowState;
+	total: number;
+};
+
+function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
+	return (
+		<View className="w-full rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+			<Text
+				className="mb-4 font-bold text-sm uppercase tracking-wide"
+				style={{ color: colors.primary[1] }}
+			>
+				Package Details
+			</Text>
+
+			<View className="mb-3">
+				<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
+					Package
+				</Text>
+				<Text
+					className="font-semibold text-base"
+					style={{ color: colors.primary[1] }}
+				>
+					{state.packageName ?? "Package"}
+				</Text>
+				{state.creditsTotal && (
+					<Text
+						className="mt-1 text-sm"
+						style={{ color: colors.secondary[1] }}
+					>
+						{state.creditsTotal} credits included
+					</Text>
+				)}
+			</View>
+
+			{state.serviceName && (
+				<View className="mb-3">
+					<Text
+						className="mb-1 text-xs"
+						style={{ color: colors.secondary[1] }}
+					>
+						Service
+					</Text>
+					<Text
+						className="font-semibold text-base"
+						style={{ color: colors.primary[1] }}
+					>
+						{state.serviceName}
+					</Text>
+				</View>
+			)}
+
+			{state.serviceType === "private" && state.preferredTimes.length > 0 && (
+				<View className="mb-3">
+					<Text
+						className="mb-1 text-xs"
+						style={{ color: colors.secondary[1] }}
+					>
+						Preferred Times
+					</Text>
+					{state.preferredTimes.map((pt) => (
+						<Text
+							key={`${pt.day}-${pt.time}`}
+							className="mb-1 font-semibold text-base"
+							style={{ color: colors.primary[1] }}
+						>
+							{pt.day} at {pt.time}
+						</Text>
+					))}
+				</View>
+			)}
+
+			{state.validityDays && (
+				<View className="mb-3">
+					<Text
+						className="mb-1 text-xs"
+						style={{ color: colors.secondary[1] }}
+					>
+						Validity
+					</Text>
+					<Text
+						className="font-semibold text-base"
+						style={{ color: colors.primary[1] }}
+					>
+						{state.validityDays} days from purchase
+					</Text>
+				</View>
+			)}
+
+			{state.remark && (
+				<View className="mb-3">
+					<Text
+						className="mb-1 text-xs"
+						style={{ color: colors.secondary[1] }}
+					>
+						Remark
+					</Text>
+					<Text className="text-base" style={{ color: colors.primary[1] }}>
+						{state.remark}
+					</Text>
+				</View>
+			)}
+
+			<View className="border-secondary-3 border-t pt-3">
+				<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
+					Total Paid
+				</Text>
+				<Text
+					className="font-bold text-lg"
+					style={{ color: colors.primary[1] }}
+				>
+					{formatMoney(total)}
+				</Text>
+			</View>
+		</View>
+	);
+}
 
 export default function DoneScreen() {
 	const { state, reset } = usePurchaseFlow();
@@ -173,124 +294,7 @@ export default function DoneScreen() {
 						</Text>
 
 						{/* Package Summary Card */}
-						<View className="w-full rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
-							<Text
-								className="mb-4 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.primary[1] }}
-							>
-								Package Details
-							</Text>
-
-							<View className="mb-3">
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									Package
-								</Text>
-								<Text
-									className="font-semibold text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{state.packageName ?? "Package"}
-								</Text>
-								{state.creditsTotal && (
-									<Text
-										className="mt-1 text-sm"
-										style={{ color: colors.secondary[1] }}
-									>
-										{state.creditsTotal} credits included
-									</Text>
-								)}
-							</View>
-
-							{state.serviceName && (
-								<View className="mb-3">
-									<Text
-										className="mb-1 text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Service
-									</Text>
-									<Text
-										className="font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{state.serviceName}
-									</Text>
-								</View>
-							)}
-
-							{state.serviceType === "private" &&
-								state.preferredTimes.length > 0 && (
-									<View className="mb-3">
-										<Text
-											className="mb-1 text-xs"
-											style={{ color: colors.secondary[1] }}
-										>
-											Preferred Times
-										</Text>
-										{state.preferredTimes.map((pt) => (
-											<Text
-												key={`${pt.day}-${pt.time}`}
-												className="mb-1 font-semibold text-base"
-												style={{ color: colors.primary[1] }}
-											>
-												{pt.day} at {pt.time}
-											</Text>
-										))}
-									</View>
-								)}
-
-							{state.validityDays && (
-								<View className="mb-3">
-									<Text
-										className="mb-1 text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Validity
-									</Text>
-									<Text
-										className="font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{state.validityDays} days from purchase
-									</Text>
-								</View>
-							)}
-
-							{state.remark && (
-								<View className="mb-3">
-									<Text
-										className="mb-1 text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Remark
-									</Text>
-									<Text
-										className="text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{state.remark}
-									</Text>
-								</View>
-							)}
-
-							<View className="border-secondary-3 border-t pt-3">
-								<Text
-									className="mb-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									Total Paid
-								</Text>
-								<Text
-									className="font-bold text-lg"
-									style={{ color: colors.primary[1] }}
-								>
-									{formatMoney(total)}
-								</Text>
-							</View>
-						</View>
+						<PackageSummaryCard state={state} total={total} />
 					</View>
 
 					{/* Action Buttons (inline; scroll with content) */}

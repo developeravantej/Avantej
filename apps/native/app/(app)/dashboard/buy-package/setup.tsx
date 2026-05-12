@@ -42,6 +42,107 @@ function SkeletonCard() {
 	);
 }
 
+type ProgressIndicatorProps = {
+	currentStep: number;
+	totalSteps: number;
+	progressPercentage: number;
+};
+
+function ProgressIndicator({
+	currentStep,
+	totalSteps,
+	progressPercentage,
+}: ProgressIndicatorProps) {
+	return (
+		<View className="mb-6">
+			<View className="mb-2 flex-row items-center justify-between">
+				<Text className="font-semibold text-primary-1 text-sm">
+					Step {currentStep} of {totalSteps}
+				</Text>
+				<Text className="font-semibold text-primary-1 text-sm">
+					{progressPercentage}%
+				</Text>
+			</View>
+
+			<View
+				className="mb-4 h-2 overflow-hidden rounded-full"
+				style={{ backgroundColor: colors.secondary[2] }}
+			>
+				<View
+					className="h-full rounded-full"
+					style={{
+						width: `${progressPercentage}%`,
+						backgroundColor: colors.primary[1],
+					}}
+				/>
+			</View>
+
+			<View className="relative" style={{ height: 50 }}>
+				<View
+					className="absolute rounded-full"
+					style={{
+						left: "15%",
+						right: "14%",
+						top: "24%",
+						height: 2,
+						backgroundColor: colors.secondary[2],
+						zIndex: 0,
+					}}
+				/>
+				<View className="absolute inset-0 flex-row items-center justify-between">
+					{steps.map((step) => (
+						<View
+							key={step.number}
+							className="items-center justify-center"
+							style={{ flex: 1, zIndex: 1 }}
+						>
+							{step.active ? (
+								<View className="mb-1 items-center justify-center">
+									<View
+										className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
+										style={{
+											backgroundColor: colors.primary[1],
+											zIndex: 2,
+										}}
+									>
+										<View
+											className="size-2 rounded-full"
+											style={{ backgroundColor: colors.primary[2] }}
+										/>
+									</View>
+								</View>
+							) : (
+								<View className="mb-1 items-center justify-center">
+									<View
+										className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+										style={{ zIndex: 2 }}
+									>
+										<Text className="font-semibold text-primary-1 text-xs">
+											{step.number}
+										</Text>
+									</View>
+								</View>
+							)}
+							<Text
+								className={`mt-1 text-center text-xs ${
+									step.active ? "font-bold" : "font-medium"
+								}`}
+								style={{
+									color: step.active
+										? colors.primary[1]
+										: colors.secondary[1],
+								}}
+							>
+								{step.label}
+							</Text>
+						</View>
+					))}
+				</View>
+			</View>
+		</View>
+	);
+}
+
 export default function SetupScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = usePurchaseFlow();
@@ -158,93 +259,11 @@ export default function SetupScreen() {
 
 				<View className="px-4 pb-6">
 					{/* Progress Indicator */}
-					<View className="mb-6">
-						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="font-semibold text-primary-1 text-sm">
-								Step {currentStep} of {totalSteps}
-							</Text>
-							<Text className="font-semibold text-primary-1 text-sm">
-								{progressPercentage}%
-							</Text>
-						</View>
-
-						<View
-							className="mb-4 h-2 overflow-hidden rounded-full"
-							style={{ backgroundColor: colors.secondary[2] }}
-						>
-							<View
-								className="h-full rounded-full"
-								style={{
-									width: `${progressPercentage}%`,
-									backgroundColor: colors.primary[1],
-								}}
-							/>
-						</View>
-
-						{/* Step Navigation */}
-						<View className="relative" style={{ height: 50 }}>
-							<View
-								className="absolute rounded-full"
-								style={{
-									left: "15%",
-									right: "14%",
-									top: "24%",
-									height: 2,
-									backgroundColor: colors.secondary[2],
-									zIndex: 0,
-								}}
-							/>
-							<View className="absolute inset-0 flex-row items-center justify-between">
-								{steps.map((step) => (
-									<View
-										key={step.number}
-										className="items-center justify-center"
-										style={{ flex: 1, zIndex: 1 }}
-									>
-										{step.active ? (
-											<View className="mb-1 items-center justify-center">
-												<View
-													className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
-													style={{
-														backgroundColor: colors.primary[1],
-														zIndex: 2,
-													}}
-												>
-													<View
-														className="size-2 rounded-full"
-														style={{ backgroundColor: colors.primary[2] }}
-													/>
-												</View>
-											</View>
-										) : (
-											<View className="mb-1 items-center justify-center">
-												<View
-													className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-													style={{ zIndex: 2 }}
-												>
-													<Text className="font-semibold text-primary-1 text-xs">
-														{step.number}
-													</Text>
-												</View>
-											</View>
-										)}
-										<Text
-											className={`mt-1 text-center text-xs ${
-												step.active ? "font-bold" : "font-medium"
-											}`}
-											style={{
-												color: step.active
-													? colors.primary[1]
-													: colors.secondary[1],
-											}}
-										>
-											{step.label}
-										</Text>
-									</View>
-								))}
-							</View>
-						</View>
-					</View>
+					<ProgressIndicator
+						currentStep={currentStep}
+						totalSteps={totalSteps}
+						progressPercentage={progressPercentage}
+					/>
 
 					{/* Category Selection Section */}
 					<View className="mb-4">
