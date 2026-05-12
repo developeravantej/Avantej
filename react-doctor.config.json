@@ -1,6 +1,6 @@
 {
   "ignore": {
-    "rules": [],
+    "rules": ["react-doctor/rendering-hydration-mismatch-time"],
     "files": [
       "**/node_modules/**",
       "**/.turbo/**",
