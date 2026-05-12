@@ -71,14 +71,14 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type SidebarNavItem = {
+type SidebarNavItem = {
 	title: string;
 	url: string;
 	icon: React.ComponentType<{ className?: string }>;
 	permission?: string;
 };
 
-export type SidebarNavGroup = {
+type SidebarNavGroup = {
 	label: string;
 	items: SidebarNavItem[];
 	collapsible?: boolean;

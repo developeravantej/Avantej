@@ -28,7 +28,7 @@ export interface Appointment {
 
 export type CalendarView = "monthly" | "weekly" | "daily";
 
-export type CreateRecurrenceParams = {
+type CreateRecurrenceParams = {
 	frequencyValue: number;
 	timeUnit: "day" | "week" | "month";
 	repeatOn?: number[];

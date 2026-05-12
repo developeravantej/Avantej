@@ -41,6 +41,7 @@ export function AppointmentCalendar({
 	defaultTrainerId,
 }: AppointmentCalendarProps) {
 	const [currentDate, setCurrentDate] = useState(new Date());
+	// react-doctor-disable-next-line react-doctor/no-derived-useState -- uncontrolled view: initialView seeds initial state, user toggles thereafter
 	const [view, setView] = useState<CalendarView>(initialView);
 	const [selectedDate, _setSelectedDate] = useState<Date | null>(null);
 	const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -404,5 +405,3 @@ export function AppointmentCalendar({
 		</>
 	);
 }
-
-export default AppointmentCalendar;

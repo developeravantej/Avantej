@@ -4,7 +4,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 
 // ─── Raw API item types ────────────────────────────────────────────────────────
 
-export type MemberListItem = {
+type MemberListItem = {
 	id: string;
 	userId: string;
 	name?: string | null;
@@ -22,7 +22,7 @@ export type ServiceListItem = {
 	categoryId?: string | null;
 };
 
-export type RoomListItem = {
+type RoomListItem = {
 	id: string;
 	name: string;
 	capacity?: number | null;
@@ -31,7 +31,7 @@ export type RoomListItem = {
 
 // ─── Mapped UI types ──────────────────────────────────────────────────────────
 
-export type ClientRow = {
+type ClientRow = {
 	id: string;
 	userId: string;
 	name: string;
@@ -40,7 +40,7 @@ export type ClientRow = {
 	creditPoints: number;
 };
 
-export type ServiceRow = {
+type ServiceRow = {
 	id: string;
 	name: string;
 	durationMinutes: number;

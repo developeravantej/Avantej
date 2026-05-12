@@ -9,7 +9,6 @@ import {
 	type PermissionScope,
 } from "@/hooks/usePermissionMatrixState";
 import type { PermissionResource, Role } from "./PermissionMatrix";
-import { ActionCell } from "./matrix/ActionCell";
 import { BulkApplyBar } from "./matrix/BulkApplyBar";
 import { CompactView } from "./matrix/CompactView";
 import { MatrixControls } from "./matrix/MatrixControls";
@@ -242,6 +241,3 @@ export function EnhancedPermissionMatrix({
 		</div>
 	);
 }
-
-// Re-export for consumers that want the raw cell.
-export { ActionCell };

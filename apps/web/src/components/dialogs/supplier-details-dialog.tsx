@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Phone, Mail, Globe, User, Building, Calendar, Hash } from "lucide-react";
 
-export interface SupplierDetails {
+interface SupplierDetails {
 	id: string;
 	name: string;
 	description?: string | null;

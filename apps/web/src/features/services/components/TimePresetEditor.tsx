@@ -16,9 +16,9 @@ const DAY_ORDER = [
 	"Sunday",
 ] as const;
 
-export type DayOfWeek = (typeof DAY_ORDER)[number];
+type DayOfWeek = (typeof DAY_ORDER)[number];
 
-export interface TimePresetConfig {
+interface TimePresetConfig {
 	recurringDays: string[];
 	timeSlotsPerDay: Record<string, string[]>;
 }

@@ -139,7 +139,7 @@ export function checkUserPermission(
 /**
  * Check if user has multiple permissions (AND logic)
  */
-export function checkUserPermissions(
+function checkUserPermissions(
   user: UserWithPermissions | null,
   requiredPermissions: RequiredPermission[],
   organizationId?: string
@@ -241,7 +241,7 @@ export function checkUserRole(
 /**
  * Check if user has any of the specified roles (OR logic)
  */
-export function checkUserHasAnyRole(
+function checkUserHasAnyRole(
   user: UserWithPermissions | null,
   roleNames: string[],
   organizationId?: string

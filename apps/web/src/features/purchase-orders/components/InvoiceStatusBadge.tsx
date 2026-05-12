@@ -1,7 +1,7 @@
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
 
-export type InvoiceStatus = "pending" | "matched" | "disputed" | "paid";
+type InvoiceStatus = "pending" | "matched" | "disputed" | "paid";
 
 const INVOICE_STATUS_MAP: Record<InvoiceStatus, { status: CanonicalStatus; label: string }> = {
 	pending:  { status: "pending",   label: "Pending" },

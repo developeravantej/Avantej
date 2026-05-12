@@ -3,7 +3,7 @@ import { formatPrice } from "@/lib/money";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ReceiptItem {
+interface ReceiptItem {
 	description: string;
 	quantity: number;
 	unitPriceCents: number;
