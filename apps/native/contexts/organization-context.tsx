@@ -92,6 +92,7 @@ export function OrganizationProvider({
 		}
 	}, [setOrganizationId]);
 
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- async restore flow with multiple branches (stored vs single-org vs current-org) interleaved with abort checks; each setter targets independent context state and cannot be consolidated without obscuring the abort/branch logic
 	useEffect(() => {
 		let aborted = false;
 		if (isAuthenticated) {

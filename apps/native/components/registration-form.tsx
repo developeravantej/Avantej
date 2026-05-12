@@ -867,6 +867,7 @@ function BranchSelectionStep({
 	}, []);
 
 	// Fetch branches when country changes
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- setters split across early-return, try success, catch, and finally branches of an async fetch; independent loading + data slices
 	useEffect(() => {
 		if (!data.country) {
 			setBranches([]);

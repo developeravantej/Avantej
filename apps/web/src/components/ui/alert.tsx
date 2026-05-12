@@ -34,6 +34,7 @@ function Alert({
   )
 }
 
+// react-doctor-disable-next-line eslint/no-unused-vars -- shadcn UI primitive — kept as public API surface for future composition
 function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

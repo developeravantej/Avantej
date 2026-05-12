@@ -81,6 +81,7 @@ export function CategoryCommissionForm({
 		enabled: open && !!organizationId,
 	});
 
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- form prefill from loaded config with conditional branch (isConditional) seeding either rates or conditions; independent state slices retained for granular setters used elsewhere in the form
 	useEffect(() => {
 		if (!existingConfig) return;
 		const { config, slots: apiSlots, rates: apiRates, conditions: apiConditions } = existingConfig;

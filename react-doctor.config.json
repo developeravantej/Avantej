@@ -18,6 +18,12 @@
       "packages/db/src/migrations/**",
       "apps/native/ios/**",
       "apps/native/android/**"
+    ],
+    "overrides": [
+      {
+        "files": ["**/apps/web/src/components/ui/**", "apps/web/src/components/ui/**", "src/components/ui/**"],
+        "rules": ["knip/exports", "knip/types"]
+      }
     ]
   }
 }

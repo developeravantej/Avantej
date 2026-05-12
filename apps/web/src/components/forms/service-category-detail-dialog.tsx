@@ -107,6 +107,7 @@ export function ServiceCategoryDetailDialog({
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- setStates are split across try/catch/finally branches for an async fetch; consolidating would require restructuring control flow without behavior change benefit
 	useEffect(() => {
 		if (isOpen && categoryId && organizationId) {
 			const fetchCategory = async () => {

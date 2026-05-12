@@ -59,6 +59,7 @@ export default function TermsScreen() {
 	const isNative = Platform.OS === "android" || Platform.OS === "ios";
 
 	// Load bundled PDF. On native we open in system viewer immediately and go back; on web we use WebView.
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- async PDF loader with platform-branched control flow (native vs web) and cancellation guards; setters target independent state slices across distinct branches
 	useEffect(() => {
 		if (!USE_LOCAL_PDF || !documentConfig) {
 			setPdfViewSource(null);
