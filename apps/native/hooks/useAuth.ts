@@ -55,7 +55,7 @@ export function useAuth() {
 	}, [refetch]);
 
 	const forgotPassword = useCallback(async (email: string) => {
-		const result = await authClient.forgetPassword({ email, redirectTo: "/(auth)/login" });
+		const result = await authClient.requestPasswordReset({ email, redirectTo: "/(auth)/login" });
 		if (result.error) {
 			throw new Error(result.error.message || "Failed to send reset email");
 		}

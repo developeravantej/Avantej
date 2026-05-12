@@ -1,6 +1,6 @@
 /// <reference path="./cloudflare-env.d.ts" />
 import { expo } from "@better-auth/expo";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createDb } from "@avantej-core/db";
 import * as schema from "@avantej-core/db/schema/auth";
@@ -10,7 +10,7 @@ import { env } from "cloudflare:workers";
 // Create database instance using Cloudflare Workers env
 const db = createDb(env.DATABASE_URL);
 
-export const auth = betterAuth<BetterAuthOptions>({
+export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: schema,

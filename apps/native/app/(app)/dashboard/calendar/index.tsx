@@ -72,11 +72,11 @@ export default function CalendarScreen() {
 
 	const selectedDateBookings = useMemo(() => {
 		return (appointments ?? [])
-			.filter((apt) => {
+			.filter((apt: any) => {
 				const dateKey = new Date(apt.startTime).toISOString().split("T")[0];
 				return dateKey === selectedDate;
 			})
-			.map((apt) => ({
+			.map((apt: any) => ({
 				id: apt.id,
 				name:
 					apt.type === "private" ? "Personal Training" : "Class Session",
@@ -198,7 +198,7 @@ export default function CalendarScreen() {
 										})
 										.toUpperCase()}
 								</Text>
-								{selectedDateBookings.map((booking) => (
+								{selectedDateBookings.map((booking: any) => (
 									<View
 										key={booking.id}
 										className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"

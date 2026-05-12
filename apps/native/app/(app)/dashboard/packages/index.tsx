@@ -214,7 +214,7 @@ export default function PackagesScreen() {
 
 					{/* Package Cards */}
 					{!isLoading &&
-						packages.map((pkg) => {
+						packages.map((pkg: any) => {
 							const badge = STATUS_BADGE[pkg.status] ?? STATUS_BADGE.active;
 							const usedCredits = pkg.totalCredits - pkg.remainingCredits;
 							const progressPercent =

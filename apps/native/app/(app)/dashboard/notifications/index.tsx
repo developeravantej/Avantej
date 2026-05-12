@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
 		referenceId: notif.relatedId ?? notif.referenceId,
 	}));
 
-	const unreadCount = notificationList.filter((n) => !n.read).length;
+	const unreadCount = notificationList.filter((n: any) => !n.read).length;
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -261,7 +261,7 @@ export default function NotificationsScreen() {
 						</View>
 					) : (
 						!isLoading &&
-						notificationList.map((notification) => (
+						notificationList.map((notification: any) => (
 							<TouchableOpacity
 								key={notification.id}
 								onPress={() => handleNotificationPress(notification)}

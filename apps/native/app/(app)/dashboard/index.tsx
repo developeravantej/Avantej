@@ -680,7 +680,7 @@ export default function Home() {
 								</Text>
 							</View>
 						) : recentActivities.length > 0 ? (
-							recentActivities.map((activity) => (
+							recentActivities.map((activity: any) => (
 								<TouchableOpacity
 									key={activity.id}
 									className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"

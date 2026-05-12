@@ -62,10 +62,10 @@ export const getSecondaryColor = (key: SecondaryColorKey): string => {
 export const getColor = (path: string): string => {
 	const [category, key] = path.split(".");
 	if (category === "primary" && key in colors.primary) {
-		return colors.primary[key as PrimaryColorKey];
+		return colors.primary[key as unknown as PrimaryColorKey];
 	}
 	if (category === "secondary" && key in colors.secondary) {
-		return colors.secondary[key as SecondaryColorKey];
+		return colors.secondary[key as unknown as SecondaryColorKey];
 	}
 	throw new Error(`Color not found: ${path}`);
 };
