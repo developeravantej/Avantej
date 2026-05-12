@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import type { Role, PermissionResource } from '../permission-matrix/PermissionMatrix';
+import type { Role, PermissionResource } from '../permission-matrix/permission-matrix.types';
 
 const EMPTY_RESOURCES: PermissionResource[] = [];
 

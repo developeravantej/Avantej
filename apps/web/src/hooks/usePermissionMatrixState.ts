@@ -1,5 +1,5 @@
 import { useReducer, useMemo } from "react";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 // -----------------------------------------------------------------------------
 // Types

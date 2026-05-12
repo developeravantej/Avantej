@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { PermissionResource, PermissionAction } from '../permission-matrix/PermissionMatrix';
+import type { PermissionResource, PermissionAction } from '../permission-matrix/permission-matrix.types';
 
 interface PermissionGroupCollapsibleProps {
   resource: PermissionResource;

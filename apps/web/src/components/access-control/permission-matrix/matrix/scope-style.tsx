@@ -1,6 +1,6 @@
 import { Check, X, Minus } from "lucide-react";
 import type { PermissionScope } from "@/hooks/usePermissionMatrixState";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 /** Snake_case → "Title Case" */
 export function formatResourceName(name: string): string {

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { type TestAppointmentData } from "./TestDataDialog";
+import { type TestAppointmentData } from "./test-appointment.types";
 import { ClientPicker } from "./ClientPicker";
 import { ServicePicker } from "./ServicePicker";
 import { DateTimePicker } from "./DateTimePicker";

@@ -61,7 +61,7 @@ import {
 import type {
 	Role,
 	PermissionResource,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRoles } from "@/hooks/useRoles";
 import { toast } from "sonner";

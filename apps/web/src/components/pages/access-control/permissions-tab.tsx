@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import type { PermissionResource } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { PermissionResource } from "@/components/access-control/permission-matrix/permission-matrix.types";
 import { client } from "@/utils/orpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";

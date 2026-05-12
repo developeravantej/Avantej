@@ -6,7 +6,7 @@ import { EnhancedPermissionMatrix } from "@/components/access-control/permission
 import type {
 	Role,
 	PermissionResource,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 // Mobile branch uses plain buttons for toggle (easier to drive in jsdom than
 // Radix Select, which relies on pointer-capture APIs that jsdom doesn't ship).

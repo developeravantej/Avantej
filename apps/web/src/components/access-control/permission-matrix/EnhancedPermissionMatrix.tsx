@@ -8,7 +8,7 @@ import {
 	usePermissionMatrixState,
 	type PermissionScope,
 } from "@/hooks/usePermissionMatrixState";
-import type { PermissionResource, Role } from "./PermissionMatrix";
+import type { PermissionResource, Role } from "./permission-matrix.types";
 import { BulkApplyBar } from "./matrix/BulkApplyBar";
 import { CompactView } from "./matrix/CompactView";
 import { MatrixControls } from "./matrix/MatrixControls";

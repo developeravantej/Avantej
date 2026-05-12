@@ -2,7 +2,7 @@ import React from "react";
 import type {
 	PermissionResource,
 	Role,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 import {
 	getPermissionScope,
 	hasPermission,

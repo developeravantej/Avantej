@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { PermissionGroupCollapsible } from '../permission-cards/PermissionGroupCollapsible';
-import type { Role, PermissionResource } from '../permission-matrix/PermissionMatrix';
+import type { Role, PermissionResource } from '../permission-matrix/permission-matrix.types';
 
 const roleFormSchema = z.object({
   name: z.string().min(2, 'Role name must be at least 2 characters').max(50, 'Role name must be less than 50 characters'),

@@ -9,7 +9,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppointmentFormData, type ServiceListItem } from "@/hooks/useAppointmentFormData";
 import { validateAppointmentSlot, validateTimeConflicts } from "@/lib/appointment-scheduler";
-import type { TestAppointmentData, TestAppointmentSlot } from "@/components/calendar/appointment-form/TestDataDialog";
+import type { TestAppointmentData, TestAppointmentSlot } from "@/components/calendar/appointment-form/test-appointment.types";
 import { toast } from "sonner";
 import type {
 	TeamMember,

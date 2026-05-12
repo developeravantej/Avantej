@@ -15,7 +15,7 @@ import {
 import type {
 	PermissionResource,
 	Role,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 import {
 	formatActionName,
 	formatResourceName,
