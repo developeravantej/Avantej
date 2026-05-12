@@ -43,7 +43,12 @@
     "db:studio:tenant": "turbo -F @avantej-core/db db:studio:tenant",
     "db:migrate-all-tenants": "turbo -F @avantej-core/db db:migrate-all-tenants",
     "gen:migrations": "bun scripts/gen-tenant-migrations.ts",
-    "verify:migrations": "bun scripts/verify-migrations-generated.ts"
+    "verify:migrations": "bun scripts/verify-migrations-generated.ts",
+    "doctor": "bash scripts/doctor.sh all",
+    "doctor:web": "bash scripts/doctor.sh web",
+    "doctor:native": "bash scripts/doctor.sh native",
+    "doctor:diff": "bash scripts/doctor.sh diff",
+    "doctor:fix": "bash scripts/doctor.sh fix"
   },
   "dependencies": {
     "dotenv": "^17.2.2",

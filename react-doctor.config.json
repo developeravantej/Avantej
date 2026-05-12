@@ -1,0 +1,18 @@
+{
+  "ignore": {
+    "rules": [],
+    "files": [
+      "**/node_modules/**",
+      "**/.turbo/**",
+      "**/dist/**",
+      "**/.expo/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/routeTree.gen.ts",
+      "**/*.gen.ts",
+      "packages/db/src/migrations/**",
+      "apps/native/ios/**",
+      "apps/native/android/**"
+    ]
+  }
+}

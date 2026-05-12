@@ -1,0 +1,47 @@
+name: React Doctor
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "apps/native/**"
+      - "packages/**"
+      - "react-doctor.config.json"
+      - ".github/workflows/react-doctor.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "apps/native/**"
+      - "packages/**"
+      - "react-doctor.config.json"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  react-doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: web
+            directory: apps/web
+          - name: native
+            directory: apps/native
+    name: scan (${{ matrix.target.name }})
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: millionco/react-doctor@main
+        with:
+          directory: ${{ matrix.target.directory }}
+          diff: main
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on: none
+          verbose: true

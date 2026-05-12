@@ -45,7 +45,8 @@ coverage
 .nyc_output
 
 # Local Claude settings
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
 
 # Misc
 *.tgz
