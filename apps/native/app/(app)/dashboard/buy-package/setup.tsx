@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { ServiceOptionCard } from "./_components/service-option-card";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const steps = [
@@ -361,80 +361,12 @@ export default function SetupScreen() {
 							</View>
 						) : (
 							purchasableServices.map((service: any) => (
-								<Pressable
+								<ServiceOptionCard
 									key={service.id}
-									onPress={() => {
-										setSelectedServiceId(service.id);
-									}}
-									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedServiceId === service.id
-											? "border-primary-1"
-											: "border-secondary-3"
-									} shadow-sm`}
-								>
-									<View className="mb-2 flex-row items-start justify-between">
-										<Text
-											className="flex-1 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{service.name}
-										</Text>
-										<View className="ml-2 flex-row gap-1">
-											{service.sessionCount != null && (
-												<View
-													className="rounded-full px-2 py-1"
-													style={{ backgroundColor: colors.secondary[3] }}
-												>
-													<Text
-														className="font-medium text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{service.sessionCount} credits
-													</Text>
-												</View>
-											)}
-											{service.type && (
-												<View
-													className="rounded-full px-2 py-1"
-													style={{ backgroundColor: colors.secondary[3] }}
-												>
-													<Text
-														className="font-medium text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{service.type === "semi_private"
-															? "Semi-Private"
-															: "Private"}
-													</Text>
-												</View>
-											)}
-										</View>
-									</View>
-									{service.description && (
-										<Text
-											className="mb-2 text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											{service.description}
-										</Text>
-									)}
-									<View className="flex-row items-center justify-between">
-										<Text
-											className="font-semibold text-base"
-											style={{ color: colors.primary[1] }}
-										>
-											{service.price != null ? formatMoney(service.price) : "—"}
-										</Text>
-										{service.expiryDays && (
-											<Text
-												className="text-xs"
-												style={{ color: colors.secondary[1] }}
-											>
-												Valid for {service.expiryDays} days
-											</Text>
-										)}
-									</View>
-								</Pressable>
+									service={service}
+									selected={selectedServiceId === service.id}
+									onSelect={setSelectedServiceId}
+								/>
 							))
 						)}
 					</View>

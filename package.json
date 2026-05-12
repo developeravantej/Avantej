@@ -51,6 +51,7 @@
     "doctor:fix": "bash scripts/doctor.sh fix"
   },
   "dependencies": {
+    "boneyard-js": "^1.8.1",
     "dotenv": "^17.2.2",
     "zod": "^4.1.11"
   },

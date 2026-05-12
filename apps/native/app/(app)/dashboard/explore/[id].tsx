@@ -12,6 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useHideTabBar } from "@/hooks/useHideTabBar";
 import { Container } from "@/components/container";
+import {
+	RelatedServices,
+	ServiceFeaturesList,
+} from "./_components/related-services";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
 import { formatMoney } from "@/lib/money";
@@ -72,6 +76,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- extracted RelatedServices + ServiceFeaturesList; remaining 303-line body is hero image + meta tiles + description/location sections tied to a single svc value; needs further refactor PR
 export default function ServiceDetailScreen() {
 	useHideTabBar();
 	const { organizationId } = useOrganization();
@@ -320,32 +325,7 @@ export default function ServiceDetailScreen() {
 					)}
 
 					{/* Features */}
-					{Array.isArray(svc.features) && svc.features.length > 0 && (
-						<>
-							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
-							<SectionHeader>What's included</SectionHeader>
-							<View className="mb-5 rounded-2xl bg-primary-2 p-4">
-								{(svc.features as string[]).map((f) => (
-									<View
-										key={f}
-										className="mb-2 flex-row items-start last:mb-0"
-									>
-										<Ionicons
-											name="checkmark-circle"
-											size={18}
-											color={colors.primary[1]}
-										/>
-										<Text
-											className="ml-2 flex-1 text-sm"
-											style={{ color: colors.primary[1] }}
-										>
-											{f}
-										</Text>
-									</View>
-								))}
-							</View>
-						</>
-					)}
+					<ServiceFeaturesList features={svc.features as string[]} />
 
 					{/* Location */}
 					{svc.location && (
@@ -369,68 +349,7 @@ export default function ServiceDetailScreen() {
 					)}
 
 					{/* Related */}
-					{related.length > 0 && (
-						<>
-							{/* react-doctor-disable-next-line react-doctor/rn-no-raw-text -- string child wrapped internally by SectionHeader's <Text> */}
-							<SectionHeader>Related Services</SectionHeader>
-							{related.map((relSvc: any) => (
-								<Pressable
-									key={relSvc.id}
-									onPress={() => {
-										router.push({
-											pathname: "/dashboard/explore/[id]" as never,
-											params: { id: relSvc.id },
-										});
-									}}
-									className="mb-3 flex-row items-center rounded-2xl bg-primary-2 p-3"
-								>
-									<Image
-										source={{ uri: relSvc.imageUrl ?? DEFAULT_IMAGE }}
-										className="mr-3 size-14 rounded-lg"
-										contentFit="cover"
-									/>
-									<View className="flex-1">
-										<View className="mb-1 flex-row items-center justify-between">
-											<Text
-												className="flex-1 font-semibold text-base"
-												style={{ color: colors.primary[1] }}
-												numberOfLines={1}
-											>
-												{relSvc.name}
-											</Text>
-											<View
-												className="ml-2 rounded-full px-2 py-0.5"
-												style={{ backgroundColor: colors.secondary[3] }}
-											>
-												<Text
-													className="font-medium text-xs"
-													style={{ color: colors.primary[1] }}
-												>
-													{typeLabel(relSvc.type)}
-												</Text>
-											</View>
-										</View>
-										<Text
-											className="text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											{formatMoney(relSvc.price)} /{" "}
-											{relSvc.priceUnit === "package"
-												? "package"
-												: relSvc.type === "private"
-													? "session"
-													: "class"}
-										</Text>
-									</View>
-									<Ionicons
-										name="chevron-forward"
-										size={20}
-										color={colors.secondary[1]}
-									/>
-								</Pressable>
-							))}
-						</>
-					)}
+					<RelatedServices services={related} />
 				</View>
 			</ScrollView>
 

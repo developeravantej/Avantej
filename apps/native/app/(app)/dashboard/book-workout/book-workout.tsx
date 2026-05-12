@@ -12,10 +12,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { BookablePackageCard } from "./_components/bookable-package-card";
 import { useBookingFlow } from "@/contexts/booking-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 type ServiceLite = {
@@ -302,178 +302,16 @@ export default function BookWorkoutScreen() {
 								</Text>
 							</View>
 						) : (
-							(packageInstances as any[]).map((inst) => {
-								const svc = serviceById.get(inst.serviceId);
-								const total: number = inst.creditsTotal ?? 0;
-								const remaining: number = inst.creditsRemaining ?? 0;
-								const used = Math.max(total - remaining, 0);
-								const progressPercent =
-									total > 0 ? (used / total) * 100 : 0;
-
-								// Expiry text
-								let expiryText: string | null = null;
-								let expiryUrgent = false;
-								if (inst.expiresAt) {
-									const expiry = new Date(inst.expiresAt);
-									const diffDays = Math.ceil(
-										(expiry.getTime() - nowMs) / (1000 * 60 * 60 * 24),
-									);
-									if (diffDays < 0) expiryText = "Expired";
-									else if (diffDays === 0) expiryText = "Expires today";
-									else if (diffDays === 1) expiryText = "Expires tomorrow";
-									else expiryText = `Expires in ${diffDays} days`;
-									expiryUrgent = diffDays >= 0 && diffDays <= 14;
-								}
-
-								const typeLabel =
-									svc?.type === "semi_private"
-										? "Semi-Private"
-										: svc?.type === "both"
-											? "All Types"
-											: "Private";
-
-								return (
-									<Pressable
-										key={inst.id}
-										onPress={() => {
-											setSelectedPackageInstanceId(inst.id);
-										}}
-										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-											selectedPackageInstanceId === inst.id
-												? "border-primary-1"
-												: "border-secondary-3"
-										} shadow-sm`}
-									>
-										<View className="mb-2 flex-row items-start justify-between">
-											<Text
-												className="flex-1 font-bold text-lg"
-												style={{ color: colors.primary[1] }}
-											>
-												{svc?.name ?? "Package"}
-											</Text>
-											<View
-												className="ml-2 rounded-full px-2 py-1"
-												style={{ backgroundColor: colors.secondary[3] }}
-											>
-												<Text
-													className="font-medium text-xs"
-													style={{ color: colors.primary[1] }}
-												>
-													{typeLabel}
-												</Text>
-											</View>
-										</View>
-
-										{/* Description (when available) */}
-										{svc?.description && (
-											<Text
-												className="mb-2 text-sm"
-												style={{ color: colors.secondary[1] }}
-											>
-												{svc.description}
-											</Text>
-										)}
-
-										{/* Credits row + progress bar */}
-										<View className="mb-2 flex-row items-center justify-between">
-											<View className="flex-row items-center">
-												<Ionicons
-													name="star-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													{remaining} of {total} credits remaining
-												</Text>
-											</View>
-											<Text
-												className="font-semibold text-xs"
-												style={{ color: colors.primary[1] }}
-											>
-												{used} used
-											</Text>
-										</View>
-										<View
-											className="mb-3 h-2 overflow-hidden rounded-full"
-											style={{ backgroundColor: colors.secondary[3] }}
-										>
-											<View
-												className="h-full rounded-full"
-												style={{
-													width: `${Math.min(progressPercent, 100)}%`,
-													backgroundColor: "#2563EB",
-												}}
-											/>
-										</View>
-
-										{/* Meta row: duration, price, expiry */}
-										<View className="flex-row flex-wrap items-center gap-3">
-											{svc?.duration != null && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="time-outline"
-														size={14}
-														color={colors.secondary[1]}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														{svc.duration} min/session
-													</Text>
-												</View>
-											)}
-											{inst.totalPrice != null && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="cash-outline"
-														size={14}
-														color={colors.secondary[1]}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{formatMoney(inst.totalPrice)}
-													</Text>
-												</View>
-											)}
-											{inst.expiresAt && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="calendar-outline"
-														size={14}
-														color={
-															expiryUrgent ? "#D97706" : colors.secondary[1]
-														}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{
-															color: expiryUrgent
-																? "#D97706"
-																: colors.secondary[1],
-														}}
-													>
-														{expiryText ??
-															new Date(inst.expiresAt).toLocaleDateString(
-																"en-US",
-																{
-																	month: "short",
-																	day: "numeric",
-																	year: "numeric",
-																},
-															)}
-													</Text>
-												</View>
-											)}
-										</View>
-									</Pressable>
-								);
-							})
+							(packageInstances as any[]).map((inst) => (
+								<BookablePackageCard
+									key={inst.id}
+									instance={inst}
+									service={serviceById.get(inst.serviceId)}
+									selected={selectedPackageInstanceId === inst.id}
+									nowMs={nowMs}
+									onSelect={setSelectedPackageInstanceId}
+								/>
+							))
 						)}
 					</View>
 

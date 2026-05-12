@@ -6,6 +6,7 @@ import { Image } from "expo-image";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { OrderSummary } from "./_components/order-summary";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { authClient } from "@/lib/auth-client";
@@ -297,137 +298,17 @@ export default function PayScreen() {
 					/>
 
 					{/* Order Summary */}
-					<View className="mb-6">
-						<Text
-							className="mb-4 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
-						>
-							ORDER SUMMARY
-						</Text>
-
-						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-							<View className="mb-3 flex-row items-start justify-between">
-								<View className="flex-1">
-									<Text
-										className="mb-1 font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{state.packageName ?? "Package"}
-									</Text>
-									{state.creditsTotal && (
-										<Text
-											className="text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											{state.creditsTotal} credits
-										</Text>
-									)}
-									{state.serviceName && (
-										<Text
-											className="mt-1 text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											Service: {state.serviceName}
-										</Text>
-									)}
-								</View>
-								<Text
-									className="font-semibold text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{fmt(subtotal)}
-								</Text>
-							</View>
-
-							{state.validityDays && (
-								<View className="border-secondary-3 border-t pt-3">
-									<Text
-										className="text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Valid for {state.validityDays} days from purchase
-									</Text>
-								</View>
-							)}
-						</View>
-
-						{/* Payment Plan Summary */}
-						{state.paymentPlanType && state.paymentPlanType !== "full" && (
-							<View className="mt-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-								<Text
-									className="mb-1 font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									Payment Plan
-								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									{state.paymentPlanType === "half"
-										? "Half Payment (2\u00d7)"
-										: "Quarterly Payment (4\u00d7)"}
-								</Text>
-								<Text
-									className="mt-1 font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									First installment:{" "}
-									{fmt(
-										subtotal /
-											(state.paymentPlanType === "half" ? 2 : 4),
-									)}{" "}
-									+ tax
-								</Text>
-							</View>
-						)}
-
-						{/* Price Breakdown */}
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-							<View className="mb-2 flex-row justify-between">
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									Subtotal
-								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									{fmt(subtotal)}
-								</Text>
-							</View>
-							<View className="mb-3 flex-row justify-between">
-								<Text
-									className="text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
-								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									{fmt(taxAmount)}
-								</Text>
-							</View>
-							<View className="flex-row justify-between border-secondary-3 border-t pt-3">
-								<Text
-									className="font-bold text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									Total
-								</Text>
-								<Text
-									className="font-bold text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{fmt(total)}
-								</Text>
-							</View>
-						</View>
-					</View>
+					<OrderSummary
+						packageName={state.packageName}
+						creditsTotal={state.creditsTotal}
+						serviceName={state.serviceName}
+						validityDays={state.validityDays}
+						paymentPlanType={state.paymentPlanType}
+						subtotal={subtotal}
+						taxAmount={taxAmount}
+						total={total}
+						taxRatePercent={taxRatePercent}
+					/>
 
 					{/* Payment Methods - disabled until Stripe integration */}
 					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm opacity-50">

@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
-import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Pressable,
@@ -12,14 +11,15 @@ import {
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
+import {
+	PastBookingCard,
+	UpcomingBookingCard,
+} from "./_components/booking-cards";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
 import { orpc } from "@/utils/orpc";
 
 // ─── Helpers ──────────────────────────────────────────────────────
-
-const DEFAULT_IMAGE =
-	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
 
 const formatBookingDate = (dateStr: string | Date) => {
 	const d = new Date(dateStr);
@@ -282,126 +282,12 @@ export default function BookingsScreen() {
 						</View>
 					) : (
 						upcomingList.map((booking: any) => (
-							<View
+							<UpcomingBookingCard
 								key={booking.id}
-								className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
-							>
-								{/* Image and Details Row */}
-								<View className="mb-4 flex-row">
-									{/* Image */}
-									<Image
-										source={{
-											uri: booking.imageUrl || DEFAULT_IMAGE,
-										}}
-										className="mr-4 size-24 rounded-xl"
-										contentFit="cover"
-									/>
-
-									{/* Details */}
-									<View className="flex-1">
-										<Text
-											className="mb-2 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{booking.serviceName ||
-												(booking.type === "semi-private"
-													? "Semi-Private Session"
-													: booking.type === "private"
-														? "Private Session"
-														: "Appointment")}
-										</Text>
-
-										{/* Date */}
-										<View className="mb-1 flex-row items-center">
-											<Ionicons
-												name="calendar-outline"
-												size={14}
-												color={colors.secondary[1]}
-											/>
-											<Text
-												className="ml-1 text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{formatBookingDate(
-													booking.startTime,
-												)}
-											</Text>
-										</View>
-
-										{/* Time */}
-										<View className="mb-1 flex-row items-center">
-											<Ionicons
-												name="time-outline"
-												size={14}
-												color={colors.secondary[1]}
-											/>
-											<Text
-												className="ml-1 text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{formatBookingTime(
-													booking.startTime,
-												)}{" "}
-												({booking.duration} min)
-											</Text>
-										</View>
-
-										{/* Location */}
-										{booking.location && (
-											<Text
-												className="text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{booking.location}
-											</Text>
-										)}
-
-										{/* Booking Number */}
-										{booking.bookingNumber && (
-											<Text
-												className="mt-1 text-xs"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												#{booking.bookingNumber}
-											</Text>
-										)}
-									</View>
-								</View>
-
-								{/* Action Buttons */}
-								<View className="flex-row justify-between">
-									<Pressable
-										onPress={() => {
-											router.push({
-												pathname:
-													"/dashboard/bookings/[id]" as never,
-												params: {
-													id: booking.id.toString(),
-												},
-											});
-										}}
-										className="mr-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3"
-									>
-										<Text className="font-medium text-base text-primary-1">
-											View details
-										</Text>
-									</Pressable>
-
-									<Pressable className="ml-2 flex-1 items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3">
-										<Text className="font-medium text-base text-primary-1">
-											Reschedule
-										</Text>
-									</Pressable>
-								</View>
-							</View>
+								booking={booking}
+								formatDate={formatBookingDate}
+								formatTime={formatBookingTime}
+							/>
 						))
 					)}
 
@@ -437,116 +323,13 @@ export default function BookingsScreen() {
 						</View>
 					) : (
 						pastList.map((booking: any) => (
-							<View
+							<PastBookingCard
 								key={booking.id}
-								className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
-							>
-								{/* Image and Details Row */}
-								<View className="mb-4 flex-row">
-									{/* Image */}
-									<Image
-										source={{
-											uri: booking.imageUrl || DEFAULT_IMAGE,
-										}}
-										className="mr-4 size-24 rounded-xl"
-										contentFit="cover"
-									/>
-
-									{/* Details */}
-									<View className="flex-1">
-										<Text
-											className="mb-2 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{booking.serviceName ||
-												(booking.type === "semi-private"
-													? "Semi-Private Session"
-													: booking.type === "private"
-														? "Private Session"
-														: "Appointment")}
-										</Text>
-
-										{/* Date */}
-										<View className="mb-1 flex-row items-center">
-											<Ionicons
-												name="calendar-outline"
-												size={14}
-												color={colors.secondary[1]}
-											/>
-											<Text
-												className="ml-1 text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{formatBookingDate(
-													booking.startTime,
-												)}
-											</Text>
-										</View>
-
-										{/* Time */}
-										<View className="mb-1 flex-row items-center">
-											<Ionicons
-												name="time-outline"
-												size={14}
-												color={colors.secondary[1]}
-											/>
-											<Text
-												className="ml-1 text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{formatBookingTime(
-													booking.startTime,
-												)}{" "}
-												({booking.duration} min)
-											</Text>
-										</View>
-
-										{/* Location */}
-										{booking.location && (
-											<Text
-												className="mb-1 text-sm"
-												style={{
-													color: colors.secondary[1],
-												}}
-											>
-												{booking.location}
-											</Text>
-										)}
-
-										{/* Status */}
-										<Text
-											className="text-sm"
-											style={{
-												color: colors.secondary[1],
-											}}
-										>
-											{getStatusLabel(booking.status)}
-										</Text>
-									</View>
-								</View>
-
-								{/* View Details Button */}
-								<Pressable
-									onPress={() => {
-										router.push({
-											pathname:
-												"/dashboard/bookings/[id]" as never,
-											params: {
-												id: booking.id.toString(),
-											},
-										});
-									}}
-									className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-3"
-								>
-									<Text className="font-medium text-base text-primary-1">
-										View details
-									</Text>
-								</Pressable>
-							</View>
+								booking={booking}
+								formatDate={formatBookingDate}
+								formatTime={formatBookingTime}
+								statusLabel={getStatusLabel(booking.status)}
+							/>
 						))
 					)}
 				</View>

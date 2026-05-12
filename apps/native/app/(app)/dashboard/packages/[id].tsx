@@ -111,6 +111,7 @@ function Field({
 	);
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- package detail with credit summary, transactions history, status/expiry derivations, sub-queries, modal renew flow; needs further refactor PR
 export default function PackageDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const { organizationId } = useOrganization();

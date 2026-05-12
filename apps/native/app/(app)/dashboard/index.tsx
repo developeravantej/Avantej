@@ -115,6 +115,7 @@ function UpcomingSkeleton() {
 
 // ─── Main Component ───────────────────────────────────────────────
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- dashboard home with fitness plan card, action buttons grid, upcoming session, recent activity sections; many interrelated query branches; needs further refactor PR
 export default function Home() {
 	const { user } = useAuth();
 	const { organizationId, isLoading: orgLoading } = useOrganization();

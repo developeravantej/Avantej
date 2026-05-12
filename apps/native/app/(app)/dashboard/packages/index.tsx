@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Image } from "expo-image";
 import {
 	Pressable,
 	RefreshControl,
@@ -13,8 +12,8 @@ import {
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
+import { PackageInstanceCard } from "./_components/package-instance-card";
 
 const DEFAULT_IMAGE =
 	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
@@ -216,177 +215,14 @@ export default function PackagesScreen() {
 					{!isLoading &&
 						packages.map((pkg: any) => {
 							const badge = STATUS_BADGE[pkg.status] ?? STATUS_BADGE.active;
-							const usedCredits = pkg.totalCredits - pkg.remainingCredits;
-							const progressPercent =
-								pkg.totalCredits > 0
-									? (usedCredits / pkg.totalCredits) * 100
-									: 0;
 							const expiryText = getExpiryText(pkg.expiresAt);
-
 							return (
-								<View
+								<PackageInstanceCard
 									key={pkg.id}
-									className="mb-4 rounded-2xl bg-white p-4 shadow-sm"
-								>
-									{/* Image and Details Row */}
-									<View className="mb-4 flex-row">
-										<Image
-											source={{ uri: pkg.imageUrl }}
-											className="mr-4 size-24 rounded-xl"
-											contentFit="cover"
-										/>
-										<View className="flex-1">
-											<View className="mb-2 flex-row items-start justify-between">
-												<Text
-													className="flex-1 font-bold text-lg"
-													style={{ color: colors.primary[1] }}
-												>
-													{pkg.packageName}
-												</Text>
-												<View
-													className="ml-2 rounded-full px-3 py-1"
-													style={{ backgroundColor: badge.bg }}
-												>
-													<Text
-														className="font-semibold text-xs"
-														style={{ color: badge.text }}
-													>
-														{badge.label}
-													</Text>
-												</View>
-											</View>
-
-											{pkg.category && (
-												<View className="mb-2 flex-row items-center">
-													<Ionicons
-														name="cube-outline"
-														size={14}
-														color={colors.secondary[1]}
-													/>
-													<Text
-														className="ml-1 text-sm"
-														style={{ color: colors.secondary[1] }}
-													>
-														{pkg.category}
-													</Text>
-												</View>
-											)}
-
-											<View className="mb-1 flex-row items-center">
-												<Ionicons
-													name="star-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													{pkg.remainingCredits} / {pkg.totalCredits} credits
-													remaining
-												</Text>
-											</View>
-
-											<View className="mb-1 flex-row items-center">
-												<Ionicons
-													name="calendar-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													Purchased: {pkg.purchaseDate}
-												</Text>
-											</View>
-
-											<View className="flex-row items-center">
-												<Ionicons
-													name="cash-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													className="ml-1 font-semibold text-sm"
-													style={{ color: colors.primary[1] }}
-												>
-													{formatMoney(pkg.price)}
-												</Text>
-											</View>
-										</View>
-									</View>
-
-									{/* Progress Bar */}
-									<View className="mb-2">
-										<View className="mb-1 flex-row items-center justify-between">
-											<Text
-												className="text-xs"
-												style={{ color: colors.secondary[1] }}
-											>
-												Credits Used
-											</Text>
-											<Text
-												className="font-semibold text-xs"
-												style={{ color: colors.primary[1] }}
-											>
-												{usedCredits} / {pkg.totalCredits}
-											</Text>
-										</View>
-										<View
-											className="h-2 rounded-full"
-											style={{ backgroundColor: colors.secondary[3] }}
-										>
-											<View
-												className="h-full rounded-full"
-												style={{
-													width: `${progressPercent}%`,
-													backgroundColor: "#2563EB",
-												}}
-											/>
-										</View>
-									</View>
-
-									{/* Expiry Countdown */}
-									{expiryText && pkg.status === "active" && (
-										<View className="mb-2">
-											<Text
-												className="text-xs"
-												style={{
-													color:
-														expiryText.includes("Expires") &&
-														!expiryText.includes("30")
-															? "#D97706"
-															: colors.secondary[1],
-												}}
-											>
-												{expiryText}
-											</Text>
-										</View>
-									)}
-
-									{/* Action Button */}
-									<Pressable
-										onPress={() => {
-											router.push({
-												pathname: "/dashboard/packages/[id]" as never,
-												params: { id: pkg.id },
-											});
-										}}
-										className="items-center justify-center rounded-xl bg-white py-3"
-										style={{
-											borderWidth: 1,
-											borderColor: colors.secondary[2],
-										}}
-									>
-										<Text
-											className="font-medium text-base"
-											style={{ color: colors.primary[1] }}
-										>
-											View Package Details
-										</Text>
-									</Pressable>
-								</View>
+									pkg={pkg}
+									badge={badge}
+									expiryText={expiryText}
+								/>
 							);
 						})}
 

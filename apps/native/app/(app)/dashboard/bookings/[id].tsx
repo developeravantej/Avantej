@@ -68,6 +68,7 @@ function formatStatusLabel(status: string): string {
 	}
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- booking detail with tightly coupled status/loading/error branches, service+package side-queries, cancel mutation, and details layout; needs further refactor PR
 export default function BookingDetailScreen() {
 	useHideTabBar();
 	const params = useLocalSearchParams<{ id: string }>();
