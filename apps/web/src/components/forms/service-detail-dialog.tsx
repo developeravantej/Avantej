@@ -364,7 +364,7 @@ export function ServiceDetailDialog({
 						<div className="flex items-center justify-center py-12">
 							<Loader2 className="size-8 animate-spin text-muted-foreground" />
 							<span className="ml-3 text-sm text-muted-foreground">
-								Loading...
+								Loading…
 							</span>
 						</div>
 					)}

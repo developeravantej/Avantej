@@ -559,7 +559,7 @@ export function MemberReassignment({
                       {assigningMemberId === member.id ? (
                         <>
                           <Loader2 className="size-3 mr-2 animate-spin" />
-                          Assigning...
+                          Assigning…
                         </>
                       ) : (
                         <>

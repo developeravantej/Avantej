@@ -167,7 +167,7 @@ export function ProductPricingPage() {
 				</div>
 			) : overridesLoading ? (
 				<div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-					Loading...
+					Loading…
 				</div>
 			) : overrides.length === 0 ? (
 				<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed text-muted-foreground text-sm">

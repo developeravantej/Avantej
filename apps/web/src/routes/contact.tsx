@@ -115,7 +115,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -134,7 +134,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -149,7 +149,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -168,7 +168,7 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-gray-950 hover:text-white transition-colors"
 									>
 										<svg
 											className="size-5"
@@ -262,7 +262,7 @@ function ContactPage() {
 									<Button
 										type="submit"
 										size="lg"
-										className="w-full bg-black text-white hover:bg-black/90"
+										className="w-full bg-gray-950 text-white hover:bg-black/90"
 										disabled={form.formState.isSubmitting}
 									>
 										Send Message

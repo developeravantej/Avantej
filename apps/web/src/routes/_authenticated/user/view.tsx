@@ -38,7 +38,7 @@ function UserViewComponent() {
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-8 text-muted-foreground">
-					Loading members...
+					Loading members…
 				</div>
 			) : (
 				<DataTable columns={columns} data={membersData} />

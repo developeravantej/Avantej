@@ -185,4 +185,4 @@ export function MobileRoleCards({
 }
 
 /** Helper for consumers that want to keep the cycle logic inline. */
-export const cycleScopeForMobile = cycleScope;
+const cycleScopeForMobile = cycleScope;

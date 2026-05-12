@@ -717,7 +717,7 @@ function RouteComponent() {
       <div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
         <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
           <div className="size-8 border-2 border-current rounded-full animate-spin border-r-transparent">
-            <span className="sr-only">Loading...</span>
+            <span className="sr-only">Loading…</span>
           </div>
         </div>
       </div>

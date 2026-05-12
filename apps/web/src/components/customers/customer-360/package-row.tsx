@@ -111,7 +111,7 @@ function InstallmentsSection({
 	if (isLoading) {
 		return (
 			<p className="py-2 text-muted-foreground text-xs">
-				Loading installments...
+				Loading installments…
 			</p>
 		);
 	}
@@ -188,7 +188,7 @@ function PreferredTimesSection({
 	if (isLoading) {
 		return (
 			<p className="py-2 text-muted-foreground text-xs">
-				Loading preferred times...
+				Loading preferred times…
 			</p>
 		);
 	}

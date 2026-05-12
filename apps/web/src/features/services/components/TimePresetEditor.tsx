@@ -6,7 +6,7 @@
  * for services with schedulingType === "time-preset".
  */
 
-export const DAY_ORDER = [
+const DAY_ORDER = [
 	"Monday",
 	"Tuesday",
 	"Wednesday",

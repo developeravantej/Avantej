@@ -240,7 +240,7 @@ function AddAdminDialog({
 							<div className="max-h-48 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md">
 								{isSearching ? (
 									<div className="p-3 text-center text-sm text-muted-foreground">
-										Searching...
+										Searching…
 									</div>
 								) : eligibleUsers.length === 0 ? (
 									<div className="p-3 text-center text-sm text-muted-foreground">
@@ -378,7 +378,7 @@ function PlatformAdminAdminsPage() {
 									colSpan={6}
 									className="text-center text-muted-foreground py-8"
 								>
-									Loading admins...
+									Loading admins…
 								</TableCell>
 							</TableRow>
 						) : adminList.length === 0 ? (

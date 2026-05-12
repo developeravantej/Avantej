@@ -252,7 +252,7 @@ export function CategoryCommissionForm({
 
 				{isLoadingConfig ? (
 					<div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-						Loading...
+						Loading…
 					</div>
 				) : (
 					<div className="flex flex-col gap-5 overflow-y-auto -mx-6 px-6">

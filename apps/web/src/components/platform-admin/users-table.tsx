@@ -223,7 +223,7 @@ export function UsersTable({
 									colSpan={columns.length}
 									className="h-24 text-center text-muted-foreground"
 								>
-									Loading...
+									Loading…
 								</TableCell>
 							</TableRow>
 						) : table.getRowModel().rows.length ? (

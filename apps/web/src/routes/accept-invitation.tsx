@@ -409,7 +409,7 @@ function AcceptInvitationPage() {
 							) : (
 								<>
 									<Loader2 className="size-5 animate-spin" />
-									Accepting Invitation...
+									Accepting Invitation…
 								</>
 							)}
 						</CardTitle>

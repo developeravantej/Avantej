@@ -109,7 +109,7 @@ function RouteComponent() {
                   {isSubmitting ? (
                     <>
                       <LoadingSpinner size="sm" className="mr-2" />
-                      Redirecting...
+                      Redirecting…
                     </>
                   ) : (
                     "Proceed to Subscription"

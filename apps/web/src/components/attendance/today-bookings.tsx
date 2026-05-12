@@ -62,7 +62,7 @@ function groupByTimeBucket(
 
 // ─── Pure display component ───────────────────────────────────────────────────
 
-export function TodayBookings({
+function TodayBookings({
 	bookings,
 	onCheckIn,
 	onNoShow,

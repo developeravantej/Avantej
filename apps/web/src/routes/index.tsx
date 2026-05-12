@@ -173,7 +173,7 @@ function HomeComponent() {
 								buttonVariants({
 									size: "lg",
 								}),
-								"bg-black text-white hover:bg-black/90"
+								"bg-gray-950 text-white hover:bg-black/90"
 							)}
 						>
 							Get Started
@@ -209,7 +209,7 @@ function HomeComponent() {
 					<div className="grid md:grid-cols-3 gap-8 mb-12">
 						{/* Client Management */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
 								<UserCircle className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">Client Management</h3>
@@ -231,7 +231,7 @@ function HomeComponent() {
 
 						{/* Financial Management */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
 								<DollarSign className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
@@ -255,7 +255,7 @@ function HomeComponent() {
 
 						{/* Analytics & Reporting */}
 						<div className="p-8 bg-gray-50 rounded-xl hover:shadow-lg transition-all group">
-							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-white transition-colors">
+							<div className="size-12 bg-black/5 rounded-lg flex items-center justify-center mb-6 group-hover:bg-gray-950 group-hover:text-white transition-colors">
 								<PieChart className="size-6" />
 							</div>
 							<h3 className="text-xl font-semibold mb-4">
@@ -562,7 +562,7 @@ function HomeComponent() {
 					<h1 className="text-3xl font-bold text-center mb-12">How It Works</h1>
 					<div className="grid md:grid-cols-3 gap-8">
 						<div className="text-center">
-							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								1
 							</div>
 							<h3 className="text-xl font-semibold mb-2">
@@ -574,7 +574,7 @@ function HomeComponent() {
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								2
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Import Your Data</h3>
@@ -584,7 +584,7 @@ function HomeComponent() {
 							</p>
 						</div>
 						<div className="text-center">
-							<div className="size-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+							<div className="size-16 bg-gray-950 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 								3
 							</div>
 							<h3 className="text-xl font-semibold mb-2">Track & Optimize</h3>
@@ -745,7 +745,7 @@ function HomeComponent() {
 											buttonVariants({
 												size: "lg",
 											}),
-											"w-full bg-black text-white hover:bg-black/90"
+											"w-full bg-gray-950 text-white hover:bg-black/90"
 										)}
 									>
 										Get Started
@@ -863,7 +863,7 @@ function HomeComponent() {
 							buttonVariants({
 								size: "lg",
 							}),
-							"bg-black text-white hover:bg-black/90"
+							"bg-gray-950 text-white hover:bg-black/90"
 						)}
 					>
 						Explore All Features

@@ -171,7 +171,7 @@ export function isUserWithPermissions(user: unknown): user is UserWithPermission
   );
 }
 
-export function isPermissionData(permission: unknown): permission is PermissionData {
+function isPermissionData(permission: unknown): permission is PermissionData {
   return (
     permission !== null &&
     typeof permission === 'object' &&

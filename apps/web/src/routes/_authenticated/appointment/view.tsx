@@ -81,7 +81,7 @@ function AppointmentViewComponent() {
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-24 text-muted-foreground">
-					Loading appointments...
+					Loading appointments…
 				</div>
 			) : (
 				<AppointmentCalendar appointments={appointments} />

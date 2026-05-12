@@ -45,7 +45,7 @@ function AboutPage() {
                 <h3 className="text-2xl font-semibold mb-4">Our Values</h3>
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <div className="size-8 bg-gray-950 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Check className="size-4 text-white" />
                     </div>
                     <div>
@@ -57,7 +57,7 @@ function AboutPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <div className="size-8 bg-gray-950 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Check className="size-4 text-white" />
                     </div>
                     <div>
@@ -69,7 +69,7 @@ function AboutPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="size-8 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <div className="size-8 bg-gray-950 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Check className="size-4 text-white" />
                     </div>
                     <div>

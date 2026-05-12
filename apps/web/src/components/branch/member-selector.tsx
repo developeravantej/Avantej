@@ -72,7 +72,7 @@ export function MemberSelector({
     return (
       <div className="flex items-center space-x-2">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Loading members...</span>
+        <span className="text-sm text-muted-foreground">Loading members…</span>
       </div>
     );
   }

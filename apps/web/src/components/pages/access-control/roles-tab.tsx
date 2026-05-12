@@ -501,7 +501,7 @@ export function RolesTabPage() {
 					<CardContent className="py-12">
 						<div className="text-center">
 							<div className="animate-spin rounded-full size-12 border-b-2 border-primary mx-auto mb-4" />
-							<h3 className="text-lg font-medium mb-2">Loading roles...</h3>
+							<h3 className="text-lg font-medium mb-2">Loading roles…</h3>
 							<p className="text-muted-foreground">
 								Please wait while we fetch your role configuration.
 							</p>

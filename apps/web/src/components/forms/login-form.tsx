@@ -158,7 +158,7 @@ export default function LoginForm({
 										{state.isSubmitting || isLoading ? (
 											<>
 												<LoadingSpinner size="sm" className="mr-2" />
-												Logging in...
+												Logging in…
 											</>
 										) : (
 											"Login"

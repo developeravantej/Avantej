@@ -64,7 +64,7 @@ export function mapApiAppointmentToCalendar(api: ApiAppointment): CalendarAppoin
 	};
 }
 
-export function getAppointmentDateRange(view: "monthly" | "weekly", currentDate: Date): { startFrom: string; startTo: string } {
+function getAppointmentDateRange(view: "monthly" | "weekly", currentDate: Date): { startFrom: string; startTo: string } {
 	if (view === "weekly") {
 		const weekStart = new Date(currentDate);
 		weekStart.setDate(currentDate.getDate() - currentDate.getDay());

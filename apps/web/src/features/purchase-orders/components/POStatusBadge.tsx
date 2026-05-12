@@ -3,7 +3,7 @@ import type { CanonicalStatus } from "@/components/ui/status-badge";
 
 // Maps PO statuses to canonical StatusBadge equivalents.
 // "ordered" and "partially_received" are PO-domain states not in CanonicalStatus.
-export const PO_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
+const PO_STATUS_MAP: Record<string, { status: CanonicalStatus; label?: string }> = {
 	draft: { status: "draft" },
 	approved: { status: "approved" },
 	ordered: { status: "confirmed", label: "Ordered" },

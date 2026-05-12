@@ -182,7 +182,7 @@ export function CoachIntakeEditor({
 					{isLoading ? (
 						<div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
 							<LoadingSpinner size="sm" />
-							Loading intake slots...
+							Loading intake slots…
 						</div>
 					) : (
 						<div className="space-y-4">
@@ -277,7 +277,7 @@ export function CoachIntakeEditor({
 									type="button"
 									onClick={() => saveMutation.mutate()}
 									disabled={saveMutation.isPending}
-									className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+									className="inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									<Save className="size-4 mr-2" />
 									{saveMutation.isPending ? "Saving..." : "Save Intake Availability"}

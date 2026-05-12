@@ -121,7 +121,7 @@ export async function requirePermission(
  * Check if the authenticated user has at least one of the required permissions.
  * Redirects to `redirectTo` with `?unauthorized=true` if none match.
  */
-export async function requireAnyPermission(
+async function requireAnyPermission(
 	permissions: Array<{ resource: string; action: string } | string>,
 	redirectTo: string = "/dashboard"
 ): Promise<void> {
@@ -158,7 +158,7 @@ export async function requireAnyPermission(
  * current organization. Role comparison is case-insensitive.
  * Redirects to `redirectTo` with `?unauthorized=true` if not.
  */
-export async function requireRole(
+async function requireRole(
 	roleNames: string | string[],
 	redirectTo: string = "/dashboard"
 ): Promise<void> {
@@ -191,7 +191,7 @@ export async function requireRole(
  * Check if the authenticated user is a platform (system) admin.
  * Redirects to `redirectTo` with `?unauthorized=true` if not.
  */
-export async function requireSystemAdmin(
+async function requireSystemAdmin(
 	redirectTo: string = "/dashboard"
 ): Promise<void> {
 	const session = await authClient.getSession();

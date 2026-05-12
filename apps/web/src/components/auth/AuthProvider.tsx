@@ -24,7 +24,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 }
 
 // Hook to use auth context
-export function useAuthContext(): UseAuthReturn {
+function useAuthContext(): UseAuthReturn {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuthContext must be used within an AuthProvider");
@@ -33,7 +33,7 @@ export function useAuthContext(): UseAuthReturn {
 }
 
 // Export for router context integration
-export { AuthContext };
+
 
 
 

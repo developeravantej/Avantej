@@ -365,7 +365,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 								onChange={(e) => setCreateBaseUomId(e.target.value)}
 								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
 							>
-								<option value="">Select base UoM...</option>
+								<option value="">Select base UoM…</option>
 								{baseUoms.map((u) => (
 									<option key={u.id} value={u.id}>
 										{u.name}
@@ -446,7 +446,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 								onChange={(e) => setEditBaseUomId(e.target.value)}
 								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
 							>
-								<option value="">Select base UoM...</option>
+								<option value="">Select base UoM…</option>
 								{baseUoms.map((u) => (
 									<option key={u.id} value={u.id}>
 										{u.name}

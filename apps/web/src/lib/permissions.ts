@@ -175,7 +175,7 @@ export function checkUserPermissions(
 /**
  * Check if user has any of the specified permissions (OR logic)
  */
-export function checkUserHasAnyPermission(
+function checkUserHasAnyPermission(
   user: UserWithPermissions | null,
   requiredPermissions: RequiredPermission[],
   organizationId?: string
@@ -269,7 +269,7 @@ export function checkUserHasAnyRole(
 /**
  * Get user's organizations
  */
-export function getUserOrganizations(user: UserWithPermissions | null): OrganizationData[] {
+function getUserOrganizations(user: UserWithPermissions | null): OrganizationData[] {
   if (!user || !isUserWithPermissions(user)) {
     return [];
   }
@@ -279,7 +279,7 @@ export function getUserOrganizations(user: UserWithPermissions | null): Organiza
 /**
  * Get specific organization by ID
  */
-export function getUserOrganization(
+function getUserOrganization(
   user: UserWithPermissions | null,
   organizationId: string
 ): OrganizationData | null {
@@ -292,7 +292,7 @@ export function getUserOrganization(
 /**
  * Get user's roles in a specific organization
  */
-export function getUserRolesInOrganization(
+function getUserRolesInOrganization(
   user: UserWithPermissions | null,
   organizationId: string
 ): RoleData[] {
@@ -303,7 +303,7 @@ export function getUserRolesInOrganization(
 /**
  * Get user's highest priority role (lowest number = highest priority)
  */
-export function getUserHighestPriorityRole(
+function getUserHighestPriorityRole(
   user: UserWithPermissions | null,
   organizationId?: string
 ): RoleData | null {
@@ -331,7 +331,7 @@ export function getUserHighestPriorityRole(
 /**
  * Check route permissions based on configuration
  */
-export function checkRoutePermissions(
+function checkRoutePermissions(
   user: UserWithPermissions | null,
   routeConfig: RoutePermissionConfig,
   organizationId?: string
@@ -384,7 +384,7 @@ export function checkRoutePermissions(
 /**
  * Create a permission checker function for a specific organization
  */
-export function createOrganizationPermissionChecker(
+function createOrganizationPermissionChecker(
   user: UserWithPermissions | null,
   organizationId: string
 ) {

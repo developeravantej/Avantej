@@ -106,7 +106,7 @@ type PlanInfo = { code: string; name: string; numInstallments: number };
 
 // ── Adapter functions ─────────────────────────────────────────────────────────
 
-export function fromMembershipRow(row: MembershipRow): PackageRowVM {
+function fromMembershipRow(row: MembershipRow): PackageRowVM {
 	return {
 		id: row.packageInstanceId,
 		clientId: row.clientId,
@@ -132,7 +132,7 @@ export function fromMembershipRow(row: MembershipRow): PackageRowVM {
 	};
 }
 
-export function fromInstanceRow(
+function fromInstanceRow(
 	row: PackageInstanceListAllRow,
 	plansMap: Map<string, PlanInfo>,
 ): PackageRowVM {
@@ -181,7 +181,7 @@ export function fromInstanceRow(
 	};
 }
 
-export function fromInstallmentOverview(
+function fromInstallmentOverview(
 	item: InstallmentOverviewItem,
 	plansMap: Map<string, PlanInfo>,
 ): PackageRowVM {

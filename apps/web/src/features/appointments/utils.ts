@@ -96,7 +96,7 @@ export function isToday(date: Date) {
 	return date.getDate() === t.getDate() && date.getMonth() === t.getMonth() && date.getFullYear() === t.getFullYear();
 }
 
-export function isTomorrow(date: Date) {
+function isTomorrow(date: Date) {
 	const t = new Date();
 	t.setDate(t.getDate() + 1);
 	return date.getDate() === t.getDate() && date.getMonth() === t.getMonth() && date.getFullYear() === t.getFullYear();

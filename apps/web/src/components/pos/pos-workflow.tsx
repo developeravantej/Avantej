@@ -833,7 +833,7 @@ export function PosWorkflow({
 								{submitMutation.isPending ? (
 									<>
 										<LoadingSpinner size="sm" className="mr-2" />
-										Processing...
+										Processing…
 									</>
 								) : (
 									"Charge & Confirm"

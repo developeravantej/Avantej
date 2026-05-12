@@ -231,7 +231,7 @@ export function CreateInvitationDialog({
 						{isLoadingHierarchy ? (
 							<div className="flex items-center gap-2 mt-1 text-sm text-brand-secondary-1">
 								<Loader2 className="size-4 animate-spin" />
-								Loading hierarchy...
+								Loading hierarchy…
 							</div>
 						) : (
 							<Select
@@ -282,11 +282,11 @@ export function CreateInvitationDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending} className="bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">
+						<Button type="submit" disabled={createMutation.isPending} className="bg-gray-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">
 							{createMutation.isPending ? (
 								<>
 									<Loader2 className="size-4 mr-2 animate-spin" />
-									Sending...
+									Sending…
 								</>
 							) : (
 								<>

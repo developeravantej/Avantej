@@ -131,7 +131,7 @@ export function EditAppointmentModal({
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{isLoadingStaff ? (
-						<div className="text-sm text-muted-foreground">Loading...</div>
+						<div className="text-sm text-muted-foreground">Loading…</div>
 					) : (
 						<StaffPicker
 							trainers={trainers}

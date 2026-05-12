@@ -436,7 +436,7 @@ function SubscribePage() {
         <div className="flex justify-center items-center py-16">
           <div className="text-center">
             <Loader2 className="size-8 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-lg font-medium">Processing your payment...</p>
+            <p className="text-lg font-medium">Processing your payment…</p>
             <p className="text-muted-foreground">
               Please wait while we set up your subscription.
             </p>
@@ -449,7 +449,7 @@ function SubscribePage() {
         <div className="flex justify-center items-center py-16">
           <Loader2 className="size-8 animate-spin text-primary" />
           <span className="ml-3 text-lg text-muted-foreground">
-            Loading plans...
+            Loading plans…
           </span>
         </div>
       )}
@@ -543,7 +543,7 @@ function SubscribePage() {
                       {isCreatingCheckout || isCreatingGuestCheckout ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
-                          Processing...
+                          Processing…
                         </>
                       ) : isAuthenticated ? (
                         "Get Started"
@@ -709,7 +709,7 @@ function SubscribePage() {
                 {isCreatingGuestCheckout ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    Processing...
+                    Processing…
                   </>
                 ) : (
                   <>

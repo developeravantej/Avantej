@@ -373,7 +373,7 @@ export function PermissionsTabPage() {
 					<CardContent className="py-12">
 						<div className="text-center">
 							<Loader2 className="size-8 mx-auto text-muted-foreground mb-4 animate-spin" />
-							<p className="text-muted-foreground">Loading permissions...</p>
+							<p className="text-muted-foreground">Loading permissions…</p>
 						</div>
 					</CardContent>
 				</Card>

@@ -75,7 +75,7 @@ export function useRoles(organizationId: string) {
  * @deprecated useRoleMatrix is no longer needed — use useRoles + usePermissions instead.
  * Kept as a stub to avoid import errors in existing consumer pages.
  */
-export function useRoleMatrix() {
+function useRoleMatrix() {
 	return {
 		matrix: null,
 		setMatrix: () => {},

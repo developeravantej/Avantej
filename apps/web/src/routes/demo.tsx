@@ -161,7 +161,7 @@ function DemoPage() {
 										<Button
 											type="submit"
 											size="lg"
-											className="w-full bg-black text-white hover:bg-black/90"
+											className="w-full bg-gray-950 text-white hover:bg-black/90"
 											disabled={form.formState.isSubmitting}
 										>
 											Request Demo

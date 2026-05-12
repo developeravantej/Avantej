@@ -414,7 +414,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 <div
                   className={`flex size-10 items-center justify-center rounded-full ${
                     currentStep === step.number
-                      ? "bg-black text-white"
+                      ? "bg-gray-950 text-white"
                       : step.completed
                         ? "bg-brand-primary-1 text-white"
                         : "bg-brand-secondary-3 text-brand-secondary-1"
@@ -503,7 +503,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(2)}
                 type="button"
               >
@@ -621,7 +621,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
                 Back to Select
               </Button>
               <Button
-                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                className="flex-1 inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 onClick={() => setCurrentStep(3)}
                 type="button"
               >
@@ -772,7 +772,7 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
             <Button
               disabled={isLoading}
               type="submit"
-              className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex justify-center rounded-md border border-transparent bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Creating..." : "Create Branch"}
             </Button>

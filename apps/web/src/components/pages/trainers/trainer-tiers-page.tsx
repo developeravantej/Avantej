@@ -159,7 +159,7 @@ export function TrainerTiersPage() {
 					</AlertDescription>
 				</Alert>
 			) : isLoading ? (
-				<div className="text-center py-12 text-muted-foreground">Loading...</div>
+				<div className="text-center py-12 text-muted-foreground">Loading…</div>
 			) : tiers.length === 0 ? (
 				<div className="text-center py-12 text-muted-foreground">
 					No tiers yet. Create your first tier.

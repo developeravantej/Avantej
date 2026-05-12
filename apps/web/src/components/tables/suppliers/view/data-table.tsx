@@ -134,7 +134,7 @@ export function DataTable({
 				<div className="ml-auto flex gap-2">
 					<Button
 						onClick={() => setIsAddDialogOpen(true)}
-						className="bg-black text-white hover:bg-black/90"
+						className="bg-gray-950 text-white hover:bg-black/90"
 						type="button"
 					>
 						<Plus className="mr-2 size-4" />
