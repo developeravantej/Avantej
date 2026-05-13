@@ -1,14 +1,14 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-05-12 13:00
+**Last run:** 2026-05-13 16:00
 **Sessions audited:** 1
-**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
+**Clean:** 1 · **Needs attention:** 0 · **Critical:** 0
 
 ## Sessions
 
 | Status | Session | Summary | Report |
 |--------|---------|---------|--------|
-| 🟡 needs-attention | `05-12_12-42_trainer-availability-booking` | 8/8 sections, 0 broken refs, 2 acknowledged-blocking TODOs (timezone + Option A/B/C), 1 self-answered TODO (OQ #3 staff bypass not needed), not executed | [report](05-12_12-42_trainer-availability-booking/audit/report.md) |
+| 🟢 clean | `05-13_15-29_pin-customer-package` | 8/8 sections, 0 broken refs, 0 missing impact (all 3 flagged files confirmed in §6 table), not executed | [report](05-13_15-29_pin-customer-package/audit/report.md) |
 
 ## How to act on this
 
