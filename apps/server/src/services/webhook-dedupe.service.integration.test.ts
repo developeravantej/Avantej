@@ -43,6 +43,7 @@ describe("claimWebhookEvent", () => {
 			stripeAccount: null,
 		});
 		expect(result.status).toBe("already_processed");
+		expect(result.attempts).toBe(2);
 	});
 
 	it("returns 'retry' on retry after failure (attempts increments)", async () => {
@@ -99,6 +100,12 @@ describe("markEventProcessed", () => {
 		expect(row.processedAt).not.toBeNull();
 		expect(row.error).toBeNull();
 	});
+
+	it("throws if no row exists for the eventId", async () => {
+		await expect(markEventProcessed("evt_does_not_exist_xyz")).rejects.toThrow(
+			/no row found/,
+		);
+	});
 });
 
 describe("markEventFailed", () => {
@@ -116,5 +123,11 @@ describe("markEventFailed", () => {
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
 		expect(row.error).toBe("Handler exploded");
 		expect(row.processedAt).toBeNull();
+	});
+
+	it("throws if no row exists for the eventId", async () => {
+		await expect(
+			markEventFailed("evt_does_not_exist_xyz", "boom"),
+		).rejects.toThrow(/no row found/);
 	});
 });

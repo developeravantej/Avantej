@@ -42,7 +42,10 @@ export async function claimWebhookEvent(input: ClaimInput): Promise<ClaimResult>
 		})
 		.onConflictDoUpdate({
 			target: processedWebhookEvents.eventId,
-			set: { attempts: sql`${processedWebhookEvents.attempts} + 1` },
+			set: {
+				attempts: sql`${processedWebhookEvents.attempts} + 1`,
+				error: null,
+			},
 		})
 		.returning({
 			attempts: processedWebhookEvents.attempts,
@@ -63,15 +66,27 @@ export async function claimWebhookEvent(input: ClaimInput): Promise<ClaimResult>
 }
 
 export async function markEventProcessed(eventId: string): Promise<void> {
-	await controlPanelDb
+	const updated = await controlPanelDb
 		.update(processedWebhookEvents)
 		.set({ processedAt: new Date(), error: null })
-		.where(eq(processedWebhookEvents.eventId, eventId));
+		.where(eq(processedWebhookEvents.eventId, eventId))
+		.returning({ eventId: processedWebhookEvents.eventId });
+	if (updated.length === 0) {
+		throw new Error(
+			`markEventProcessed: no row found for eventId=${eventId} (caller must claimWebhookEvent first)`,
+		);
+	}
 }
 
 export async function markEventFailed(eventId: string, error: string): Promise<void> {
-	await controlPanelDb
+	const updated = await controlPanelDb
 		.update(processedWebhookEvents)
 		.set({ error })
-		.where(eq(processedWebhookEvents.eventId, eventId));
+		.where(eq(processedWebhookEvents.eventId, eventId))
+		.returning({ eventId: processedWebhookEvents.eventId });
+	if (updated.length === 0) {
+		throw new Error(
+			`markEventFailed: no row found for eventId=${eventId} (caller must claimWebhookEvent first)`,
+		);
+	}
 }
