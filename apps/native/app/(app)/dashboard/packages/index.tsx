@@ -16,11 +16,12 @@ import { fonts } from "@/lib/font";
 import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
-type StatusFilter = "all" | "active" | "expired" | "exhausted";
+type StatusFilter = "all" | "active" | "pending" | "expired" | "exhausted";
 
 const STATUS_TABS: { key: StatusFilter; label: string }[] = [
 	{ key: "all", label: "All" },
 	{ key: "active", label: "Active" },
+	{ key: "pending", label: "Pending" },
 	{ key: "expired", label: "Expired" },
 	{ key: "exhausted", label: "Exhausted" },
 ];
@@ -153,7 +154,7 @@ export default function PackagesScreen() {
 		<Container>
 			<ScrollView
 				className="flex-1"
-				style={{ backgroundColor: colors.primary[3] }}
+				style={{ backgroundColor: colors.secondary[3] }}
 				contentContainerStyle={{ paddingBottom: 32 }}
 				showsVerticalScrollIndicator={false}
 				refreshControl={

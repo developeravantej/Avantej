@@ -214,7 +214,7 @@ export default function BookingDetailScreen() {
 	if (isLoading) {
 		return (
 			<Container>
-				<View className="flex-1 bg-primary-3">
+				<View className="flex-1 bg-secondary-3">
 					{/* Skeleton hero */}
 					<SkeletonBox className="h-72 w-full rounded-none" />
 					<View className="px-4 pt-4">
@@ -282,7 +282,7 @@ export default function BookingDetailScreen() {
 
 	return (
 		<Container>
-			<View className="flex-1 bg-primary-3">
+			<View className="flex-1 bg-secondary-3">
 				<ScrollView
 					className="flex-1"
 					showsVerticalScrollIndicator={false}

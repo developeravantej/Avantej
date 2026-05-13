@@ -76,6 +76,8 @@ function getStatusLabel(status?: string): string {
 			return "Confirmed";
 		case "pending":
 			return "Pending";
+		case "purchased":
+			return "Purchased";
 		default:
 			return "";
 	}
@@ -93,6 +95,8 @@ function getActivityIcon(status?: string): string {
 			return "calendar";
 		case "pending":
 			return "time";
+		case "purchased":
+			return "bag-check";
 		default:
 			return "ellipse";
 	}
@@ -104,6 +108,8 @@ function getActivityColor(status?: string): string {
 			return "#16A34A";
 		case "confirmed":
 			return "#16A34A";
+		case "purchased":
+			return "#2563EB";
 		case "no-show":
 		case "pending":
 			return "#D97706";
@@ -119,6 +125,8 @@ function getActivityBg(status?: string): string {
 		case "completed":
 		case "confirmed":
 			return "#DCFCE7";
+		case "purchased":
+			return "#DBEAFE";
 		case "no-show":
 		case "pending":
 			return "#FEF3C7";
@@ -237,6 +245,13 @@ export default function Home() {
 		enabled: !!organizationId,
 	});
 
+	const { data: recentPackages } = useQuery({
+		...orpc.packageInstances.listForClient.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
+	});
+
 	const unreadCount = (unreadData as number | undefined) ?? 0;
 
 	const planStats = useMemo(() => {
@@ -288,15 +303,30 @@ export default function Home() {
 	}, [nextAppointment]);
 
 	const recentActivities = useMemo(() => {
-		return (recentAppointments ?? []).map((apt: any) => ({
+		const appointments = (recentAppointments ?? []).map((apt: any) => ({
 			id: apt.id,
 			name: apt.serviceName ?? "Session",
-			date: getRelativeDate(apt.startTime),
+			date: getRelativeDate(apt.createdAt ?? apt.startTime),
+			sortDate: new Date(apt.createdAt ?? apt.startTime).getTime(),
 			credits: apt.creditsUsed ? -apt.creditsUsed : 0,
 			icon: getActivityIcon(apt.status),
 			status: apt.status as string | undefined,
 		}));
-	}, [recentAppointments]);
+
+		const purchases = (recentPackages ?? []).map((pkg: any) => ({
+			id: `pkg-${pkg.id}`,
+			name: pkg.package?.name ?? "Package",
+			date: getRelativeDate(pkg.createdAt),
+			sortDate: new Date(pkg.createdAt).getTime(),
+			credits: pkg.creditsTotal ?? 0,
+			icon: getActivityIcon("purchased"),
+			status: "purchased" as string | undefined,
+		}));
+
+		return [...appointments, ...purchases]
+			.sort((a, b) => b.sortDate - a.sortDate)
+			.slice(0, 8);
+	}, [recentAppointments, recentPackages]);
 
 	const onRefresh = useCallback(() => {
 		queryClient.invalidateQueries({

@@ -373,7 +373,7 @@ export default function PackageDetailScreen() {
 		<Container>
 			<ScrollView
 				className="flex-1"
-				style={{ backgroundColor: colors.primary[3] }}
+				style={{ backgroundColor: colors.secondary[3] }}
 				contentContainerStyle={{ paddingBottom: 32 }}
 				showsVerticalScrollIndicator={false}
 			>
