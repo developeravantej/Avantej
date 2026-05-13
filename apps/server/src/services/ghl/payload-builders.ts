@@ -189,14 +189,11 @@ export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 		base.phone = user.phone;
 	}
 
-	if (args.branchCountryFieldId && args.branchOptionLabel) {
-		base.customFields = [
-			{
-				id: args.branchCountryFieldId,
-				value: args.branchOptionLabel,
-			},
-		];
-	}
+	// GHL POST/PUT /users/ does NOT accept `customFields` (returns 422
+	// "property customFields should not exist"). Branch tagging on users is
+	// not supported by the GHL Users API; the locationId on the user already
+	// pins them to the sub-account, which is sufficient for org-shared mode.
+	// branchCountryFieldId / branchOptionLabel are intentionally unused here.
 
 	if (memberRole === "admin") {
 		return base;

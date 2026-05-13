@@ -289,7 +289,12 @@ describe("buildUserPayload", () => {
 		expect(result.phone).toBeUndefined();
 	});
 
-	test("stamps branch dropdown when branchCountryFieldId and branchOptionLabel are provided", () => {
+	test("never emits customFields — GHL POST/PUT /users/ rejects it (422)", () => {
+		// branchCountryFieldId / branchOptionLabel are accepted as args for
+		// signature stability with buildContactPayload, but must NOT result
+		// in a customFields key on the user payload. GHL Users API does not
+		// support custom fields; locationId already pins branch in org-shared
+		// mode.
 		const result = buildUserPayload({
 			companyId: "agency_xyz",
 			locationId: "loc_1",
@@ -298,13 +303,8 @@ describe("buildUserPayload", () => {
 			branchCountryFieldId: "cf_country_my",
 			branchOptionLabel: "Selangor - KL Branch",
 		});
-		expect(result.customFields).toContainEqual({
-			id: "cf_country_my",
-			value: "Selangor - KL Branch",
-		});
-	});
+		expect(result.customFields).toBeUndefined();
 
-	test("omits branch stamp when branchCountryFieldId or branchOptionLabel is null/absent", () => {
 		const resultNoArgs = buildUserPayload({
 			companyId: "agency_xyz",
 			locationId: "loc_1",
@@ -312,26 +312,6 @@ describe("buildUserPayload", () => {
 			memberRole: "staff",
 		});
 		expect(resultNoArgs.customFields).toBeUndefined();
-
-		const resultNullLabel = buildUserPayload({
-			companyId: "agency_xyz",
-			locationId: "loc_1",
-			user: baseUser,
-			memberRole: "admin",
-			branchCountryFieldId: "cf_country_my",
-			branchOptionLabel: null,
-		});
-		expect(resultNullLabel.customFields).toBeUndefined();
-
-		const resultNullId = buildUserPayload({
-			companyId: "agency_xyz",
-			locationId: "loc_1",
-			user: baseUser,
-			memberRole: "admin",
-			branchCountryFieldId: null,
-			branchOptionLabel: "Selangor - KL Branch",
-		});
-		expect(resultNullId.customFields).toBeUndefined();
 	});
 
 	test("maps trainer role with wider permissions + scopes", () => {
