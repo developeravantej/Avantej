@@ -554,7 +554,7 @@ export default function BookingsScreen() {
 				upcomingGroups: groupByDate(upcoming, false),
 				pastGroups: groupByDate(past, true),
 				upcomingCount: upcoming.length,
-				completedCount: all.filter((a) => a.status === "completed").length,
+				completedCount: past.length,
 			};
 		}, [bookings]);
 
