@@ -290,23 +290,13 @@ export default function ProfileScreen() {
 				<SectionHeader label="Account" />
 				<SettingsCard>
 					<SettingsRow
-						icon="person-outline"
-						label="Personal Information"
+						icon="lock-closed-outline"
+						label="Change Password"
 						onPress={() => setShowPasswordModal(true)}
-					/>
-					<SettingsRow
-						icon="card-outline"
-						label="Payment Methods"
-						onPress={() => {}}
 					/>
 					<SettingsRow
 						icon="notifications-outline"
 						label="Notifications"
-						onPress={() => {}}
-					/>
-					<SettingsRow
-						icon="globe-outline"
-						label="Language"
 						onPress={() => {}}
 						isLast
 					/>
