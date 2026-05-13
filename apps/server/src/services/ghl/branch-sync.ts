@@ -252,14 +252,28 @@ async function readFieldOptions(args: {
 	ghlFieldId: string;
 }): Promise<string[]> {
 	const res = await ghlFetch<{
-		customField?: GhlCustomField;
+		customField?: GhlCustomField & {
+			picklistOptions?: string[];
+			options?: string[];
+		};
+		// Older/alternative response shapes — defensive.
+		picklistOptions?: string[];
 		options?: string[];
 	}>({
 		method: "GET",
 		path: `/locations/${args.ghlLocationId}/customFields/${args.ghlFieldId}`,
 		apiKey: args.ghlApiKey,
 	});
-	const opts = res.customField?.options ?? res.options ?? [];
+	// GHL's actual response key is `picklistOptions` (per
+	// https://highlevel.stoplight.io/docs/integrations/...
+	// /Custom%20Fields/get-custom-field). Older clients used
+	// `options`; we accept either for forward compatibility.
+	const opts =
+		res.customField?.picklistOptions ??
+		res.customField?.options ??
+		res.picklistOptions ??
+		res.options ??
+		[];
 	return [...opts];
 }
 
@@ -268,7 +282,24 @@ async function putFieldOptions(args: {
 	ghlApiKey: string;
 	ghlFieldId: string;
 	options: string[];
+	/** Existing options before this PUT, for data-loss guard. */
+	existing?: string[];
 }): Promise<void> {
+	// Data-loss guard — refuse to PUT an options array that drops more
+	// entries than expected. Callers that legitimately want to shrink the
+	// list (remove/rename) compute `next` from `existing` already, so this
+	// guard only fires when reads returned an empty list due to a
+	// response-shape mismatch and we would otherwise wipe the field.
+	if (
+		args.existing &&
+		args.existing.length > 0 &&
+		args.options.length < args.existing.length / 2
+	) {
+		throw new Error(
+			`GHL putFieldOptions refused: would shrink options from ${args.existing.length} to ${args.options.length}. ` +
+				`Likely a read-shape mismatch — bailing to avoid data loss.`,
+		);
+	}
 	await ghlFetch<unknown>({
 		method: "PUT",
 		path: `/locations/${args.ghlLocationId}/customFields/${args.ghlFieldId}`,
@@ -286,7 +317,7 @@ export async function ensureBranchOption(args: {
 	const existing = await readFieldOptions(args);
 	if (existing.includes(args.optionLabel)) return existing;
 	const next = [...existing, args.optionLabel];
-	await putFieldOptions({ ...args, options: next });
+	await putFieldOptions({ ...args, options: next, existing });
 	return next;
 }
 
@@ -299,7 +330,7 @@ export async function removeBranchOption(args: {
 	const existing = await readFieldOptions(args);
 	if (!existing.includes(args.optionLabel)) return existing;
 	const next = existing.filter((o) => o !== args.optionLabel);
-	await putFieldOptions({ ...args, options: next });
+	await putFieldOptions({ ...args, options: next, existing });
 	return next;
 }
 
@@ -319,7 +350,7 @@ export async function renameBranchOption(args: {
 		(o) => o !== args.oldLabel && o !== args.newLabel,
 	);
 	const next = [...filtered, args.newLabel];
-	await putFieldOptions({ ...args, options: next });
+	await putFieldOptions({ ...args, options: next, existing });
 	return next;
 }
 
