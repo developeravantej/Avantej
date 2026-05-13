@@ -99,6 +99,13 @@
       "when": 1778688291651,
       "tag": "0013_subscriptions_extensions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1778688550760,
+      "tag": "0014_subscriptions_cancel_bool_and_index",
+      "breakpoints": true
     }
   ]
 }
