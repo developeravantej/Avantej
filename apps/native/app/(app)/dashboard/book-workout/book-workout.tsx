@@ -100,6 +100,11 @@ export default function BookWorkoutScreen() {
 		return null;
 	}, [services]);
 
+	const bookablePackages = useMemo(() => {
+		if (!packageInstances) return [];
+		return (packageInstances as any[]).filter((inst) => (inst.creditsRemaining ?? 0) > 0);
+	}, [packageInstances]);
+
 	const selectedPackage = useMemo(() => {
 		if (!selectedPackageInstanceId || !packageInstances) return null;
 		return (packageInstances as any[]).find(
@@ -242,7 +247,7 @@ export default function BookWorkoutScreen() {
 											<View className="mb-1 items-center justify-center">
 												{/* Active step: filled circle with white dot */}
 												<View
-													className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
+													className="h-7 w-7 items-center justify-center rounded-full"
 													style={{
 														backgroundColor: colors.primary[1],
 														zIndex: 2,
@@ -306,14 +311,14 @@ export default function BookWorkoutScreen() {
 								<SkeletonCard />
 								<SkeletonCard />
 							</>
-						) : !packageInstances || packageInstances.length === 0 ? (
+						) : bookablePackages.length === 0 ? (
 							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
 								<Text className="text-center text-secondary-1 text-sm">
-									No active packages found. Purchase a package to book workouts.
+									No packages with available credits. Purchase a new package to book workouts.
 								</Text>
 							</View>
 						) : (
-							(packageInstances as any[]).map((inst) => {
+							bookablePackages.map((inst) => {
 								const svc = serviceById.get(inst.serviceId);
 								const total: number = inst.creditsTotal ?? 0;
 								const remaining: number = inst.creditsRemaining ?? 0;

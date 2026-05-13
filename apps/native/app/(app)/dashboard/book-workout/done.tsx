@@ -106,12 +106,13 @@ export default function DoneScreen() {
 						{/* Step Navigation */}
 						<View className="relative" style={{ height: 50 }}>
 							<View
-								className="absolute h-px"
+								className="absolute rounded-full"
 								style={{
 									left: "15%",
 									right: "14%",
-									top: "27%",
-									backgroundColor: colors.secondary[3],
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
 									zIndex: 0,
 								}}
 							/>
@@ -129,7 +130,7 @@ export default function DoneScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="h-7 w-7 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -145,7 +146,7 @@ export default function DoneScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full"
+														className="h-7 w-7 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -161,20 +162,10 @@ export default function DoneScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														style={{
-															backgroundColor: colors.primary[2],
-															borderRadius: 10,
-															width: 20,
-															height: 20,
-															alignItems: "center",
-															justifyContent: "center",
-															zIndex: 2,
-														}}
+														className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														style={{ zIndex: 2 }}
 													>
-														<Text
-															className="text-xs"
-															style={{ color: colors.secondary[1] }}
-														>
+														<Text className="font-semibold text-primary-1 text-xs">
 															{step.number}
 														</Text>
 													</View>
@@ -182,7 +173,7 @@ export default function DoneScreen() {
 											)}
 											<Text
 												className={`mt-1 text-center text-xs ${
-													isActive ? "font-bold" : ""
+													isActive ? "font-bold" : "font-medium"
 												}`}
 												style={{
 													color:
