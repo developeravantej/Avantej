@@ -134,6 +134,7 @@ export default function PackagesScreen() {
 		installmentsPaid: inst.installmentsPaid ?? null,
 		installmentsTotal: inst.installmentsTotal ?? null,
 		paymentPlanType: inst.paymentPlanType ?? "full",
+		pinnedAt: inst.pinnedAt ?? null,
 	}));
 
 	const getExpiryLabel = (expiresAt: string | null) => {
@@ -292,6 +293,37 @@ export default function PackagesScreen() {
 							>
 								{/* Card inner */}
 								<View className="p-4">
+									{/* Pinned indicator */}
+									{pkg.pinnedAt != null && (
+										<View className="flex-row items-center mb-2">
+											<View
+												className="flex-row items-center rounded-full px-2 py-0.5"
+												style={{
+													backgroundColor: colors.primary[1],
+													alignSelf: "flex-start",
+												}}
+											>
+												<Ionicons
+													name="bookmark"
+													size={11}
+													color={colors.primary[2]}
+												/>
+												<Text
+													style={{
+														fontFamily: fonts.subheading,
+														fontSize: 10,
+														fontWeight: "700",
+														color: colors.primary[2],
+														marginLeft: 4,
+														letterSpacing: 0.5,
+													}}
+												>
+													Pinned
+												</Text>
+											</View>
+										</View>
+									)}
+
 									{/* Top row: big number + name/badge */}
 									<View className="flex-row items-start justify-between mb-2">
 										{/* Left: metric number */}

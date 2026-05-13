@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Container } from "@/components/container";
@@ -7,7 +7,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
 import { fonts } from "@/lib/font";
 import { formatMoney } from "@/lib/money";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const STATUS_BADGE: Record<
 	string,
@@ -269,11 +269,46 @@ function InstallmentRow({
 export default function PackageDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const { organizationId } = useOrganization();
+	const queryClient = useQueryClient();
+	const getByIdQueryOptions = orpc.packageInstances.getById.queryOptions({
+		input: { organizationId, id: id! },
+	});
+	const getByIdQueryKey = getByIdQueryOptions.queryKey;
 	const { data: instance, isLoading: instanceLoading } = useQuery({
-		...orpc.packageInstances.getById.queryOptions({
-			input: { organizationId, id: id! },
-		}),
+		...getByIdQueryOptions,
 		enabled: !!id && !!organizationId,
+	});
+
+	const togglePinMutation = useMutation({
+		mutationFn: () =>
+			client.packageInstances.togglePin({
+				organizationId,
+				packageInstanceId: id!,
+			}),
+		onMutate: async () => {
+			await queryClient.cancelQueries({ queryKey: getByIdQueryKey });
+			const previous = queryClient.getQueryData(getByIdQueryKey);
+			queryClient.setQueryData(getByIdQueryKey, (old: any) =>
+				old
+					? {
+							...old,
+							pinnedAt: old.pinnedAt ? null : new Date().toISOString(),
+						}
+					: old,
+			);
+			return { previous };
+		},
+		onError: (_err, _vars, ctx) => {
+			if (ctx?.previous) {
+				queryClient.setQueryData(getByIdQueryKey, ctx.previous);
+			}
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({
+				predicate: (q) =>
+					JSON.stringify(q.queryKey).includes("packageInstances"),
+			});
+		},
 	});
 
 	const serviceId = (instance as any)?.serviceId ?? null;
@@ -367,6 +402,30 @@ export default function PackageDetailScreen() {
 						>
 							Package Details
 						</Text>
+						{(() => {
+							const isActive = (inst?.status ?? "") === "active";
+							const isPinned = !!inst?.pinnedAt;
+							return (
+								<TouchableOpacity
+									onPress={
+										isActive && !togglePinMutation.isPending
+											? () => togglePinMutation.mutate()
+											: undefined
+									}
+									disabled={!isActive || togglePinMutation.isPending}
+									className="ml-2.5 h-9 w-9 items-center justify-center"
+									activeOpacity={0.7}
+									style={{ opacity: isActive ? 1 : 0.4 }}
+									accessibilityLabel={isPinned ? "Unpin package" : "Pin package"}
+								>
+									<Ionicons
+										name={isPinned ? "bookmark" : "bookmark-outline"}
+										size={22}
+										color={colors.primary[1]}
+									/>
+								</TouchableOpacity>
+							);
+						})()}
 					</View>
 				</View>
 

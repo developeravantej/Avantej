@@ -7,7 +7,7 @@
  * Replaces the previous package_assignments table with enhanced functionality.
  */
 
-import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { members } from "./members";
 import { payments } from "./payments";
@@ -89,6 +89,11 @@ export const packageInstances = pgTable("package_instances", {
 	// ignore the isLocked flag. Admin override for VIP / trusted customers.
 	allowCreditOverdraft: boolean("allow_credit_overdraft").default(false).notNull(),
 
+	// Customer pin — feature one package on the native app dashboard.
+	// NULL = not pinned. Timestamp doubles as audit trail.
+	// Enforced single-pin-per-client via partial uniqueIndex below.
+	pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -104,4 +109,7 @@ export const packageInstances = pgTable("package_instances", {
 	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
 	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
 	walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(table.walkInCustomerId),
+	oneActivePinIdx: uniqueIndex("package_instances_one_pin_per_client_idx")
+		.on(table.clientId)
+		.where(sql`${table.pinnedAt} IS NOT NULL AND ${table.clientId} IS NOT NULL`),
 }));

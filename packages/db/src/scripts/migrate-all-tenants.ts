@@ -302,6 +302,15 @@ ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");`,
   },
+  "pin-customer-package": {
+    name: "Add pinned_at column + partial unique index for customer package pinning",
+    sql: `ALTER TABLE "package_instances"
+  ADD COLUMN IF NOT EXISTS "pinned_at" timestamp with time zone;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "package_instances_one_pin_per_client_idx"
+  ON "package_instances" ("client_id")
+  WHERE "pinned_at" IS NOT NULL AND "client_id" IS NOT NULL;`,
+  },
   // Add more migrations here as needed:
   // "migration-name": {
   //   name: "Description of what this does",

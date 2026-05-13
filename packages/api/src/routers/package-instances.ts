@@ -12,6 +12,7 @@ import {
   createInstallmentSchedule,
   requirePermission,
   getPackageInstanceStatusHistory,
+  togglePackagePin,
 } from "@avantej-core/services";
 import { listMemberships } from "@avantej-core/services/package-instance.service";
 import { getSetting } from "@avantej-core/services/organization-settings.service";
@@ -30,7 +31,7 @@ import { packageInstances } from "@avantej-core/db/schema/tenant/package-instanc
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { preferredTimes } from "@avantej-core/db/schema/tenant/preferred-times";
 import { user, user as cpUsers } from "@avantej-core/db/schema/auth";
-import { desc, and, eq, inArray } from "drizzle-orm";
+import { desc, and, eq, inArray, isNotNull } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -165,6 +166,15 @@ export const packageInstancesRouter = {
         });
       }
 
+      const pinned = await context.tenantDb.query.packageInstances.findFirst({
+        where: and(
+          eq(packageInstances.clientId, clientId),
+          eq(packageInstances.status, "active"),
+          isNotNull(packageInstances.pinnedAt),
+        ),
+      });
+      if (pinned) return pinned;
+
       const items = await listPackageInstancesForClient(context.tenantDb, {
         clientId,
         status: "active",
@@ -265,6 +275,52 @@ export const packageInstancesRouter = {
       }
 
       return { ...instance, assignedTrainerName, preferredTrainerName };
+    }),
+
+  /**
+   * Toggle the customer pin on a package instance. Only the owner (clientId)
+   * can pin/unpin. At most one pinned package per client (enforced by service
+   * transaction + partial unique index).
+   */
+  togglePin: protectedProcedure
+    .input(z.object({
+      organizationId: z.string().uuid(),
+      packageInstanceId: z.string().uuid(),
+    }))
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      const clientId = context.session?.user?.id;
+      if (!clientId) {
+        throw new ORPCError("UNAUTHORIZED", { message: "User session required" });
+      }
+
+      try {
+        const row = await togglePackagePin(context.tenantDb, {
+          packageInstanceId: input.packageInstanceId,
+          clientId,
+        });
+        return row;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        if (msg.includes("not found")) {
+          throw new ORPCError("NOT_FOUND", { message: msg });
+        }
+        if (msg.includes("Forbidden")) {
+          throw new ORPCError("FORBIDDEN", { message: msg });
+        }
+        if (msg.includes("active")) {
+          throw new ORPCError("BAD_REQUEST", { message: msg });
+        }
+        // Postgres unique-violation backstop
+        if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "23505") {
+          throw new ORPCError("CONFLICT", { message: "Pin operation conflicted; please retry." });
+        }
+        throw err;
+      }
     }),
 
   create: protectedProcedure

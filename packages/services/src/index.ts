@@ -245,6 +245,7 @@ export {
 	type ListPackageInstancesForClientParams,
 	listPackageInstancesForClient,
 	type PackageInstanceHistoryQueryOpts,
+	togglePackagePin,
 	type UpdatePackageInstanceParams,
 	updatePackageInstance,
 } from "./package-instance.service";
