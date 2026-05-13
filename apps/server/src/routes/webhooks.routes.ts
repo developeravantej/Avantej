@@ -139,6 +139,8 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 			}
 			case "invoice.payment_failed": {
 				const inv = event.data.object as Stripe.Invoice;
+				// Stripe API 2025-10-29.clover removed the typed `subscription` field from
+				// Stripe.Invoice; the property is still present on the wire payload.
 				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
@@ -148,6 +150,8 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 			}
 			case "invoice.paid": {
 				const inv = event.data.object as Stripe.Invoice;
+				// Stripe API 2025-10-29.clover removed the typed `subscription` field from
+				// Stripe.Invoice; the property is still present on the wire payload.
 				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;

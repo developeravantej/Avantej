@@ -222,6 +222,88 @@ describe("POST /webhooks/stripe/platform", () => {
 			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub"));
 	});
 
+	it("handles customer.subscription.deleted (status canceled, canceled_at set)", async () => {
+		const app = new Hono().route("/webhooks", webhookRoutes);
+		// First seed the sub via subscription.created.
+		const subEventPayload = JSON.stringify({
+			id: "evt_test_seed_deleted",
+			type: "customer.subscription.created",
+			data: {
+				object: {
+					id: TEST_SUB_ID,
+					customer: "cus_test",
+					status: "active",
+					items: {
+						data: [
+							{
+								price: { id: "price_basic_test", currency: "usd" },
+								current_period_start: 1715000000,
+								current_period_end: 1717678400,
+							},
+						],
+					},
+					cancel_at_period_end: false,
+					canceled_at: null,
+					trial_end: null,
+					metadata: {},
+				},
+			},
+		});
+		await controlPanelDb
+			.delete(processedWebhookEvents)
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted"));
+		await app.request("/webhooks/stripe/platform", {
+			method: "POST",
+			headers: { "stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET) },
+			body: subEventPayload,
+		});
+
+		// Now fire subscription.deleted with terminal state.
+		const deletedPayload = JSON.stringify({
+			id: TEST_EVENT_ID,
+			type: "customer.subscription.deleted",
+			data: {
+				object: {
+					id: TEST_SUB_ID,
+					customer: "cus_test",
+					status: "canceled",
+					items: {
+						data: [
+							{
+								price: { id: "price_basic_test", currency: "usd" },
+								current_period_start: 1715000000,
+								current_period_end: 1717678400,
+							},
+						],
+					},
+					cancel_at_period_end: false,
+					canceled_at: 1716500000,
+					trial_end: null,
+					metadata: {},
+				},
+			},
+		});
+		const res = await app.request("/webhooks/stripe/platform", {
+			method: "POST",
+			headers: { "stripe-signature": signEvent(deletedPayload, PLATFORM_SECRET) },
+			body: deletedPayload,
+		});
+		expect(res.status).toBe(200);
+
+		const [row] = await controlPanelDb
+			.select()
+			.from(subscriptions)
+			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
+		expect(row.status).toBe("canceled");
+		expect(row.canceledAt).not.toBeNull();
+		expect(row.canceledAt!.getTime()).toBe(1716500000 * 1000);
+
+		// Cleanup
+		await controlPanelDb
+			.delete(processedWebhookEvents)
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted"));
+	});
+
 	it("returns 200 for unhandled event types (no-op)", async () => {
 		const app = new Hono().route("/webhooks", webhookRoutes);
 		const payload = JSON.stringify({
