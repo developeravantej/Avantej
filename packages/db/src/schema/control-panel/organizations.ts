@@ -1,9 +1,12 @@
 /**
  * Control Panel Organizations Schema
- * 
+ *
  * Represents tenant franchises. Each organization has a dedicated Neon database project.
- * Organizations are created automatically when a Stripe subscription is confirmed.
- * 
+ * Organizations are created on trial signup; a subscription is attached when the trial
+ * is activated to paid (ADR-0003). Stripe Connect state (chargesEnabled/payoutsEnabled/
+ * detailsSubmitted/connectAccountUpdatedAt) is synced from the account.updated webhook
+ * per ADR-0008.
+ *
  * Security: connectionString must be encrypted before storage (handled by encryption utilities).
  */
 
