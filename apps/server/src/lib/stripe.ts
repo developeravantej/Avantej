@@ -47,6 +47,17 @@ export function getStripeClient(): Stripe {
 	return stripeClient;
 }
 
+/**
+ * Reset the cached Stripe client. Used by tests that mutate STRIPE_SECRET_KEY
+ * between cases. Matches the __resetResendClient() pattern in email.ts.
+ *
+ * Production callers must not use this; module-level singleton is intentional
+ * for request-scoped lifetime on Cloudflare Workers.
+ */
+export function __resetStripeClientForTesting(): void {
+	stripeClient = null;
+}
+
 export type WebhookSource = "platform" | "connect";
 
 export function verifyWebhookSignature(

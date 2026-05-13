@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { verifyWebhookSignature, getStripeClient } from "./stripe";
+import {
+	verifyWebhookSignature,
+	getStripeClient,
+	__resetStripeClientForTesting,
+} from "./stripe";
 import Stripe from "stripe";
 
 function setEnv(overrides: Record<string, string | undefined>) {
@@ -11,6 +15,7 @@ function setEnv(overrides: Record<string, string | undefined>) {
 
 describe("getStripeClient", () => {
 	beforeEach(() => {
+		__resetStripeClientForTesting();
 		setEnv({ STRIPE_SECRET_KEY: "sk_test_dummy" });
 	});
 
@@ -22,6 +27,7 @@ describe("getStripeClient", () => {
 
 describe("verifyWebhookSignature", () => {
 	beforeEach(() => {
+		__resetStripeClientForTesting();
 		setEnv({
 			STRIPE_SECRET_KEY: "sk_test_dummy",
 			STRIPE_PLATFORM_WEBHOOK_SECRET: "whsec_platform_test",
