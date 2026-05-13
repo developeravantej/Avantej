@@ -109,7 +109,7 @@ webhookRoutes.post("/stripe", async (c) => {
 		// Verify webhook signature
 		let event: Stripe.Event;
 		try {
-			event = verifyWebhookSignature(body, signature);
+			event = verifyWebhookSignature(body, signature, "platform");
 		} catch (error) {
 			console.error("Webhook signature verification failed:", error);
 			return c.json(
