@@ -127,6 +127,13 @@
       "when": 1778690222107,
       "tag": "0017_processed_webhook_events",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778690422486,
+      "tag": "0018_platform_payment_ledger",
+      "breakpoints": true
     }
   ]
 }
