@@ -46,9 +46,15 @@ function buildFakeSub(priceId: string, overrides: Partial<Record<string, unknown
 		id: TEST_SUB_ID,
 		customer: "cus_test_001",
 		status: "active",
-		items: { data: [{ price: { id: priceId, currency: "usd" } }] },
-		current_period_start: 1715000000,
-		current_period_end: 1717678400,
+		items: {
+			data: [
+				{
+					price: { id: priceId, currency: "usd" },
+					current_period_start: 1715000000,
+					current_period_end: 1717678400,
+				},
+			],
+		},
 		cancel_at_period_end: false,
 		canceled_at: null,
 		trial_end: null,
@@ -92,6 +98,8 @@ describe("upsertSubscriptionFromStripe", () => {
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
 		expect(row.tier).toBe("enterprise");
 		expect(row.applicationFeeBps).toBe(150);
+		expect(row.stripePriceId).toBe("price_ent_test");
+		expect(row.organizationCountLimit).toBeGreaterThan(1_000_000);
 	});
 
 	it("persists trial_end when present", async () => {

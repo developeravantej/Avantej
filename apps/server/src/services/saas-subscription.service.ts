@@ -42,7 +42,9 @@ export function computeTierFromPriceId(priceId: string): Tier {
 		[getEnvVar("STRIPE_PRICE_PROFESSIONAL") ?? ""]: "professional",
 		[getEnvVar("STRIPE_PRICE_ENTERPRISE") ?? ""]: "enterprise",
 	};
-	// Delete the empty-string fallback entry to avoid false positives when an env var is unset.
+	// If any STRIPE_PRICE_* env var is unset, the computed map key is "". Delete that
+	// entry so an unknown priceId doesn't accidentally match it (TS computed keys
+	// collapse duplicate "" keys with last-wins assignment).
 	delete map[""];
 	return map[priceId] ?? "basic";
 }
@@ -51,6 +53,7 @@ function unixToDate(ts: number | null | undefined): Date | null {
 	return typeof ts === "number" ? new Date(ts * 1000) : null;
 }
 
+// TIER_LIMITS.enterprise.organizations = MAX_SAFE_INTEGER (2^53 - 1) > pg int32 max (2^31 - 1). Clamp before insert.
 function clampInt32(n: number): number {
 	return Number.isFinite(n) && n <= INT32_MAX ? n : INT32_MAX;
 }
@@ -58,49 +61,49 @@ function clampInt32(n: number): number {
 export async function upsertSubscriptionFromStripe(
 	sub: Stripe.Subscription,
 ): Promise<void> {
-	const priceId = sub.items.data[0]?.price.id;
-	if (!priceId) {
-		throw new Error(`Subscription ${sub.id} has no price item`);
+	const item = sub.items.data[0];
+	if (!item) {
+		throw new Error(`Subscription ${sub.id} has no item`);
 	}
+	const priceId = item.price.id;
+	if (!priceId) {
+		throw new Error(`Subscription ${sub.id} item has no price id`);
+	}
+
 	const tier = computeTierFromPriceId(priceId);
 	const limits = TIER_LIMITS[tier];
-	const currency = (sub.items.data[0]?.price.currency ?? "usd").toLowerCase();
+	const currency = (item.price.currency ?? "usd").toLowerCase();
 	const customerId =
 		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+
+	// Per Stripe API 2025-10-29.clover: period fields live on SubscriptionItem.
+	const periodStart = unixToDate(item.current_period_start);
+	const periodEnd = unixToDate(item.current_period_end);
+
+	const common = {
+		stripePriceId: priceId,
+		tier,
+		organizationCountLimit: clampInt32(limits.organizations),
+		applicationFeeBps: limits.appFeeBps,
+		currency,
+		status: sub.status,
+		currentPeriodStart: periodStart,
+		currentPeriodEnd: periodEnd,
+		trialEndsAt: unixToDate(sub.trial_end),
+		cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+		canceledAt: unixToDate(sub.canceled_at),
+	};
 
 	await controlPanelDb
 		.insert(subscriptions)
 		.values({
 			stripeSubscriptionId: sub.id,
 			stripeCustomerId: customerId,
-			stripePriceId: priceId,
-			tier,
-			organizationCountLimit: clampInt32(limits.organizations),
-			applicationFeeBps: limits.appFeeBps,
-			currency,
-			status: sub.status,
-			currentPeriodStart: unixToDate(sub.current_period_start),
-			currentPeriodEnd: unixToDate(sub.current_period_end),
-			trialEndsAt: unixToDate(sub.trial_end),
-			cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-			canceledAt: unixToDate(sub.canceled_at),
+			...common,
 		})
 		.onConflictDoUpdate({
 			target: subscriptions.stripeSubscriptionId,
-			set: {
-				stripePriceId: priceId,
-				tier,
-				organizationCountLimit: clampInt32(limits.organizations),
-				applicationFeeBps: limits.appFeeBps,
-				currency,
-				status: sub.status,
-				currentPeriodStart: unixToDate(sub.current_period_start),
-				currentPeriodEnd: unixToDate(sub.current_period_end),
-				trialEndsAt: unixToDate(sub.trial_end),
-				cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-				canceledAt: unixToDate(sub.canceled_at),
-				updatedAt: new Date(),
-			},
+			set: { ...common, updatedAt: new Date() },
 		});
 }
 
