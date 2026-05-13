@@ -6,7 +6,6 @@ import {
 	Linking,
 	Modal,
 	ScrollView,
-	Switch,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -17,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import { authClient } from "@/lib/auth-client";
 import { colors } from "@/lib/colors";
+import { fonts } from "@/lib/font";
 import { client, orpc } from "@/utils/orpc";
 
 export default function ProfileScreen() {
@@ -27,8 +27,7 @@ export default function ProfileScreen() {
 
 	const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-	// Fetch customer profile (gated on organizationId — first paint after sign-in
-	// can have a brief undefined org).
+	// Fetch customer profile
 	const { data: profile } = useQuery({
 		...orpc.customerProfiles.get.queryOptions({
 			input: { organizationId },
@@ -44,13 +43,29 @@ export default function ProfileScreen() {
 		enabled: !!organizationId,
 	});
 
-	// Phone lives on the Better-Auth user row (configured as an additional
-	// field). Fall back to customer_profiles.phone for legacy data.
-	const userPhone =
-		((user as unknown as { phone?: string | null })?.phone ?? "") ||
-		((profile as any)?.phone ?? "");
+	// Fetch active packages for stats
+	const { data: activePackages } = useQuery({
+		...orpc.packageInstances.getActiveForClient.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
+	});
+
+	// Fetch completed appointments for stats
+	const { data: completedAppointments } = useQuery({
+		...orpc.appointments.listForUser.queryOptions({
+			input: { organizationId, status: "completed" },
+		}),
+		enabled: !!organizationId,
+	});
+
 	const userName = user?.name ?? "";
-	const userEmail = user?.email ?? "";
+	const userInitials = userName
+		.split(" ")
+		.map((n) => n[0])
+		.join("")
+		.toUpperCase()
+		.slice(0, 2);
 
 	const memberSince = user?.createdAt
 		? new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -58,6 +73,21 @@ export default function ProfileScreen() {
 				year: "numeric",
 			})
 		: "";
+
+	// Stats
+	const sessionsCount = Array.isArray(completedAppointments)
+		? completedAppointments.length
+		: 0;
+	const packagesCount = Array.isArray(activePackages)
+		? activePackages.length
+		: 0;
+	// Sum remaining credits across active packages
+	const creditsCount = Array.isArray(activePackages)
+		? activePackages.reduce(
+				(sum: number, pkg: any) => sum + (pkg.creditsRemaining ?? 0),
+				0,
+			)
+		: 0;
 
 	const handleToggleNotifPref = async (
 		key: "emailEnabled" | "pushEnabled" | "smsEnabled",
@@ -88,9 +118,6 @@ export default function ProfileScreen() {
 		]);
 	};
 
-	const emailEnabled = (notifPrefs as any)?.emailEnabled ?? true;
-	const pushEnabled = (notifPrefs as any)?.pushEnabled ?? false;
-
 	return (
 		<TabContainer>
 			<ScrollView
@@ -98,223 +125,185 @@ export default function ProfileScreen() {
 				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
-				<View className="px-4 pt-4">
-					{/* User Summary Section */}
-					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-						<View className="flex-row items-center">
+				{/* Profile Hero */}
+				<View className="items-center pt-8 pb-2 px-8">
+					{/* Avatar */}
+					<View
+						className="mb-4 h-14 w-14 items-center justify-center rounded-full"
+						style={{ backgroundColor: colors.primary[1] }}
+					>
+						<Text
+							style={{
+								fontFamily: fonts.heading,
+								fontSize: 18,
+								color: colors.primary[2],
+								letterSpacing: 0.5,
+							}}
+						>
+							{userInitials || "?"}
+						</Text>
+					</View>
+
+					{/* Name */}
+					<Text
+						style={{
+							fontFamily: fonts.heading,
+							fontSize: 22,
+							color: colors.primary[1],
+							letterSpacing: -0.4,
+							marginBottom: 4,
+						}}
+					>
+						{userName || "User"}
+					</Text>
+
+					{/* Member since pill */}
+					{memberSince ? (
+						<View
+							className="flex-row items-center mt-2"
+							style={{
+								backgroundColor: colors.primary[3],
+								borderRadius: 999,
+								paddingHorizontal: 12,
+								paddingVertical: 4,
+							}}
+						>
 							<View
-								className="mr-4 h-16 w-16 items-center justify-center rounded-full"
-								style={{ backgroundColor: colors.secondary[2] }}
+								style={{
+									width: 5,
+									height: 5,
+									borderRadius: 2.5,
+									backgroundColor: colors.secondary[1],
+									marginRight: 5,
+								}}
+							/>
+							<Text
+								style={{
+									fontFamily: fonts.body,
+									fontSize: 11,
+									color: colors.secondary[1],
+								}}
 							>
-								<Ionicons
-									name="person"
-									size={32}
-									color={colors.secondary[1]}
-								/>
-							</View>
-							<View className="flex-1">
-								<Text className="mb-1 font-bold text-primary-1 text-xl">
-									{userName || "User"}
-								</Text>
-								<Text className="text-secondary-1 text-sm">
-									Member since {memberSince}
-								</Text>
-							</View>
+								Since {memberSince}
+							</Text>
 						</View>
-					</View>
-
-					{/* Personal Information Section (read-only) */}
-					<View className="mb-4">
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							PERSONAL INFORMATION
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
-							{/* Full Name */}
-							<View className="mb-4 border-secondary-3 border-b pb-4">
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Full Name
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userName || "—"}
-								</Text>
-							</View>
-
-							{/* Email */}
-							<View className="mb-4 border-secondary-3 border-b pb-4">
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Email
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userEmail || "—"}
-								</Text>
-							</View>
-
-							{/* Phone Number */}
-							<View>
-								<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
-									Phone Number
-								</Text>
-								<Text
-									className="text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{userPhone || "—"}
-								</Text>
-							</View>
-						</View>
-					</View>
-
-					{/* Notification Preferences Section */}
-					<View className="mb-4">
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							NOTIFICATION PREFERENCES
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
-							{/* Email Notifications */}
-							<View className="border-secondary-3 border-b p-4">
-								<View className="flex-row items-center justify-between">
-									<View className="mr-4 flex-1">
-										<Text className="mb-1 font-semibold text-base text-primary-1">
-											Email Notifications
-										</Text>
-										<Text className="text-secondary-1 text-sm">
-											Receive updates about your workouts and bookings
-										</Text>
-									</View>
-									<Switch
-										value={emailEnabled}
-										onValueChange={(v) =>
-											handleToggleNotifPref("emailEnabled", v)
-										}
-										trackColor={{
-											false: colors.secondary[3],
-											true: colors.primary[1],
-										}}
-										thumbColor={colors.primary[2]}
-									/>
-								</View>
-							</View>
-
-							{/* Push Notifications */}
-							<View className="p-4">
-								<View className="flex-row items-center justify-between">
-									<View className="mr-4 flex-1">
-										<Text className="mb-1 font-semibold text-base text-primary-1">
-											Push Notifications
-										</Text>
-										<Text className="text-secondary-1 text-sm">
-											Get instant alerts on your device
-										</Text>
-									</View>
-									<Switch
-										value={pushEnabled}
-										onValueChange={(v) =>
-											handleToggleNotifPref("pushEnabled", v)
-										}
-										trackColor={{
-											false: colors.secondary[3],
-											true: colors.primary[1],
-										}}
-										thumbColor={colors.primary[2]}
-									/>
-								</View>
-							</View>
-						</View>
-					</View>
-
-					{/* Account Section */}
-					<View>
-						<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-							ACCOUNT
-						</Text>
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm">
-							{/* Change Password */}
-							<TouchableOpacity
-								onPress={() => setShowPasswordModal(true)}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="lock-closed-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Change Password
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</TouchableOpacity>
-
-							{/* Help & Support */}
-							<TouchableOpacity
-								onPress={() =>
-									Linking.openURL("mailto:support@avantej.com")
-								}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="help-circle-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Help & Support
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</TouchableOpacity>
-
-							{/* Terms & Privacy */}
-							<TouchableOpacity
-								onPress={() =>
-									Linking.openURL("https://avantej.com/terms")
-								}
-								className="flex-row items-center border-secondary-3 border-b p-4"
-							>
-								<Ionicons
-									name="document-text-outline"
-									size={20}
-									color={colors.primary[1]}
-								/>
-								<Text className="ml-3 flex-1 text-base text-primary-1">
-									Terms & Privacy
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={20}
-									color={colors.secondary[1]}
-								/>
-							</TouchableOpacity>
-
-							{/* Sign Out */}
-							<TouchableOpacity
-								onPress={handleLogout}
-								className="flex-row items-center p-4"
-							>
-								<Ionicons
-									name="log-out-outline"
-									size={20}
-									color="#EF4444"
-								/>
-								<Text className="ml-3 flex-1 text-base text-red-500">
-									Sign Out
-								</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
+					) : null}
 				</View>
+
+				{/* Stats Section */}
+				<View className="flex-row items-center justify-center px-6 pt-8 pb-7">
+					<StatItem value={sessionsCount} label="Sessions" showDivider />
+					<StatItem value={packagesCount} label="Packages" showDivider />
+					<StatItem value={creditsCount} label="Credits" />
+				</View>
+
+				{/* Divider */}
+				<View
+					style={{
+						height: 1,
+						backgroundColor: colors.primary[3],
+						marginHorizontal: 24,
+					}}
+				/>
+
+				{/* Account Section */}
+				<SectionHeader label="Account" />
+
+				<BareRow
+					icon="person-outline"
+					label="Personal Information"
+					onPress={() => setShowPasswordModal(true)}
+				/>
+				<BareRow
+					icon="card-outline"
+					label="Payment Methods"
+					onPress={() => {}}
+				/>
+				<BareRow
+					icon="notifications-outline"
+					label="Notifications"
+					onPress={() => {}}
+				/>
+				<BareRow
+					icon="globe-outline"
+					label="Language"
+					onPress={() => {}}
+				/>
+
+				{/* Zone Divider */}
+				<View
+					style={{
+						height: 1,
+						backgroundColor: colors.primary[3],
+						marginVertical: 4,
+					}}
+				/>
+
+				{/* Support Section */}
+				<SectionHeader label="Support" />
+
+				<BareRow
+					icon="help-circle-outline"
+					label="Help & Support"
+					onPress={() => Linking.openURL("mailto:support@avantej.com")}
+				/>
+				<BareRow
+					icon="shield-outline"
+					label="Privacy Policy"
+					onPress={() => Linking.openURL("https://avantej.com/privacy")}
+				/>
+				<BareRow
+					icon="document-text-outline"
+					label="Terms of Service"
+					onPress={() => Linking.openURL("https://avantej.com/terms")}
+				/>
+
+				{/* Divider before sign out */}
+				<View
+					style={{
+						height: 1,
+						backgroundColor: colors.primary[3],
+						marginHorizontal: 24,
+						marginTop: 8,
+					}}
+				/>
+
+				{/* Sign Out */}
+				<TouchableOpacity
+					onPress={handleLogout}
+					activeOpacity={0.7}
+					className="flex-row items-center px-6 py-4 mt-1"
+					style={{ gap: 14 }}
+				>
+					<Ionicons
+						name="log-out-outline"
+						size={20}
+						color="#B91C1C"
+					/>
+					<Text
+						style={{
+							fontFamily: fonts.body,
+							fontSize: 14,
+							color: "#B91C1C",
+						}}
+					>
+						Sign Out
+					</Text>
+				</TouchableOpacity>
+
+				{/* Version Footer */}
+				<Text
+					style={{
+						fontFamily: fonts.body,
+						fontSize: 11,
+						color: "#D4D4D4",
+						textAlign: "center",
+						paddingTop: 24,
+						paddingBottom: 28,
+					}}
+				>
+					v1.0.0
+				</Text>
 			</ScrollView>
 
 			{/* Change Password Modal */}
@@ -323,6 +312,110 @@ export default function ProfileScreen() {
 				onClose={() => setShowPasswordModal(false)}
 			/>
 		</TabContainer>
+	);
+}
+
+/* ─── Sub-components ─── */
+
+function StatItem({
+	value,
+	label,
+	showDivider,
+}: {
+	value: number;
+	label: string;
+	showDivider?: boolean;
+}) {
+	return (
+		<View className="flex-1 items-center" style={{ position: "relative" }}>
+			<Text
+				style={{
+					fontFamily: fonts.heading,
+					fontSize: 34,
+					color: colors.primary[1],
+					lineHeight: 34,
+					letterSpacing: -1,
+					marginBottom: 6,
+				}}
+			>
+				{value}
+			</Text>
+			<Text
+				style={{
+					fontFamily: fonts.body,
+					fontSize: 11,
+					color: colors.secondary[1],
+					textTransform: "uppercase",
+					letterSpacing: 1.3,
+				}}
+			>
+				{label}
+			</Text>
+			{showDivider && (
+				<View
+					style={{
+						position: "absolute",
+						right: 0,
+						top: 8,
+						bottom: 8,
+						width: 1,
+						backgroundColor: "#F0F0F0",
+					}}
+				/>
+			)}
+		</View>
+	);
+}
+
+function SectionHeader({ label }: { label: string }) {
+	return (
+		<Text
+			style={{
+				fontFamily: fonts.body,
+				fontSize: 10,
+				fontWeight: "500",
+				color: "#C4C4C4",
+				textTransform: "uppercase",
+				letterSpacing: 2,
+				paddingHorizontal: 24,
+				paddingTop: 24,
+				paddingBottom: 10,
+			}}
+		>
+			{label}
+		</Text>
+	);
+}
+
+function BareRow({
+	icon,
+	label,
+	onPress,
+}: {
+	icon: React.ComponentProps<typeof Ionicons>["name"];
+	label: string;
+	onPress: () => void;
+}) {
+	return (
+		<TouchableOpacity
+			onPress={onPress}
+			activeOpacity={0.7}
+			className="flex-row items-center px-6 py-4"
+			style={{ gap: 14 }}
+		>
+			<Ionicons name={icon} size={20} color={colors.secondary[1]} />
+			<Text
+				className="flex-1"
+				style={{
+					fontFamily: fonts.body,
+					fontSize: 14,
+					color: colors.primary[1],
+				}}
+			>
+				{label}
+			</Text>
+			<Ionicons name="chevron-forward" size={14} color="#E0E0E0" />
+		</TouchableOpacity>
 	);
 }
 
@@ -376,12 +469,26 @@ function ChangePasswordModal({
 			presentationStyle="pageSheet"
 			onRequestClose={onClose}
 		>
-			<View className="flex-1 bg-secondary-3">
-				<View className="flex-row items-center justify-between border-secondary-3 border-b bg-primary-2 px-4 py-4">
+			<View className="flex-1 bg-primary-2">
+				<View className="flex-row items-center justify-between border-secondary-3 border-b px-4 py-4">
 					<TouchableOpacity onPress={onClose}>
-						<Text className="text-base text-primary-1">Cancel</Text>
+						<Text
+							className="text-base"
+							style={{
+								fontFamily: fonts.body,
+								color: colors.primary[1],
+							}}
+						>
+							Cancel
+						</Text>
 					</TouchableOpacity>
-					<Text className="font-bold text-lg text-primary-1">
+					<Text
+						style={{
+							fontFamily: fonts.heading,
+							fontSize: 18,
+							color: colors.primary[1],
+						}}
+					>
 						Change Password
 					</Text>
 					<View style={{ width: 50 }} />
@@ -389,7 +496,14 @@ function ChangePasswordModal({
 
 				<View className="p-4">
 					<View className="mb-4">
-						<Text className="mb-2 font-medium text-base text-primary-1">
+						<Text
+							className="mb-2"
+							style={{
+								fontFamily: fonts.subheading,
+								fontSize: 14,
+								color: colors.primary[1],
+							}}
+						>
 							Current Password
 						</Text>
 						<TextInput
@@ -399,12 +513,23 @@ function ChangePasswordModal({
 							placeholder="Enter current password"
 							placeholderTextColor={colors.secondary[1]}
 							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-							style={{ color: colors.primary[1], fontSize: 16 }}
+							style={{
+								color: colors.primary[1],
+								fontSize: 16,
+								fontFamily: fonts.body,
+							}}
 						/>
 					</View>
 
 					<View className="mb-4">
-						<Text className="mb-2 font-medium text-base text-primary-1">
+						<Text
+							className="mb-2"
+							style={{
+								fontFamily: fonts.subheading,
+								fontSize: 14,
+								color: colors.primary[1],
+							}}
+						>
 							New Password
 						</Text>
 						<TextInput
@@ -414,12 +539,23 @@ function ChangePasswordModal({
 							placeholder="Enter new password"
 							placeholderTextColor={colors.secondary[1]}
 							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-							style={{ color: colors.primary[1], fontSize: 16 }}
+							style={{
+								color: colors.primary[1],
+								fontSize: 16,
+								fontFamily: fonts.body,
+							}}
 						/>
 					</View>
 
 					<View className="mb-6">
-						<Text className="mb-2 font-medium text-base text-primary-1">
+						<Text
+							className="mb-2"
+							style={{
+								fontFamily: fonts.subheading,
+								fontSize: 14,
+								color: colors.primary[1],
+							}}
+						>
 							Confirm New Password
 						</Text>
 						<TextInput
@@ -429,7 +565,11 @@ function ChangePasswordModal({
 							placeholder="Confirm new password"
 							placeholderTextColor={colors.secondary[1]}
 							className="rounded-xl border border-secondary-3 bg-primary-2 p-3"
-							style={{ color: colors.primary[1], fontSize: 16 }}
+							style={{
+								color: colors.primary[1],
+								fontSize: 16,
+								fontFamily: fonts.body,
+							}}
 						/>
 					</View>
 
@@ -450,7 +590,13 @@ function ChangePasswordModal({
 								: ""
 						}`}
 					>
-						<Text className="font-semibold text-base text-primary-2">
+						<Text
+							style={{
+								fontFamily: fonts.subheading,
+								fontSize: 16,
+								color: colors.primary[2],
+							}}
+						>
 							{isSubmitting ? "Changing..." : "Change Password"}
 						</Text>
 					</TouchableOpacity>

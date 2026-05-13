@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useHideTabBar } from "@/hooks/useHideTabBar";
@@ -14,9 +15,25 @@ import {
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
+import { fonts } from "@/lib/font";
 import { client, orpc } from "@/utils/orpc";
 
+// ─── Helpers ──────────────────────────────────────────────────────
+
+const DEFAULT_IMAGE =
+	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=600&fit=crop&q=85";
+
 function formatDate(dateString: string | Date): string {
+	const date = new Date(dateString);
+	return date.toLocaleDateString("en-US", {
+		weekday: "long",
+		month: "long",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
+function formatShortDate(dateString: string | Date): string {
 	const date = new Date(dateString);
 	return date.toLocaleDateString("en-US", {
 		month: "long",
@@ -34,21 +51,21 @@ function formatTime(dateString: string | Date): string {
 	});
 }
 
-function getStatusColors(status: string): {
-	bg: string;
-	text: string;
-} {
+function getStatusColors(status: string): { bg: string; text: string } {
 	switch (status) {
 		case "confirmed":
 			return { bg: "#DCFCE7", text: "#16A34A" };
 		case "completed":
-			return { bg: "#E0E7FF", text: "#4F46E5" };
+			return { bg: colors.secondary[3], text: colors.secondary[1] };
 		case "cancelled":
-			return { bg: "#FEE2E2", text: "#EF4444" };
+			return { bg: "#FEE2E2", text: "#B91C1C" };
 		case "no_show":
+		case "no-show":
+			return { bg: "#FEF3C7", text: "#D97706" };
+		case "pending":
 			return { bg: "#FEF3C7", text: "#D97706" };
 		default:
-			return { bg: "#F3F4F6", text: "#6B7280" };
+			return { bg: colors.secondary[3], text: colors.secondary[1] };
 	}
 }
 
@@ -61,11 +78,72 @@ function formatStatusLabel(status: string): string {
 		case "cancelled":
 			return "Cancelled";
 		case "no_show":
+		case "no-show":
 			return "No Show";
+		case "pending":
+			return "Pending";
 		default:
 			return status.charAt(0).toUpperCase() + status.slice(1);
 	}
 }
+
+// ─── Sub-Components ──────────────────────────────────────────────
+
+function DetailRow({
+	icon,
+	label,
+	value,
+}: {
+	icon: keyof typeof Ionicons.glyphMap;
+	label: string;
+	value: string;
+}) {
+	return (
+		<View
+			className="mb-1.5 flex-row items-center rounded-xl border bg-primary-2 px-3.5 py-2.5"
+			style={{
+				borderColor: colors.secondary[3],
+				gap: 12,
+			}}
+		>
+			<View
+				className="h-[30px] w-[30px] items-center justify-center rounded-lg"
+				style={{ backgroundColor: colors.primary[3] }}
+			>
+				<Ionicons name={icon} size={14} color={colors.primary[1]} />
+			</View>
+			<View className="flex-1">
+				<Text
+					style={{
+						fontFamily: fonts.body,
+						fontSize: 10,
+						color: colors.secondary[1],
+						marginBottom: 1,
+					}}
+				>
+					{label}
+				</Text>
+				<Text
+					style={{
+						fontFamily: fonts.heading,
+						fontSize: 13,
+						color: colors.primary[1],
+					}}
+				>
+					{value}
+				</Text>
+			</View>
+		</View>
+	);
+}
+
+function SkeletonBox({ className }: { className: string }) {
+	return (
+		<View className={`animate-pulse rounded-lg bg-secondary-3 ${className}`} />
+	);
+}
+
+// ─── Main Component ──────────────────────────────────────────────
 
 export default function BookingDetailScreen() {
 	useHideTabBar();
@@ -136,8 +214,16 @@ export default function BookingDetailScreen() {
 	if (isLoading) {
 		return (
 			<Container>
-				<View className="flex-1 items-center justify-center">
-					<ActivityIndicator size="large" color={colors.primary[1]} />
+				<View className="flex-1 bg-primary-3">
+					{/* Skeleton hero */}
+					<SkeletonBox className="h-72 w-full rounded-none" />
+					<View className="px-4 pt-4">
+						<SkeletonBox className="mb-2 h-3 w-20" />
+						<SkeletonBox className="mb-1.5 h-12 w-full rounded-xl" />
+						<SkeletonBox className="mb-1.5 h-12 w-full rounded-xl" />
+						<SkeletonBox className="mb-1.5 h-12 w-full rounded-xl" />
+						<SkeletonBox className="mb-1.5 h-12 w-full rounded-xl" />
+					</View>
 				</View>
 			</Container>
 		);
@@ -147,19 +233,32 @@ export default function BookingDetailScreen() {
 	if (isError || !appointment) {
 		return (
 			<Container>
-				<View className="flex-1 items-center justify-center p-6">
+				<View className="flex-1 items-center justify-center bg-primary-3 p-6">
 					<Text
-						className="mb-2 font-bold text-xl"
-						style={{ color: colors.primary[1] }}
+						style={{
+							fontFamily: fonts.heading,
+							fontSize: 20,
+							color: colors.primary[1],
+							marginBottom: 8,
+						}}
 					>
 						Booking not found
 					</Text>
 					<TouchableOpacity
 						onPress={() => router.back()}
+						activeOpacity={0.7}
 						className="mt-4 rounded-xl px-6 py-3"
-						style={{ backgroundColor: "#2563EB" }}
+						style={{ backgroundColor: colors.primary[1] }}
 					>
-						<Text className="font-semibold text-white">Go Back</Text>
+						<Text
+							style={{
+								fontFamily: fonts.subheading,
+								fontSize: 15,
+								color: colors.primary[2],
+							}}
+						>
+							Go Back
+						</Text>
 					</TouchableOpacity>
 				</View>
 			</Container>
@@ -168,7 +267,7 @@ export default function BookingDetailScreen() {
 
 	const statusColors = getStatusColors(appointment.status);
 	const isUpcoming =
-		appointment.status === "confirmed" &&
+		(appointment.status === "confirmed" || appointment.status === "pending") &&
 		new Date(appointment.startTime) > new Date();
 	const svc = service as any;
 	const pkgInstance = pkg as any;
@@ -179,257 +278,276 @@ export default function BookingDetailScreen() {
 			: appointment.type === "private"
 				? "Private Session"
 				: "Appointment");
-	const durationText = appointment.duration
-		? `${appointment.duration} minutes`
-		: null;
-	const typeLabel =
-		appointment.type === "semi-private" ? "Semi-Private" : "Private";
+	const heroImage = appointment.imageUrl || DEFAULT_IMAGE;
 
 	return (
 		<Container>
-			<ScrollView
-				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: 8 }}
-				showsVerticalScrollIndicator={false}
-			>
-				{/* Header with Back + Overflow */}
-				<View className="px-4 pt-4 pb-2">
-					<View className="mb-4 flex-row items-center justify-between">
-						<TouchableOpacity onPress={() => router.back()}>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
-						{isUpcoming && (
-							<TouchableOpacity
-								onPress={handleCancel}
-								disabled={cancelMutation.isPending}
-								className="px-2 py-1"
-								style={{ opacity: cancelMutation.isPending ? 0.5 : 1 }}
-								accessibilityLabel="Cancel booking"
-							>
-								<Text
-									className="font-semibold text-sm"
-									style={{ color: "#EF4444" }}
-								>
-									Cancel
-								</Text>
-							</TouchableOpacity>
-						)}
-					</View>
-				</View>
-
-				{/* Booking Image */}
-				{appointment.imageUrl && (
-					<View className="mb-4 px-4">
+			<View className="flex-1 bg-primary-3">
+				<ScrollView
+					className="flex-1"
+					showsVerticalScrollIndicator={false}
+					bounces={true}
+				>
+					{/* ── Hero Image Header ── */}
+					<View style={{ height: 290, position: "relative" }}>
 						<Image
-							source={{ uri: appointment.imageUrl }}
-							className="h-64 w-full rounded-2xl"
+							source={{ uri: heroImage }}
+							style={{
+								width: "100%",
+								height: "100%",
+							}}
 							resizeMode="cover"
 						/>
-					</View>
-				)}
+						{/* Gradient scrim */}
+						<LinearGradient
+							colors={["transparent", "rgba(0,0,0,0.75)"]}
+							locations={[0.3, 1]}
+							style={{
+								position: "absolute",
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+							}}
+						/>
 
-				<View className="px-4 pb-6">
-					{/* Booking Title and Status */}
-					<View className="mb-4 flex-row items-start justify-between">
-						<View className="mr-4 flex-1">
+						{/* Back button */}
+						<TouchableOpacity
+							onPress={() => router.back()}
+							activeOpacity={0.7}
+							style={{
+								position: "absolute",
+								top: 54,
+								left: 16,
+								width: 40,
+								height: 40,
+								borderRadius: 20,
+								backgroundColor: "rgba(0,0,0,0.55)",
+								borderWidth: 1,
+								borderColor: "rgba(255,255,255,0.25)",
+								alignItems: "center",
+								justifyContent: "center",
+							}}
+						>
+							<Ionicons name="chevron-back" size={20} color="#fff" />
+						</TouchableOpacity>
+
+
+						{/* Bottom overlay content */}
+						<View
+							style={{
+								position: "absolute",
+								bottom: 0,
+								left: 0,
+								right: 0,
+								padding: 16,
+							}}
+						>
+							{/* Status badge */}
+							<View style={{ marginBottom: 8 }}>
+								<View
+									style={{
+										backgroundColor: statusColors.bg,
+										borderRadius: 999,
+										paddingHorizontal: 10,
+										paddingVertical: 3,
+										alignSelf: "flex-start",
+									}}
+								>
+									<Text
+										style={{
+											fontFamily: fonts.body,
+											fontSize: 10,
+											fontWeight: "600",
+											color: statusColors.text,
+										}}
+									>
+										{formatStatusLabel(appointment.status)}
+									</Text>
+								</View>
+							</View>
+
+							{/* Title */}
 							<Text
-								className="mb-2 font-bold text-2xl"
-								style={{ color: colors.primary[1] }}
+								style={{
+									fontFamily: fonts.heading,
+									fontSize: 26,
+									color: "#fff",
+									letterSpacing: -0.3,
+									lineHeight: 29,
+									marginBottom: 6,
+								}}
 							>
 								{title}
 							</Text>
-							{appointment.bookingNumber && (
-								<Text
-									className="mb-1 text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									Booking ID: {appointment.bookingNumber}
-								</Text>
-							)}
-						</View>
-						<View
-							className="rounded-full px-3 py-1"
-							style={{ backgroundColor: statusColors.bg }}
-						>
-							<Text
-								className="font-semibold text-xs"
-								style={{ color: statusColors.text }}
-							>
-								{formatStatusLabel(appointment.status)}
-							</Text>
-						</View>
-					</View>
 
-					{/* WHEN */}
-					<Text
-						className="mb-2 font-bold text-xs uppercase tracking-wider"
-						style={{ color: colors.secondary[1] }}
-					>
-						When
-					</Text>
-					<View className="mb-4 flex-row">
-						<View className="mr-2 flex-1 rounded-xl bg-white p-3">
-							<View className="mb-1 flex-row items-center">
-								<Ionicons
-									name="calendar-outline"
-									size={16}
-									color={colors.secondary[1]}
-								/>
-								<Text
-									className="ml-1 text-xs"
-									style={{ color: colors.secondary[1] }}
-								>
-									Date
-								</Text>
-							</View>
-							<Text
-								className="font-semibold text-sm"
-								style={{ color: colors.primary[1] }}
+							{/* Tags */}
+							<View
+								className="flex-row flex-wrap"
+								style={{ gap: 6 }}
 							>
-								{formatDate(appointment.startTime)}
-							</Text>
-						</View>
-						<View className="ml-2 flex-1 rounded-xl bg-white p-3">
-							<View className="mb-1 flex-row items-center">
-								<Ionicons
-									name="time-outline"
-									size={16}
-									color={colors.secondary[1]}
-								/>
-								<Text
-									className="ml-1 text-xs"
-									style={{ color: colors.secondary[1] }}
+								<View
+									style={{
+										backgroundColor: "rgba(255,255,255,0.18)",
+										borderRadius: 999,
+										paddingHorizontal: 10,
+										paddingVertical: 4,
+									}}
 								>
-									Time
-								</Text>
-							</View>
-							<Text
-								className="font-semibold text-sm"
-								style={{ color: colors.primary[1] }}
-							>
-								{formatTime(appointment.startTime)}
-								{appointment.endTime
-									? ` - ${formatTime(appointment.endTime)}`
-									: ""}
-							</Text>
-						</View>
-					</View>
-
-					{durationText && (
-						<View className="mb-4 rounded-xl bg-white p-3">
-							<View className="mb-1 flex-row items-center">
-								<Ionicons
-									name="hourglass-outline"
-									size={16}
-									color={colors.secondary[1]}
-								/>
-								<Text
-									className="ml-1 text-xs"
-									style={{ color: colors.secondary[1] }}
+									<Text
+										style={{
+											fontFamily: fonts.body,
+											fontSize: 11,
+											color: "rgba(255,255,255,0.9)",
+										}}
+									>
+										{formatShortDate(appointment.startTime)}
+									</Text>
+								</View>
+								<View
+									style={{
+										backgroundColor: "rgba(255,255,255,0.18)",
+										borderRadius: 999,
+										paddingHorizontal: 10,
+										paddingVertical: 4,
+									}}
 								>
-									Duration
-								</Text>
-							</View>
-							<Text
-								className="font-semibold text-sm"
-								style={{ color: colors.primary[1] }}
-							>
-								{durationText}
-							</Text>
-						</View>
-					)}
-
-					{/* SERVICE */}
-					{(svc?.name || appointment.type) && (
-						<>
-							<Text
-								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
-								style={{ color: colors.secondary[1] }}
-							>
-								Service
-							</Text>
-							<View className="mb-4 rounded-xl bg-white p-4">
-								<Text
-									className="mb-1 font-semibold text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{svc?.name ?? title}
-								</Text>
-								<View className="flex-row flex-wrap items-center gap-2">
+									<Text
+										style={{
+											fontFamily: fonts.body,
+											fontSize: 11,
+											color: "rgba(255,255,255,0.9)",
+										}}
+									>
+										{formatTime(appointment.startTime)}
+									</Text>
+								</View>
+								{appointment.duration && (
 									<View
-										className="rounded-full px-2 py-1"
-										style={{ backgroundColor: colors.secondary[3] }}
+										style={{
+											backgroundColor: "rgba(255,255,255,0.18)",
+											borderRadius: 999,
+											paddingHorizontal: 10,
+											paddingVertical: 4,
+										}}
 									>
 										<Text
-											className="font-medium text-xs"
-											style={{ color: colors.primary[1] }}
+											style={{
+												fontFamily: fonts.body,
+												fontSize: 11,
+												color: "rgba(255,255,255,0.9)",
+											}}
 										>
-											{typeLabel}
+											{appointment.duration} min
 										</Text>
 									</View>
-									{svc?.schedulingType === "class_slot" && (
-										<View
-											className="rounded-full px-2 py-1"
-											style={{ backgroundColor: colors.secondary[3] }}
-										>
-											<Text
-												className="font-medium text-xs"
-												style={{ color: colors.primary[1] }}
-											>
-												Class slot
-											</Text>
-										</View>
-									)}
-								</View>
-								{svc?.description && (
-									<Text
-										className="mt-2 text-sm leading-5"
-										style={{ color: colors.secondary[1] }}
-									>
-										{svc.description}
-									</Text>
 								)}
 							</View>
-						</>
-					)}
+						</View>
+					</View>
 
-					{/* PACKAGE */}
-					{pkgInstance && (
-						<>
-							<Text
-								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
-								style={{ color: colors.secondary[1] }}
-							>
-								Package
-							</Text>
-							<View className="mb-4 rounded-xl bg-white p-4">
-								<View className="mb-2 flex-row items-center">
-									<Ionicons
-										name="cube-outline"
-										size={16}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="ml-1 flex-1 font-semibold text-sm"
-										style={{ color: colors.primary[1] }}
+					{/* ── Detail Body ── */}
+					<View className="px-4 pb-6">
+						{/* Section: Session Details */}
+						<Text
+							style={{
+								fontFamily: fonts.body,
+								fontSize: 10,
+								fontWeight: "700",
+								letterSpacing: 1.4,
+								textTransform: "uppercase",
+								color: colors.secondary[1],
+								marginTop: 16,
+								marginBottom: 8,
+							}}
+						>
+							Session details
+						</Text>
+
+						<DetailRow
+							icon="calendar-outline"
+							label="Date"
+							value={formatDate(appointment.startTime)}
+						/>
+						<DetailRow
+							icon="time-outline"
+							label="Time"
+							value={`${formatTime(appointment.startTime)}${appointment.endTime ? ` – ${formatTime(appointment.endTime)}` : ""}`}
+						/>
+						{(appointment as any).trainerName && (
+							<DetailRow
+								icon="person-circle-outline"
+								label="Trainer"
+								value={(appointment as any).trainerName}
+							/>
+						)}
+						{(appointment as any).branchName && (
+							<DetailRow
+								icon="business-outline"
+								label="Branch"
+								value={(appointment as any).branchName}
+							/>
+						)}
+						{appointment.location && (
+							<DetailRow
+								icon="location-outline"
+								label="Location"
+								value={appointment.location}
+							/>
+						)}
+
+						{/* Section: Package */}
+						{pkgInstance && (
+							<>
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 10,
+										fontWeight: "700",
+										letterSpacing: 1.4,
+										textTransform: "uppercase",
+										color: colors.secondary[1],
+										marginTop: 16,
+										marginBottom: 8,
+									}}
+								>
+									Package
+								</Text>
+
+								<View
+									className="mb-1.5 flex-row items-center rounded-xl border bg-primary-2 px-3.5 py-3"
+									style={{
+										borderColor: colors.secondary[3],
+										gap: 12,
+									}}
+								>
+									<View
+										className="h-[30px] w-[30px] items-center justify-center rounded-lg"
+										style={{ backgroundColor: colors.primary[3] }}
 									>
-										{svc?.name ?? "Package"}
-									</Text>
-								</View>
-								<View className="flex-row items-center justify-between">
-									<View className="flex-row items-center">
 										<Ionicons
-											name="star-outline"
+											name="cube-outline"
 											size={14}
-											color={colors.secondary[1]}
+											color={colors.primary[1]}
 										/>
+									</View>
+									<View className="min-w-0 flex-1">
 										<Text
-											className="ml-1 text-xs"
-											style={{ color: colors.secondary[1] }}
+											style={{
+												fontFamily: fonts.body,
+												fontSize: 10,
+												color: colors.secondary[1],
+												marginBottom: 1,
+											}}
+										>
+											{svc?.name ?? "Package"}
+										</Text>
+										<Text
+											style={{
+												fontFamily: fonts.heading,
+												fontSize: 13,
+												color: colors.primary[1],
+											}}
 										>
 											{pkgInstance.creditsRemaining ?? 0} of{" "}
 											{pkgInstance.creditsTotal ?? 0} credits remaining
@@ -437,188 +555,223 @@ export default function BookingDetailScreen() {
 									</View>
 									{appointment.creditsUsed != null &&
 										Number(appointment.creditsUsed) > 0 && (
-											<Text
-												className="text-xs"
-												style={{ color: colors.primary[1] }}
+											<View
+												style={{
+													backgroundColor: colors.primary[3],
+													borderRadius: 999,
+													paddingHorizontal: 10,
+													paddingVertical: 3,
+												}}
 											>
-												{Number(appointment.creditsUsed)} used
-											</Text>
+												<Text
+													style={{
+														fontFamily: fonts.body,
+														fontSize: 11,
+														fontWeight: "600",
+														color: colors.primary[1],
+													}}
+												>
+													-{Number(appointment.creditsUsed)} credit
+												</Text>
+											</View>
 										)}
 								</View>
-								{pkgInstance.expiresAt && (
-									<Text
-										className="mt-1 text-xs"
-										style={{ color: colors.secondary[1] }}
-									>
-										Expires{" "}
-										{new Date(pkgInstance.expiresAt).toLocaleDateString(
-											"en-US",
-											{
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											},
-										)}
-									</Text>
-								)}
-							</View>
-						</>
-					)}
+							</>
+						)}
 
-					{/* TRAINER */}
-					{(appointment as any).trainerName && (
-						<>
-							<Text
-								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
-								style={{ color: colors.secondary[1] }}
-							>
-								Trainer
-							</Text>
-							<View className="mb-4 rounded-xl bg-white p-4">
-								<View className="flex-row items-center">
-									<Ionicons
-										name="person-circle-outline"
-										size={20}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="ml-2 flex-1 font-semibold text-base"
-										style={{ color: colors.primary[1] }}
-									>
-										{(appointment as any).trainerName}
-									</Text>
-								</View>
-							</View>
-						</>
-					)}
-
-					{/* BRANCH */}
-					{(appointment as any).branchName && (
-						<>
-							<Text
-								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
-								style={{ color: colors.secondary[1] }}
-							>
-								Branch
-							</Text>
-							<View className="mb-4 rounded-xl bg-white p-4">
-								<View className="flex-row items-center">
-									<Ionicons
-										name="business-outline"
-										size={20}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="ml-2 flex-1 text-sm"
-										style={{ color: colors.primary[1] }}
-									>
-										{(appointment as any).branchName}
-									</Text>
-								</View>
-							</View>
-						</>
-					)}
-
-					{/* LOCATION */}
-					{appointment.location && (
-						<>
-							<Text
-								className="mb-2 mt-2 font-bold text-xs uppercase tracking-wider"
-								style={{ color: colors.secondary[1] }}
-							>
-								Location
-							</Text>
-							<View className="mb-4 rounded-xl bg-white p-4">
-								<View className="flex-row items-center">
-									<Ionicons
-										name="location-outline"
-										size={20}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="ml-2 flex-1 text-sm"
-										style={{ color: colors.primary[1] }}
-									>
-										{appointment.location}
-									</Text>
-								</View>
-							</View>
-						</>
-					)}
-
-
-					{/* Cancellation Info */}
-					{appointment.status === "cancelled" &&
-						appointment.cancellationReason && (
+						{/* Booking Reference */}
+						{appointment.bookingNumber && (
 							<View
-								className="mb-4 rounded-xl p-4"
-								style={{ backgroundColor: "#FEE2E2" }}
+								className="mt-4 items-center rounded-xl border bg-primary-2 py-2.5 px-3.5"
+								style={{ borderColor: colors.secondary[3] }}
 							>
-								<View className="flex-row items-start">
-									<Ionicons
-										name="close-circle-outline"
-										size={20}
-										color="#EF4444"
-										style={{ marginTop: 2 }}
-									/>
-									<View className="ml-3 flex-1">
-										<Text
-											className="mb-1 font-semibold text-sm"
-											style={{ color: "#EF4444" }}
-										>
-											Cancellation Reason
-										</Text>
-										<Text
-											className="text-xs leading-5"
-											style={{ color: "#EF4444" }}
-										>
-											{appointment.cancellationReason}
-										</Text>
-									</View>
-								</View>
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 10,
+										color: colors.secondary[1],
+										letterSpacing: 1,
+										textTransform: "uppercase",
+										marginBottom: 4,
+									}}
+								>
+									Booking Reference
+								</Text>
+								<Text
+									style={{
+										fontFamily: fonts.heading,
+										fontSize: 15,
+										color: colors.primary[1],
+										letterSpacing: 0.5,
+									}}
+								>
+									#{appointment.bookingNumber}
+								</Text>
 							</View>
 						)}
 
-					{/* Description */}
-					{appointment.description && (
-						<View className="mb-4">
-							<Text
-								className="mb-2 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.secondary[1] }}
-							>
-								ABOUT
-							</Text>
-							<Text
-								className="text-base leading-6"
-								style={{ color: colors.primary[1] }}
-							>
-								{appointment.description}
-							</Text>
-						</View>
-					)}
+						{/* Cancellation Info */}
+						{appointment.status === "cancelled" &&
+							appointment.cancellationReason && (
+								<View
+									className="mt-4 rounded-xl p-4"
+									style={{ backgroundColor: "#FEE2E2" }}
+								>
+									<View className="flex-row items-start">
+										<Ionicons
+											name="close-circle-outline"
+											size={20}
+											color="#B91C1C"
+											style={{ marginTop: 2 }}
+										/>
+										<View className="ml-3 flex-1">
+											<Text
+												style={{
+													fontFamily: fonts.subheading,
+													fontSize: 14,
+													color: "#B91C1C",
+													marginBottom: 4,
+												}}
+											>
+												Cancellation Reason
+											</Text>
+											<Text
+												style={{
+													fontFamily: fonts.body,
+													fontSize: 12,
+													color: "#B91C1C",
+													lineHeight: 18,
+												}}
+											>
+												{appointment.cancellationReason}
+											</Text>
+										</View>
+									</View>
+								</View>
+							)}
 
-					{/* Notes */}
-					{appointment.notes && (
-						<View className="mb-4">
-							<Text
-								className="mb-2 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.secondary[1] }}
-							>
-								NOTES
-							</Text>
-							<Text
-								className="text-base leading-6"
-								style={{ color: colors.primary[1] }}
-							>
-								{appointment.notes}
-							</Text>
-						</View>
-					)}
-				</View>
-			</ScrollView>
+						{/* Description */}
+						{appointment.description && (
+							<View className="mt-4">
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 10,
+										fontWeight: "700",
+										letterSpacing: 1.4,
+										textTransform: "uppercase",
+										color: colors.secondary[1],
+										marginBottom: 8,
+									}}
+								>
+									About
+								</Text>
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 14,
+										color: colors.primary[1],
+										lineHeight: 21,
+									}}
+								>
+									{appointment.description}
+								</Text>
+							</View>
+						)}
 
-			{/* Cancel moved to header overflow menu (top-right `...`) so it isn't
-			    inside the bottom thumb-zone where mis-taps were happening. */}
+						{/* Notes */}
+						{appointment.notes && (
+							<View className="mt-4">
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 10,
+										fontWeight: "700",
+										letterSpacing: 1.4,
+										textTransform: "uppercase",
+										color: colors.secondary[1],
+										marginBottom: 8,
+									}}
+								>
+									Notes
+								</Text>
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 14,
+										color: colors.primary[1],
+										lineHeight: 21,
+									}}
+								>
+									{appointment.notes}
+								</Text>
+							</View>
+						)}
+					</View>
+				</ScrollView>
+
+				{/* Bottom CTA */}
+				{isUpcoming && (
+					<View
+						style={{
+							paddingHorizontal: 16,
+							paddingVertical: 12,
+							borderTopWidth: 1,
+							borderTopColor: colors.secondary[3],
+							backgroundColor: colors.primary[3],
+						}}
+					>
+						<View className="flex-row" style={{ gap: 10 }}>
+							<TouchableOpacity
+								onPress={handleCancel}
+								disabled={cancelMutation.isPending}
+								activeOpacity={0.7}
+								style={{
+									flex: 1,
+									height: 48,
+									borderRadius: 12,
+									borderWidth: 1.5,
+									borderColor: "#B91C1C",
+									alignItems: "center",
+									justifyContent: "center",
+									opacity: cancelMutation.isPending ? 0.5 : 1,
+								}}
+							>
+								<Text
+									style={{
+										fontFamily: fonts.heading,
+										fontSize: 15,
+										color: "#B91C1C",
+									}}
+								>
+									Cancel
+								</Text>
+							</TouchableOpacity>
+							<TouchableOpacity
+								activeOpacity={0.7}
+								style={{
+									flex: 1,
+									height: 48,
+									backgroundColor: colors.primary[1],
+									borderRadius: 12,
+									alignItems: "center",
+									justifyContent: "center",
+								}}
+							>
+								<Text
+									style={{
+										fontFamily: fonts.heading,
+										fontSize: 15,
+										color: colors.primary[2],
+									}}
+								>
+									Reschedule
+								</Text>
+							</TouchableOpacity>
+						</View>
+					</View>
+				)}
+			</View>
 		</Container>
 	);
 }
