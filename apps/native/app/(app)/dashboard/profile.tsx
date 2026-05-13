@@ -6,6 +6,7 @@ import {
 	Linking,
 	Modal,
 	ScrollView,
+	Switch,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -294,10 +295,29 @@ export default function ProfileScreen() {
 						label="Change Password"
 						onPress={() => setShowPasswordModal(true)}
 					/>
-					<SettingsRow
+					<SettingsToggleRow
 						icon="notifications-outline"
-						label="Notifications"
-						onPress={() => {}}
+						label="Push notifications"
+						value={!!notifPrefs?.pushEnabled}
+						onValueChange={(v) =>
+							handleToggleNotifPref("pushEnabled", v)
+						}
+					/>
+					<SettingsToggleRow
+						icon="mail-outline"
+						label="Email notifications"
+						value={!!notifPrefs?.emailEnabled}
+						onValueChange={(v) =>
+							handleToggleNotifPref("emailEnabled", v)
+						}
+					/>
+					<SettingsToggleRow
+						icon="chatbubble-outline"
+						label="SMS notifications"
+						value={!!notifPrefs?.smsEnabled}
+						onValueChange={(v) =>
+							handleToggleNotifPref("smsEnabled", v)
+						}
 						isLast
 					/>
 				</SettingsCard>
@@ -492,6 +512,52 @@ function SettingsRow({
 				/>
 			)}
 		</TouchableOpacity>
+	);
+}
+
+function SettingsToggleRow({
+	icon,
+	label,
+	value,
+	onValueChange,
+	isLast,
+}: {
+	icon: React.ComponentProps<typeof Ionicons>["name"];
+	label: string;
+	value: boolean;
+	onValueChange: (v: boolean) => void;
+	isLast?: boolean;
+}) {
+	return (
+		<View
+			className="flex-row items-center"
+			style={{
+				paddingHorizontal: 16,
+				paddingVertical: 10,
+				gap: 12,
+				borderBottomWidth: isLast ? 0 : 1,
+				borderBottomColor: colors.secondary[3],
+			}}
+		>
+			<Ionicons name={icon} size={20} color={colors.secondary[1]} />
+			<Text
+				className="flex-1"
+				style={{
+					fontFamily: fonts.body,
+					fontSize: 14,
+					color: colors.primary[1],
+				}}
+			>
+				{label}
+			</Text>
+			<Switch
+				value={value}
+				onValueChange={onValueChange}
+				trackColor={{ false: colors.secondary[2], true: colors.primary[1] }}
+				thumbColor={colors.primary[2]}
+				ios_backgroundColor={colors.secondary[2]}
+			/>
+		</View>
 	);
 }
 

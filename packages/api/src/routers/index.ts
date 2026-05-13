@@ -26,6 +26,7 @@ import { memberProfilesRouter } from "./member-profiles";
 import { memberRouter } from "./members";
 import { notificationPreferencesRouter } from "./notification-preferences";
 import { notificationsRouter } from "./notifications";
+import { pushTokensRouter } from "./push-tokens";
 import { organizationSettingsRouter } from "./organization-settings";
 import { packageInstancesRouter } from "./package-instances";
 import { packageInstanceStaffRouter } from "./package-instance-staff";
@@ -87,6 +88,7 @@ export const baseRouter = {
 	preferredTimes: preferredTimesRouter,
 	notifications: notificationsRouter,
 	notificationPreferences: notificationPreferencesRouter,
+	pushTokens: pushTokensRouter,
 	customerProfiles: customerProfilesRouter,
 	userActivityLog: userActivityLogRouter,
 	roles: rolesRouter,

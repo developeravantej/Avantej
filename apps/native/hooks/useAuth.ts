@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
+import { currentPushTokenRef } from "@/hooks/usePushNotifications";
 import { authClient } from "@/lib/auth-client";
-import { queryClient } from "@/utils/orpc";
+import { client, queryClient } from "@/utils/orpc";
 
 export function useAuth() {
 	const { data: session, isPending, error, refetch } = authClient.useSession();
@@ -49,6 +50,21 @@ export function useAuth() {
 	);
 
 	const logout = useCallback(async () => {
+		// Best-effort: unregister the device's Expo push token before signing
+		// out so the server stops delivering pushes to this device. Never block
+		// or fail logout on push errors.
+		try {
+			const { token, organizationId } = currentPushTokenRef;
+			if (token && organizationId) {
+				await client.pushTokens.unregister({ organizationId, token });
+			}
+		} catch (err) {
+			console.warn("[push] unregister on logout failed", err);
+		} finally {
+			currentPushTokenRef.token = null;
+			currentPushTokenRef.organizationId = null;
+		}
+
 		await authClient.signOut();
 		await refetch();
 		queryClient.clear();

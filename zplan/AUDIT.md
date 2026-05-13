@@ -1,14 +1,14 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-05-13 16:00
+**Last run:** 2026-05-13 23:25
 **Sessions audited:** 1
-**Clean:** 1 · **Needs attention:** 0 · **Critical:** 0
+**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
 
 ## Sessions
 
 | Status | Session | Summary | Report |
 |--------|---------|---------|--------|
-| 🟢 clean | `05-13_15-29_pin-customer-package` | 8/8 sections, 0 broken refs, 0 missing impact (all 3 flagged files confirmed in §6 table), not executed | [report](05-13_15-29_pin-customer-package/audit/report.md) |
+| 🟡 needs-attention | `05-13_22-30_push-notifications` | 8/8 sections, 0 broken refs, 0 missing impact, 3 open TODO markers, not executed | [report](05-13_22-30_push-notifications/audit/report.md) |
 
 ## How to act on this
 

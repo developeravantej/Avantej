@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "@avantej-core/db": "workspace:*",
-    "drizzle-orm": "^0.44.2"
+    "drizzle-orm": "^0.44.2",
+    "expo-server-sdk": "^3.7.0"
   }
 }
 

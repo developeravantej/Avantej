@@ -16,8 +16,14 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { getAncestorNodeIds } from "./hierarchy.service";
+import { sendPushToUser } from "./push.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+export type NotifyOptions = {
+  /** Skip Expo push delivery (notification row is still inserted). */
+  skipPush?: boolean;
+};
 
 export type ListNotificationsParams = {
   userId: string;
@@ -113,6 +119,7 @@ export async function markAllNotificationsRead(
 export async function notifyStaffOfPendingPackage(
   tenantDb: NeonDatabase<typeof tenantSchema>,
   packageInstanceId: string,
+  options?: NotifyOptions,
 ): Promise<number> {
   // 1. Load the package + its service
   const pkg = await tenantDb.query.packageInstances.findFirst({
@@ -169,6 +176,23 @@ export async function notifyStaffOfPendingPackage(
       relatedType: "package_instance",
     })),
   );
+
+  // 6. Fan-out push notifications (one per staff). Acceptable for v1 — staff
+  //    primarily use the web dashboard so most rows return zero tokens. Errors
+  //    are swallowed inside sendPushToUser.
+  if (!options?.skipPush) {
+    for (const s of staff) {
+      await sendPushToUser(tenantDb, s.userId, {
+        title,
+        body: message,
+        data: {
+          type: "package_pending_review",
+          referenceId: packageInstanceId,
+          referenceType: "package_instance",
+        },
+      });
+    }
+  }
   return staff.length;
 }
 
@@ -184,15 +208,29 @@ export async function notifyCustomerPackageAssigned(
     serviceName: string;
     trainerName: string;
   },
+  options?: NotifyOptions,
 ): Promise<void> {
+  const title = "Your trainer has been assigned";
+  const message = `Your trainer for ${params.serviceName} is ${params.trainerName}. You can start booking sessions now.`;
   await tenantDb.insert(notifications).values({
     userId: params.customerUserId,
     type: "package_assigned",
-    title: "Your trainer has been assigned",
-    message: `Your trainer for ${params.serviceName} is ${params.trainerName}. You can start booking sessions now.`,
+    title,
+    message,
     relatedId: params.packageInstanceId,
     relatedType: "package_instance",
   });
+  if (!options?.skipPush) {
+    await sendPushToUser(tenantDb, params.customerUserId, {
+      title,
+      body: message,
+      data: {
+        type: "package_assigned",
+        referenceId: params.packageInstanceId,
+        referenceType: "package_instance",
+      },
+    });
+  }
 }
 
 /**
@@ -206,16 +244,30 @@ export async function notifyCustomerPackageRejected(
     serviceName: string;
     reason?: string | null;
   },
+  options?: NotifyOptions,
 ): Promise<void> {
   const reasonSuffix = params.reason ? ` Reason: ${params.reason}` : "";
+  const title = "Your package purchase was cancelled";
+  const message = `Your purchase of ${params.serviceName} was cancelled.${reasonSuffix}`;
   await tenantDb.insert(notifications).values({
     userId: params.customerUserId,
     type: "package_rejected",
-    title: "Your package purchase was cancelled",
-    message: `Your purchase of ${params.serviceName} was cancelled.${reasonSuffix}`,
+    title,
+    message,
     relatedId: params.packageInstanceId,
     relatedType: "package_instance",
   });
+  if (!options?.skipPush) {
+    await sendPushToUser(tenantDb, params.customerUserId, {
+      title,
+      body: message,
+      data: {
+        type: "package_rejected",
+        referenceId: params.packageInstanceId,
+        referenceType: "package_instance",
+      },
+    });
+  }
 }
 
 /**
