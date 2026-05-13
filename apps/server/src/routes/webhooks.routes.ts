@@ -10,8 +10,17 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { verifyWebhookSignature } from "@/lib/stripe";
-import { handleCheckoutCompleted } from "@/services/payment.service";
-import Stripe from "stripe";
+import type Stripe from "stripe";
+import {
+	claimWebhookEvent,
+	markEventProcessed,
+	markEventFailed,
+} from "@/services/webhook-dedupe.service";
+import {
+	upsertSubscriptionFromStripe,
+	markPastDue,
+	markActive,
+} from "@/services/saas-subscription.service";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { and, desc, eq } from "drizzle-orm";
@@ -86,142 +95,120 @@ async function ensureLocationAccess(
 }
 
 /**
- * Handle Stripe webhook events
+ * POST /webhooks/stripe/platform
  *
- * Events handled:
- * - checkout.session.completed - Payment succeeded, provision organization
- * - customer.subscription.created - New subscription created
- * - customer.subscription.updated - Subscription updated (plan change, status change)
- * - customer.subscription.deleted - Subscription canceled
- * - invoice.payment_succeeded - Invoice payment succeeded
- * - invoice.payment_failed - Invoice payment failed
+ * Handles Stripe Billing events (subscription lifecycle + invoice events).
+ * Verifies the platform webhook secret, deduplicates via processedWebhookEvents,
+ * and dispatches to the saas-subscription service.
  */
-webhookRoutes.post("/stripe", async (c) => {
+webhookRoutes.post("/stripe/platform", async (c) => {
+	const body = await c.req.text();
+	const signature = c.req.header("stripe-signature");
+	if (!signature) {
+		return c.json({ error: "Missing Stripe-Signature header" }, 400);
+	}
+
+	let event: Stripe.Event;
 	try {
-		// Get raw body as string (required for signature verification)
-		const body = await c.req.text();
-		const signature = c.req.header("stripe-signature");
+		event = verifyWebhookSignature(body, signature, "platform");
+	} catch (e) {
+		return c.json(
+			{ error: e instanceof Error ? e.message : "Invalid signature" },
+			400,
+		);
+	}
 
-		if (!signature) {
-			return c.json({ error: "Missing Stripe-Signature header" }, 400);
-		}
+	const claim = await claimWebhookEvent({
+		eventId: event.id,
+		eventType: event.type,
+		source: "platform",
+		stripeAccount: null,
+	});
+	if (claim.status === "already_processed") {
+		return c.json({ received: true, deduped: true }, 200);
+	}
 
-		// Verify webhook signature
-		let event: Stripe.Event;
-		try {
-			event = verifyWebhookSignature(body, signature, "platform");
-		} catch (error) {
-			console.error("Webhook signature verification failed:", error);
-			return c.json(
-				{
-					error:
-						error instanceof Error
-							? error.message
-							: "Invalid webhook signature",
-				},
-				400
-			);
-		}
-
-		console.log(`Received Stripe webhook event: ${event.type}`);
-
-		// Handle event based on type
+	try {
 		switch (event.type) {
-			case "checkout.session.completed": {
-				const session = event.data.object as Stripe.Checkout.Session;
-				console.log(
-					`Processing checkout.session.completed for session ${session.id}`
-				);
-
-				try {
-					await handleCheckoutCompleted(session);
-					console.log(
-						`✓ Successfully processed checkout session ${session.id}`
-					);
-				} catch (error) {
-					console.error(
-						`Error processing checkout session ${session.id}:`,
-						error
-					);
-					// Don't re-raise error to prevent webhook retry loops
-					// Stripe will retry if we return non-2xx, but we want to handle
-					// idempotency ourselves
-					return c.json(
-						{
-							received: true,
-							error:
-								error instanceof Error
-									? error.message
-									: "Failed to process checkout",
-						},
-						200
-					);
+			case "customer.subscription.created":
+			case "customer.subscription.updated":
+			case "customer.subscription.deleted": {
+				const sub = event.data.object as Stripe.Subscription;
+				await upsertSubscriptionFromStripe(sub);
+				break;
+			}
+			case "invoice.payment_failed": {
+				const inv = event.data.object as Stripe.Invoice;
+				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
+				if (subRef) {
+					const subId = typeof subRef === "string" ? subRef : subRef.id;
+					await markPastDue(subId);
 				}
 				break;
 			}
-
-			case "customer.subscription.created": {
-				const subscription = event.data.object as Stripe.Subscription;
-				console.log(
-					`Subscription created: ${subscription.id} (customer: ${subscription.customer})`
-				);
-				// Subscription is handled by checkout.session.completed
-				// This event is informational
+			case "invoice.paid": {
+				const inv = event.data.object as Stripe.Invoice;
+				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
+				if (subRef) {
+					const subId = typeof subRef === "string" ? subRef : subRef.id;
+					await markActive(subId);
+				}
 				break;
 			}
-
-			case "customer.subscription.updated": {
-				const subscription = event.data.object as Stripe.Subscription;
-				console.log(
-					`Subscription updated: ${subscription.id}, status: ${subscription.status}`
-				);
-				// TODO: Update subscription status in database if needed
-				// For now, subscription status is managed via checkout.session.completed
-				break;
-			}
-
-			case "customer.subscription.deleted": {
-				const subscription = event.data.object as Stripe.Subscription;
-				console.log(`Subscription deleted: ${subscription.id}`);
-				// TODO: Handle subscription cancellation
-				// Could suspend organization or mark for deletion
-				break;
-			}
-
-			case "invoice.payment_succeeded": {
-				const invoice = event.data.object as Stripe.Invoice;
-				console.log(`Invoice payment succeeded: ${invoice.id}`);
-				// Payment succeeded - ensure organization payment status is active
-				// This is handled by checkout.session.completed, but can be used
-				// to update payment status for recurring invoices
-				break;
-			}
-
-			case "invoice.payment_failed": {
-				const invoice = event.data.object as Stripe.Invoice;
-				console.log(`Invoice payment failed: ${invoice.id}`);
-				// TODO: Handle payment failure
-				// Could suspend organization or send notification
-				break;
-			}
-
 			default:
-				console.log(`Unhandled webhook event type: ${event.type}`);
+				// No-op for unhandled platform events in v1.
+				console.log(`[platform webhook] unhandled event ${event.type}`);
+				break;
 		}
+		await markEventProcessed(event.id);
+		return c.json({ received: true }, 200);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		await markEventFailed(event.id, msg);
+		console.error(`Platform webhook handler failed for ${event.id}:`, e);
+		return c.json({ error: "Handler failed" }, 500);
+	}
+});
 
-		return c.json({ received: true });
-	} catch (error) {
-		console.error("Error processing webhook:", error);
+/**
+ * POST /webhooks/stripe/connect
+ *
+ * Stub handler for Stripe Connect events (Plan B/C).
+ * Verifies the connect webhook secret, deduplicates, and acks 200.
+ * No business logic is dispatched in v1.
+ */
+webhookRoutes.post("/stripe/connect", async (c) => {
+	const body = await c.req.text();
+	const signature = c.req.header("stripe-signature");
+	if (!signature) {
+		return c.json({ error: "Missing Stripe-Signature header" }, 400);
+	}
+
+	let event: Stripe.Event;
+	try {
+		event = verifyWebhookSignature(body, signature, "connect");
+	} catch (e) {
 		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to process webhook",
-			},
-			500
+			{ error: e instanceof Error ? e.message : "Invalid signature" },
+			400,
 		);
 	}
+
+	const claim = await claimWebhookEvent({
+		eventId: event.id,
+		eventType: event.type,
+		source: "connect",
+		stripeAccount: event.account ?? null,
+	});
+	if (claim.status === "already_processed") {
+		return c.json({ received: true, deduped: true }, 200);
+	}
+
+	// v1: Connect-event handlers ship in Plan B/C. Ack + mark processed so we
+	// don't accumulate retries during Plan A.
+	console.log(`[connect webhook v1 stub] ${event.type} for ${event.account}`);
+	await markEventProcessed(event.id);
+	return c.json({ received: true, stub: true }, 200);
 });
 
 /**
