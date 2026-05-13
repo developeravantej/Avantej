@@ -21,7 +21,7 @@ import { client, orpc } from "@/utils/orpc";
 
 export default function ProfileScreen() {
 	const { user, logout } = useAuth();
-	const { organizationId } = useOrganization();
+	const { organizationId, organizations } = useOrganization();
 	const queryClient = useQueryClient();
 	const tabBarHeight = useTabBarHeight();
 
@@ -45,16 +45,16 @@ export default function ProfileScreen() {
 
 	// Fetch active packages for stats
 	const { data: activePackages } = useQuery({
-		...orpc.packageInstances.getActiveForClient.queryOptions({
-			input: { organizationId },
+		...orpc.packageInstances.listForClient.queryOptions({
+			input: { organizationId, status: "active" },
 		}),
 		enabled: !!organizationId,
 	});
 
-	// Fetch completed appointments for stats
-	const { data: completedAppointments } = useQuery({
+	// Fetch upcoming appointments for stats
+	const { data: upcomingAppointments } = useQuery({
 		...orpc.appointments.listForUser.queryOptions({
-			input: { organizationId, status: "completed" },
+			input: { organizationId, statuses: ["pending", "confirmed"] },
 		}),
 		enabled: !!organizationId,
 	});
@@ -75,8 +75,8 @@ export default function ProfileScreen() {
 		: "";
 
 	// Stats
-	const sessionsCount = Array.isArray(completedAppointments)
-		? completedAppointments.length
+	const sessionsCount = Array.isArray(upcomingAppointments)
+		? upcomingAppointments.length
 		: 0;
 	const packagesCount = Array.isArray(activePackages)
 		? activePackages.length
@@ -118,6 +118,10 @@ export default function ProfileScreen() {
 		]);
 	};
 
+	const userEmail = user?.email ?? "";
+	const orgName =
+		organizations.find((o) => o.id === organizationId)?.name ?? "";
+
 	return (
 		<TabContainer>
 			<ScrollView
@@ -125,178 +129,228 @@ export default function ProfileScreen() {
 				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Profile Hero */}
-				<View className="items-center pt-8 pb-2 px-8">
-					{/* Avatar */}
+				{/* Hero Card */}
+				<View
+					style={{
+						marginHorizontal: 16,
+						marginTop: 8,
+						backgroundColor: colors.primary[2],
+						borderWidth: 1,
+						borderColor: colors.secondary[3],
+						borderRadius: 20,
+						padding: 20,
+					}}
+				>
 					<View
-						className="mb-4 h-14 w-14 items-center justify-center rounded-full"
-						style={{ backgroundColor: colors.primary[1] }}
-					>
-						<Text
-							style={{
-								fontFamily: fonts.heading,
-								fontSize: 18,
-								color: colors.primary[2],
-								letterSpacing: 0.5,
-							}}
-						>
-							{userInitials || "?"}
-						</Text>
-					</View>
-
-					{/* Name */}
-					<Text
+						className="flex-row items-center"
 						style={{
-							fontFamily: fonts.heading,
-							fontSize: 22,
-							color: colors.primary[1],
-							letterSpacing: -0.4,
-							marginBottom: 4,
+							gap: 16,
+							marginBottom: 16,
+							paddingBottom: 16,
+							borderBottomWidth: 1,
+							borderBottomColor: colors.secondary[3],
 						}}
 					>
-						{userName || "User"}
-					</Text>
-
-					{/* Member since pill */}
-					{memberSince ? (
 						<View
-							className="flex-row items-center mt-2"
+							className="items-center justify-center rounded-full"
 							style={{
-								backgroundColor: colors.primary[3],
+								width: 72,
+								height: 72,
+								backgroundColor: colors.primary[1],
+							}}
+						>
+							<Text
+								style={{
+									fontFamily: fonts.heading,
+									fontSize: 24,
+									fontWeight: "700",
+									color: colors.primary[2],
+								}}
+							>
+								{userInitials || "?"}
+							</Text>
+						</View>
+						<View className="flex-1" style={{ minWidth: 0 }}>
+							<Text
+								style={{
+									fontFamily: fonts.heading,
+									fontSize: 22,
+									fontWeight: "700",
+									color: colors.primary[1],
+									letterSpacing: -0.3,
+									marginBottom: 3,
+								}}
+							>
+								{userName || "User"}
+							</Text>
+							{userEmail ? (
+								<Text
+									numberOfLines={1}
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 13,
+										color: colors.secondary[1],
+										marginBottom: 3,
+									}}
+								>
+									{userEmail}
+								</Text>
+							) : null}
+							{orgName ? (
+								<Text
+									style={{
+										fontFamily: fonts.body,
+										fontSize: 12,
+										color: colors.secondary[1],
+									}}
+								>
+									{orgName}
+								</Text>
+							) : null}
+						</View>
+					</View>
+					<View className="flex-row items-center justify-between">
+						<View
+							style={{
+								backgroundColor: colors.primary[1],
 								borderRadius: 999,
-								paddingHorizontal: 12,
+								paddingHorizontal: 10,
 								paddingVertical: 4,
 							}}
 						>
-							<View
-								style={{
-									width: 5,
-									height: 5,
-									borderRadius: 2.5,
-									backgroundColor: colors.secondary[1],
-									marginRight: 5,
-								}}
-							/>
 							<Text
 								style={{
 									fontFamily: fonts.body,
-									fontSize: 11,
+									fontSize: 10,
+									fontWeight: "500",
+									color: colors.primary[2],
+									textTransform: "uppercase",
+									letterSpacing: 1.2,
+								}}
+							>
+								Member
+							</Text>
+						</View>
+						{memberSince ? (
+							<Text
+								style={{
+									fontFamily: fonts.body,
+									fontSize: 12,
 									color: colors.secondary[1],
 								}}
 							>
 								Since {memberSince}
 							</Text>
-						</View>
-					) : null}
+						) : null}
+					</View>
 				</View>
 
-				{/* Stats Section */}
-				<View className="flex-row items-center justify-center px-6 pt-8 pb-7">
-					<StatItem value={sessionsCount} label="Sessions" showDivider />
-					<StatItem value={packagesCount} label="Packages" showDivider />
-					<StatItem value={creditsCount} label="Credits" />
-				</View>
-
-				{/* Divider */}
+				{/* Stats Card */}
 				<View
 					style={{
-						height: 1,
-						backgroundColor: colors.primary[3],
-						marginHorizontal: 24,
+						marginHorizontal: 16,
+						marginTop: 12,
+						backgroundColor: colors.primary[2],
+						borderWidth: 1,
+						borderColor: colors.secondary[3],
+						borderRadius: 20,
+						overflow: "hidden",
 					}}
-				/>
+				>
+					<View
+						style={{
+							paddingHorizontal: 16,
+							paddingTop: 14,
+							paddingBottom: 10,
+							borderBottomWidth: 1,
+							borderBottomColor: colors.secondary[3],
+						}}
+					>
+						<Text
+							style={{
+								fontFamily: fonts.body,
+								fontSize: 11,
+								fontWeight: "500",
+								color: colors.secondary[1],
+								textTransform: "uppercase",
+								letterSpacing: 1.5,
+							}}
+						>
+							Activity Overview
+						</Text>
+					</View>
+					<View className="flex-row">
+						<StatItem value={sessionsCount} label="Upcoming" showDivider />
+						<StatItem value={packagesCount} label="Packages" showDivider />
+						<StatItem value={creditsCount} label="Credits" />
+					</View>
+				</View>
 
 				{/* Account Section */}
 				<SectionHeader label="Account" />
-
-				<BareRow
-					icon="person-outline"
-					label="Personal Information"
-					onPress={() => setShowPasswordModal(true)}
-				/>
-				<BareRow
-					icon="card-outline"
-					label="Payment Methods"
-					onPress={() => {}}
-				/>
-				<BareRow
-					icon="notifications-outline"
-					label="Notifications"
-					onPress={() => {}}
-				/>
-				<BareRow
-					icon="globe-outline"
-					label="Language"
-					onPress={() => {}}
-				/>
-
-				{/* Zone Divider */}
-				<View
-					style={{
-						height: 1,
-						backgroundColor: colors.primary[3],
-						marginVertical: 4,
-					}}
-				/>
+				<SettingsCard>
+					<SettingsRow
+						icon="person-outline"
+						label="Personal Information"
+						onPress={() => setShowPasswordModal(true)}
+					/>
+					<SettingsRow
+						icon="card-outline"
+						label="Payment Methods"
+						onPress={() => {}}
+					/>
+					<SettingsRow
+						icon="notifications-outline"
+						label="Notifications"
+						onPress={() => {}}
+					/>
+					<SettingsRow
+						icon="globe-outline"
+						label="Language"
+						onPress={() => {}}
+						isLast
+					/>
+				</SettingsCard>
 
 				{/* Support Section */}
 				<SectionHeader label="Support" />
-
-				<BareRow
-					icon="help-circle-outline"
-					label="Help & Support"
-					onPress={() => Linking.openURL("mailto:support@avantej.com")}
-				/>
-				<BareRow
-					icon="shield-outline"
-					label="Privacy Policy"
-					onPress={() => Linking.openURL("https://avantej.com/privacy")}
-				/>
-				<BareRow
-					icon="document-text-outline"
-					label="Terms of Service"
-					onPress={() => Linking.openURL("https://avantej.com/terms")}
-				/>
-
-				{/* Divider before sign out */}
-				<View
-					style={{
-						height: 1,
-						backgroundColor: colors.primary[3],
-						marginHorizontal: 24,
-						marginTop: 8,
-					}}
-				/>
-
-				{/* Sign Out */}
-				<TouchableOpacity
-					onPress={handleLogout}
-					activeOpacity={0.7}
-					className="flex-row items-center px-6 py-4 mt-1"
-					style={{ gap: 14 }}
-				>
-					<Ionicons
-						name="log-out-outline"
-						size={20}
-						color="#B91C1C"
+				<SettingsCard>
+					<SettingsRow
+						icon="help-circle-outline"
+						label="Help & Support"
+						onPress={() =>
+							Linking.openURL("mailto:support@avantej.com")
+						}
 					/>
-					<Text
-						style={{
-							fontFamily: fonts.body,
-							fontSize: 14,
-							color: "#B91C1C",
-						}}
-					>
-						Sign Out
-					</Text>
-				</TouchableOpacity>
+					<SettingsRow
+						icon="shield-outline"
+						label="Privacy Policy"
+						onPress={() =>
+							Linking.openURL("https://avantej.com/privacy")
+						}
+					/>
+					<SettingsRow
+						icon="document-text-outline"
+						label="Terms of Service"
+						onPress={() =>
+							Linking.openURL("https://avantej.com/terms")
+						}
+					/>
+					<SettingsRow
+						icon="log-out-outline"
+						label="Sign Out"
+						onPress={handleLogout}
+						destructive
+						isLast
+					/>
+				</SettingsCard>
 
 				{/* Version Footer */}
 				<Text
 					style={{
 						fontFamily: fonts.body,
-						fontSize: 11,
-						color: "#D4D4D4",
+						fontSize: 12,
+						color: "#C4C4C4",
 						textAlign: "center",
 						paddingTop: 24,
 						paddingBottom: 28,
@@ -306,7 +360,6 @@ export default function ProfileScreen() {
 				</Text>
 			</ScrollView>
 
-			{/* Change Password Modal */}
 			<ChangePasswordModal
 				visible={showPasswordModal}
 				onClose={() => setShowPasswordModal(false)}
@@ -327,15 +380,23 @@ function StatItem({
 	showDivider?: boolean;
 }) {
 	return (
-		<View className="flex-1 items-center" style={{ position: "relative" }}>
+		<View
+			className="flex-1 items-center"
+			style={{
+				paddingVertical: 16,
+				paddingHorizontal: 12,
+				borderRightWidth: showDivider ? 1 : 0,
+				borderRightColor: colors.secondary[3],
+			}}
+		>
 			<Text
 				style={{
 					fontFamily: fonts.heading,
-					fontSize: 34,
+					fontSize: 28,
+					fontWeight: "700",
 					color: colors.primary[1],
-					lineHeight: 34,
-					letterSpacing: -1,
-					marginBottom: 6,
+					lineHeight: 28,
+					marginBottom: 5,
 				}}
 			>
 				{value}
@@ -346,23 +407,11 @@ function StatItem({
 					fontSize: 11,
 					color: colors.secondary[1],
 					textTransform: "uppercase",
-					letterSpacing: 1.3,
+					letterSpacing: 0.8,
 				}}
 			>
 				{label}
 			</Text>
-			{showDivider && (
-				<View
-					style={{
-						position: "absolute",
-						right: 0,
-						top: 8,
-						bottom: 8,
-						width: 1,
-						backgroundColor: "#F0F0F0",
-					}}
-				/>
-			)}
 		</View>
 	);
 }
@@ -372,14 +421,14 @@ function SectionHeader({ label }: { label: string }) {
 		<Text
 			style={{
 				fontFamily: fonts.body,
-				fontSize: 10,
+				fontSize: 11,
 				fontWeight: "500",
-				color: "#C4C4C4",
+				color: colors.secondary[1],
 				textTransform: "uppercase",
-				letterSpacing: 2,
-				paddingHorizontal: 24,
-				paddingTop: 24,
-				paddingBottom: 10,
+				letterSpacing: 1.5,
+				paddingHorizontal: 20,
+				paddingTop: 20,
+				paddingBottom: 8,
 			}}
 		>
 			{label}
@@ -387,34 +436,71 @@ function SectionHeader({ label }: { label: string }) {
 	);
 }
 
-function BareRow({
+function SettingsCard({ children }: { children: React.ReactNode }) {
+	return (
+		<View
+			style={{
+				marginHorizontal: 16,
+				backgroundColor: colors.primary[2],
+				borderWidth: 1,
+				borderColor: colors.secondary[3],
+				borderRadius: 16,
+				overflow: "hidden",
+			}}
+		>
+			{children}
+		</View>
+	);
+}
+
+function SettingsRow({
 	icon,
 	label,
 	onPress,
+	destructive,
+	isLast,
 }: {
 	icon: React.ComponentProps<typeof Ionicons>["name"];
 	label: string;
 	onPress: () => void;
+	destructive?: boolean;
+	isLast?: boolean;
 }) {
 	return (
 		<TouchableOpacity
 			onPress={onPress}
 			activeOpacity={0.7}
-			className="flex-row items-center px-6 py-4"
-			style={{ gap: 14 }}
+			className="flex-row items-center"
+			style={{
+				paddingHorizontal: 16,
+				paddingVertical: 14,
+				gap: 12,
+				borderBottomWidth: isLast ? 0 : 1,
+				borderBottomColor: colors.secondary[3],
+			}}
 		>
-			<Ionicons name={icon} size={20} color={colors.secondary[1]} />
+			<Ionicons
+				name={icon}
+				size={20}
+				color={destructive ? "#B91C1C" : colors.secondary[1]}
+			/>
 			<Text
 				className="flex-1"
 				style={{
 					fontFamily: fonts.body,
 					fontSize: 14,
-					color: colors.primary[1],
+					color: destructive ? "#B91C1C" : colors.primary[1],
 				}}
 			>
 				{label}
 			</Text>
-			<Ionicons name="chevron-forward" size={14} color="#E0E0E0" />
+			{!destructive && (
+				<Ionicons
+					name="chevron-forward"
+					size={16}
+					color="#C4C4C4"
+				/>
+			)}
 		</TouchableOpacity>
 	);
 }
