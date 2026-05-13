@@ -7,7 +7,7 @@
  * Security: connectionString must be encrypted before storage (handled by encryption utilities).
  */
 
-import { pgTable, uuid, text, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, jsonb, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { subscriptions } from "./subscriptions";
 import { users } from "./users";
@@ -18,9 +18,10 @@ export const organizations = pgTable("organizations", {
 	slug: text("slug").notNull().unique(),
 	neonProjectId: text("neon_project_id").notNull().unique(),
 	connectionString: text("connection_string").notNull(),
-	subscriptionId: uuid("subscription_id")
-		.notNull()
-		.references(() => subscriptions.id, { onDelete: "restrict" }),
+	subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
+		onDelete: "set null",
+	}), // Nullable: org exists during trial without a sub. ADR-0003.
+	trialEndsAt: timestamp("trial_ends_at"),
 	paymentStatus: text("payment_status").notNull(), // active, suspended, failed
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -30,6 +31,10 @@ export const organizations = pgTable("organizations", {
 	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected
 	stripeConnectAccountType: text("stripe_connect_account_type").default("franchiser").notNull(),
 	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
+	chargesEnabled: boolean("charges_enabled").default(false).notNull(),
+	payoutsEnabled: boolean("payouts_enabled").default(false).notNull(),
+	detailsSubmitted: boolean("details_submitted").default(false).notNull(),
+	connectAccountUpdatedAt: timestamp("connect_account_updated_at"),
 	// Tenant schema migration tracking
 	schemaVersion: text("schema_version").default("0000"),
 	// GHL org-shared sync model (Phase G). NULL = not yet provisioned.
