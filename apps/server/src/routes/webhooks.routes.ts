@@ -110,7 +110,7 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 
 	let event: Stripe.Event;
 	try {
-		event = verifyWebhookSignature(body, signature, "platform");
+		event = await verifyWebhookSignature(body, signature, "platform");
 	} catch (e) {
 		return c.json(
 			{ error: e instanceof Error ? e.message : "Invalid signature" },
@@ -186,7 +186,7 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 
 	let event: Stripe.Event;
 	try {
-		event = verifyWebhookSignature(body, signature, "connect");
+		event = await verifyWebhookSignature(body, signature, "connect");
 	} catch (e) {
 		return c.json(
 			{ error: e instanceof Error ? e.message : "Invalid signature" },

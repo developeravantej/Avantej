@@ -35,27 +35,27 @@ describe("verifyWebhookSignature", () => {
 		});
 	});
 
-	it("throws when no signature header is provided (platform)", () => {
-		expect(() => verifyWebhookSignature("{}", null, "platform")).toThrow(/Missing Stripe-Signature/i);
+	it("throws when no signature header is provided (platform)", async () => {
+		await expect(verifyWebhookSignature("{}", null, "platform")).rejects.toThrow(/Missing Stripe-Signature/i);
 	});
 
-	it("throws when no signature header is provided (connect)", () => {
-		expect(() => verifyWebhookSignature("{}", null, "connect")).toThrow(/Missing Stripe-Signature/i);
+	it("throws when no signature header is provided (connect)", async () => {
+		await expect(verifyWebhookSignature("{}", null, "connect")).rejects.toThrow(/Missing Stripe-Signature/i);
 	});
 
-	it("throws when STRIPE_PLATFORM_WEBHOOK_SECRET is unset and source=platform", () => {
+	it("throws when STRIPE_PLATFORM_WEBHOOK_SECRET is unset and source=platform", async () => {
 		setEnv({ STRIPE_PLATFORM_WEBHOOK_SECRET: undefined as unknown as string });
-		expect(() => verifyWebhookSignature("{}", "t=1,v1=fake", "platform")).toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
+		await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "platform")).rejects.toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
 	});
 
-	it("throws when STRIPE_CONNECT_WEBHOOK_SECRET is unset and source=connect", () => {
+	it("throws when STRIPE_CONNECT_WEBHOOK_SECRET is unset and source=connect", async () => {
 		setEnv({ STRIPE_CONNECT_WEBHOOK_SECRET: undefined as unknown as string });
-		expect(() => verifyWebhookSignature("{}", "t=1,v1=fake", "connect")).toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
+		await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "connect")).rejects.toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
 	});
 
-	it("throws InvalidSignature on garbage signature (delegated to Stripe SDK)", () => {
-		expect(() =>
+	it("throws InvalidSignature on garbage signature (delegated to Stripe SDK)", async () => {
+		await expect(
 			verifyWebhookSignature(JSON.stringify({ id: "evt_x" }), "t=1,v1=fake", "platform"),
-		).toThrow(/Invalid webhook signature|Webhook signature verification failed/);
+		).rejects.toThrow(/Invalid webhook signature|Webhook signature verification failed/);
 	});
 });

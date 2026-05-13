@@ -17,7 +17,6 @@
  * is not resolvable in bun's test runner).
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 
 function getEnvVar(key: string): string | undefined {
@@ -61,11 +60,11 @@ export function __resetStripeClientForTesting(): void {
 
 export type WebhookSource = "platform" | "connect";
 
-export function verifyWebhookSignature(
+export async function verifyWebhookSignature(
 	body: string,
 	signature: string | null,
 	source: WebhookSource,
-): Stripe.Event {
+): Promise<Stripe.Event> {
 	if (!signature) {
 		throw new Error("Missing Stripe-Signature header");
 	}
@@ -83,51 +82,17 @@ export function verifyWebhookSignature(
 		);
 	}
 
-	// Parse the Stripe-Signature header: t=<timestamp>,v1=<hmac>
-	const parts: Record<string, string> = {};
-	for (const part of signature.split(",")) {
-		const eqIdx = part.indexOf("=");
-		if (eqIdx !== -1) {
-			parts[part.slice(0, eqIdx)] = part.slice(eqIdx + 1);
+	const stripe = getStripeClient();
+	try {
+		return await stripe.webhooks.constructEventAsync(body, signature, secret);
+	} catch (error) {
+		if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+			throw new Error(`Invalid webhook signature: ${error.message}`);
 		}
-	}
-
-	const timestampStr = parts["t"];
-	const v1 = parts["v1"];
-
-	if (!timestampStr || !v1) {
-		throw new Error("Invalid webhook signature: malformed header");
-	}
-
-	const timestamp = Number.parseInt(timestampStr, 10);
-	const now = Math.floor(Date.now() / 1000);
-	// Stripe's default tolerance is 300 seconds (5 minutes).
-	if (Math.abs(now - timestamp) > 300) {
-		throw new Error("Invalid webhook signature: timestamp outside tolerance");
-	}
-
-	const signed = `${timestampStr}.${body}`;
-	const expected = createHmac("sha256", secret)
-		.update(signed, "utf8")
-		.digest("hex");
-
-	let valid: boolean;
-	try {
-		valid = timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
-	} catch {
-		valid = false;
-	}
-
-	if (!valid) {
 		throw new Error(
-			"Invalid webhook signature: signature mismatch",
+			`Webhook signature verification failed: ${
+				error instanceof Error ? error.message : "Unknown error"
+			}`,
 		);
-	}
-
-	// Signature is valid — parse the event payload.
-	try {
-		return JSON.parse(body) as Stripe.Event;
-	} catch {
-		throw new Error("Invalid webhook payload: not valid JSON");
 	}
 }
