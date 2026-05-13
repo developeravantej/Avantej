@@ -56,8 +56,10 @@ export type Tier = keyof typeof TIER_LIMITS;
 export type TierLimits = (typeof TIER_LIMITS)[Tier];
 export type TierFeature = keyof TierLimits["features"];
 
+export function getTierLimits<T extends Tier>(tier: T): (typeof TIER_LIMITS)[T];
+export function getTierLimits(tier: string): TierLimits;
 export function getTierLimits(tier: string): TierLimits {
-  if (tier in TIER_LIMITS) return TIER_LIMITS[tier as Tier];
+  if (Object.hasOwn(TIER_LIMITS, tier)) return TIER_LIMITS[tier as Tier];
   return TIER_LIMITS.basic;
 }
 

@@ -41,6 +41,15 @@ describe("getTierLimits", () => {
       TIER_LIMITS.basic.organizations,
     );
   });
+
+  it("falls back to basic for prototype-chain keys like 'toString'", () => {
+    expect(getTierLimits("toString" as Tier).organizations).toBe(
+      TIER_LIMITS.basic.organizations,
+    );
+    expect(getTierLimits("constructor" as Tier).organizations).toBe(
+      TIER_LIMITS.basic.organizations,
+    );
+  });
 });
 
 describe("isFeatureEnabled", () => {
