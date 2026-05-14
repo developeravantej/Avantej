@@ -144,4 +144,37 @@ describe("evaluateAccess", () => {
 		const result = evaluateAccess(null, now, undefined);
 		expect(result.decision).toBe("block");
 	});
+
+	it("read-only with unknown status string (default fallthrough)", () => {
+		const result = evaluateAccess(
+			{
+				status: "some_future_stripe_status",
+				pastDueAt: null,
+				gracePeriodEndsAt: null,
+				trialEndsAt: null,
+			},
+			now,
+		);
+		expect(result.decision).toBe("read_only");
+		expect(result.decision === "read_only" && result.reason).toBe(
+			"some_future_stripe_status",
+		);
+	});
+
+	it("trialing + null trialEndsAt still allows (no explicit expiry)", () => {
+		// Edge case: Stripe rarely emits 'trialing' without trial_end, but the evaluator
+		// must not crash. Current behavior: allow with banner. Open Plan D question: should
+		// this block as a data integrity issue?
+		const result = evaluateAccess(
+			{
+				status: "trialing",
+				pastDueAt: null,
+				gracePeriodEndsAt: null,
+				trialEndsAt: null,
+			},
+			now,
+		);
+		expect(result.decision).toBe("allow");
+		expect(result.decision === "allow" && result.banner).toBe("trialing");
+	});
 });
