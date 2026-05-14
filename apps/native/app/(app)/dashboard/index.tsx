@@ -238,8 +238,7 @@ export default function Home() {
 		...orpc.appointments.listForUser.queryOptions({
 			input: {
 				organizationId,
-				limit: 5,
-				orderDesc: true,
+				limit: 20,
 			},
 		}),
 		enabled: !!organizationId,
@@ -325,17 +324,17 @@ export default function Home() {
 
 		return [...appointments, ...purchases]
 			.sort((a, b) => b.sortDate - a.sortDate)
-			.slice(0, 8);
+			.slice(0, 5);
 	}, [recentAppointments, recentPackages]);
 
 	const onRefresh = useCallback(() => {
 		queryClient.invalidateQueries({
 			predicate: (query) => {
-				const key = query.queryKey[0];
+				const keyStr = JSON.stringify(query.queryKey);
 				return (
-					key === "packageInstances" ||
-					key === "appointments" ||
-					key === "notifications"
+					keyStr.includes("packageInstances") ||
+					keyStr.includes("appointments") ||
+					keyStr.includes("notifications")
 				);
 			},
 		});

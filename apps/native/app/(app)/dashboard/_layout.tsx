@@ -128,6 +128,13 @@ export default function DashboardLayout() {
 						tabBarStyle: { display: "none" },
 					}}
 				/>
+				<Tabs.Screen
+					name="activity"
+					options={{
+						href: null,
+						tabBarStyle: { display: "none" },
+					}}
+				/>
 			</Tabs>
 		</View>
 	);

@@ -87,7 +87,7 @@ export function WeeklyTimetable({
 		((minutes - startHour * 60) / 60) * hourWidth;
 
 	return (
-		<View style={{ padding: 8 }}>
+		<View style={{ padding: 8, backgroundColor: "#FFFFFF" }}>
 			{weekLabel ? (
 				<Text
 					className="mb-2 text-center text-xs font-medium"
@@ -210,7 +210,7 @@ export function WeeklyTimetable({
 													bottom: 2,
 													left,
 													width,
-													backgroundColor: "rgba(0,0,0,0.5)",
+													backgroundColor: "rgba(0,0,0,0.08)",
 													borderRadius: 6,
 													borderWidth: 2,
 													borderStyle: "solid",

@@ -12,6 +12,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { router } from "expo-router";
 import { TabContainer, useTabBarHeight } from "@/components/container";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -290,6 +291,46 @@ export default function ProfileScreen() {
 						<StatItem value={creditsCount} label="Credits" />
 					</View>
 				</View>
+
+				{/* Recent Activity Button */}
+				<TouchableOpacity
+					onPress={() => router.push("/dashboard/activity" as never)}
+					activeOpacity={0.7}
+					style={{
+						marginHorizontal: 16,
+						marginTop: 12,
+						backgroundColor: colors.primary[2],
+						borderWidth: 1,
+						borderColor: colors.secondary[3],
+						borderRadius: 16,
+						flexDirection: "row",
+						alignItems: "center",
+						paddingHorizontal: 16,
+						paddingVertical: 14,
+						gap: 12,
+					}}
+				>
+					<Ionicons
+						name="time-outline"
+						size={20}
+						color={colors.secondary[1]}
+					/>
+					<Text
+						className="flex-1"
+						style={{
+							fontFamily: fonts.body,
+							fontSize: 14,
+							color: colors.primary[1],
+						}}
+					>
+						Recent Activity
+					</Text>
+					<Ionicons
+						name="chevron-forward"
+						size={16}
+						color="#C4C4C4"
+					/>
+				</TouchableOpacity>
 
 				{/* Account Section */}
 				<SectionHeader label="Account" />

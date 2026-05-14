@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -7,7 +6,6 @@ import {
 	FlatList,
 	Image,
 	Modal,
-	Platform,
 	ScrollView,
 	Text,
 	TouchableOpacity,
@@ -630,7 +628,7 @@ export default function ScheduleScreen() {
 									</Text>
 								</View>
 							) : (
-								<View className="rounded-2xl border border-secondary-3 bg-card overflow-hidden">
+								<View className="rounded-2xl border border-secondary-3 overflow-hidden" style={{ backgroundColor: "#FFFFFF" }}>
 									<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
 								</View>
 							)}
@@ -1096,25 +1094,10 @@ export default function ScheduleScreen() {
 							>
 								{formatTime(selectedTime)}
 							</Text>
-							{Platform.OS === "ios" ? (
-								<DateTimePicker
-									value={selectedTime}
-									mode="time"
-									is24Hour={false}
-									display="spinner"
-									onChange={(event: { type: string }, date?: Date) => {
-										if (event.type !== "dismissed" && date) {
-											setSelectedTime(date);
-										}
-									}}
-									style={{ alignSelf: "center", height: 180 }}
-								/>
-							) : (
-								<AndroidTimePicker
-									selectedTime={selectedTime}
-									onTimeChange={setSelectedTime}
-								/>
-							)}
+							<AndroidTimePicker
+								selectedTime={selectedTime}
+								onTimeChange={setSelectedTime}
+							/>
 						</View>
 
 						<TouchableOpacity

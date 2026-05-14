@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
 	Alert,
+	Dimensions,
 	Image,
 	Modal,
 	ScrollView,
@@ -54,10 +54,9 @@ export default function SignScreen() {
 
 	const modalSignatureRef = useRef<any>(null);
 
-	const handleSignature = async (signatureData: string) => {
+	const handleSignature = (signatureData: string) => {
 		setSignature(signatureData);
 		setShowSignatureModal(false);
-		await ScreenOrientation.unlockAsync();
 	};
 
 	const handleClear = () => {
@@ -68,33 +67,13 @@ export default function SignScreen() {
 		modalSignatureRef.current?.readSignature();
 	};
 
-	const handleOpenSignatureModal = async () => {
-		try {
-			await ScreenOrientation.lockAsync(
-				ScreenOrientation.OrientationLock.LANDSCAPE,
-			);
-		} catch (err) {
-			console.warn("[sign] failed to lock orientation", err);
-		}
+	const handleOpenSignatureModal = () => {
 		setShowSignatureModal(true);
 	};
 
-	const handleCloseSignatureModal = async () => {
+	const handleCloseSignatureModal = () => {
 		setShowSignatureModal(false);
-		try {
-			await ScreenOrientation.unlockAsync();
-		} catch (err) {
-			console.warn("[sign] failed to unlock orientation", err);
-		}
 	};
-
-	useEffect(() => {
-		return () => {
-			ScreenOrientation.unlockAsync().catch(() => {
-				// Best-effort cleanup; ignore failures during unmount.
-			});
-		};
-	}, []);
 
 	const handleContinue = () => {
 		if (signature && agreedToTerms) {
@@ -397,7 +376,7 @@ export default function SignScreen() {
 											Tap to sign
 										</Text>
 										<Text className="mt-1 text-secondary-1 text-xs">
-											Opens in landscape for easier signing
+											Opens full screen for signing
 										</Text>
 									</View>
 								)}
@@ -423,132 +402,163 @@ export default function SignScreen() {
 							</Text>
 						</View>
 
-						{/* Full Screen Signature Modal */}
+						{/* Full Screen Signature Modal — rotated 90° to simulate landscape */}
 						<Modal
 							visible={showSignatureModal}
 							animationType="slide"
 							presentationStyle="fullScreen"
 							onRequestClose={handleCloseSignatureModal}
 						>
-							<View
-								style={{
-									flex: 1,
-									backgroundColor: "#ffffff",
-								}}
-							>
-								<SafeAreaView style={{ flex: 1 }}>
-									{/* Modal Header */}
-									<View className="border-secondary-3 border-b bg-primary-2 px-6 py-4">
-										<View className="flex-row items-center justify-between">
-											<View className="flex-1 flex-row items-center justify-center">
-												<Ionicons
-													name="phone-portrait-outline"
-													size={20}
-													color={colors.primary[1]}
-													style={{
-														marginRight: 8,
-														transform: [{ rotate: "90deg" }],
-													}}
-												/>
-												<Text
-													className="font-bold text-xl"
-													style={{ color: colors.primary[1] }}
-												>
-													Sign Here (Landscape Mode)
-												</Text>
-											</View>
-											<TouchableOpacity
-												onPress={handleCloseSignatureModal}
-												className="absolute right-6"
-											>
-												<Ionicons
-													name="close"
-													size={28}
-													color={colors.primary[1]}
-												/>
-											</TouchableOpacity>
-										</View>
-										<View className="mt-2 flex-row items-center justify-center">
-											<View
-												className="mr-2 h-2 w-2 rounded-full"
-												style={{ backgroundColor: "#10B981" }}
-											/>
-											<Text
-												className="font-medium text-xs"
-												style={{ color: "#10B981" }}
-											>
-												Landscape Mode Active
-											</Text>
-										</View>
-									</View>
-
-									{/* Signature Canvas */}
+							{(() => {
+								const { width: screenW, height: screenH } = Dimensions.get("window");
+								return (
 									<View
 										style={{
-											flex: 1,
+											width: screenW,
+											height: screenH,
 											backgroundColor: "#ffffff",
 										}}
 									>
-										<SignatureCanvas
-											ref={modalSignatureRef}
-											onOK={handleSignature}
-											descriptionText=""
-											clearText=""
-											confirmText=""
-											webStyle={`
-												.m-signature-pad {
-													box-shadow: none;
-													border: none;
-													width: 100%;
-													height: 100%;
-												}
-												.m-signature-pad--body {
-													border: none;
-													height: 100%;
-													width: 100%;
-												}
-												.m-signature-pad--body canvas {
-													border-radius: 0;
-													width: 100%;
-													height: 100%;
-													touch-action: none;
-												}
-												.m-signature-pad--footer {
-													display: none;
-												}
-											`}
+										<View
 											style={{
-												flex: 1,
+												width: screenH,
+												height: screenW,
+												transform: [
+													{ rotate: "90deg" },
+													{ translateX: (screenH - screenW) / 2 },
+													{ translateY: (screenH - screenW) / 2 },
+												],
+												backgroundColor: "#ffffff",
 											}}
-										/>
-									</View>
+										>
+											{/* Header */}
+											<View
+												style={{
+													flexDirection: "row",
+													alignItems: "center",
+													justifyContent: "space-between",
+													paddingHorizontal: 20,
+													paddingVertical: 14,
+													borderBottomWidth: 1,
+													borderBottomColor: colors.secondary[3],
+												}}
+											>
+												<View style={{ flexDirection: "row", alignItems: "center" }}>
+													<Ionicons
+														name="create-outline"
+														size={20}
+														color={colors.primary[1]}
+														style={{ marginRight: 8 }}
+													/>
+													<Text
+														style={{
+															fontSize: 18,
+															fontWeight: "bold",
+															color: colors.primary[1],
+														}}
+													>
+														Sign Here
+													</Text>
+												</View>
+												<TouchableOpacity onPress={handleCloseSignatureModal}>
+													<Ionicons
+														name="close"
+														size={28}
+														color={colors.primary[1]}
+													/>
+												</TouchableOpacity>
+											</View>
 
-									{/* Modal Footer Buttons */}
-									<View className="border-secondary-3 border-t bg-primary-2 px-6 py-4">
-										<View className="flex-row justify-end gap-4">
-											<TouchableOpacity
-												onPress={handleClear}
-												className="rounded-lg border-2 border-secondary-3 bg-primary-2 px-8 py-3"
+											{/* Signature Canvas */}
+											<View style={{ flex: 1 }}>
+												<SignatureCanvas
+													ref={modalSignatureRef}
+													onOK={handleSignature}
+													descriptionText=""
+													clearText=""
+													confirmText=""
+													webStyle={`
+														.m-signature-pad {
+															box-shadow: none;
+															border: none;
+															width: 100%;
+															height: 100%;
+														}
+														.m-signature-pad--body {
+															border: none;
+															height: 100%;
+															width: 100%;
+														}
+														.m-signature-pad--body canvas {
+															border-radius: 0;
+															width: 100%;
+															height: 100%;
+															touch-action: none;
+														}
+														.m-signature-pad--footer {
+															display: none;
+														}
+													`}
+													style={{ flex: 1 }}
+												/>
+											</View>
+
+											{/* Footer Buttons */}
+											<View
+												style={{
+													flexDirection: "row",
+													justifyContent: "flex-end",
+													gap: 12,
+													paddingHorizontal: 20,
+													paddingVertical: 14,
+													borderTopWidth: 1,
+													borderTopColor: colors.secondary[3],
+												}}
 											>
-												<Text
-													className="font-semibold text-base"
-													style={{ color: colors.primary[1] }}
+												<TouchableOpacity
+													onPress={handleClear}
+													style={{
+														paddingHorizontal: 28,
+														paddingVertical: 12,
+														borderRadius: 8,
+														borderWidth: 2,
+														borderColor: colors.secondary[3],
+													}}
 												>
-													Clear
-												</Text>
-											</TouchableOpacity>
-											<TouchableOpacity
-												onPress={handleConfirm}
-												className="rounded-lg bg-primary-1 px-8 py-3"
-											>
-												<Text className="font-semibold text-base text-primary-2">
-													Confirm Signature
-												</Text>
-											</TouchableOpacity>
+													<Text
+														style={{
+															fontSize: 16,
+															fontWeight: "600",
+															color: colors.primary[1],
+														}}
+													>
+														Clear
+													</Text>
+												</TouchableOpacity>
+												<TouchableOpacity
+													onPress={handleConfirm}
+													style={{
+														paddingHorizontal: 28,
+														paddingVertical: 12,
+														borderRadius: 8,
+														backgroundColor: colors.primary[1],
+													}}
+												>
+													<Text
+														style={{
+															fontSize: 16,
+															fontWeight: "600",
+															color: colors.primary[2],
+														}}
+													>
+														Confirm
+													</Text>
+												</TouchableOpacity>
+											</View>
 										</View>
 									</View>
-								</SafeAreaView>
-							</View>
+								);
+							})()}
 						</Modal>
 					</View>
 				</View>

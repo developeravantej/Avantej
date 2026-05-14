@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
-	Linking,
 	Platform,
 	ScrollView,
 	StyleSheet,
@@ -56,9 +55,7 @@ export default function TermsScreen() {
 	>(null);
 	const [localPdfError, setLocalPdfError] = useState(false);
 
-	const isNative = Platform.OS === "android" || Platform.OS === "ios";
-
-	// Load bundled PDF. On native we open in system viewer immediately and go back; on web we use WebView.
+	// Load bundled PDF. On Android open in system viewer; on iOS/web render inline via WebView.
 	useEffect(() => {
 		if (!USE_LOCAL_PDF || !documentConfig) {
 			setPdfViewSource(null);
@@ -78,51 +75,32 @@ export default function TermsScreen() {
 					if (!cancelled) setLocalPdfError(true);
 					return;
 				}
-				if (isNative) {
-					// Open PDF in system viewer and go back (no button step)
-					const openUri =
-						Platform.OS === "android"
-							? await FileSystem.getContentUriAsync(uri).catch(() => uri)
-							: uri;
+				if (Platform.OS === "android") {
+					const openUri = await FileSystem.getContentUriAsync(uri).catch(() => uri);
 					if (cancelled) return;
 					try {
-						if (Platform.OS === "android") {
-							await IntentLauncher.startActivityAsync(
-								"android.intent.action.VIEW",
-								{
-									data: openUri,
-									type: "application/pdf",
-									flags: 1,
-								},
-							);
-						} else {
-							const can = await Linking.canOpenURL(openUri);
-							if (can) await Linking.openURL(openUri);
-							else
-								Alert.alert(
-									"Cannot open PDF",
-									"No app is available to open this PDF.",
-								);
-						}
+						await IntentLauncher.startActivityAsync(
+							"android.intent.action.VIEW",
+							{
+								data: openUri,
+								type: "application/pdf",
+								flags: 1,
+							},
+						);
 						router.back();
 					} catch (e) {
 						console.warn("[Terms] Open PDF failed:", e);
 						Alert.alert(
 							"Could not open PDF",
-							Platform.OS === "android"
-								? "Make sure a PDF viewer app is installed (e.g. Chrome, Google Drive)."
-								: "No app could open this PDF.",
+							"Make sure a PDF viewer app is installed (e.g. Chrome, Google Drive).",
 						);
 						if (!cancelled) setLocalPdfError(true);
 					}
 				} else {
-					const base64 = await FileSystem.readAsStringAsync(uri, {
-						encoding: "base64",
-					});
+					const destPath = `${FileSystem.cacheDirectory}${documentId}.pdf`;
+					await FileSystem.copyAsync({ from: uri, to: destPath });
 					if (cancelled) return;
-					const dataUri = `data:application/pdf;base64,${base64}`;
-					const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/></head><body style="margin:0;height:100vh;"><embed src="${dataUri}" type="application/pdf" style="width:100%;height:100%;border:0;" /></body></html>`;
-					setPdfViewSource({ html });
+					setPdfViewSource({ uri: destPath });
 				}
 			} catch (e) {
 				console.warn("[Terms] Failed to load PDF:", documentId, e);
@@ -132,7 +110,7 @@ export default function TermsScreen() {
 		return () => {
 			cancelled = true;
 		};
-	}, [documentId, documentConfig, isNative]);
+	}, [documentId, documentConfig]);
 
 	const showPdf = Boolean(pdfViewSource || remotePdfUrl);
 
