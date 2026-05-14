@@ -641,6 +641,74 @@ const subscriptionsRouterType = {
 		}),
 };
 
+// Payments router type definition for client type inference.
+// Real impl in apps/server/src/routers/payments.ts (uses Stripe SDK + tenant DB).
+const paymentsRouterType = {
+	createPaymentIntent: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				appointmentId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				clientSecret: string;
+				paymentIntentId: string;
+				stripeAccountId: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	sendPaymentLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				appointmentId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				paymentLinkId: string;
+				paymentLinkUrl: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	getPaymentStatus: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				appointmentId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				id: string;
+				paymentStatus: string;
+				stripePaymentIntentId: string | null;
+				stripePaymentLinkId: string | null;
+				paymentLinkUrl: string | null;
+				currency: string;
+				sessionTotal: number | null;
+				applicationFeeAmount: number | null;
+				paidAt: Date | null;
+				paymentFailureReason: string | null;
+				paymentMethodType: string | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Stripe Connect router type definition for client type inference.
 // Real impl in apps/server/src/routers/stripe-connect.ts (uses Stripe SDK).
 const stripeConnectRouterType = {
@@ -789,6 +857,7 @@ export const appRouter = {
 	ghl: ghlRouterType,
 	subscriptions: subscriptionsRouterType,
 	stripeConnect: stripeConnectRouterType,
+	payments: paymentsRouterType,
 };
 
 export type AppRouter = typeof appRouter;

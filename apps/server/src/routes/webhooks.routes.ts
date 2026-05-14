@@ -24,6 +24,7 @@ import {
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { and, desc, eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
@@ -253,6 +254,65 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				console.warn(
 					`[connect webhook] account.updated for acct=${account.id} — no matching org (metadata.organizationId=${orgId})`,
 				);
+			}
+		} else if (
+			event.type === "payment_intent.succeeded" ||
+			event.type === "payment_intent.payment_failed" ||
+			event.type === "charge.refunded"
+		) {
+			const pi = event.data.object as Stripe.PaymentIntent | Stripe.Charge;
+			const metadata = (pi as { metadata?: Record<string, string> }).metadata ?? {};
+			const appointmentId = metadata.appointmentId;
+			const organizationId = metadata.organizationId;
+
+			if (!appointmentId || !organizationId) {
+				console.warn(
+					`[connect webhook] ${event.type} missing metadata.appointmentId/organizationId — pi=${pi.id} acct=${event.account}`,
+				);
+			} else {
+				const tenantDb = await getTenantDb(organizationId, c);
+
+				const succeeded = event.type === "payment_intent.succeeded";
+				const failed = event.type === "payment_intent.payment_failed";
+				const refunded = event.type === "charge.refunded";
+
+				const update: Record<string, unknown> = { updatedAt: new Date() };
+				if (succeeded) {
+					update.paymentStatus = "paid";
+					update.paidAt = new Date();
+					update.paymentFailureReason = null;
+					const pmTypes = (pi as Stripe.PaymentIntent).payment_method_types;
+					if (Array.isArray(pmTypes) && pmTypes.length > 0 && pmTypes[0]) {
+						update.paymentMethodType = pmTypes[0];
+					}
+				} else if (failed) {
+					update.paymentStatus = "failed";
+					const err = (pi as Stripe.PaymentIntent).last_payment_error;
+					update.paymentFailureReason = err?.message ?? "Payment failed";
+				} else if (refunded) {
+					update.paymentStatus = "refunded";
+				}
+
+				// For payment_intent.* events, pi.id is the PI; for charge.refunded,
+				// pi is a Charge with payment_intent property.
+				const intentId =
+					event.type === "charge.refunded"
+						? (pi as Stripe.Charge).payment_intent?.toString() ?? null
+						: pi.id;
+
+				if (intentId) {
+					await tenantDb
+						.update(appointments)
+						.set(update)
+						.where(eq(appointments.stripePaymentIntentId, intentId));
+					console.log(
+						`[connect webhook] ${event.type} synced for appt=${appointmentId} pi=${intentId} status=${update.paymentStatus}`,
+					);
+				} else {
+					console.warn(
+						`[connect webhook] ${event.type} no resolvable PaymentIntent ID for appt=${appointmentId}`,
+					);
+				}
 			}
 		} else {
 			console.log(`[connect webhook] unhandled event ${event.type} acct=${event.account}`);

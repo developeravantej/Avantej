@@ -16,6 +16,7 @@ import { tenantAdminRouter } from "@/routers/tenant-admin";
 import { ghlRouter } from "@/routers/ghl";
 import { subscriptionsRouter } from "@/routers/subscriptions";
 import { stripeConnectRouter } from "@/routers/stripe-connect";
+import { paymentsRouter } from "@/routers/payments";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -59,6 +60,7 @@ const appRouter = {
 	ghl: ghlRouter,
 	subscriptions: subscriptionsRouter,
 	stripeConnect: stripeConnectRouter,
+	payments: paymentsRouter,
 };
 
 const app = new Hono();
