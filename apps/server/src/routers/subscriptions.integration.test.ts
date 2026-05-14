@@ -68,7 +68,7 @@ async function seedOrg(opts: { trialEndsAt?: Date | null; subscriptionId?: strin
 		paymentStatus: "active",
 		trialEndsAt: opts.trialEndsAt ?? null,
 		subscriptionId: opts.subscriptionId ?? null,
-	} as never);
+	} satisfies typeof organizations.$inferInsert);
 }
 
 describe("subscriptions.createCheckoutSession", () => {
@@ -154,9 +154,10 @@ describe("subscriptions.getStatus", () => {
 			session: { user: { id: "user_test" } },
 			organizationId: TEST_ORG_ID,
 		};
-		const handler = getHandler<{ status: string }>(subscriptionsRouter.getStatus);
+		const handler = getHandler<{ status: string; trialEndsAt: Date | null }>(subscriptionsRouter.getStatus);
 		const result = await handler({ context: fakeContext, input: {} });
 		expect(result.status).toBe("none");
+		expect(result.trialEndsAt).toBeNull();
 	});
 
 	it("returns subscription state when an active sub exists", async () => {
@@ -172,7 +173,7 @@ describe("subscriptions.getStatus", () => {
 			currency: "usd",
 			status: "active",
 			cancelAtPeriodEnd: false,
-		} as never);
+		} satisfies typeof subscriptions.$inferInsert);
 		await seedOrg({ subscriptionId: TEST_SUB_DB_ID });
 
 		const fakeContext = {
@@ -204,7 +205,7 @@ describe("subscriptions.billingPortal", () => {
 			currency: "usd",
 			status: "active",
 			cancelAtPeriodEnd: false,
-		} as never);
+		} satisfies typeof subscriptions.$inferInsert);
 		await seedOrg({ subscriptionId: TEST_SUB_DB_ID });
 
 		const fakeContext = {

@@ -82,6 +82,7 @@ export const subscriptionsRouter = {
 			const session = await stripe.checkout.sessions.create({
 				mode: "subscription",
 				customer_email: userEmail,
+				customer_creation: "always",
 				line_items: [{ price: priceId, quantity: 1 }],
 				success_url: `${webAppUrl}/subscribe?session_id={CHECKOUT_SESSION_ID}`,
 				cancel_url: `${webAppUrl}/subscribe?canceled=1`,
@@ -148,7 +149,7 @@ export const subscriptionsRouter = {
 				currentPeriodEnd: null,
 				pastDueAt: null,
 				gracePeriodEndsAt: null,
-				trialEndsAt: org.trialEndsAt,
+				trialEndsAt: null,
 			};
 		}),
 
