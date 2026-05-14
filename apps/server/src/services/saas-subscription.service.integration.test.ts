@@ -7,6 +7,7 @@ import {
 } from "./saas-subscription.service";
 import { controlPanelDb } from "@/lib/db";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { eq } from "drizzle-orm";
 
 const TEST_SUB_ID = "sub_test_lifecycle_001";
@@ -166,5 +167,77 @@ describe("markPastDue / markActive", () => {
 
 	it("markActive throws when subscription does not exist", async () => {
 		await expect(markActive("sub_does_not_exist")).rejects.toThrow(/no row/i);
+	});
+});
+
+const TEST_ORG_ID_FOR_LINKING = "00000000-0000-0000-0000-0000000000cc";
+
+describe("upsertSubscriptionFromStripe org linking", () => {
+	beforeEach(async () => {
+		// Clean any stale link / row
+		await controlPanelDb
+			.delete(organizations)
+			.where(eq(organizations.id, TEST_ORG_ID_FOR_LINKING));
+	});
+
+	it("sets organizations.subscriptionId when metadata.organizationId is present", async () => {
+		// Seed an org with no sub link.
+		await controlPanelDb.insert(organizations).values({
+			id: TEST_ORG_ID_FOR_LINKING,
+			name: "Org For Linking",
+			slug: `link-test-${Date.now()}`,
+			neonProjectId: `stub-${Date.now()}`,
+			connectionString: "stub",
+			paymentStatus: "active",
+			subscriptionId: null,
+		} satisfies typeof organizations.$inferInsert);
+
+		const fakeSub = buildFakeSub("price_basic_test", {
+			metadata: { organizationId: TEST_ORG_ID_FOR_LINKING },
+		});
+		await upsertSubscriptionFromStripe(fakeSub);
+
+		// Confirm the org now points to the local subscription row.
+		const [linkedOrg] = await controlPanelDb
+			.select()
+			.from(organizations)
+			.where(eq(organizations.id, TEST_ORG_ID_FOR_LINKING));
+		expect(linkedOrg.subscriptionId).not.toBeNull();
+
+		const [sub] = await controlPanelDb
+			.select()
+			.from(subscriptions)
+			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
+		expect(linkedOrg.subscriptionId).toBe(sub.id);
+	});
+
+	it("does NOT touch organizations when metadata.organizationId is absent", async () => {
+		await controlPanelDb.insert(organizations).values({
+			id: TEST_ORG_ID_FOR_LINKING,
+			name: "Org Without Metadata",
+			slug: `no-link-${Date.now()}`,
+			neonProjectId: `stub-nolink-${Date.now()}`,
+			connectionString: "stub",
+			paymentStatus: "active",
+			subscriptionId: null,
+		} satisfies typeof organizations.$inferInsert);
+
+		// Sub w/ no metadata → linking is a no-op.
+		const fakeSub = buildFakeSub("price_basic_test", { metadata: {} });
+		await upsertSubscriptionFromStripe(fakeSub);
+
+		const [unchanged] = await controlPanelDb
+			.select()
+			.from(organizations)
+			.where(eq(organizations.id, TEST_ORG_ID_FOR_LINKING));
+		expect(unchanged.subscriptionId).toBeNull();
+	});
+
+	it("silently skips when metadata.organizationId points to a missing org", async () => {
+		const fakeSub = buildFakeSub("price_basic_test", {
+			metadata: { organizationId: "00000000-0000-0000-0000-0000999999ff" },
+		});
+		// No throw expected — non-fatal logging only.
+		await upsertSubscriptionFromStripe(fakeSub);
 	});
 });

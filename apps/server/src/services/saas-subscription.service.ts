@@ -16,6 +16,7 @@ import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { controlPanelDb } from "@/lib/db";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { TIER_LIMITS, type Tier } from "@avantej-core/types";
 
 const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
@@ -105,6 +106,31 @@ export async function upsertSubscriptionFromStripe(
 			target: subscriptions.stripeSubscriptionId,
 			set: { ...common, updatedAt: new Date() },
 		});
+
+	// Per Task 15: link the local subscription row back to the org via
+	// metadata.organizationId. Created by createCheckoutSession (Task 12)
+	// on subscription_data.metadata. Silently no-op if absent or if the org
+	// referenced doesn't exist.
+	const orgIdFromMetadata = sub.metadata?.organizationId;
+	if (orgIdFromMetadata) {
+		const [localSub] = await controlPanelDb
+			.select({ id: subscriptions.id })
+			.from(subscriptions)
+			.where(eq(subscriptions.stripeSubscriptionId, sub.id))
+			.limit(1);
+		if (localSub) {
+			const updated = await controlPanelDb
+				.update(organizations)
+				.set({ subscriptionId: localSub.id, updatedAt: new Date() })
+				.where(eq(organizations.id, orgIdFromMetadata))
+				.returning({ id: organizations.id });
+			if (updated.length === 0) {
+				console.warn(
+					`[saas-subscription] metadata.organizationId=${orgIdFromMetadata} not found; sub ${sub.id} unlinked`,
+				);
+			}
+		}
+	}
 }
 
 export async function markPastDue(stripeSubscriptionId: string): Promise<void> {
