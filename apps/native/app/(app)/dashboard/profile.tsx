@@ -52,10 +52,14 @@ export default function ProfileScreen() {
 		enabled: !!organizationId,
 	});
 
-	// Fetch upcoming appointments for stats
+	// Fetch upcoming appointments for stats (future only)
 	const { data: upcomingAppointments } = useQuery({
 		...orpc.appointments.listForUser.queryOptions({
-			input: { organizationId, statuses: ["pending", "confirmed"] },
+			input: {
+				organizationId,
+				statuses: ["pending", "confirmed"],
+				startFrom: new Date().toISOString(),
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -301,22 +305,6 @@ export default function ProfileScreen() {
 						value={!!notifPrefs?.pushEnabled}
 						onValueChange={(v) =>
 							handleToggleNotifPref("pushEnabled", v)
-						}
-					/>
-					<SettingsToggleRow
-						icon="mail-outline"
-						label="Email notifications"
-						value={!!notifPrefs?.emailEnabled}
-						onValueChange={(v) =>
-							handleToggleNotifPref("emailEnabled", v)
-						}
-					/>
-					<SettingsToggleRow
-						icon="chatbubble-outline"
-						label="SMS notifications"
-						value={!!notifPrefs?.smsEnabled}
-						onValueChange={(v) =>
-							handleToggleNotifPref("smsEnabled", v)
 						}
 						isLast
 					/>

@@ -225,7 +225,7 @@ export default function CalendarScreen() {
 	return (
 		<Container>
 			<ScrollView
-				className="flex-1 bg-primary-3"
+				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 32 }}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
@@ -373,8 +373,13 @@ export default function CalendarScreen() {
 									>
 										<View className="h-11 items-center justify-center">
 											<View
-												className="h-9 w-9 items-center justify-center rounded-full"
+												className="items-center justify-center"
 												style={[
+													{
+														width: 36,
+														height: 36,
+														borderRadius: 18,
+													},
 													isSelected && {
 														backgroundColor:
 															colors.primary[1],
