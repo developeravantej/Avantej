@@ -28,17 +28,23 @@ export default function DoneScreen() {
 
 	const handleGoHome = () => {
 		reset();
-		router.replace("/dashboard" as never);
+		router.dismissAll();
 	};
 
 	const handleViewPackages = () => {
 		reset();
-		router.replace("/dashboard/packages" as never);
+		router.dismissAll();
+		setTimeout(() => {
+			router.push("/dashboard/packages" as never);
+		}, 100);
 	};
 
 	const handleStartBooking = () => {
 		reset();
-		router.replace("/dashboard/book-workout/book-workout" as never);
+		router.dismissAll();
+		setTimeout(() => {
+			router.push("/dashboard/book-workout/book-workout" as never);
+		}, 100);
 	};
 
 	return (

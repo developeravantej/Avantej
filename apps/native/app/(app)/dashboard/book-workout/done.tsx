@@ -40,12 +40,15 @@ export default function DoneScreen() {
 
 	const handleBackToHome = () => {
 		reset();
-		router.replace("/dashboard");
+		router.dismissAll();
 	};
 
 	const handleViewBookings = () => {
 		reset();
-		router.replace("/dashboard/bookings");
+		router.dismissAll();
+		setTimeout(() => {
+			router.push("/dashboard/bookings" as never);
+		}, 100);
 	};
 
 	return (
