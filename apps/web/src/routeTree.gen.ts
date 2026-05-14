@@ -28,6 +28,7 @@ import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
 import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_authenticated/service-category/view'
 import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
+import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
 import { Route as AuthenticatedDashboardLayoutInventoryOptionsRouteImport } from './routes/_authenticated/dashboard/_layout/inventory-options'
@@ -186,6 +187,12 @@ const AuthenticatedDashboardLayoutRoute =
   AuthenticatedDashboardLayoutRouteImport.update({
     id: '/dashboard/_layout',
     path: '/dashboard',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedBillingConnectRoute =
+  AuthenticatedBillingConnectRouteImport.update({
+    id: '/billing/connect',
+    path: '/billing/connect',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAppointmentViewRoute =
@@ -587,6 +594,7 @@ export interface FileRoutesByFullPath {
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
@@ -668,6 +676,7 @@ export interface FileRoutesByTo {
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
@@ -750,6 +759,7 @@ export interface FileRoutesById {
   '/_authenticated/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/_authenticated/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
@@ -833,6 +843,7 @@ export interface FileRouteTypes {
     | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
+    | '/billing/connect'
     | '/dashboard'
     | '/service-category/view'
     | '/service/view'
@@ -914,6 +925,7 @@ export interface FileRouteTypes {
     | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
+    | '/billing/connect'
     | '/service-category/view'
     | '/service/view'
     | '/user/view'
@@ -995,6 +1007,7 @@ export interface FileRouteTypes {
     | '/_authenticated/go-highlevel-integration'
     | '/_authenticated/onboarding'
     | '/_authenticated/appointment/view'
+    | '/_authenticated/billing/connect'
     | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
     | '/_authenticated/service/view'
@@ -1209,6 +1222,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/billing/connect': {
+      id: '/_authenticated/billing/connect'
+      path: '/billing/connect'
+      fullPath: '/billing/connect'
+      preLoaderRoute: typeof AuthenticatedBillingConnectRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/appointment/view': {
@@ -1838,6 +1858,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedGoHighlevelIntegrationRoute: typeof AuthenticatedGoHighlevelIntegrationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedAppointmentViewRoute: typeof AuthenticatedAppointmentViewRoute
+  AuthenticatedBillingConnectRoute: typeof AuthenticatedBillingConnectRoute
   AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
   AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
@@ -1850,6 +1871,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedGoHighlevelIntegrationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedAppointmentViewRoute: AuthenticatedAppointmentViewRoute,
+  AuthenticatedBillingConnectRoute: AuthenticatedBillingConnectRoute,
   AuthenticatedDashboardLayoutRoute:
     AuthenticatedDashboardLayoutRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,

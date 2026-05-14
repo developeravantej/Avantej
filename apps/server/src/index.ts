@@ -6,6 +6,7 @@ import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
+import { stripeConnectOAuthRoutes } from "@/routes/stripe-connect-oauth.routes";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
@@ -14,6 +15,7 @@ import { adminRouter } from "@/routers/admin";
 import { tenantAdminRouter } from "@/routers/tenant-admin";
 import { ghlRouter } from "@/routers/ghl";
 import { subscriptionsRouter } from "@/routers/subscriptions";
+import { stripeConnectRouter } from "@/routers/stripe-connect";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -56,6 +58,7 @@ const appRouter = {
 	tenantAdmin: tenantAdminRouter,
 	ghl: ghlRouter,
 	subscriptions: subscriptionsRouter,
+	stripeConnect: stripeConnectRouter,
 };
 
 const app = new Hono();
@@ -149,6 +152,7 @@ app.route("/api/invitations", invitationRoutes);
 
 // Webhook routes (external integrations)
 app.route("/webhooks", webhookRoutes);
+app.route("/api/stripe/connect/oauth", stripeConnectOAuthRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

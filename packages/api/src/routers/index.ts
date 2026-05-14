@@ -606,13 +606,18 @@ const serverCustomerProfilesRouterType = {
 // (server-only: uses Stripe SDK, Neon control panel DB).
 const subscriptionsRouterType = {
 	createCheckoutSession: protectedProcedure
-		.input(z.object({ tier: z.enum(["basic", "professional", "enterprise"]) }))
+		.input(
+			z.object({
+				tier: z.enum(["basic", "professional", "enterprise"]),
+				organizationId: z.string().uuid(),
+			}),
+		)
 		.handler((): { checkoutUrl: string; sessionId: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 
 	getStatus: protectedProcedure
-		.input(z.object({}))
+		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(
 			(): {
 				status: "active" | "past_due" | "trialing" | "none" | string;
@@ -621,16 +626,44 @@ const subscriptionsRouterType = {
 				pastDueAt: Date | null;
 				gracePeriodEndsAt: Date | null;
 				trialEndsAt: Date | null;
+				decision?: string;
+				banner?: string | null;
+				blockedReason?: string | null;
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
 
 	billingPortal: protectedProcedure
-		.input(z.object({}))
+		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler((): { portalUrl: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+};
+
+// Stripe Connect router type definition for client type inference.
+// Real impl in apps/server/src/routers/stripe-connect.ts (uses Stripe SDK).
+const stripeConnectRouterType = {
+	createOnboardingUrl: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): { onboardingUrl: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	getAccountStatus: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				connected: boolean;
+				accountId: string | null;
+				chargesEnabled: boolean;
+				payoutsEnabled: boolean;
+				detailsSubmitted: boolean;
+				status: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // GHL router type definition for client type inference.
@@ -755,6 +788,7 @@ export const appRouter = {
 	tenantAdmin: tenantAdminRouterType,
 	ghl: ghlRouterType,
 	subscriptions: subscriptionsRouterType,
+	stripeConnect: stripeConnectRouterType,
 };
 
 export type AppRouter = typeof appRouter;

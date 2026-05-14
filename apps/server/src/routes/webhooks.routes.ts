@@ -23,6 +23,7 @@ import {
 } from "@/services/saas-subscription.service";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { and, desc, eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
@@ -208,11 +209,62 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 		return c.json({ received: true, deduped: true }, 200);
 	}
 
-	// v1: Connect-event handlers ship in Plan B/C. Ack + mark processed so we
-	// don't accumulate retries during Plan A.
-	console.log(`[connect webhook v1 stub] ${event.type} for ${event.account}`);
-	await markEventProcessed(event.id);
-	return c.json({ received: true, stub: true }, 200);
+	try {
+		const controlPanelDb = getControlPanelDb(c);
+		if (event.type === "account.updated") {
+			const account = event.data.object as Stripe.Account;
+			const orgId = (account.metadata?.organizationId ?? null) as string | null;
+			const chargesEnabled = !!account.charges_enabled;
+			const payoutsEnabled = !!account.payouts_enabled;
+			const detailsSubmitted = !!account.details_submitted;
+			const status = chargesEnabled ? "active" : "pending";
+
+			// Prefer metadata.organizationId; fall back to stripe_connect_account_id lookup.
+			const whereClause = orgId
+				? eq(organizations.id, orgId)
+				: eq(organizations.stripeConnectAccountId, account.id);
+
+			const [org] = await controlPanelDb
+				.select()
+				.from(organizations)
+				.where(whereClause)
+				.limit(1);
+
+			if (org) {
+				await controlPanelDb
+					.update(organizations)
+					.set({
+						stripeConnectAccountId: account.id,
+						chargesEnabled,
+						payoutsEnabled,
+						detailsSubmitted,
+						stripeConnectStatus: status,
+						stripeConnectOnboardingCompletedAt:
+							detailsSubmitted && !org.stripeConnectOnboardingCompletedAt
+								? new Date()
+								: org.stripeConnectOnboardingCompletedAt,
+						connectAccountUpdatedAt: new Date(),
+					})
+					.where(eq(organizations.id, org.id));
+				console.log(
+					`[connect webhook] account.updated synced for org=${org.id} acct=${account.id} charges=${chargesEnabled} payouts=${payoutsEnabled} details=${detailsSubmitted}`,
+				);
+			} else {
+				console.warn(
+					`[connect webhook] account.updated for acct=${account.id} — no matching org (metadata.organizationId=${orgId})`,
+				);
+			}
+		} else {
+			console.log(`[connect webhook] unhandled event ${event.type} acct=${event.account}`);
+		}
+		await markEventProcessed(event.id);
+		return c.json({ received: true }, 200);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		await markEventFailed(event.id, msg);
+		console.error(`Connect webhook handler failed for ${event.id}:`, e);
+		return c.json({ error: "Handler failed" }, 500);
+	}
 });
 
 /**
