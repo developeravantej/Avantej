@@ -26,12 +26,12 @@ import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { and, desc, eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
-import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import {
 	GhlWebhookError,
 	markGhlWebhookFailed,
@@ -262,6 +262,36 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			} else {
 				console.warn(
 					`[connect webhook] account.updated for acct=${account.id} — no matching org (metadata.organizationId=${orgId})`,
+				);
+			}
+		} else if (event.type === "setup_intent.succeeded") {
+			// Plan B Phase 3d — card saved. Persist the PM id as the customer's
+			// default so future chargeSavedCard calls can use it without UI prompts.
+			const si = event.data.object as Stripe.SetupIntent;
+			const metadata = (si.metadata ?? {}) as Record<string, string>;
+			const customerProfileId = metadata.customerProfileId;
+			const organizationId = metadata.organizationId;
+			const paymentMethodId =
+				typeof si.payment_method === "string"
+					? si.payment_method
+					: si.payment_method?.id ?? null;
+
+			if (!customerProfileId || !organizationId || !paymentMethodId) {
+				console.warn(
+					`[connect webhook] setup_intent.succeeded missing metadata or PM — si=${si.id} customerProfileId=${customerProfileId} pm=${paymentMethodId}`,
+				);
+			} else {
+				const tenantDb = await getTenantDb(organizationId, c);
+				const result = await tenantDb
+					.update(customerProfiles)
+					.set({
+						defaultPaymentMethodId: paymentMethodId,
+						updatedAt: new Date(),
+					})
+					.where(eq(customerProfiles.id, customerProfileId))
+					.returning({ id: customerProfiles.id });
+				console.log(
+					`[connect webhook] setup_intent.succeeded synced for customerProfile=${customerProfileId} pm=${paymentMethodId} rowsUpdated=${result.length}`,
 				);
 			}
 		} else if (

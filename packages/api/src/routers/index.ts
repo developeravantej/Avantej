@@ -728,6 +728,71 @@ const paymentsRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	// Card-on-file (Plan B Phase 3d)
+	createSetupIntent: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				clientSecret: string;
+				setupIntentId: string;
+				stripeAccountId: string;
+				stripeCustomerId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	listSavedCards: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				cards: Array<{
+					id: string;
+					brand: string;
+					last4: string;
+					expMonth: number;
+					expYear: number;
+					isDefault: boolean;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	chargeSavedCard: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+				appointmentId: z.string().uuid().nullable().optional(),
+				paymentMethodId: z.string().min(1).nullable().optional(),
+				amount: z.number().int().positive(),
+				currency: z.string().min(3).max(3).default("MYR"),
+				description: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				paymentIntentId: string;
+				status: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Stripe Connect router type definition for client type inference.

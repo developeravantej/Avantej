@@ -40,6 +40,8 @@ import {
 	getConnectAccountForOrg,
 	computeApplicationFee,
 } from "@/services/connect-account.service";
+import { getOrCreateStripeCustomer } from "@/services/customer-stripe.service";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 
 /** Minimal Stripe surface — keeps the router DI-testable without the SDK. */
 type StripeClientLike = {
@@ -71,6 +73,28 @@ type StripeClientLike = {
 			amount: number;
 			currency: string;
 		}>;
+	};
+	customers: {
+		create: (
+			params: { email?: string; name?: string; metadata?: Record<string, string> },
+			options?: { stripeAccount?: string },
+		) => Promise<{ id: string }>;
+		retrieve: (
+			id: string,
+			options?: { stripeAccount?: string },
+		) => Promise<{ id: string; deleted?: boolean }>;
+	};
+	setupIntents: {
+		create: (
+			params: { customer: string; payment_method_types?: string[]; usage?: "off_session" | "on_session"; metadata?: Record<string, string> },
+			options?: { stripeAccount?: string },
+		) => Promise<{ id: string; client_secret: string | null; status: string }>;
+	};
+	paymentMethods: {
+		list: (
+			params: { customer: string; type?: string; limit?: number },
+			options?: { stripeAccount?: string },
+		) => Promise<{ data: Array<{ id: string; card?: { brand: string; last4: string; exp_month: number; exp_year: number } | null }> }>;
 	};
 };
 
@@ -419,6 +443,196 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					status: refund.status ?? "pending",
 					amount: refund.amount,
 					currency: (refund.currency ?? "myr").toUpperCase(),
+				};
+			}),
+
+		// === Plan B Phase 3d — Card-on-file ===
+
+		createSetupIntent: protectedProcedure
+			.input(
+				z.object({
+					organizationId: z.string().uuid(),
+					customerProfileId: z.string().uuid(),
+				}),
+			)
+			.handler(async ({ context, input }) => {
+				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
+					| {
+							select: (...a: unknown[]) => { from: (...a: unknown[]) => any };
+							update: (...a: unknown[]) => { set: (...a: unknown[]) => any };
+					  }
+					| undefined;
+				if (!tenantDb) {
+					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
+				}
+
+				const controlPanelDb = getControlPanelDb(
+					context as unknown as Parameters<typeof getControlPanelDb>[0],
+				);
+				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+
+				const [profile] = await (tenantDb as any)
+					.select()
+					.from(customerProfiles)
+					.where(eq(customerProfiles.id, input.customerProfileId))
+					.limit(1);
+				if (!profile) {
+					throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				}
+
+				const stripe = resolveStripe();
+				const { customerId } = await getOrCreateStripeCustomer({
+					tenantDb: tenantDb as never,
+					stripe,
+					customerProfileId: input.customerProfileId,
+					connectAccountId: acct.acctId,
+					organizationId: input.organizationId,
+				});
+
+				const setupIntent = await stripe.setupIntents.create(
+					{
+						customer: customerId,
+						usage: "off_session",
+						metadata: {
+							customerProfileId: input.customerProfileId,
+							organizationId: input.organizationId,
+						},
+					},
+					{ stripeAccount: acct.acctId },
+				);
+
+				return {
+					clientSecret: setupIntent.client_secret ?? "",
+					setupIntentId: setupIntent.id,
+					stripeAccountId: acct.acctId,
+					stripeCustomerId: customerId,
+				};
+			}),
+
+		listSavedCards: protectedProcedure
+			.input(
+				z.object({
+					organizationId: z.string().uuid(),
+					customerProfileId: z.string().uuid(),
+				}),
+			)
+			.handler(async ({ context, input }) => {
+				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
+					| { select: (...a: unknown[]) => { from: (...a: unknown[]) => any } }
+					| undefined;
+				if (!tenantDb) {
+					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
+				}
+
+				const [profile] = await (tenantDb as any)
+					.select()
+					.from(customerProfiles)
+					.where(eq(customerProfiles.id, input.customerProfileId))
+					.limit(1);
+				if (!profile?.stripeCustomerId) {
+					return { cards: [] as Array<{ id: string; brand: string; last4: string; expMonth: number; expYear: number; isDefault: boolean }> };
+				}
+
+				const stripe = resolveStripe();
+				const list = await stripe.paymentMethods.list(
+					{ customer: profile.stripeCustomerId, type: "card", limit: 20 },
+					{ stripeAccount: profile.stripeConnectAccountIdSnapshot ?? undefined },
+				);
+				const defaultId = profile.defaultPaymentMethodId ?? null;
+				return {
+					cards: list.data
+						.filter((p): p is { id: string; card: NonNullable<typeof p.card> } =>
+							p.card != null,
+						)
+						.map((p) => ({
+							id: p.id,
+							brand: p.card.brand,
+							last4: p.card.last4,
+							expMonth: p.card.exp_month,
+							expYear: p.card.exp_year,
+							isDefault: p.id === defaultId,
+						})),
+				};
+			}),
+
+		chargeSavedCard: protectedProcedure
+			.input(
+				z.object({
+					organizationId: z.string().uuid(),
+					customerProfileId: z.string().uuid(),
+					appointmentId: z.string().uuid().nullable().optional(),
+					paymentMethodId: z.string().min(1).nullable().optional(),
+					amount: z.number().int().positive(),
+					currency: z.string().min(3).max(3).default("MYR"),
+					description: z.string().optional(),
+				}),
+			)
+			.handler(async ({ context, input }) => {
+				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
+					| {
+							select: (...a: unknown[]) => { from: (...a: unknown[]) => any };
+							update: (...a: unknown[]) => { set: (...a: unknown[]) => any };
+					  }
+					| undefined;
+				if (!tenantDb) {
+					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
+				}
+
+				const controlPanelDb = getControlPanelDb(
+					context as unknown as Parameters<typeof getControlPanelDb>[0],
+				);
+				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+
+				const [profile] = await (tenantDb as any)
+					.select()
+					.from(customerProfiles)
+					.where(eq(customerProfiles.id, input.customerProfileId))
+					.limit(1);
+				if (!profile?.stripeCustomerId) {
+					throw new ORPCError("PRECONDITION_FAILED", {
+						message: "Customer has no saved card",
+					});
+				}
+				const pmId = input.paymentMethodId ?? profile.defaultPaymentMethodId;
+				if (!pmId) {
+					throw new ORPCError("PRECONDITION_FAILED", {
+						message: "No payment method on file",
+					});
+				}
+
+				const applicationFeeAmount = computeApplicationFee(input.amount, acct.appFeeBps);
+				const currency = input.currency.toLowerCase();
+				const stripe = resolveStripe();
+				const pi = await stripe.paymentIntents.create(
+					{
+						amount: input.amount,
+						currency,
+						customer: profile.stripeCustomerId,
+						payment_method: pmId,
+						confirm: true,
+						off_session: true,
+						application_fee_amount: applicationFeeAmount,
+						description: input.description,
+						metadata: {
+							customerProfileId: input.customerProfileId,
+							organizationId: input.organizationId,
+							...(input.appointmentId ? { appointmentId: input.appointmentId } : {}),
+						},
+					},
+					{
+						stripeAccount: acct.acctId,
+						idempotencyKey: input.appointmentId
+							? `pi:appt:offsession:${input.appointmentId}`
+							: undefined,
+					},
+				);
+
+				return {
+					paymentIntentId: pi.id,
+					status: pi.status,
+					amount: input.amount,
+					currency: currency.toUpperCase(),
+					applicationFeeAmount,
 				};
 			}),
 	};
