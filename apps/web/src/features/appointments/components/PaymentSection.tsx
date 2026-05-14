@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CreditCard, Send, Loader2, Copy, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
+import { CreditCard, Send, Loader2, Copy, ExternalLink, CheckCircle2, AlertCircle, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { client as orpcClient } from "@/utils/orpc";
@@ -29,6 +29,7 @@ export function PaymentSection({
 	appointmentId: string;
 }) {
 	const [chargeOpen, setChargeOpen] = useState(false);
+	const [awaitingRefund, setAwaitingRefund] = useState(false);
 
 	const statusQuery = useQuery({
 		queryKey: ["payment-status", organizationId, appointmentId],
@@ -38,11 +39,13 @@ export function PaymentSection({
 				appointmentId,
 			})) as PaymentStatus,
 		enabled: !!organizationId && !!appointmentId,
-		refetchInterval: (q) =>
-			q.state.data?.paymentStatus === "pending" &&
-			q.state.data?.stripePaymentIntentId
-				? 3000
-				: false,
+		refetchInterval: (q) => {
+			const s = q.state.data?.paymentStatus;
+			if (s === "pending" && q.state.data?.stripePaymentIntentId) return 3000;
+			// Poll while waiting for charge.refunded webhook to flip paid -> refunded.
+			if (awaitingRefund && s === "paid") return 3000;
+			return false;
+		},
 	});
 
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- refetched via refetchInterval on PI presence
@@ -65,6 +68,34 @@ export function PaymentSection({
 			toast.error(err instanceof Error ? err.message : "Failed to generate link");
 		},
 	});
+
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- refetched via refetchInterval on awaitingRefund + paid
+	const refund = useMutation({
+		mutationFn: async () =>
+			(await orpcClient.payments.refund({
+				organizationId,
+				appointmentId,
+			})) as { refundId: string; status: string; amount: number; currency: string },
+		onMutate: () => {
+			toast.loading("Refund requested…", { id: "refund-pending" });
+		},
+		onSuccess: (data) => {
+			toast.dismiss("refund-pending");
+			toast.success(`Refund issued (${data.refundId})`);
+			setAwaitingRefund(true);
+			statusQuery.refetch();
+		},
+		onError: (err: unknown) => {
+			toast.dismiss("refund-pending");
+			toast.error(err instanceof Error ? err.message : "Refund failed");
+		},
+	});
+
+	// Stop polling once we observe the refunded status.
+	if (awaitingRefund && statusQuery.data?.paymentStatus === "refunded") {
+		// Defer to avoid setState during render.
+		queueMicrotask(() => setAwaitingRefund(false));
+	}
 
 	const status = statusQuery.data;
 	const isPaid = status?.paymentStatus === "paid";
@@ -95,6 +126,33 @@ export function PaymentSection({
 					<div className="flex items-center justify-between text-xs text-muted-foreground">
 						<span>Paid</span>
 						<span>{new Date(status.paidAt).toLocaleString()}</span>
+					</div>
+				)}
+
+				{isPaid && (
+					<div className="pt-1">
+						<Button
+							size="sm"
+							variant="outline"
+							className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+							onClick={() => {
+								if (
+									!window.confirm(
+										"Refund this payment? This issues a full refund via Stripe and cannot be undone.",
+									)
+								)
+									return;
+								refund.mutate();
+							}}
+							disabled={refund.isPending || awaitingRefund}
+						>
+							{refund.isPending || awaitingRefund ? (
+								<Loader2 className="mr-1.5 size-3.5 animate-spin" />
+							) : (
+								<Undo2 className="mr-1.5 size-3.5" />
+							)}
+							{awaitingRefund ? "Awaiting confirmation…" : "Refund"}
+						</Button>
 					</div>
 				)}
 

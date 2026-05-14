@@ -10,6 +10,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { verifyWebhookSignature } from "@/lib/stripe";
+import { onAppointmentPaid } from "@/services/payment-side-effects.service";
 import type Stripe from "stripe";
 import {
 	claimWebhookEvent,
@@ -324,6 +325,38 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				console.log(
 					`[connect webhook] ${event.type} synced for appt=${appointmentId} pi=${intentId} status=${update.paymentStatus} rowsUpdated=${result.length}`,
 				);
+
+				// Plan B Phase 3a: drive post-payment workflow only when a
+				// payment_intent.succeeded actually flipped the row to paid.
+				if (succeeded && result.length > 0) {
+					const piForSideEffects =
+						event.type === "payment_intent.succeeded"
+							? (pi as Stripe.PaymentIntent)
+							: null;
+					const amountCents =
+						piForSideEffects?.amount_received ??
+						piForSideEffects?.amount ??
+						null;
+					const currencyForSideEffects = piForSideEffects?.currency ?? null;
+					try {
+						await onAppointmentPaid({
+							tenantDb,
+							controlPanelDb: cpDb,
+							appointmentId,
+							organizationId,
+							paymentIntentId: intentId ?? null,
+							amountCents,
+							currency: currencyForSideEffects,
+						});
+					} catch (sideErr) {
+						// Defensive: never let a side-effect failure fail the
+						// webhook ack — Stripe would retry forever.
+						console.error(
+							`[connect webhook] onAppointmentPaid threw for appt=${appointmentId}:`,
+							sideErr,
+						);
+					}
+				}
 			}
 		} else {
 			console.log(`[connect webhook] unhandled event ${event.type} acct=${event.account}`);

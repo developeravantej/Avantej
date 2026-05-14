@@ -707,6 +707,27 @@ const paymentsRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	refund: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				appointmentId: z.string().uuid(),
+				reason: z
+					.enum(["duplicate", "fraudulent", "requested_by_customer"])
+					.optional(),
+			}),
+		)
+		.handler(
+			(): {
+				refundId: string;
+				status: string;
+				amount: number;
+				currency: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Stripe Connect router type definition for client type inference.
