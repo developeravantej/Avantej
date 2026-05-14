@@ -3432,7 +3432,7 @@ WHERE "recurring_parent_id" IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "appointments_is_recurring_idx"
 ON "appointments" ("is_recurring");
 ` },
-	{ hash: "0051_ghl_per_branch_sync", sql: `CREATE TABLE "ghl_user_links" (
+	{ hash: "0051_ghl_per_branch_sync", sql: `CREATE TABLE IF NOT EXISTS "ghl_user_links" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"ghl_user_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -3446,23 +3446,310 @@ ON "appointments" ("is_recurring");
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-DROP INDEX "ghl_contact_links_sync_status_idx";--> statement-breakpoint
-ALTER TABLE "ghl_contact_links" ADD COLUMN "branch_node_id" uuid NOT NULL;--> statement-breakpoint
-ALTER TABLE "ghl_contact_links" ADD COLUMN "ghl_location_id" text NOT NULL;--> statement-breakpoint
-ALTER TABLE "ghl_contact_links" ADD COLUMN "last_error" text;--> statement-breakpoint
-CREATE UNIQUE INDEX "ghl_user_links_ghl_user_id_unique" ON "ghl_user_links" USING btree ("ghl_user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "ghl_user_links_member_branch_unique" ON "ghl_user_links" USING btree ("member_id","branch_node_id");--> statement-breakpoint
-CREATE INDEX "ghl_user_links_user_idx" ON "ghl_user_links" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "ghl_user_links_member_idx" ON "ghl_user_links" USING btree ("member_id");--> statement-breakpoint
-CREATE INDEX "ghl_user_links_branch_idx" ON "ghl_user_links" USING btree ("branch_node_id");--> statement-breakpoint
-CREATE INDEX "ghl_user_links_ghl_location_idx" ON "ghl_user_links" USING btree ("ghl_location_id");--> statement-breakpoint
-CREATE INDEX "ghl_user_links_sync_status_idx" ON "ghl_user_links" USING btree ("sync_status","last_synced_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "ghl_contact_links_customer_branch_unique" ON "ghl_contact_links" USING btree ("customer_profile_id","branch_node_id");--> statement-breakpoint
-CREATE INDEX "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree ("branch_node_id");--> statement-breakpoint
-CREATE INDEX "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
-CREATE INDEX "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");` },
+DROP INDEX IF EXISTS "ghl_contact_links_sync_status_idx";--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "branch_node_id" uuid;--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "ghl_location_id" text;--> statement-breakpoint
+ALTER TABLE "ghl_contact_links" ADD COLUMN IF NOT EXISTS "last_error" text;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_ghl_user_id_unique" ON "ghl_user_links" USING btree ("ghl_user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_branch_unique" ON "ghl_user_links" USING btree ("member_id","branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_user_idx" ON "ghl_user_links" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_member_idx" ON "ghl_user_links" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_branch_idx" ON "ghl_user_links" USING btree ("branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_ghl_location_idx" ON "ghl_user_links" USING btree ("ghl_location_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_user_links_sync_status_idx" ON "ghl_user_links" USING btree ("sync_status","last_synced_at");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_branch_unique" ON "ghl_contact_links" USING btree ("customer_profile_id","branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree ("branch_node_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");` },
 	{ hash: "0052_add_members_deleted_at", sql: `ALTER TABLE "members" ADD COLUMN "deleted_at" timestamp;--> statement-breakpoint
 CREATE INDEX "members_deleted_at_idx" ON "members" USING btree ("deleted_at");` },
+	{ hash: "0053_hierarchy_rename_region_state", sql: `-- Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3.
+-- Prerequisite: zero rows with type='area' (run flatten-areas.ts first per tenant).
+-- Idempotent: WHERE clauses make repeat runs no-op.
+
+-- Safety: hard-fail if area rows still exist
+DO $$
+DECLARE area_count int;
+BEGIN
+  SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
+  IF area_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+
+UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
+--> statement-breakpoint
+
+UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;
+` },
+	{ hash: "0054_hierarchy_country_fk_archived_at", sql: `-- Phase G0: add country_node_id denorm FK + archived_at soft archive on hierarchy_nodes.
+-- Idempotent.
+
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "country_node_id" uuid REFERENCES "hierarchy_nodes"("id") ON DELETE RESTRICT;
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "archived_at" timestamp;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hierarchy_country_idx" ON "hierarchy_nodes" ("country_node_id");
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hierarchy_archived_at_idx" ON "hierarchy_nodes" ("archived_at");
+--> statement-breakpoint
+-- Backfill country_node_id via recursive CTE for existing state + branch rows
+WITH RECURSIVE ancestors AS (
+  SELECT id, parent_id, type, id AS country_id FROM hierarchy_nodes WHERE type = 'country'
+  UNION ALL
+  SELECT h.id, h.parent_id, h.type, a.country_id
+  FROM hierarchy_nodes h JOIN ancestors a ON h.parent_id = a.id
+)
+UPDATE hierarchy_nodes h SET country_node_id = a.country_id, updated_at = now()
+FROM ancestors a
+WHERE h.id = a.id AND h.type IN ('state', 'branch') AND h.country_node_id IS NULL;
+` },
+	{ hash: "0055_ghl_links_single_entity_unique", sql: `-- Phase G: flip ghl_contact_links and ghl_user_links unique constraints from
+-- (entity, branch) → (entity). Reflects org-shared GHL model: one customer
+-- maps to ONE GHL contact per org; one member maps to ONE GHL user per org.
+
+-- Pre-flight: detect duplicate (customer_profile_id) rows that would block the
+-- new unique. If any tenant has >1 row per customer, hard-fail with a clear
+-- message so the operator can dedupe before retrying.
+DO $$
+DECLARE
+  dup_count int;
+  offending_ids text;
+BEGIN
+  SELECT count(*), string_agg(customer_profile_id::text, ', ')
+    INTO dup_count, offending_ids
+  FROM (
+    SELECT customer_profile_id FROM ghl_contact_links
+    GROUP BY customer_profile_id HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % customer_profile_id(s) in ghl_contact_links have multiple rows. Offending: %. Dedupe before applying.', dup_count, offending_ids;
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE
+  dup_count int;
+  offending_ids text;
+BEGIN
+  SELECT count(*), string_agg(member_id::text, ', ')
+    INTO dup_count, offending_ids
+  FROM (
+    SELECT member_id FROM ghl_user_links
+    GROUP BY member_id HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % member_id(s) in ghl_user_links have multiple rows. Offending: %. Dedupe before applying.', dup_count, offending_ids;
+  END IF;
+END $$;
+--> statement-breakpoint
+DROP INDEX IF EXISTS "ghl_contact_links_customer_branch_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "ghl_user_links_member_branch_unique";
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_unique" ON "ghl_contact_links" ("customer_profile_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_unique" ON "ghl_user_links" ("member_id");
+` },
+	{ hash: "0056_hierarchy_name_uniqueness", sql: `-- Phase H-hygiene: prevent duplicate sibling rows by enforcing uniqueness
+-- on the (parent_id, name) key per type. App layer already validates this
+-- on insert (hierarchy_validation.service.ts), but the DB-level constraint
+-- catches programmatic inserts that bypass the service.
+-- Note: existing branch-name partial unique covers the leaf level globally.
+
+-- 1. Pre-flight dedup checks (hard-fail with actionable message).
+-- The orchestrator will run merge-duplicate-siblings.ts on affected tenants
+-- before applying this migration. CREATE UNIQUE INDEX would itself error if
+-- duplicates exist, but the explicit checks give a clearer remediation hint.
+DO $$
+DECLARE dup_count int;
+BEGIN
+  SELECT count(*) INTO dup_count FROM (
+    SELECT name FROM hierarchy_nodes
+    WHERE type = 'country' AND archived_at IS NULL
+    GROUP BY name HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % duplicate country name(s) exist. Run merge-duplicate-siblings.ts first.', dup_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+DO $$
+DECLARE dup_count int;
+BEGIN
+  SELECT count(*) INTO dup_count FROM (
+    SELECT parent_id, name FROM hierarchy_nodes
+    WHERE type = 'state' AND archived_at IS NULL
+    GROUP BY parent_id, name HAVING count(*) > 1
+  ) t;
+  IF dup_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % duplicate state sibling(s) exist. Run merge-duplicate-siblings.ts first.', dup_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+-- 2. Create the partial uniques (idempotent via IF NOT EXISTS).
+-- Country names must be globally unique within an org (one tenant DB =
+-- one org). No parent_id matching needed since the org root is the
+-- only parent type=country can have.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
+  ON "hierarchy_nodes" ("name")
+  WHERE "type" = 'country' AND "archived_at" IS NULL;
+--> statement-breakpoint
+-- State names unique within their parent country.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
+  ON "hierarchy_nodes" ("parent_id", "name")
+  WHERE "type" = 'state' AND "archived_at" IS NULL;
+` },
+	{ hash: "0057_hierarchy_type_enum", sql: `-- Phase H2: replace text-typed hierarchy_nodes.type with a Postgres enum
+-- so future inserts can't smuggle in typos.
+-- Idempotent: CREATE TYPE guarded via pg_type lookup; ALTER TABLE no-ops if
+-- column is already the enum type.
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hierarchy_node_type') THEN
+    CREATE TYPE hierarchy_node_type AS ENUM ('organization', 'country', 'state', 'branch');
+  END IF;
+END $$;
+--> statement-breakpoint
+
+-- Pre-flight: any rows with a value outside the enum would block the cast.
+-- Should be impossible post-H1, but verify.
+DO $$
+DECLARE bad_count int; bad_types text;
+BEGIN
+  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+    INTO bad_count, bad_types
+  FROM hierarchy_nodes
+  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+  IF bad_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
+  END IF;
+END $$;
+--> statement-breakpoint
+
+-- Drop partial indexes that reference the type column; ALTER TYPE can't
+-- proceed while a partial predicate compares enum to text literal.
+DROP INDEX IF EXISTS "hierarchy_nodes_branch_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_country_name_unique";
+--> statement-breakpoint
+DROP INDEX IF EXISTS "hierarchy_state_sibling_name_unique";
+--> statement-breakpoint
+
+-- Convert the column. Cast via USING.
+DO $$
+DECLARE col_type text;
+BEGIN
+  SELECT data_type INTO col_type
+  FROM information_schema.columns
+  WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+  IF col_type = 'text' THEN
+    ALTER TABLE hierarchy_nodes
+      ALTER COLUMN type TYPE hierarchy_node_type
+      USING type::hierarchy_node_type;
+  END IF;
+END $$;
+--> statement-breakpoint
+
+-- Recreate partial indexes after type change.
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_nodes_branch_name_unique"
+  ON "hierarchy_nodes" ("name") WHERE "type" = 'branch';
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
+  ON "hierarchy_nodes" ("name")
+  WHERE "type" = 'country' AND "archived_at" IS NULL;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
+  ON "hierarchy_nodes" ("parent_id", "name")
+  WHERE "type" = 'state' AND "archived_at" IS NULL;
+` },
+	{ hash: "0058_hierarchy_slug", sql: `-- Phase H2: add stable per-node slug for URL routing / deep links.
+-- Backfill from name; tighten to NOT NULL after backfill.
+
+ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS slug text;
+--> statement-breakpoint
+
+-- Backfill slug = lower(name) with non-alphanumeric → '_'
+UPDATE hierarchy_nodes
+SET slug = trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))),
+    updated_at = now()
+WHERE slug IS NULL;
+--> statement-breakpoint
+
+-- Pre-flight: verify no NULLs remain before NOT NULL constraint.
+DO $$
+DECLARE null_count int;
+BEGIN
+  SELECT count(*) INTO null_count FROM hierarchy_nodes WHERE slug IS NULL;
+  IF null_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % rows still have NULL slug after backfill', null_count;
+  END IF;
+END $$;
+--> statement-breakpoint
+
+ALTER TABLE hierarchy_nodes ALTER COLUMN slug SET NOT NULL;
+--> statement-breakpoint
+
+-- Sibling-scope uniqueness: slug must be unique within parent (matches name-uniqueness behaviour).
+CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_sibling_slug_unique"
+  ON "hierarchy_nodes" ("parent_id", "slug")
+  WHERE "archived_at" IS NULL;
+` },
+	{ hash: "0059_branch_details_split", sql: `-- Phase H2: split branch-specific columns into branch_details table.
+-- hierarchy_nodes.address + hierarchy_nodes.pic_user_id were only populated
+-- on type='branch' rows; sparse columns on the parent table are a smell.
+
+CREATE TABLE IF NOT EXISTS "branch_details" (
+  "node_id" uuid PRIMARY KEY REFERENCES "hierarchy_nodes"("id") ON DELETE CASCADE,
+  "address" text,
+  "pic_user_id" text,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+
+-- Backfill: move existing data from hierarchy_nodes for branch rows.
+INSERT INTO "branch_details" ("node_id", "address", "pic_user_id")
+SELECT id, address, pic_user_id FROM hierarchy_nodes
+WHERE type = 'branch' AND (address IS NOT NULL OR pic_user_id IS NOT NULL)
+ON CONFLICT (node_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  pic_user_id = EXCLUDED.pic_user_id,
+  updated_at = now();
+--> statement-breakpoint
+
+-- Drop the moved columns from hierarchy_nodes. IF EXISTS makes this idempotent.
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "address";
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
+--> statement-breakpoint
+
+-- Index pic_user_id on branch_details for member lookups.
+CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");
+` },
+	{ hash: "0060_appointment_payment_columns", sql: `-- Plan B Phase 2 — Direct Charge payment columns on appointments.
+--
+-- Adds Stripe Connect Direct-Charge tracking fields to existing appointments
+-- table. No new payments table — Phase 2 is one-shot charge per appointment;
+-- refund history + retry audit deferred to Phase 3.
+--
+-- Phase 4 readiness: stripe_connect_account_id_snapshot captures the acct ID
+-- at charge time so historical rows stay valid when the account ID migrates
+-- from organizations.stripe_connect_account_id to per-country
+-- hierarchy_nodes.stripe_connect_account_id (Phase 4 ADR-pending).
+
+ALTER TABLE "appointments"
+  ADD COLUMN IF NOT EXISTS "currency" text NOT NULL DEFAULT 'MYR',
+  ADD COLUMN IF NOT EXISTS "application_fee_amount" integer,
+  ADD COLUMN IF NOT EXISTS "stripe_connect_account_id_snapshot" text,
+  ADD COLUMN IF NOT EXISTS "stripe_payment_link_id" text,
+  ADD COLUMN IF NOT EXISTS "payment_link_url" text,
+  ADD COLUMN IF NOT EXISTS "paid_at" timestamp,
+  ADD COLUMN IF NOT EXISTS "payment_failure_reason" text,
+  ADD COLUMN IF NOT EXISTS "payment_method_type" text;
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

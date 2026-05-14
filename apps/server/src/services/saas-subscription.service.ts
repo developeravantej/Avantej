@@ -14,10 +14,16 @@
 
 import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
-import { controlPanelDb } from "@/lib/db";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { controlPanelDb as singletonDb } from "@/lib/db";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { TIER_LIMITS, type Tier } from "@avantej-core/types";
+
+type CpDb = NeonDatabase<Record<string, unknown>>;
+function resolveDb(db?: CpDb): CpDb {
+	return db ?? (singletonDb as unknown as CpDb);
+}
 
 const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
 const INT32_MAX = 2_147_483_647;
@@ -68,7 +74,9 @@ function clampInt32(n: number): number {
 
 export async function upsertSubscriptionFromStripe(
 	sub: Stripe.Subscription,
+	db?: CpDb,
 ): Promise<void> {
+	const cpDb = resolveDb(db);
 	const item = sub.items.data[0];
 	if (!item) {
 		throw new Error(`Subscription ${sub.id} has no item`);
@@ -102,7 +110,7 @@ export async function upsertSubscriptionFromStripe(
 		canceledAt: unixToDate(sub.canceled_at),
 	};
 
-	await controlPanelDb
+	await cpDb
 		.insert(subscriptions)
 		.values({
 			stripeSubscriptionId: sub.id,
@@ -120,13 +128,13 @@ export async function upsertSubscriptionFromStripe(
 	// referenced doesn't exist.
 	const orgIdFromMetadata = sub.metadata?.organizationId;
 	if (orgIdFromMetadata) {
-		const [localSub] = await controlPanelDb
+		const [localSub] = await cpDb
 			.select({ id: subscriptions.id })
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, sub.id))
 			.limit(1);
 		if (localSub) {
-			const updated = await controlPanelDb
+			const updated = await cpDb
 				.update(organizations)
 				.set({ subscriptionId: localSub.id, updatedAt: new Date() })
 				.where(eq(organizations.id, orgIdFromMetadata))
@@ -140,9 +148,12 @@ export async function upsertSubscriptionFromStripe(
 	}
 }
 
-export async function markPastDue(stripeSubscriptionId: string): Promise<void> {
+export async function markPastDue(
+	stripeSubscriptionId: string,
+	db?: CpDb,
+): Promise<void> {
 	const now = new Date();
-	const updated = await controlPanelDb
+	const updated = await resolveDb(db)
 		.update(subscriptions)
 		.set({
 			status: "past_due",
@@ -159,8 +170,11 @@ export async function markPastDue(stripeSubscriptionId: string): Promise<void> {
 	}
 }
 
-export async function markActive(stripeSubscriptionId: string): Promise<void> {
-	const updated = await controlPanelDb
+export async function markActive(
+	stripeSubscriptionId: string,
+	db?: CpDb,
+): Promise<void> {
+	const updated = await resolveDb(db)
 		.update(subscriptions)
 		.set({
 			status: "active",

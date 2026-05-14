@@ -120,12 +120,16 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 		);
 	}
 
-	const claim = await claimWebhookEvent({
-		eventId: event.id,
-		eventType: event.type,
-		source: "platform",
-		stripeAccount: null,
-	});
+	const cpDb = getControlPanelDb(c);
+	const claim = await claimWebhookEvent(
+		{
+			eventId: event.id,
+			eventType: event.type,
+			source: "platform",
+			stripeAccount: null,
+		},
+		cpDb,
+	);
 	if (claim.status === "already_processed") {
 		return c.json({ received: true, deduped: true }, 200);
 	}
@@ -136,7 +140,7 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 			case "customer.subscription.updated":
 			case "customer.subscription.deleted": {
 				const sub = event.data.object as Stripe.Subscription;
-				await upsertSubscriptionFromStripe(sub);
+				await upsertSubscriptionFromStripe(sub, cpDb);
 				break;
 			}
 			case "invoice.payment_failed": {
@@ -146,7 +150,7 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
-					await markPastDue(subId);
+					await markPastDue(subId, cpDb);
 				}
 				break;
 			}
@@ -157,7 +161,7 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
-					await markActive(subId);
+					await markActive(subId, cpDb);
 				}
 				break;
 			}
@@ -166,11 +170,11 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 				console.log(`[platform webhook] unhandled event ${event.type}`);
 				break;
 		}
-		await markEventProcessed(event.id);
+		await markEventProcessed(event.id, cpDb);
 		return c.json({ received: true }, 200);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		await markEventFailed(event.id, msg);
+		await markEventFailed(event.id, msg, cpDb);
 		console.error(`Platform webhook handler failed for ${event.id}:`, e);
 		return c.json({ error: "Handler failed" }, 500);
 	}
@@ -200,18 +204,22 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 		);
 	}
 
-	const claim = await claimWebhookEvent({
-		eventId: event.id,
-		eventType: event.type,
-		source: "connect",
-		stripeAccount: event.account ?? null,
-	});
+	const cpDb = getControlPanelDb(c);
+	const claim = await claimWebhookEvent(
+		{
+			eventId: event.id,
+			eventType: event.type,
+			source: "connect",
+			stripeAccount: event.account ?? null,
+		},
+		cpDb,
+	);
 	if (claim.status === "already_processed") {
 		return c.json({ received: true, deduped: true }, 200);
 	}
 
 	try {
-		const controlPanelDb = getControlPanelDb(c);
+		const controlPanelDb = cpDb;
 		if (event.type === "account.updated") {
 			const account = event.data.object as Stripe.Account;
 			const orgId = (account.metadata?.organizationId ?? null) as string | null;
@@ -299,29 +307,32 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					event.type === "charge.refunded"
 						? (pi as Stripe.Charge).payment_intent?.toString() ?? null
 						: pi.id;
-
 				if (intentId) {
-					await tenantDb
-						.update(appointments)
-						.set(update)
-						.where(eq(appointments.stripePaymentIntentId, intentId));
-					console.log(
-						`[connect webhook] ${event.type} synced for appt=${appointmentId} pi=${intentId} status=${update.paymentStatus}`,
-					);
-				} else {
-					console.warn(
-						`[connect webhook] ${event.type} no resolvable PaymentIntent ID for appt=${appointmentId}`,
-					);
+					update.stripePaymentIntentId = intentId;
 				}
+
+				// Lookup by metadata.appointmentId — Payment Link path doesn't
+				// pre-populate stripe_payment_intent_id (PI is created lazily
+				// when the customer hits the link). Charge-dialog path does
+				// pre-populate via createPaymentIntent, but either way the
+				// metadata key is the authoritative join.
+				const result = await tenantDb
+					.update(appointments)
+					.set(update)
+					.where(eq(appointments.id, appointmentId))
+					.returning({ id: appointments.id });
+				console.log(
+					`[connect webhook] ${event.type} synced for appt=${appointmentId} pi=${intentId} status=${update.paymentStatus} rowsUpdated=${result.length}`,
+				);
 			}
 		} else {
 			console.log(`[connect webhook] unhandled event ${event.type} acct=${event.account}`);
 		}
-		await markEventProcessed(event.id);
+		await markEventProcessed(event.id, cpDb);
 		return c.json({ received: true }, 200);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		await markEventFailed(event.id, msg);
+		await markEventFailed(event.id, msg, cpDb);
 		console.error(`Connect webhook handler failed for ${event.id}:`, e);
 		return c.json({ error: "Handler failed" }, 500);
 	}

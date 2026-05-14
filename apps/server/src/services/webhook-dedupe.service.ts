@@ -11,10 +11,16 @@
  *      - On failure: markEventFailed; return 500 so Stripe retries.
  *
  * The Stripe event.id (evt_xxx) is globally unique and is the primary key.
+ *
+ * All functions accept a request-scoped Drizzle client (`db`). Callers running
+ * inside a Cloudflare Workers request must pass the request-scoped DB from
+ * `getControlPanelDb(c)`; the module-level singleton triggers
+ * "Cannot perform I/O on behalf of a different request" across requests.
  */
 
 import { eq, sql } from "drizzle-orm";
-import { controlPanelDb } from "@/lib/db";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { controlPanelDb as singletonDb } from "@/lib/db";
 import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
 
 export type WebhookSource = "platform" | "connect" | "reconciler";
@@ -31,8 +37,19 @@ interface ClaimInput {
 	stripeAccount: string | null;
 }
 
-export async function claimWebhookEvent(input: ClaimInput): Promise<ClaimResult> {
-	const [row] = await controlPanelDb
+// Drizzle's generated DB type is parameterized by a schema map we don't import
+// here; use a structural alias so callers can pass any control-panel client.
+type CpDb = NeonDatabase<Record<string, unknown>>;
+
+function resolveDb(db?: CpDb): CpDb {
+	return db ?? (singletonDb as unknown as CpDb);
+}
+
+export async function claimWebhookEvent(
+	input: ClaimInput,
+	db?: CpDb,
+): Promise<ClaimResult> {
+	const [row] = await resolveDb(db)
 		.insert(processedWebhookEvents)
 		.values({
 			eventId: input.eventId,
@@ -65,8 +82,11 @@ export async function claimWebhookEvent(input: ClaimInput): Promise<ClaimResult>
 	return { status: "claimed", attempts: row.attempts };
 }
 
-export async function markEventProcessed(eventId: string): Promise<void> {
-	const updated = await controlPanelDb
+export async function markEventProcessed(
+	eventId: string,
+	db?: CpDb,
+): Promise<void> {
+	const updated = await resolveDb(db)
 		.update(processedWebhookEvents)
 		.set({ processedAt: new Date(), error: null })
 		.where(eq(processedWebhookEvents.eventId, eventId))
@@ -78,8 +98,12 @@ export async function markEventProcessed(eventId: string): Promise<void> {
 	}
 }
 
-export async function markEventFailed(eventId: string, error: string): Promise<void> {
-	const updated = await controlPanelDb
+export async function markEventFailed(
+	eventId: string,
+	error: string,
+	db?: CpDb,
+): Promise<void> {
+	const updated = await resolveDb(db)
 		.update(processedWebhookEvents)
 		.set({ error })
 		.where(eq(processedWebhookEvents.eventId, eventId))

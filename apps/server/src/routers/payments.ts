@@ -250,19 +250,24 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				);
 
 				const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
+				const sharedMetadata = {
+					appointmentId: appt.id,
+					organizationId: input.organizationId,
+					branchId: appt.branchId,
+				};
 				const link = await stripe.paymentLinks.create(
 					{
 						line_items: [{ price: price.id, quantity: 1 }],
 						application_fee_amount: applicationFeeAmount,
 						after_completion: {
 							type: "redirect",
-							redirect: { url: `${webAppUrl}/appointments/${appt.id}?paid=1` },
+							redirect: { url: `${webAppUrl}/appointment/view?paid=1&id=${appt.id}` },
 						},
-						metadata: {
-							appointmentId: appt.id,
-							organizationId: input.organizationId,
-							branchId: appt.branchId,
-						},
+						metadata: sharedMetadata,
+						// Propagate to PaymentIntent so payment_intent.succeeded webhook
+						// (on connect endpoint) can resolve the appointment row. Link/session
+						// metadata does NOT auto-flow to PI; this is required.
+						payment_intent_data: { metadata: sharedMetadata },
 					},
 					{ stripeAccount: acct.acctId },
 				);
