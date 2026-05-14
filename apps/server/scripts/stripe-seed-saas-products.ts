@@ -19,6 +19,26 @@ import Stripe from "stripe";
 
 const SEED_VERSION = "avantej-saas-v1";
 
+// products.list is strongly consistent (unlike products.search which has ~10s lag).
+// Page through to find any product with our seedKey + seedVersion.
+async function findSeededProduct(
+	stripe: Stripe,
+	seedKey: string,
+): Promise<Stripe.Product | null> {
+	for await (const product of stripe.products.list({
+		limit: 100,
+		active: true,
+	})) {
+		if (
+			product.metadata?.seedKey === seedKey &&
+			product.metadata?.seedVersion === SEED_VERSION
+		) {
+			return product;
+		}
+	}
+	return null;
+}
+
 const tiers = [
 	{
 		key: "basic",
@@ -48,14 +68,10 @@ async function main() {
 
 	for (const tier of tiers) {
 		// Find existing product by metadata.seedKey + seedVersion.
-		const existing = await stripe.products.search({
-			query: `metadata['seedKey']:'${tier.key}' AND metadata['seedVersion']:'${SEED_VERSION}'`,
-			limit: 1,
-		});
-
+		const found = await findSeededProduct(stripe, tier.key);
 		let product: Stripe.Product;
-		if (existing.data.length > 0) {
-			product = existing.data[0]!;
+		if (found) {
+			product = found;
 			console.log(`[skip] product ${tier.key} exists: ${product.id}`);
 		} else {
 			product = await stripe.products.create({
