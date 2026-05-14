@@ -601,6 +601,38 @@ const serverCustomerProfilesRouterType = {
 		),
 };
 
+// Subscriptions router type definition for client type inference.
+// The actual implementation is in apps/server/src/routers/subscriptions.ts
+// (server-only: uses Stripe SDK, Neon control panel DB).
+const subscriptionsRouterType = {
+	createCheckoutSession: protectedProcedure
+		.input(z.object({ tier: z.enum(["basic", "professional", "enterprise"]) }))
+		.handler((): { checkoutUrl: string; sessionId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	getStatus: protectedProcedure
+		.input(z.object({}))
+		.handler(
+			(): {
+				status: "active" | "past_due" | "trialing" | "none" | string;
+				tier: string | null;
+				currentPeriodEnd: Date | null;
+				pastDueAt: Date | null;
+				gracePeriodEndsAt: Date | null;
+				trialEndsAt: Date | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	billingPortal: protectedProcedure
+		.input(z.object({}))
+		.handler((): { portalUrl: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -722,6 +754,7 @@ export const appRouter = {
 	admin: adminRouterType,
 	tenantAdmin: tenantAdminRouterType,
 	ghl: ghlRouterType,
+	subscriptions: subscriptionsRouterType,
 };
 
 export type AppRouter = typeof appRouter;

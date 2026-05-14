@@ -34,6 +34,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import apiClientImport from "@/lib/api";
 const apiClient = apiClientImport as any;
+import { client as orpcClient } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { getServerUrl } from "@/lib/config";
 import getStripe from "@/lib/stripe";
@@ -315,20 +316,51 @@ function SubscribePage() {
       },
     });
 
+  // New oRPC-backed checkout session mutation (Plan A trial-first).
+  // Calls subscriptions.createCheckoutSession({ tier }) and redirects to
+  // the returned Stripe-hosted Checkout URL.
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: redirects to Stripe checkout; queries re-fetched on return
+  const checkoutSessionMutation = useMutation({
+    mutationFn: async ({ tier }: { tier: "basic" | "professional" | "enterprise" }) => {
+      const res = await orpcClient.subscriptions.createCheckoutSession({ tier });
+      return res;
+    },
+    onSuccess: (data) => {
+      if (data?.checkoutUrl) {
+        window.location.assign(data.checkoutUrl);
+      } else {
+        toast.error("Failed to start checkout — no URL returned");
+      }
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Checkout failed";
+      toast.error(msg);
+    },
+  });
+
+  function deriveTier(plan: SubscriptionPlan): "basic" | "professional" | "enterprise" {
+    if (plan.metadata?.tier === "basic" || plan.metadata?.tier === "professional" || plan.metadata?.tier === "enterprise") {
+      return plan.metadata.tier as "basic" | "professional" | "enterprise";
+    }
+    if (plan.price_amount >= 49900) return "enterprise";
+    if (plan.price_amount >= 14900) return "professional";
+    return "basic";
+  }
+
   const handleSelectPlan = useCallback(
-    (priceId: string) => {
+    (plan: SubscriptionPlan) => {
       setError(null);
 
       if (isAuthenticated) {
-        // User is logged in, proceed with normal checkout
-        createCheckout(priceId);
+        // User is logged in — use new oRPC createCheckoutSession (Plan A)
+        checkoutSessionMutation.mutate({ tier: deriveTier(plan) });
       } else {
-        // User is not logged in, show guest checkout form
-        setSelectedPriceId(priceId);
+        // User is not logged in, show guest checkout form (legacy flow)
+        setSelectedPriceId(plan.id);
         setIsGuestSheetOpen(true);
       }
     },
-    [isAuthenticated, createCheckout]
+    [isAuthenticated, checkoutSessionMutation]
   );
 
   const validateGuestForm = useCallback(() => {
@@ -480,7 +512,7 @@ function SubscribePage() {
                 <Card
                   key={plan.id}
                   className={`relative flex flex-col transition-all duration-200 hover:shadow-lg ${popular ? "border-primary shadow-md scale-105" : ""
-                    } ${isCreatingCheckout || isCreatingGuestCheckout
+                    } ${isCreatingCheckout || isCreatingGuestCheckout || checkoutSessionMutation.isPending
                       ? "opacity-70 pointer-events-none"
                       : ""
                     }`}
@@ -534,10 +566,10 @@ function SubscribePage() {
                       className={`w-full ${popular ? "bg-primary hover:bg-primary/90" : ""
                         }`}
                       variant={popular ? "default" : "outline"}
-                      onClick={() => handleSelectPlan(plan.id)}
-                      disabled={isCreatingCheckout || isCreatingGuestCheckout}
+                      onClick={() => handleSelectPlan(plan)}
+                      disabled={isCreatingCheckout || isCreatingGuestCheckout || checkoutSessionMutation.isPending}
                     >
-                      {isCreatingCheckout || isCreatingGuestCheckout ? (
+                      {isCreatingCheckout || isCreatingGuestCheckout || checkoutSessionMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
                           Processing…
