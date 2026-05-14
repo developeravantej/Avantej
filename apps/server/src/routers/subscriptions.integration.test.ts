@@ -25,8 +25,8 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { eq } from "drizzle-orm";
 
-const TEST_ORG_ID = "00000000-0000-0000-0000-0000000000aa";
-const TEST_SUB_DB_ID = "00000000-0000-0000-0000-0000000000bb";
+const TEST_ORG_ID = "00000000-0000-0000-0000-3333000000aa";
+const TEST_SUB_DB_ID = "00000000-0000-0000-0000-3333000000bb";
 
 function setEnv(overrides: Record<string, string | undefined>) {
 	(globalThis as unknown as { env?: Record<string, unknown> }).env = {

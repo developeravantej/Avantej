@@ -10,7 +10,7 @@ import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptio
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { eq } from "drizzle-orm";
 
-const TEST_SUB_ID = "sub_test_lifecycle_001";
+const TEST_SUB_ID = "sub_test_lifecycle_svc_001";
 
 function setEnv(overrides: Record<string, string | undefined>) {
 	(globalThis as unknown as { env?: Record<string, unknown> }).env = {
@@ -170,7 +170,7 @@ describe("markPastDue / markActive", () => {
 	});
 });
 
-const TEST_ORG_ID_FOR_LINKING = "00000000-0000-0000-0000-0000000000cc";
+const TEST_ORG_ID_FOR_LINKING = "00000000-0000-0000-0000-1111000000cc";
 
 describe("upsertSubscriptionFromStripe org linking", () => {
 	beforeEach(async () => {

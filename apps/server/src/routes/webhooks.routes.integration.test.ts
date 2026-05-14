@@ -10,8 +10,8 @@ import { eq } from "drizzle-orm";
 
 const PLATFORM_SECRET = "whsec_platform_test_xxx";
 const CONNECT_SECRET = "whsec_connect_test_xxx";
-const TEST_EVENT_ID = "evt_test_webhook_route_001";
-const TEST_SUB_ID = "sub_test_webhook_route_001";
+const TEST_EVENT_ID = "evt_test_webhook_route_v2_001";
+const TEST_SUB_ID = "sub_test_webhook_route_v2_001";
 
 /**
  * Build a Stripe-Signature header the same way Stripe does:
@@ -165,7 +165,7 @@ describe("POST /webhooks/stripe/platform", () => {
 		const app = new Hono().route("/webhooks", webhookRoutes);
 		// First seed the sub.
 		const subEventPayload = JSON.stringify({
-			id: "evt_test_seed_sub",
+			id: "evt_test_seed_sub_route",
 			type: "customer.subscription.created",
 			data: {
 				object: {
@@ -190,7 +190,7 @@ describe("POST /webhooks/stripe/platform", () => {
 		});
 		await controlPanelDb
 			.delete(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub"));
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub_route"));
 		await app.request("/webhooks/stripe/platform", {
 			method: "POST",
 			headers: { "stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET) },
@@ -220,14 +220,14 @@ describe("POST /webhooks/stripe/platform", () => {
 		// Cleanup
 		await controlPanelDb
 			.delete(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub"));
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub_route"));
 	});
 
 	it("handles customer.subscription.deleted (status canceled, canceled_at set)", async () => {
 		const app = new Hono().route("/webhooks", webhookRoutes);
 		// First seed the sub via subscription.created.
 		const subEventPayload = JSON.stringify({
-			id: "evt_test_seed_deleted",
+			id: "evt_test_seed_deleted_route",
 			type: "customer.subscription.created",
 			data: {
 				object: {
@@ -252,7 +252,7 @@ describe("POST /webhooks/stripe/platform", () => {
 		});
 		await controlPanelDb
 			.delete(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted"));
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted_route"));
 		await app.request("/webhooks/stripe/platform", {
 			method: "POST",
 			headers: { "stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET) },
@@ -302,7 +302,7 @@ describe("POST /webhooks/stripe/platform", () => {
 		// Cleanup
 		await controlPanelDb
 			.delete(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted"));
+			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted_route"));
 	});
 
 	it("returns 200 for unhandled event types (no-op)", async () => {
@@ -323,7 +323,7 @@ describe("POST /webhooks/stripe/platform", () => {
 
 	it("links organizations.subscriptionId via subscription metadata.organizationId", async () => {
 		// Seed org with no sub link.
-		const TEST_LINK_ORG_ID = "00000000-0000-0000-0000-000000000aaa";
+		const TEST_LINK_ORG_ID = "00000000-0000-0000-0000-2222000000aa";
 		await controlPanelDb
 			.delete(organizations)
 			.where(eq(organizations.id, TEST_LINK_ORG_ID));

@@ -8,7 +8,7 @@ import { controlPanelDb } from "@/lib/db";
 import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
 import { eq } from "drizzle-orm";
 
-const TEST_EVENT_ID = "evt_test_dedupe_001";
+const TEST_EVENT_ID = "evt_test_dedupe_svc_001";
 
 beforeEach(async () => {
 	await controlPanelDb
