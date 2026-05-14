@@ -93,3 +93,30 @@ When wiring Connect webhook handlers in `webhooks.routes.ts:/stripe/connect`:
 4. **Simulate past-due**:
    - `stripe trigger invoice.payment_failed` (T2 forwards) → DB shows `status='past_due'`, `pastDueAt`/`gracePeriodEndsAt` set.
    - `stripe trigger invoice.paid` → DB clears past_due fields back to `active`.
+
+## Final review follow-ups
+
+Per `superpowers:code-reviewer` final pass (post-Task 15):
+
+### Resolved by final-fixes commit
+- **C1** `/subscribe` legacy guest-flow rewrite — replaced with authenticated-only static tier listing; unauthenticated visitors bounce to `/login`. Removed dead REST calls.
+- **C2** `subscriptions.getStatus` now returns `decision` + `banner` derived via `evaluateAccess`. UI does not need to duplicate the past-due / grace math.
+- **C3** `.env.example` documents `STRIPE_PRICE_BASIC/PROFESSIONAL/ENTERPRISE` and `WEB_APP_URL`.
+- **Tier mapping warn** — `computeTierFromPriceId` logs when an unknown priceId hits the basic-fallback path.
+- **Webhook→org link integration test** — `webhooks.routes.integration.test.ts` now asserts `organizations.subscriptionId` is populated after `customer.subscription.created` with metadata.
+
+### Deferred to Plan B
+- **I1** Switch `requireActiveSaaSSub` middleware from singleton to request-scoped `getControlPanelDb(c)` BEFORE attaching to any procedure.
+- **I2** Declare typed `SAAS_BLOCKED` / `SAAS_PAST_DUE_READONLY` error map at the `o` builder; remove `as never` casts.
+- **I3** Replace write-verb-prefix heuristic with explicit oRPC mutation tag.
+
+### Deferred to Plan D
+- **I4** Out-of-order webhook delivery — `markPastDue` currently throws when the row is absent; downgrade to warn + no-op (subsequent `subscription.updated` carries `status=past_due` anyway).
+- **I5** Webhook endpoint rate-limiting at edge.
+- **Trial auto-set on org creation** — promoted from footnote: a new tenant signup must set `organizations.trialEndsAt = now() + 14 days` or `evaluateAccess` will block them at the gate. This is a product/signup-flow change.
+
+### Cosmetic / cross-cutting (any plan)
+- Extract `getEnvVar` to `apps/server/src/lib/env.ts`; 4 modules duplicate it.
+- Extract oRPC `getHandler<T>(proc)` test helper to a shared file once a second router-test file appears.
+- `WEB_APP_URL` fallback to `localhost:3001` silently in prod — log warn when env unset.
+- `subscribe.tsx` legacy `processPaymentMutation` was removed in the C1 rewrite (full file replacement). No standing tech debt remains in that file.

@@ -47,7 +47,14 @@ export function computeTierFromPriceId(priceId: string): Tier {
 	// entry so an unknown priceId doesn't accidentally match it (TS computed keys
 	// collapse duplicate "" keys with last-wins assignment).
 	delete map[""];
-	return map[priceId] ?? "basic";
+	const tier = map[priceId];
+	if (!tier) {
+		console.warn(
+			`[saas-subscription] computeTierFromPriceId: unknown priceId=${priceId} — falling back to 'basic'. Check STRIPE_PRICE_* env vars.`,
+		);
+		return "basic";
+	}
+	return tier;
 }
 
 function unixToDate(ts: number | null | undefined): Date | null {

@@ -5,6 +5,7 @@ import { createHmac } from "node:crypto";
 import { controlPanelDb } from "@/lib/db";
 import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { eq } from "drizzle-orm";
 
 const PLATFORM_SECRET = "whsec_platform_test_xxx";
@@ -318,6 +319,67 @@ describe("POST /webhooks/stripe/platform", () => {
 			body: payload,
 		});
 		expect(res.status).toBe(200);
+	});
+
+	it("links organizations.subscriptionId via subscription metadata.organizationId", async () => {
+		// Seed org with no sub link.
+		const TEST_LINK_ORG_ID = "00000000-0000-0000-0000-000000000aaa";
+		await controlPanelDb
+			.delete(organizations)
+			.where(eq(organizations.id, TEST_LINK_ORG_ID));
+		await controlPanelDb.insert(organizations).values({
+			id: TEST_LINK_ORG_ID,
+			name: "Webhook Link Test Org",
+			slug: `webhook-link-${Date.now()}`,
+			neonProjectId: `stub-webhook-${Date.now()}`,
+			connectionString: "stub",
+			paymentStatus: "active",
+			subscriptionId: null,
+		} satisfies typeof organizations.$inferInsert);
+
+		const app = new Hono().route("/webhooks", webhookRoutes);
+		const payload = JSON.stringify({
+			id: TEST_EVENT_ID,
+			type: "customer.subscription.created",
+			data: {
+				object: {
+					id: TEST_SUB_ID,
+					customer: "cus_link",
+					status: "active",
+					items: {
+						data: [
+							{
+								price: { id: "price_basic_test", currency: "usd" },
+								current_period_start: 1715000000,
+								current_period_end: 1717678400,
+							},
+						],
+					},
+					cancel_at_period_end: false,
+					canceled_at: null,
+					trial_end: null,
+					metadata: { organizationId: TEST_LINK_ORG_ID },
+				},
+			},
+		});
+		const sig = signEvent(payload, PLATFORM_SECRET);
+		const res = await app.request("/webhooks/stripe/platform", {
+			method: "POST",
+			headers: { "stripe-signature": sig },
+			body: payload,
+		});
+		expect(res.status).toBe(200);
+
+		const [linkedOrg] = await controlPanelDb
+			.select()
+			.from(organizations)
+			.where(eq(organizations.id, TEST_LINK_ORG_ID));
+		expect(linkedOrg.subscriptionId).not.toBeNull();
+
+		// Cleanup
+		await controlPanelDb
+			.delete(organizations)
+			.where(eq(organizations.id, TEST_LINK_ORG_ID));
 	});
 });
 

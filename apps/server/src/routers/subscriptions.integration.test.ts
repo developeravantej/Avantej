@@ -135,13 +135,20 @@ describe("subscriptions.getStatus", () => {
 			session: { user: { id: "user_test" } },
 			organizationId: TEST_ORG_ID,
 		};
-		const handler = getHandler<{ status: string; tier: string | null }>(
-			subscriptionsRouter.getStatus,
-		);
+		const handler = getHandler<{
+			status: string;
+			tier: string | null;
+			decision: string;
+			banner: string | null;
+			blockedReason: string | null;
+		}>(subscriptionsRouter.getStatus);
 
 		const result = await handler({ context: fakeContext, input: {} });
 		expect(result.status).toBe("trialing");
 		expect(result.tier).toBeNull();
+		expect(result.decision).toBeDefined();
+		expect(result.decision).toBe("allow");
+		expect(result.banner).toBe("trialing");
 	});
 
 	it("returns 'none' when no sub and no trial (or trial expired)", async () => {
@@ -154,10 +161,19 @@ describe("subscriptions.getStatus", () => {
 			session: { user: { id: "user_test" } },
 			organizationId: TEST_ORG_ID,
 		};
-		const handler = getHandler<{ status: string; trialEndsAt: Date | null }>(subscriptionsRouter.getStatus);
+		const handler = getHandler<{
+			status: string;
+			trialEndsAt: Date | null;
+			decision: string;
+			banner: string | null;
+			blockedReason: string | null;
+		}>(subscriptionsRouter.getStatus);
 		const result = await handler({ context: fakeContext, input: {} });
 		expect(result.status).toBe("none");
 		expect(result.trialEndsAt).toBeNull();
+		expect(result.decision).toBeDefined();
+		expect(result.decision).toBe("block");
+		expect(result.blockedReason).toBe("trial_expired_no_sub");
 	});
 
 	it("returns subscription state when an active sub exists", async () => {
@@ -180,12 +196,19 @@ describe("subscriptions.getStatus", () => {
 			session: { user: { id: "user_test" } },
 			organizationId: TEST_ORG_ID,
 		};
-		const handler = getHandler<{ status: string; tier: string | null }>(
-			subscriptionsRouter.getStatus,
-		);
+		const handler = getHandler<{
+			status: string;
+			tier: string | null;
+			decision: string;
+			banner: string | null;
+			blockedReason: string | null;
+		}>(subscriptionsRouter.getStatus);
 		const result = await handler({ context: fakeContext, input: {} });
 		expect(result.status).toBe("active");
 		expect(result.tier).toBe("basic");
+		expect(result.decision).toBeDefined();
+		expect(result.decision).toBe("allow");
+		expect(result.banner).toBeNull();
 
 		// Cleanup the sub row we inserted.
 		await controlPanelDb.delete(subscriptions).where(eq(subscriptions.id, TEST_SUB_DB_ID));

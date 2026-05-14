@@ -21,6 +21,7 @@ import { getStripeClient } from "@/lib/stripe";
 import { controlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { evaluateAccess } from "@/middleware/require-active-saas-sub.middleware";
 
 function getEnvVar(key: string): string | undefined {
 	try {
@@ -113,22 +114,64 @@ export const subscriptionsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
 			}
 
+			let sub: {
+				status: string;
+				tier: string | null;
+				currentPeriodEnd: Date | null;
+				pastDueAt: Date | null;
+				gracePeriodEndsAt: Date | null;
+				trialEndsAt: Date | null;
+			} | null = null;
 			if (org.subscriptionId) {
-				const [sub] = await controlPanelDb
+				const [row] = await controlPanelDb
 					.select()
 					.from(subscriptions)
 					.where(eq(subscriptions.id, org.subscriptionId))
 					.limit(1);
-				if (sub) {
-					return {
-						status: sub.status,
-						tier: sub.tier,
-						currentPeriodEnd: sub.currentPeriodEnd,
-						pastDueAt: sub.pastDueAt,
-						gracePeriodEndsAt: sub.gracePeriodEndsAt,
-						trialEndsAt: sub.trialEndsAt,
+				if (row) {
+					sub = {
+						status: row.status,
+						tier: row.tier,
+						currentPeriodEnd: row.currentPeriodEnd,
+						pastDueAt: row.pastDueAt,
+						gracePeriodEndsAt: row.gracePeriodEndsAt,
+						trialEndsAt: row.trialEndsAt,
 					};
 				}
+			}
+
+			const decision = evaluateAccess(
+				sub
+					? {
+							status: sub.status,
+							pastDueAt: sub.pastDueAt,
+							gracePeriodEndsAt: sub.gracePeriodEndsAt,
+							trialEndsAt: sub.trialEndsAt,
+					  }
+					: null,
+				new Date(),
+				org.trialEndsAt,
+			);
+
+			const banner =
+				decision.decision === "allow" ? decision.banner ?? null : null;
+			const blockedReason =
+				decision.decision === "block" || decision.decision === "read_only"
+					? decision.reason
+					: null;
+
+			if (sub) {
+				return {
+					status: sub.status,
+					tier: sub.tier,
+					currentPeriodEnd: sub.currentPeriodEnd,
+					pastDueAt: sub.pastDueAt,
+					gracePeriodEndsAt: sub.gracePeriodEndsAt,
+					trialEndsAt: sub.trialEndsAt,
+					decision: decision.decision,
+					banner,
+					blockedReason,
+				};
 			}
 
 			// No subscription — derive from org trial state.
@@ -140,6 +183,9 @@ export const subscriptionsRouter = {
 					pastDueAt: null,
 					gracePeriodEndsAt: null,
 					trialEndsAt: org.trialEndsAt,
+					decision: decision.decision,
+					banner,
+					blockedReason,
 				};
 			}
 
@@ -150,6 +196,9 @@ export const subscriptionsRouter = {
 				pastDueAt: null,
 				gracePeriodEndsAt: null,
 				trialEndsAt: null,
+				decision: decision.decision,
+				banner,
+				blockedReason,
 			};
 		}),
 
