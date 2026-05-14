@@ -63,3 +63,13 @@ Backup/*.json
 Backup/
 newmd/
 Plan/
+zplan/
+zhub/
+zmemory/
+zsession/
+zdocs/
+
+# Apple push / signing keys
+*.p8
+*.p12
+*.mobileprovision

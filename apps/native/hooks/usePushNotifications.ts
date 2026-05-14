@@ -10,6 +10,7 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
@@ -18,7 +19,9 @@ import { Platform } from "react-native";
 import { useOrganization } from "@/hooks/useOrganization";
 import { orpc } from "@/utils/orpc";
 
-const EAS_PROJECT_ID = "5a313f96-b7c5-43c6-87cd-c6a526474cd3";
+const EAS_PROJECT_ID =
+	Constants.expoConfig?.extra?.eas?.projectId ??
+	(Constants.easConfig as { projectId?: string } | undefined)?.projectId;
 
 // Module-level shared ref so `useAuth.logout()` can find the active token
 // to unregister, without sharing hook state directly.
@@ -60,6 +63,10 @@ export function usePushNotifications() {
 			try {
 				if (!Device.isDevice) return;
 				if (!organizationId) return;
+				if (!EAS_PROJECT_ID) {
+					console.warn("[push] missing EAS projectId; skipping registration");
+					return;
+				}
 
 				const { status: existingStatus } =
 					await Notifications.getPermissionsAsync();
@@ -96,6 +103,23 @@ export function usePushNotifications() {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [organizationId]);
+
+	// Notification-received listener — fires when a push arrives while the
+	// app is foregrounded (or when the OS hands one off in the background).
+	// Useful for cache invalidation / badge updates side-effects.
+	useEffect(() => {
+		const sub = Notifications.addNotificationReceivedListener(
+			(notification) => {
+				const data = notification.request.content.data as {
+					type?: string;
+				};
+				if (__DEV__) {
+					console.log("[push] received", data?.type ?? "unknown");
+				}
+			},
+		);
+		return () => sub.remove();
+	}, []);
 
 	// Notification tap handler — deep-links into the relevant screen.
 	useEffect(() => {

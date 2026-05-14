@@ -11,7 +11,16 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.avantej.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,10 +30,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "adjustResize",
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "package": "com.avantej.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -44,7 +54,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -53,9 +65,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5a313f96-b7c5-43c6-87cd-c6a526474cd3"
+        "projectId": "5bec2fe8-4f3d-4138-9fd0-a90886480209"
       }
     },
-    "owner": "wilfredfoo96"
+    "owner": "avantejdevelopers-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5bec2fe8-4f3d-4138-9fd0-a90886480209"
+    }
   }
 }
