@@ -42,7 +42,10 @@ export function getStripeClient(): Stripe {
 		if (!secretKey) {
 			throw new Error("STRIPE_SECRET_KEY environment variable is not set");
 		}
-		stripeClient = new Stripe(secretKey, { apiVersion: "2025-10-29.clover" });
+		stripeClient = new Stripe(secretKey, {
+			apiVersion: "2025-10-29.clover",
+			httpClient: Stripe.createFetchHttpClient(),
+		});
 	}
 	return stripeClient;
 }

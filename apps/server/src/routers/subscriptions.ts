@@ -56,9 +56,16 @@ export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLik
 
 	return {
 	createCheckoutSession: protectedProcedure
-		.input(z.object({ tier: z.enum(["basic", "professional", "enterprise"]) }))
+		.input(
+			z.object({
+				tier: z.enum(["basic", "professional", "enterprise"]),
+				organizationId: z.string().uuid(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
-			const orgId = (context as { organizationId?: string }).organizationId;
+			const orgId =
+				(context as { organizationId?: string }).organizationId ??
+				input.organizationId;
 			if (!orgId) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "No organization context (must select an organization first)",
@@ -93,7 +100,6 @@ export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLik
 			const session = await stripe.checkout.sessions.create({
 				mode: "subscription",
 				customer_email: userEmail,
-				customer_creation: "always",
 				line_items: [{ price: priceId, quantity: 1 }],
 				success_url: `${webAppUrl}/subscribe?session_id={CHECKOUT_SESSION_ID}`,
 				cancel_url: `${webAppUrl}/subscribe?canceled=1`,
@@ -106,9 +112,11 @@ export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLik
 		}),
 
 	getStatus: protectedProcedure
-		.input(z.object({}))
-		.handler(async ({ context }) => {
-			const orgId = (context as { organizationId?: string }).organizationId;
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ context, input }) => {
+			const orgId =
+				(context as { organizationId?: string }).organizationId ??
+				input.organizationId;
 			if (!orgId) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "No organization context",
@@ -213,9 +221,11 @@ export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLik
 		}),
 
 	billingPortal: protectedProcedure
-		.input(z.object({}))
-		.handler(async ({ context }) => {
-			const orgId = (context as { organizationId?: string }).organizationId;
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ context, input }) => {
+			const orgId =
+				(context as { organizationId?: string }).organizationId ??
+				input.organizationId;
 			if (!orgId) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "No organization context",

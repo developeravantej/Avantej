@@ -86,13 +86,20 @@ void TIER_LIMITS;
 function SubscribePage() {
 	const navigate = useNavigate();
 	const { session_id, canceled } = Route.useSearch();
-	const { isAuthenticated, isLoading } = useAuth();
+	const { isLoading, user } = useAuth();
+	const currentOrganizationId =
+		(user as { current_organization_id?: string | null; organizations?: Array<{ id: string }> } | null)
+			?.current_organization_id ??
+		(user as { organizations?: Array<{ id: string }> } | null)
+			?.organizations?.[0]?.id ??
+		null;
 
-	useEffect(() => {
-		if (!isLoading && !isAuthenticated) {
-			navigate({ to: "/login", search: {} });
-		}
-	}, [isLoading, isAuthenticated, navigate]);
+	// NOTE: no client-side auth redirect. Server-side oRPC `protectedProcedure`
+	// is the real gate — unauthenticated `createCheckoutSession` calls reject
+	// with UNAUTHORIZED, and the click handler surfaces that via toast.
+	// Past attempts to redirect-on-mount produced false-positives during the
+	// async session-cookie check on fresh page loads (bounced authenticated
+	// users to /login before their cookie was recognized).
 
 	useEffect(() => {
 		if (canceled) {
@@ -101,13 +108,15 @@ function SubscribePage() {
 	}, [canceled]);
 
 	const statusQuery = useQuery({
-		queryKey: ["subscription-status", session_id],
+		queryKey: ["subscription-status", session_id, currentOrganizationId],
 		queryFn: async () =>
-			orpcClient.subscriptions.getStatus({}) as Promise<{
+			orpcClient.subscriptions.getStatus({
+				organizationId: currentOrganizationId as string,
+			}) as Promise<{
 				status: string;
 				tier: string | null;
 			}>,
-		enabled: !!session_id,
+		enabled: !!session_id && !!currentOrganizationId,
 		refetchInterval: (query) =>
 			query.state.data?.status === "active" ? false : 2000,
 	});
@@ -122,9 +131,16 @@ function SubscribePage() {
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: redirects to Stripe checkout; queries re-fetched on return
 	const checkoutMutation = useMutation({
 		mutationFn: async ({ tier }: { tier: Tier }) => {
+			console.log("[checkout] click — currentOrganizationId:", currentOrganizationId, "tier:", tier);
+			if (!currentOrganizationId) {
+				throw new Error("No organization context — sign in and pick an org first");
+			}
+			console.log("[checkout] calling orpcClient.subscriptions.createCheckoutSession");
 			const res = (await orpcClient.subscriptions.createCheckoutSession({
 				tier,
+				organizationId: currentOrganizationId,
 			})) as { checkoutUrl: string; sessionId: string };
+			console.log("[checkout] got response:", res);
 			return res;
 		},
 		onSuccess: (data) => {
@@ -139,7 +155,7 @@ function SubscribePage() {
 		},
 	});
 
-	if (isLoading || !isAuthenticated) {
+	if (isLoading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center">
 				<Loader2 className="size-8 animate-spin" />
