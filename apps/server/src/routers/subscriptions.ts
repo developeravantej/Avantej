@@ -23,6 +23,12 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { evaluateAccess } from "@/middleware/require-active-saas-sub.middleware";
 
+/** Minimal surface of the Stripe client used by this router. */
+type StripeClientLike = {
+	checkout: { sessions: { create: (params: unknown) => Promise<{ id: string; url: string | null }> } };
+	billingPortal: { sessions: { create: (params: unknown) => Promise<{ url: string }> } };
+};
+
 function getEnvVar(key: string): string | undefined {
 	try {
 		const { env } = require("cloudflare:workers") as {
@@ -44,7 +50,11 @@ const TIER_TO_PRICE_ENV: Record<"basic" | "professional" | "enterprise", string>
 	enterprise: "STRIPE_PRICE_ENTERPRISE",
 };
 
-export const subscriptionsRouter = {
+export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLike) {
+	const resolveStripe = (): StripeClientLike =>
+		stripeClientOverride ?? (getStripeClient() as unknown as StripeClientLike);
+
+	return {
 	createCheckoutSession: protectedProcedure
 		.input(z.object({ tier: z.enum(["basic", "professional", "enterprise"]) }))
 		.handler(async ({ context, input }) => {
@@ -75,7 +85,7 @@ export const subscriptionsRouter = {
 			const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
 			const userEmail = (context as { session?: { user?: { email?: string } } }).session?.user?.email;
 
-			const stripe = getStripeClient();
+			const stripe = resolveStripe();
 			// We let Stripe Checkout create the Stripe Customer (customer_email + customer_creation default).
 			// The Customer ID is delivered to us via the customer.subscription.created webhook,
 			// which upsertSubscriptionFromStripe persists. Org→sub link via metadata.organizationId
@@ -234,7 +244,7 @@ export const subscriptionsRouter = {
 				});
 			}
 
-			const stripe = getStripeClient();
+			const stripe = resolveStripe();
 			const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
 			const portal = await stripe.billingPortal.sessions.create({
 				customer: sub.stripeCustomerId,
@@ -242,4 +252,8 @@ export const subscriptionsRouter = {
 			});
 			return { portalUrl: portal.url };
 		}),
-};
+	};
+}
+
+/** Default router instance using the real Stripe client. */
+export const subscriptionsRouter = createSubscriptionsRouter();

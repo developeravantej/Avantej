@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { createSubscriptionsRouter } from "./subscriptions";
+import { controlPanelDb } from "@/lib/db";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { eq } from "drizzle-orm";
 
-// Mock Stripe SDK before importing the router under test.
+// Inject a fake Stripe client via DI — no mock.module needed, no process-global pollution.
 const mockCheckoutCreate = mock(async (_params: unknown) => ({
 	id: "cs_test_123",
 	url: "https://checkout.stripe.com/c/cs_test_123",
@@ -9,21 +14,12 @@ const mockBillingPortalCreate = mock(async (_params: unknown) => ({
 	url: "https://billing.stripe.com/p/session_xyz",
 }));
 
-mock.module("@/lib/stripe", () => ({
-	getStripeClient: () => ({
-		checkout: { sessions: { create: mockCheckoutCreate } },
-		billingPortal: { sessions: { create: mockBillingPortalCreate } },
-	}),
-	verifyWebhookSignature: async () => {
-		throw new Error("not used in this test file");
-	},
-}));
+const fakeStripeClient = {
+	checkout: { sessions: { create: mockCheckoutCreate } },
+	billingPortal: { sessions: { create: mockBillingPortalCreate } },
+};
 
-import { subscriptionsRouter } from "./subscriptions";
-import { controlPanelDb } from "@/lib/db";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
-import { eq } from "drizzle-orm";
+const subscriptionsRouter = createSubscriptionsRouter(fakeStripeClient as never);
 
 const TEST_ORG_ID = "00000000-0000-0000-0000-3333000000aa";
 const TEST_SUB_DB_ID = "00000000-0000-0000-0000-3333000000bb";
@@ -112,15 +108,22 @@ describe("subscriptions.createCheckoutSession", () => {
 
 	it("throws when STRIPE_PRICE_<TIER> env var is unset", async () => {
 		await seedOrg({});
+		// Unset both globalThis.env and process.env so getEnvVar has no fallback.
 		setEnv({ STRIPE_PRICE_PROFESSIONAL: undefined });
-		const fakeContext = {
-			session: { user: { id: "user_test", email: "tenant@example.com" } },
-			organizationId: TEST_ORG_ID,
-		};
-		const handler = getHandler<unknown>(subscriptionsRouter.createCheckoutSession);
-		await expect(
-			handler({ context: fakeContext, input: { tier: "professional" } }),
-		).rejects.toThrow(/STRIPE_PRICE_PROFESSIONAL/);
+		const savedProcessEnv = process.env.STRIPE_PRICE_PROFESSIONAL;
+		delete process.env.STRIPE_PRICE_PROFESSIONAL;
+		try {
+			const fakeContext = {
+				session: { user: { id: "user_test", email: "tenant@example.com" } },
+				organizationId: TEST_ORG_ID,
+			};
+			const handler = getHandler<unknown>(subscriptionsRouter.createCheckoutSession);
+			await expect(
+				handler({ context: fakeContext, input: { tier: "professional" } }),
+			).rejects.toThrow(/STRIPE_PRICE_PROFESSIONAL/);
+		} finally {
+			if (savedProcessEnv !== undefined) process.env.STRIPE_PRICE_PROFESSIONAL = savedProcessEnv;
+		}
 	});
 });
 

@@ -45,12 +45,24 @@ describe("verifyWebhookSignature", () => {
 
 	it("throws when STRIPE_PLATFORM_WEBHOOK_SECRET is unset and source=platform", async () => {
 		setEnv({ STRIPE_PLATFORM_WEBHOOK_SECRET: undefined as unknown as string });
-		await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "platform")).rejects.toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
+		const saved = process.env.STRIPE_PLATFORM_WEBHOOK_SECRET;
+		delete process.env.STRIPE_PLATFORM_WEBHOOK_SECRET;
+		try {
+			await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "platform")).rejects.toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
+		} finally {
+			if (saved !== undefined) process.env.STRIPE_PLATFORM_WEBHOOK_SECRET = saved;
+		}
 	});
 
 	it("throws when STRIPE_CONNECT_WEBHOOK_SECRET is unset and source=connect", async () => {
 		setEnv({ STRIPE_CONNECT_WEBHOOK_SECRET: undefined as unknown as string });
-		await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "connect")).rejects.toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
+		const saved = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+		delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+		try {
+			await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "connect")).rejects.toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
+		} finally {
+			if (saved !== undefined) process.env.STRIPE_CONNECT_WEBHOOK_SECRET = saved;
+		}
 	});
 
 	it("throws InvalidSignature on garbage signature (delegated to Stripe SDK)", async () => {
