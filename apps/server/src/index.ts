@@ -284,8 +284,12 @@ export default {
             .catch((e) => console.error(`[scheduled] onboarding-alerts failed:`, e)),
         );
       } else if (cron === "30 2 * * *") {
-        // C.5 reconciler — wired in the next commit on this branch.
-        console.log(`[scheduled] reconciler cron stub — not yet implemented`);
+        const { runReconciliation } = await import("@/services/reconciler.service");
+        ctx.waitUntil(
+          runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
+            .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }
