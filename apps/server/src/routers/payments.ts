@@ -236,6 +236,11 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				z.object({
 					organizationId: z.string().uuid(),
 					appointmentId: z.string().uuid(),
+					// Phase 4.5+ idempotency: when false (default), reuse the
+					// stored paymentLinkUrl if one exists. When true, generate
+					// a new Stripe Payment Link (orphaning the old one — Stripe
+					// has no delete API, only deactivate which we don't yet wire).
+					regenerate: z.boolean().optional(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
@@ -267,6 +272,22 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					throw new ORPCError("PRECONDITION_FAILED", {
 						message: "Appointment is already paid",
 					});
+				}
+
+				// Idempotency: reuse existing link unless caller asked to regenerate.
+				if (
+					!input.regenerate &&
+					appt.paymentLinkUrl &&
+					appt.stripePaymentLinkId &&
+					typeof appt.applicationFeeAmount === "number"
+				) {
+					return {
+						paymentLinkId: String(appt.stripePaymentLinkId),
+						paymentLinkUrl: String(appt.paymentLinkUrl),
+						amount: resolveGrossAmount(appt),
+						currency: String(appt.currency ?? "MYR").toUpperCase(),
+						applicationFeeAmount: Number(appt.applicationFeeAmount),
+					};
 				}
 
 				// Phase 4: resolve Connect account per the branch's country.
@@ -714,6 +735,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				z.object({
 					organizationId: z.string().uuid(),
 					salesOrderId: z.string().uuid(),
+					regenerate: z.boolean().optional(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
@@ -773,6 +795,22 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					throw new ORPCError("PRECONDITION_FAILED", {
 						message: "Payment already succeeded",
 					});
+				}
+
+				// Idempotency: reuse existing link unless caller asked to regenerate.
+				if (
+					!input.regenerate &&
+					payment.paymentLinkUrl &&
+					payment.stripePaymentLinkId
+				) {
+					return {
+						paymentLinkId: String(payment.stripePaymentLinkId),
+						paymentLinkUrl: String(payment.paymentLinkUrl),
+						paymentId: payment.id as string,
+						amount: payment.totalAmount as number,
+						currency: String(payment.currency ?? "myr").toUpperCase(),
+						applicationFeeAmount: Number(payment.platformFeeAmount ?? 0),
+					};
 				}
 
 				// 4. Resolve Connect acct via the sale's branch country (Phase 4).

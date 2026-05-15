@@ -669,6 +669,7 @@ const paymentsRouterType = {
 			z.object({
 				organizationId: z.string().uuid(),
 				appointmentId: z.string().uuid(),
+				regenerate: z.boolean().optional(),
 			}),
 		)
 		.handler(
@@ -800,6 +801,7 @@ const paymentsRouterType = {
 			z.object({
 				organizationId: z.string().uuid(),
 				salesOrderId: z.string().uuid(),
+				regenerate: z.boolean().optional(),
 			}),
 		)
 		.handler(

@@ -50,10 +50,11 @@ export function PaymentSection({
 
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- refetched via refetchInterval on PI presence
 	const sendLink = useMutation({
-		mutationFn: async () =>
+		mutationFn: async (regenerate: boolean) =>
 			(await orpcClient.payments.sendPaymentLink({
 				organizationId,
 				appointmentId,
+				regenerate,
 			})) as { paymentLinkUrl: string; amount: number; currency: string; applicationFeeAmount: number },
 		onSuccess: async (data) => {
 			try {
@@ -177,7 +178,7 @@ export function PaymentSection({
 							size="sm"
 							variant="outline"
 							className="flex-1"
-							onClick={() => sendLink.mutate()}
+							onClick={() => sendLink.mutate(hasLink)}
 							disabled={sendLink.isPending}
 						>
 							{sendLink.isPending ? (
