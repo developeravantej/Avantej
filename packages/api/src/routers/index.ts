@@ -794,6 +794,27 @@ const paymentsRouterType = {
 			},
 		),
 
+	// POS online checkout (Plan B Phase 3c.1)
+	createSalesOrderPaymentLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				salesOrderId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				paymentLinkId: string;
+				paymentLinkUrl: string;
+				paymentId: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
 	// Package purchase (Plan B Phase 3c)
 	purchasePackage: protectedProcedure
 		.input(

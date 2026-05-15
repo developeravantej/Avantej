@@ -3,7 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, ShoppingCart, UserX } from "lucide-react";
+import {
+	ArrowLeft,
+	Check,
+	Copy,
+	ExternalLink,
+	ShoppingCart,
+	UserX,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CartSummary } from "@/components/pos/cart-summary";
@@ -235,6 +242,9 @@ export function PosWorkflow({
 	// ── Notes ─────────────────────────────────────────────────────────────────
 	const [notes, setNotes] = useState("");
 
+	// ── Online payment link (set after Stripe payment link is generated) ─────
+	const [onlinePayLink, setOnlinePayLink] = useState<string | null>(null);
+
 	// ── Trainer assignments ───────────────────────────────────────────────────
 	const [trainerAssignments, setTrainerAssignments] =
 		useState<ItemTrainerAssignments>({});
@@ -427,7 +437,26 @@ export function PosWorkflow({
 		successMessage: "Sale recorded successfully!",
 		errorMessage: (err) =>
 			err.message || "Failed to record sale. Please try again.",
-		onSuccess: (data) => {
+		onSuccess: async (data) => {
+			if (paymentMethod === "online" && organizationId) {
+				try {
+					const linkResult = await client.payments.createSalesOrderPaymentLink({
+						organizationId,
+						salesOrderId: data.salesOrderId,
+					});
+					setOnlinePayLink(linkResult.paymentLinkUrl);
+					// Stay on this page so staff can copy the link to forward to customer.
+					return;
+				} catch (err) {
+					const message =
+						err instanceof Error
+							? err.message
+							: "Failed to generate payment link. You can retry from the sale page.";
+					toast.error(message);
+					// Fall through to normal navigation so staff can retry from the sale page.
+				}
+			}
+
 			if (onSaleCreated) {
 				onSaleCreated(data.salesOrderId);
 			} else {
@@ -488,6 +517,51 @@ export function PosWorkflow({
 								New Sale
 							</h1>
 							<p className="text-muted-foreground text-xs">Point of sale</p>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{onlinePayLink && (
+				<div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 shadow-sm">
+					<div className="flex items-center justify-between gap-3">
+						<div className="min-w-0 flex-1">
+							<p className="font-semibold text-sm">Online payment link</p>
+							<p className="text-muted-foreground text-xs">
+								Forward this URL to the customer to collect payment.
+							</p>
+							<code className="mt-2 block w-full truncate rounded bg-muted px-2 py-1 text-xs">
+								{onlinePayLink}
+							</code>
+						</div>
+						<div className="flex shrink-0 gap-2">
+							<Button
+								size="icon"
+								variant="outline"
+								type="button"
+								aria-label="Copy payment link"
+								onClick={() => {
+									navigator.clipboard.writeText(onlinePayLink);
+									toast.success("Payment link copied");
+								}}
+							>
+								<Copy className="size-4" />
+							</Button>
+							<Button
+								size="icon"
+								variant="outline"
+								type="button"
+								aria-label="Open payment link"
+								asChild
+							>
+								<a
+									href={onlinePayLink}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									<ExternalLink className="size-4" />
+								</a>
+							</Button>
 						</div>
 					</div>
 				</div>

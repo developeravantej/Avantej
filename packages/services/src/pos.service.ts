@@ -62,7 +62,7 @@ export interface RecordPosSaleInput {
 	// Tax — undefined means no tax (0%)
 	taxRateId?: string;
 	// Payment
-	paymentMethod: "cash" | "card" | "bank_transfer";
+	paymentMethod: "cash" | "card" | "bank_transfer" | "online";
 	paymentReference?: string; // card auth code, bank transfer ref, etc.
 	amountTenderedCents?: number; // for cash, may exceed total — change calculated
 	// Installment (only valid if items contains exactly one "package")
@@ -373,7 +373,9 @@ export async function recordPosSale(
 				customerType: input.customerType,
 				createdBy: input.actor.userId,
 				branchId: input.branchId,
-				status: "confirmed",
+				// Plan B Phase 3c.1 — online sale stays "pending" until webhook
+				// (payment_intent.succeeded for sales_order) flips it to "completed".
+				status: input.paymentMethod === "online" ? "pending" : "confirmed",
 				totalAmount: taxBase, // pre-tax, post-discount
 				notes: input.notes ?? null,
 			})
@@ -407,8 +409,14 @@ export async function recordPosSale(
 		// POS forces currency='myr' — the payments.currency default is 'usd' which is
 		// correct for Stripe-initiated payments elsewhere; we explicitly override here
 		// because POS is the create site for in-store MYR payments (plan.md §4.4).
+		// Plan B Phase 3c.1 — "online" sales park the payment row in pending
+		// state; webhook flips it to "succeeded" once Stripe confirms.
 		const paymentStatus =
-			input.paymentMethod === "card" && !input.paymentReference ? "pending" : "succeeded";
+			input.paymentMethod === "online"
+				? "pending"
+				: input.paymentMethod === "card" && !input.paymentReference
+					? "pending"
+					: "succeeded";
 
 		// Generate a unique placeholder for stripePaymentIntentId.
 		// The payments table requires a NOT NULL UNIQUE value even for non-Stripe POS payments.
@@ -517,8 +525,9 @@ export async function recordPosSale(
 				createdBy: input.actor.userId,
 				paymentMode: input.paymentMethod,
 				totalAmount: totalCents,
-				amountPaid: totalCents, // paid in full at POS
-				status: "paid",
+				// Plan B Phase 3c.1 — online sales aren't paid until webhook fires.
+				amountPaid: input.paymentMethod === "online" ? 0 : totalCents,
+				status: input.paymentMethod === "online" ? "pending" : "paid",
 			})
 			.returning();
 
@@ -562,16 +571,19 @@ export async function recordPosSale(
 						paymentId: payment.id,
 						totalPrice: itemTotal,
 						taxAmount: itemTaxAmount,
-						paymentStatus: "paid",
+						// Plan B Phase 3c.1 — online sale keeps package_instance
+						// pending until webhook flips paymentStatus->paid, status->active.
+						paymentStatus: input.paymentMethod === "online" ? "pending" : "paid",
 						paymentMethod: input.paymentMethod,
 						creditsTotal: service.sessionCount!,
 						creditsUsed: 0,
 						startsAt,
 						expiresAt,
-						status: "active",
+						status: input.paymentMethod === "online" ? "pending" : "active",
 						paymentPlanType: input.installmentPlanCode ?? "full",
 						installmentsTotal,
-						installmentsPaid: 1,
+						// Plan B Phase 3c.1 — online sale: nothing actually paid yet.
+						installmentsPaid: input.paymentMethod === "online" ? 0 : 1,
 						// creditsUnlocked: null = all credits available (full payment)
 						// For installment plans, will be set below after schedule creation
 						creditsUnlocked:
@@ -608,11 +620,24 @@ export async function recordPosSale(
 								installmentNumber: i,
 								amount,
 								taxAmount: instTaxAmount,
-								status: i === 1 ? "paid" : "pending", // first paid at POS
+								// Plan B Phase 3c.1 — online sale leaves all installments
+							// in "pending" (webhook converts on confirmation).
+							status:
+								input.paymentMethod === "online"
+									? "pending"
+									: i === 1
+										? "paid"
+										: "pending", // first paid at POS
 								dueDate,
-								paidAt: i === 1 ? now : null,
-								paymentMethod: i === 1 ? input.paymentMethod : null,
-								confirmedBy: i === 1 ? input.actor.userId : null,
+								paidAt: i === 1 && input.paymentMethod !== "online" ? now : null,
+								paymentMethod:
+									i === 1 && input.paymentMethod !== "online"
+										? input.paymentMethod
+										: null,
+								confirmedBy:
+									i === 1 && input.paymentMethod !== "online"
+										? input.actor.userId
+										: null,
 								creditsUnlockedByThis,
 							})
 							.returning();

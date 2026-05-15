@@ -29,7 +29,10 @@ import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
-import { and, desc, eq } from "drizzle-orm";
+import { payments } from "@avantej-core/db/schema/tenant/payments";
+import { invoices } from "@avantej-core/db/schema/tenant/invoices";
+import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
@@ -354,6 +357,100 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			const organizationId = metadata.organizationId;
 			const packageInstanceId = metadata.packageInstanceId;
 			const isPackagePurchase = metadata.type === "package" && !!packageInstanceId;
+			const salesOrderId = metadata.salesOrderId;
+			const paymentRowId = metadata.paymentId;
+			const isSalesOrderPayment =
+				metadata.type === "sales_order" && !!salesOrderId && !!paymentRowId;
+
+			// Plan B Phase 3c.1 — POS online checkout fast-path. Match BEFORE
+			// the package + appointment branches so we don't fall through.
+			if (isSalesOrderPayment && organizationId) {
+				const tenantDb = await getTenantDb(organizationId, c);
+				const succeeded = event.type === "payment_intent.succeeded";
+				const failed = event.type === "payment_intent.payment_failed";
+				const refunded = event.type === "charge.refunded";
+
+				if (succeeded) {
+					const piObj = pi as Stripe.PaymentIntent;
+					const latestCharge = piObj.latest_charge;
+					const chargeId =
+						typeof latestCharge === "string"
+							? latestCharge
+							: latestCharge && typeof latestCharge === "object"
+								? (latestCharge as { id?: string }).id ?? null
+								: null;
+
+					await tenantDb
+						.update(payments)
+						.set({
+							status: "succeeded",
+							stripePaymentIntentId: piObj.id,
+							...(chargeId ? { stripeChargeId: chargeId } : {}),
+							refundedAt: null,
+							updatedAt: new Date(),
+						})
+						.where(eq(payments.id, paymentRowId));
+
+					// Set amountPaid = totalAmount via sql expression to avoid re-fetch.
+					await tenantDb
+						.update(invoices)
+						.set({
+							status: "paid",
+							amountPaid: sql`${invoices.totalAmount}`,
+							updatedAt: new Date(),
+						})
+						.where(eq(invoices.salesOrderId, salesOrderId));
+
+					await tenantDb
+						.update(salesOrders)
+						.set({ status: "completed", updatedAt: new Date() })
+						.where(eq(salesOrders.id, salesOrderId));
+
+					await tenantDb
+						.update(packageInstances)
+						.set({
+							paymentStatus: "paid",
+							status: "active",
+							updatedAt: new Date(),
+						})
+						.where(eq(packageInstances.paymentId, paymentRowId));
+
+					console.log(
+						`[connect webhook] sales_order succeeded so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id}`,
+					);
+				} else if (failed) {
+					const piObj = pi as Stripe.PaymentIntent;
+					const reason = piObj.last_payment_error?.message ?? "Payment failed";
+					await tenantDb
+						.update(payments)
+						.set({
+							status: "failed",
+							failureReason: reason,
+							updatedAt: new Date(),
+						})
+						.where(eq(payments.id, paymentRowId));
+					console.log(
+						`[connect webhook] sales_order failed so=${salesOrderId} pay=${paymentRowId} reason=${reason}`,
+					);
+				} else if (refunded) {
+					const charge = pi as Stripe.Charge;
+					await tenantDb
+						.update(payments)
+						.set({
+							status: "refunded",
+							refundedAt: new Date(),
+							refundAmount: charge.amount_refunded ?? null,
+							updatedAt: new Date(),
+						})
+						.where(eq(payments.id, paymentRowId));
+					console.log(
+						`[connect webhook] sales_order refunded so=${salesOrderId} pay=${paymentRowId} amount=${charge.amount_refunded}`,
+					);
+				}
+
+				await markEventProcessed(event.id, cpDb);
+				return c.json({ received: true }, 200);
+			}
 
 			if (isPackagePurchase && organizationId) {
 				// Plan B Phase 3c — package purchase. Flip package_instance from
