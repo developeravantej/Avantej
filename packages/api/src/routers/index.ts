@@ -900,6 +900,137 @@ const stripeConnectRouterType = {
 		),
 };
 
+// Platform Admin — Payments router types (Plan C C.4).
+const platformAdminPaymentsRouterType = {
+	overview: protectedProcedure.handler(
+		(): {
+			applicationFeesThisMonth: number;
+			saasRevenueThisMonth: number;
+			drift: { critical: number; warn: number; info: number };
+			openDisputes: number;
+			stuckOnboardings: number;
+			lastReconciliation: {
+				id: string;
+				startedAt: Date;
+				completedAt: Date | null;
+				status: string;
+				driftCount: number;
+				error: string | null;
+			} | null;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+	listDrift: protectedProcedure
+		.input(
+			z.object({
+				severity: z.enum(["info", "warn", "critical"]).optional(),
+				resolved: z.boolean().optional(),
+				limit: z.number().int().positive().max(100).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				drift: Array<{
+					id: string;
+					runId: string;
+					organizationId: string | null;
+					stripeAccountId: string | null;
+					resourceType: string;
+					resourceId: string;
+					severity: string;
+					driftKind: string;
+					stripeValue: unknown;
+					dbValue: unknown;
+					detectedAt: Date;
+					resolvedAt: Date | null;
+					resolvedBy: string | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	markDriftResolved: protectedProcedure
+		.input(z.object({ driftId: z.string().uuid() }))
+		.handler((): { resolved: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	listDisputes: protectedProcedure
+		.input(
+			z.object({
+				status: z.string().optional(),
+				limit: z.number().int().positive().max(100).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				disputes: Array<{
+					id: string;
+					organizationId: string;
+					stripeAccountId: string;
+					disputeId: string;
+					status: string;
+					amount: number;
+					currency: string;
+					reason: string | null;
+					deadlineAt: Date | null;
+					handledAt: Date | null;
+					handledBy: string | null;
+					createdAt: Date;
+					updatedAt: Date;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	markDisputeHandled: protectedProcedure
+		.input(z.object({ disputeId: z.string() }))
+		.handler((): { handled: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	listStuckOnboardings: protectedProcedure.handler(
+		(): {
+			stuck: Array<{
+				organizationId: string;
+				countryCode: string;
+				stripeAccountId: string | null;
+				status: string;
+				detailsSubmitted: boolean;
+				connectAccountUpdatedAt: Date | null;
+				orgName: string;
+				orgSlug: string;
+			}>;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+	runReconciliationNow: protectedProcedure.handler(
+		(): {
+			runId: string;
+			acctsScanned: number;
+			resourcesExamined: number;
+			driftFound: number;
+			criticalCount: number;
+			warnCount: number;
+			infoCount: number;
+			durationMs: number;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+	runWebhookBackfillNow: protectedProcedure.handler(
+		(): {
+			acctsScanned: number;
+			eventsExamined: number;
+			replayed: number;
+			alreadyProcessed: number;
+			errors: number;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -1024,6 +1155,7 @@ export const appRouter = {
 	subscriptions: subscriptionsRouterType,
 	stripeConnect: stripeConnectRouterType,
 	payments: paymentsRouterType,
+	platformAdminPayments: platformAdminPaymentsRouterType,
 };
 
 export type AppRouter = typeof appRouter;
