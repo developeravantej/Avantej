@@ -9,8 +9,21 @@
 		"NODE_ENV": "production"
 		// Add public environment variables here
 		// Example: "CORS_ORIGIN": "https://your-domain.com"
-	}
+	},
 	// For sensitive data, use:
 	// wrangler secret put SECRET_NAME
 	// Don't add secrets to "vars" - they're visible in the dashboard!
+	//
+	// Plan C — scheduled jobs (ADR-0021). Three crons dispatch into the
+	// `scheduled` export in src/index.ts:
+	//   - hourly: webhook backfill (C.1)
+	//   - daily 02:30 UTC: nightly reconciliation (C.5, wiring next slice)
+	//   - daily 09:00 UTC: onboarding-stuck alert (C.6)
+	"triggers": {
+		"crons": [
+			"0 * * * *",
+			"30 2 * * *",
+			"0 9 * * *"
+		]
+	}
 }

@@ -243,4 +243,54 @@ app.onError((err, c) => {
   );
 });
 
-export default app;
+// Plan C C.1 + C.6: scheduled handler dispatches cron triggers to services.
+// Wrangler.jsonc declares 3 crons:
+//   "0 * * * *"   — hourly webhook backfill (C.1)
+//   "30 2 * * *"  — daily reconciliation at 02:30 UTC (C.5, wired in next slice)
+//   "0 9 * * *"   — daily onboarding-stuck alert at 09:00 UTC (C.6)
+//
+// ADR-0021 — CF Cron over external cron / DO alarms.
+export default {
+  fetch: app.fetch,
+  scheduled: async (
+    event: ScheduledController | { cron: string },
+    _env: unknown,
+    ctx: ExecutionContext,
+  ): Promise<void> => {
+    const cron = "cron" in event ? event.cron : "";
+    console.log(`[scheduled] firing cron='${cron}'`);
+
+    // Lazy imports — avoid top-level side effects on cold start.
+    const { getControlPanelDb } = await import("@/lib/db");
+    const { getStripeClient } = await import("@/lib/stripe");
+
+    // CF Workers scheduled handler doesn't get a Hono Context — fall back to
+    // singleton DB (this is the documented exception per @/lib/db.ts).
+    const cpDb = getControlPanelDb();
+
+    try {
+      if (cron === "0 * * * *") {
+        const { runWebhookBackfill } = await import("@/services/webhook-backfill.service");
+        ctx.waitUntil(
+          runWebhookBackfill({ controlPanelDb: cpDb, stripe: getStripeClient() })
+            .then((r) => console.log(`[scheduled] backfill done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] backfill failed:`, e)),
+        );
+      } else if (cron === "0 9 * * *") {
+        const { runOnboardingAlerts } = await import("@/services/onboarding-alerts.service");
+        ctx.waitUntil(
+          runOnboardingAlerts({ controlPanelDb: cpDb })
+            .then((r) => console.log(`[scheduled] onboarding-alerts done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] onboarding-alerts failed:`, e)),
+        );
+      } else if (cron === "30 2 * * *") {
+        // C.5 reconciler — wired in the next commit on this branch.
+        console.log(`[scheduled] reconciler cron stub — not yet implemented`);
+      } else {
+        console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
+      }
+    } catch (e) {
+      console.error(`[scheduled] dispatch threw for cron='${cron}':`, e);
+    }
+  },
+};
