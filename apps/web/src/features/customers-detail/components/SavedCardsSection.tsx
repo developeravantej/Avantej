@@ -8,17 +8,21 @@ import {
 	useElements,
 	useStripe,
 } from "@stripe/react-stripe-js";
-import { CreditCard, Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { CreditCard, Loader2, Plus, CheckCircle2, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { centsToRm, rmToCents } from "@/lib/money";
 import { client as orpcClient } from "@/utils/orpc";
 
 type SavedCard = {
@@ -42,6 +46,7 @@ export function SavedCardsSection({
 	customerProfileId: string;
 }) {
 	const [saveOpen, setSaveOpen] = useState(false);
+	const [chargeTarget, setChargeTarget] = useState<SavedCard | null>(null);
 
 	const cardsQuery = useQuery({
 		queryKey: ["saved-cards", organizationId, customerProfileId],
@@ -98,17 +103,39 @@ export function SavedCardsSection({
 										exp {c.expMonth.toString().padStart(2, "0")}/{c.expYear}
 									</div>
 								</div>
-								{c.isDefault && (
-									<Badge className="gap-1 bg-green-600 hover:bg-green-700">
-										<CheckCircle2 className="size-3" />
-										Default
-									</Badge>
-								)}
+								<div className="flex items-center gap-2">
+									{c.isDefault && (
+										<Badge className="gap-1 bg-green-600 hover:bg-green-700">
+											<CheckCircle2 className="size-3" />
+											Default
+										</Badge>
+									)}
+									<Button
+										size="sm"
+										variant="outline"
+										className="text-amber-600 hover:bg-amber-50 hover:text-amber-700 border-amber-200"
+										onClick={() => setChargeTarget(c)}
+									>
+										<Zap className="mr-1 size-3.5" />
+										Charge
+									</Button>
+								</div>
 							</li>
 						))}
 					</ul>
 				)}
 			</CardContent>
+
+			<ChargeSavedCardDialog
+				card={chargeTarget}
+				onClose={() => setChargeTarget(null)}
+				onCharged={() => {
+					// Successful charge — refresh card list (default may flip).
+					cardsQuery.refetch();
+				}}
+				organizationId={organizationId}
+				customerProfileId={customerProfileId}
+			/>
 
 			<SaveCardDialog
 				open={saveOpen}
@@ -252,5 +279,129 @@ function SaveCardForm({
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+function ChargeSavedCardDialog({
+	card,
+	onClose,
+	onCharged,
+	organizationId,
+	customerProfileId,
+}: {
+	card: SavedCard | null;
+	onClose: () => void;
+	onCharged: () => void;
+	organizationId: string;
+	customerProfileId: string;
+}) {
+	const [amountRm, setAmountRm] = useState("");
+	const [description, setDescription] = useState("");
+
+	const charge = useMutation({
+		mutationFn: async () => {
+			if (!card) throw new Error("No card selected");
+			const cents = rmToCents(Number.parseFloat(amountRm));
+			return (await orpcClient.payments.chargeSavedCard({
+				organizationId,
+				customerProfileId,
+				paymentMethodId: card.id,
+				amount: cents,
+				currency: "MYR",
+				description: description.trim() || undefined,
+			})) as {
+				paymentIntentId: string;
+				status: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			};
+		},
+		onSuccess: (data) => {
+			if (data.status === "succeeded") {
+				toast.success(
+					`Charged RM${centsToRm(data.amount)} — ${data.paymentIntentId}`,
+				);
+			} else {
+				toast.warning(
+					`Charge needs follow-up: ${data.status}. PI=${data.paymentIntentId}`,
+				);
+			}
+			onCharged();
+			handleClose();
+		},
+		onError: (err: unknown) => {
+			toast.error(err instanceof Error ? err.message : "Charge failed");
+		},
+	});
+
+	function handleClose() {
+		setAmountRm("");
+		setDescription("");
+		onClose();
+	}
+
+	const parsed = Number.parseFloat(amountRm);
+	const validAmount = Number.isFinite(parsed) && parsed > 0;
+
+	return (
+		<Dialog open={card !== null} onOpenChange={(o) => { if (!o) handleClose(); }}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>
+						{card && `Charge ${card.brand.toUpperCase()} •••• ${card.last4}`}
+					</DialogTitle>
+					<DialogDescription>
+						Off-session charge using the saved card. Application fee per tier
+						(Phase 3d) is remitted to Avantej.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-3 py-2">
+					<div className="space-y-1.5">
+						<Label htmlFor="charge-amount">Amount (RM)</Label>
+						<Input
+							id="charge-amount"
+							type="number"
+							inputMode="decimal"
+							step="0.01"
+							min="0.01"
+							placeholder="0.00"
+							value={amountRm}
+							onChange={(e) => setAmountRm(e.target.value)}
+							disabled={charge.isPending}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="charge-desc">Description (optional)</Label>
+						<Input
+							id="charge-desc"
+							placeholder="No-show fee, deposit, ..."
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+							disabled={charge.isPending}
+						/>
+					</div>
+				</div>
+
+				<DialogFooter className="gap-2">
+					<Button variant="outline" onClick={handleClose} disabled={charge.isPending}>
+						Cancel
+					</Button>
+					<Button
+						onClick={() => charge.mutate()}
+						disabled={!validAmount || charge.isPending}
+						className="bg-amber-600 hover:bg-amber-700"
+					>
+						{charge.isPending ? (
+							<Loader2 className="mr-2 size-4 animate-spin" />
+						) : (
+							<Zap className="mr-2 size-4" />
+						)}
+						Charge RM{validAmount ? parsed.toFixed(2) : "—"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
