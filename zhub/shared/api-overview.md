@@ -1,12 +1,12 @@
 # API Overview
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-15
 
 All oRPC procedures available in the Avantej platform. Client: `client.routerName.procedureName(input)` from `@/utils/orpc`.
 
 Auth levels: **public** = no session required, **protected** = session + tenant context required.
 
-Total routers: 52
+Total routers: 55 (added `payments`, `stripeConnect`, `subscriptions` in Plan B)
 
 ---
 
@@ -294,6 +294,24 @@ Total routers: 52
 | `reject` | protected | Reject a pending package — admin only; sets status cancelled and notifies customer |
 | `statusHistory` | protected | Cursor-paginated status transition log (package_management:read) |
 
+## payments (Plan B Phase 2-3)
+Stripe Direct Charge + Connect payment flows. All procs require an
+authenticated session + `organizationId` in input. Procs that touch a
+specific appointment / branch resolve the Connect account via the branch
+country (Phase 4); customer-scoped procs use the customer's snapshot acct
+(ADR-0014).
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `createPaymentIntent` | protected | Direct Charge for an appointment (returns clientSecret for Stripe Elements) |
+| `sendPaymentLink` | protected | Generate Stripe Payment Link for an appointment (remote pay) |
+| `getPaymentStatus` | protected | Read appointment's payment_status + linked PI/link details |
+| `refund` | protected | Refund a paid appointment (uses stripe_connect_account_id_snapshot; reverses application fee) |
+| `purchasePackage` | protected | Sell a multi-session package — creates `package_instances` row + Stripe Payment Link |
+| `createSalesOrderPaymentLink` | protected | Generate Stripe Payment Link for a POS sales_order (online checkout in POS) |
+| `createSetupIntent` | protected | Capture a customer's card via SetupIntent (off-session usage) |
+| `listSavedCards` | protected | List saved payment methods on a customer's Stripe Customer |
+| `chargeSavedCard` | protected | Off-session charge against a saved card (memberships, no-show fees, deposits) |
+
 ## payouts
 | Procedure | Auth | Description |
 |-----------|------|-------------|
@@ -462,6 +480,25 @@ Total routers: 52
 | `getById` | protected | Get supplier details |
 | `list` | protected | List suppliers |
 | `update` | protected | Update supplier details |
+
+## stripeConnect (Plan B Phase 1 + 4)
+OAuth-based Stripe Connect Standard onboarding. Phase 4 added per-country
+support — each org can have multiple connected accounts, one per country
+(MY/SG/TH/...), settling in native currency.
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `createOnboardingUrl` | protected | Build OAuth URL (optional `countryCode` prefills Stripe form + encodes target country in HMAC state) |
+| `getAccountStatus` | protected | Legacy single-acct status (Phase 1-3 compatibility) |
+| `listCountryAccounts` | protected | List all per-country Stripe Connect accounts for an org with verification flags |
+
+## subscriptions (Plan A)
+SaaS subscription billing (tenant pays Avantej for SaaS access). Stripe Billing
+on the platform account, NOT Connect.
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `createCheckoutSession` | protected | Returns Stripe Checkout URL for tier (basic / professional / enterprise) |
+| `getStatus` | protected | Tenant's current subscription state + access decision + banner/blockedReason |
+| `billingPortal` | protected | Stripe Customer Portal URL for self-serve management |
 
 ## tax-rates
 | Procedure | Auth | Description |

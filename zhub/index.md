@@ -1,8 +1,8 @@
 # Project Hub Index
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-15
 
-Generated from full hub scan. Contains 103 pages (74 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-09: 7-feature batch (trainer scheduling, branch pricing, status history, multi-staff+recurrence, service config, announcement scoping, supplier invoices). Updated pages: appointment-view, purchase-orders-view, announcements-view, service-view, products-view, payment-view, sales-detail, my-services-view, packages-instances-view, customers-360. Updated shared: api-overview (52 routers).
+Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-15: **Plan B (Stripe Connect + payments)**. New page: `billing-connect` (multi-country onboarding). Updated shared: api-overview (55 routers — added `payments` / `stripeConnect` / `subscriptions`). Plan B work: 14 feature commits + 1 ADR commit (0013-0017) + 1 unit-test commit on branch `payment-backend`. Previous batch (2026-05-09, 52 routers): 7-feature batch (trainer scheduling, branch pricing, status history, multi-staff+recurrence, service config, announcement scoping, supplier invoices).
 
 ---
 
@@ -95,6 +95,7 @@ Generated from full hub scan. Contains 103 pages (74 web + 29 native screens) pl
 | [Payouts](pages/web-dashboard-payouts-view.md) | `/dashboard/payouts/view` | Payout records |
 | [Expenses](pages/web-dashboard-expenses-view.md) | `/dashboard/expenses/view` | Expense submit and approval |
 | [Payments](pages/web-dashboard-payment-view.md) | `/dashboard/payment/view` | Payment transaction log |
+| [Billing — Stripe Connect](pages/web-dashboard-billing-connect.md) | `/billing/connect` | Per-country Stripe Connect onboarding (Phase 4 multi-country) |
 | [Promotions](pages/web-dashboard-promotions-view.md) | `/dashboard/promotions/view` | Promo code management |
 | [Purchase Orders](pages/web-dashboard-purchase-orders-view.md) | `/dashboard/purchase-orders/view` | Supplier PO management |
 
