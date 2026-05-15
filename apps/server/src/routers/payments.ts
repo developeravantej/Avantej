@@ -43,6 +43,7 @@ import {
 	getConnectAccountForOrg,
 	getConnectAccountForOrgCountry,
 	computeApplicationFee,
+	type ResolvedConnectAccount,
 } from "@/services/connect-account.service";
 import { resolveBranchCountryCode } from "@/services/branch-country.service";
 import { getOrCreateStripeCustomer } from "@/services/customer-stripe.service";
@@ -485,7 +486,6 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const controlPanelDb = getControlPanelDb(
 					context as unknown as Parameters<typeof getControlPanelDb>[0],
 				);
-				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				const [profile] = await (tenantDb as any)
 					.select()
@@ -496,12 +496,27 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
 				}
 
+				// Phase 4: customer's stripeConnectAccountIdSnapshot anchors the
+				// acct for already-provisioned customers. fee% comes from legacy
+				// (org-level) resolver — we don't yet know the country here so
+				// can't call the country-specific resolver for the snapshot acct.
+				// v1 follow-up: derive primary country from the customer's branch
+				// or from organizations.primaryCountryCode and use the country
+				// resolver consistently. For now, legacy provides the fee bps
+				// (tier-only, country-agnostic), which is correct.
+				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+				const snapshotAcctId = profile.stripeConnectAccountIdSnapshot as
+					| string
+					| null
+					| undefined;
+				const stripeAccountId = snapshotAcctId ?? acct.acctId;
+
 				const stripe = resolveStripe();
 				const { customerId } = await getOrCreateStripeCustomer({
 					tenantDb: tenantDb as never,
 					stripe,
 					customerProfileId: input.customerProfileId,
-					connectAccountId: acct.acctId,
+					connectAccountId: stripeAccountId,
 					organizationId: input.organizationId,
 				});
 
@@ -514,13 +529,13 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 							organizationId: input.organizationId,
 						},
 					},
-					{ stripeAccount: acct.acctId },
+					{ stripeAccount: stripeAccountId },
 				);
 
 				return {
 					clientSecret: setupIntent.client_secret ?? "",
 					setupIntentId: setupIntent.id,
-					stripeAccountId: acct.acctId,
+					stripeAccountId,
 					stripeCustomerId: customerId,
 				};
 			}),
@@ -597,7 +612,6 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const controlPanelDb = getControlPanelDb(
 					context as unknown as Parameters<typeof getControlPanelDb>[0],
 				);
-				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				const [profile] = await (tenantDb as any)
 					.select()
@@ -614,6 +628,47 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					throw new ORPCError("PRECONDITION_FAILED", {
 						message: "No payment method on file",
 					});
+				}
+
+				// Phase 4: pick the Connect acct by appointment branch country when
+				// possible. Fall back to customer's snapshot (acct that owns the
+				// saved card) when there's no appointment. Final fallback: legacy
+				// org-level acct. fee% is country-agnostic (tier-only), so legacy
+				// is fine to provide it whenever we override only acctId.
+				let acct: ResolvedConnectAccount;
+				let stripeAccountId: string;
+				if (input.appointmentId) {
+					const [appt] = await (tenantDb as any)
+						.select()
+						.from(appointments)
+						.where(eq(appointments.id, input.appointmentId))
+						.limit(1);
+					if (!appt) {
+						throw new ORPCError("NOT_FOUND", { message: "Appointment not found" });
+					}
+					const countryCode = await resolveBranchCountryCode(
+						appt.branchId,
+						tenantDb as never,
+					);
+					acct = countryCode
+						? await getConnectAccountForOrgCountry(
+								input.organizationId,
+								countryCode,
+								controlPanelDb,
+							)
+						: await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+					// Saved card lives on the customer's snapshot acct — if it
+					// disagrees with the country resolution, the snapshot wins
+					// (the card isn't shared across Connect accts).
+					stripeAccountId =
+						(profile.stripeConnectAccountIdSnapshot as string | null | undefined) ??
+						acct.acctId;
+				} else if (profile.stripeConnectAccountIdSnapshot) {
+					acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+					stripeAccountId = profile.stripeConnectAccountIdSnapshot as string;
+				} else {
+					acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
+					stripeAccountId = acct.acctId;
 				}
 
 				const applicationFeeAmount = computeApplicationFee(input.amount, acct.appFeeBps);
@@ -636,7 +691,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 						},
 					},
 					{
-						stripeAccount: acct.acctId,
+						stripeAccount: stripeAccountId,
 						idempotencyKey: input.appointmentId
 							? `pi:appt:offsession:${input.appointmentId}`
 							: undefined,
@@ -830,6 +885,8 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const controlPanelDb = getControlPanelDb(
 					context as unknown as Parameters<typeof getControlPanelDb>[0],
 				);
+				// Phase 4 follow-up: derive branch country from service-prices or
+				// from customer's primary branch — currently uses legacy org-level acct.
 				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				// Create package_instance in pending state.
