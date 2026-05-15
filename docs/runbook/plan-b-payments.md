@@ -207,12 +207,33 @@ multi-country onboarding) but Stripe rejects cross-acct refunds.
 | ADRs | (in this session) | 0013-0017 documenting Phase 3-4 decisions |
 | Tests | (in this session) | 21 unit tests for pure functions |
 
-Deferred:
-- **4.5** — drop legacy `organizations.stripe_connect_account_id` (1-release window)
-- Integration tests for procs needing DB
-- SCA challenge UI for 3DS-required cards
-- Idempotency on Payment Link regenerate (currently orphans the old link on Stripe side)
-- Partial refunds
+### Phase 4.5 (commits `c81499b` + `b38b849` cleanup) — drop legacy columns
+Migrated. organizations.stripe_connect_account_id + companion columns dropped. All Connect state lives in org_country_stripe_accounts.
+
+### Phase 4.6 (commit `5a3b194`) — idempotency on Payment Link regenerate
+sendPaymentLink + createSalesOrderPaymentLink reuse stored link unless `regenerate: true` passed. Closes ADR-0015 v1 limitation.
+
+## 7. Open Items (Post-Plan-B)
+
+Plan B is shipped end-to-end. The following items are adjacent enhancements,
+not Plan B gaps. None block a production launch.
+
+| Item | Type | Effort | Notes |
+|------|------|--------|-------|
+| PR + merge `payment-backend` → `main` | release | 5 min | Held until user gives green light |
+| Live verify SG onboarding (form fill) | live | 15 min | Smoke test 95 verifies up to OAuth redirect; full form-fill manual |
+| Integration tests for procs needing DB | test | 2h | Pure-fn unit tests shipped (commit `b3b548e`); DB-backed tests separate |
+| SCA / 3DS challenge UI when chargeSavedCard returns `requires_action` | feature | 2-3h | v1 surfaces status to staff via toast (ADR-0016) |
+| Partial refunds | feature | 2h | v1 full-refund only (ADR-0014) |
+| Pending-package cleanup sweeper | ops | 1h | Cron infra pick first |
+| Multi-method card storage | feature | 2h | Currently single `default_payment_method_id`; multi-method needs separate table |
+| Commission ledger on payment success | feature | needs ADR | Cross-table policy work — separate ADR (ADR-0013 deferral) |
+| `sales_orders.payment_status` sync | feature | 1h | POS-orthogonal — not all paid appointments tie to a sale |
+| Card-update flow (expired card replace) | feature | 1h | Customer-side UX; PM stays on Customer; needs separate set/unset proc |
+| SMS receipts | feature | infra pick | Need Twilio or equivalent gateway |
+| `purchasePackage` country-aware migration | tech-debt | 30 min | Phase 4.4 TODO; derive country from service_prices.branch_id or customer's primary branch |
+| Per-country fee policy | feature | needs policy | fee% currently tier-only, country-agnostic |
+| Plan C / D | unscoped | — | Not defined; scope when ready |
 
 ---
 
