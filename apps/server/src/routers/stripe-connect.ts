@@ -28,6 +28,7 @@ import { protectedProcedure } from "@avantej-core/api";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { getStripeClient } from "@/lib/stripe";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 
 type StripeClientLike = {
 	accounts: {
@@ -94,33 +95,70 @@ async function hmacSha256Hex(message: string, secret: string): Promise<string> {
 	return toHex(sig);
 }
 
-/** Sign orgId as OAuth state — prevents CSRF + cross-tenant replay. */
-export async function signOAuthState(orgId: string, secret: string): Promise<string> {
+/**
+ * Sign OAuth state — prevents CSRF + cross-tenant replay.
+ *
+ * Phase 4.3: optionally encodes a target countryCode so the OAuth callback
+ * can pre-seed the org_country_stripe_accounts row before the
+ * account.updated webhook lands. State format:
+ *
+ *   `${orgId}.${countryCode || ''}.${timestamp}.${hmac}`
+ *
+ * Legacy 3-part state (`orgId.ts.sig`) is still accepted on verify for
+ * backwards-compat with onboarding links generated before this rev.
+ */
+export async function signOAuthState(
+	orgId: string,
+	secret: string,
+	countryCode?: string,
+): Promise<string> {
 	const ts = Date.now().toString();
-	const payload = `${orgId}.${ts}`;
+	const country = (countryCode ?? "").toUpperCase();
+	const payload = `${orgId}.${country}.${ts}`;
 	const sig = await hmacSha256Hex(payload, secret);
 	return toBase64Url(`${payload}.${sig}`);
 }
 
-/** Verify + extract orgId from signed state. Returns null if invalid/expired. */
+/**
+ * Verify + extract orgId (+ optional countryCode) from signed state.
+ * Returns null if invalid/expired. Accepts both 4-part (Phase 4.3+) and
+ * legacy 3-part states.
+ */
 export async function verifyOAuthState(
 	state: string,
 	secret: string,
 	maxAgeMs = 60 * 60 * 1000,
-): Promise<string | null> {
+): Promise<{ orgId: string; countryCode: string | null } | null> {
 	try {
 		const decoded = fromBase64Url(state);
 		const parts = decoded.split(".");
-		if (parts.length !== 3) {
+		let orgId: string | undefined;
+		let countryCode: string | null = null;
+		let tsStr: string | undefined;
+		let sig: string | undefined;
+		let payloadForHmac: string;
+
+		if (parts.length === 4) {
+			[orgId, , tsStr, sig] = parts;
+			countryCode = parts[1] ? parts[1].toUpperCase() : null;
+			if (!orgId || !tsStr || !sig) {
+				console.warn("[oauth-state] empty field after split (4-part)");
+				return null;
+			}
+			payloadForHmac = `${orgId}.${countryCode ?? ""}.${tsStr}`;
+		} else if (parts.length === 3) {
+			[orgId, tsStr, sig] = parts;
+			if (!orgId || !tsStr || !sig) {
+				console.warn("[oauth-state] empty field after split (3-part legacy)");
+				return null;
+			}
+			payloadForHmac = `${orgId}.${tsStr}`;
+		} else {
 			console.warn(`[oauth-state] malformed state: parts=${parts.length}`);
 			return null;
 		}
-		const [orgId, tsStr, sig] = parts;
-		if (!orgId || !tsStr || !sig) {
-			console.warn("[oauth-state] empty field after split");
-			return null;
-		}
-		const expected = await hmacSha256Hex(`${orgId}.${tsStr}`, secret);
+
+		const expected = await hmacSha256Hex(payloadForHmac, secret);
 		if (expected !== sig) {
 			console.warn(
 				`[oauth-state] HMAC mismatch (likely BETTER_AUTH_SECRET changed). orgId=${orgId} tsStr=${tsStr}`,
@@ -134,7 +172,7 @@ export async function verifyOAuthState(
 			);
 			return null;
 		}
-		return orgId;
+		return { orgId, countryCode: countryCode || null };
 	} catch (e) {
 		console.warn("[oauth-state] verify threw:", e);
 		return null;
@@ -147,7 +185,16 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 
 	return {
 		createOnboardingUrl: protectedProcedure
-			.input(z.object({ organizationId: z.string().uuid() }))
+			.input(
+				z.object({
+					organizationId: z.string().uuid(),
+					countryCode: z
+						.string()
+						.length(2)
+						.regex(/^[A-Za-z]{2}$/)
+						.optional(),
+				}),
+			)
 			.handler(async ({ context, input }) => {
 				const orgId =
 					(context as { organizationId?: string }).organizationId ??
@@ -183,7 +230,8 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 
 				const userEmail = (context as { session?: { user?: { email?: string } } })
 					.session?.user?.email;
-				const state = await signOAuthState(orgId, secret);
+				const targetCountry = input.countryCode?.toUpperCase();
+				const state = await signOAuthState(orgId, secret, targetCountry);
 
 				const params = new URLSearchParams({
 					response_type: "code",
@@ -193,6 +241,10 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 				});
 				if (userEmail) params.set("stripe_user[email]", userEmail);
 				if (org.name) params.set("stripe_user[business_name]", org.name);
+				// Pre-fill the country dropdown on the Stripe-hosted onboarding form
+				// so the tenant doesn't have to re-pick it. Stripe still validates
+				// the acct's actual country at submission time.
+				if (targetCountry) params.set("stripe_user[country]", targetCountry);
 
 				const onboardingUrl = `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
 				return { onboardingUrl };
@@ -275,6 +327,43 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 						status: org.stripeConnectStatus,
 					};
 				}
+			}),
+
+		// Phase 4.3 — list all Connect accounts for an org, one per country.
+		// Includes the legacy org-level acct as a synthetic row if no country
+		// row exists yet (currency defaults to MYR since the legacy field
+		// pre-dates per-country support and only MY platforms were possible).
+		listCountryAccounts: protectedProcedure
+			.input(z.object({ organizationId: z.string().uuid() }))
+			.handler(async ({ context, input }) => {
+				const orgId =
+					(context as { organizationId?: string }).organizationId ??
+					input.organizationId;
+				if (!orgId) {
+					throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
+				}
+
+				const controlPanelDb = getControlPanelDb(
+					context as unknown as Parameters<typeof getControlPanelDb>[0],
+				);
+
+				const rows = await controlPanelDb
+					.select()
+					.from(orgCountryStripeAccounts)
+					.where(eq(orgCountryStripeAccounts.organizationId, orgId));
+
+				const accounts = rows.map((r) => ({
+					countryCode: r.countryCode,
+					currency: r.currency,
+					stripeAccountId: r.stripeAccountId,
+					chargesEnabled: r.chargesEnabled,
+					payoutsEnabled: r.payoutsEnabled,
+					detailsSubmitted: r.detailsSubmitted,
+					status: r.stripeConnectStatus,
+					onboardingCompletedAt: r.stripeConnectOnboardingCompletedAt,
+				}));
+
+				return { accounts };
 			}),
 	};
 }

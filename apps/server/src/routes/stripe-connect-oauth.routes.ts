@@ -18,7 +18,15 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { getControlPanelDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { verifyOAuthState } from "@/routers/stripe-connect";
+
+// ISO-2 -> ISO-4217 mapping (mirrors the backfill script + webhook handler).
+const COUNTRY_TO_CURRENCY: Record<string, string> = {
+	MY: "MYR", SG: "SGD", TH: "THB", ID: "IDR", PH: "PHP",
+	VN: "VND", HK: "HKD", AU: "AUD", NZ: "NZD", US: "USD",
+	GB: "GBP", JP: "JPY", CN: "CNY",
+};
 
 function getEnvVar(key: string): string | undefined {
 	try {
@@ -61,11 +69,12 @@ stripeConnectOAuthRoutes.get("/callback", async (c) => {
 		console.error("[stripe-oauth] BETTER_AUTH_SECRET missing");
 		return errorRedirect("server_misconfigured");
 	}
-	const orgId = await verifyOAuthState(state, secret);
-	if (!orgId) {
+	const verified = await verifyOAuthState(state, secret);
+	if (!verified) {
 		console.warn("[stripe-oauth] state verification failed");
 		return errorRedirect("invalid_state");
 	}
+	const { orgId, countryCode: stateCountryCode } = verified;
 
 	const platformSecretKey = getEnvVar("STRIPE_SECRET_KEY");
 	if (!platformSecretKey) {
@@ -134,6 +143,43 @@ stripeConnectOAuthRoutes.get("/callback", async (c) => {
 		})
 		.where(eq(organizations.id, orgId));
 
-	console.log(`[stripe-oauth] linked org=${orgId} acct=${stripeUserId}`);
-	return c.redirect(`${webAppUrl}/billing/connect?return=1`);
+	// Phase 4.3: also pre-seed org_country_stripe_accounts when the OAuth
+	// state carried a target country. Webhook account.updated will also
+	// reconcile this (using acct.country), but pre-seeding closes the UX
+	// gap between OAuth callback and the first webhook delivery.
+	if (stateCountryCode) {
+		const currency = COUNTRY_TO_CURRENCY[stateCountryCode] ?? stateCountryCode;
+		await controlPanelDb
+			.insert(orgCountryStripeAccounts)
+			.values({
+				organizationId: orgId,
+				countryCode: stateCountryCode,
+				stripeAccountId: stripeUserId,
+				stripeConnectStatus: "pending",
+				stripeConnectAccountType: "standard",
+				chargesEnabled: false,
+				payoutsEnabled: false,
+				detailsSubmitted: false,
+				currency,
+				connectAccountUpdatedAt: new Date(),
+			})
+			.onConflictDoUpdate({
+				target: [
+					orgCountryStripeAccounts.organizationId,
+					orgCountryStripeAccounts.countryCode,
+				],
+				set: {
+					stripeAccountId: stripeUserId,
+					connectAccountUpdatedAt: new Date(),
+					updatedAt: new Date(),
+				},
+			});
+	}
+
+	console.log(
+		`[stripe-oauth] linked org=${orgId} acct=${stripeUserId} country=${stateCountryCode ?? "(none)"}`,
+	);
+	return c.redirect(
+		`${webAppUrl}/billing/connect?return=1${stateCountryCode ? `&country=${stateCountryCode}` : ""}`,
+	);
 });

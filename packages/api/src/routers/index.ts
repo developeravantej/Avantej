@@ -848,7 +848,16 @@ const paymentsRouterType = {
 // Real impl in apps/server/src/routers/stripe-connect.ts (uses Stripe SDK).
 const stripeConnectRouterType = {
 	createOnboardingUrl: protectedProcedure
-		.input(z.object({ organizationId: z.string().uuid() }))
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				countryCode: z
+					.string()
+					.length(2)
+					.regex(/^[A-Za-z]{2}$/)
+					.optional(),
+			}),
+		)
 		.handler((): { onboardingUrl: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
@@ -863,6 +872,26 @@ const stripeConnectRouterType = {
 				payoutsEnabled: boolean;
 				detailsSubmitted: boolean;
 				status: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	// Phase 4.3 — list all Connect accounts for an org (one per country).
+	listCountryAccounts: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				accounts: Array<{
+					countryCode: string;
+					currency: string;
+					stripeAccountId: string | null;
+					chargesEnabled: boolean;
+					payoutsEnabled: boolean;
+					detailsSubmitted: boolean;
+					status: string;
+					onboardingCompletedAt: Date | null;
+				}>;
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
