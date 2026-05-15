@@ -25,6 +25,7 @@ import {
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
@@ -257,6 +258,53 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 						connectAccountUpdatedAt: new Date(),
 					})
 					.where(eq(organizations.id, org.id));
+
+				// Phase 4: also mirror into org_country_stripe_accounts. Country
+				// comes from the Stripe Account itself (acct.country). Currency
+				// best-effort mapped; falls back to country code if unknown.
+				const country = (account.country ?? null) as string | null;
+				if (country) {
+					const COUNTRY_TO_CURRENCY: Record<string, string> = {
+						MY: "MYR", SG: "SGD", TH: "THB", ID: "IDR", PH: "PHP",
+						VN: "VND", HK: "HKD", AU: "AUD", NZ: "NZD", US: "USD",
+						GB: "GBP", JP: "JPY", CN: "CNY",
+					};
+					const currency = COUNTRY_TO_CURRENCY[country.toUpperCase()] ?? country.toUpperCase();
+					await controlPanelDb
+						.insert(orgCountryStripeAccounts)
+						.values({
+							organizationId: org.id,
+							countryCode: country.toUpperCase(),
+							stripeAccountId: account.id,
+							stripeConnectStatus: status,
+							chargesEnabled,
+							payoutsEnabled,
+							detailsSubmitted,
+							currency,
+							stripeConnectOnboardingCompletedAt:
+								detailsSubmitted ? new Date() : null,
+							connectAccountUpdatedAt: new Date(),
+						})
+						.onConflictDoUpdate({
+							target: [
+								orgCountryStripeAccounts.organizationId,
+								orgCountryStripeAccounts.countryCode,
+							],
+							set: {
+								stripeAccountId: account.id,
+								stripeConnectStatus: status,
+								chargesEnabled,
+								payoutsEnabled,
+								detailsSubmitted,
+								connectAccountUpdatedAt: new Date(),
+								updatedAt: new Date(),
+							},
+						});
+					console.log(
+						`[connect webhook] account.updated mirrored to org_country_stripe_accounts org=${org.id} country=${country} acct=${account.id}`,
+					);
+				}
+
 				console.log(
 					`[connect webhook] account.updated synced for org=${org.id} acct=${account.id} charges=${chargesEnabled} payouts=${payoutsEnabled} details=${detailsSubmitted}`,
 				);

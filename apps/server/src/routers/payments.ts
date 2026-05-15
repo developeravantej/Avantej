@@ -38,8 +38,10 @@ import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import {
 	getConnectAccountForOrg,
+	getConnectAccountForOrgCountry,
 	computeApplicationFee,
 } from "@/services/connect-account.service";
+import { resolveBranchCountryCode } from "@/services/branch-country.service";
 import { getOrCreateStripeCustomer } from "@/services/customer-stripe.service";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { createPackageInstance } from "@avantej-core/services";
@@ -158,7 +160,6 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const controlPanelDb = getControlPanelDb(
 					context as unknown as Parameters<typeof getControlPanelDb>[0],
 				);
-				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				// Fetch appointment + service.
 				const [appt] = await (tenantDb as any)
@@ -174,6 +175,12 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 						message: "Appointment is already paid",
 					});
 				}
+
+				// Phase 4: resolve Connect account per the branch's country.
+				const countryCode = await resolveBranchCountryCode(appt.branchId, tenantDb as never);
+				const acct = countryCode
+					? await getConnectAccountForOrgCountry(input.organizationId, countryCode, controlPanelDb)
+					: await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				const amount = resolveGrossAmount(appt);
 				const currency = (appt.currency ?? "MYR").toLowerCase();
@@ -243,7 +250,6 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const controlPanelDb = getControlPanelDb(
 					context as unknown as Parameters<typeof getControlPanelDb>[0],
 				);
-				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				const [appt] = await (tenantDb as any)
 					.select()
@@ -258,6 +264,12 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 						message: "Appointment is already paid",
 					});
 				}
+
+				// Phase 4: resolve Connect account per the branch's country.
+				const countryCode = await resolveBranchCountryCode(appt.branchId, tenantDb as never);
+				const acct = countryCode
+					? await getConnectAccountForOrgCountry(input.organizationId, countryCode, controlPanelDb)
+					: await getConnectAccountForOrg(input.organizationId, controlPanelDb);
 
 				// Fetch service name for the line item.
 				let productName = "Appointment payment";
