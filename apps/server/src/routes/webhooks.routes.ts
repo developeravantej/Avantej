@@ -11,6 +11,8 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { onAppointmentPaid } from "@/services/payment-side-effects.service";
+import { recordLedgerEvent } from "@/services/platform-ledger.service";
+import { onDisputeEvent } from "@/services/dispute.service";
 import type Stripe from "stripe";
 import {
 	claimWebhookEvent,
@@ -168,6 +170,23 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
 					await markActive(subId, cpDb);
 				}
+				// Plan C C.7: platform-level ledger row for SaaS revenue audit.
+				try {
+					await recordLedgerEvent({
+						controlPanelDb: cpDb,
+						organizationId: null,
+						eventKind: "saas_invoice_paid",
+						stripeEventId: event.id,
+						stripeObjectId: inv.id ?? "",
+						stripeAccount: null,
+						amount: inv.amount_paid ?? 0,
+						applicationFee: 0,
+						currency: (inv.currency ?? "usd").toLowerCase(),
+						occurredAt: new Date(event.created * 1000),
+					});
+				} catch (e) {
+					console.error("[platform webhook] ledger write failed:", e);
+				}
 				break;
 			}
 			default:
@@ -225,6 +244,85 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 
 	try {
 		const controlPanelDb = cpDb;
+
+		// Plan C C.2: dispatch dispute events to the dispute service. Tenant DB
+		// is resolved inside the service (it walks org_country_stripe_accounts).
+		// We pass null tenantDb here for v1 — the service will skip the tenant
+		// notifications row if it can't fetch one, but the platform_dispute_queue
+		// write + email still fire. (Phase C.2.1 wires tenantDb pickup later.)
+		if (event.type.startsWith("charge.dispute.")) {
+			try {
+				await onDisputeEvent({ controlPanelDb, tenantDb: null, event });
+			} catch (e) {
+				console.error(
+					`[connect webhook] dispute service threw for ${event.id}:`,
+					e,
+				);
+			}
+		}
+
+		// Plan C C.7: platform_payment_ledger writes for Connect-side audit.
+		// Independent try/catch — ledger drift is fixable via reconciliation
+		// (Phase C.5), so a failed write here must not block the webhook ack.
+		if (event.type === "payment_intent.succeeded" || event.type === "charge.refunded") {
+			try {
+				const obj = event.data.object as Stripe.PaymentIntent | Stripe.Charge;
+				const metadata = (obj as { metadata?: Record<string, string> }).metadata ?? {};
+				const orgIdFromMeta = metadata.organizationId ?? null;
+				const isRefund = event.type === "charge.refunded";
+				const amount = isRefund
+					? (obj as Stripe.Charge).amount_refunded ?? 0
+					: (obj as Stripe.PaymentIntent).amount_received ?? (obj as Stripe.PaymentIntent).amount ?? 0;
+				const appFee = isRefund
+					? (obj as Stripe.Charge).application_fee_amount ?? 0
+					: 0; // PI events don't carry app_fee directly; reconciler picks this up.
+				await recordLedgerEvent({
+					controlPanelDb,
+					organizationId: orgIdFromMeta,
+					eventKind: isRefund ? "pi_refunded" : "pi_succeeded",
+					stripeEventId: event.id,
+					stripeObjectId: obj.id,
+					stripeAccount: event.account ?? null,
+					amount,
+					applicationFee: appFee,
+					currency: (obj.currency ?? "usd").toLowerCase(),
+					occurredAt: new Date(event.created * 1000),
+				});
+			} catch (e) {
+				console.error(`[connect webhook] ledger write failed for ${event.id}:`, e);
+			}
+		}
+
+		// Plan C C.7: ledger row for raw application_fee.created (paid out to platform).
+		if (event.type === "application_fee.created") {
+			try {
+				const fee = event.data.object as Stripe.ApplicationFee;
+				const orgFromAcct = event.account
+					? (
+							await controlPanelDb
+								.select({ organizationId: orgCountryStripeAccounts.organizationId })
+								.from(orgCountryStripeAccounts)
+								.where(eq(orgCountryStripeAccounts.stripeAccountId, event.account))
+								.limit(1)
+						)[0]?.organizationId ?? null
+					: null;
+				await recordLedgerEvent({
+					controlPanelDb,
+					organizationId: orgFromAcct,
+					eventKind: "application_fee_collected",
+					stripeEventId: event.id,
+					stripeObjectId: fee.id,
+					stripeAccount: event.account ?? null,
+					amount: fee.amount,
+					applicationFee: fee.amount,
+					currency: (fee.currency ?? "usd").toLowerCase(),
+					occurredAt: new Date(event.created * 1000),
+				});
+			} catch (e) {
+				console.error(`[connect webhook] application_fee ledger write failed:`, e);
+			}
+		}
+
 		if (event.type === "account.updated") {
 			const account = event.data.object as Stripe.Account;
 			const orgId = (account.metadata?.organizationId ?? null) as string | null;
