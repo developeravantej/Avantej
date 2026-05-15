@@ -36,7 +36,7 @@ async function main() {
 		console.error("Org not found:", orgId);
 		process.exit(1);
 	}
-	const tenantUrl = decrypt(org.connectionString, encKey);
+	const tenantUrl = decrypt(org.connectionString);
 	console.log(`[apply-0062] org=${org.slug} -> tenant DB`);
 
 	const tenantPool = new Pool({ connectionString: tenantUrl });

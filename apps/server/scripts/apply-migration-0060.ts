@@ -51,7 +51,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	const tenantUrl = decrypt(org.connectionString, encKey);
+	const tenantUrl = decrypt(org.connectionString);
 	console.log(`[apply-0060] org=${org.slug} -> tenant DB`);
 
 	const tenantPool = new Pool({ connectionString: tenantUrl });

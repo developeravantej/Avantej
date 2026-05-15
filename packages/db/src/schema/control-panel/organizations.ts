@@ -10,7 +10,7 @@
  * Security: connectionString must be encrypted before storage (handled by encryption utilities).
  */
 
-import { pgTable, uuid, text, timestamp, index, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { subscriptions } from "./subscriptions";
 import { users } from "./users";

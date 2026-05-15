@@ -7,12 +7,11 @@ import { decrypt } from "@avantej-core/db/lib/encryption";
 
 const orgId = process.argv[2]!;
 const dbUrl = process.env.DATABASE_URL!;
-const encKey = process.env.ENCRYPTION_KEY!;
 
 const cpPool = new Pool({ connectionString: dbUrl });
 const cpDb = drizzle({ client: cpPool });
 const [org] = await cpDb.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-const tenantUrl = decrypt(org!.connectionString, encKey);
+const tenantUrl = decrypt(org!.connectionString);
 console.log("tenant_db:", tenantUrl.replace(/:[^@]+@/, ":***@"));
 
 const tenantPool = new Pool({ connectionString: tenantUrl });
