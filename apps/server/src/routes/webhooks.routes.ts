@@ -24,7 +24,6 @@ import {
 } from "@/services/saas-subscription.service";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";

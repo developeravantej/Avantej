@@ -26,7 +26,6 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { protectedProcedure } from "@avantej-core/api";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
-import { getStripeClient } from "@/lib/stripe";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 
@@ -179,9 +178,13 @@ export async function verifyOAuthState(
 	}
 }
 
-export function createStripeConnectRouter(stripeClientOverride?: StripeClientLike) {
-	const resolveStripe = (): StripeClientLike =>
-		stripeClientOverride ?? (getStripeClient() as unknown as StripeClientLike);
+export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLike) {
+	// Phase 4.5: getAccountStatus / listCountryAccounts read straight from
+	// the DB; createOnboardingUrl builds a URL without an SDK call. No
+	// Stripe SDK use remains in this router. The override param is kept
+	// for parity with createSubscriptionsRouter + createPaymentsRouter
+	// in case future procs add SDK calls.
+	void _stripeClientOverride;
 
 	return {
 		createOnboardingUrl: protectedProcedure
