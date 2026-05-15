@@ -26,6 +26,7 @@ import { authMiddleware } from "@/middleware/auth.middleware";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { and, desc, eq } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
@@ -303,6 +304,37 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			const metadata = (pi as { metadata?: Record<string, string> }).metadata ?? {};
 			const appointmentId = metadata.appointmentId;
 			const organizationId = metadata.organizationId;
+			const packageInstanceId = metadata.packageInstanceId;
+			const isPackagePurchase = metadata.type === "package" && !!packageInstanceId;
+
+			if (isPackagePurchase && organizationId) {
+				// Plan B Phase 3c — package purchase. Flip package_instance from
+				// pending -> active on success; failed/refunded paths handled below
+				// (we leave package in pending state on failure so staff can retry).
+				const tenantDb = await getTenantDb(organizationId, c);
+				const succeeded = event.type === "payment_intent.succeeded";
+				const refunded = event.type === "charge.refunded";
+				const set: Record<string, unknown> = { updatedAt: new Date() };
+				if (succeeded) {
+					set.paymentStatus = "paid";
+					set.status = "active";
+				} else if (refunded) {
+					set.paymentStatus = "refunded";
+					set.status = "cancelled";
+				}
+				if (succeeded || refunded) {
+					const r = await tenantDb
+						.update(packageInstances)
+						.set(set)
+						.where(eq(packageInstances.id, packageInstanceId))
+						.returning({ id: packageInstances.id });
+					console.log(
+						`[connect webhook] ${event.type} package pkg=${packageInstanceId} status=${set.status ?? "?"} rowsUpdated=${r.length}`,
+					);
+				}
+				await markEventProcessed(event.id, cpDb);
+				return c.json({ received: true }, 200);
+			}
 
 			if (!appointmentId || !organizationId) {
 				console.warn(

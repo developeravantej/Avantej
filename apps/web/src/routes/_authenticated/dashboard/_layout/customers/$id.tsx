@@ -27,6 +27,7 @@ import { LeadSourceSection } from "@/features/customers-detail/components/LeadSo
 import { OverviewTab } from "@/features/customers-detail/components/OverviewTab";
 import { PageSkeleton } from "@/features/customers-detail/components/PageSkeleton";
 import { PaymentsTab } from "@/features/customers-detail/components/PaymentsTab";
+import { SavedCardsSection } from "@/features/customers-detail/components/SavedCardsSection";
 
 // ─── Route ─────────────────────────────────────────────────────────────────────
 
@@ -304,7 +305,13 @@ function Customer360Page() {
 				</TabsContent>
 
 				{/* ── Payments tab ───────────────────────────────────────── */}
-				<TabsContent value="payments" className="mt-4">
+				<TabsContent value="payments" className="mt-4 space-y-4">
+					{detail?.profile?.id && (
+						<SavedCardsSection
+							organizationId={organizationId}
+							customerProfileId={detail.profile.id}
+						/>
+					)}
 					<PaymentsTab recentPayments={recentPayments} />
 				</TabsContent>
 

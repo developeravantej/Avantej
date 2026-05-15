@@ -793,6 +793,34 @@ const paymentsRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	// Package purchase (Plan B Phase 3c)
+	purchasePackage: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+				clientId: z.string().min(1).nullable().optional(),
+				walkInCustomerId: z.string().uuid().nullable().optional(),
+				creditsTotal: z.number().int().positive(),
+				totalPrice: z.number().int().positive(),
+				currency: z.string().min(3).max(3).default("MYR"),
+				validityDays: z.number().int().positive().default(180),
+				remark: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				packageInstanceId: string;
+				paymentLinkId: string;
+				paymentLinkUrl: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Stripe Connect router type definition for client type inference.
