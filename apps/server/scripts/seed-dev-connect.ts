@@ -2,36 +2,45 @@
  * Idempotent local-dev seed: re-link Stripe Connect accounts to orgs after a
  * control-panel DB reset.
  *
- * Why: Stripe-side connected accounts (acct_...) persist forever in test mode,
- * but our organizations.stripe_connect_account_id column gets wiped on
- * `bun db:reset`. Without this seed, every dev hits 10-15 min of manual
- * onboarding form-filling per test org. With it, link is restored in seconds.
+ * Phase 4.5: writes directly to org_country_stripe_accounts (legacy
+ * organizations.stripe_connect_account_id was dropped in migration 0020).
  *
- * Multi-tenant safe: map is keyed by org slug, one acct per org. Add entries
- * as you onboard new test tenants. Production unaffected (script in scripts/,
- * not runtime).
+ * Stripe-side connected accounts (acct_...) persist forever in test mode,
+ * but our control-panel rows get wiped on `bun db:reset`. Without this seed,
+ * every dev hits 10-15 min of manual onboarding form-filling per test org.
+ * With it, link is restored in seconds.
  *
  * Run:
  *   DATABASE_URL=postgresql://... bun run apps/server/scripts/seed-dev-connect.ts
  *
- * To add a new mapping:
- *   1. Onboard once via http://localhost:3001/billing/connect (real OAuth flow)
- *   2. Note the acct_... in Stripe Dashboard -> Connect -> Accounts
- *   3. Append `<orgSlug>: acct_...` to DEV_CONNECT_MAP below
- *   4. Commit
+ * To add a new mapping: onboard once via http://localhost:3001/billing/connect
+ * (real OAuth flow), note the acct_... + country from Stripe Dashboard, then
+ * append `{ orgSlug, countryCode, acctId }` to DEV_CONNECT_MAP below.
  */
 
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 
-// org.slug -> stripe connected account id (test mode, one row per onboarded org).
-// Each developer onboards once via the real OAuth flow; persist the acct here.
-const DEV_CONNECT_MAP: Record<string, string> = {
-	"test-fitness-franchise": "acct_1TWwNZGk6ShaTZfV",
-	// Add more as new test orgs are onboarded.
-};
+// (org.slug, country_code) -> stripe connected account id (test mode).
+// One row per onboarded (org, country). Each dev adds entries after their
+// own first-time onboarding via the UI.
+const DEV_CONNECT_MAP: Array<{
+	slug: string;
+	countryCode: string;
+	currency: string;
+	acctId: string;
+}> = [
+	{
+		slug: "test-fitness-franchise",
+		countryCode: "MY",
+		currency: "MYR",
+		acctId: "acct_1TWwNZGk6ShaTZfV",
+	},
+	// Add more as new test orgs / countries are onboarded.
+];
 
 async function main(): Promise<void> {
 	const databaseUrl = process.env.DATABASE_URL;
@@ -47,9 +56,10 @@ async function main(): Promise<void> {
 	let alreadyLinked = 0;
 	let missingOrg = 0;
 
-	for (const [slug, acctId] of Object.entries(DEV_CONNECT_MAP)) {
+	for (const entry of DEV_CONNECT_MAP) {
+		const { slug, countryCode, currency, acctId } = entry;
 		const [org] = await db
-			.select()
+			.select({ id: organizations.id })
 			.from(organizations)
 			.where(eq(organizations.slug, slug))
 			.limit(1);
@@ -60,28 +70,54 @@ async function main(): Promise<void> {
 			continue;
 		}
 
-		if (org.stripeConnectAccountId === acctId) {
-			console.log(`[skip] ${slug} already linked to ${acctId}`);
+		const [existing] = await db
+			.select()
+			.from(orgCountryStripeAccounts)
+			.where(
+				and(
+					eq(orgCountryStripeAccounts.organizationId, org.id),
+					eq(orgCountryStripeAccounts.countryCode, countryCode),
+				),
+			)
+			.limit(1);
+
+		if (existing?.stripeAccountId === acctId) {
+			console.log(`[skip] ${slug}/${countryCode} already linked to ${acctId}`);
 			alreadyLinked++;
 			continue;
 		}
 
 		await db
-			.update(organizations)
-			.set({
-				stripeConnectAccountId: acctId,
-				stripeConnectAccountType: "standard",
+			.insert(orgCountryStripeAccounts)
+			.values({
+				organizationId: org.id,
+				countryCode,
+				stripeAccountId: acctId,
 				stripeConnectStatus: "active",
+				stripeConnectAccountType: "standard",
 				chargesEnabled: true,
 				payoutsEnabled: false,
 				detailsSubmitted: true,
-				stripeConnectOnboardingCompletedAt:
-					org.stripeConnectOnboardingCompletedAt ?? new Date(),
+				currency,
+				stripeConnectOnboardingCompletedAt: new Date(),
 				connectAccountUpdatedAt: new Date(),
 			})
-			.where(eq(organizations.id, org.id));
+			.onConflictDoUpdate({
+				target: [
+					orgCountryStripeAccounts.organizationId,
+					orgCountryStripeAccounts.countryCode,
+				],
+				set: {
+					stripeAccountId: acctId,
+					stripeConnectStatus: "active",
+					chargesEnabled: true,
+					detailsSubmitted: true,
+					connectAccountUpdatedAt: new Date(),
+					updatedAt: new Date(),
+				},
+			});
 
-		console.log(`[linked] ${slug} -> ${acctId}`);
+		console.log(`[linked] ${slug}/${countryCode} -> ${acctId}`);
 		linked++;
 	}
 

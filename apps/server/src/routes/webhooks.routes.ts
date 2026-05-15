@@ -234,35 +234,22 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			const detailsSubmitted = !!account.details_submitted;
 			const status = chargesEnabled ? "active" : "pending";
 
-			// Prefer metadata.organizationId; fall back to stripe_connect_account_id lookup.
-			const whereClause = orgId
-				? eq(organizations.id, orgId)
-				: eq(organizations.stripeConnectAccountId, account.id);
-
-			const [org] = await controlPanelDb
-				.select()
-				.from(organizations)
-				.where(whereClause)
-				.limit(1);
+			// Phase 4.5: legacy organizations.stripe_connect_account_id is gone.
+			// Look up org by metadata.organizationId (preferred) OR by joining
+			// against org_country_stripe_accounts.stripe_account_id.
+			let resolvedOrgId: string | null = orgId;
+			if (!resolvedOrgId) {
+				const [hit] = await controlPanelDb
+					.select({ organizationId: orgCountryStripeAccounts.organizationId })
+					.from(orgCountryStripeAccounts)
+					.where(eq(orgCountryStripeAccounts.stripeAccountId, account.id))
+					.limit(1);
+				resolvedOrgId = hit?.organizationId ?? null;
+			}
+			const org = resolvedOrgId ? { id: resolvedOrgId } : null;
 
 			if (org) {
-				await controlPanelDb
-					.update(organizations)
-					.set({
-						stripeConnectAccountId: account.id,
-						chargesEnabled,
-						payoutsEnabled,
-						detailsSubmitted,
-						stripeConnectStatus: status,
-						stripeConnectOnboardingCompletedAt:
-							detailsSubmitted && !org.stripeConnectOnboardingCompletedAt
-								? new Date()
-								: org.stripeConnectOnboardingCompletedAt,
-						connectAccountUpdatedAt: new Date(),
-					})
-					.where(eq(organizations.id, org.id));
-
-				// Phase 4: also mirror into org_country_stripe_accounts. Country
+				// Mirror into org_country_stripe_accounts. Country comes from the
 				// comes from the Stripe Account itself (acct.country). Currency
 				// best-effort mapped; falls back to country code if unknown.
 				const country = (account.country ?? null) as string | null;

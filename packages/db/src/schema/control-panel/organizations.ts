@@ -29,15 +29,9 @@ export const organizations = pgTable("organizations", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "restrict" }),
-	// Stripe Connect fields for franchiser accounts
-	stripeConnectAccountId: text("stripe_connect_account_id").unique(),
-	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected
-	stripeConnectAccountType: text("stripe_connect_account_type").default("franchiser").notNull(),
-	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
-	chargesEnabled: boolean("charges_enabled").default(false).notNull(),
-	payoutsEnabled: boolean("payouts_enabled").default(false).notNull(),
-	detailsSubmitted: boolean("details_submitted").default(false).notNull(),
-	connectAccountUpdatedAt: timestamp("connect_account_updated_at"),
+	// Phase 4.5: legacy org-level Stripe Connect fields dropped — see
+	// migration 0020. All Connect state now lives in
+	// org_country_stripe_accounts (one row per (org, country_code)).
 	// Tenant schema migration tracking
 	schemaVersion: text("schema_version").default("0000"),
 	// GHL org-shared sync model (Phase G). NULL = not yet provisioned.
@@ -60,7 +54,6 @@ export const organizations = pgTable("organizations", {
 	// Note: slug and neonProjectId already have unique constraints/indexes via .unique()
 	subscriptionIdIdx: index("organizations_subscription_idx").on(table.subscriptionId),
 	paymentStatusIdx: index("organizations_payment_status_idx").on(table.paymentStatus),
-	stripeConnectAccountIdIdx: index("organizations_stripe_connect_idx").on(table.stripeConnectAccountId),
 }));
 
 export const organizationsRelations = relations(organizations, ({ one }) => ({

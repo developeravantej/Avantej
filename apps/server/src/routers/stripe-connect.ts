@@ -250,6 +250,10 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 				return { onboardingUrl };
 			}),
 
+		// Phase 4.5: getAccountStatus now reads from org_country_stripe_accounts
+		// and returns the first (charges-enabled preferred) country row. Legacy
+		// org-level field is gone. For deterministic per-country status, callers
+		// should use listCountryAccounts instead.
 		getAccountStatus: protectedProcedure
 			.input(z.object({ organizationId: z.string().uuid() }))
 			.handler(async ({ context, input }) => {
@@ -257,76 +261,35 @@ export function createStripeConnectRouter(stripeClientOverride?: StripeClientLik
 					(context as { organizationId?: string }).organizationId ??
 					input.organizationId;
 				if (!orgId) {
-					throw new ORPCError("BAD_REQUEST", {
-						message: "No organization context",
-					});
+					throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
 				}
 
 				const controlPanelDb = getControlPanelDb(context as unknown as Parameters<typeof getControlPanelDb>[0]);
-				const [org] = await controlPanelDb
+				const rows = await controlPanelDb
 					.select()
-					.from(organizations)
-					.where(eq(organizations.id, orgId))
-					.limit(1);
-				if (!org) {
-					throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
-				}
+					.from(orgCountryStripeAccounts)
+					.where(eq(orgCountryStripeAccounts.organizationId, orgId));
 
-				if (!org.stripeConnectAccountId) {
+				if (rows.length === 0) {
 					return {
 						connected: false,
 						accountId: null as string | null,
 						chargesEnabled: false,
 						payoutsEnabled: false,
 						detailsSubmitted: false,
-						status: org.stripeConnectStatus,
+						status: "pending" as string,
 					};
 				}
 
-				const stripe = resolveStripe();
-				try {
-					const acct = await stripe.accounts.retrieve(org.stripeConnectAccountId);
-					const chargesEnabled = !!acct.charges_enabled;
-					const payoutsEnabled = !!acct.payouts_enabled;
-					const detailsSubmitted = !!acct.details_submitted;
-					if (
-						chargesEnabled !== org.chargesEnabled ||
-						payoutsEnabled !== org.payoutsEnabled ||
-						detailsSubmitted !== org.detailsSubmitted
-					) {
-						await controlPanelDb
-							.update(organizations)
-							.set({
-								chargesEnabled,
-								payoutsEnabled,
-								detailsSubmitted,
-								stripeConnectStatus: chargesEnabled ? "active" : "pending",
-								stripeConnectOnboardingCompletedAt:
-									detailsSubmitted && !org.stripeConnectOnboardingCompletedAt
-										? new Date()
-										: org.stripeConnectOnboardingCompletedAt,
-								connectAccountUpdatedAt: new Date(),
-							})
-							.where(eq(organizations.id, orgId));
-					}
-					return {
-						connected: true,
-						accountId: org.stripeConnectAccountId,
-						chargesEnabled,
-						payoutsEnabled,
-						detailsSubmitted,
-						status: chargesEnabled ? "active" : "pending",
-					};
-				} catch {
-					return {
-						connected: true,
-						accountId: org.stripeConnectAccountId,
-						chargesEnabled: org.chargesEnabled,
-						payoutsEnabled: org.payoutsEnabled,
-						detailsSubmitted: org.detailsSubmitted,
-						status: org.stripeConnectStatus,
-					};
-				}
+				const row = rows.find((r) => r.stripeAccountId && r.chargesEnabled) ?? rows[0]!;
+				return {
+					connected: !!row.stripeAccountId,
+					accountId: row.stripeAccountId,
+					chargesEnabled: row.chargesEnabled,
+					payoutsEnabled: row.payoutsEnabled,
+					detailsSubmitted: row.detailsSubmitted,
+					status: row.stripeConnectStatus,
+				};
 			}),
 
 		// Phase 4.3 — list all Connect accounts for an org, one per country.

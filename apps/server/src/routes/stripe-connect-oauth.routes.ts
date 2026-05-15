@@ -124,7 +124,7 @@ stripeConnectOAuthRoutes.get("/callback", async (c) => {
 
 	const controlPanelDb = getControlPanelDb(c);
 	const [org] = await controlPanelDb
-		.select()
+		.select({ id: organizations.id })
 		.from(organizations)
 		.where(eq(organizations.id, orgId))
 		.limit(1);
@@ -133,20 +133,13 @@ stripeConnectOAuthRoutes.get("/callback", async (c) => {
 		return errorRedirect("org_not_found");
 	}
 
-	await controlPanelDb
-		.update(organizations)
-		.set({
-			stripeConnectAccountId: stripeUserId,
-			stripeConnectAccountType: "standard",
-			stripeConnectStatus: "pending",
-			connectAccountUpdatedAt: new Date(),
-		})
-		.where(eq(organizations.id, orgId));
+	// Phase 4.5: legacy organizations.stripe_connect_account_id no longer
+	// written here. All persistence flows through org_country_stripe_accounts.
 
-	// Phase 4.3: also pre-seed org_country_stripe_accounts when the OAuth
-	// state carried a target country. Webhook account.updated will also
-	// reconcile this (using acct.country), but pre-seeding closes the UX
-	// gap between OAuth callback and the first webhook delivery.
+	// Pre-seed org_country_stripe_accounts when the OAuth state carried a
+	// target country. Webhook account.updated will reconcile this (using
+	// acct.country), but pre-seeding closes the UX gap between OAuth
+	// callback and the first webhook delivery.
 	if (stateCountryCode) {
 		const currency = COUNTRY_TO_CURRENCY[stateCountryCode] ?? stateCountryCode;
 		await controlPanelDb

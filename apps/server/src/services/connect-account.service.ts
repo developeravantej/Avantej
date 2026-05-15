@@ -63,51 +63,68 @@ async function resolveTier(
 	return { tier, appFeeBps };
 }
 
+/**
+ * Resolve a Connect account for an org WITHOUT a specific country in scope.
+ *
+ * Phase 4.5: legacy fallback to organizations.stripe_connect_account_id is
+ * REMOVED. Callers without a country must accept the "first charges-enabled
+ * country" the tenant has onboarded — typically only one in early-stage orgs.
+ * For deterministic resolution, callers SHOULD pass a country (use
+ * getConnectAccountForOrgCountry).
+ *
+ * Throws:
+ *   NOT_FOUND if the org doesn't exist.
+ *   PRECONDITION_FAILED if no country acct exists OR none are charges-enabled.
+ */
 export async function getConnectAccountForOrg(
 	orgId: string,
 	controlPanelDb: NeonDatabase<typeof controlPanelSchema>,
 ): Promise<ResolvedConnectAccount> {
 	const [org] = await controlPanelDb
-		.select()
+		.select({ id: organizations.id })
 		.from(organizations)
 		.where(eq(organizations.id, orgId))
 		.limit(1);
 	if (!org) {
 		throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
 	}
-	if (!org.stripeConnectAccountId) {
-		throw new ORPCError("PRECONDITION_FAILED", {
-			message: "Tenant has not connected a Stripe account yet",
-		});
-	}
-	if (!org.chargesEnabled) {
+
+	const rows = await controlPanelDb
+		.select()
+		.from(orgCountryStripeAccounts)
+		.where(eq(orgCountryStripeAccounts.organizationId, orgId));
+
+	// Prefer a charges-enabled row; fall through to the first row if none enabled
+	// (caller will get a PRECONDITION_FAILED with a clear "not enabled" message).
+	const enabled = rows.find((r) => r.stripeAccountId && r.chargesEnabled);
+	if (!enabled) {
+		if (rows.length === 0) {
+			throw new ORPCError("PRECONDITION_FAILED", {
+				message: "Tenant has not connected a Stripe account yet",
+			});
+		}
 		throw new ORPCError("PRECONDITION_FAILED", {
 			message: "Stripe Connect account is not enabled for charges",
 		});
 	}
 
 	const { tier, appFeeBps } = await resolveTier(orgId, controlPanelDb);
-
 	return {
-		acctId: org.stripeConnectAccountId,
-		chargesEnabled: org.chargesEnabled,
+		acctId: enabled.stripeAccountId!,
+		chargesEnabled: enabled.chargesEnabled,
 		appFeeBps,
 		tier,
-		currency: "MYR", // Legacy org-level acct assumed MY.
-		countryCode: null,
+		currency: enabled.currency,
+		countryCode: enabled.countryCode,
 	};
 }
 
 /**
  * Phase 4 — resolve a tenant's Connect account for a specific country.
  *
- * Reads org_country_stripe_accounts. If no row exists for the requested
- * country, falls back to the legacy org-level account from organizations
- * (which is MY by historical default) — kept for the 1-release deprecation
- * window while callers migrate.
+ * Reads org_country_stripe_accounts. No legacy fallback (Phase 4.5).
  *
- * Throws PRECONDITION_FAILED if no usable account is found OR if the
- * resolved account has charges disabled.
+ * Throws PRECONDITION_FAILED if no row OR charges disabled.
  */
 export async function getConnectAccountForOrgCountry(
 	orgId: string,
@@ -126,26 +143,26 @@ export async function getConnectAccountForOrgCountry(
 		)
 		.limit(1);
 
-	if (row?.stripeAccountId && row.chargesEnabled) {
-		const { tier, appFeeBps } = await resolveTier(orgId, controlPanelDb);
-		return {
-			acctId: row.stripeAccountId,
-			chargesEnabled: row.chargesEnabled,
-			appFeeBps,
-			tier,
-			currency: row.currency,
-			countryCode: row.countryCode,
-		};
+	if (!row?.stripeAccountId) {
+		throw new ORPCError("PRECONDITION_FAILED", {
+			message: `No Stripe Connect account onboarded for country=${normalized}`,
+		});
+	}
+	if (!row.chargesEnabled) {
+		throw new ORPCError("PRECONDITION_FAILED", {
+			message: `Stripe Connect account for country=${normalized} is not enabled for charges`,
+		});
 	}
 
-	// Fallback to legacy org-level account (Phase 1-3). Acceptable as long as
-	// the tenant only operates in one country (or hasn't onboarded per-country
-	// accounts yet). Callers migrating to multi-country must drop this fallback.
-	const legacy = await getConnectAccountForOrg(orgId, controlPanelDb);
-	console.warn(
-		`[connect] no country acct for org=${orgId} country=${normalized} — falling back to legacy org-level acct=${legacy.acctId}`,
-	);
-	return legacy;
+	const { tier, appFeeBps } = await resolveTier(orgId, controlPanelDb);
+	return {
+		acctId: row.stripeAccountId,
+		chargesEnabled: row.chargesEnabled,
+		appFeeBps,
+		tier,
+		currency: row.currency,
+		countryCode: row.countryCode,
+	};
 }
 
 /**
