@@ -70,6 +70,9 @@ function requirePlatformAdmin(
 }
 
 const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
+const superAdminProcedure = protectedProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -251,5 +254,169 @@ export const platformAdminTenantsCommsRouter = {
 			});
 
 			return { ok: true, announcementId: inserted?.id ?? null };
+		}),
+
+	// ── Bulk DM (Plan F.2.5 Agent B) ────────────────────────────────────
+	bulkSendDirectMessage: superAdminProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				subject: z.string().trim().min(1).max(500),
+				bodyMarkdown: z.string().trim().min(1).max(20000),
+				templateId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFrom(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			async function sendOne(orgId: string) {
+				const [org] = await cpDb
+					.select({
+						id: organizations.id,
+						name: organizations.name,
+						ownerUserId: organizations.ownerUserId,
+					})
+					.from(organizations)
+					.where(eq(organizations.id, orgId));
+				if (!org) throw new Error("tenant not found");
+				if (!org.ownerUserId) throw new Error("tenant has no owner");
+				const [owner] = await cpDb
+					.select({ id: users.id, email: users.email, name: users.name })
+					.from(users)
+					.where(eq(users.id, org.ownerUserId));
+				if (!owner?.email) throw new Error("owner has no email");
+
+				const deliveries = { email: false, inApp: false };
+				try {
+					await sendEmail({
+						to: owner.email,
+						subject: `[Avantej] ${input.subject}`,
+						html: renderDmHtml(input.subject, input.bodyMarkdown, org.name),
+					});
+					deliveries.email = true;
+				} catch (e) {
+					console.error("[bulk-dm] email failed for", orgId, e);
+				}
+				try {
+					const tenantDb = await getTenantDb(org.id);
+					await tenantDb.insert(notifications).values({
+						userId: owner.id,
+						type: "system",
+						title: input.subject,
+						message: input.bodyMarkdown,
+					});
+					deliveries.inApp = true;
+				} catch (e) {
+					console.error("[bulk-dm] in-app failed for", orgId, e);
+				}
+				await cpDb.insert(adminSessionActions).values({
+					adminUserId,
+					actionType: "tenant_dm",
+					targetOrganizationId: org.id,
+					targetUserId: owner.id,
+					metadata: {
+						subject: input.subject,
+						kind: "bulk_dm",
+						templateId: input.templateId ?? null,
+						deliveries,
+					},
+				});
+			}
+
+			let succeeded = 0;
+			const failed: Array<{ orgId: string; error: string }> = [];
+			const chunkSize = 10;
+			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
+				const chunk = input.organizationIds.slice(i, i + chunkSize);
+				const results = await Promise.allSettled(chunk.map((id) => sendOne(id)));
+				results.forEach((r, idx) => {
+					const orgId = chunk[idx]!;
+					if (r.status === "fulfilled") {
+						succeeded += 1;
+					} else {
+						failed.push({
+							orgId,
+							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+						});
+					}
+				});
+			}
+
+			return { ok: true as const, succeeded, failed };
+		}),
+
+	// ── Bulk Announcement (Plan F.2.5 Agent B) ──────────────────────────
+	bulkSendAnnouncement: superAdminProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				title: z.string().trim().min(1).max(200),
+				bodyMarkdown: z.string().trim().min(1).max(20000),
+				priority: z
+					.enum(["low", "normal", "high", "urgent"])
+					.default("normal"),
+				targetAudience: z
+					.enum(["all", "staff", "clients"])
+					.default("all"),
+				templateId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFrom(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			async function createOne(orgId: string) {
+				const [org] = await cpDb
+					.select({ id: organizations.id })
+					.from(organizations)
+					.where(eq(organizations.id, orgId));
+				if (!org) throw new Error("tenant not found");
+				const tenantDb = await getTenantDb(org.id);
+				const [inserted] = await tenantDb
+					.insert(announcements)
+					.values({
+						title: input.title,
+						message: input.bodyMarkdown,
+						priority: input.priority,
+						targetAudience: input.targetAudience,
+						createdBy: adminUserId,
+					})
+					.returning({ id: announcements.id });
+				await cpDb.insert(adminSessionActions).values({
+					adminUserId,
+					actionType: "tenant_announcement_create",
+					targetOrganizationId: org.id,
+					metadata: {
+						announcementId: inserted?.id,
+						title: input.title,
+						priority: input.priority,
+						targetAudience: input.targetAudience,
+						kind: "bulk_announcement",
+						templateId: input.templateId ?? null,
+					},
+				});
+			}
+
+			let succeeded = 0;
+			const failed: Array<{ orgId: string; error: string }> = [];
+			const chunkSize = 10;
+			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
+				const chunk = input.organizationIds.slice(i, i + chunkSize);
+				const results = await Promise.allSettled(chunk.map((id) => createOne(id)));
+				results.forEach((r, idx) => {
+					const orgId = chunk[idx]!;
+					if (r.status === "fulfilled") {
+						succeeded += 1;
+					} else {
+						failed.push({
+							orgId,
+							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+						});
+					}
+				});
+			}
+
+			return { ok: true as const, succeeded, failed };
 		}),
 };

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { TagFilterStrip } from "@/components/platform-admin/tag-filter-strip";
 import { BulkActionsBar } from "@/components/platform-admin/bulk-actions-bar";
+import { BulkCommsComposer } from "@/components/platform-admin/bulk-comms-composer";
 import { TagChip } from "@/components/platform-admin/tag-chip";
 
 export const Route = createFileRoute(
@@ -57,6 +58,9 @@ function PlatformAdminTenantsPage() {
 	const [page, setPage] = useState(1);
 	const [activeTagLabels, setActiveTagLabels] = useState<string[]>([]);
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [composerKind, setComposerKind] = useState<
+		"direct_message" | "announcement" | null
+	>(null);
 	const debouncedSearch = useDebounce(search, 300);
 	const limit = 50;
 
@@ -223,8 +227,24 @@ function PlatformAdminTenantsPage() {
 					selectedIds={selectedIds}
 					onClear={() => setSelectedIds([])}
 					role={role}
+					onSendDm={() => setComposerKind("direct_message")}
+					onSendAnnouncement={() => setComposerKind("announcement")}
 				/>
 			)}
+
+			<BulkCommsComposer
+				open={composerKind !== null}
+				kind={composerKind ?? "direct_message"}
+				organizationIds={selectedIds}
+				organizationNamesPreview={tenants
+					.filter((t) => selectedIds.includes(t.id))
+					.map((t) => t.name)}
+				onClose={() => setComposerKind(null)}
+				onSent={() => {
+					setSelectedIds([]);
+					setComposerKind(null);
+				}}
+			/>
 
 			<div className="border rounded-md">
 				<Table>

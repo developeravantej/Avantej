@@ -1217,6 +1217,49 @@ const platformAdminTenantsCommsTypes = {
 		.handler((): { ok: true; announcementId: string | null } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	// Plan F.2.5 — Agent B bulk DM / announcement
+	bulkSendDirectMessage: protectedProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				subject: z.string().trim().min(1).max(500),
+				bodyMarkdown: z.string().trim().min(1).max(20000),
+				templateId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				succeeded: number;
+				failed: Array<{ orgId: string; error: string }>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	bulkSendAnnouncement: protectedProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				title: z.string().trim().min(1).max(200),
+				bodyMarkdown: z.string().trim().min(1).max(20000),
+				priority: z
+					.enum(["low", "normal", "high", "urgent"])
+					.default("normal"),
+				targetAudience: z
+					.enum(["all", "staff", "clients"])
+					.default("all"),
+				templateId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				succeeded: number;
+				failed: Array<{ orgId: string; error: string }>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Platform Admin — Tenant Funnel types (Plan E E.4).

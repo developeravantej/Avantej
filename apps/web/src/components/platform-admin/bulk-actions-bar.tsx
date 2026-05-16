@@ -14,7 +14,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Tag as TagIcon, X, AlertTriangle, Ban } from "lucide-react";
+import {
+	Loader2,
+	Tag as TagIcon,
+	X,
+	AlertTriangle,
+	Ban,
+	Mail,
+	Megaphone,
+} from "lucide-react";
 import { client } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,12 +48,16 @@ export interface BulkActionsBarProps {
 	selectedIds: string[];
 	onClear: () => void;
 	role: "super_admin" | "support" | "billing" | null;
+	onSendDm?: () => void;
+	onSendAnnouncement?: () => void;
 }
 
 export function BulkActionsBar({
 	selectedIds,
 	onClear,
 	role,
+	onSendDm,
+	onSendAnnouncement,
 }: BulkActionsBarProps) {
 	const qc = useQueryClient();
 	const isSuper = role === "super_admin";
@@ -262,6 +274,34 @@ export function BulkActionsBar({
 						</DialogFooter>
 					</DialogContent>
 				</Dialog>
+
+				{/* Send DM (super_admin only) */}
+				{isSuper && (
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={disabled}
+						onClick={() => onSendDm?.()}
+						data-testid="bulk-send-dm-trigger"
+					>
+						<Mail className="h-3.5 w-3.5 mr-1" />
+						Send DM
+					</Button>
+				)}
+
+				{/* Send announcement (super_admin only) */}
+				{isSuper && (
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={disabled}
+						onClick={() => onSendAnnouncement?.()}
+						data-testid="bulk-send-announcement-trigger"
+					>
+						<Megaphone className="h-3.5 w-3.5 mr-1" />
+						Send announcement
+					</Button>
+				)}
 
 				{/* Suspend (super_admin only) */}
 				{isSuper && (
