@@ -19,6 +19,7 @@ import { stripeConnectRouter } from "@/routers/stripe-connect";
 import { paymentsRouter } from "@/routers/payments";
 import { platformAdminPaymentsRouter } from "@/routers/platform-admin-payments";
 import { platformAdminTenantsRouter } from "@/routers/platform-admin-tenants";
+import { platformAdminTenantsDeletionRouter } from "@/routers/platform-admin-tenants-deletion";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -64,7 +65,10 @@ const appRouter = {
 	stripeConnect: stripeConnectRouter,
 	payments: paymentsRouter,
 	platformAdminPayments: platformAdminPaymentsRouter,
-	platformAdminTenants: platformAdminTenantsRouter,
+	platformAdminTenants: {
+		...platformAdminTenantsRouter,
+		...platformAdminTenantsDeletionRouter,
+	},
 };
 
 const app = new Hono();
@@ -293,6 +297,17 @@ export default {
           runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
             .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
+        );
+      } else if (cron === "0 3 * * *") {
+        // Plan E E.8 — hard-delete overdue soft-deleted tenants.
+        const { hardDeleteOverdueTenants } = await import(
+          "@/services/tenant-deletion.service"
+        );
+        const neonApiKey = (_env as { NEON_API_KEY?: string })?.NEON_API_KEY;
+        ctx.waitUntil(
+          hardDeleteOverdueTenants({ controlPanelDb: cpDb, neonApiKey })
+            .then((r) => console.log(`[scheduled] tenant-hard-delete done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] tenant-hard-delete failed:`, e)),
         );
       } else if (cron === "0 1 * * *") {
         // Plan E E.2 — tenant usage snapshot.
