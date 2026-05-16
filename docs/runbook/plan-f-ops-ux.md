@@ -304,7 +304,93 @@ Agent V crashed mid-flight at ~4min (API 500 error, 26 tool uses). Server router
 
 ---
 
-## F.2.5 — Comms + bulk composer (PENDING)
+## F.2.5 — Comms + bulk composer (LANDED)
+
+Branch: `plan-f-2-5-comms` (based on `plan-f-2-revenue` tip)
+Commits: `04945e8` (C comms + templates), `432a7e8` (B bulk composer), `<docs>` (ADR-0032 + this section)
+ADR: 0032 (templates + bulk fan-out)
+Migration: 0029 (comms_templates)
+
+### What shipped
+
+| Feature | Where | Router |
+|---|---|---|
+| /comms outbox + template library | `/dashboard/platform-admin/comms` (new route, Outbox + Templates tabs) | `platformAdminComms` (listOutbox + listTemplates/getTemplate/createTemplate/updateTemplate/archiveTemplate/unarchiveTemplate) |
+| Bulk DM + bulk announcement | `/tenants` bulk-actions-bar (Send DM + Send announcement buttons, super_admin only) | `platformAdminTenantsComms.bulkSendDirectMessage` + `bulkSendAnnouncement` (extends existing E.5 router) |
+
+### Common ops
+
+**Send a one-off DM to one tenant.**
+- Drill into the tenant → existing E.5 DM action. Unchanged.
+
+**Send a DM to many tenants.**
+1. `/dashboard/platform-admin/tenants` → check rows (up to 100).
+2. Bulk actions bar appears → "Send DM" button (super_admin only).
+3. Composer opens → pick template OR compose from scratch → preview → "Send to N tenants".
+4. Toast confirms "Sent to X / N. Y failures." Failures are partial — successful sends stay sent.
+
+**Send a bulk announcement.**
+- Same as DM but "Send announcement" → adds priority radio + targetAudience.
+
+**Review what's been sent.**
+1. `/dashboard/platform-admin/comms` → Outbox tab.
+2. Filter by Kind (DM/Announcement), Actor, Target org, Days.
+3. Each row shows actor, kind chip, target org (link), subject/title, sent timestamp.
+
+**Manage templates.**
+1. `/dashboard/platform-admin/comms` → Templates tab.
+2. "New template" (super_admin only) → editor dialog with kind toggle, subject, body, preview.
+3. Templates show in the bulk composer's picker.
+4. Archive a template to retire it (audit history still references it).
+
+### Debugging recipes
+
+**"Bulk send to 100 tenants only completed 87."**
+- Check `result.failed[]` — each failure includes `{ orgId, error }`. Common causes: tenant DB unreachable, missing owner email. Audit log only writes on success per target; failures aren't audited.
+- For DM: Resend sandbox in dev rejects most addresses. Production should work cleanly.
+
+**"Template I expected to see in the picker isn't there."**
+- Check `archived_at` — archived templates don't show in the picker by default. Toggle "include archived" in Templates tab.
+- Kind mismatch — composer filters by current `kind` (DM/announcement); switching the composer's kind switches the picker.
+
+**"Outbox shows the bulk send as one row per target — is that right?"**
+- Yes by design (ADR-0032). Bulk fan-out writes one audit row per target tenant. `metadata.kind` distinguishes bulk (`bulk_dm`/`bulk_announcement`) from single (`null`/absent).
+
+**"Action strings I see in outbox don't match the plan doc."**
+- Plan doc had dot-separated placeholders (`tenant.direct_message_sent`). Actual Plan E.5 code uses underscore variants (`tenant_dm`, `tenant_announcement_create`). Agent C / B / F.2.5 docs all use the underscore variants — source-of-truth is the code.
+
+**"Announcement priority enum is low/normal/high/urgent, not info/warning/critical."**
+- Existing `announcements` table on tenant DB uses `low/normal/high/urgent` + `targetAudience all/staff/clients`. Templates store `info/warning/critical` for the picker UI; the bulk composer maps template priority to the announcements-table enum at send time. This avoids breaking the existing single-tenant announcement flow.
+
+### Tables added
+
+`comms_templates`:
+```
+id uuid pk
+name text
+subject text
+body_markdown text
+kind text                  -- 'direct_message' | 'announcement'
+priority text NULL         -- announcement only
+target_audience text NULL  -- announcement only
+created_by_user_id text
+created_at, updated_at timestamp
+archived_at timestamp NULL -- soft-delete
+```
+
+### Audit action strings
+
+Both bulk and single sends use the SAME action strings (uniform outbox):
+- `tenant_dm` — DM sent (single or bulk; `metadata.kind` distinguishes)
+- `tenant_announcement_create` — announcement created (single or bulk)
+- `comms_template_create` / `comms_template_update` / `comms_template_archive` / `comms_template_unarchive` — template mutations
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **C** (outbox + templates) | `apps/server/src/routers/platform-admin-comms.ts`, `packages/db/src/schema/control-panel/comms-templates.ts`, `apps/web/src/routes/_authenticated/dashboard/_layout/platform-admin/comms.tsx`, `apps/web/src/components/platform-admin/{comms-outbox-list,template-library-panel,template-editor-dialog}.tsx` | `apps/web/e2e/tests/ship/plan-f-2-5/C-comms.spec.ts` | `verification/plan-f-2-5/C-comms.webm` |
+| **B** (bulk composer) | `apps/web/src/components/platform-admin/bulk-comms-composer.tsx`, `apps/server/src/routers/platform-admin-tenants-comms.ts` (extended) | `apps/web/e2e/tests/ship/plan-f-2-5/B-bulk-comms.spec.ts` | `verification/plan-f-2-5/B-bulk-comms.webm` |
 ## F.3 — Billing depth (PENDING)
 ## F.4 — Operational depth (PENDING)
 ## F.5 — Final ADRs + this runbook expansion (PENDING)
