@@ -511,6 +511,22 @@ export const platformAdminTenantsRouter = {
 			return { ok: true, trialEndsAt: updated.trialEndsAt };
 		}),
 
+	// E.4 — Activation funnel for one tenant.
+	getTenantFunnel: adminProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const { computeTenantFunnel } = await import(
+				"@/services/tenant-funnel.service"
+			);
+			const { getTenantDb } = await import("@/lib/db");
+			const tenantDb = await getTenantDb(input.organizationId);
+			return computeTenantFunnel(input.organizationId, {
+				controlPanelDb: cpDb,
+				tenantDb,
+			});
+		}),
+
 	runTenantUsageSnapshotsNow: adminProcedure.handler(async ({ context }) => {
 		const cpDb = cpDbFromContext(context);
 		const { runTenantUsageSnapshots } = await import(

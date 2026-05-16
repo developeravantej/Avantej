@@ -1138,6 +1138,35 @@ const platformAdminTenantsRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Funnel types (Plan E E.4).
+const platformAdminTenantsFunnelTypes = {
+	getTenantFunnel: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				organizationId: string;
+				milestones: Array<{
+					id:
+						| "email_verified"
+						| "hierarchy_seeded"
+						| "first_member"
+						| "first_customer"
+						| "ghl_connected"
+						| "first_appointment"
+						| "first_payment";
+					label: string;
+					reached: boolean;
+					reachedAt: Date | null;
+				}>;
+				stuckAt: string | null;
+				completed: number;
+				total: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Lifecycle types (Plan E E.3).
 const platformAdminTenantsLifecycleTypes = {
 	suspendTenant: protectedProcedure
@@ -1366,6 +1395,7 @@ export const appRouter = {
 		...platformAdminTenantsRouterType,
 		...platformAdminTenantsUsageTypes,
 		...platformAdminTenantsLifecycleTypes,
+		...platformAdminTenantsFunnelTypes,
 	},
 };
 
