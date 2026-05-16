@@ -146,16 +146,95 @@ tracked as follow-ups:
 
 ---
 
-## F.1.5 — Stretch patch (PENDING)
+## F.1.5 — Stretch patch (LANDED)
 
-Deferred from F.1 must-have. To ship after F.1 lands cleanly:
+Branch: `plan-f-1-5-stretch` (based on `plan-f-ops-ux` tip)
+Commits: `af73381` (Health), `561ae3c` (Risk tab), `3d656d7` (Mission), `<docs>` (ADR-0030 + this section)
+ADR: 0030 (health-score formula)
+Migration: 0028 (health_score + risk_flags on tenant_usage_snapshots)
 
-- `/dashboard/platform-admin` mission-control home
-- Health score columns on `tenant_usage_snapshots` (additive ALTER)
-- Risk tab on tenant drill-in
+### What shipped
 
-Migration slot: `0028_health_score_on_snapshots.sql`.
-ADR: `0030` (TBD — health-score formula).
+| Feature | Where | Router | Migration |
+|---|---|---|---|
+| Health score + risk flags on snapshots | `tenant_usage_snapshots.health_score` + `.risk_flags` | `platformAdminTenants.health` (get / history / listAtRisk) | `0028_health_score_on_snapshots.sql` |
+| Risk tab on tenant drill-in | `tenants.$id.tsx` Tabs block | (reads health router) | — |
+| Mission-control home page | `/dashboard/platform-admin/` (new index route) | `platformAdminDashboard.getOverview` | — |
+
+### Common ops
+
+**See "what should I look at today?"**
+1. Hit `/dashboard/platform-admin/` directly — Mission Control is the
+   new index route.
+2. 4 KPI cards at top: Total Tenants, Active Subs, MRR, Cancelled.
+3. At-Risk widget (top 5 by lowest health score) on the left.
+4. Recent admin activity feed (last 10) on the right.
+5. Recent signups list at the bottom.
+
+**Read a tenant's health.**
+1. Drill into tenant → Risk tab.
+2. Big score 0-100 with color band (green 80+, amber 50-79, red <50,
+   grey for "no snapshot yet").
+3. Risk-flag chips with severity colors.
+4. 30-day sparkline shows the trend (appears once 2+ days of snapshots
+   exist).
+
+**How is the score computed?**
+See `docs/adr/0030-health-score-formula.md`. Weighted 5-factor
+composite over snapshot inputs. Pure function at
+`packages/services/src/health-score.ts`.
+
+### Debugging recipes
+
+**"Score is grey 'No data'."**
+- No `tenant_usage_snapshots` row exists for that org yet. The daily
+  cron will write one within 24h. If it's stuck, check the cron
+  output for that org.
+
+**"Score is full 100 but I know the tenant is on fire."**
+- Some of the 5 factors emit `no_data` — their snapshot columns aren't
+  yet populated. Score is computed only from available factors. Once
+  the snapshot service gains `last_admin_login_at`,
+  `failed_webhooks_7d`, `daily_active_members_30d_avg` columns, the
+  formula picks them up automatically. Tracked as ADR-0030 open
+  follow-up.
+
+**"Sparkline says 'Not enough data'."**
+- Need ≥2 days of snapshots. New tenants will see this for the first
+  day or two of their existence.
+
+**"Recent activity feed is empty."**
+- The local dev `admin_session_actions` table is often empty. In
+  prod, this surfaces the latest 10 platform-admin actions across all
+  tenants.
+
+**"MRR shows '—'."**
+- `TIER_PRICES` constant doesn't exist in code yet. The aggregator
+  returns `mrrEstimateAvailable: false` and the UI shows "—". F.1.5
+  TODO comment in `platform-admin-dashboard.ts`. Wire up via Stripe
+  price lookup or hardcoded TIER_PRICES in Plan F.3 (billing depth)
+  when prices land in a shared constant.
+
+### Tables added
+
+`tenant_usage_snapshots` — two new columns (additive ALTER):
+```
+health_score integer NULL
+risk_flags jsonb NULL  -- array of { code, severity, observedAt }
+```
+Historical rows stay NULL. Cron writes forward.
+
+### Audit trail
+
+F.1.5 procs are all read-only. No new audit rows.
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **H** (Health) | `apps/server/src/routers/platform-admin-tenants-health.ts`, `apps/server/src/services/tenant-usage-snapshot.service.ts` (extended), `packages/services/src/health-score.ts`, `packages/db/src/schema/control-panel/tenant-usage-snapshots.ts` (extended) | `apps/web/e2e/tests/ship/plan-f-1-5/H-health-score.spec.ts` | `verification/plan-f-1-5/H-health-score.webm` |
+| **R** (Risk tab) | `apps/web/src/components/platform-admin/{tenant-risk-tab,health-score-gauge,risk-flag-list,health-sparkline}.tsx` | `apps/web/e2e/tests/ship/plan-f-1-5/R-risk-tab.spec.ts` | `verification/plan-f-1-5/R-risk-tab.webm` |
+| **M** (Mission) | `apps/server/src/routers/platform-admin-dashboard.ts`, `apps/web/src/routes/_authenticated/dashboard/_layout/platform-admin/index.tsx`, `apps/web/src/components/platform-admin/{big-number-card,recent-activity-feed,at-risk-widget}.tsx` | `apps/web/e2e/tests/ship/plan-f-1-5/M-mission-control.spec.ts` | `verification/plan-f-1-5/M-mission-control.webm` |
 
 ---
 
