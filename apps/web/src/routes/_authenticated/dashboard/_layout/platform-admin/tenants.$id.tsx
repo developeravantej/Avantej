@@ -19,6 +19,7 @@ import {
 	RefreshCw,
 } from "lucide-react";
 import { client } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TenantDeletionCard } from "@/components/platform-admin/tenant-deletion-card";
+import { TenantNotesTab } from "@/components/platform-admin/tenant-notes-tab";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/tenants/$id",
@@ -70,6 +72,13 @@ function TenantDrillInPage() {
 		queryKey: ["platformAdminTenants", "getTenantDetail", id],
 		queryFn: () => client.platformAdminTenants.getTenantDetail({ organizationId: id }),
 	});
+	const { data: session } = authClient.useSession();
+	const { data: me } = useQuery({
+		queryKey: ["admin", "me"],
+		queryFn: () => client.admin.me({}),
+	});
+	const currentUserId = session?.user?.id ?? "";
+	const isSuperAdmin = me?.isPlatformAdmin === true && me.role === "super_admin";
 
 	if (isLoading) {
 		return <div className="p-6 text-muted-foreground">Loading tenant…</div>;
@@ -135,6 +144,7 @@ function TenantDrillInPage() {
 					<TabsTrigger value="usage">Usage</TabsTrigger>
 					<TabsTrigger value="funnel">Funnel</TabsTrigger>
 					<TabsTrigger value="comms">Comms</TabsTrigger>
+					<TabsTrigger value="notes">Notes</TabsTrigger>
 					<TabsTrigger value="actions">Actions</TabsTrigger>
 				</TabsList>
 
@@ -338,6 +348,14 @@ function TenantDrillInPage() {
 
 				<TabsContent value="comms">
 					<CommsTab organizationId={id} />
+				</TabsContent>
+
+				<TabsContent value="notes">
+					<TenantNotesTab
+						organizationId={id}
+						currentUserId={currentUserId}
+						isSuperAdmin={isSuperAdmin}
+					/>
 				</TabsContent>
 
 				<TabsContent value="actions">

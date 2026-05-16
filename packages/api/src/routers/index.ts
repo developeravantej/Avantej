@@ -1378,6 +1378,56 @@ const platformAdminTenantsProvisionRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Notes types (Plan F.1).
+const platformAdminTenantsNotesRouterType = {
+	list: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				notes: Array<{
+					id: string;
+					organizationId: string;
+					authorUserId: string;
+					body: string;
+					isPinned: boolean;
+					createdAt: Date | null;
+					updatedAt: Date | null;
+					authorEmail: string | null;
+					authorName: string | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	create: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				body: z.string().min(1).max(5000),
+				isPinned: z.boolean().default(false),
+			}),
+		)
+		.handler((): { ok: true; noteId: string | null } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	update: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				body: z.string().min(1).max(5000).optional(),
+				isPinned: z.boolean().optional(),
+			}),
+		)
+		.handler((): { ok: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	delete: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler((): { ok: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1589,6 +1639,7 @@ export const appRouter = {
 		...platformAdminTenantsCommsTypes,
 		...platformAdminTenantsProvisionRouterType,
 		...platformAdminTenantsDeletionRouterType,
+		notes: platformAdminTenantsNotesRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };
