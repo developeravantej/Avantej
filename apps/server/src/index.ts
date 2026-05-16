@@ -19,6 +19,7 @@ import { stripeConnectRouter } from "@/routers/stripe-connect";
 import { paymentsRouter } from "@/routers/payments";
 import { platformAdminPaymentsRouter } from "@/routers/platform-admin-payments";
 import { platformAdminTenantsRouter } from "@/routers/platform-admin-tenants";
+import { platformAdminTenantsProvisionRouter } from "@/routers/platform-admin-tenants-provision";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -64,7 +65,10 @@ const appRouter = {
 	stripeConnect: stripeConnectRouter,
 	payments: paymentsRouter,
 	platformAdminPayments: platformAdminPaymentsRouter,
-	platformAdminTenants: platformAdminTenantsRouter,
+	platformAdminTenants: {
+		...platformAdminTenantsRouter,
+		...platformAdminTenantsProvisionRouter,
+	},
 };
 
 const app = new Hono();

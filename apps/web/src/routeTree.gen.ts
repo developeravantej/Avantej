@@ -87,6 +87,7 @@ import { Route as AuthenticatedDashboardLayoutAccessControlUserAssignmentRouteIm
 import { Route as AuthenticatedDashboardLayoutAccessControlRolesRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/roles'
 import { Route as AuthenticatedDashboardLayoutAccessControlPermissionsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/permissions'
 import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/invitations'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants.new'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsIdRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants.$id'
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/installments/view'
@@ -562,6 +563,12 @@ const AuthenticatedDashboardLayoutAccessControlInvitationsRoute =
     path: '/access-control/invitations',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedDashboardLayoutPlatformAdminTenantsRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute =
   AuthenticatedDashboardLayoutPlatformAdminTenantsIdRouteImport.update({
     id: '/$id',
@@ -683,6 +690,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
   '/dashboard/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/dashboard/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -767,6 +775,7 @@ export interface FileRoutesByTo {
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
   '/dashboard/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/dashboard/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -854,6 +863,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/_authenticated/dashboard/_layout/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/_authenticated/dashboard/_layout/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -941,6 +951,7 @@ export interface FileRouteTypes {
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
     | '/dashboard/platform-admin/tenants/$id'
+    | '/dashboard/platform-admin/tenants/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1025,6 +1036,7 @@ export interface FileRouteTypes {
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
     | '/dashboard/platform-admin/tenants/$id'
+    | '/dashboard/platform-admin/tenants/new'
   id:
     | '__root__'
     | '/'
@@ -1111,6 +1123,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/packages/installments/view'
     | '/_authenticated/dashboard/_layout/packages/instances/view'
     | '/_authenticated/dashboard/_layout/platform-admin/tenants/$id'
+    | '/_authenticated/dashboard/_layout/platform-admin/tenants/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1676,6 +1689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/tenants/new': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/tenants/new'
+      path: '/new'
+      fullPath: '/dashboard/platform-admin/tenants/new'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRoute
+    }
     '/_authenticated/dashboard/_layout/platform-admin/tenants/$id': {
       id: '/_authenticated/dashboard/_layout/platform-admin/tenants/$id'
       path: '/$id'
@@ -1723,12 +1743,15 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren {
   AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
 }
 
 const AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren: AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren =
   {
     AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute:
       AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute,
+    AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute:
+      AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute,
   }
 
 const AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren =
