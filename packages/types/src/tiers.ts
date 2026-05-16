@@ -66,3 +66,29 @@ export function getTierLimits(tier: string): TierLimits {
 export function isFeatureEnabled(tier: Tier, feature: TierFeature): boolean {
   return TIER_LIMITS[tier].features[feature];
 }
+
+/**
+ * Monthly tier prices in USD cents.
+ * TODO(plan-f-2): replace with real values from Stripe Dashboard.
+ * These are PLACEHOLDER values for MRR/ARR estimation only.
+ * Source of truth for billing is still Stripe (subscriptions.stripe_price_id).
+ */
+export const TIER_PRICES_USD_CENTS = {
+  basic: 4900, // $49/mo  — TODO confirm with Stripe
+  professional: 19900, // $199/mo — TODO confirm with Stripe
+  enterprise: 49900, // $499/mo — TODO confirm with Stripe
+} as const;
+
+export type TierPrice = (typeof TIER_PRICES_USD_CENTS)[Tier];
+
+/**
+ * Returns the monthly USD-cents price for a tier, or 0 for unknown tiers.
+ * Used by aggregator surfaces (mission control, /revenue) to estimate MRR.
+ * Billing remains driven by Stripe — this is a display-only helper.
+ */
+export function getTierPriceUsdCents(tier: Tier): number {
+  if (Object.hasOwn(TIER_PRICES_USD_CENTS, tier)) {
+    return TIER_PRICES_USD_CENTS[tier];
+  }
+  return 0;
+}

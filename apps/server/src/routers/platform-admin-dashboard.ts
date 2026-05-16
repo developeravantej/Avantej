@@ -7,8 +7,8 @@
  * Reads:
  *   - organizations counts grouped by payment_status
  *   - subscriptions counts (active + trialing)
- *   - MRR estimate (deferred — no TIER_PRICES constant in code → flag
- *     `mrrEstimateAvailable: false` and return 0)
+ *   - MRR estimate (Plan F.2 — sums TIER_PRICES_USD_CENTS across
+ *     active+trialing subs; prices are placeholders until Stripe wires in)
  *   - recent admin actions (top 10 from admin_session_actions, joined
  *     with users for actor email + organizations for target name)
  *   - at-risk top 5 (mirrors platform-admin-tenants-health.listAtRisk)
@@ -19,7 +19,8 @@
  */
 
 import { z } from "zod";
-import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -94,6 +95,7 @@ export const platformAdminDashboardRouter = {
 				orgsTotalRow,
 				orgsByStatus,
 				subsByStatus,
+				activeSubTiers,
 				recentActionsRows,
 				atRiskRows,
 				recentSignupsRows,
@@ -112,6 +114,12 @@ export const platformAdminDashboardRouter = {
 					.select({ status: subscriptions.status, c: count() })
 					.from(subscriptions)
 					.groupBy(subscriptions.status),
+
+				// Plan F.2 — MRR estimate: tiers of active/trialing subs.
+				cpDb
+					.select({ tier: subscriptions.tier })
+					.from(subscriptions)
+					.where(inArray(subscriptions.status, ["active", "trialing"])),
 
 				cpDb
 					.select({
@@ -202,12 +210,14 @@ export const platformAdminDashboardRouter = {
 				subsCounts[r.status] = Number(r.c);
 			}
 
-			// TODO(plan-f-1-5): when tier pricing lands in code, sum
-			// (price × seat-count) across active+trialing subscriptions to
-			// produce a live MRR estimate. For now the field is gated off so
-			// the UI shows a "—" placeholder rather than an invented number.
-			const mrrEstimateAvailable = false;
-			const mrrCents = 0;
+			// Plan F.2 — MRR estimate: sum TIER_PRICES across active+trialing
+			// subs. Prices are placeholders in @avantej-core/types until Stripe
+			// Dashboard prices are wired in; billing remains Stripe-driven.
+			const mrrCents = activeSubTiers.reduce(
+				(sum, row) => sum + getTierPriceUsdCents(row.tier as Tier),
+				0,
+			);
+			const mrrEstimateAvailable = true;
 
 			return {
 				counts: {

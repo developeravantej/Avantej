@@ -1,5 +1,12 @@
 import { describe, it, expect } from "bun:test";
-import { TIER_LIMITS, type Tier, getTierLimits, isFeatureEnabled } from "./tiers";
+import {
+  TIER_LIMITS,
+  TIER_PRICES_USD_CENTS,
+  type Tier,
+  getTierLimits,
+  getTierPriceUsdCents,
+  isFeatureEnabled,
+} from "./tiers";
 
 describe("TIER_LIMITS", () => {
   it("defines three tiers: basic, professional, enterprise", () => {
@@ -49,6 +56,37 @@ describe("getTierLimits", () => {
     expect(getTierLimits("constructor" as Tier).organizations).toBe(
       TIER_LIMITS.basic.organizations,
     );
+  });
+});
+
+describe("TIER_PRICES_USD_CENTS", () => {
+  it("defines the same three tiers as TIER_LIMITS", () => {
+    expect(Object.keys(TIER_PRICES_USD_CENTS).sort()).toEqual(
+      Object.keys(TIER_LIMITS).sort(),
+    );
+  });
+
+  it("has positive integer prices for every tier", () => {
+    for (const tier of Object.keys(TIER_PRICES_USD_CENTS) as Tier[]) {
+      const price = TIER_PRICES_USD_CENTS[tier];
+      expect(Number.isInteger(price)).toBe(true);
+      expect(price).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("getTierPriceUsdCents", () => {
+  it("returns the basic price for the basic tier", () => {
+    expect(getTierPriceUsdCents("basic")).toBe(TIER_PRICES_USD_CENTS.basic);
+  });
+
+  it("returns 0 for unknown tiers", () => {
+    expect(getTierPriceUsdCents("unknown" as Tier)).toBe(0);
+  });
+
+  it("returns 0 for prototype-chain keys like 'toString'", () => {
+    expect(getTierPriceUsdCents("toString" as Tier)).toBe(0);
+    expect(getTierPriceUsdCents("constructor" as Tier)).toBe(0);
   });
 });
 

@@ -13,7 +13,7 @@
  */
 
 import { z } from "zod";
-import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -164,9 +164,10 @@ export const platformAdminTenantsRouter = {
 								chargesEnabledCount: sql<number>`SUM(CASE WHEN ${orgCountryStripeAccounts.chargesEnabled} THEN 1 ELSE 0 END)`,
 							})
 							.from(orgCountryStripeAccounts)
-							.where(
-								sql`${orgCountryStripeAccounts.organizationId} = ANY(${orgIds}::uuid[])`,
-							)
+							// Plan F.2: use inArray instead of sql`= ANY(${arr}::uuid[])`.
+							// @neondatabase/serverless binds JS arrays as `record`, which PG
+							// refuses to cast to uuid[] ("cannot cast type record to uuid[]").
+							.where(inArray(orgCountryStripeAccounts.organizationId, orgIds))
 							.groupBy(orgCountryStripeAccounts.organizationId)
 					: [];
 			const rollupByOrg = new Map(
