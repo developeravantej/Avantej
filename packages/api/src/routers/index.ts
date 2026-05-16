@@ -1428,6 +1428,104 @@ const platformAdminTenantsNotesRouterType = {
 		}),
 };
 
+// Platform Admin — Tenant Tags + Bulk Ops types (Plan F.1).
+const platformAdminTenantsTagsRouterType = {
+	list: protectedProcedure
+		.input(z.object({ search: z.string().trim().optional() }).default({}))
+		.handler(
+			(): {
+				tags: Array<{ label: string; color: string | null; orgCount: number }>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listForOrg: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				tags: Array<{
+					id: string;
+					label: string;
+					color: string | null;
+					createdAt: Date | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	add: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				label: z.string().trim().min(1).max(50),
+				color: z.string().trim().max(32).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				tag: { id: string; label: string; color: string | null } | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	remove: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				label: z.string().trim().min(1).max(50),
+			}),
+		)
+		.handler((): { ok: true; removed: number } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	bulkAdd: protectedProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				label: z.string().trim().min(1).max(50),
+				color: z.string().trim().max(32).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				attempted: number;
+				inserted: number;
+				skipped: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	bulkRemove: protectedProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				label: z.string().trim().min(1).max(50),
+			}),
+		)
+		.handler((): { ok: true; attempted: number; removed: number } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	bulkSuspend: protectedProcedure
+		.input(
+			z.object({
+				organizationIds: z.array(z.string().uuid()).min(1).max(100),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				attempted: number;
+				suspended: number;
+				failures: Array<{ organizationId: string; error: string }>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1640,6 +1738,7 @@ export const appRouter = {
 		...platformAdminTenantsProvisionRouterType,
 		...platformAdminTenantsDeletionRouterType,
 		notes: platformAdminTenantsNotesRouterType,
+		tags: platformAdminTenantsTagsRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };

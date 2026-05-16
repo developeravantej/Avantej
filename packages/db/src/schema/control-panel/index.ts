@@ -23,3 +23,4 @@ export * from "./reconciliation";
 export * from "./tenant-usage-snapshots";
 export * from "./tenant-deletions";
 export * from "./tenant-notes";
+export * from "./tenant-tags";

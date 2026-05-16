@@ -23,6 +23,7 @@ import { platformAdminTenantsCommsRouter } from "@/routers/platform-admin-tenant
 import { platformAdminTenantsProvisionRouter } from "@/routers/platform-admin-tenants-provision";
 import { platformAdminTenantsDeletionRouter } from "@/routers/platform-admin-tenants-deletion";
 import { platformAdminTenantsNotesRouter } from "@/routers/platform-admin-tenants-notes";
+import { platformAdminTenantsTagsRouter } from "@/routers/platform-admin-tenants-tags";
 import { platformAdminAuditRouter } from "@/routers/platform-admin-audit";
 
 import { createContext } from "@avantej-core/api/context";
@@ -75,6 +76,7 @@ const appRouter = {
 		...platformAdminTenantsProvisionRouter,
 		...platformAdminTenantsDeletionRouter,
 		notes: platformAdminTenantsNotesRouter,
+		tags: platformAdminTenantsTagsRouter,
 	},
 	platformAdminAudit: platformAdminAuditRouter,
 };
