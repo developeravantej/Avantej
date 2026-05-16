@@ -21,3 +21,4 @@ export * from "./org-country-stripe-accounts";
 export * from "./platform-dispute-queue";
 export * from "./reconciliation";
 export * from "./tenant-usage-snapshots";
+export * from "./tenant-deletions";

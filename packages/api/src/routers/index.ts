@@ -1375,6 +1375,84 @@ const platformAdminTenantsProvisionRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Deletion / Export types (Plan E E.8).
+const platformAdminTenantsDeletionRouterType = {
+	requestTenantExport: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				exportedAt: string;
+				organizationId: string;
+				tableCount: number;
+				totalRows: number;
+				dataUrlPreviewLength: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	requestTenantDeletion: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				captureExport: z.boolean().default(false),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				tenantDeletionId: string;
+				hardDeleteAfter: Date;
+				exportCaptured: boolean;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	restoreTenantDeletion: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): { ok: true; tenantDeletionId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	listTenantDeletions: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid().optional(),
+				onlyOpen: z.boolean().default(false),
+				page: z.number().int().positive().default(1),
+				limit: z.number().int().positive().max(100).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				total: number;
+				page: number;
+				limit: number;
+				deletions: Array<{
+					id: string;
+					organizationId: string;
+					organizationName: string | null;
+					organizationSlug: string | null;
+					requestedAt: Date | null;
+					requestedBy: string;
+					hardDeleteAfter: Date;
+					restoredAt: Date | null;
+					hardDeletedAt: Date | null;
+					hasExportUrl: boolean;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	runHardDeleteSweeperNow: protectedProcedure.handler(
+		(): {
+			scanned: number;
+			deleted: number;
+			errors: Array<{ organizationId: string; error: string }>;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -1507,6 +1585,7 @@ export const appRouter = {
 		...platformAdminTenantsFunnelTypes,
 		...platformAdminTenantsCommsTypes,
 		...platformAdminTenantsProvisionRouterType,
+		...platformAdminTenantsDeletionRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };
