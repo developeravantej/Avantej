@@ -77,6 +77,10 @@ Enforcement:
 3. **Platform-admin bypass** — admin paths (`/platformAdmin*`,
    `/admin.*`) bypass the suspension gate so ops can resume / cancel /
    inspect. Tenant data remains accessible to admins.
+4. **Cancelled is gated identically to suspended** — both
+   `tenant.middleware.ts` and `orpc-tenant.middleware.ts` 403 on
+   `paymentStatus IN ('suspended', 'cancelled')`. Force-cancel halts
+   Stripe immediately and the gate stops any residual app traffic.
 
 ### Force-cancel semantics
 
@@ -139,9 +143,9 @@ Negative:
   admin write wins (last-writer). Acceptable: webhook arriving later
   would set us active again, which a reasonable ops would re-suspend.
   An optimistic-lock column is overkill for now.
-- `cancelled` is not yet gated explicitly by the middleware (only
-  `suspended` is). Filed as a follow-up — for now, cancellation also
-  cancels Stripe so the tenant has nothing to do app-side anyway.
+- ~~`cancelled` is not yet gated explicitly by the middleware~~ —
+  resolved post-Plan-E: both `suspended` and `cancelled` are now
+  blocked at the middleware layer.
 - `forceCancelTenant` doesn't refund. Refunds belong in a separate
   proc (none yet) — ops uses the Stripe Dashboard for refunds.
 

@@ -245,10 +245,6 @@ Carried into a future plan (Plan F or beyond):
 - **Self-serve tenant management** — own-sub cancel, own-data
   export, own-tenant audit, in-app announcements UI. Plan F per
   ADR-0022.
-- **Cancelled-state middleware gate** — `suspended` is gated, but
-  `cancelled` only stops billing (the Stripe sub is cancelled, so
-  tenants effectively can't use the platform anyway). Tighten the
-  middleware to explicitly 403 on `cancelled` too. (E.3 follow-up.)
 - **Country column on organizations** — wizard records country in the
   audit metadata only. Promote to a real column if/when we need to
   query tenants by country at scale. (E.7 follow-up.)

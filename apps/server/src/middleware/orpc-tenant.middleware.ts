@@ -126,9 +126,15 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
             where: eq(organizations.id, organizationId),
             columns: { id: true, paymentStatus: true },
           });
-          if (org?.paymentStatus === "suspended") {
+          if (
+            org?.paymentStatus === "suspended" ||
+            org?.paymentStatus === "cancelled"
+          ) {
             return c.json(
-              { error: "Tenant is suspended", paymentStatus: "suspended" },
+              {
+                error: `Tenant is ${org.paymentStatus}`,
+                paymentStatus: org.paymentStatus,
+              },
               403,
             );
           }
