@@ -1526,6 +1526,30 @@ const platformAdminTenantsTagsRouterType = {
 		),
 };
 
+// Platform Admin — Cross-Tenant Search types (Plan F.1 — Agent S).
+const platformAdminTenantsSearchRouterType = {
+	search: protectedProcedure
+		.input(
+			z.object({
+				query: z.string().min(1).max(200),
+				limit: z.number().int().min(1).max(20).default(10),
+			}),
+		)
+		.handler(
+			(): {
+				results: Array<{
+					orgId: string;
+					orgName: string;
+					slug: string;
+					matchType: "id" | "name" | "slug" | "email";
+					matchedField?: string;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1739,6 +1763,7 @@ export const appRouter = {
 		...platformAdminTenantsDeletionRouterType,
 		notes: platformAdminTenantsNotesRouterType,
 		tags: platformAdminTenantsTagsRouterType,
+		search: platformAdminTenantsSearchRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };
