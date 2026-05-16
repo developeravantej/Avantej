@@ -238,7 +238,73 @@ F.1.5 procs are all read-only. No new audit rows.
 
 ---
 
-## F.2 — Revenue + segmentation (PENDING)
+## F.2 — Revenue (LANDED, partial — comms/bulk-composer deferred)
+
+Branch: `plan-f-2-revenue` (based on `plan-f-1-5-stretch` tip)
+Commits: `7dd36a3` (P prep), `1f34556` (V revenue), `<docs>` (ADR-0031 + runbook)
+ADR: 0031 (revenue rollup approach)
+Migration: none — derived views only
+
+### What shipped
+
+| Feature | Where | Router |
+|---|---|---|
+| TIER_PRICES_USD_CENTS constant | `packages/types/src/tiers.ts` | `getTierPriceUsdCents(tier)` helper |
+| listTenants cast bug fix | `apps/server/src/routers/platform-admin-tenants.ts` | drizzle `inArray()` replaces array cast |
+| Mission-control MRR wiring | `apps/server/src/routers/platform-admin-dashboard.ts` | `platformAdminDashboard.getOverview` now returns live MRR cents |
+| /revenue page | `/dashboard/platform-admin/revenue` (new route) | `platformAdminRevenue` (getKpis / getCohortRetention / getRecentChurn) |
+
+### What's deferred (rest of F.2)
+
+- `/comms` outbox + template library — defer to F.2.5
+- Bulk DM / announcement composer — defer to F.2.5 (builds on Agent T's bulk-actions-bar.tsx pattern)
+
+Reason: F.2 doc estimated 5d; trimmed to revenue + prep to keep PR review tractable.
+Comms + bulk-composer don't block F.3/F.4. F.2.5 patch when reviewer queue clears.
+
+### Common ops
+
+**Eyeball revenue.**
+1. Navigate to `/dashboard/platform-admin/revenue`.
+2. 4 KPI cards: MRR, ARR, Active Subs, Cancelled (30d) with churn rate.
+3. 30d MRR delta waterfall: starting → +new → -churn → ending.
+4. Recent-churn list (last 30d, ≤100 events).
+5. 12-month cohort retention grid — recent cohort at top.
+
+**Read mission-control MRR.**
+- `/dashboard/platform-admin/` MRR card now shows real cents (was "—" before F.2-P).
+
+### Debugging recipes
+
+**"MRR shows wrong dollar amount."**
+- TIER_PRICES_USD_CENTS values in `packages/types/src/tiers.ts` are PLACEHOLDERS ($49/$199/$499 monthly). Replace with real Stripe Dashboard prices. No code change needed — every call site reads from the constant.
+
+**"Cohort grid is empty for recent months."**
+- The grid only counts orgs with `createdAt >= oldestCohortStart`. If you signed up no new orgs in those months, cohorts will be size 0 (placeholder cells).
+
+**"Recent churn is empty."**
+- No subs with `canceledAt IS NOT NULL` in the last 30d. Normal for low-churn periods.
+
+**"ARR is exactly MRR × 12 — is that right?"**
+- Yes by design (ADR-0031). ARR projection assumes no churn / no growth. For weighted ARR forecasts, use Stripe Sigma or a dedicated finance pipeline — out of scope here.
+
+**"/tenants list no longer 500s — anything I should know?"**
+- Agent P (F.2-prep) fixed the `cannot cast type record to uuid[]` aggregation bug by switching `sql\`= ANY(${orgIds}::uuid[])\`` to drizzle `inArray()`. Root cause: `@neondatabase/serverless` binds JS arrays as `record` type which PG can't cast to `uuid[]`. drizzle `inArray()` expands to per-element placeholders.
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **P** (prep) | `packages/types/src/tiers.ts` (extended), `apps/server/src/routers/platform-admin-tenants.ts` (cast fix), `apps/server/src/routers/platform-admin-dashboard.ts` (MRR wiring) | `apps/web/e2e/tests/ship/plan-f-2/P-prep.spec.ts` | `verification/plan-f-2/P-prep.webm` |
+| **V** (/revenue) | `apps/server/src/routers/platform-admin-revenue.ts`, `apps/web/src/routes/_authenticated/dashboard/_layout/platform-admin/revenue.tsx`, `apps/web/src/components/platform-admin/{revenue-kpi-row,churn-waterfall,cohort-retention-grid}.tsx` | `apps/web/e2e/tests/ship/plan-f-2/V-revenue.spec.ts` | `verification/plan-f-2/V-revenue.webm` |
+
+### Pipeline note
+
+Agent V crashed mid-flight at ~4min (API 500 error, 26 tool uses). Server router + 3 components were on disk; UI route + e2e spec were missing. Per `~/.claude/skills/ship-pipeline/references/failure-recovery.md` fallback: orchestrator took the slice in-thread, wrote the missing files, expanded `getKpis` return shape to include discrete `newMrrLast30dCents` + `churnedMrrLast30dCents` (waterfall needs both, not just net), and updated the type stub. Total time-to-recovery: ~5min. No need to redispatch agent.
+
+---
+
+## F.2.5 — Comms + bulk composer (PENDING)
 ## F.3 — Billing depth (PENDING)
 ## F.4 — Operational depth (PENDING)
 ## F.5 — Final ADRs + this runbook expansion (PENDING)
