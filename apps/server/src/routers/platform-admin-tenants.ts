@@ -25,8 +25,12 @@ import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptio
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
 import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
+import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import { getStripeClient } from "@/lib/stripe";
 
-function requirePlatformAdmin() {
+function requirePlatformAdmin(
+	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
+) {
 	return (protectedProcedure as any).middleware(
 		async ({ context, next }: { context: any; next: any }) => {
 			if (!context.session?.user) {
@@ -46,6 +50,16 @@ function requirePlatformAdmin() {
 			if (!adminRecord) {
 				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
 			}
+			if (
+				allowRoles &&
+				!allowRoles.includes(
+					adminRecord.role as "super_admin" | "support" | "billing",
+				)
+			) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Your platform admin role does not permit this action",
+				});
+			}
 			return next({
 				context: { ...context, adminRecord, adminRole: adminRecord.role },
 			});
@@ -54,6 +68,18 @@ function requirePlatformAdmin() {
 }
 
 const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
+const superAdminProcedure = protectedProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
+
+function adminUserIdFrom(context: unknown): string {
+	const session = (context as { session?: { user?: { id?: string } } }).session;
+	const id = session?.user?.id;
+	if (!id) {
+		throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	}
+	return id;
+}
 
 function cpDbFromContext(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -251,6 +277,238 @@ export const platformAdminTenantsRouter = {
 				.orderBy(desc(tenantUsageSnapshots.snapshotDate))
 				.limit(input.days);
 			return { snapshots: rows.reverse() };
+		}),
+
+	// E.3 — Lifecycle ops. super_admin only. Each writes an audit row.
+	suspendTenant: superAdminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			const [updated] = await cpDb
+				.update(organizations)
+				.set({ paymentStatus: "suspended", updatedAt: new Date() })
+				.where(eq(organizations.id, input.organizationId))
+				.returning({
+					id: organizations.id,
+					paymentStatus: organizations.paymentStatus,
+				});
+
+			if (!updated) {
+				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+			}
+
+			await cpDb.insert(adminSessionActions).values({
+				adminUserId,
+				actionType: "tenant_suspend",
+				targetOrganizationId: input.organizationId,
+				metadata: { reason: input.reason },
+			});
+
+			return { ok: true, paymentStatus: updated.paymentStatus };
+		}),
+
+	resumeTenant: superAdminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			const [updated] = await cpDb
+				.update(organizations)
+				.set({ paymentStatus: "active", updatedAt: new Date() })
+				.where(eq(organizations.id, input.organizationId))
+				.returning({
+					id: organizations.id,
+					paymentStatus: organizations.paymentStatus,
+				});
+
+			if (!updated) {
+				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+			}
+
+			await cpDb.insert(adminSessionActions).values({
+				adminUserId,
+				actionType: "tenant_resume",
+				targetOrganizationId: input.organizationId,
+				metadata: { reason: input.reason },
+			});
+
+			return { ok: true, paymentStatus: updated.paymentStatus };
+		}),
+
+	forceCancelTenant: superAdminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+				cancelStripeSubscription: z.boolean().default(true),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			const [org] = await cpDb
+				.select({
+					id: organizations.id,
+					subscriptionId: organizations.subscriptionId,
+				})
+				.from(organizations)
+				.where(eq(organizations.id, input.organizationId));
+
+			if (!org) {
+				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+			}
+
+			let stripeSubCanceled: string | null = null;
+			if (input.cancelStripeSubscription && org.subscriptionId) {
+				const [sub] = await cpDb
+					.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
+					.from(subscriptions)
+					.where(eq(subscriptions.id, org.subscriptionId));
+				if (sub?.stripeSubscriptionId) {
+					try {
+						await getStripeClient().subscriptions.cancel(sub.stripeSubscriptionId);
+						stripeSubCanceled = sub.stripeSubscriptionId;
+					} catch (e) {
+						const msg = e instanceof Error ? e.message : String(e);
+						console.error(`[forceCancelTenant] stripe cancel failed:`, msg);
+					}
+				}
+			}
+
+			await cpDb
+				.update(organizations)
+				.set({ paymentStatus: "cancelled", updatedAt: new Date() })
+				.where(eq(organizations.id, input.organizationId));
+
+			await cpDb.insert(adminSessionActions).values({
+				adminUserId,
+				actionType: "tenant_force_cancel",
+				targetOrganizationId: input.organizationId,
+				metadata: { reason: input.reason, stripeSubCanceled },
+			});
+
+			return { ok: true, stripeSubCanceled };
+		}),
+
+	issueTenantCredit: superAdminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				amountMinor: z.number().int().positive().max(10_000_000),
+				currency: z.string().length(3),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			const [org] = await cpDb
+				.select({ subscriptionId: organizations.subscriptionId })
+				.from(organizations)
+				.where(eq(organizations.id, input.organizationId));
+
+			if (!org) {
+				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+			}
+			if (!org.subscriptionId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Tenant has no subscription — cannot issue credit",
+				});
+			}
+
+			const [sub] = await cpDb
+				.select({ stripeCustomerId: subscriptions.stripeCustomerId })
+				.from(subscriptions)
+				.where(eq(subscriptions.id, org.subscriptionId));
+
+			if (!sub?.stripeCustomerId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Subscription is missing a Stripe customer id",
+				});
+			}
+
+			// Negative amount = credit to customer balance.
+			const tx = await getStripeClient().customers.createBalanceTransaction(
+				sub.stripeCustomerId,
+				{
+					amount: -input.amountMinor,
+					currency: input.currency.toLowerCase(),
+					description: `Platform-admin credit (${input.reason})`,
+				},
+			);
+
+			await cpDb.insert(adminSessionActions).values({
+				adminUserId,
+				actionType: "tenant_issue_credit",
+				targetOrganizationId: input.organizationId,
+				metadata: {
+					reason: input.reason,
+					amountMinor: input.amountMinor,
+					currency: input.currency.toLowerCase(),
+					stripeBalanceTxId: tx.id,
+				},
+			});
+
+			return { ok: true, stripeBalanceTxId: tx.id };
+		}),
+
+	reTrialTenant: superAdminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				extendDays: z.number().int().positive().max(180),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const adminUserId = adminUserIdFrom(context);
+
+			const now = new Date();
+			const newTrialEnd = new Date(
+				now.getTime() + input.extendDays * 24 * 60 * 60 * 1000,
+			);
+
+			const [updated] = await cpDb
+				.update(organizations)
+				.set({
+					trialEndsAt: newTrialEnd,
+					paymentStatus: "active",
+					updatedAt: now,
+				})
+				.where(eq(organizations.id, input.organizationId))
+				.returning({
+					id: organizations.id,
+					trialEndsAt: organizations.trialEndsAt,
+				});
+
+			if (!updated) {
+				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+			}
+
+			await cpDb.insert(adminSessionActions).values({
+				adminUserId,
+				actionType: "tenant_re_trial",
+				targetOrganizationId: input.organizationId,
+				metadata: { reason: input.reason, extendDays: input.extendDays },
+			});
+
+			return { ok: true, trialEndsAt: updated.trialEndsAt };
 		}),
 
 	runTenantUsageSnapshotsNow: adminProcedure.handler(async ({ context }) => {

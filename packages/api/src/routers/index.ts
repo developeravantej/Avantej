@@ -1138,6 +1138,64 @@ const platformAdminTenantsRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Lifecycle types (Plan E E.3).
+const platformAdminTenantsLifecycleTypes = {
+	suspendTenant: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler((): { ok: true; paymentStatus: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	resumeTenant: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler((): { ok: true; paymentStatus: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	forceCancelTenant: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				reason: z.string().trim().min(3).max(500),
+				cancelStripeSubscription: z.boolean().default(true),
+			}),
+		)
+		.handler((): { ok: true; stripeSubCanceled: string | null } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	issueTenantCredit: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				amountMinor: z.number().int().positive().max(10_000_000),
+				currency: z.string().length(3),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler((): { ok: true; stripeBalanceTxId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	reTrialTenant: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				extendDays: z.number().int().positive().max(180),
+				reason: z.string().trim().min(3).max(500),
+			}),
+		)
+		.handler((): { ok: true; trialEndsAt: Date | null } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // Platform Admin — Tenant Usage types (Plan E E.2).
 const platformAdminTenantsUsageTypes = {
 	getTenantUsageHistory: protectedProcedure
@@ -1307,6 +1365,7 @@ export const appRouter = {
 	platformAdminTenants: {
 		...platformAdminTenantsRouterType,
 		...platformAdminTenantsUsageTypes,
+		...platformAdminTenantsLifecycleTypes,
 	},
 };
 

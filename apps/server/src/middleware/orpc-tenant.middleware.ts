@@ -9,9 +9,10 @@
  */
 
 import { createMiddleware } from "hono/factory";
-import { getTenantDb } from "@/lib/db";
+import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { getDescendantNodeIds } from "@avantej-core/services";
 import { getBetterAuth } from "@/lib/better-auth";
 
@@ -111,6 +112,30 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
       if (!organizationId) {
         await next();
         return;
+      }
+
+      // Plan E E.3 / ADR-0024 — block oRPC mutations on suspended tenants.
+      // Platform-admin endpoints bypass so ops can resume/cancel.
+      const methodStr = String(method ?? "");
+      const isPlatformAdminCall =
+        methodStr.startsWith("platformAdmin") || methodStr.startsWith("admin.");
+      if (!isPlatformAdminCall) {
+        try {
+          const cpDb = getControlPanelDb(c);
+          const org = await cpDb.query.organizations.findFirst({
+            where: eq(organizations.id, organizationId),
+            columns: { id: true, paymentStatus: true },
+          });
+          if (org?.paymentStatus === "suspended") {
+            return c.json(
+              { error: "Tenant is suspended", paymentStatus: "suspended" },
+              403,
+            );
+          }
+        } catch (e) {
+          // If we can't check, fall through — handler-level checks remain.
+          console.warn("suspension check failed:", e);
+        }
       }
 
       try {

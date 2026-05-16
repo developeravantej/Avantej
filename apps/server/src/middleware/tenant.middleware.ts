@@ -78,6 +78,16 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 			return c.json({ error: "Organization not found" }, 404);
 		}
 
+		// Plan E E.3 / ADR-0024 — suspended tenants are read-only at the app
+		// boundary. Platform-admin paths bypass this so ops can resume/cancel.
+		const isPlatformAdminPath = c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
+		if (organization.paymentStatus === "suspended" && !isPlatformAdminPath) {
+			return c.json(
+				{ error: "Tenant is suspended", paymentStatus: "suspended" },
+				403,
+			);
+		}
+
 		// Get tenant database connection (use request-scoped pool with caching)
 		const tenantDb = await getTenantDb(organizationId, c);
 
