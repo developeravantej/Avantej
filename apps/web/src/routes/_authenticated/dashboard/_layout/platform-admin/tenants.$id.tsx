@@ -32,6 +32,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TenantDeletionCard } from "@/components/platform-admin/tenant-deletion-card";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/tenants/$id",
@@ -708,6 +709,7 @@ function ActionsTab({
 					disabled={cancelled || reTrial.isPending}
 					onConfirm={(args) => reTrial.mutate(args)}
 				/>
+				<TenantDeletionCard organizationId={organizationId} />
 			</div>
 		</div>
 	);
