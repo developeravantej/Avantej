@@ -67,3 +67,31 @@ Backup/*.json
 Backup/
 newmd/
 Plan/
+
+# Skill installer fan-out dirs from non-Claude AI tools.
+# Each holds a duplicate react-doctor/SKILL.md copy that Claude Code
+# does not read. Keep .claude/ only.
+.agents/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.cursor/
+.factory/
+.goose/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.playwright-mcp/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
+.zencoder/
