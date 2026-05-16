@@ -49,6 +49,7 @@ export const Route = createFileRoute(
 function PlatformAdminTenantsPage() {
 	const [search, setSearch] = useState("");
 	const [paymentStatus, setPaymentStatus] = useState<string>("any");
+	const [countryCode, setCountryCode] = useState<string>("any");
 	const [page, setPage] = useState(1);
 	const debouncedSearch = useDebounce(search, 300);
 	const limit = 50;
@@ -57,12 +58,13 @@ function PlatformAdminTenantsPage() {
 		queryKey: [
 			"platformAdminTenants",
 			"listTenants",
-			{ search: debouncedSearch, paymentStatus, page },
+			{ search: debouncedSearch, paymentStatus, countryCode, page },
 		],
 		queryFn: () =>
 			client.platformAdminTenants.listTenants({
 				search: debouncedSearch || undefined,
 				paymentStatus: paymentStatus === "any" ? undefined : paymentStatus,
+				countryCode: countryCode === "any" ? undefined : countryCode,
 				page,
 				limit,
 			}),
@@ -108,7 +110,25 @@ function PlatformAdminTenantsPage() {
 						<SelectItem value="any">Any status</SelectItem>
 						<SelectItem value="active">active</SelectItem>
 						<SelectItem value="suspended">suspended</SelectItem>
+						<SelectItem value="cancelled">cancelled</SelectItem>
 						<SelectItem value="failed">failed</SelectItem>
+					</SelectContent>
+				</Select>
+				<Select
+					value={countryCode}
+					onValueChange={(v) => {
+						setCountryCode(v);
+						setPage(1);
+					}}
+				>
+					<SelectTrigger className="w-32">
+						<SelectValue placeholder="Country" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="any">Any country</SelectItem>
+						<SelectItem value="MY">MY</SelectItem>
+						<SelectItem value="SG">SG</SelectItem>
+						<SelectItem value="TH">TH</SelectItem>
 					</SelectContent>
 				</Select>
 				<div className="text-sm text-muted-foreground ml-auto">
@@ -121,6 +141,7 @@ function PlatformAdminTenantsPage() {
 					<TableHeader>
 						<TableRow>
 							<TableHead>Name / Slug</TableHead>
+							<TableHead>Country</TableHead>
 							<TableHead>Owner</TableHead>
 							<TableHead>Payment</TableHead>
 							<TableHead>Sub</TableHead>
@@ -131,7 +152,7 @@ function PlatformAdminTenantsPage() {
 					<TableBody>
 						{tenants.length === 0 && !isLoading && (
 							<TableRow>
-								<TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+								<TableCell colSpan={7} className="text-center text-muted-foreground py-8">
 									No tenants match.
 								</TableCell>
 							</TableRow>
@@ -147,6 +168,15 @@ function PlatformAdminTenantsPage() {
 										{t.name}
 									</Link>
 									<div className="text-xs text-muted-foreground">{t.slug}</div>
+								</TableCell>
+								<TableCell>
+									{t.countryCode ? (
+										<Badge variant="outline" className="font-mono text-xs">
+											{t.countryCode}
+										</Badge>
+									) : (
+										<span className="text-muted-foreground text-xs">—</span>
+									)}
 								</TableCell>
 								<TableCell>
 									<div className="text-sm">{t.ownerEmail ?? "—"}</div>

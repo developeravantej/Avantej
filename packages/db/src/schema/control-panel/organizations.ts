@@ -29,6 +29,9 @@ export const organizations = pgTable("organizations", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "restrict" }),
+	// Plan E follow-up — primary country (ISO 3166-1 alpha-2). Captured at
+	// provisioning time by the E.7 wizard. Nullable for legacy rows.
+	countryCode: text("country_code"),
 	// Phase 4.5: legacy org-level Stripe Connect fields dropped — see
 	// migration 0020. All Connect state now lives in
 	// org_country_stripe_accounts (one row per (org, country_code)).
@@ -54,6 +57,7 @@ export const organizations = pgTable("organizations", {
 	// Note: slug and neonProjectId already have unique constraints/indexes via .unique()
 	subscriptionIdIdx: index("organizations_subscription_idx").on(table.subscriptionId),
 	paymentStatusIdx: index("organizations_payment_status_idx").on(table.paymentStatus),
+	countryCodeIdx: index("organizations_country_code_idx").on(table.countryCode),
 }));
 
 export const organizationsRelations = relations(organizations, ({ one }) => ({

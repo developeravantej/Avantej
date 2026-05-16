@@ -18,8 +18,11 @@
  * Neon project to avoid leaking orphan tenants (mirrors the policy in
  * organizations.routes.ts).
  *
- * Country: there's no org-level country column today (per-country Connect
- * accounts live in org_country_stripe_accounts), so the country code is
+ * Country: persisted on organizations.country_code (Plan E follow-up
+ * migration 0025). Also retained in the audit metadata so historical
+ * runs prior to the column being added remain queryable. Per-country
+ * Stripe Connect accounts continue to live in
+ * org_country_stripe_accounts, so the country code is
  * recorded in the audit metadata only. The wizard collects it so it lights
  * up the future per-country Connect onboarding path without a schema change.
  */
@@ -137,6 +140,7 @@ export async function provisionTenant(
 				connectionString: encryptedConnectionString,
 				paymentStatus: "active",
 				schemaVersion: LATEST_MIGRATION_VERSION,
+				countryCode: country,
 				// subscriptionId & ownerUserId stay null until the owner accepts the
 				// invite and (optionally) subscribes. Cast satisfies Drizzle's insert
 				// type which currently treats these nullable columns as required.

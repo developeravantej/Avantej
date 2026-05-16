@@ -1082,6 +1082,7 @@ const platformAdminTenantsRouterType = {
 			z.object({
 				search: z.string().trim().optional(),
 				paymentStatus: z.string().optional(),
+				countryCode: z.string().length(2).optional(),
 				page: z.number().int().positive().default(1),
 				limit: z.number().int().positive().max(100).default(50),
 			}),
@@ -1095,6 +1096,7 @@ const platformAdminTenantsRouterType = {
 					id: string;
 					name: string;
 					slug: string;
+					countryCode: string | null;
 					paymentStatus: string;
 					trialEndsAt: Date | null;
 					createdAt: Date;
@@ -1116,6 +1118,7 @@ const platformAdminTenantsRouterType = {
 					id: string;
 					name: string;
 					slug: string;
+					countryCode: string | null;
 					neonProjectId: string;
 					subscriptionId: string | null;
 					ownerUserId: string | null;

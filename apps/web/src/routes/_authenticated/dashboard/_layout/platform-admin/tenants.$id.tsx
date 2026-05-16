@@ -107,6 +107,11 @@ function TenantDrillInPage() {
 					<Badge variant="outline" className="font-mono text-xs">
 						{organization.slug}
 					</Badge>
+					{organization.countryCode && (
+						<Badge variant="outline" className="font-mono text-xs">
+							{organization.countryCode}
+						</Badge>
+					)}
 					<Badge
 						variant={
 							organization.paymentStatus === "active"

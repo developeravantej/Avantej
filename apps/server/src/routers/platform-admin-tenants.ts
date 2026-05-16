@@ -98,6 +98,7 @@ export const platformAdminTenantsRouter = {
 			z.object({
 				search: z.string().trim().optional(),
 				paymentStatus: z.string().optional(),
+				countryCode: z.string().length(2).optional(),
 				page: z.number().int().positive().default(1),
 				limit: z.number().int().positive().max(100).default(50),
 			}),
@@ -120,6 +121,9 @@ export const platformAdminTenantsRouter = {
 			if (input.paymentStatus) {
 				filters.push(eq(organizations.paymentStatus, input.paymentStatus));
 			}
+			if (input.countryCode) {
+				filters.push(eq(organizations.countryCode, input.countryCode.toUpperCase()));
+			}
 			const where = filters.length ? and(...filters) : undefined;
 
 			const [totalRow] = await cpDb
@@ -133,6 +137,7 @@ export const platformAdminTenantsRouter = {
 					id: organizations.id,
 					name: organizations.name,
 					slug: organizations.slug,
+					countryCode: organizations.countryCode,
 					paymentStatus: organizations.paymentStatus,
 					trialEndsAt: organizations.trialEndsAt,
 					createdAt: organizations.createdAt,
@@ -195,6 +200,7 @@ export const platformAdminTenantsRouter = {
 					id: organizations.id,
 					name: organizations.name,
 					slug: organizations.slug,
+					countryCode: organizations.countryCode,
 					neonProjectId: organizations.neonProjectId,
 					subscriptionId: organizations.subscriptionId,
 					ownerUserId: organizations.ownerUserId,

@@ -245,9 +245,9 @@ Carried into a future plan (Plan F or beyond):
 - **Self-serve tenant management** — own-sub cancel, own-data
   export, own-tenant audit, in-app announcements UI. Plan F per
   ADR-0022.
-- **Country column on organizations** — wizard records country in the
-  audit metadata only. Promote to a real column if/when we need to
-  query tenants by country at scale. (E.7 follow-up.)
+- ~~**Country column on organizations**~~ — landed post-Plan-E
+  (migration 0025). E.7 wizard populates `organizations.country_code`;
+  list filter + drill-in header surface it.
 - **Cross-tenant funnel aggregate** — current funnel is per-tenant
   on-demand. Daily snapshot of milestones (alongside
   `tenant_usage_snapshots`) would unlock "% of tenants reach
