@@ -1647,6 +1647,63 @@ export const platformAdminDashboardRouterType = {
 		),
 };
 
+// Platform Admin — Revenue Aggregator types (Plan F.2 — Agent V).
+export const platformAdminRevenueRouterType = {
+	getKpis: protectedProcedure
+		.input(z.object({}).default({}))
+		.handler(
+			(): {
+				mrr: { cents: number; estimateAvailable: boolean };
+				arr: { cents: number; estimateAvailable: boolean };
+				activeSubsCount: number;
+				trialingSubsCount: number;
+				cancelledLast30d: number;
+				churnRatePct: number;
+				newMrrLast30dCents: number;
+				churnedMrrLast30dCents: number;
+				netNewMrrLast30dCents: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getCohortRetention: protectedProcedure
+		.input(
+			z.object({
+				monthsBack: z.number().int().min(3).max(24).default(12),
+			}),
+		)
+		.handler(
+			(): {
+				cohorts: Array<{
+					cohortMonth: string;
+					cohortSize: number;
+					retained: number[];
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getRecentChurn: protectedProcedure
+		.input(
+			z.object({
+				days: z.number().int().min(7).max(180).default(30),
+			}),
+		)
+		.handler(
+			(): {
+				events: Array<{
+					orgId: string;
+					orgName: string;
+					tier: string;
+					mrrCentsLost: number;
+					canceledAt: string;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1865,6 +1922,7 @@ export const appRouter = {
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 	platformAdminDashboard: platformAdminDashboardRouterType,
+	platformAdminRevenue: platformAdminRevenueRouterType,
 };
 
 export type AppRouter = typeof appRouter;
