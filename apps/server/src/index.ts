@@ -20,6 +20,7 @@ import { paymentsRouter } from "@/routers/payments";
 import { platformAdminPaymentsRouter } from "@/routers/platform-admin-payments";
 import { platformAdminTenantsRouter } from "@/routers/platform-admin-tenants";
 import { platformAdminTenantsCommsRouter } from "@/routers/platform-admin-tenants-comms";
+import { platformAdminTenantsProvisionRouter } from "@/routers/platform-admin-tenants-provision";
 import { platformAdminAuditRouter } from "@/routers/platform-admin-audit";
 
 import { createContext } from "@avantej-core/api/context";
@@ -69,6 +70,7 @@ const appRouter = {
 	platformAdminTenants: {
 		...platformAdminTenantsRouter,
 		...platformAdminTenantsCommsRouter,
+		...platformAdminTenantsProvisionRouter,
 	},
 	platformAdminAudit: platformAdminAuditRouter,
 };

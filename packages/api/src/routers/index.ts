@@ -1344,6 +1344,37 @@ const platformAdminTenantsUsageTypes = {
 	),
 };
 
+// Platform Admin — Tenant Provisioning types (Plan E E.7).
+const platformAdminTenantsProvisionRouterType = {
+	provisionTenant: protectedProcedure
+		.input(
+			z.object({
+				name: z.string().trim().min(2).max(120),
+				slug: z
+					.string()
+					.trim()
+					.min(3)
+					.max(64)
+					.regex(/^[a-z0-9-]+$/),
+				country: z.enum(["MY", "SG", "TH"]),
+				ownerEmail: z.string().email().max(254),
+				ownerName: z.string().trim().max(120).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				organizationId: string;
+				slug: string;
+				neonProjectId: string;
+				invitationToken: string;
+				invitationLink: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -1475,6 +1506,7 @@ export const appRouter = {
 		...platformAdminTenantsLifecycleTypes,
 		...platformAdminTenantsFunnelTypes,
 		...platformAdminTenantsCommsTypes,
+		...platformAdminTenantsProvisionRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };
