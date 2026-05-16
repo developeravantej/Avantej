@@ -24,6 +24,7 @@ import { users } from "@avantej-core/db/schema/control-panel/users";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
+import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
 
 function requirePlatformAdmin() {
 	return (protectedProcedure as any).middleware(
@@ -232,4 +233,36 @@ export const platformAdminTenantsRouter = {
 				lastPayment: lastPayment ?? null,
 			};
 		}),
+
+	// E.2 — usage history for the drill-in Usage tab.
+	getTenantUsageHistory: adminProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				days: z.number().int().positive().max(180).default(30),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const cpDb = cpDbFromContext(context);
+			const rows = await cpDb
+				.select()
+				.from(tenantUsageSnapshots)
+				.where(eq(tenantUsageSnapshots.organizationId, input.organizationId))
+				.orderBy(desc(tenantUsageSnapshots.snapshotDate))
+				.limit(input.days);
+			return { snapshots: rows.reverse() };
+		}),
+
+	runTenantUsageSnapshotsNow: adminProcedure.handler(async ({ context }) => {
+		const cpDb = cpDbFromContext(context);
+		const { runTenantUsageSnapshots } = await import(
+			"@/services/tenant-usage-snapshot.service"
+		);
+		const { getTenantDb } = await import("@/lib/db");
+		const report = await runTenantUsageSnapshots({
+			controlPanelDb: cpDb,
+			getTenantDb: (orgId: string) => getTenantDb(orgId),
+		});
+		return report;
+	}),
 };

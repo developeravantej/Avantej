@@ -1138,6 +1138,47 @@ const platformAdminTenantsRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Usage types (Plan E E.2).
+const platformAdminTenantsUsageTypes = {
+	getTenantUsageHistory: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				days: z.number().int().positive().max(180).default(30),
+			}),
+		)
+		.handler(
+			(): {
+				snapshots: Array<{
+					id: string;
+					organizationId: string;
+					snapshotDate: string;
+					memberCount: number;
+					customerCount: number;
+					apptCount30d: number;
+					salesTotal30dMinor: number;
+					salesCurrency: string;
+					storageBytes: number;
+					ghlActive: boolean;
+					createdAt: Date | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	runTenantUsageSnapshotsNow: protectedProcedure.handler(
+		(): {
+			snapshotDate: string;
+			orgsScanned: number;
+			written: number;
+			errors: number;
+			durationMs: number;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -1263,7 +1304,10 @@ export const appRouter = {
 	stripeConnect: stripeConnectRouterType,
 	payments: paymentsRouterType,
 	platformAdminPayments: platformAdminPaymentsRouterType,
-	platformAdminTenants: platformAdminTenantsRouterType,
+	platformAdminTenants: {
+		...platformAdminTenantsRouterType,
+		...platformAdminTenantsUsageTypes,
+	},
 };
 
 export type AppRouter = typeof appRouter;

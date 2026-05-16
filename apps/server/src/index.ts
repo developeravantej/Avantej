@@ -294,6 +294,20 @@ export default {
             .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
         );
+      } else if (cron === "0 1 * * *") {
+        // Plan E E.2 — tenant usage snapshot.
+        const { runTenantUsageSnapshots } = await import(
+          "@/services/tenant-usage-snapshot.service"
+        );
+        const { getTenantDb } = await import("@/lib/db");
+        ctx.waitUntil(
+          runTenantUsageSnapshots({
+            controlPanelDb: cpDb,
+            getTenantDb: (orgId) => getTenantDb(orgId),
+          })
+            .then((r) => console.log(`[scheduled] usage-snapshot done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] usage-snapshot failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }

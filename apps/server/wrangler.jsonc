@@ -14,14 +14,16 @@
 	// wrangler secret put SECRET_NAME
 	// Don't add secrets to "vars" - they're visible in the dashboard!
 	//
-	// Plan C — scheduled jobs (ADR-0021). Three crons dispatch into the
-	// `scheduled` export in src/index.ts:
-	//   - hourly: webhook backfill (C.1)
-	//   - daily 02:30 UTC: nightly reconciliation (C.5, wiring next slice)
-	//   - daily 09:00 UTC: onboarding-stuck alert (C.6)
+	// Scheduled jobs (Plan C ADR-0021 + Plan E ADR-0023). All crons
+	// dispatch into the `scheduled` export in src/index.ts:
+	//   - hourly: webhook backfill (Plan C C.1)
+	//   - daily 01:00 UTC: tenant usage snapshot (Plan E E.2)
+	//   - daily 02:30 UTC: nightly reconciliation (Plan C C.5)
+	//   - daily 09:00 UTC: onboarding-stuck alert (Plan C C.6)
 	"triggers": {
 		"crons": [
 			"0 * * * *",
+			"0 1 * * *",
 			"30 2 * * *",
 			"0 9 * * *"
 		]
