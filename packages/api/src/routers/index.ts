@@ -1606,6 +1606,47 @@ export const platformAdminTenantsHealthRouterType = {
 		),
 };
 
+// Platform Admin — Mission Control Dashboard types (Plan F.1.5 — Agent M).
+export const platformAdminDashboardRouterType = {
+	getOverview: protectedProcedure
+		.input(z.object({}).default({}))
+		.handler(
+			(): {
+				counts: {
+					total: number;
+					active: number;
+					trialing: number;
+					pastDue: number;
+					unpaid: number;
+					cancelled: number;
+				};
+				subs: { activeCount: number; trialingCount: number };
+				mrr: { cents: number; estimateAvailable: boolean };
+				recentActions: Array<{
+					actorUserId: string;
+					actorEmail?: string;
+					action: string;
+					targetOrgId?: string;
+					targetOrgName?: string;
+					createdAt: string;
+				}>;
+				atRisk: Array<{
+					orgId: string;
+					orgName: string;
+					healthScore: number | null;
+					criticalFlagCount: number;
+				}>;
+				recentSignups: Array<{
+					orgId: string;
+					orgName: string;
+					createdAt: string;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1823,6 +1864,7 @@ export const appRouter = {
 		health: platformAdminTenantsHealthRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
+	platformAdminDashboard: platformAdminDashboardRouterType,
 };
 
 export type AppRouter = typeof appRouter;

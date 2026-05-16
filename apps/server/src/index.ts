@@ -27,6 +27,7 @@ import { platformAdminTenantsTagsRouter } from "@/routers/platform-admin-tenants
 import { platformAdminTenantsSearchRouter } from "@/routers/platform-admin-tenants-search";
 import { platformAdminTenantsHealthRouter } from "@/routers/platform-admin-tenants-health";
 import { platformAdminAuditRouter } from "@/routers/platform-admin-audit";
+import { platformAdminDashboardRouter } from "@/routers/platform-admin-dashboard";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -83,6 +84,7 @@ const appRouter = {
 		health: platformAdminTenantsHealthRouter,
 	},
 	platformAdminAudit: platformAdminAuditRouter,
+	platformAdminDashboard: platformAdminDashboardRouter,
 };
 
 const app = new Hono();

@@ -32,6 +32,7 @@ import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authe
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
 import { Route as AuthenticatedDashboardLayoutInventoryOptionsRouteImport } from './routes/_authenticated/dashboard/_layout/inventory-options'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/index'
 import { Route as AuthenticatedDashboardLayoutUserViewRouteImport } from './routes/_authenticated/dashboard/_layout/user/view'
 import { Route as AuthenticatedDashboardLayoutUomViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom/view'
 import { Route as AuthenticatedDashboardLayoutUomConversionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom-conversions/view'
@@ -216,6 +217,12 @@ const AuthenticatedDashboardLayoutInventoryOptionsRoute =
   AuthenticatedDashboardLayoutInventoryOptionsRouteImport.update({
     id: '/inventory-options',
     path: '/inventory-options',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminIndexRoute =
+  AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport.update({
+    id: '/platform-admin/',
+    path: '/platform-admin/',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutUserViewRoute =
@@ -692,6 +699,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/dashboard/platform-admin/': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
@@ -778,6 +786,7 @@ export interface FileRoutesByTo {
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/dashboard/platform-admin': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
@@ -867,6 +876,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/_authenticated/dashboard/_layout/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/_authenticated/dashboard/_layout/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/_authenticated/dashboard/_layout/platform-admin/': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/_authenticated/dashboard/_layout/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/_authenticated/dashboard/_layout/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/_authenticated/dashboard/_layout/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
@@ -956,6 +966,7 @@ export interface FileRouteTypes {
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
+    | '/dashboard/platform-admin/'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
@@ -1042,6 +1053,7 @@ export interface FileRouteTypes {
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
+    | '/dashboard/platform-admin'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
@@ -1130,6 +1142,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/uom-conversions/view'
     | '/_authenticated/dashboard/_layout/uom/view'
     | '/_authenticated/dashboard/_layout/user/view'
+    | '/_authenticated/dashboard/_layout/platform-admin/'
     | '/_authenticated/dashboard/_layout/appointment/class-slots/view'
     | '/_authenticated/dashboard/_layout/customers/v2/view'
     | '/_authenticated/dashboard/_layout/customers/walk-in/view'
@@ -1315,6 +1328,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory-options'
       fullPath: '/dashboard/inventory-options'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutInventoryOptionsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/'
+      path: '/platform-admin'
+      fullPath: '/dashboard/platform-admin/'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/user/view': {
@@ -1838,6 +1858,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutUomConversionsViewRoute: typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   AuthenticatedDashboardLayoutUomViewRoute: typeof AuthenticatedDashboardLayoutUomViewRoute
   AuthenticatedDashboardLayoutUserViewRoute: typeof AuthenticatedDashboardLayoutUserViewRoute
+  AuthenticatedDashboardLayoutPlatformAdminIndexRoute: typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute: typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   AuthenticatedDashboardLayoutCustomersV2ViewRoute: typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   AuthenticatedDashboardLayoutCustomersWalkInViewRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
@@ -1963,6 +1984,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutUomViewRoute,
     AuthenticatedDashboardLayoutUserViewRoute:
       AuthenticatedDashboardLayoutUserViewRoute,
+    AuthenticatedDashboardLayoutPlatformAdminIndexRoute:
+      AuthenticatedDashboardLayoutPlatformAdminIndexRoute,
     AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute:
       AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute,
     AuthenticatedDashboardLayoutCustomersV2ViewRoute:
