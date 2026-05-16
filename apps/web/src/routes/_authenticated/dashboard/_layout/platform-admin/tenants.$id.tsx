@@ -128,6 +128,7 @@ function TenantDrillInPage() {
 					<TabsTrigger value="overview">Overview</TabsTrigger>
 					<TabsTrigger value="usage">Usage</TabsTrigger>
 					<TabsTrigger value="funnel">Funnel</TabsTrigger>
+					<TabsTrigger value="comms">Comms</TabsTrigger>
 					<TabsTrigger value="actions">Actions</TabsTrigger>
 				</TabsList>
 
@@ -329,6 +330,10 @@ function TenantDrillInPage() {
 					<FunnelTab organizationId={id} />
 				</TabsContent>
 
+				<TabsContent value="comms">
+					<CommsTab organizationId={id} />
+				</TabsContent>
+
 				<TabsContent value="actions">
 					<ActionsTab
 						organizationId={id}
@@ -336,6 +341,157 @@ function TenantDrillInPage() {
 					/>
 				</TabsContent>
 			</Tabs>
+		</div>
+	);
+}
+
+function CommsTab({ organizationId }: { organizationId: string }) {
+	const [dmSubject, setDmSubject] = useState("");
+	const [dmMessage, setDmMessage] = useState("");
+	const [annTitle, setAnnTitle] = useState("");
+	const [annMessage, setAnnMessage] = useState("");
+	const [annPriority, setAnnPriority] = useState<
+		"low" | "normal" | "high" | "urgent"
+	>("normal");
+	const [annAudience, setAnnAudience] = useState<"all" | "staff" | "clients">(
+		"all",
+	);
+
+	const dm = useMutation({
+		mutationFn: () =>
+			client.platformAdminTenants.sendTenantDirectMessage({
+				organizationId,
+				subject: dmSubject,
+				message: dmMessage,
+			}),
+		onSuccess: (r) => {
+			const delivered = [
+				r.deliveries.email && "email",
+				r.deliveries.inApp && "in-app",
+			]
+				.filter(Boolean)
+				.join(" + ");
+			toast.success(`DM sent via ${delivered || "audit only"}`);
+			if (r.errors.length > 0) toast.warning(r.errors.join("\n"));
+			setDmSubject("");
+			setDmMessage("");
+		},
+		onError: (e: unknown) =>
+			toast.error(`DM failed: ${(e as Error)?.message ?? "unknown"}`),
+	});
+
+	const ann = useMutation({
+		mutationFn: () =>
+			client.platformAdminTenants.createTenantAnnouncement({
+				organizationId,
+				title: annTitle,
+				message: annMessage,
+				priority: annPriority,
+				targetAudience: annAudience,
+			}),
+		onSuccess: (r) => {
+			toast.success(`Announcement created (${r.announcementId})`);
+			setAnnTitle("");
+			setAnnMessage("");
+		},
+		onError: (e: unknown) =>
+			toast.error(`Announcement failed: ${(e as Error)?.message ?? "unknown"}`),
+	});
+
+	const dmValid = dmSubject.trim().length >= 3 && dmMessage.trim().length >= 3;
+	const annValid =
+		annTitle.trim().length >= 3 && annMessage.trim().length >= 3;
+
+	return (
+		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-base">Direct message owner</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-2">
+					<p className="text-xs text-muted-foreground">
+						Email + in-app notification. All deliveries audited.
+					</p>
+					<Input
+						placeholder="Subject"
+						value={dmSubject}
+						onChange={(e) => setDmSubject(e.target.value)}
+						disabled={dm.isPending}
+					/>
+					<textarea
+						className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm"
+						placeholder="Message"
+						value={dmMessage}
+						onChange={(e) => setDmMessage(e.target.value)}
+						disabled={dm.isPending}
+					/>
+					<Button
+						size="sm"
+						disabled={!dmValid || dm.isPending}
+						onClick={() => dm.mutate()}
+					>
+						{dm.isPending ? "Sending…" : "Send DM"}
+					</Button>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-base">Broadcast announcement</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-2">
+					<p className="text-xs text-muted-foreground">
+						Inserts into tenant announcements table.
+					</p>
+					<Input
+						placeholder="Title"
+						value={annTitle}
+						onChange={(e) => setAnnTitle(e.target.value)}
+						disabled={ann.isPending}
+					/>
+					<textarea
+						className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm"
+						placeholder="Message"
+						value={annMessage}
+						onChange={(e) => setAnnMessage(e.target.value)}
+						disabled={ann.isPending}
+					/>
+					<div className="flex gap-2">
+						<select
+							className="rounded-md border bg-background px-2 py-1 text-sm flex-1"
+							value={annPriority}
+							onChange={(e) =>
+								setAnnPriority(e.target.value as typeof annPriority)
+							}
+							disabled={ann.isPending}
+						>
+							<option value="low">low</option>
+							<option value="normal">normal</option>
+							<option value="high">high</option>
+							<option value="urgent">urgent</option>
+						</select>
+						<select
+							className="rounded-md border bg-background px-2 py-1 text-sm flex-1"
+							value={annAudience}
+							onChange={(e) =>
+								setAnnAudience(e.target.value as typeof annAudience)
+							}
+							disabled={ann.isPending}
+						>
+							<option value="all">all</option>
+							<option value="staff">staff</option>
+							<option value="clients">clients</option>
+						</select>
+					</div>
+					<Button
+						size="sm"
+						disabled={!annValid || ann.isPending}
+						onClick={() => ann.mutate()}
+					>
+						{ann.isPending ? "Posting…" : "Post announcement"}
+					</Button>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

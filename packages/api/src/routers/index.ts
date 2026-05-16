@@ -1031,6 +1031,50 @@ const platformAdminPaymentsRouterType = {
 	),
 };
 
+// Platform Admin — Audit router types (Plan E E.6).
+const platformAdminAuditRouterType = {
+	listAdminActions: protectedProcedure
+		.input(
+			z.object({
+				actionType: z.string().optional(),
+				adminUserId: z.string().optional(),
+				targetOrganizationId: z.string().uuid().optional(),
+				since: z.string().datetime().optional(),
+				until: z.string().datetime().optional(),
+				page: z.number().int().positive().default(1),
+				limit: z.number().int().positive().max(200).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				total: number;
+				page: number;
+				limit: number;
+				actions: Array<{
+					id: string;
+					actionType: string;
+					actorUserId: string | null;
+					actorEmail: string | null;
+					actorName: string | null;
+					targetOrganizationId: string | null;
+					targetOrgName: string | null;
+					targetOrgSlug: string | null;
+					targetUserId: string | null;
+					metadata: unknown;
+					adminSessionId: string | null;
+					createdAt: Date;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listActionTypes: protectedProcedure.handler(
+		(): { actionTypes: string[] } => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
+};
+
 // Platform Admin — Tenants router types (Plan E E.1).
 const platformAdminTenantsRouterType = {
 	listTenants: protectedProcedure
@@ -1136,6 +1180,40 @@ const platformAdminTenantsRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+};
+
+// Platform Admin — Tenant Comms types (Plan E E.5).
+const platformAdminTenantsCommsTypes = {
+	sendTenantDirectMessage: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				subject: z.string().trim().min(3).max(200),
+				message: z.string().trim().min(3).max(5000),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				deliveries: { email: boolean; inApp: boolean };
+				errors: string[];
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	createTenantAnnouncement: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				title: z.string().trim().min(3).max(200),
+				message: z.string().trim().min(3).max(5000),
+				priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+				targetAudience: z.enum(["all", "staff", "clients"]).default("all"),
+			}),
+		)
+		.handler((): { ok: true; announcementId: string | null } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Platform Admin — Tenant Funnel types (Plan E E.4).
@@ -1396,7 +1474,9 @@ export const appRouter = {
 		...platformAdminTenantsUsageTypes,
 		...platformAdminTenantsLifecycleTypes,
 		...platformAdminTenantsFunnelTypes,
+		...platformAdminTenantsCommsTypes,
 	},
+	platformAdminAudit: platformAdminAuditRouterType,
 };
 
 export type AppRouter = typeof appRouter;
