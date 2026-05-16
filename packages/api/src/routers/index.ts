@@ -1031,6 +1031,113 @@ const platformAdminPaymentsRouterType = {
 	),
 };
 
+// Platform Admin — Tenants router types (Plan E E.1).
+const platformAdminTenantsRouterType = {
+	listTenants: protectedProcedure
+		.input(
+			z.object({
+				search: z.string().trim().optional(),
+				paymentStatus: z.string().optional(),
+				page: z.number().int().positive().default(1),
+				limit: z.number().int().positive().max(100).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				total: number;
+				page: number;
+				limit: number;
+				tenants: Array<{
+					id: string;
+					name: string;
+					slug: string;
+					paymentStatus: string;
+					trialEndsAt: Date | null;
+					createdAt: Date;
+					ownerEmail: string | null;
+					ownerName: string | null;
+					subTier: string | null;
+					subStatus: string | null;
+					connectAccounts: { total: number; chargesEnabled: number };
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getTenantDetail: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				organization: {
+					id: string;
+					name: string;
+					slug: string;
+					neonProjectId: string;
+					subscriptionId: string | null;
+					ownerUserId: string | null;
+					trialEndsAt: Date | null;
+					paymentStatus: string;
+					schemaVersion: string | null;
+					ghlSyncModel: string | null;
+					ghlProvisionedAt: Date | null;
+					createdAt: Date;
+					updatedAt: Date;
+				};
+				owner: {
+					id: string;
+					email: string;
+					name: string;
+					createdAt: Date;
+				} | null;
+				subscription: {
+					id: string;
+					stripeSubscriptionId: string;
+					stripeCustomerId: string;
+					stripePriceId: string;
+					tier: string;
+					organizationCountLimit: number;
+					applicationFeeBps: number;
+					currency: string;
+					status: string;
+					pastDueAt: Date | null;
+					gracePeriodEndsAt: Date | null;
+					trialEndsAt: Date | null;
+					currentPeriodStart: Date | null;
+					currentPeriodEnd: Date | null;
+					cancelAtPeriodEnd: boolean;
+					canceledAt: Date | null;
+					createdAt: Date;
+					updatedAt: Date;
+				} | null;
+				connectAccounts: Array<{
+					id: string;
+					organizationId: string;
+					countryCode: string;
+					stripeAccountId: string | null;
+					stripeConnectStatus: string;
+					stripeConnectAccountType: string;
+					chargesEnabled: boolean;
+					payoutsEnabled: boolean;
+					detailsSubmitted: boolean;
+					currency: string;
+					stripeConnectOnboardingCompletedAt: Date | null;
+					connectAccountUpdatedAt: Date | null;
+					createdAt: Date;
+					updatedAt: Date;
+				}>;
+				lastPayment: {
+					occurredAt: Date;
+					eventKind: string;
+					amount: number;
+					applicationFee: number;
+					currency: string;
+				} | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // GHL router type definition for client type inference.
 // The actual implementation is in apps/server/src/routers/ghl.ts
 // (server-only: uses encrypted API key, Neon control panel DB).
@@ -1156,6 +1263,7 @@ export const appRouter = {
 	stripeConnect: stripeConnectRouterType,
 	payments: paymentsRouterType,
 	platformAdminPayments: platformAdminPaymentsRouterType,
+	platformAdminTenants: platformAdminTenantsRouterType,
 };
 
 export type AppRouter = typeof appRouter;
