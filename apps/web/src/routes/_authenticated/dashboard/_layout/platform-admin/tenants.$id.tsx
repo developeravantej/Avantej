@@ -35,6 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TenantDeletionCard } from "@/components/platform-admin/tenant-deletion-card";
 import { TenantNotesTab } from "@/components/platform-admin/tenant-notes-tab";
+import { TenantRiskTab } from "@/components/platform-admin/tenant-risk-tab";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/tenants/$id",
@@ -145,6 +146,7 @@ function TenantDrillInPage() {
 					<TabsTrigger value="funnel">Funnel</TabsTrigger>
 					<TabsTrigger value="comms">Comms</TabsTrigger>
 					<TabsTrigger value="notes">Notes</TabsTrigger>
+					<TabsTrigger value="risk">Risk</TabsTrigger>
 					<TabsTrigger value="actions">Actions</TabsTrigger>
 				</TabsList>
 
@@ -356,6 +358,10 @@ function TenantDrillInPage() {
 						currentUserId={currentUserId}
 						isSuperAdmin={isSuperAdmin}
 					/>
+				</TabsContent>
+
+				<TabsContent value="risk">
+					<TenantRiskTab organizationId={id} />
 				</TabsContent>
 
 				<TabsContent value="actions">
