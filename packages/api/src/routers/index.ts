@@ -1550,6 +1550,62 @@ const platformAdminTenantsSearchRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Health (Plan F.1.5 — Agent H). Exported for downstream consumers.
+export const platformAdminTenantsHealthRouterType = {
+	get: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				snapshotDate: string | null;
+				healthScore: number | null;
+				riskFlags:
+					| Array<{
+							code: string;
+							severity: "info" | "warn" | "critical";
+							observedAt: string;
+					  }>
+					| null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	history: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				days: z.number().int().min(7).max(90).default(30),
+			}),
+		)
+		.handler(
+			(): {
+				series: Array<{
+					snapshotDate: string;
+					healthScore: number | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listAtRisk: protectedProcedure
+		.input(
+			z.object({
+				limit: z.number().int().min(1).max(50).default(10),
+			}),
+		)
+		.handler(
+			(): {
+				orgs: Array<{
+					orgId: string;
+					orgName: string;
+					healthScore: number | null;
+					criticalFlagCount: number;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1764,6 +1820,7 @@ export const appRouter = {
 		notes: platformAdminTenantsNotesRouterType,
 		tags: platformAdminTenantsTagsRouterType,
 		search: platformAdminTenantsSearchRouterType,
+		health: platformAdminTenantsHealthRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 };

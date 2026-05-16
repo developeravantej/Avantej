@@ -20,10 +20,21 @@ import {
 	boolean,
 	timestamp,
 	date,
+	jsonb,
 	uniqueIndex,
 	index,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
+
+/**
+ * Plan F.1.5 (Agent H) — risk flag shape persisted in `risk_flags` jsonb.
+ * Keep here so the schema is the source of truth; services package re-exports.
+ */
+export type RiskFlag = {
+	code: string;
+	severity: "info" | "warn" | "critical";
+	observedAt: string; // ISO timestamp
+};
 
 export const tenantUsageSnapshots = pgTable(
 	"tenant_usage_snapshots",
@@ -40,6 +51,11 @@ export const tenantUsageSnapshots = pgTable(
 		salesCurrency: text("sales_currency").notNull().default("MYR"),
 		storageBytes: bigint("storage_bytes", { mode: "number" }).notNull().default(0),
 		ghlActive: boolean("ghl_active").notNull().default(false),
+		// Plan F.1.5 — composite tenant health (0-100). NULL = pre-F.1.5 row.
+		healthScore: integer("health_score"),
+		// Plan F.1.5 — array of { code, severity, observedAt } emitted by
+		// computeHealthScore at snapshot-write time. NULL = pre-F.1.5 row.
+		riskFlags: jsonb("risk_flags").$type<RiskFlag[]>(),
 		createdAt: timestamp("created_at").defaultNow(),
 	},
 	(t) => ({
