@@ -24,3 +24,4 @@ export * from "./tenant-usage-snapshots";
 export * from "./tenant-deletions";
 export * from "./tenant-notes";
 export * from "./tenant-tags";
+export * from "./comms-templates";

@@ -1704,6 +1704,182 @@ export const platformAdminRevenueRouterType = {
 		),
 };
 
+// Platform Admin — Comms router types (Plan F.2.5 — Agent C).
+// Outbox + reusable template library. Mounted as top-level namespace
+// `platformAdminComms`, distinct from `platformAdminTenants.*Comms*`
+// (Plan E.5 per-tenant send procs which remain unchanged).
+const platformAdminCommsRouterType = {
+	listOutbox: protectedProcedure
+		.input(
+			z.object({
+				kind: z.enum(["direct_message", "announcement"]).optional(),
+				actorUserId: z.string().optional(),
+				targetOrgId: z.string().uuid().optional(),
+				days: z.number().int().positive().max(365).default(90),
+				page: z.number().int().positive().default(1),
+				limit: z.number().int().positive().max(200).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				rows: Array<{
+					id: string;
+					kind: "direct_message" | "announcement";
+					actionType: string;
+					actor: {
+						id: string;
+						name: string | null;
+						email: string | null;
+					} | null;
+					targetOrg: { id: string; name: string } | null;
+					subject: string;
+					metadata: unknown;
+					sentAt: Date;
+				}>;
+				total: number;
+				page: number;
+				limit: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listTemplates: protectedProcedure
+		.input(
+			z.object({
+				kind: z.enum(["direct_message", "announcement"]).optional(),
+				includeArchived: z.boolean().default(false),
+			}),
+		)
+		.handler(
+			(): {
+				templates: Array<{
+					id: string;
+					name: string;
+					subject: string;
+					bodyMarkdown: string;
+					kind: string;
+					priority: string | null;
+					targetAudience: string | null;
+					createdByUserId: string;
+					createdAt: Date;
+					updatedAt: Date;
+					archivedAt: Date | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getTemplate: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler(
+			(): {
+				template: {
+					id: string;
+					name: string;
+					subject: string;
+					bodyMarkdown: string;
+					kind: string;
+					priority: string | null;
+					targetAudience: string | null;
+					createdByUserId: string;
+					createdAt: Date;
+					updatedAt: Date;
+					archivedAt: Date | null;
+				} | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	createTemplate: protectedProcedure
+		.input(
+			z.object({
+				name: z.string().trim().min(1).max(200),
+				subject: z.string().trim().min(1).max(200),
+				bodyMarkdown: z.string().trim().min(1).max(20000),
+				kind: z.enum(["direct_message", "announcement"]),
+				priority: z.enum(["info", "warning", "critical"]).optional(),
+				targetAudience: z.enum(["all", "staff", "clients"]).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				template: {
+					id: string;
+					name: string;
+					subject: string;
+					bodyMarkdown: string;
+					kind: string;
+					priority: string | null;
+					targetAudience: string | null;
+					createdByUserId: string;
+					createdAt: Date;
+					updatedAt: Date;
+					archivedAt: Date | null;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	updateTemplate: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				name: z.string().trim().min(1).max(200).optional(),
+				subject: z.string().trim().min(1).max(200).optional(),
+				bodyMarkdown: z.string().trim().min(1).max(20000).optional(),
+				priority: z.enum(["info", "warning", "critical"]).optional().nullable(),
+				targetAudience: z.enum(["all", "staff", "clients"]).optional().nullable(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				template: {
+					id: string;
+					name: string;
+					subject: string;
+					bodyMarkdown: string;
+					kind: string;
+					priority: string | null;
+					targetAudience: string | null;
+					createdByUserId: string;
+					createdAt: Date;
+					updatedAt: Date;
+					archivedAt: Date | null;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	archiveTemplate: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler(
+			(): {
+				ok: true;
+				template: {
+					id: string;
+					archivedAt: Date | null;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	unarchiveTemplate: protectedProcedure
+		.input(z.object({ id: z.string().uuid() }))
+		.handler(
+			(): {
+				ok: true;
+				template: {
+					id: string;
+					archivedAt: Date | null;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Deletion / Export types (Plan E E.8).
 const platformAdminTenantsDeletionRouterType = {
 	requestTenantExport: protectedProcedure
@@ -1923,6 +2099,7 @@ export const appRouter = {
 	platformAdminAudit: platformAdminAuditRouterType,
 	platformAdminDashboard: platformAdminDashboardRouterType,
 	platformAdminRevenue: platformAdminRevenueRouterType,
+	platformAdminComms: platformAdminCommsRouterType,
 };
 
 export type AppRouter = typeof appRouter;
