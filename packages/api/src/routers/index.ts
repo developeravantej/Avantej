@@ -1471,6 +1471,51 @@ const platformAdminTenantsNotesRouterType = {
 		}),
 };
 
+// Platform Admin — Tenant Members types (Plan F.4 Agent Mb).
+const platformAdminTenantsMembersRouterType = {
+	list: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				search: z.string().trim().optional(),
+				role: z.string().trim().optional(),
+				page: z.number().int().min(1).default(1),
+				limit: z.number().int().min(1).max(200).default(50),
+			}),
+		)
+		.handler(
+			(): {
+				rows: Array<{
+					id: string;
+					userId: string;
+					name: string | null;
+					email: string | null;
+					role: string;
+					hierarchyScopeId: string;
+					hierarchyScopeName: string | null;
+					joinedAt: Date | null;
+					lastLoginAt: Date | null;
+					status: string;
+				}>;
+				total: number;
+				page: number;
+				limit: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getCounts: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				totalMembers: number;
+				byRole: Array<{ role: string; count: number }>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Tags + Bulk Ops types (Plan F.1).
 const platformAdminTenantsTagsRouterType = {
 	list: protectedProcedure
@@ -2648,6 +2693,7 @@ export const appRouter = {
 		search: platformAdminTenantsSearchRouterType,
 		health: platformAdminTenantsHealthRouterType,
 		billing: platformAdminTenantsBillingRouterType,
+		members: platformAdminTenantsMembersRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 	platformAdminDashboard: platformAdminDashboardRouterType,
