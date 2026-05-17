@@ -159,7 +159,7 @@ describe("platformAdminMigrations.listMigrations", () => {
 		});
 
 		expect(result.schema).toBe("control-panel");
-		// Journal has 19 entries (0000..0018) at time of writing — assert lower bound.
+		// Journal has 19+ entries (0000..0018 baseline) — lower bound asserts no regression.
 		expect(result.journal.length).toBeGreaterThanOrEqual(19);
 		expect(result.journal[0]!.tag).toBe("0000_far_luminals");
 		// Journal entries ordered by idx ascending.
