@@ -59,6 +59,7 @@ import { Route as AuthenticatedDashboardLayoutRefundsViewRouteImport } from './r
 import { Route as AuthenticatedDashboardLayoutPurchaseOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/purchase-orders/view'
 import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/promotions/view'
 import { Route as AuthenticatedDashboardLayoutProductsViewRouteImport } from './routes/_authenticated/dashboard/_layout/products/view'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/webhooks'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/users'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/revenue'
@@ -394,6 +395,12 @@ const AuthenticatedDashboardLayoutProductsViewRoute =
     path: '/products/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute =
+  AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport.update({
+    id: '/platform-admin/webhooks',
+    path: '/platform-admin/webhooks',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPlatformAdminUsersRoute =
   AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport.update({
     id: '/platform-admin/users',
@@ -713,6 +720,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
   '/dashboard/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/dashboard/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -805,6 +813,7 @@ export interface FileRoutesByTo {
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
   '/dashboard/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/dashboard/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -900,6 +909,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
   '/_authenticated/dashboard/_layout/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   '/_authenticated/dashboard/_layout/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/_authenticated/dashboard/_layout/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/_authenticated/dashboard/_layout/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/_authenticated/dashboard/_layout/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/_authenticated/dashboard/_layout/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -995,6 +1005,7 @@ export interface FileRouteTypes {
     | '/dashboard/platform-admin/revenue'
     | '/dashboard/platform-admin/tenants'
     | '/dashboard/platform-admin/users'
+    | '/dashboard/platform-admin/webhooks'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -1087,6 +1098,7 @@ export interface FileRouteTypes {
     | '/dashboard/platform-admin/revenue'
     | '/dashboard/platform-admin/tenants'
     | '/dashboard/platform-admin/users'
+    | '/dashboard/platform-admin/webhooks'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -1181,6 +1193,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/platform-admin/revenue'
     | '/_authenticated/dashboard/_layout/platform-admin/tenants'
     | '/_authenticated/dashboard/_layout/platform-admin/users'
+    | '/_authenticated/dashboard/_layout/platform-admin/webhooks'
     | '/_authenticated/dashboard/_layout/products/view'
     | '/_authenticated/dashboard/_layout/promotions/view'
     | '/_authenticated/dashboard/_layout/purchase-orders/view'
@@ -1584,6 +1597,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutProductsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/webhooks': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/webhooks'
+      path: '/platform-admin/webhooks'
+      fullPath: '/dashboard/platform-admin/webhooks'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/platform-admin/users': {
       id: '/_authenticated/dashboard/_layout/platform-admin/users'
       path: '/platform-admin/users'
@@ -1937,6 +1957,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPlatformAdminRevenueRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
   AuthenticatedDashboardLayoutPlatformAdminTenantsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   AuthenticatedDashboardLayoutPlatformAdminUsersRoute: typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute: typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   AuthenticatedDashboardLayoutProductsViewRoute: typeof AuthenticatedDashboardLayoutProductsViewRoute
   AuthenticatedDashboardLayoutPromotionsViewRoute: typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   AuthenticatedDashboardLayoutPurchaseOrdersViewRoute: typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -2047,6 +2068,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren,
     AuthenticatedDashboardLayoutPlatformAdminUsersRoute:
       AuthenticatedDashboardLayoutPlatformAdminUsersRoute,
+    AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute:
+      AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute,
     AuthenticatedDashboardLayoutProductsViewRoute:
       AuthenticatedDashboardLayoutProductsViewRoute,
     AuthenticatedDashboardLayoutPromotionsViewRoute:

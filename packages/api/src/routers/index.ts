@@ -2497,6 +2497,72 @@ export const platformAdminHealthRouterType = {
 		),
 };
 
+// Platform Admin — Webhooks Log types (Plan F.4 — Agent Wh).
+// Read-only view over processed_webhook_events (Stripe dedupe table).
+export const platformAdminWebhooksRouterType = {
+	getOverview: protectedProcedure
+		.input(z.object({}).default({}))
+		.handler(
+			(): {
+				kpis: {
+					totalLast24h: number;
+					totalLast7d: number;
+					duplicatesLast7d: number;
+					uniqueEventTypes: number;
+					successesLast7d: number;
+					failuresLast7d: number;
+				};
+				byEventType: Array<{
+					eventType: string;
+					count: number;
+					lastSeenAt: string;
+				}>;
+				recent: Array<{
+					id: string;
+					eventId: string;
+					eventType: string;
+					source: string;
+					receivedAt: string;
+					processedAt: string | null;
+					attempts: number;
+					status: "succeeded" | "failed" | "pending";
+					error: string | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listEvents: protectedProcedure
+		.input(
+			z.object({
+				eventType: z.string().optional(),
+				days: z.number().int().min(1).max(90).default(7),
+				limit: z.number().int().min(1).max(200).default(50),
+				page: z.number().int().min(1).default(1),
+			}),
+		)
+		.handler(
+			(): {
+				rows: Array<{
+					id: string;
+					eventId: string;
+					eventType: string;
+					source: string;
+					receivedAt: string;
+					processedAt: string | null;
+					attempts: number;
+					status: "succeeded" | "failed" | "pending";
+					error: string | null;
+				}>;
+				total: number;
+				page: number;
+				limit: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2540,6 +2606,7 @@ export const appRouter = {
 	platformAdminBilling: platformAdminBillingRouterType,
 	platformAdminRenewals: platformAdminRenewalsRouterType,
 	platformAdminHealth: platformAdminHealthRouterType,
+	platformAdminWebhooks: platformAdminWebhooksRouterType,
 };
 
 export type AppRouter = typeof appRouter;
