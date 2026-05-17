@@ -459,7 +459,90 @@ Factory pattern: `createPlatformAdminTenantsBillingRouter(stripeOverride?: Strip
 
 ---
 
-## F.3.5 — Billing depth (tier change + coupons + /billing global) — PENDING
+## F.3.5 — Billing depth (LANDED)
+
+Branch: `plan-f-3-5-billing-depth` (based on `plan-f-3-a-billing` tip)
+Commits: `5c8b0ba` (T2 tier change), `6573d8a` (C2 coupons), `68fd70d` (G /billing global), `<docs>` (ADR-0034 + this section)
+ADR: 0034 (tier change proration + coupon mechanism)
+Migration: none — live Stripe reads per ADR-0033/0034
+
+### What shipped
+
+| Feature | Where | Router |
+|---|---|---|
+| Tier change mid-period | `<TierChangeCard />` on Billing tab | `platformAdminTenants.billing.changeTier` (super_admin) |
+| Coupons CRUD | `<CouponListPanel />` (used by /billing) | `platformAdminCoupons` (list / create / delete) |
+| Apply / remove coupon on customer | `<CouponApplyCard />` on Billing tab | `platformAdminCoupons.{applyCoupon, removeCoupon, getCustomerCoupon}` |
+| /billing global page | `/dashboard/platform-admin/billing` | `platformAdminBilling.{getOverview, listInvoicesCrossTenant}` |
+
+### Common ops
+
+**Change a tenant's tier.**
+1. Drill into tenant → Billing tab → "Current tier: BASIC" card.
+2. Pick new tier from dropdown → "Change tier" (super_admin only).
+3. Dialog: review price diff, pick proration behavior (default: create prorations), optional notes.
+4. Confirm → Stripe updates the subscription → proration invoice items added to next invoice → local subscriptions.tier + stripePriceId updated → audit row.
+
+**Create a coupon.**
+1. `/dashboard/platform-admin/billing` → Coupons tab.
+2. "+ New coupon" (super_admin only).
+3. Form: name, discount kind (percent / amount), value, currency (amount only), duration (once / repeating / forever), durationInMonths (repeating only), maxRedemptions (optional).
+4. Confirm → Stripe coupons.create → audit row → coupon visible in list.
+
+**Apply coupon to a tenant.**
+1. Tenant Billing tab → `<CouponApplyCard />`.
+2. Pick from dropdown of active coupons → Apply (super_admin only).
+3. Stripe customers.update with coupon → audit row → "Currently attached: <coupon name>" shows.
+
+**Remove coupon from tenant.**
+1. Same card → "Remove coupon" (super_admin only) → Stripe customers.deleteDiscount → audit row.
+
+**Eyeball cross-tenant billing.**
+1. `/dashboard/platform-admin/billing` → 4 KPI cards (Active Subs / MRR / Refunds 30d / Active Coupons).
+2. Tabs: Recent invoices (cross-tenant, top 20), Refund queue (audit-table view), Coupons (catalog).
+3. Click any org name → drills into tenant Billing tab.
+
+### Debugging recipes
+
+**"Tier change failed with Stripe error."**
+- Pre-existing Stripe subscription in unusual state (e.g., paused, incomplete). Error message surfaces from Stripe. NO audit row written on failure — retry is safe after fixing root cause in Stripe Dashboard.
+
+**"Proration invoice amount shows null / unavailable."**
+- Stripe upcoming-invoice retrieve failed (best-effort). The tier change itself succeeded — proration items WILL show on next invoice. Audit row carries what we could fetch.
+
+**"Coupon I just created isn't showing in the apply dropdown."**
+- Stripe coupon list cache via Stripe's API; usually fresh on next refetch. Refresh page or wait ~5s.
+
+**"Coupon attach fails: 'coupon expired'."**
+- Stripe-side rejection (coupon has reached max redemptions or expired). NO audit row on failure. List the coupon to confirm validity.
+
+**"/billing page shows '— Stripe unavailable' banner."**
+- Stripe API key missing OR Stripe outage. KPIs from local DB still render; coupons + recent-invoices panels degrade. Restore key → refresh.
+
+**"Recent invoices in /billing page is slow."**
+- Cross-tenant fan-out via Promise.allSettled. At >50 tenants this gets sluggish. Per ADR-0034: open `tenant_billing_events` mirror table when needed. Slot reserved (TBD when scheduled).
+
+### Audit action strings (new)
+
+- `tenant_tier_change` (Agent T2): `{ fromTier, toTier, stripeSubscriptionId, prorationBehavior, notes?, prorationInvoiceId?, prorationAmountCents? }`
+- `coupon_create` / `coupon_delete` / `coupon_apply` / `coupon_remove` (Agent C2)
+
+### Tier constants
+
+- `TIER_PRICES_USD_CENTS` (Agent P, F.2 — basic $49 / professional $199 / enterprise $499 monthly USD cents — PLACEHOLDER)
+- `TIER_STRIPE_PRICE_IDS` (Agent T2 — `price_placeholder_basic` / `..._professional` / `..._enterprise` — PLACEHOLDER)
+
+Both replace with real Stripe Dashboard values when ready. Single-file edit in `packages/types/src/tiers.ts`. No code change required at call sites.
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **T2** (tier change) | `platform-admin-tenants-billing.ts` (extended), `tier-change-card.tsx`, `tier-change-confirm-dialog.tsx`, `tenant-billing-tab.tsx` (extended) | `T2-tier-change.spec.ts` | `T2-tier-change.webm` |
+| **C2** (coupons) | `platform-admin-coupons.ts` + `.test.ts`, `coupon-list-panel.tsx`, `coupon-create-dialog.tsx`, `coupon-apply-card.tsx` | `C2-coupons.spec.ts` | `C2-coupons.webm` |
+| **G** (/billing global) | `platform-admin-billing.ts` + `.test.ts`, `billing.tsx` (route), `recent-invoices-panel.tsx`, `refund-queue-panel.tsx` | `G-billing-global.spec.ts` | `G-billing-global.webm` |
+
+(All under `apps/web/e2e/tests/ship/plan-f-3-5/` + `verification/plan-f-3-5/`.)
 ## F.4 — Operational depth (PENDING)
 ## F.5 — Final ADRs + this runbook expansion (PENDING)
 
