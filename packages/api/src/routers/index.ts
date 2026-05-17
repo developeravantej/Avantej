@@ -1649,6 +1649,109 @@ export const platformAdminTenantsHealthRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Billing (Plan F.3-A — Agent I). Per-tenant
+// Stripe invoice history + refund. Exported for downstream consumers.
+export const platformAdminTenantsBillingRouterType = {
+	listInvoices: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				limit: z.number().int().min(1).max(100).default(20),
+				startingAfter: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				invoices: Array<{
+					id: string;
+					number: string | null;
+					status: string | null;
+					amountPaid: number;
+					amountDue: number;
+					currency: string;
+					createdAt: Date;
+					hostedInvoiceUrl: string | null;
+					invoicePdf: string | null;
+					paymentIntent: string | null;
+					refunded: boolean;
+					refundedAmount: number;
+				}>;
+				hasMore: boolean;
+				nextCursor: string | undefined;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getInvoice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().min(1),
+			}),
+		)
+		.handler(
+			(): {
+				invoice: {
+					id: string;
+					number: string | null;
+					status: string | null;
+					amountPaid: number;
+					amountDue: number;
+					currency: string;
+					createdAt: Date;
+					hostedInvoiceUrl: string | null;
+					invoicePdf: string | null;
+					paymentIntent: string | null;
+					refunded: boolean;
+					refundedAmount: number;
+				};
+				lines: Array<{
+					id: string;
+					description: string | null;
+					amount: number;
+					currency: string;
+					quantity: number | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	refundInvoice: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().min(1),
+				amountCents: z.number().int().min(1).optional(),
+				reason: z
+					.enum(["duplicate", "fraudulent", "requested_by_customer"])
+					.default("requested_by_customer"),
+				notes: z.string().max(1000).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				refundId: string;
+				amountCents: number;
+				status: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getCustomerSummary: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				stripeCustomerId: string | null;
+				defaultPaymentMethod: { brand: string; last4: string } | null;
+				currency: string;
+				balance: number;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Mission Control Dashboard types (Plan F.1.5 — Agent M).
 export const platformAdminDashboardRouterType = {
 	getOverview: protectedProcedure
@@ -2138,6 +2241,7 @@ export const appRouter = {
 		tags: platformAdminTenantsTagsRouterType,
 		search: platformAdminTenantsSearchRouterType,
 		health: platformAdminTenantsHealthRouterType,
+		billing: platformAdminTenantsBillingRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 	platformAdminDashboard: platformAdminDashboardRouterType,
