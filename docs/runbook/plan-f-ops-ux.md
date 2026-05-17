@@ -543,7 +543,126 @@ Both replace with real Stripe Dashboard values when ready. Single-file edit in `
 | **G** (/billing global) | `platform-admin-billing.ts` + `.test.ts`, `billing.tsx` (route), `recent-invoices-panel.tsx`, `refund-queue-panel.tsx` | `G-billing-global.spec.ts` | `G-billing-global.webm` |
 
 (All under `apps/web/e2e/tests/ship/plan-f-3-5/` + `verification/plan-f-3-5/`.)
-## F.4 — Operational depth (PENDING)
-## F.5 — Final ADRs + this runbook expansion (PENDING)
+## F.4 — Operational depth (LANDED)
+
+Branch: `plan-f-4-ops` (based on `plan-f-3-5-billing-depth` tip)
+Commits: `2e54c96` (Re), `7cc9b84` (He), `c2e8b8b` (Wh), `2700384` (Mi), `14900fd` (Mb), `43be8f4` (Ff), `419d662` (tsc cleanup), `<docs>` (ADRs 0035 + 0036 + this section)
+ADRs: 0035 (migrations read-only), 0036 (cross-tenant reads from platform-admin)
+Migration: none — all features are reads over existing tables or compile-time bundled
+
+### What shipped
+
+| Feature | Where | Router | Notes |
+|---|---|---|---|
+| /renewals 90-day calendar | `/dashboard/platform-admin/renewals` | `platformAdminRenewals.getCalendar` | ISO-week buckets, past-due section, MRR pass/at-risk split |
+| /health scoreboard | `/dashboard/platform-admin/health` | `platformAdminHealth.getScoreboard` | Histogram (5 bands), flag rollup, 30d trend sparkline |
+| /webhooks log | `/dashboard/platform-admin/webhooks` | `platformAdminWebhooks.{getOverview, listEvents}` | Reads existing `processed_webhook_events` (Plan C) |
+| /migrations viewer (read-only) | `/dashboard/platform-admin/migrations` | `platformAdminMigrations.{listMigrations, getMigrationFile}` | NO apply proc — see ADR-0035 |
+| Members tab on drill-in | `tenants.$id.tsx` (between Billing and Actions) | `platformAdminTenants.members.{list, getCounts}` | Cross-DB stitch via tryOpenTenantDb — see ADR-0036 |
+| Feature flags tab on drill-in | `tenants.$id.tsx` (between Members and Actions) | `platformAdminTenants.featureFlags.get` | Read-only v1, derives from TIER_LIMITS |
+| tsc baseline cleanup | (various test files + payment.service.ts) | — | 57 errors → 0, CI gate ready to flip on |
+
+### Common ops
+
+**See who's renewing this week.**
+- `/dashboard/platform-admin/renewals` → first week card shows orgs renewing within 7 days.
+- "Cancel at period end" warning chip → org won't actually renew; outreach now.
+- Past-due section at top — orgs already in trouble, ordered oldest first.
+
+**Triage at-risk tenants.**
+- `/dashboard/platform-admin/health` → histogram shows how many orgs are in each band.
+- Top-at-risk list (default 20) — click into Risk tab for details.
+- Flag rollup tells you which signals are most common ("12 orgs have webhook_failures").
+
+**Audit Stripe webhooks.**
+- `/dashboard/platform-admin/webhooks` → 4 KPIs (24h, 7d, duplicates, unique event types).
+- By-event-type list shows volume distribution.
+- Recent-events table for forensics. Filter by eventType + days window.
+
+**Inspect migrations.**
+- `/dashboard/platform-admin/migrations` → tabs for Control Panel / Tenant schemas.
+- 4 KPI cards: journal count, applied, pending, orphaned.
+- Orphaned banner → some migrations were applied outside Drizzle (manual SQL pool). Investigate via journal drift recipes.
+- Click row → view SQL content in dialog. NO apply button per ADR-0035.
+
+**View tenant members.**
+- Tenant drill-in → Members tab.
+- KPI strip: total + role breakdown.
+- Search by name/email, filter by role, paginated.
+
+**Check tenant's feature set.**
+- Tenant drill-in → Feature flags tab.
+- Tier chip + 5 feature cards (ghl, googleCalendar, commissionSplits, memberships, apiAccess) + tier limits panel.
+- To change features → use Billing tab → Tier change (F.3.5).
+
+### Debugging recipes
+
+**"/renewals shows wrong MRR numbers."**
+- TIER_PRICES_USD_CENTS values are still placeholders. Replace in `packages/types/src/tiers.ts` with real Stripe Dashboard prices. Single-line edit, no code change at call sites.
+
+**"/health scoreboard shows mostly 'no_data' flags."**
+- Plan F.1.5 launched the formula with only 2 of 5 factors wired (payment_status + last_successful_payment_at). The other 3 (admin login recency, webhook failures, daily active members) emit `no_data` until snapshot service writes those columns. Open separate ticket.
+
+**"/webhooks 'duplicates' KPI is high."**
+- `duplicates = events where attempts > 1`. Either Stripe is retrying (acceptable transient) OR our handler is throwing repeatedly on the same event. Drill into Recent events with `eventType` filter + check `error` column for repeated failures.
+
+**"/migrations orphaned banner is up."**
+- Some migrations applied via raw SQL pool outside Drizzle. Dev DB hits this regularly (F.1/F.1.5/F.2 agents documented working around journal drift). Decision: leave it — ops awareness via banner. ADR-0035 open follow-up has the auto-remediation idea.
+
+**"Members tab shows empty for org I know has members."**
+- `tryOpenTenantDb` failed (encryption key mismatch, tenant DB URL null, Neon branch missing). Open server logs for the proc to see the underlying error. Pre-existing data issue, not a Members tab bug.
+
+**"Feature flags shows BASIC for a tenant on PROFESSIONAL."**
+- Fallback rules: org missing → NOT_FOUND. No sub → basic. Cancelled sub → basic. Active/trialing/past_due → sub.tier. If you see basic when expecting professional → check subscriptions table directly; the sub may be in cancelled state.
+
+### Audit action strings
+
+F.4 procs are all read-only. No new audit action strings.
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **Re** (renewals) | `platform-admin-renewals.{ts, test.ts}`, `renewals.tsx`, `renewals-calendar-grid.tsx` | `Re-renewals.spec.ts` | `Re-renewals.webm` |
+| **He** (health scoreboard) | `platform-admin-health.{ts, test.ts}`, `health.tsx`, `health-histogram.tsx`, `risk-flag-rollup.tsx` | `He-health-scoreboard.spec.ts` | `He-health-scoreboard.webm` |
+| **Wh** (webhooks log) | `platform-admin-webhooks.{ts, test.ts}`, `webhooks.tsx`, `webhooks-log-table.tsx` | `Wh-webhooks.spec.ts` | `Wh-webhooks.webm` |
+| **Mi** (migrations) | `platform-admin-migrations.{ts, test.ts}`, `migrations.tsx`, `migration-status-table.tsx`, `packages/db/src/journals.ts`, `packages/db/src/generated/control-panel-migrations.generated.ts`, `scripts/gen-control-panel-migrations.ts` | `Mi-migrations.spec.ts` | `Mi-migrations.webm` |
+| **Mb** (members) | `platform-admin-tenants-members.{ts, test.ts}`, `tenant-members-tab.tsx`, `members-roster-table.tsx` | `Mb-members.spec.ts` | `Mb-members.webm` |
+| **Ff** (feature flags) | `platform-admin-tenants-feature-flags.{ts, test.ts}`, `tenant-feature-flags-tab.tsx`, `feature-flag-card.tsx` | `Ff-feature-flags.spec.ts` | `Ff-feature-flags.webm` |
+
+(All under `apps/web/e2e/tests/ship/plan-f-4/` + `verification/plan-f-4/`.)
+
+---
+
+## F.5 — Closeout (DONE — rolled into F.4 wrap)
+
+F.5 was scoped as "ADRs + runbook" in the original Plan F doc. ADRs 0027-0036 + runbook sections have been authored inline with each phase, so F.5 is effectively rolled into F.4's wrap commit.
+
+### ADR index for Plan F
+
+| ADR | Title | Author |
+|---|---|---|
+| 0027 | Plan F scope — platform-admin only | F.1 |
+| 0028 | Tenant notes as soft-state, append-only audit | F.1 |
+| 0029 | Tenant tags as dedicated table (not jsonb) | F.1 |
+| 0030 | Tenant health-score formula | F.1.5 |
+| 0031 | Revenue rollup approach (live + cohort retention) | F.2 |
+| 0032 | Comms templates + bulk fan-out | F.2.5 |
+| 0033 | Billing reads: Stripe live (vs local mirror) | F.3-A |
+| 0034 | Tier change proration + coupon mechanism | F.3.5 |
+| 0035 | Migrations surface is read-only | F.4 |
+| 0036 | Cross-tenant reads from platform-admin procs | F.4 |
+
+### Plan F final commit list
+
+- F.1: 4 commits (N, T, S, docs)
+- F.1.5: 4 commits (H, R, M, docs)
+- F.2: 3 commits (P, V, docs)
+- F.2.5: 3 commits (C, B, docs)
+- F.3-A: 2 commits (I, docs)
+- F.3.5: 4 commits (T2, C2, G, docs)
+- F.4: 8 commits (Re, He, Wh, Mi, Mb, Ff, tsc cleanup, docs)
+
+Plus 5 stacked PRs (#10, #12-16) + 1 cleanup PR (this F.4 PR) representing the full Plan F surface area: discovery → segmentation → revenue → billing depth → operational depth.
 
 Sections to be filled as phases land via subsequent `/ship` runs.
