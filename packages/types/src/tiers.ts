@@ -92,3 +92,32 @@ export function getTierPriceUsdCents(tier: Tier): number {
   }
   return 0;
 }
+
+/**
+ * Stripe price IDs per tier (used by ops-driven tier swaps in Plan F.3.5).
+ * TODO(plan-f-3-5): replace placeholders with real Stripe Dashboard price IDs.
+ * Until those are wired in, `changeTier` will fail against real Stripe but
+ * the deterministic stub in unit tests exercises the full code path.
+ *
+ * Source of truth for billing remains Stripe — this constant is the lookup
+ * used when swapping a subscription's price item.
+ */
+export const TIER_STRIPE_PRICE_IDS = {
+  basic: "price_placeholder_basic",
+  professional: "price_placeholder_professional",
+  enterprise: "price_placeholder_enterprise",
+} as const;
+
+export type TierStripePriceId = (typeof TIER_STRIPE_PRICE_IDS)[Tier];
+
+/**
+ * Returns the Stripe price ID for a tier. Throws if the tier is not in
+ * the mapping — callers are responsible for validating the input tier
+ * against the `Tier` union first.
+ */
+export function getTierStripePriceId(tier: Tier): string {
+  if (Object.hasOwn(TIER_STRIPE_PRICE_IDS, tier)) {
+    return TIER_STRIPE_PRICE_IDS[tier];
+  }
+  throw new Error(`Unknown tier for Stripe price lookup: ${tier}`);
+}

@@ -1750,6 +1750,29 @@ export const platformAdminTenantsBillingRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+	// Plan F.3.5 — Agent T2 — Tier change mid-period.
+	changeTier: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				toTier: z.enum(["basic", "professional", "enterprise"]),
+				prorationBehavior: z
+					.enum(["create_prorations", "none", "always_invoice"])
+					.default("create_prorations"),
+				notes: z.string().max(1000).optional(),
+			}),
+		)
+		.handler(
+			(): {
+				ok: true;
+				fromTier: "basic" | "professional" | "enterprise";
+				toTier: "basic" | "professional" | "enterprise";
+				prorationInvoiceId: string | null;
+				prorationAmountCents: number | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Platform Admin — Mission Control Dashboard types (Plan F.1.5 — Agent M).

@@ -33,6 +33,7 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { getTierStripePriceId, type Tier } from "@avantej-core/types";
 
 // ── Stripe surface used by this router. Kept minimal for testability. ──────
 type StripeInvoice = {
@@ -88,6 +89,24 @@ type StripeRefund = {
 	amount: number;
 };
 
+// Stripe Subscription Item — minimal shape needed for tier swap.
+type StripeSubscriptionItem = {
+	id: string;
+	price?: { id: string } | null;
+};
+
+type StripeSubscription = {
+	id: string;
+	items: { data: StripeSubscriptionItem[] };
+};
+
+type StripeUpcomingInvoice = {
+	id?: string | null;
+	amount_due?: number;
+	total?: number;
+	currency?: string;
+};
+
 export type StripeClientLike = {
 	invoices: {
 		list: (params: {
@@ -100,6 +119,12 @@ export type StripeClientLike = {
 			id: string,
 			params?: { expand?: string[] },
 		) => Promise<StripeInvoice>;
+		// Stripe SDK 19+: `createPreview` replaces `retrieveUpcoming`. Best-effort
+		// — wrapped in try/catch so a missing/failed preview never blocks a swap.
+		createPreview?: (params: {
+			subscription?: string;
+			customer?: string;
+		}) => Promise<StripeUpcomingInvoice>;
 	};
 	refunds: {
 		create: (params: {
@@ -113,6 +138,16 @@ export type StripeClientLike = {
 			id: string,
 			params?: { expand?: string[] },
 		) => Promise<StripeCustomer>;
+	};
+	subscriptions: {
+		retrieve: (id: string) => Promise<StripeSubscription>;
+		update: (
+			id: string,
+			params: {
+				items: Array<{ id: string; price: string }>;
+				proration_behavior?: "create_prorations" | "none" | "always_invoice";
+			},
+		) => Promise<StripeSubscription>;
 	};
 };
 
@@ -488,6 +523,158 @@ export function createPlatformAdminTenantsBillingRouter(
 					defaultPaymentMethod: pm,
 					currency: (c.currency ?? "usd").toLowerCase(),
 					balance: Number(c.balance ?? 0),
+				};
+			}),
+
+		// ── Plan F.3.5 (Agent T2) — Tier change mid-period ─────────────────
+		// Swap a tenant's subscription tier. Stripe handles proration via
+		// `proration_behavior`. Writes one `tenant_tier_change` audit row on
+		// success only (matches the refundInvoice pattern). NO schema change.
+		changeTier: superAdminProcedure
+			.input(
+				z.object({
+					organizationId: z.string().uuid(),
+					toTier: z.enum(["basic", "professional", "enterprise"]),
+					prorationBehavior: z
+						.enum(["create_prorations", "none", "always_invoice"])
+						.default("create_prorations"),
+					notes: z.string().max(1000).optional(),
+				}),
+			)
+			.handler(async ({ context, input }) => {
+				const cpDb = cpDbFrom(context);
+				const adminUserId = adminUserIdFrom(context);
+
+				// Resolve org → subscription row.
+				const [org] = await cpDb
+					.select({
+						id: organizations.id,
+						subscriptionId: organizations.subscriptionId,
+					})
+					.from(organizations)
+					.where(eq(organizations.id, input.organizationId))
+					.limit(1);
+				if (!org) {
+					throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
+				}
+				if (!org.subscriptionId) {
+					throw new ORPCError("PRECONDITION_FAILED", {
+						message: "Tenant has no subscription — cannot change tier",
+					});
+				}
+				const [sub] = await cpDb
+					.select()
+					.from(subscriptions)
+					.where(eq(subscriptions.id, org.subscriptionId))
+					.limit(1);
+				if (!sub) {
+					throw new ORPCError("NOT_FOUND", {
+						message: "Subscription record not found",
+					});
+				}
+
+				const fromTier = sub.tier as Tier;
+				if (fromTier === input.toTier) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "Already on this tier",
+					});
+				}
+
+				const stripe = resolveStripe();
+				const newPriceId = getTierStripePriceId(input.toTier);
+
+				// Fetch Stripe subscription to read the current item id.
+				let stripeSub: StripeSubscription;
+				try {
+					stripeSub = await stripe.subscriptions.retrieve(
+						sub.stripeSubscriptionId,
+					);
+				} catch (err) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: `Stripe subscription retrieve failed: ${
+							err instanceof Error ? err.message : "unknown"
+						}`,
+					});
+				}
+
+				const currentItemId = stripeSub.items?.data?.[0]?.id;
+				if (!currentItemId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "Stripe subscription has no items — cannot swap price",
+					});
+				}
+
+				// Perform the tier swap.
+				try {
+					await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+						items: [{ id: currentItemId, price: newPriceId }],
+						proration_behavior: input.prorationBehavior,
+					});
+				} catch (err) {
+					// NO audit row on Stripe failure.
+					throw new ORPCError("BAD_REQUEST", {
+						message: `Stripe tier change failed: ${
+							err instanceof Error ? err.message : "unknown"
+						}`,
+					});
+				}
+
+				// Best-effort: read proration preview. Tier change must not fail
+				// because of preview retrieval errors. NOTE: organizationCountLimit
+				// + applicationFeeBps are NOT updated here — those are synced from
+				// Stripe via webhooks. We only touch tier + stripePriceId, which
+				// is enough for the UI surface and audit trail.
+				let prorationInvoiceId: string | null = null;
+				let prorationAmountCents: number | null = null;
+				if (stripe.invoices.createPreview) {
+					try {
+						const preview = await stripe.invoices.createPreview({
+							subscription: sub.stripeSubscriptionId,
+						});
+						prorationInvoiceId = preview.id ?? null;
+						prorationAmountCents =
+							typeof preview.amount_due === "number"
+								? preview.amount_due
+								: typeof preview.total === "number"
+									? preview.total
+									: null;
+					} catch {
+						// best-effort — swallow.
+					}
+				}
+
+				// Update local subscription tier + price id.
+				await cpDb
+					.update(subscriptions)
+					.set({
+						tier: input.toTier,
+						stripePriceId: newPriceId,
+						updatedAt: new Date(),
+					})
+					.where(eq(subscriptions.id, sub.id));
+
+				// Audit success.
+				await cpDb.insert(adminSessionActions).values({
+					adminUserId,
+					actionType: "tenant_tier_change",
+					targetOrganizationId: input.organizationId,
+					metadata: {
+						fromTier,
+						toTier: input.toTier,
+						stripeSubscriptionId: sub.stripeSubscriptionId,
+						prorationBehavior: input.prorationBehavior,
+						notes: input.notes ?? null,
+						prorationInvoiceId,
+						prorationAmountCents,
+					},
+				});
+
+				return {
+					ok: true as const,
+					fromTier,
+					toTier: input.toTier,
+					prorationInvoiceId,
+					prorationAmountCents,
 				};
 			}),
 	};

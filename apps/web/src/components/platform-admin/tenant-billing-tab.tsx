@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CreditCard } from "lucide-react";
+import type { Tier } from "@avantej-core/types";
 import { client } from "@/utils/orpc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
 	RefundConfirmDialog,
 	type RefundInput,
 } from "./refund-confirm-dialog";
+import { TierChangeCard } from "./tier-change-card";
 
 export function TenantBillingTab({
 	organizationId,
@@ -47,6 +49,26 @@ export function TenantBillingTab({
 				organizationId,
 			}),
 	});
+
+	// Tier — sourced from getTenantDetail. Tolerant of dev-DB 500 (known issue):
+	// when the query fails, TierChangeCard is hidden but Billing tab still
+	// renders the customer summary + invoice list.
+	const tenantDetail = useQuery({
+		queryKey: [
+			"platformAdminTenants",
+			"getTenantDetail",
+			"forTier",
+			organizationId,
+		] as const,
+		queryFn: () =>
+			client.platformAdminTenants.getTenantDetail({ organizationId }),
+		retry: false,
+	});
+	const currentTier: Tier | null = (() => {
+		const t = tenantDetail.data?.subscription?.tier;
+		if (t === "basic" || t === "professional" || t === "enterprise") return t;
+		return null;
+	})();
 
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [accumulated, setAccumulated] = useState<Invoice[]>([]);
@@ -142,6 +164,25 @@ export function TenantBillingTab({
 					) : null}
 				</CardContent>
 			</Card>
+
+			{currentTier ? (
+				<TierChangeCard
+					organizationId={organizationId}
+					currentTier={currentTier}
+					isSuperAdmin={isSuperAdmin}
+					onChanged={() => {
+						qc.invalidateQueries({ queryKey: invoicesKey });
+						qc.invalidateQueries({
+							queryKey: [
+								"platformAdminTenants",
+								"getTenantDetail",
+								"forTier",
+								organizationId,
+							],
+						});
+					}}
+				/>
+			) : null}
 
 			<Card>
 				<CardHeader>

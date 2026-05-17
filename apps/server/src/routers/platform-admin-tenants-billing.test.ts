@@ -70,14 +70,50 @@ const mockInvoicesRetrieve = mock(async (_id: string, _params?: unknown) => ({
 	},
 }));
 
+// Plan F.3.5 (Agent T2) — Stripe Subscription mocks for tier change.
+const mockSubscriptionsRetrieve = mock(async (_id: string) => ({
+	id: `sub_${TEST_SUB_ID}`,
+	items: { data: [{ id: "si_test_item_1", price: { id: "price_test" } }] },
+}));
+const mockSubscriptionsUpdate = mock(
+	async (
+		_id: string,
+		_params: {
+			items: Array<{ id: string; price: string }>;
+			proration_behavior?: string;
+		},
+	) => ({
+		id: `sub_${TEST_SUB_ID}`,
+		items: {
+			data: [
+				{
+					id: "si_test_item_1",
+					price: { id: _params.items?.[0]?.price ?? "price_test" },
+				},
+			],
+		},
+	}),
+);
+const mockInvoicesCreatePreview = mock(async (_params: unknown) => ({
+	id: "in_preview_999",
+	amount_due: 5000,
+	total: 5000,
+	currency: "usd",
+}));
+
 const fakeStripe = {
 	invoices: {
 		list: mock(async () => ({ data: [], has_more: false })),
 		retrieve: mockInvoicesRetrieve,
+		createPreview: mockInvoicesCreatePreview,
 	},
 	refunds: { create: mockRefundsCreate },
 	customers: {
 		retrieve: mock(async () => ({ id: TEST_CUSTOMER, balance: 0, currency: "usd" })),
+	},
+	subscriptions: {
+		retrieve: mockSubscriptionsRetrieve,
+		update: mockSubscriptionsUpdate,
 	},
 };
 
@@ -86,6 +122,9 @@ const router = createPlatformAdminTenantsBillingRouter(fakeStripe as never);
 beforeEach(async () => {
 	mockRefundsCreate.mockClear();
 	mockInvoicesRetrieve.mockClear();
+	mockSubscriptionsRetrieve.mockClear();
+	mockSubscriptionsUpdate.mockClear();
+	mockInvoicesCreatePreview.mockClear();
 
 	// Clean any prior fixture state.
 	await controlPanelDb
@@ -94,6 +133,14 @@ beforeEach(async () => {
 			and(
 				eq(adminSessionActions.adminUserId, TEST_USER_ID),
 				eq(adminSessionActions.actionType, "tenant_invoice_refund"),
+			),
+		);
+	await controlPanelDb
+		.delete(adminSessionActions)
+		.where(
+			and(
+				eq(adminSessionActions.adminUserId, TEST_USER_ID),
+				eq(adminSessionActions.actionType, "tenant_tier_change"),
 			),
 		);
 	await controlPanelDb.delete(organizations).where(eq(organizations.id, TEST_ORG_ID));
@@ -241,5 +288,145 @@ describe("platformAdminTenantsBilling.listInvoices", () => {
 		expect(result.hasMore).toBe(false);
 		// Stripe must not have been called for the no-customer path.
 		expect(fakeStripe.invoices.list).not.toHaveBeenCalled();
+	});
+});
+
+// ── Plan F.3.5 (Agent T2) — Tier change mid-period ────────────────────────
+describe("platformAdminTenantsBilling.changeTier", () => {
+	it("rejects same-tier change with BAD_REQUEST", async () => {
+		const handler = getHandler(router.changeTier);
+
+		// Fixture seed is `tier: "professional"`.
+		let caught: unknown;
+		try {
+			await handler({
+				context: fakeContext(),
+				input: {
+					organizationId: TEST_ORG_ID,
+					toTier: "professional",
+					prorationBehavior: "create_prorations",
+				},
+			});
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeDefined();
+		expect(String(caught).toLowerCase()).toContain("already on this tier");
+
+		// No Stripe call should have been made for same-tier case.
+		expect(mockSubscriptionsRetrieve).not.toHaveBeenCalled();
+		expect(mockSubscriptionsUpdate).not.toHaveBeenCalled();
+	});
+
+	it("happy path: swaps tier on Stripe, updates local row, audits once", async () => {
+		const handler = getHandler<{
+			ok: true;
+			fromTier: string;
+			toTier: string;
+			prorationInvoiceId: string | null;
+			prorationAmountCents: number | null;
+		}>(router.changeTier);
+
+		const result = await handler({
+			context: fakeContext(),
+			input: {
+				organizationId: TEST_ORG_ID,
+				toTier: "basic",
+				prorationBehavior: "create_prorations",
+				notes: "tier-change unit-test",
+			},
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.fromTier).toBe("professional");
+		expect(result.toTier).toBe("basic");
+		expect(result.prorationInvoiceId).toBe("in_preview_999");
+		expect(result.prorationAmountCents).toBe(5000);
+
+		// Stripe was called with the correct shape.
+		expect(mockSubscriptionsRetrieve).toHaveBeenCalledTimes(1);
+		expect(mockSubscriptionsUpdate).toHaveBeenCalledTimes(1);
+		const updateArgs = (
+			mockSubscriptionsUpdate as unknown as { mock: { calls: unknown[][] } }
+		).mock.calls[0]!;
+		expect(updateArgs[0]).toBe(`sub_${TEST_SUB_ID}`);
+		const params = updateArgs[1] as {
+			items: Array<{ id: string; price: string }>;
+			proration_behavior: string;
+		};
+		expect(params.items[0]!.id).toBe("si_test_item_1");
+		expect(params.items[0]!.price).toBe("price_placeholder_basic");
+		expect(params.proration_behavior).toBe("create_prorations");
+
+		// Local subscription row was updated.
+		const [updatedSub] = await controlPanelDb
+			.select()
+			.from(subscriptions)
+			.where(eq(subscriptions.id, TEST_SUB_ID));
+		expect(updatedSub!.tier).toBe("basic");
+		expect(updatedSub!.stripePriceId).toBe("price_placeholder_basic");
+
+		// Exactly one audit row with the right metadata.
+		const rows = await controlPanelDb
+			.select()
+			.from(adminSessionActions)
+			.where(
+				and(
+					eq(adminSessionActions.targetOrganizationId, TEST_ORG_ID),
+					eq(adminSessionActions.actionType, "tenant_tier_change"),
+				),
+			);
+		expect(rows.length).toBe(1);
+		const meta = rows[0]!.metadata as Record<string, unknown>;
+		expect(meta.fromTier).toBe("professional");
+		expect(meta.toTier).toBe("basic");
+		expect(meta.stripeSubscriptionId).toBe(`sub_${TEST_SUB_ID}`);
+		expect(meta.prorationBehavior).toBe("create_prorations");
+		expect(meta.notes).toBe("tier-change unit-test");
+		expect(meta.prorationInvoiceId).toBe("in_preview_999");
+		expect(meta.prorationAmountCents).toBe(5000);
+	});
+
+	it("writes no audit row when Stripe subscription update fails", async () => {
+		mockSubscriptionsUpdate.mockImplementationOnce(async () => {
+			throw new Error("stripe_price_inactive");
+		});
+
+		const handler = getHandler(router.changeTier);
+
+		let caught: unknown;
+		try {
+			await handler({
+				context: fakeContext(),
+				input: {
+					organizationId: TEST_ORG_ID,
+					toTier: "enterprise",
+					prorationBehavior: "create_prorations",
+				},
+			});
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeDefined();
+		expect(String(caught)).toContain("stripe_price_inactive");
+
+		// Local subscription row must NOT have been mutated.
+		const [unchanged] = await controlPanelDb
+			.select()
+			.from(subscriptions)
+			.where(eq(subscriptions.id, TEST_SUB_ID));
+		expect(unchanged!.tier).toBe("professional");
+
+		// No audit row.
+		const rows = await controlPanelDb
+			.select({ id: adminSessionActions.id })
+			.from(adminSessionActions)
+			.where(
+				and(
+					eq(adminSessionActions.targetOrganizationId, TEST_ORG_ID),
+					eq(adminSessionActions.actionType, "tenant_tier_change"),
+				),
+			);
+		expect(rows.length).toBe(0);
 	});
 });
