@@ -2403,6 +2403,52 @@ export const platformAdminBillingRouterType = {
 		),
 };
 
+// Platform Admin — Renewals Calendar types (Plan F.4 — Agent Re).
+export const platformAdminRenewalsRouterType = {
+	getCalendar: protectedProcedure
+		.input(
+			z.object({
+				daysAhead: z.number().int().min(7).max(180).default(90),
+			}),
+		)
+		.handler(
+			(): {
+				weeks: Array<{
+					weekStartISO: string;
+					weekEndISO: string;
+					renewals: Array<{
+						orgId: string;
+						orgName: string;
+						tier: string;
+						mrrCents: number;
+						currentPeriodEnd: string;
+						status: string;
+						cancelAtPeriodEnd: boolean;
+						daysUntil: number;
+					}>;
+					totalMrrAtRiskCents: number;
+					totalMrrPassingCents: number;
+				}>;
+				pastDue: Array<{
+					orgId: string;
+					orgName: string;
+					tier: string;
+					mrrCents: number;
+					currentPeriodEnd: string;
+					status: string;
+				}>;
+				summary: {
+					totalRenewalsInWindow: number;
+					totalMrrAtRiskCents: number;
+					totalMrrPassingCents: number;
+					pastDueCount: number;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2444,6 +2490,7 @@ export const appRouter = {
 	platformAdminComms: platformAdminCommsRouterType,
 	platformAdminCoupons: platformAdminCouponsRouterType,
 	platformAdminBilling: platformAdminBillingRouterType,
+	platformAdminRenewals: platformAdminRenewalsRouterType,
 };
 
 export type AppRouter = typeof appRouter;
