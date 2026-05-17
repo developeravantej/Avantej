@@ -25,3 +25,4 @@ export * from "./tenant-deletions";
 export * from "./tenant-notes";
 export * from "./tenant-tags";
 export * from "./comms-templates";
+export * from "./tenant-feature-overrides";

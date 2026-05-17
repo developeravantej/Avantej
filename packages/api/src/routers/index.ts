@@ -1516,7 +1516,28 @@ const platformAdminTenantsMembersRouterType = {
 		),
 };
 
-// Platform Admin — Tenant Feature Flags types (Plan F.4 Agent Ff).
+// Platform Admin — Tenant Feature Flags types (Plan F.4 Agent Ff + F.6 Agent Fo).
+type _FeatureKey =
+	| "ghl"
+	| "googleCalendar"
+	| "commissionSplits"
+	| "memberships"
+	| "apiAccess";
+type _OverrideMetadata = {
+	enabled: boolean;
+	setByUserId: string;
+	setByEmail: string | null;
+	notes: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+const _featureKeyZ = z.enum([
+	"ghl",
+	"googleCalendar",
+	"commissionSplits",
+	"memberships",
+	"apiAccess",
+]);
 const platformAdminTenantsFeatureFlagsRouterType = {
 	get: protectedProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
@@ -1524,13 +1545,7 @@ const platformAdminTenantsFeatureFlagsRouterType = {
 			(): {
 				organizationId: string;
 				tier: "basic" | "professional" | "enterprise";
-				features: {
-					ghl: boolean;
-					googleCalendar: boolean;
-					commissionSplits: boolean;
-					memberships: boolean;
-					apiAccess: boolean;
-				};
+				features: Record<_FeatureKey, boolean>;
 				tierLimits: {
 					organizations: number;
 					locations: number;
@@ -1541,8 +1556,52 @@ const platformAdminTenantsFeatureFlagsRouterType = {
 					analyticsLevel: "basic" | "advanced";
 					auditLogDays: number;
 				};
-				source: "tier_default" | "override";
+				overrides: Partial<Record<_FeatureKey, _OverrideMetadata>>;
+				source: "tier_default" | "mixed";
 			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listOverrides: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				overrides: Array<{
+					featureKey: string;
+					enabled: boolean;
+					setByUserId: string;
+					setByEmail: string | null;
+					notes: string | null;
+					createdAt: string | null;
+					updatedAt: string | null;
+				}>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	setOverride: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				featureKey: _featureKeyZ,
+				enabled: z.boolean(),
+				notes: z.string().max(1000).optional(),
+			}),
+		)
+		.handler(
+			(): { ok: true; featureKey: _FeatureKey; enabled: boolean } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	clearOverride: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				featureKey: _featureKeyZ,
+			}),
+		)
+		.handler(
+			(): { ok: true } => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),

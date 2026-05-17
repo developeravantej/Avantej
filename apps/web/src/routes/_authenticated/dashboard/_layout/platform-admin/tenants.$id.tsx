@@ -382,7 +382,7 @@ function TenantDrillInPage() {
 				</TabsContent>
 
 				<TabsContent value="feature-flags">
-					<TenantFeatureFlagsTab organizationId={id} />
+					<TenantFeatureFlagsTab organizationId={id} isSuperAdmin={isSuperAdmin} />
 				</TabsContent>
 
 				<TabsContent value="actions">
