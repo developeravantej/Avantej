@@ -2231,6 +2231,102 @@ const ghlRouterType = {
 		),
 };
 
+// Platform Admin — Coupons types (Plan F.3.5 — Agent C2).
+// Stripe-backed coupon catalog + per-tenant attach/remove. Audit actions
+// `coupon_create` / `coupon_delete` / `coupon_apply` / `coupon_remove`.
+export const platformAdminCouponsRouterType = {
+	listCoupons: protectedProcedure
+		.input(
+			z.object({
+				limit: z.number().int().min(1).max(100).default(50),
+				startingAfter: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				coupons: Array<{
+					id: string;
+					name: string | null;
+					percentOff: number | null;
+					amountOff: number | null;
+					currency: string | null;
+					duration: "once" | "repeating" | "forever";
+					durationInMonths: number | null;
+					maxRedemptions: number | null;
+					timesRedeemed: number;
+					valid: boolean;
+					createdAt: Date;
+				}>;
+				hasMore: boolean;
+				nextCursor: string | undefined;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	createCoupon: protectedProcedure
+		.input(
+			z.object({
+				name: z.string().min(1).max(100),
+				discountKind: z.enum(["percent", "amount"]),
+				percentOff: z.number().min(1).max(100).optional(),
+				amountOffCents: z.number().int().min(1).optional(),
+				currency: z.string().length(3).default("usd"),
+				duration: z.enum(["once", "repeating", "forever"]),
+				durationInMonths: z.number().int().min(1).max(60).optional(),
+				maxRedemptions: z.number().int().min(1).optional(),
+			}),
+		)
+		.handler(
+			(): { couponId: string; name: string; valid: boolean } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	deleteCoupon: protectedProcedure
+		.input(z.object({ couponId: z.string().min(1) }))
+		.handler((): { ok: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	applyCoupon: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				couponId: z.string().min(1),
+				notes: z.string().max(1000).optional(),
+			}),
+		)
+		.handler(
+			(): { ok: true; couponId: string; customerId: string } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	removeCoupon: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): { ok: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getCustomerCoupon: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				coupon: {
+					id: string;
+					name: string | null;
+					percentOff: number | null;
+					amountOff: number | null;
+					currency: string | null;
+					duration: "once" | "repeating" | "forever";
+					durationInMonths: number | null;
+					maxRedemptions: number | null;
+					timesRedeemed: number;
+					valid: boolean;
+					createdAt: Date;
+				} | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2270,6 +2366,7 @@ export const appRouter = {
 	platformAdminDashboard: platformAdminDashboardRouterType,
 	platformAdminRevenue: platformAdminRevenueRouterType,
 	platformAdminComms: platformAdminCommsRouterType,
+	platformAdminCoupons: platformAdminCouponsRouterType,
 };
 
 export type AppRouter = typeof appRouter;

@@ -20,6 +20,7 @@ import {
 	type RefundInput,
 } from "./refund-confirm-dialog";
 import { TierChangeCard } from "./tier-change-card";
+import { CouponApplyCard } from "./coupon-apply-card";
 
 export function TenantBillingTab({
 	organizationId,
@@ -183,6 +184,14 @@ export function TenantBillingTab({
 					}}
 				/>
 			) : null}
+
+			<CouponApplyCard
+				organizationId={organizationId}
+				isSuperAdmin={isSuperAdmin}
+				onChanged={() => {
+					qc.invalidateQueries({ queryKey: invoicesKey });
+				}}
+			/>
 
 			<Card>
 				<CardHeader>
