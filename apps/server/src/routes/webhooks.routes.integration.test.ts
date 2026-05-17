@@ -109,8 +109,8 @@ describe("POST /webhooks/stripe/platform", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.tier).toBe("professional");
-		expect(row.applicationFeeBps).toBe(200);
+		expect(row!.tier).toBe("professional");
+		expect(row!.applicationFeeBps).toBe(200);
 	});
 
 	it("dedupes a duplicate event delivery", async () => {
@@ -157,8 +157,8 @@ describe("POST /webhooks/stripe/platform", () => {
 			.from(processedWebhookEvents)
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
 		expect(rows.length).toBe(1);
-		expect(rows[0].attempts).toBe(2);
-		expect(rows[0].processedAt).not.toBeNull();
+		expect(rows[0]!.attempts).toBe(2);
+		expect(rows[0]!.processedAt).not.toBeNull();
 	});
 
 	it("marks sub past_due on invoice.payment_failed", async () => {
@@ -214,8 +214,8 @@ describe("POST /webhooks/stripe/platform", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.status).toBe("past_due");
-		expect(row.pastDueAt).not.toBeNull();
+		expect(row!.status).toBe("past_due");
+		expect(row!.pastDueAt).not.toBeNull();
 
 		// Cleanup
 		await controlPanelDb
@@ -295,9 +295,9 @@ describe("POST /webhooks/stripe/platform", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.status).toBe("canceled");
-		expect(row.canceledAt).not.toBeNull();
-		expect(row.canceledAt!.getTime()).toBe(1716500000 * 1000);
+		expect(row!.status).toBe("canceled");
+		expect(row!.canceledAt).not.toBeNull();
+		expect(row!.canceledAt!.getTime()).toBe(1716500000 * 1000);
 
 		// Cleanup
 		await controlPanelDb
@@ -374,7 +374,7 @@ describe("POST /webhooks/stripe/platform", () => {
 			.select()
 			.from(organizations)
 			.where(eq(organizations.id, TEST_LINK_ORG_ID));
-		expect(linkedOrg.subscriptionId).not.toBeNull();
+		expect(linkedOrg!.subscriptionId).not.toBeNull();
 
 		// Cleanup
 		await controlPanelDb
@@ -413,8 +413,8 @@ describe("POST /webhooks/stripe/connect", () => {
 			.select()
 			.from(processedWebhookEvents)
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
-		expect(row.source).toBe("connect");
-		expect(row.stripeAccount).toBe("acct_test");
-		expect(row.processedAt).not.toBeNull();
+		expect(row!.source).toBe("connect");
+		expect(row!.stripeAccount).toBe("acct_test");
+		expect(row!.processedAt).not.toBeNull();
 	});
 });

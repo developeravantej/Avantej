@@ -262,8 +262,10 @@ async function seedFranchiseOwner() {
         .values({
           stripeSubscriptionId,
           stripeCustomerId: "cus_seed_" + timestamp,
+          stripePriceId: "price_seed_professional",
           tier: "professional",
           organizationCountLimit: 3,
+          applicationFeeBps: 200,
           status: "active",
         })
         .returning();

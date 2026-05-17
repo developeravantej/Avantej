@@ -78,8 +78,8 @@ describe("claimWebhookEvent", () => {
 			.select()
 			.from(processedWebhookEvents)
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
-		expect(row.source).toBe("connect");
-		expect(row.stripeAccount).toBe("acct_test_001");
+		expect(row!.source).toBe("connect");
+		expect(row!.stripeAccount).toBe("acct_test_001");
 	});
 });
 
@@ -97,8 +97,8 @@ describe("markEventProcessed", () => {
 			.select()
 			.from(processedWebhookEvents)
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
-		expect(row.processedAt).not.toBeNull();
-		expect(row.error).toBeNull();
+		expect(row!.processedAt).not.toBeNull();
+		expect(row!.error).toBeNull();
 	});
 
 	it("throws if no row exists for the eventId", async () => {
@@ -121,8 +121,8 @@ describe("markEventFailed", () => {
 			.select()
 			.from(processedWebhookEvents)
 			.where(eq(processedWebhookEvents.eventId, TEST_EVENT_ID));
-		expect(row.error).toBe("Handler exploded");
-		expect(row.processedAt).toBeNull();
+		expect(row!.error).toBe("Handler exploded");
+		expect(row!.processedAt).toBeNull();
 	});
 
 	it("throws if no row exists for the eventId", async () => {

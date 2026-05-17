@@ -137,7 +137,14 @@ function PlatformAdminCommsPage() {
 
 	const createMutation = useMutation({
 		mutationFn: (input: TemplateEditorInput) =>
-			client.platformAdminComms.createTemplate(input),
+			client.platformAdminComms.createTemplate({
+				name: input.name,
+				subject: input.subject,
+				bodyMarkdown: input.bodyMarkdown,
+				kind: input.kind,
+				priority: input.priority ?? undefined,
+				targetAudience: input.targetAudience ?? undefined,
+			}),
 		onSuccess: () => {
 			toast.success("Template created.");
 			setEditorOpen(false);

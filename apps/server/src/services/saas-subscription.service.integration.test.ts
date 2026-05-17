@@ -71,12 +71,12 @@ describe("upsertSubscriptionFromStripe", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.tier).toBe("professional");
-		expect(row.applicationFeeBps).toBe(200);
-		expect(row.status).toBe("active");
-		expect(row.stripeCustomerId).toBe("cus_test_001");
-		expect(row.stripePriceId).toBe("price_pro_test");
-		expect(row.currency).toBe("usd");
+		expect(row!.tier).toBe("professional");
+		expect(row!.applicationFeeBps).toBe(200);
+		expect(row!.status).toBe("active");
+		expect(row!.stripeCustomerId).toBe("cus_test_001");
+		expect(row!.stripePriceId).toBe("price_pro_test");
+		expect(row!.currency).toBe("usd");
 	});
 
 	it("is idempotent (second upsert reuses the row)", async () => {
@@ -87,7 +87,7 @@ describe("upsertSubscriptionFromStripe", () => {
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
 		expect(rows.length).toBe(1);
-		expect(rows[0].applicationFeeBps).toBe(300);
+		expect(rows[0]!.applicationFeeBps).toBe(300);
 	});
 
 	it("updates fields on second upsert when tier changes", async () => {
@@ -97,10 +97,10 @@ describe("upsertSubscriptionFromStripe", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.tier).toBe("enterprise");
-		expect(row.applicationFeeBps).toBe(150);
-		expect(row.stripePriceId).toBe("price_ent_test");
-		expect(row.organizationCountLimit).toBeGreaterThan(1_000_000);
+		expect(row!.tier).toBe("enterprise");
+		expect(row!.applicationFeeBps).toBe(150);
+		expect(row!.stripePriceId).toBe("price_ent_test");
+		expect(row!.organizationCountLimit).toBeGreaterThan(1_000_000);
 	});
 
 	it("persists trial_end when present", async () => {
@@ -112,8 +112,8 @@ describe("upsertSubscriptionFromStripe", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.trialEndsAt).not.toBeNull();
-		expect(row.trialEndsAt!.getTime()).toBe(trialEnd * 1000);
+		expect(row!.trialEndsAt).not.toBeNull();
+		expect(row!.trialEndsAt!.getTime()).toBe(trialEnd * 1000);
 	});
 
 	it("persists canceled_at and cancel_at_period_end=true", async () => {
@@ -128,8 +128,8 @@ describe("upsertSubscriptionFromStripe", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.cancelAtPeriodEnd).toBe(true);
-		expect(row.canceledAt).not.toBeNull();
+		expect(row!.cancelAtPeriodEnd).toBe(true);
+		expect(row!.canceledAt).not.toBeNull();
 	});
 });
 
@@ -141,10 +141,10 @@ describe("markPastDue / markActive", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.status).toBe("past_due");
-		expect(row.pastDueAt).not.toBeNull();
-		expect(row.gracePeriodEndsAt).not.toBeNull();
-		const diff = row.gracePeriodEndsAt!.getTime() - row.pastDueAt!.getTime();
+		expect(row!.status).toBe("past_due");
+		expect(row!.pastDueAt).not.toBeNull();
+		expect(row!.gracePeriodEndsAt).not.toBeNull();
+		const diff = row!.gracePeriodEndsAt!.getTime() - row!.pastDueAt!.getTime();
 		expect(diff).toBe(7 * 24 * 60 * 60 * 1000);
 	});
 
@@ -156,9 +156,9 @@ describe("markPastDue / markActive", () => {
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(row.status).toBe("active");
-		expect(row.pastDueAt).toBeNull();
-		expect(row.gracePeriodEndsAt).toBeNull();
+		expect(row!.status).toBe("active");
+		expect(row!.pastDueAt).toBeNull();
+		expect(row!.gracePeriodEndsAt).toBeNull();
 	});
 
 	it("markPastDue throws when subscription does not exist", async () => {
@@ -202,13 +202,13 @@ describe("upsertSubscriptionFromStripe org linking", () => {
 			.select()
 			.from(organizations)
 			.where(eq(organizations.id, TEST_ORG_ID_FOR_LINKING));
-		expect(linkedOrg.subscriptionId).not.toBeNull();
+		expect(linkedOrg!.subscriptionId).not.toBeNull();
 
 		const [sub] = await controlPanelDb
 			.select()
 			.from(subscriptions)
 			.where(eq(subscriptions.stripeSubscriptionId, TEST_SUB_ID));
-		expect(linkedOrg.subscriptionId).toBe(sub.id);
+		expect(linkedOrg!.subscriptionId).toBe(sub!.id);
 	});
 
 	it("does NOT touch organizations when metadata.organizationId is absent", async () => {
@@ -230,7 +230,7 @@ describe("upsertSubscriptionFromStripe org linking", () => {
 			.select()
 			.from(organizations)
 			.where(eq(organizations.id, TEST_ORG_ID_FOR_LINKING));
-		expect(unchanged.subscriptionId).toBeNull();
+		expect(unchanged!.subscriptionId).toBeNull();
 	});
 
 	it("silently skips when metadata.organizationId points to a missing org", async () => {

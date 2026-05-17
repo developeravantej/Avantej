@@ -22,7 +22,7 @@
  */
 
 import { z } from "zod";
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";

@@ -159,8 +159,10 @@ describe("Organization Lifecycle Integration Tests (T102)", () => {
       .values({
         stripeSubscriptionId: `sub_test_${testTimestamp}`,
         stripeCustomerId: `cus_test_${testTimestamp}`,
+        stripePriceId: `price_test_${testTimestamp}`,
         tier: "professional",
         organizationCountLimit: 3,
+        applicationFeeBps: 200,
         status: "active",
       })
       .returning();
