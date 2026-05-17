@@ -36,6 +36,7 @@ import { platformAdminBillingRouter } from "@/routers/platform-admin-billing";
 import { platformAdminRenewalsRouter } from "@/routers/platform-admin-renewals";
 import { platformAdminHealthRouter } from "@/routers/platform-admin-health";
 import { platformAdminWebhooksRouter } from "@/routers/platform-admin-webhooks";
+import { platformAdminMigrationsRouter } from "@/routers/platform-admin-migrations";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -101,6 +102,7 @@ const appRouter = {
 	platformAdminRenewals: platformAdminRenewalsRouter,
 	platformAdminHealth: platformAdminHealthRouter,
 	platformAdminWebhooks: platformAdminWebhooksRouter,
+	platformAdminMigrations: platformAdminMigrationsRouter,
 };
 
 const app = new Hono();

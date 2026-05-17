@@ -65,6 +65,7 @@ import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport } 
 import { Route as AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/revenue'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminRenewalsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/renewals'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/payments'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/migrations'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminHealthRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/health'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/comms'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/billing'
@@ -431,6 +432,12 @@ const AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute =
     path: '/platform-admin/payments',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport.update({
+    id: '/platform-admin/migrations',
+    path: '/platform-admin/migrations',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPlatformAdminHealthRoute =
   AuthenticatedDashboardLayoutPlatformAdminHealthRouteImport.update({
     id: '/platform-admin/health',
@@ -715,6 +722,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/dashboard/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/dashboard/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
   '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/dashboard/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -808,6 +816,7 @@ export interface FileRoutesByTo {
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/dashboard/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/dashboard/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
   '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/dashboard/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -904,6 +913,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/_authenticated/dashboard/_layout/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/_authenticated/dashboard/_layout/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/_authenticated/dashboard/_layout/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
   '/_authenticated/dashboard/_layout/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/_authenticated/dashboard/_layout/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
   '/_authenticated/dashboard/_layout/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -1000,6 +1010,7 @@ export interface FileRouteTypes {
     | '/dashboard/platform-admin/billing'
     | '/dashboard/platform-admin/comms'
     | '/dashboard/platform-admin/health'
+    | '/dashboard/platform-admin/migrations'
     | '/dashboard/platform-admin/payments'
     | '/dashboard/platform-admin/renewals'
     | '/dashboard/platform-admin/revenue'
@@ -1093,6 +1104,7 @@ export interface FileRouteTypes {
     | '/dashboard/platform-admin/billing'
     | '/dashboard/platform-admin/comms'
     | '/dashboard/platform-admin/health'
+    | '/dashboard/platform-admin/migrations'
     | '/dashboard/platform-admin/payments'
     | '/dashboard/platform-admin/renewals'
     | '/dashboard/platform-admin/revenue'
@@ -1188,6 +1200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/platform-admin/billing'
     | '/_authenticated/dashboard/_layout/platform-admin/comms'
     | '/_authenticated/dashboard/_layout/platform-admin/health'
+    | '/_authenticated/dashboard/_layout/platform-admin/migrations'
     | '/_authenticated/dashboard/_layout/platform-admin/payments'
     | '/_authenticated/dashboard/_layout/platform-admin/renewals'
     | '/_authenticated/dashboard/_layout/platform-admin/revenue'
@@ -1639,6 +1652,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/migrations': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/migrations'
+      path: '/platform-admin/migrations'
+      fullPath: '/dashboard/platform-admin/migrations'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/platform-admin/health': {
       id: '/_authenticated/dashboard/_layout/platform-admin/health'
       path: '/platform-admin/health'
@@ -1952,6 +1972,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPlatformAdminBillingRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   AuthenticatedDashboardLayoutPlatformAdminCommsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   AuthenticatedDashboardLayoutPlatformAdminHealthRoute: typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
   AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
   AuthenticatedDashboardLayoutPlatformAdminRevenueRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -2058,6 +2079,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPlatformAdminCommsRoute,
     AuthenticatedDashboardLayoutPlatformAdminHealthRoute:
       AuthenticatedDashboardLayoutPlatformAdminHealthRoute,
+    AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute,
     AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute:
       AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute,
     AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute:

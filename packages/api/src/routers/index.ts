@@ -2563,6 +2563,57 @@ export const platformAdminWebhooksRouterType = {
 		),
 };
 
+// Platform Admin — Migrations Viewer types (Plan F.4 — Agent Mi).
+// READ-ONLY journal + applied + status view over drizzle migration manifests.
+export const platformAdminMigrationsRouterType = {
+	listMigrations: protectedProcedure
+		.input(
+			z.object({
+				schema: z
+					.enum(["control-panel", "tenant"])
+					.default("control-panel"),
+			}),
+		)
+		.handler(
+			(): {
+				schema: "control-panel" | "tenant";
+				journal: Array<{ idx: number; tag: string; whenISO: string }>;
+				applied: Array<{
+					hash: string;
+					createdAtISO: string;
+					tag?: string;
+				}>;
+				status: Array<{
+					idx: number;
+					tag: string;
+					inJournal: boolean;
+					appliedInDb: boolean;
+					state: "applied" | "pending" | "orphaned";
+				}>;
+				summary: {
+					journalCount: number;
+					appliedCount: number;
+					pendingCount: number;
+					orphanedCount: number;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	getMigrationFile: protectedProcedure
+		.input(
+			z.object({
+				schema: z
+					.enum(["control-panel", "tenant"])
+					.default("control-panel"),
+				tag: z.string(),
+			}),
+		)
+		.handler((): { sql: string; tag: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2607,6 +2658,7 @@ export const appRouter = {
 	platformAdminRenewals: platformAdminRenewalsRouterType,
 	platformAdminHealth: platformAdminHealthRouterType,
 	platformAdminWebhooks: platformAdminWebhooksRouterType,
+	platformAdminMigrations: platformAdminMigrationsRouterType,
 };
 
 export type AppRouter = typeof appRouter;
