@@ -391,7 +391,75 @@ Both bulk and single sends use the SAME action strings (uniform outbox):
 |---|---|---|---|
 | **C** (outbox + templates) | `apps/server/src/routers/platform-admin-comms.ts`, `packages/db/src/schema/control-panel/comms-templates.ts`, `apps/web/src/routes/_authenticated/dashboard/_layout/platform-admin/comms.tsx`, `apps/web/src/components/platform-admin/{comms-outbox-list,template-library-panel,template-editor-dialog}.tsx` | `apps/web/e2e/tests/ship/plan-f-2-5/C-comms.spec.ts` | `verification/plan-f-2-5/C-comms.webm` |
 | **B** (bulk composer) | `apps/web/src/components/platform-admin/bulk-comms-composer.tsx`, `apps/server/src/routers/platform-admin-tenants-comms.ts` (extended) | `apps/web/e2e/tests/ship/plan-f-2-5/B-bulk-comms.spec.ts` | `verification/plan-f-2-5/B-bulk-comms.webm` |
-## F.3 — Billing depth (PENDING)
+## F.3-A — Billing tab (LANDED, partial — tier-change + coupons + /billing global deferred to F.3.5)
+
+Branch: `plan-f-3-a-billing` (based on `f-integrated` tip, which is the `plan-f-2-5-comms` tip)
+Commits: `cc6fa92` (I billing tab + invoices + refund), `<docs>` (ADR-0033 + this section)
+ADR: 0033 (live Stripe reads, no mirror table)
+Migration: none — pure Stripe-API integration
+
+### What shipped
+
+| Feature | Where | Router |
+|---|---|---|
+| Billing tab on tenant drill-in | `tenants.$id.tsx` Tabs block (after Risk tab) | `platformAdminTenants.billing` (listInvoices / getInvoice / refundInvoice / getCustomerSummary) |
+| Invoice list with refunded badges | `<InvoiceList />` component | Reads live from Stripe per tenant |
+| Refund mutation | `<RefundConfirmDialog />` | `stripe.refunds.create` on payment_intent + audit row |
+| Customer summary card | Top of Billing tab | `stripe.customers.retrieve` |
+
+### What's deferred (F.3.5)
+
+- Tier change mid-period (proration via Stripe)
+- Coupons (Stripe `coupon` + `customer.balance_transaction`)
+- `/billing` global page (cross-tenant invoice list + KPIs — may need mirror table per ADR-0033)
+
+### Common ops
+
+**Read a tenant's invoice history.**
+1. Drill into tenant → Billing tab.
+2. Customer summary card shows Stripe customer ID, default payment method, balance.
+3. Invoice list shows last 20 invoices (paginated). Click invoice number → opens hosted Stripe invoice URL in new tab.
+
+**Issue a refund.**
+1. Billing tab → find the invoice → Refund button (super_admin only, hidden if not paid or already fully refunded).
+2. Dialog: enter partial amount or accept full default. Pick reason (duplicate / fraudulent / requested_by_customer). Optional notes (audit only).
+3. Warning displayed: "real Stripe refund — cannot be undone."
+4. Confirm → Stripe API call → audit row written → toast "Refund issued." → list refetches and shows refunded badge.
+
+### Debugging recipes
+
+**"No Stripe customer record."**
+- Tenant hasn't been charged yet (trialing). `listInvoices` returns empty, customer summary section hidden. Normal for new tenants.
+
+**"Refund button disabled / hidden."**
+- Possible causes: not super_admin (button hidden), invoice status != paid, invoice already fully refunded. Hover for tooltip.
+
+**"Refund failed with Stripe error."**
+- Stripe-side rejection (e.g., charge too old, dispute pending). Error message surfaces from Stripe directly. NO audit row written on failure — retry is safe.
+
+**"Refund succeeded but invoice still shows 'paid' not 'refunded'."**
+- List refetched after refund. If still stale, Stripe webhook for `charge.refunded` may not have fired yet. Manual refresh resolves.
+
+**"Refund showed up in audit log but not in Stripe Dashboard."**
+- Should not happen. Audit row is only written AFTER Stripe returns success. If you see this, check `metadata.refundId` in the audit row and look that up in Stripe Dashboard.
+
+### Audit action strings (new)
+
+- `tenant_invoice_refund` — refund successfully issued. Metadata: `{ invoiceId, paymentIntentId, amountCents, reason, notes?, refundId, status }`.
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **I** (Billing tab) | `apps/server/src/routers/platform-admin-tenants-billing.ts` + `.test.ts`, `apps/web/src/components/platform-admin/{tenant-billing-tab,invoice-list,refund-confirm-dialog}.tsx` | `apps/web/e2e/tests/ship/plan-f-3-a/I-billing-tab.spec.ts` | `verification/plan-f-3-a/I-billing-tab.webm` |
+
+### Testing approach (ADR-0033 follow-up)
+
+Factory pattern: `createPlatformAdminTenantsBillingRouter(stripeOverride?: StripeClientLike)` mirrors `subscriptions.ts`. Tests inject a fake Stripe client; prod uses `getStripeClient()`. No real Stripe API calls in CI. Unit test (bun) covers refund happy path + audit row + no-row-on-failure. Playwright e2e covers RPC shape + RBAC + UI tolerant render.
+
+---
+
+## F.3.5 — Billing depth (tier change + coupons + /billing global) — PENDING
 ## F.4 — Operational depth (PENDING)
 ## F.5 — Final ADRs + this runbook expansion (PENDING)
 
