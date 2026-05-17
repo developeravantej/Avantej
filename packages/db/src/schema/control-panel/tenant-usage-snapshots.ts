@@ -56,6 +56,13 @@ export const tenantUsageSnapshots = pgTable(
 		// Plan F.1.5 — array of { code, severity, observedAt } emitted by
 		// computeHealthScore at snapshot-write time. NULL = pre-F.1.5 row.
 		riskFlags: jsonb("risk_flags").$type<RiskFlag[]>(),
+		// Plan F.6 (Agent Sn) — three additional factor columns wired by
+		// the snapshot cron so computeHealthScore covers all 5 factors.
+		// All nullable: pre-F.6 rows stay NULL; tolerant cron writes NULL
+		// when a factor can't be computed (tenant DB unreachable, etc.).
+		lastAdminLoginAt: timestamp("last_admin_login_at"),
+		failedWebhooks7d: integer("failed_webhooks_7d"),
+		dailyActiveMembers30dAvg: integer("daily_active_members_30d_avg"),
 		createdAt: timestamp("created_at").defaultNow(),
 	},
 	(t) => ({

@@ -168,6 +168,61 @@ describe("computeHealthScore", () => {
 		expect(flags.filter((f) => f.code === "no_data").length).toBeGreaterThanOrEqual(5);
 	});
 
+	// ── Plan F.6 (Agent Sn) — new factor-population coverage ──────────────
+	describe("Plan F.6 — factors now populated by the cron", () => {
+		it("inactive admin (15d since login) + recent webhook fails + low activity → composite drops, three flags emitted", () => {
+			const fifteenDaysAgo = new Date(
+				NOW.getTime() - 15 * 24 * 60 * 60 * 1000,
+			);
+			const { score, flags } = computeHealthScore(
+				input({
+					lastAdminLoginAt: fifteenDaysAgo,
+					failedWebhooks7d: 4,
+					memberCount: 50,
+					dailyActiveMembers30dAvg: 3, // ratio 0.06 << 0.2 low
+				}),
+			);
+			expect(
+				flags.find((f) => f.code === "inactive_admin" && f.severity === "info"),
+			).toBeTruthy();
+			expect(
+				flags.find(
+					(f) => f.code === "webhook_failures" && f.severity === "critical",
+				),
+			).toBeTruthy();
+			expect(
+				flags.find((f) => f.code === "low_activity" && f.severity === "warn"),
+			).toBeTruthy();
+			// Healthy baseline scores 100; this should be substantially lower.
+			const healthy = computeHealthScore(input({}));
+			expect(score).toBeLessThan(healthy.score - 30);
+			// And NOT the all-data-missing degenerate case.
+			expect(flags.filter((f) => f.code === "no_data").length).toBe(0);
+		});
+
+		it("only activity factor null → exactly one no_data flag, other 4 factors score normally", () => {
+			const { score, flags } = computeHealthScore(
+				input({ dailyActiveMembers30dAvg: null }),
+			);
+			expect(flags.filter((f) => f.code === "no_data").length).toBe(1);
+			// Score should still be in healthy range (80% of weights still active).
+			expect(score).toBeGreaterThanOrEqual(80);
+		});
+
+		it("webhook failures count = 0 → no webhook_failures flag, factor at full weight", () => {
+			const { flags } = computeHealthScore(input({ failedWebhooks7d: 0 }));
+			expect(flags.find((f) => f.code === "webhook_failures")).toBeUndefined();
+		});
+
+		it("admin login exactly at boundary (14d) → factor zero + inactive_admin info flag", () => {
+			const boundary = new Date(NOW.getTime() - 14 * 24 * 60 * 60 * 1000);
+			const { flags } = computeHealthScore(input({ lastAdminLoginAt: boundary }));
+			expect(
+				flags.find((f) => f.code === "inactive_admin" && f.severity === "info"),
+			).toBeTruthy();
+		});
+	});
+
 	it("observedAt is consistent ISO timestamp on every flag", () => {
 		const { flags } = computeHealthScore(input({ paymentStatus: "cancelled" }));
 		for (const f of flags) {
