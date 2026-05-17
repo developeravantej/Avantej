@@ -28,6 +28,7 @@ import { platformAdminTenantsSearchRouter } from "@/routers/platform-admin-tenan
 import { platformAdminTenantsHealthRouter } from "@/routers/platform-admin-tenants-health";
 import { platformAdminTenantsBillingRouter } from "@/routers/platform-admin-tenants-billing";
 import { platformAdminTenantsMembersRouter } from "@/routers/platform-admin-tenants-members";
+import { platformAdminTenantsFeatureFlagsRouter } from "@/routers/platform-admin-tenants-feature-flags";
 import { platformAdminAuditRouter } from "@/routers/platform-admin-audit";
 import { platformAdminDashboardRouter } from "@/routers/platform-admin-dashboard";
 import { platformAdminRevenueRouter } from "@/routers/platform-admin-revenue";
@@ -94,6 +95,7 @@ const appRouter = {
 		health: platformAdminTenantsHealthRouter,
 		billing: platformAdminTenantsBillingRouter,
 		members: platformAdminTenantsMembersRouter,
+		featureFlags: platformAdminTenantsFeatureFlagsRouter,
 	},
 	platformAdminAudit: platformAdminAuditRouter,
 	platformAdminDashboard: platformAdminDashboardRouter,

@@ -1516,6 +1516,38 @@ const platformAdminTenantsMembersRouterType = {
 		),
 };
 
+// Platform Admin — Tenant Feature Flags types (Plan F.4 Agent Ff).
+const platformAdminTenantsFeatureFlagsRouterType = {
+	get: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				organizationId: string;
+				tier: "basic" | "professional" | "enterprise";
+				features: {
+					ghl: boolean;
+					googleCalendar: boolean;
+					commissionSplits: boolean;
+					memberships: boolean;
+					apiAccess: boolean;
+				};
+				tierLimits: {
+					organizations: number;
+					locations: number;
+					members: number;
+					customers: number;
+					monthlyTxns: number;
+					appFeeBps: number;
+					analyticsLevel: "basic" | "advanced";
+					auditLogDays: number;
+				};
+				source: "tier_default" | "override";
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Platform Admin — Tenant Tags + Bulk Ops types (Plan F.1).
 const platformAdminTenantsTagsRouterType = {
 	list: protectedProcedure
@@ -2694,6 +2726,7 @@ export const appRouter = {
 		health: platformAdminTenantsHealthRouterType,
 		billing: platformAdminTenantsBillingRouterType,
 		members: platformAdminTenantsMembersRouterType,
+		featureFlags: platformAdminTenantsFeatureFlagsRouterType,
 	},
 	platformAdminAudit: platformAdminAuditRouterType,
 	platformAdminDashboard: platformAdminDashboardRouterType,
