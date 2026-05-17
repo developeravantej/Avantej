@@ -2327,6 +2327,82 @@ export const platformAdminCouponsRouterType = {
 		),
 };
 
+// Platform Admin — Global Billing aggregator types (Plan F.3.5 — Agent G).
+// TOP-LEVEL router (NOT under platformAdminTenants). Read-only aggregate
+// across all tenants. Live Stripe reads per ADR-0033.
+export const platformAdminBillingRouterType = {
+	getOverview: protectedProcedure
+		.input(z.object({}).default({}))
+		.handler(
+			(): {
+				kpis: {
+					activeSubsCount: number;
+					mrr: { cents: number; estimateAvailable: boolean };
+					refundsLast30dCount: number;
+					refundsLast30dAmountCents: number;
+					couponsCount: number;
+				};
+				recentInvoices: Array<{
+					orgId: string;
+					orgName: string;
+					invoiceId: string;
+					invoiceNumber: string | null;
+					amountPaid: number;
+					status: string | null;
+					currency: string;
+					createdAt: Date;
+				}>;
+				recentRefunds: Array<{
+					refundId: string;
+					orgId: string;
+					orgName: string;
+					amountCents: number;
+					reason: string;
+					refundedAt: Date;
+					actorEmail: string | null;
+				}>;
+				activeCoupons: Array<{
+					id: string;
+					name: string | null;
+					percentOff: number | null;
+					amountOff: number | null;
+					currency: string | null;
+					duration: "once" | "repeating" | "forever";
+					timesRedeemed: number;
+					valid: boolean;
+					createdAt: Date;
+				}>;
+				stripeAvailable: boolean;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listInvoicesCrossTenant: protectedProcedure
+		.input(
+			z.object({
+				limit: z.number().int().min(1).max(100).default(50),
+				days: z.number().int().min(7).max(180).default(30),
+			}),
+		)
+		.handler(
+			(): {
+				invoices: Array<{
+					orgId: string;
+					orgName: string;
+					invoiceId: string;
+					invoiceNumber: string | null;
+					amountPaid: number;
+					status: string | null;
+					currency: string;
+					createdAt: Date;
+				}>;
+				stripeAvailable: boolean;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2367,6 +2443,7 @@ export const appRouter = {
 	platformAdminRevenue: platformAdminRevenueRouterType,
 	platformAdminComms: platformAdminCommsRouterType,
 	platformAdminCoupons: platformAdminCouponsRouterType,
+	platformAdminBilling: platformAdminBillingRouterType,
 };
 
 export type AppRouter = typeof appRouter;

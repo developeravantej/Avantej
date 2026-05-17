@@ -64,6 +64,7 @@ import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport } 
 import { Route as AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/revenue'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/payments'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/comms'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/billing'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/audit'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
 import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
@@ -421,6 +422,12 @@ const AuthenticatedDashboardLayoutPlatformAdminCommsRoute =
     path: '/platform-admin/comms',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminBillingRoute =
+  AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport.update({
+    id: '/platform-admin/billing',
+    path: '/platform-admin/billing',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPlatformAdminAuditRoute =
   AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport.update({
     id: '/platform-admin/audit',
@@ -684,6 +691,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -773,6 +781,7 @@ export interface FileRoutesByTo {
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -865,6 +874,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/_authenticated/dashboard/_layout/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/_authenticated/dashboard/_layout/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   '/_authenticated/dashboard/_layout/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   '/_authenticated/dashboard/_layout/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   '/_authenticated/dashboard/_layout/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -957,6 +967,7 @@ export interface FileRouteTypes {
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
+    | '/dashboard/platform-admin/billing'
     | '/dashboard/platform-admin/comms'
     | '/dashboard/platform-admin/payments'
     | '/dashboard/platform-admin/revenue'
@@ -1046,6 +1057,7 @@ export interface FileRouteTypes {
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
+    | '/dashboard/platform-admin/billing'
     | '/dashboard/platform-admin/comms'
     | '/dashboard/platform-admin/payments'
     | '/dashboard/platform-admin/revenue'
@@ -1137,6 +1149,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/platform-admin/admins'
     | '/_authenticated/dashboard/_layout/platform-admin/audit'
+    | '/_authenticated/dashboard/_layout/platform-admin/billing'
     | '/_authenticated/dashboard/_layout/platform-admin/comms'
     | '/_authenticated/dashboard/_layout/platform-admin/payments'
     | '/_authenticated/dashboard/_layout/platform-admin/revenue'
@@ -1580,6 +1593,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/billing': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/billing'
+      path: '/platform-admin/billing'
+      fullPath: '/dashboard/platform-admin/billing'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/platform-admin/audit': {
       id: '/_authenticated/dashboard/_layout/platform-admin/audit'
       path: '/platform-admin/audit'
@@ -1869,6 +1889,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   AuthenticatedDashboardLayoutPlatformAdminAuditRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  AuthenticatedDashboardLayoutPlatformAdminBillingRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
   AuthenticatedDashboardLayoutPlatformAdminCommsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
   AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
   AuthenticatedDashboardLayoutPlatformAdminRevenueRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
@@ -1968,6 +1989,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPlatformAdminAdminsRoute,
     AuthenticatedDashboardLayoutPlatformAdminAuditRoute:
       AuthenticatedDashboardLayoutPlatformAdminAuditRoute,
+    AuthenticatedDashboardLayoutPlatformAdminBillingRoute:
+      AuthenticatedDashboardLayoutPlatformAdminBillingRoute,
     AuthenticatedDashboardLayoutPlatformAdminCommsRoute:
       AuthenticatedDashboardLayoutPlatformAdminCommsRoute,
     AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute:
