@@ -34,6 +34,7 @@ import { platformAdminCommsRouter } from "@/routers/platform-admin-comms";
 import { platformAdminCouponsRouter } from "@/routers/platform-admin-coupons";
 import { platformAdminBillingRouter } from "@/routers/platform-admin-billing";
 import { platformAdminRenewalsRouter } from "@/routers/platform-admin-renewals";
+import { platformAdminHealthRouter } from "@/routers/platform-admin-health";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -97,6 +98,7 @@ const appRouter = {
 	platformAdminCoupons: platformAdminCouponsRouter,
 	platformAdminBilling: platformAdminBillingRouter,
 	platformAdminRenewals: platformAdminRenewalsRouter,
+	platformAdminHealth: platformAdminHealthRouter,
 };
 
 const app = new Hono();

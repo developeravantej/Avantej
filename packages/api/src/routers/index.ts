@@ -2449,6 +2449,54 @@ export const platformAdminRenewalsRouterType = {
 		),
 };
 
+// Platform Admin — Health Scoreboard types (Plan F.4 — Agent He).
+// Cross-tenant aggregator: histogram, top at-risk, flag rollup, 30-day trend.
+export const platformAdminHealthRouterType = {
+	getScoreboard: protectedProcedure
+		.input(
+			z.object({
+				topAtRiskLimit: z.number().int().min(1).max(50).default(20),
+			}),
+		)
+		.handler(
+			(): {
+				histogram: {
+					bands: Array<{
+						label: string;
+						min: number;
+						max: number;
+						count: number;
+						color: "red" | "amber" | "green";
+					}>;
+					totalScoredOrgs: number;
+					unscoredOrgs: number;
+				};
+				topAtRisk: Array<{
+					orgId: string;
+					orgName: string;
+					healthScore: number;
+					criticalFlagCount: number;
+					snapshotDate: string;
+				}>;
+				flagRollup: Array<{
+					flagCode: string;
+					severity: "info" | "warn" | "critical";
+					count: number;
+					uniqueOrgs: number;
+				}>;
+				trend: {
+					avgScoreLast30dByDay: Array<{
+						date: string;
+						avgScore: number;
+						sampleSize: number;
+					}>;
+				};
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2491,6 +2539,7 @@ export const appRouter = {
 	platformAdminCoupons: platformAdminCouponsRouterType,
 	platformAdminBilling: platformAdminBillingRouterType,
 	platformAdminRenewals: platformAdminRenewalsRouterType,
+	platformAdminHealth: platformAdminHealthRouterType,
 };
 
 export type AppRouter = typeof appRouter;
