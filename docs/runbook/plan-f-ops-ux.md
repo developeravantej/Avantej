@@ -634,6 +634,98 @@ F.4 procs are all read-only. No new audit action strings.
 
 ---
 
+## F.6 — Extensions (LANDED — closes open follow-ups)
+
+Branch: `plan-f-6-extensions` (based on `plan-f-4-ops` tip)
+Commits: `f111240` (Sn snapshot factors), `11ceadc` (Fo feature overrides), `<docs>` (ADRs 0037+0038 + this section)
+ADRs: 0037 (snapshot factor expansion, closes ADR-0030 follow-up), 0038 (per-tenant feature overrides)
+Migrations: 0030 (snapshot factor columns), 0031 (tenant_feature_overrides)
+
+### What shipped
+
+| Feature | Where | Closes |
+|---|---|---|
+| Snapshot service writes 3 new factor columns | `tenant-usage-snapshot.service.ts` extended | ADR-0030 open follow-up — health score now scores 4 of 5 factors live |
+| `lastAdminLoginAt` populated | Cron computes via Better-Auth user.last_login_at join | F.1.5 no_data gap |
+| `failedWebhooks7d` populated (global count) | Cron reads processed_webhook_events | F.1.5 no_data gap (per-org attribution deferred) |
+| `dailyActiveMembers30dAvg` null (deferred) | Tenant schema needs last_active_at first | F.1.5 no_data gap remains for activity factor |
+| Per-tenant feature overrides | New tenant_feature_overrides table + 3 procs | F.4 open follow-up |
+| Override toggle UI on Feature flags tab | Super_admin gate, confirm dialog with notes | F.4 read-only limitation |
+
+### Common ops
+
+**See full health score with 4 factors live.**
+- Drill into tenant → Risk tab → score now reflects login recency + global webhook health alongside payment status + recency.
+- Activity factor still emits `no_data` until tenant `members.last_active_at` lands (ADR-0037 open follow-up).
+- /health scoreboard flag rollup now shows `inactive_admin` + `webhook_failures` counts when real data exists.
+
+**Override a feature for a tenant (super_admin only).**
+1. Drill into tenant → Feature flags tab.
+2. Click the toggle button on a feature card (e.g., commissionSplits on a basic-tier org).
+3. Confirm dialog: "Override commissionSplits to ENABLED for this tenant? (Tier default is DISABLED.) Notes (optional)."
+4. Submit → audit row written → card shows amber ring + "overridden" badge with metadata (set-by, notes).
+
+**Reset an override.**
+1. Same tab → overridden card → "Reset to tier default" link.
+2. Confirm → row deleted from `tenant_feature_overrides` → effective value reverts to TIER_LIMITS.
+
+### Debugging recipes
+
+**"Health score still shows no_data for everything."**
+- Migration 0030 must be applied to the control-panel branch. If `bun db:push` no-op'd due to journal drift, apply manually via psql (Agents Sn + Fo precedent).
+- Cron runs once daily — wait for next run OR invoke `snapshotOne` manually for testing.
+
+**"failedWebhooks7d shows same number for every tenant."**
+- Working as designed. Currently a GLOBAL count, not per-org. Per-org attribution requires adding `organization_id` to `processed_webhook_events` (ADR-0037 open follow-up). Decision: ops awareness via this note; ship per-org when demanded.
+
+**"Override didn't take effect — feature still shows tier default."**
+- `get` proc merges automatically. If you set the override but `get` returns tier default: check `tenant_feature_overrides` table directly; UNIQUE constraint may have hit (look for stale row in inconsistent state).
+- Source field should be `'mixed'` when ≥1 override active.
+
+**"Toggle button hidden even though I'm super_admin."**
+- The `isSuperAdmin` prop reaches the tab via the route's `admin.me` resolution. Refresh the page if your role changed during the session.
+
+### Audit action strings (new)
+
+- `tenant_feature_override_set` — metadata `{ featureKey, enabled, notes? }`
+- `tenant_feature_override_clear` — metadata `{ featureKey }`
+
+### Tables added
+
+`tenant_feature_overrides`:
+```
+id uuid pk
+organization_id uuid → organizations.id ON DELETE CASCADE
+feature_key text (ghl|googleCalendar|commissionSplits|memberships|apiAccess)
+enabled boolean
+set_by_user_id text
+notes text NULL
+created_at, updated_at timestamp
+UNIQUE (organization_id, feature_key)
+```
+
+### Per-feature reference
+
+| Agent | Files | Spec | Video |
+|---|---|---|---|
+| **Sn** (snapshot factors) | `0030_snapshot_factor_columns.sql`, `tenant-usage-snapshots.ts` (extended), `tenant-usage-snapshot.service.ts` (extended), `health-score.test.ts` (extended) | `Sn-snapshot-factors.spec.ts` | `Sn-snapshot-factors.webm` |
+| **Fo** (feature overrides) | `0031_tenant_feature_overrides.sql`, `tenant-feature-overrides.ts`, `platform-admin-tenants-feature-flags.{ts, test.ts}` (extended), `feature-flag-card.tsx` + `tenant-feature-flags-tab.tsx` (extended) | `Fo-feature-overrides.spec.ts` | `Fo-feature-overrides.webm` |
+
+(Under `apps/web/e2e/tests/ship/plan-f-6/` + `verification/plan-f-6/`.)
+
+### Open follow-ups NOT shipped (per /ship triage)
+
+| Item | Why not shipped via /ship |
+|---|---|
+| Real Stripe Dashboard prices for `TIER_PRICES_USD_CENTS` + `TIER_STRIPE_PRICE_IDS` | Needs user input — inventing values would break MRR + tier-change billing |
+| Tenant self-serve (own-sub cancel, own export) | Different threat model, needs Plan G scope doc first (ADR-0022 boundary) |
+| Migration runner (apply via UI) | ADR-0035 explicitly rejects; CLI is structurally safer |
+| `tenant_billing_events` mirror table | Premature — live reads still fine at current tenant count (ADR-0033/0034 condition #2 not triggered) |
+| Per-org webhook attribution | ADR-0037 follow-up — needs `organization_id` on `processed_webhook_events` |
+| Tenant activity tracking | ADR-0037 follow-up — needs `last_active_at` on tenant `members` schema |
+
+---
+
 ## F.5 — Closeout (DONE — rolled into F.4 wrap)
 
 F.5 was scoped as "ADRs + runbook" in the original Plan F doc. ADRs 0027-0036 + runbook sections have been authored inline with each phase, so F.5 is effectively rolled into F.4's wrap commit.
