@@ -19,6 +19,8 @@ import { Platform } from "react-native";
 import { useOrganization } from "@/hooks/useOrganization";
 import { orpc } from "@/utils/orpc";
 
+const IS_EXPO_GO = Constants.appOwnership === "expo";
+
 const EAS_PROJECT_ID =
 	Constants.expoConfig?.extra?.eas?.projectId ??
 	(Constants.easConfig as { projectId?: string } | undefined)?.projectId;
@@ -34,15 +36,18 @@ export const currentPushTokenRef: {
 };
 
 // Configure foreground notification handling once at module load.
-Notifications.setNotificationHandler({
-	handleNotification: async () => ({
-		shouldShowAlert: true,
-		shouldPlaySound: true,
-		shouldSetBadge: false,
-		shouldShowBanner: true,
-		shouldShowList: true,
-	}),
-});
+// Skip in Expo Go on Android — remote push was removed in SDK 53.
+if (!(IS_EXPO_GO && Platform.OS === "android")) {
+	Notifications.setNotificationHandler({
+		handleNotification: async () => ({
+			shouldShowAlert: true,
+			shouldPlaySound: true,
+			shouldSetBadge: false,
+			shouldShowBanner: true,
+			shouldShowList: true,
+		}),
+	});
+}
 
 export function usePushNotifications() {
 	const router = useRouter();
@@ -63,6 +68,7 @@ export function usePushNotifications() {
 			try {
 				if (!Device.isDevice) return;
 				if (!organizationId) return;
+				if (IS_EXPO_GO && Platform.OS === "android") return;
 				if (!EAS_PROJECT_ID) {
 					console.warn("[push] missing EAS projectId; skipping registration");
 					return;
