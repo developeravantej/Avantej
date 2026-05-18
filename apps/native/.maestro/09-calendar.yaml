@@ -1,0 +1,24 @@
+appId: ${APP_ID}
+---
+# Test: Calendar screen navigation and date selection
+- runFlow: helpers/login.yaml
+
+# Navigate to Calendar via quick action
+- tapOn:
+    text: ".*Calendar.*"
+- waitForAnimationToEnd
+
+# Verify calendar loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*May.*2026.*|.*Calendar.*"
+    timeout: 5000
+
+# Tap a date on calendar
+- tapOn:
+    text: "15"
+- waitForAnimationToEnd
+
+# Go back
+- back
+- waitForAnimationToEnd

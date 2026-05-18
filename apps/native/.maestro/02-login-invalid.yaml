@@ -1,0 +1,32 @@
+appId: ${APP_ID}
+---
+# Test: Login with invalid credentials shows error
+# Assumes we're on login screen (run after logout)
+- runFlow:
+    when:
+      platform: Android
+    file: helpers/reset-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: helpers/reset-ios.yaml
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 30000
+
+# Enter wrong password
+- tapOn: "Enter your email"
+- inputText: "customer@gmail.com"
+- tapOn:
+    point: "50%, 20%"
+- tapOn: "Enter your password"
+- inputText: "wrongpassword"
+- tapOn:
+    point: "50%, 20%"
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+
+# Should still be on login screen (not navigated away)
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 5000

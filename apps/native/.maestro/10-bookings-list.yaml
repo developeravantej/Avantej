@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# Test: Bookings list screen
+- runFlow: helpers/login.yaml
+
+# Navigate to Bookings tab
+- tapOn:
+    text: ".*Bookings.*"
+- waitForAnimationToEnd
+
+# Verify bookings screen loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Booking.*"
+    timeout: 5000
+
+# Scroll through bookings
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 30%"
+    duration: 500
+- waitForAnimationToEnd
