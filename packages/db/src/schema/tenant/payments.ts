@@ -79,6 +79,13 @@ export const payments = pgTable("payments", {
 	// (e.g. customer pays RM50 drop-in, then upgrades to a 10-pack mid-session).
 	convertedFromPaymentId: uuid("converted_from_payment_id").references((): any => payments.id, { onDelete: "set null" }),
 
+	// Plan B Phase 3c.1 — Stripe Payment Link (POS online checkout) tracking.
+	// Populated by payments.createSalesOrderPaymentLink when a POS sale with
+	// paymentMethod="online" is recorded; webhook flips status -> "succeeded".
+	paymentLinkUrl: text("payment_link_url"),
+	stripePaymentLinkId: text("stripe_payment_link_id"),
+	stripeConnectAccountIdSnapshot: text("stripe_connect_account_id_snapshot"),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

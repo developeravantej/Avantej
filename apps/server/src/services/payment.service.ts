@@ -25,6 +25,7 @@ import { createTenantProject } from "./neon.service";
 import { encrypt } from "@avantej-core/db";
 import { runTenantMigrations, seedRBACData } from "@avantej-core/db";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import { TIER_LIMITS, type Tier } from "@avantej-core/types";
 
 /**
  * Determine subscription tier from checkout amount
@@ -150,14 +151,26 @@ export async function handleCheckoutCompleted(
     // 2.1: Create subscription record (in control panel DB)
     const tier = determineTier(session.amount_total);
     const orgLimit = getTierOrgLimit(tier);
+    const tierLimits = TIER_LIMITS[tier as Tier] ?? TIER_LIMITS.basic;
+
+    // Try to recover the priceId from expanded line items; fall back to a
+    // tier-tagged sentinel so the notNull column always has a value. The
+    // canonical priceId is later resolved by the subscriptions webhook
+    // (upsertSubscriptionFromStripe) which has access to the full sub object.
+    const lineItem = session.line_items?.data?.[0];
+    const stripePriceId =
+      (typeof lineItem?.price?.id === "string" && lineItem.price.id) ||
+      `price_unknown_${tier}`;
 
     const [subscription] = await tx
       .insert(subscriptions)
       .values({
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: customerId,
+        stripePriceId,
         tier,
         organizationCountLimit: orgLimit,
+        applicationFeeBps: tierLimits.appFeeBps,
         status: "active",
       })
       .returning();

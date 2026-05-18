@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Banknote, Check, CreditCard, Landmark } from "lucide-react";
+import { Banknote, Check, CreditCard, Landmark, Link2 } from "lucide-react";
 import { useEffect } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,12 @@ const METHOD_CONFIG = [
 		label: "Bank Transfer",
 		subtitle: "Reference required",
 		icon: Landmark,
+	},
+	{
+		method: "online" as const,
+		label: "Online (Stripe link)",
+		subtitle: "Send a payment link",
+		icon: Link2,
 	},
 ];
 
@@ -132,7 +138,7 @@ export function PaymentStep({
 			{/* Payment method cards */}
 			<div className="space-y-2">
 				<Label>Payment method</Label>
-				<div className="grid grid-cols-3 gap-3">
+				<div className="grid grid-cols-2 gap-3 md:grid-cols-4">
 					{METHOD_CONFIG.map(({ method: m, label, subtitle, icon: Icon }) => {
 						const isSelected = method === m;
 						return (
@@ -167,6 +173,14 @@ export function PaymentStep({
 					})}
 				</div>
 			</div>
+
+			{/* Online payment callout */}
+			{method === "online" && (
+				<StatusCallout variant="info" title="Payment link will be generated">
+					A payment link will be generated after you finalize the sale. Forward
+					it to the customer to collect payment.
+				</StatusCallout>
+			)}
 
 			{/* Reference input — card / bank transfer */}
 			{(method === "card" || method === "bank_transfer") && (

@@ -58,7 +58,7 @@ export const posRouter = {
 				// Tax
 				taxRateId: z.string().uuid().optional(),
 				// Payment
-				paymentMethod: z.enum(["cash", "card", "bank_transfer"]),
+				paymentMethod: z.enum(["cash", "card", "bank_transfer", "online"]),
 				paymentReference: z.string().optional(),
 				amountTenderedCents: z.number().int().min(0).optional(),
 				// Installment

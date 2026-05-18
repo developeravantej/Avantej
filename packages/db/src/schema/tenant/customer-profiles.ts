@@ -65,6 +65,15 @@ export const customerProfiles = pgTable("customer_profiles", {
 	}),
 	// === /3.6 ===
 
+	// === Plan B Phase 3d — card-on-file ===
+	// Stripe Customer id lives on the tenant's Connect account (Standard), not
+	// on the platform. Off-session charges later cite both this and the snapshot
+	// of which connected account holds the customer (Phase 4 migration safety).
+	stripeCustomerId: text("stripe_customer_id"),
+	stripeConnectAccountIdSnapshot: text("stripe_connect_account_id_snapshot"),
+	defaultPaymentMethodId: text("default_payment_method_id"),
+	// === /3d ===
+
 	// Soft-delete support for external sync integrations
 	isDeleted: boolean("is_deleted").default(false).notNull(),
 	deletedAt: timestamp("deleted_at"),

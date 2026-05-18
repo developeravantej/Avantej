@@ -6,6 +6,7 @@ import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
+import { stripeConnectOAuthRoutes } from "@/routes/stripe-connect-oauth.routes";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
@@ -13,6 +14,31 @@ import { serverCustomerProfilesRouter } from "@/routers/customer-profiles";
 import { adminRouter } from "@/routers/admin";
 import { tenantAdminRouter } from "@/routers/tenant-admin";
 import { ghlRouter } from "@/routers/ghl";
+import { subscriptionsRouter } from "@/routers/subscriptions";
+import { stripeConnectRouter } from "@/routers/stripe-connect";
+import { paymentsRouter } from "@/routers/payments";
+import { platformAdminPaymentsRouter } from "@/routers/platform-admin-payments";
+import { platformAdminTenantsRouter } from "@/routers/platform-admin-tenants";
+import { platformAdminTenantsCommsRouter } from "@/routers/platform-admin-tenants-comms";
+import { platformAdminTenantsProvisionRouter } from "@/routers/platform-admin-tenants-provision";
+import { platformAdminTenantsDeletionRouter } from "@/routers/platform-admin-tenants-deletion";
+import { platformAdminTenantsNotesRouter } from "@/routers/platform-admin-tenants-notes";
+import { platformAdminTenantsTagsRouter } from "@/routers/platform-admin-tenants-tags";
+import { platformAdminTenantsSearchRouter } from "@/routers/platform-admin-tenants-search";
+import { platformAdminTenantsHealthRouter } from "@/routers/platform-admin-tenants-health";
+import { platformAdminTenantsBillingRouter } from "@/routers/platform-admin-tenants-billing";
+import { platformAdminTenantsMembersRouter } from "@/routers/platform-admin-tenants-members";
+import { platformAdminTenantsFeatureFlagsRouter } from "@/routers/platform-admin-tenants-feature-flags";
+import { platformAdminAuditRouter } from "@/routers/platform-admin-audit";
+import { platformAdminDashboardRouter } from "@/routers/platform-admin-dashboard";
+import { platformAdminRevenueRouter } from "@/routers/platform-admin-revenue";
+import { platformAdminCommsRouter } from "@/routers/platform-admin-comms";
+import { platformAdminCouponsRouter } from "@/routers/platform-admin-coupons";
+import { platformAdminBillingRouter } from "@/routers/platform-admin-billing";
+import { platformAdminRenewalsRouter } from "@/routers/platform-admin-renewals";
+import { platformAdminHealthRouter } from "@/routers/platform-admin-health";
+import { platformAdminWebhooksRouter } from "@/routers/platform-admin-webhooks";
+import { platformAdminMigrationsRouter } from "@/routers/platform-admin-migrations";
 
 import { createContext } from "@avantej-core/api/context";
 import { baseRouter } from "@avantej-core/api/routers/index";
@@ -54,6 +80,33 @@ const appRouter = {
 	admin: adminRouter,
 	tenantAdmin: tenantAdminRouter,
 	ghl: ghlRouter,
+	subscriptions: subscriptionsRouter,
+	stripeConnect: stripeConnectRouter,
+	payments: paymentsRouter,
+	platformAdminPayments: platformAdminPaymentsRouter,
+	platformAdminTenants: {
+		...platformAdminTenantsRouter,
+		...platformAdminTenantsCommsRouter,
+		...platformAdminTenantsProvisionRouter,
+		...platformAdminTenantsDeletionRouter,
+		notes: platformAdminTenantsNotesRouter,
+		tags: platformAdminTenantsTagsRouter,
+		search: platformAdminTenantsSearchRouter,
+		health: platformAdminTenantsHealthRouter,
+		billing: platformAdminTenantsBillingRouter,
+		members: platformAdminTenantsMembersRouter,
+		featureFlags: platformAdminTenantsFeatureFlagsRouter,
+	},
+	platformAdminAudit: platformAdminAuditRouter,
+	platformAdminDashboard: platformAdminDashboardRouter,
+	platformAdminRevenue: platformAdminRevenueRouter,
+	platformAdminComms: platformAdminCommsRouter,
+	platformAdminCoupons: platformAdminCouponsRouter,
+	platformAdminBilling: platformAdminBillingRouter,
+	platformAdminRenewals: platformAdminRenewalsRouter,
+	platformAdminHealth: platformAdminHealthRouter,
+	platformAdminWebhooks: platformAdminWebhooksRouter,
+	platformAdminMigrations: platformAdminMigrationsRouter,
 };
 
 const app = new Hono();
@@ -147,6 +200,7 @@ app.route("/api/invitations", invitationRoutes);
 
 // Webhook routes (external integrations)
 app.route("/webhooks", webhookRoutes);
+app.route("/api/stripe/connect/oauth", stripeConnectOAuthRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
@@ -235,4 +289,83 @@ app.onError((err, c) => {
   );
 });
 
-export default app;
+// Plan C C.1 + C.6: scheduled handler dispatches cron triggers to services.
+// Wrangler.jsonc declares 3 crons:
+//   "0 * * * *"   — hourly webhook backfill (C.1)
+//   "30 2 * * *"  — daily reconciliation at 02:30 UTC (C.5, wired in next slice)
+//   "0 9 * * *"   — daily onboarding-stuck alert at 09:00 UTC (C.6)
+//
+// ADR-0021 — CF Cron over external cron / DO alarms.
+export default {
+  fetch: app.fetch,
+  scheduled: async (
+    event: ScheduledController | { cron: string },
+    _env: unknown,
+    ctx: ExecutionContext,
+  ): Promise<void> => {
+    const cron = "cron" in event ? event.cron : "";
+    console.log(`[scheduled] firing cron='${cron}'`);
+
+    // Lazy imports — avoid top-level side effects on cold start.
+    const { getControlPanelDb } = await import("@/lib/db");
+    const { getStripeClient } = await import("@/lib/stripe");
+
+    // CF Workers scheduled handler doesn't get a Hono Context — fall back to
+    // singleton DB (this is the documented exception per @/lib/db.ts).
+    const cpDb = getControlPanelDb();
+
+    try {
+      if (cron === "0 * * * *") {
+        const { runWebhookBackfill } = await import("@/services/webhook-backfill.service");
+        ctx.waitUntil(
+          runWebhookBackfill({ controlPanelDb: cpDb, stripe: getStripeClient() })
+            .then((r) => console.log(`[scheduled] backfill done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] backfill failed:`, e)),
+        );
+      } else if (cron === "0 9 * * *") {
+        const { runOnboardingAlerts } = await import("@/services/onboarding-alerts.service");
+        ctx.waitUntil(
+          runOnboardingAlerts({ controlPanelDb: cpDb })
+            .then((r) => console.log(`[scheduled] onboarding-alerts done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] onboarding-alerts failed:`, e)),
+        );
+      } else if (cron === "30 2 * * *") {
+        const { runReconciliation } = await import("@/services/reconciler.service");
+        ctx.waitUntil(
+          runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
+            .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
+        );
+      } else if (cron === "0 3 * * *") {
+        // Plan E E.8 — hard-delete overdue soft-deleted tenants.
+        const { hardDeleteOverdueTenants } = await import(
+          "@/services/tenant-deletion.service"
+        );
+        const neonApiKey = (_env as { NEON_API_KEY?: string })?.NEON_API_KEY;
+        ctx.waitUntil(
+          hardDeleteOverdueTenants({ controlPanelDb: cpDb, neonApiKey })
+            .then((r) => console.log(`[scheduled] tenant-hard-delete done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] tenant-hard-delete failed:`, e)),
+        );
+      } else if (cron === "0 1 * * *") {
+        // Plan E E.2 — tenant usage snapshot.
+        const { runTenantUsageSnapshots } = await import(
+          "@/services/tenant-usage-snapshot.service"
+        );
+        const { getTenantDb } = await import("@/lib/db");
+        ctx.waitUntil(
+          runTenantUsageSnapshots({
+            controlPanelDb: cpDb,
+            getTenantDb: (orgId) => getTenantDb(orgId),
+          })
+            .then((r) => console.log(`[scheduled] usage-snapshot done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] usage-snapshot failed:`, e)),
+        );
+      } else {
+        console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
+      }
+    } catch (e) {
+      console.error(`[scheduled] dispatch threw for cron='${cron}':`, e);
+    }
+  },
+};

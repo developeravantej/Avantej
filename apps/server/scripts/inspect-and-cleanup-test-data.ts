@@ -299,7 +299,9 @@ async function inspectTestData() {
 
   // 4. Find test subscriptions
   console.log("💳 Step 3: Finding test subscriptions...");
-  const testSubscriptionIds = testOrgs.map((o) => o.subscriptionId);
+  const testSubscriptionIds = testOrgs
+    .map((o) => o.subscriptionId)
+    .filter((id): id is string => id !== null);
   const testSubscriptions = testSubscriptionIds.length > 0
     ? await controlPanelDb.query.subscriptions.findMany({
         where: (subs, { inArray }) => inArray(subs.id, testSubscriptionIds),

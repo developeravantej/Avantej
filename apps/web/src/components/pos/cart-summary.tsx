@@ -6,7 +6,7 @@ interface CartSummaryProps {
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
-	paymentMethod: "cash" | "card" | "bank_transfer" | null;
+	paymentMethod: "cash" | "card" | "bank_transfer" | "online" | null;
 	amountTenderedCents: number;
 }
 

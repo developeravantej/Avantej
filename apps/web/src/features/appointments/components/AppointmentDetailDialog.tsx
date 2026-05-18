@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { CalendarAppointment } from "@/lib/appointment-mapper";
 import { STATUS, formatTime, formatDuration, getInitials } from "../utils";
 import { AppointmentStatusHistory } from "./AppointmentStatusHistory";
+import { PaymentSection } from "./PaymentSection";
 
 interface AppointmentDetailDialogProps {
 	appt: CalendarAppointment | null;
@@ -115,6 +116,14 @@ export function AppointmentDetailDialog({
 									</div>
 								)}
 							</div>
+
+							{/* Payment */}
+							{organizationId && (
+								<PaymentSection
+									organizationId={organizationId}
+									appointmentId={appt.id}
+								/>
+							)}
 
 							{/* Status History */}
 							{organizationId && (

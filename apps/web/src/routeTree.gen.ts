@@ -28,9 +28,11 @@ import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
 import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_authenticated/service-category/view'
 import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
+import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
 import { Route as AuthenticatedDashboardLayoutInventoryOptionsRouteImport } from './routes/_authenticated/dashboard/_layout/inventory-options'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/index'
 import { Route as AuthenticatedDashboardLayoutUserViewRouteImport } from './routes/_authenticated/dashboard/_layout/user/view'
 import { Route as AuthenticatedDashboardLayoutUomViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom/view'
 import { Route as AuthenticatedDashboardLayoutUomConversionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/uom-conversions/view'
@@ -57,7 +59,17 @@ import { Route as AuthenticatedDashboardLayoutRefundsViewRouteImport } from './r
 import { Route as AuthenticatedDashboardLayoutPurchaseOrdersViewRouteImport } from './routes/_authenticated/dashboard/_layout/purchase-orders/view'
 import { Route as AuthenticatedDashboardLayoutPromotionsViewRouteImport } from './routes/_authenticated/dashboard/_layout/promotions/view'
 import { Route as AuthenticatedDashboardLayoutProductsViewRouteImport } from './routes/_authenticated/dashboard/_layout/products/view'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/webhooks'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/users'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/revenue'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminRenewalsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/renewals'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/payments'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/migrations'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminHealthRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/health'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/comms'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/billing'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/audit'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
 import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
@@ -84,6 +96,9 @@ import { Route as AuthenticatedDashboardLayoutAccessControlUserAssignmentRouteIm
 import { Route as AuthenticatedDashboardLayoutAccessControlRolesRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/roles'
 import { Route as AuthenticatedDashboardLayoutAccessControlPermissionsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/permissions'
 import { Route as AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport } from './routes/_authenticated/dashboard/_layout/access-control/invitations'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants.index'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants.new'
+import { Route as AuthenticatedDashboardLayoutPlatformAdminTenantsIdRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/tenants.$id'
 import { Route as AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/instances/view'
 import { Route as AuthenticatedDashboardLayoutPackagesInstallmentsViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/installments/view'
 import { Route as AuthenticatedDashboardLayoutCustomersWalkInViewRouteImport } from './routes/_authenticated/dashboard/_layout/customers/walk-in/view'
@@ -188,6 +203,12 @@ const AuthenticatedDashboardLayoutRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBillingConnectRoute =
+  AuthenticatedBillingConnectRouteImport.update({
+    id: '/billing/connect',
+    path: '/billing/connect',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAppointmentViewRoute =
   AuthenticatedAppointmentViewRouteImport.update({
     id: '/appointment/view',
@@ -204,6 +225,12 @@ const AuthenticatedDashboardLayoutInventoryOptionsRoute =
   AuthenticatedDashboardLayoutInventoryOptionsRouteImport.update({
     id: '/inventory-options',
     path: '/inventory-options',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminIndexRoute =
+  AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport.update({
+    id: '/platform-admin/',
+    path: '/platform-admin/',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutUserViewRoute =
@@ -370,10 +397,70 @@ const AuthenticatedDashboardLayoutProductsViewRoute =
     path: '/products/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute =
+  AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport.update({
+    id: '/platform-admin/webhooks',
+    path: '/platform-admin/webhooks',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPlatformAdminUsersRoute =
   AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport.update({
     id: '/platform-admin/users',
     path: '/platform-admin/users',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminTenantsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport.update({
+    id: '/platform-admin/tenants',
+    path: '/platform-admin/tenants',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminRevenueRoute =
+  AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport.update({
+    id: '/platform-admin/revenue',
+    path: '/platform-admin/revenue',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminRenewalsRouteImport.update({
+    id: '/platform-admin/renewals',
+    path: '/platform-admin/renewals',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport.update({
+    id: '/platform-admin/payments',
+    path: '/platform-admin/payments',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport.update({
+    id: '/platform-admin/migrations',
+    path: '/platform-admin/migrations',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminHealthRoute =
+  AuthenticatedDashboardLayoutPlatformAdminHealthRouteImport.update({
+    id: '/platform-admin/health',
+    path: '/platform-admin/health',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminCommsRoute =
+  AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport.update({
+    id: '/platform-admin/comms',
+    path: '/platform-admin/comms',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminBillingRoute =
+  AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport.update({
+    id: '/platform-admin/billing',
+    path: '/platform-admin/billing',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminAuditRoute =
+  AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport.update({
+    id: '/platform-admin/audit',
+    path: '/platform-admin/audit',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutPlatformAdminAdminsRoute =
@@ -540,6 +627,24 @@ const AuthenticatedDashboardLayoutAccessControlInvitationsRoute =
     path: '/access-control/invitations',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardLayoutPlatformAdminTenantsRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedDashboardLayoutPlatformAdminTenantsRoute,
+  } as any)
+const AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedDashboardLayoutPlatformAdminTenantsRoute,
+  } as any)
 const AuthenticatedDashboardLayoutPackagesInstancesViewRoute =
   AuthenticatedDashboardLayoutPackagesInstancesViewRouteImport.update({
     id: '/packages/instances/view',
@@ -587,6 +692,7 @@ export interface FileRoutesByFullPath {
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
@@ -619,7 +725,17 @@ export interface FileRoutesByFullPath {
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
+  '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
+  '/dashboard/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/dashboard/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
+  '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
+  '/dashboard/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
+  '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
+  '/dashboard/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/dashboard/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -646,11 +762,15 @@ export interface FileRoutesByFullPath {
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/dashboard/platform-admin/': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/dashboard/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/dashboard/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
+  '/dashboard/platform-admin/tenants/': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -668,6 +788,7 @@ export interface FileRoutesByTo {
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
@@ -699,7 +820,16 @@ export interface FileRoutesByTo {
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
+  '/dashboard/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
+  '/dashboard/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/dashboard/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
+  '/dashboard/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
+  '/dashboard/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
+  '/dashboard/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
   '/dashboard/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/dashboard/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/dashboard/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/dashboard/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/dashboard/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -726,11 +856,15 @@ export interface FileRoutesByTo {
   '/dashboard/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/dashboard/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/dashboard/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/dashboard/platform-admin': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/dashboard/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/dashboard/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/dashboard/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/dashboard/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/dashboard/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/dashboard/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/dashboard/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
+  '/dashboard/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -750,6 +884,7 @@ export interface FileRoutesById {
   '/_authenticated/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/appointment/view': typeof AuthenticatedAppointmentViewRoute
+  '/_authenticated/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
@@ -782,7 +917,17 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
   '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  '/_authenticated/dashboard/_layout/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
+  '/_authenticated/dashboard/_layout/platform-admin/comms': typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/health': typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  '/_authenticated/dashboard/_layout/platform-admin/migrations': typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/payments': typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/renewals': typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
+  '/_authenticated/dashboard/_layout/platform-admin/revenue': typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
+  '/_authenticated/dashboard/_layout/platform-admin/tenants': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   '/_authenticated/dashboard/_layout/platform-admin/users': typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  '/_authenticated/dashboard/_layout/platform-admin/webhooks': typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   '/_authenticated/dashboard/_layout/products/view': typeof AuthenticatedDashboardLayoutProductsViewRoute
   '/_authenticated/dashboard/_layout/promotions/view': typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   '/_authenticated/dashboard/_layout/purchase-orders/view': typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -809,11 +954,15 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/uom-conversions/view': typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   '/_authenticated/dashboard/_layout/uom/view': typeof AuthenticatedDashboardLayoutUomViewRoute
   '/_authenticated/dashboard/_layout/user/view': typeof AuthenticatedDashboardLayoutUserViewRoute
+  '/_authenticated/dashboard/_layout/platform-admin/': typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   '/_authenticated/dashboard/_layout/appointment/class-slots/view': typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   '/_authenticated/dashboard/_layout/customers/v2/view': typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   '/_authenticated/dashboard/_layout/customers/walk-in/view': typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
   '/_authenticated/dashboard/_layout/packages/installments/view': typeof AuthenticatedDashboardLayoutPackagesInstallmentsViewRoute
   '/_authenticated/dashboard/_layout/packages/instances/view': typeof AuthenticatedDashboardLayoutPackagesInstancesViewRoute
+  '/_authenticated/dashboard/_layout/platform-admin/tenants/$id': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  '/_authenticated/dashboard/_layout/platform-admin/tenants/new': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
+  '/_authenticated/dashboard/_layout/platform-admin/tenants/': typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -833,6 +982,7 @@ export interface FileRouteTypes {
     | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
+    | '/billing/connect'
     | '/dashboard'
     | '/service-category/view'
     | '/service/view'
@@ -865,7 +1015,17 @@ export interface FileRouteTypes {
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
+    | '/dashboard/platform-admin/audit'
+    | '/dashboard/platform-admin/billing'
+    | '/dashboard/platform-admin/comms'
+    | '/dashboard/platform-admin/health'
+    | '/dashboard/platform-admin/migrations'
+    | '/dashboard/platform-admin/payments'
+    | '/dashboard/platform-admin/renewals'
+    | '/dashboard/platform-admin/revenue'
+    | '/dashboard/platform-admin/tenants'
     | '/dashboard/platform-admin/users'
+    | '/dashboard/platform-admin/webhooks'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -892,11 +1052,15 @@ export interface FileRouteTypes {
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
+    | '/dashboard/platform-admin/'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
+    | '/dashboard/platform-admin/tenants/$id'
+    | '/dashboard/platform-admin/tenants/new'
+    | '/dashboard/platform-admin/tenants/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -914,6 +1078,7 @@ export interface FileRouteTypes {
     | '/go-highlevel-integration'
     | '/onboarding'
     | '/appointment/view'
+    | '/billing/connect'
     | '/service-category/view'
     | '/service/view'
     | '/user/view'
@@ -945,7 +1110,16 @@ export interface FileRouteTypes {
     | '/dashboard/payment/view'
     | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
+    | '/dashboard/platform-admin/audit'
+    | '/dashboard/platform-admin/billing'
+    | '/dashboard/platform-admin/comms'
+    | '/dashboard/platform-admin/health'
+    | '/dashboard/platform-admin/migrations'
+    | '/dashboard/platform-admin/payments'
+    | '/dashboard/platform-admin/renewals'
+    | '/dashboard/platform-admin/revenue'
     | '/dashboard/platform-admin/users'
+    | '/dashboard/platform-admin/webhooks'
     | '/dashboard/products/view'
     | '/dashboard/promotions/view'
     | '/dashboard/purchase-orders/view'
@@ -972,11 +1146,15 @@ export interface FileRouteTypes {
     | '/dashboard/uom-conversions/view'
     | '/dashboard/uom/view'
     | '/dashboard/user/view'
+    | '/dashboard/platform-admin'
     | '/dashboard/appointment/class-slots/view'
     | '/dashboard/customers/v2/view'
     | '/dashboard/customers/walk-in/view'
     | '/dashboard/packages/installments/view'
     | '/dashboard/packages/instances/view'
+    | '/dashboard/platform-admin/tenants/$id'
+    | '/dashboard/platform-admin/tenants/new'
+    | '/dashboard/platform-admin/tenants'
   id:
     | '__root__'
     | '/'
@@ -995,6 +1173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/go-highlevel-integration'
     | '/_authenticated/onboarding'
     | '/_authenticated/appointment/view'
+    | '/_authenticated/billing/connect'
     | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
     | '/_authenticated/service/view'
@@ -1027,7 +1206,17 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/payment/view'
     | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/platform-admin/admins'
+    | '/_authenticated/dashboard/_layout/platform-admin/audit'
+    | '/_authenticated/dashboard/_layout/platform-admin/billing'
+    | '/_authenticated/dashboard/_layout/platform-admin/comms'
+    | '/_authenticated/dashboard/_layout/platform-admin/health'
+    | '/_authenticated/dashboard/_layout/platform-admin/migrations'
+    | '/_authenticated/dashboard/_layout/platform-admin/payments'
+    | '/_authenticated/dashboard/_layout/platform-admin/renewals'
+    | '/_authenticated/dashboard/_layout/platform-admin/revenue'
+    | '/_authenticated/dashboard/_layout/platform-admin/tenants'
     | '/_authenticated/dashboard/_layout/platform-admin/users'
+    | '/_authenticated/dashboard/_layout/platform-admin/webhooks'
     | '/_authenticated/dashboard/_layout/products/view'
     | '/_authenticated/dashboard/_layout/promotions/view'
     | '/_authenticated/dashboard/_layout/purchase-orders/view'
@@ -1054,11 +1243,15 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/uom-conversions/view'
     | '/_authenticated/dashboard/_layout/uom/view'
     | '/_authenticated/dashboard/_layout/user/view'
+    | '/_authenticated/dashboard/_layout/platform-admin/'
     | '/_authenticated/dashboard/_layout/appointment/class-slots/view'
     | '/_authenticated/dashboard/_layout/customers/v2/view'
     | '/_authenticated/dashboard/_layout/customers/walk-in/view'
     | '/_authenticated/dashboard/_layout/packages/installments/view'
     | '/_authenticated/dashboard/_layout/packages/instances/view'
+    | '/_authenticated/dashboard/_layout/platform-admin/tenants/$id'
+    | '/_authenticated/dashboard/_layout/platform-admin/tenants/new'
+    | '/_authenticated/dashboard/_layout/platform-admin/tenants/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1211,6 +1404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/billing/connect': {
+      id: '/_authenticated/billing/connect'
+      path: '/billing/connect'
+      fullPath: '/billing/connect'
+      preLoaderRoute: typeof AuthenticatedBillingConnectRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/appointment/view': {
       id: '/_authenticated/appointment/view'
       path: '/appointment/view'
@@ -1230,6 +1430,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory-options'
       fullPath: '/dashboard/inventory-options'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutInventoryOptionsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/'
+      path: '/platform-admin'
+      fullPath: '/dashboard/platform-admin/'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/user/view': {
@@ -1414,11 +1621,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutProductsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/webhooks': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/webhooks'
+      path: '/platform-admin/webhooks'
+      fullPath: '/dashboard/platform-admin/webhooks'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
     '/_authenticated/dashboard/_layout/platform-admin/users': {
       id: '/_authenticated/dashboard/_layout/platform-admin/users'
       path: '/platform-admin/users'
       fullPath: '/dashboard/platform-admin/users'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/tenants': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/tenants'
+      path: '/platform-admin/tenants'
+      fullPath: '/dashboard/platform-admin/tenants'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/revenue': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/revenue'
+      path: '/platform-admin/revenue'
+      fullPath: '/dashboard/platform-admin/revenue'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/renewals': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/renewals'
+      path: '/platform-admin/renewals'
+      fullPath: '/dashboard/platform-admin/renewals'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/payments': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/payments'
+      path: '/platform-admin/payments'
+      fullPath: '/dashboard/platform-admin/payments'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/migrations': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/migrations'
+      path: '/platform-admin/migrations'
+      fullPath: '/dashboard/platform-admin/migrations'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/health': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/health'
+      path: '/platform-admin/health'
+      fullPath: '/dashboard/platform-admin/health'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminHealthRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/comms': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/comms'
+      path: '/platform-admin/comms'
+      fullPath: '/dashboard/platform-admin/comms'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/billing': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/billing'
+      path: '/platform-admin/billing'
+      fullPath: '/dashboard/platform-admin/billing'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/audit': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/audit'
+      path: '/platform-admin/audit'
+      fullPath: '/dashboard/platform-admin/audit'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/platform-admin/admins': {
@@ -1603,6 +1880,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutAccessControlInvitationsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
+    '/_authenticated/dashboard/_layout/platform-admin/tenants/': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/tenants/'
+      path: '/'
+      fullPath: '/dashboard/platform-admin/tenants/'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/tenants/new': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/tenants/new'
+      path: '/new'
+      fullPath: '/dashboard/platform-admin/tenants/new'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRoute
+    }
+    '/_authenticated/dashboard/_layout/platform-admin/tenants/$id': {
+      id: '/_authenticated/dashboard/_layout/platform-admin/tenants/$id'
+      path: '/$id'
+      fullPath: '/dashboard/platform-admin/tenants/$id'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRoute
+    }
     '/_authenticated/dashboard/_layout/packages/instances/view': {
       id: '/_authenticated/dashboard/_layout/packages/instances/view'
       path: '/packages/instances/view'
@@ -1641,6 +1939,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren {
+  AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute
+  AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute
+  AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute
+}
+
+const AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren: AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren =
+  {
+    AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute:
+      AuthenticatedDashboardLayoutPlatformAdminTenantsIdRoute,
+    AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute:
+      AuthenticatedDashboardLayoutPlatformAdminTenantsNewRoute,
+    AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute:
+      AuthenticatedDashboardLayoutPlatformAdminTenantsIndexRoute,
+  }
+
+const AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren =
+  AuthenticatedDashboardLayoutPlatformAdminTenantsRoute._addFileChildren(
+    AuthenticatedDashboardLayoutPlatformAdminTenantsRouteChildren,
+  )
+
 interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutInventoryOptionsRoute: typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   AuthenticatedDashboardLayoutIndexRoute: typeof AuthenticatedDashboardLayoutIndexRoute
@@ -1670,7 +1989,17 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
   AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
+  AuthenticatedDashboardLayoutPlatformAdminAuditRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
+  AuthenticatedDashboardLayoutPlatformAdminBillingRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
+  AuthenticatedDashboardLayoutPlatformAdminCommsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminCommsRoute
+  AuthenticatedDashboardLayoutPlatformAdminHealthRoute: typeof AuthenticatedDashboardLayoutPlatformAdminHealthRoute
+  AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute
+  AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute
+  AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute
+  AuthenticatedDashboardLayoutPlatformAdminRevenueRoute: typeof AuthenticatedDashboardLayoutPlatformAdminRevenueRoute
+  AuthenticatedDashboardLayoutPlatformAdminTenantsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren
   AuthenticatedDashboardLayoutPlatformAdminUsersRoute: typeof AuthenticatedDashboardLayoutPlatformAdminUsersRoute
+  AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute: typeof AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute
   AuthenticatedDashboardLayoutProductsViewRoute: typeof AuthenticatedDashboardLayoutProductsViewRoute
   AuthenticatedDashboardLayoutPromotionsViewRoute: typeof AuthenticatedDashboardLayoutPromotionsViewRoute
   AuthenticatedDashboardLayoutPurchaseOrdersViewRoute: typeof AuthenticatedDashboardLayoutPurchaseOrdersViewRoute
@@ -1697,6 +2026,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutUomConversionsViewRoute: typeof AuthenticatedDashboardLayoutUomConversionsViewRoute
   AuthenticatedDashboardLayoutUomViewRoute: typeof AuthenticatedDashboardLayoutUomViewRoute
   AuthenticatedDashboardLayoutUserViewRoute: typeof AuthenticatedDashboardLayoutUserViewRoute
+  AuthenticatedDashboardLayoutPlatformAdminIndexRoute: typeof AuthenticatedDashboardLayoutPlatformAdminIndexRoute
   AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute: typeof AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute
   AuthenticatedDashboardLayoutCustomersV2ViewRoute: typeof AuthenticatedDashboardLayoutCustomersV2ViewRoute
   AuthenticatedDashboardLayoutCustomersWalkInViewRoute: typeof AuthenticatedDashboardLayoutCustomersWalkInViewRoute
@@ -1762,8 +2092,28 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPayoutsViewRoute,
     AuthenticatedDashboardLayoutPlatformAdminAdminsRoute:
       AuthenticatedDashboardLayoutPlatformAdminAdminsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminAuditRoute:
+      AuthenticatedDashboardLayoutPlatformAdminAuditRoute,
+    AuthenticatedDashboardLayoutPlatformAdminBillingRoute:
+      AuthenticatedDashboardLayoutPlatformAdminBillingRoute,
+    AuthenticatedDashboardLayoutPlatformAdminCommsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminCommsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminHealthRoute:
+      AuthenticatedDashboardLayoutPlatformAdminHealthRoute,
+    AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminMigrationsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminPaymentsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminRenewalsRoute,
+    AuthenticatedDashboardLayoutPlatformAdminRevenueRoute:
+      AuthenticatedDashboardLayoutPlatformAdminRevenueRoute,
+    AuthenticatedDashboardLayoutPlatformAdminTenantsRoute:
+      AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren,
     AuthenticatedDashboardLayoutPlatformAdminUsersRoute:
       AuthenticatedDashboardLayoutPlatformAdminUsersRoute,
+    AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute:
+      AuthenticatedDashboardLayoutPlatformAdminWebhooksRoute,
     AuthenticatedDashboardLayoutProductsViewRoute:
       AuthenticatedDashboardLayoutProductsViewRoute,
     AuthenticatedDashboardLayoutPromotionsViewRoute:
@@ -1816,6 +2166,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutUomViewRoute,
     AuthenticatedDashboardLayoutUserViewRoute:
       AuthenticatedDashboardLayoutUserViewRoute,
+    AuthenticatedDashboardLayoutPlatformAdminIndexRoute:
+      AuthenticatedDashboardLayoutPlatformAdminIndexRoute,
     AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute:
       AuthenticatedDashboardLayoutAppointmentClassSlotsViewRoute,
     AuthenticatedDashboardLayoutCustomersV2ViewRoute:
@@ -1838,6 +2190,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedGoHighlevelIntegrationRoute: typeof AuthenticatedGoHighlevelIntegrationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedAppointmentViewRoute: typeof AuthenticatedAppointmentViewRoute
+  AuthenticatedBillingConnectRoute: typeof AuthenticatedBillingConnectRoute
   AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
   AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
@@ -1850,6 +2203,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedGoHighlevelIntegrationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedAppointmentViewRoute: AuthenticatedAppointmentViewRoute,
+  AuthenticatedBillingConnectRoute: AuthenticatedBillingConnectRoute,
   AuthenticatedDashboardLayoutRoute:
     AuthenticatedDashboardLayoutRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,

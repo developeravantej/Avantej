@@ -422,3 +422,12 @@ export * from "./membership.service";
 export * from "./lib/pg-error";
 export * from "./lib/fk-guard";
 // #endregion
+
+// #region Plan F.1.5 (Agent H) — tenant health score + risk flags
+export {
+	computeHealthScore,
+	type HealthScoreInput,
+	type HealthScoreResult,
+	type RiskFlag,
+} from "./health-score";
+// #endregion

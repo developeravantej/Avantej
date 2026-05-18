@@ -53,10 +53,14 @@ function createDeleteChain(returnValue: unknown = []) {
 	return { deleteMock };
 }
 
-// Transaction mock
-function createTransactionMock() {
+// Transaction mock factory. Caller passes the outer mockDb so the callback's
+// `tx` IS the same instance — tests can configure `mockDb.insert.mockReturnValueOnce(...)`
+// before the call and have it apply inside the transaction. Previously this
+// created a FRESH mockDb per transaction, causing every test that mocks an
+// insert/update inside a transactional service path to see empty results.
+function createTransactionMock(self: () => unknown) {
 	return mock((callback: (tx: unknown) => Promise<unknown>) => {
-		return callback(createMockTenantDb());
+		return callback(self());
 	});
 }
 
@@ -79,12 +83,12 @@ export function createMockTenantDb() {
 		findFirst: mock(() => Promise.resolve(defaults.findFirst ?? undefined)),
 	});
 
-	return {
+	const instance: any = {
 		insert: insertMock,
 		update: updateMock,
 		delete: deleteMock,
 		select: selectMock,
-		transaction: createTransactionMock(),
+		// transaction filled after instance reference is captured below
 		query: {
 			expenses: createQueryTable(),
 			announcements: createQueryTable(),
@@ -107,5 +111,7 @@ export function createMockTenantDb() {
 			salesOrders: createQueryTable(),
 			appointments: createQueryTable(),
 		},
-	} as any;
+	};
+	instance.transaction = createTransactionMock(() => instance);
+	return instance as any;
 }

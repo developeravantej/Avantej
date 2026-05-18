@@ -28,20 +28,28 @@ beforeEach(() => {
 	mockDb = createMockTenantDb();
 });
 
+// Helper: list services enrich each row with scopedBranchIds via a 2nd select
+// call (announcementScopes). Stub both calls so assertions can use enriched shape.
+function expectEnriched(items: ReturnType<typeof makeAnnouncement>[]) {
+	return items.map((i) => ({ ...i, scopedBranchIds: [] as string[] }));
+}
+
 // ─── listAnnouncements ──────────────────────────────────────────────────────
 describe("listAnnouncements", () => {
 	test("returns announcements from select chain", async () => {
 		const items = [makeAnnouncement(), makeAnnouncement()];
 		mockDb.select.mockReturnValueOnce(selectChainResolving(items));
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // enrichWithScopes
 
 		const result = await listAnnouncements(mockDb, {});
 
-		expect(result).toEqual(items);
-		expect(mockDb.select).toHaveBeenCalledTimes(1);
+		expect(result).toEqual(expectEnriched(items));
+		expect(mockDb.select).toHaveBeenCalledTimes(2);
 	});
 
 	test("returns empty array when no announcements exist", async () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
+		// enrichWithScopes short-circuits when rows is empty — no 2nd select.
 
 		const result = await listAnnouncements(mockDb, {});
 
@@ -50,21 +58,31 @@ describe("listAnnouncements", () => {
 });
 
 // ─── listActiveAnnouncements ─────────────────────────────────────────────────
+// NOTE: buildScopeFilter calls tenantDb.select() twice (notExists + exists
+// subqueries) when accessibleNodeIds is non-empty. Those select calls consume
+// mockReturnValueOnce queue entries BEFORE the main query runs. Queue 4
+// returns: [notExistsSubquery, existsSubquery, mainQuery, enrichScopes].
 describe("listActiveAnnouncements", () => {
 	test("returns only active announcements", async () => {
 		const active = [makeAnnouncement({ isActive: true })];
-		mockDb.select.mockReturnValueOnce(selectChainResolving(active));
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // notExists subquery
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // exists subquery
+		mockDb.select.mockReturnValueOnce(selectChainResolving(active)); // main query
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // enrichWithScopes
 
 		const result = await listActiveAnnouncements(mockDb, {
 			accessibleNodeIds: [BRANCH_NODE_ID],
 		});
 
-		expect(result).toEqual(active);
+		expect(result).toEqual(expectEnriched(active));
 	});
 
 	test("filters by memberType when provided", async () => {
 		const staffAnnouncement = makeAnnouncement({ targetAudience: "staff" });
-		mockDb.select.mockReturnValueOnce(selectChainResolving([staffAnnouncement]));
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // notExists subquery
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // exists subquery
+		mockDb.select.mockReturnValueOnce(selectChainResolving([staffAnnouncement])); // main
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // enrichWithScopes
 
 		const result = await listActiveAnnouncements(mockDb, {
 			accessibleNodeIds: [BRANCH_NODE_ID],
@@ -73,6 +91,7 @@ describe("listActiveAnnouncements", () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0]!.targetAudience).toBe("staff");
+		expect(result[0]!.scopedBranchIds).toEqual([]);
 	});
 });
 

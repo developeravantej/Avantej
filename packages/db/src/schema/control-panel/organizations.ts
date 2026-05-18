@@ -1,9 +1,12 @@
 /**
  * Control Panel Organizations Schema
- * 
+ *
  * Represents tenant franchises. Each organization has a dedicated Neon database project.
- * Organizations are created automatically when a Stripe subscription is confirmed.
- * 
+ * Organizations are created on trial signup; a subscription is attached when the trial
+ * is activated to paid (ADR-0003). Stripe Connect state (chargesEnabled/payoutsEnabled/
+ * detailsSubmitted/connectAccountUpdatedAt) is synced from the account.updated webhook
+ * per ADR-0008.
+ *
  * Security: connectionString must be encrypted before storage (handled by encryption utilities).
  */
 
@@ -18,18 +21,20 @@ export const organizations = pgTable("organizations", {
 	slug: text("slug").notNull().unique(),
 	neonProjectId: text("neon_project_id").notNull().unique(),
 	connectionString: text("connection_string").notNull(),
-	subscriptionId: uuid("subscription_id")
-		.notNull()
-		.references(() => subscriptions.id, { onDelete: "restrict" }),
+	subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
+		onDelete: "set null",
+	}), // Nullable: org exists during trial without a sub. ADR-0003.
+	trialEndsAt: timestamp("trial_ends_at"),
 	paymentStatus: text("payment_status").notNull(), // active, suspended, failed
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "restrict" }),
-	// Stripe Connect fields for franchiser accounts
-	stripeConnectAccountId: text("stripe_connect_account_id").unique(),
-	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // pending | active | restricted | rejected
-	stripeConnectAccountType: text("stripe_connect_account_type").default("franchiser").notNull(),
-	stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
+	// Plan E follow-up — primary country (ISO 3166-1 alpha-2). Captured at
+	// provisioning time by the E.7 wizard. Nullable for legacy rows.
+	countryCode: text("country_code"),
+	// Phase 4.5: legacy org-level Stripe Connect fields dropped — see
+	// migration 0020. All Connect state now lives in
+	// org_country_stripe_accounts (one row per (org, country_code)).
 	// Tenant schema migration tracking
 	schemaVersion: text("schema_version").default("0000"),
 	// GHL org-shared sync model (Phase G). NULL = not yet provisioned.
@@ -52,7 +57,7 @@ export const organizations = pgTable("organizations", {
 	// Note: slug and neonProjectId already have unique constraints/indexes via .unique()
 	subscriptionIdIdx: index("organizations_subscription_idx").on(table.subscriptionId),
 	paymentStatusIdx: index("organizations_payment_status_idx").on(table.paymentStatus),
-	stripeConnectAccountIdIdx: index("organizations_stripe_connect_idx").on(table.stripeConnectAccountId),
+	countryCodeIdx: index("organizations_country_code_idx").on(table.countryCode),
 }));
 
 export const organizationsRelations = relations(organizations, ({ one }) => ({

@@ -1,25 +1,30 @@
-// TODO: Replace with oRPC client call
-// See: utils/orpc.ts for API client pattern
-// Old API: Stripe integration for checkout sessions
-// This file contains Stripe client-side utilities
+/**
+ * Stripe.js client loader for the web app.
+ *
+ * Loads the Stripe.js library lazily and memoizes the singleton promise.
+ * Set VITE_STRIPE_PUBLISHABLE_KEY in apps/web/.env.local (use the dev-shared
+ * sandbox publishable key per ADR-0012).
+ */
 
-// TODO: Install @stripe/stripe-js when Stripe integration is needed
-// import { loadStripe, type Stripe } from "@stripe/stripe-js";
-type Stripe = any;
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-const _stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as
+	| string
+	| undefined;
 
-let _stripePromise: Promise<Stripe | null> | null = null;
+let stripePromise: Promise<Stripe | null> | null = null;
 
 const getStripe = (): Promise<Stripe | null> => {
-  // TODO: Implement Stripe integration when needed
-  // if (!stripePromise) {
-  //   stripePromise = loadStripe(stripePublishableKey);
-  // }
-  // return stripePromise || Promise.resolve(null);
-  return Promise.resolve(null);
+	if (!stripePromise) {
+		if (!stripePublishableKey) {
+			console.error(
+				"VITE_STRIPE_PUBLISHABLE_KEY is not set — Stripe.js will not load",
+			);
+			return Promise.resolve(null);
+		}
+		stripePromise = loadStripe(stripePublishableKey);
+	}
+	return stripePromise;
 };
 
 export default getStripe;
-
-

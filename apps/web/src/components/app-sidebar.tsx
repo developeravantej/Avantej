@@ -2,6 +2,7 @@
 
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+	Activity,
 	ArrowLeftRight,
 	BadgeDollarSign,
 	Bell,
@@ -13,13 +14,16 @@ import {
 	ClipboardCheck,
 	ClipboardList,
 	CreditCard,
+	Database,
 	DollarSign,
 	FileChartColumnIncreasing,
 	Grid3x3,
 	Home,
+	LayoutDashboard,
 	LogOut,
 	Map,
 	Megaphone,
+	MessageSquare,
 	Package,
 	PackageSearch,
 	Receipt,
@@ -37,6 +41,7 @@ import {
 	UserPlus,
 	Users,
 	Warehouse,
+	Webhook,
 } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
@@ -535,6 +540,126 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
+										isActive={pathname === "/dashboard/platform-admin/" || pathname === "/dashboard/platform-admin"}
+										tooltip="Mission Control"
+									>
+										<Link to={"/dashboard/platform-admin/" as string}>
+											<LayoutDashboard className="size-4" />
+											<span>Mission Control</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/tenants")}
+										tooltip="Tenants"
+									>
+										<Link to={"/dashboard/platform-admin/tenants" as string}>
+											<Building2 className="size-4" />
+											<span>Tenants</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/revenue")}
+										tooltip="Revenue"
+									>
+										<Link to={"/dashboard/platform-admin/revenue" as string}>
+											<TrendingUp className="size-4" />
+											<span>Revenue</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/billing")}
+										tooltip="Billing"
+									>
+										<Link to={"/dashboard/platform-admin/billing" as string}>
+											<Receipt className="size-4" />
+											<span>Billing</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/renewals")}
+										tooltip="Renewals"
+									>
+										<Link to={"/dashboard/platform-admin/renewals" as string}>
+											<CalendarRange className="size-4" />
+											<span>Renewals</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/health")}
+										tooltip="Health"
+									>
+										<Link to={"/dashboard/platform-admin/health" as string}>
+											<Activity className="size-4" />
+											<span>Health</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/comms")}
+										tooltip="Comms"
+									>
+										<Link to={"/dashboard/platform-admin/comms" as string}>
+											<MessageSquare className="size-4" />
+											<span>Comms</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/payments")}
+										tooltip="Payments"
+									>
+										<Link to={"/dashboard/platform-admin/payments" as string}>
+											<CreditCard className="size-4" />
+											<span>Payments</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/webhooks")}
+										tooltip="Webhooks"
+									>
+										<Link to={"/dashboard/platform-admin/webhooks" as string}>
+											<Webhook className="size-4" />
+											<span>Webhooks</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
+										isActive={pathname.startsWith("/dashboard/platform-admin/audit")}
+										tooltip="Audit log"
+									>
+										<Link to={"/dashboard/platform-admin/audit" as string}>
+											<ScrollText className="size-4" />
+											<span>Audit</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										asChild
 										isActive={pathname.startsWith("/dashboard/platform-admin/users")}
 										tooltip="Users"
 									>
@@ -545,18 +670,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 								{role === "super_admin" && (
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											asChild
-											isActive={pathname.startsWith("/dashboard/platform-admin/admins")}
-											tooltip="Admins"
-										>
-											<Link to={"/dashboard/platform-admin/admins" as string}>
-												<Shield className="size-4" />
-												<span>Admins</span>
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
+									<>
+										<SidebarMenuItem>
+											<SidebarMenuButton
+												asChild
+												isActive={pathname.startsWith("/dashboard/platform-admin/migrations")}
+												tooltip="Migrations"
+											>
+												<Link to={"/dashboard/platform-admin/migrations" as string}>
+													<Database className="size-4" />
+													<span>Migrations</span>
+												</Link>
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+										<SidebarMenuItem>
+											<SidebarMenuButton
+												asChild
+												isActive={pathname.startsWith("/dashboard/platform-admin/admins")}
+												tooltip="Admins"
+											>
+												<Link to={"/dashboard/platform-admin/admins" as string}>
+													<Shield className="size-4" />
+													<span>Admins</span>
+												</Link>
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									</>
 								)}
 							</SidebarMenu>
 						</SidebarGroupContent>

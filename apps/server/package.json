@@ -24,7 +24,9 @@
     "cleanup:test-projects": "bun run scripts/cleanup-test-projects.ts",
     "inspect-test-data": "bun run scripts/inspect-and-cleanup-test-data.ts",
     "inspect-test-data:inspect-only": "bun run scripts/inspect-and-cleanup-test-data.ts --inspect-only",
-    "inspect-test-data:cleanup-only": "bun run scripts/inspect-and-cleanup-test-data.ts --cleanup-only"
+    "inspect-test-data:cleanup-only": "bun run scripts/inspect-and-cleanup-test-data.ts --cleanup-only",
+    "stripe:seed": "bun run scripts/stripe-seed-saas-products.ts",
+    "seed:dev-connect": "bun run scripts/seed-dev-connect.ts"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",

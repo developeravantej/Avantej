@@ -1,3 +1,6 @@
+import { Copy, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/lib/money";
 
@@ -20,7 +23,7 @@ export interface ReceiptData {
 	discountCents: number;
 	taxCents: number;
 	totalCents: number;
-	paymentMethod: "cash" | "card" | "bank_transfer";
+	paymentMethod: "cash" | "card" | "bank_transfer" | "online";
 	paymentReference?: string | null;
 	amountTenderedCents?: number | null;
 	changeDueCents?: number | null;
@@ -32,6 +35,8 @@ export interface ReceiptData {
 
 interface ReceiptViewProps {
 	data: ReceiptData;
+	/** Optional Stripe payment link to surface above the receipt body. */
+	onlinePaymentLinkUrl?: string | null;
 }
 
 function formatPaymentMethod(m: string): string {
@@ -39,6 +44,7 @@ function formatPaymentMethod(m: string): string {
 		cash: "Cash",
 		card: "Card",
 		bank_transfer: "Bank Transfer",
+		online: "Online (Stripe link)",
 	};
 	return labels[m] ?? m;
 }
@@ -54,12 +60,56 @@ function formatDate(d: Date | string): string {
 	});
 }
 
-export function ReceiptView({ data }: ReceiptViewProps) {
+export function ReceiptView({
+	data,
+	onlinePaymentLinkUrl,
+}: ReceiptViewProps) {
 	return (
 		<div
 			className="receipt-view mx-auto max-w-sm space-y-4 bg-white p-6 font-mono text-foreground text-sm print:mx-0 print:max-w-none print:p-4 print:text-xs"
 			style={{ minWidth: 260 }}
 		>
+			{/* Online payment link — surfaced above the receipt body */}
+			{onlinePaymentLinkUrl && (
+				<div className="space-y-2 rounded-lg border-2 border-primary/40 bg-primary/5 p-3 print:hidden">
+					<p className="font-sans font-semibold text-foreground text-sm">
+						Online payment link
+					</p>
+					<code className="block w-full truncate rounded bg-muted px-2 py-1 text-[11px]">
+						{onlinePaymentLinkUrl}
+					</code>
+					<div className="flex gap-2">
+						<Button
+							size="sm"
+							variant="outline"
+							type="button"
+							className="flex-1 font-sans"
+							onClick={() => {
+								navigator.clipboard.writeText(onlinePaymentLinkUrl);
+								toast.success("Payment link copied");
+							}}
+						>
+							<Copy className="mr-1.5 size-3.5" /> Copy
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							type="button"
+							className="flex-1 font-sans"
+							asChild
+						>
+							<a
+								href={onlinePaymentLinkUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<ExternalLink className="mr-1.5 size-3.5" /> Open
+							</a>
+						</Button>
+					</div>
+				</div>
+			)}
+
 			{/* Header */}
 			<div className="space-y-1 text-center">
 				{data.organizationName && (

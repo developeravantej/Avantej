@@ -1,93 +1,101 @@
 /**
- * Stripe Webhook Signature Verification
+ * Stripe SDK wrapper.
  *
- * Verifies Stripe webhook signatures to ensure requests are authentic.
- * Uses Stripe SDK's constructEvent method for signature validation.
+ * Exports:
+ * - getStripeClient(): shared Stripe client (lazy-init).
+ * - verifyWebhookSignature(body, signature, source): verifies a webhook
+ *   against the correct signing secret. `source` is 'platform' or 'connect'
+ *   per ADR-0006.
  *
- * Environment Variables:
- * - STRIPE_WEBHOOK_SECRET: Webhook signing secret from Stripe dashboard (starts with whsec_)
+ * Env vars:
+ * - STRIPE_SECRET_KEY                  Avantej platform secret (sk_test_… in sandbox)
+ * - STRIPE_PLATFORM_WEBHOOK_SECRET     whsec_… for /webhooks/stripe/platform
+ * - STRIPE_CONNECT_WEBHOOK_SECRET      whsec_… for /webhooks/stripe/connect
  *
- * Usage:
- * ```typescript
- * import { verifyWebhookSignature } from "@/lib/stripe";
- *
- * const event = await verifyWebhookSignature(body, signature);
- * // Process event...
- * ```
+ * Env access uses the same lazy require pattern as db.ts / email.ts /
+ * auth.service.ts so the file is testable under bun (cloudflare:workers
+ * is not resolvable in bun's test runner).
  */
 
 import Stripe from "stripe";
-import { env } from "cloudflare:workers";
 
-/**
- * Stripe client instance
- * Initialized with secret key from environment
- */
+function getEnvVar(key: string): string | undefined {
+	try {
+		const { env } = require("cloudflare:workers") as {
+			env: Record<string, string | undefined>;
+		};
+		const v = env[key];
+		if (v !== undefined) return v;
+	} catch {
+		// Not in Cloudflare Workers runtime (bun test / Node).
+	}
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	if (globalEnv?.[key] !== undefined) return globalEnv[key];
+	return process.env[key];
+}
+
 let stripeClient: Stripe | null = null;
 
-/**
- * Get or create Stripe client instance
- */
-function getStripeClient(): Stripe {
-  if (!stripeClient) {
-    const secretKey = env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-      throw new Error("STRIPE_SECRET_KEY environment variable is not set");
-    }
-    stripeClient = new Stripe(secretKey, {
-      apiVersion: "2025-10-29.clover",
-    });
-  }
-  return stripeClient;
+export function getStripeClient(): Stripe {
+	if (!stripeClient) {
+		const secretKey = getEnvVar("STRIPE_SECRET_KEY");
+		if (!secretKey) {
+			throw new Error("STRIPE_SECRET_KEY environment variable is not set");
+		}
+		stripeClient = new Stripe(secretKey, {
+			apiVersion: "2025-10-29.clover",
+			httpClient: Stripe.createFetchHttpClient(),
+		});
+	}
+	return stripeClient;
 }
 
 /**
- * Verify Stripe webhook signature and parse event
+ * Reset the cached Stripe client. Used by tests that mutate STRIPE_SECRET_KEY
+ * between cases. Matches the __resetResendClient() pattern in email.ts.
  *
- * @param body - Raw request body as string (must be raw, not parsed JSON)
- * @param signature - Stripe-Signature header value
- * @returns Parsed Stripe event object
- * @throws Error if signature is invalid or webhook secret is missing
- *
- * @example
- * ```typescript
- * const signature = request.headers.get("stripe-signature");
- * const body = await request.text();
- * const event = verifyWebhookSignature(body, signature);
- * ```
+ * Production callers must not use this; module-level singleton is intentional
+ * for request-scoped lifetime on Cloudflare Workers.
  */
-export function verifyWebhookSignature(
-  body: string,
-  signature: string | null
-): Stripe.Event {
-  if (!signature) {
-    throw new Error("Missing Stripe-Signature header");
-  }
-
-  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    throw new Error("STRIPE_WEBHOOK_SECRET environment variable is not set");
-  }
-
-  const stripe = getStripeClient();
-
-  try {
-    // Verify signature and construct event
-    // This will throw if signature is invalid
-    const event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      webhookSecret
-    );
-
-    return event;
-  } catch (error) {
-    if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
-      throw new Error(`Invalid webhook signature: ${error.message}`);
-    }
-    throw new Error(
-      `Webhook signature verification failed: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+export function __resetStripeClientForTesting(): void {
+	stripeClient = null;
 }
 
+export type WebhookSource = "platform" | "connect";
+
+export async function verifyWebhookSignature(
+	body: string,
+	signature: string | null,
+	source: WebhookSource,
+): Promise<Stripe.Event> {
+	if (!signature) {
+		throw new Error("Missing Stripe-Signature header");
+	}
+
+	const secret =
+		source === "platform"
+			? getEnvVar("STRIPE_PLATFORM_WEBHOOK_SECRET")
+			: getEnvVar("STRIPE_CONNECT_WEBHOOK_SECRET");
+
+	if (!secret) {
+		throw new Error(
+			source === "platform"
+				? "STRIPE_PLATFORM_WEBHOOK_SECRET environment variable is not set"
+				: "STRIPE_CONNECT_WEBHOOK_SECRET environment variable is not set",
+		);
+	}
+
+	const stripe = getStripeClient();
+	try {
+		return await stripe.webhooks.constructEventAsync(body, signature, secret);
+	} catch (error) {
+		if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+			throw new Error(`Invalid webhook signature: ${error.message}`);
+		}
+		throw new Error(
+			`Webhook signature verification failed: ${
+				error instanceof Error ? error.message : "Unknown error"
+			}`,
+		);
+	}
+}

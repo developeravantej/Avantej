@@ -50,8 +50,23 @@ export const appointments = pgTable("appointments", {
 	conflictReason: text("conflict_reason"),
 	
 	// Payment tracking
-	paymentStatus: text("payment_status").default("pending").notNull(), // "pending" | "paid" | "partial" | "refunded"
+	paymentStatus: text("payment_status").default("pending").notNull(), // "pending" | "paid" | "partial" | "refunded" | "failed"
 	stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe PaymentIntent ID for this appointment
+	// Payment columns (Plan B Phase 2 — Direct Charge via Connect).
+	// Currency: per-org for Phase 2 (MYR default); per-country in Phase 4.
+	currency: text("currency").default("MYR").notNull(),
+	// Application fee remitted to Avantej platform, in same minor units as sessionTotal.
+	applicationFeeAmount: integer("application_fee_amount"),
+	// Snapshot of which connected account charged the customer. Survives Phase 4
+	// schema move (when stripe_connect_account_id moves from organizations to
+	// per-country hierarchy_nodes), so historical reconciliation stays valid.
+	stripeConnectAccountIdSnapshot: text("stripe_connect_account_id_snapshot"),
+	// Stripe Payment Link ID (when staff sends customer a hosted-checkout URL).
+	stripePaymentLinkId: text("stripe_payment_link_id"),
+	paymentLinkUrl: text("payment_link_url"),
+	paidAt: timestamp("paid_at"),
+	paymentFailureReason: text("payment_failure_reason"),
+	paymentMethodType: text("payment_method_type"), // "card" | "fpx" | ... — last successful method
 	
 	notes: text("notes"),
 	createdBy: text("created_by").notNull(), // References members.userId (staff/admin who created)
