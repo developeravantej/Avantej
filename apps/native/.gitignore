@@ -26,5 +26,4 @@ android
 .metro-health-check*
 
 # Firebase / push credentials
-google-services.json
 GoogleService-Info.plist

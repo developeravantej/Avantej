@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278226139987",
+    "project_id": "avantej-5f708",
+    "storage_bucket": "avantej-5f708.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278226139987:android:998281c2ede0e6234fffa6",
+        "android_client_info": {
+          "package_name": "com.avantej.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9bbzSPu8WPRGM-3NntlITLrzU2j4_5cA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
