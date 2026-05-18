@@ -1,7 +1,7 @@
 {
   "name": "native",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./index.js",
   "scripts": {
     "dev": "EXPO_NO_UPDATE_CHECK=1 expo start --clear",
     "dev:tunnel": "EXPO_NO_UPDATE_CHECK=1 expo start --clear --tunnel",
