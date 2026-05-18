@@ -69,14 +69,14 @@ export function isFeatureEnabled(tier: Tier, feature: TierFeature): boolean {
 
 /**
  * Monthly tier prices in USD cents.
- * TODO(plan-f-2): replace with real values from Stripe Dashboard.
- * These are PLACEHOLDER values for MRR/ARR estimation only.
- * Source of truth for billing is still Stripe (subscriptions.stripe_price_id).
+ * Verified against Stripe Dashboard 2026-05-18 (test mode).
+ * Source of truth for billing remains Stripe (subscriptions.stripe_price_id).
+ * Update here when Stripe price amounts change.
  */
 export const TIER_PRICES_USD_CENTS = {
-  basic: 4900, // $49/mo  — TODO confirm with Stripe
-  professional: 19900, // $199/mo — TODO confirm with Stripe
-  enterprise: 49900, // $499/mo — TODO confirm with Stripe
+  basic: 4900, // $49/mo
+  professional: 14900, // $149/mo
+  enterprise: 49900, // $499/mo
 } as const;
 
 export type TierPrice = (typeof TIER_PRICES_USD_CENTS)[Tier];
@@ -95,17 +95,19 @@ export function getTierPriceUsdCents(tier: Tier): number {
 
 /**
  * Stripe price IDs per tier (used by ops-driven tier swaps in Plan F.3.5).
- * TODO(plan-f-3-5): replace placeholders with real Stripe Dashboard price IDs.
- * Until those are wired in, `changeTier` will fail against real Stripe but
- * the deterministic stub in unit tests exercises the full code path.
- *
+ * Verified against Stripe Dashboard 2026-05-18 (test mode).
  * Source of truth for billing remains Stripe — this constant is the lookup
  * used when swapping a subscription's price item.
+ *
+ * Products:
+ *   prod_UVqsQazIztZqfS  Avantej SaaS — Basic
+ *   prod_UVqsZBA7b1wzXZ  Avantej SaaS — Professional
+ *   prod_UVqst9vw3jnp1Q  Avantej SaaS — Enterprise
  */
 export const TIER_STRIPE_PRICE_IDS = {
-  basic: "price_placeholder_basic",
-  professional: "price_placeholder_professional",
-  enterprise: "price_placeholder_enterprise",
+  basic: "price_1TWpATB3sd6uw5s66NOdeZMR",
+  professional: "price_1TWpAUB3sd6uw5s6ezbLau1c",
+  enterprise: "price_1TWpAWB3sd6uw5s6mQQIavDR",
 } as const;
 
 export type TierStripePriceId = (typeof TIER_STRIPE_PRICE_IDS)[Tier];

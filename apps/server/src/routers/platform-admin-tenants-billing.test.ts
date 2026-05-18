@@ -355,7 +355,7 @@ describe("platformAdminTenantsBilling.changeTier", () => {
 			proration_behavior: string;
 		};
 		expect(params.items[0]!.id).toBe("si_test_item_1");
-		expect(params.items[0]!.price).toBe("price_placeholder_basic");
+		expect(params.items[0]!.price).toBe("price_1TWpATB3sd6uw5s66NOdeZMR");
 		expect(params.proration_behavior).toBe("create_prorations");
 
 		// Local subscription row was updated.
@@ -364,7 +364,7 @@ describe("platformAdminTenantsBilling.changeTier", () => {
 			.from(subscriptions)
 			.where(eq(subscriptions.id, TEST_SUB_ID));
 		expect(updatedSub!.tier).toBe("basic");
-		expect(updatedSub!.stripePriceId).toBe("price_placeholder_basic");
+		expect(updatedSub!.stripePriceId).toBe("price_1TWpATB3sd6uw5s66NOdeZMR");
 
 		// Exactly one audit row with the right metadata.
 		const rows = await controlPanelDb
