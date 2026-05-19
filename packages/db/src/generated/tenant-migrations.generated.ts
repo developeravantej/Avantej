@@ -3823,9 +3823,15 @@ ALTER TABLE "customer_profiles"
   ADD COLUMN IF NOT EXISTS "account_group_id" uuid REFERENCES "account_groups"("id") ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS "relationship" text;
 
--- Drop the old TOTAL unique index on user_id (created by Drizzle as
--- customer_profiles_user_idx via .unique() in schema).
+-- Drop the old TOTAL unique on user_id. Drizzle's \`.unique()\` historically
+-- emitted both an index (\`customer_profiles_user_idx\`) and a named UNIQUE
+-- CONSTRAINT (\`customer_profiles_user_id_unique\`) backed by its own index
+-- (\`customer_profiles_user_id_unique\`). Drop all three so live tenants —
+-- regardless of which generator they were provisioned by — converge on the
+-- partial unique index declared below.
 DROP INDEX IF EXISTS "customer_profiles_user_idx";
+ALTER TABLE "customer_profiles" DROP CONSTRAINT IF EXISTS "customer_profiles_user_id_unique";
+DROP INDEX IF EXISTS "customer_profiles_user_id_unique";
 
 -- Relax user_id to NULL so dependents can exist without a user row.
 ALTER TABLE "customer_profiles"
