@@ -1,0 +1,16 @@
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+import { readFileSync } from "fs";
+import { decrypt } from "@avantej-core/db/lib/encryption";
+neonConfig.webSocketConstructor = ws;
+const env = Object.fromEntries(readFileSync(".dev.vars","utf8").split(/\r?\n/).filter(l=>l && !l.startsWith("#")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i), l.slice(i+1).replace(/^"|"$/g,"")];}));
+process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY;
+const cp = new Pool({ connectionString: env.DATABASE_URL });
+const conn = decrypt((await cp.query("SELECT connection_string FROM organizations WHERE slug='test-fitness-franchise'")).rows[0].connection_string);
+const t = new Pool({ connectionString: conn });
+const q = async (label:string, sql:string) => { try { const r = await t.query(sql); console.log(`\n=== ${label} ===`); console.log(r.rows); } catch (e) { console.log(`\n=== ${label} ===\n${(e as Error).message}`); } };
+await q("refund row after partial approve", `SELECT id, amount_cents, requested_amount_cents, status, review_notes, reviewed_at FROM refunds ORDER BY created_at DESC LIMIT 1`);
+await q("sales_orders.refund_status flip", `SELECT sales_order_number, refund_status, refunded_amount_cents FROM sales_orders WHERE sales_order_number='SO-20260428-000006'`);
+await q("audit log captures refund.approve.partial", `SELECT action, summary, created_at FROM audit_logs WHERE action LIKE 'refund%' ORDER BY created_at DESC LIMIT 5`);
+await q("audit log payouts.create captured", `SELECT action, summary, created_at FROM audit_logs WHERE action LIKE 'payout%' OR action LIKE 'commission.mark_paid' ORDER BY created_at DESC LIMIT 5`);
+await t.end(); await cp.end();

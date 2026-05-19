@@ -1,0 +1,222 @@
+﻿[
+    {
+        "Hash":  "54165EF52FCD41CA811EFFE3CAE9C7BF",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-about\\test-plan.md"
+    },
+    {
+        "Hash":  "0755F7B3FA1282C6D03E0F094D152241",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-accept-invitation\\test-plan.md"
+    },
+    {
+        "Hash":  "25472A26104F32F61B0F88409DED1218",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-auth-login\\test-plan.md"
+    },
+    {
+        "Hash":  "1033F774C9E0B46B3E432122141C5EF5",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-auth-setup-password\\test-plan.md"
+    },
+    {
+        "Hash":  "9C870CA986B1BB7572426F1DF660E2E4",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-auth-signup\\test-plan.md"
+    },
+    {
+        "Hash":  "F1C41E14FD9187590A154ED43C420CBD",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-contact\\test-plan.md"
+    },
+    {
+        "Hash":  "E0E63127278D7D09F0572DF85B2F56E6",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-access-control-invitations\\test-plan.md"
+    },
+    {
+        "Hash":  "021839128416429199286F544388FFE1",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-access-control-permissions\\test-plan.md"
+    },
+    {
+        "Hash":  "CEDE5B4BA8918F70B046BF8EDF08EF12",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-access-control-roles\\test-plan.md"
+    },
+    {
+        "Hash":  "C5667ADB7D3D1A147CA7F51A3955A491",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-access-control-user-assignment\\test-plan.md"
+    },
+    {
+        "Hash":  "E20653A605E228FB21D82C20772A4D41",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-appointment-class-slots-view\\test-plan.md"
+    },
+    {
+        "Hash":  "8B8405E8AE045100B632B484DE9B5077",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-appointment-view\\test-plan.md"
+    },
+    {
+        "Hash":  "D9857D0BCFE13DA7351D3A2F5CBE6EEC",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-attendance-view\\test-plan.md"
+    },
+    {
+        "Hash":  "8C2072CC0E1907ECBECA20FC0EAB03E5",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-audit-view\\test-plan.md"
+    },
+    {
+        "Hash":  "34E046667F988DBB5C2A907811FC3CB2",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-branch-create\\test-plan.md"
+    },
+    {
+        "Hash":  "C5990FA5ECC55D90D65700E70A454F0D",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-branch-view\\test-plan.md"
+    },
+    {
+        "Hash":  "4063D0D4FD124E2013EACA98ADF41B9C",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-brands-view\\test-plan.md"
+    },
+    {
+        "Hash":  "6B46A1EACEB5260F7A86A15559CC4BEF",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-cancelled-sales-view\\test-plan.md"
+    },
+    {
+        "Hash":  "AC6BBF343D9423FB0DEBC10E2E371FEA",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-categories-view\\test-plan.md"
+    },
+    {
+        "Hash":  "152F3C497DDB675FD8D4364893752D89",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-commissions-my\\test-plan.md"
+    },
+    {
+        "Hash":  "262C517B279AFD757BF422082FB0FC46",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-commissions-view\\test-plan.md"
+    },
+    {
+        "Hash":  "EA3087BD715487D4085C1304C797096B",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-customers-360\\test-plan.md"
+    },
+    {
+        "Hash":  "61275CC10A84D819010D072327B4D9A4",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-customers-view\\test-plan.md"
+    },
+    {
+        "Hash":  "15A9EE9A788BC5184320C032955CBDAB",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-customers-walk-in-view\\test-plan.md"
+    },
+    {
+        "Hash":  "113DFF82C7309500201865ACBC5A9F37",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-home\\test-plan.md"
+    },
+    {
+        "Hash":  "EDA3292E2FCA4B349486EA84ABFEA685",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-my-services-view\\test-plan.md"
+    },
+    {
+        "Hash":  "F250CEA110B54E0AA0712683F4C54E36",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-operations-approvals\\test-plan.md"
+    },
+    {
+        "Hash":  "2C9C2F246FD6C676D66B3977FD18DEA4",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-packages-installments-view\\test-plan.md"
+    },
+    {
+        "Hash":  "154C81706B00D03E331C7BC136219D8A",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-packages-instances-view\\test-plan.md"
+    },
+    {
+        "Hash":  "27CA2DADEFE6ABD94ADDD3BBBBA89C5F",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-payment-view\\test-plan.md"
+    },
+    {
+        "Hash":  "C45DBAEA4278D9B0AEC9599D541FDE5B",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-payouts-view\\test-plan.md"
+    },
+    {
+        "Hash":  "F598B23C1D5E98E297B8AAC6F6DBA1E7",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-platform-admin-admins\\test-plan.md"
+    },
+    {
+        "Hash":  "323DF2749347E7B25D6561A3EA8338EC",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-platform-admin-users\\test-plan.md"
+    },
+    {
+        "Hash":  "11BB80AD292047AE7B65F482AAA97E64",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-promotions-view\\test-plan.md"
+    },
+    {
+        "Hash":  "E32F614A052DC94794BD9A17345A47A6",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-refunds-view\\test-plan.md"
+    },
+    {
+        "Hash":  "47CAFE255DFCC55DCEDC01429153DB85",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-role-view\\test-plan.md"
+    },
+    {
+        "Hash":  "8D12FE195366B9D26410023841F93780",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-rooms-view\\test-plan.md"
+    },
+    {
+        "Hash":  "924100871F405E98B979589B720CE4A0",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-sales-create\\test-plan.md"
+    },
+    {
+        "Hash":  "851B5D4153A03FB53F7D82117EA1E6B3",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-sales-detail\\test-plan.md"
+    },
+    {
+        "Hash":  "223476324C8B3DAD1C22653AABAC1099",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-sales-view\\test-plan.md"
+    },
+    {
+        "Hash":  "FAF8FA179456E6D5907525F2F15FAD1C",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-settings-google-calendar\\test-plan.md"
+    },
+    {
+        "Hash":  "6DED0EC23FC5A8F09A287DCAAEB9A328",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-settings-installment-plans\\test-plan.md"
+    },
+    {
+        "Hash":  "58A7771F74228CCB24A4EB43743EB596",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-settings-payment-view\\test-plan.md"
+    },
+    {
+        "Hash":  "4C15BCEB7862E8FAEDB441132BE1A6FF",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-settings-tax-rates\\test-plan.md"
+    },
+    {
+        "Hash":  "ACE00F462B6FDDC8AFC29DB32B9D9C1E",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-suppliers-view\\test-plan.md"
+    },
+    {
+        "Hash":  "924830A778C1031082748131427766CA",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-trainers-tiers\\test-plan.md"
+    },
+    {
+        "Hash":  "DADE69451A533763DBD8CF7F04E7FAD8",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-trainers-view\\test-plan.md"
+    },
+    {
+        "Hash":  "908F2F13B3EA3C5F441E69E7A2745799",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-transfer-orders-view\\test-plan.md"
+    },
+    {
+        "Hash":  "7BABB306C636AB0B8F70916C1458D114",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-dashboard-uom-conversions-view\\test-plan.md"
+    },
+    {
+        "Hash":  "1C9BB0BC06BFDBAAB8C152100603D14B",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-demo\\test-plan.md"
+    },
+    {
+        "Hash":  "CDFBFAC577FE1EE759F61CC6AC221BB8",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-features\\test-plan.md"
+    },
+    {
+        "Hash":  "BC5396898A3D7A62987A9A24D5EED207",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-home\\test-plan.md"
+    },
+    {
+        "Hash":  "F63B0E2345C9DB2C6984F4D7A09353BC",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-onboarding\\test-plan.md"
+    },
+    {
+        "Hash":  "50D328E265455EC4B958741BC239A885",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-subscribe\\test-plan.md"
+    },
+    {
+        "Hash":  "1C273D170087B457B7AF6FA1228F758F",
+        "Path":  "C:\\Project\\Avantej\\ztest\\web-verify-email\\test-plan.md"
+    }
+]

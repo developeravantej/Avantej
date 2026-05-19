@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design A Preview — Two-Column Modal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: {} } }</script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #737373 !important; }
+    input[type="radio"] { accent-color: #0a0a0a; }
+    input[type="checkbox"] { accent-color: #0a0a0a; }
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-weight: 700;
+      color: #737373;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 600;
+      color: #737373;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .field-input {
+      background: #f3f3f3;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #0a0a0a;
+      font-size: 13px;
+      width: 100%;
+    }
+    .field-input::placeholder { color: #a3a3a3; }
+    select.field-input option { background: #f3f3f3; }
+    .btn-primary {
+      background: #0a0a0a;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: #404040; }
+    .btn-secondary {
+      background: #f3f3f3;
+      border: 1px solid #e5e5e5;
+      color: #a3a3a3;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #f3f3f3; }
+    .btn-destructive {
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-destructive:hover { background: #fef2f2; }
+    .dialog-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .dialog-panel.active { pointer-events: all; }
+    .dialog-box {
+      position: relative;
+      z-index: 51;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .badge-active {
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .badge-inactive {
+      background: #f3f3f3;
+      color: #737373;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body style="background:#ffffff; font-family: system-ui, -apple-system, sans-serif;">
+
+  <!-- ===== TOP DEMO BAR ===== -->
+  <div style="position:fixed;top:0;left:0;right:0;z-index:100;background:#ffffff border-bottom:1px solid #e8e8e8;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <span style="color:#0a0a0a;font-size:14px;font-weight:600;">Design A</span>
+      <span style="color:#737373;font-size:13px;margin-left:10px;">— Two-Column Modal</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="openDialog('form-create')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">New Service</button>
+      <button onclick="openDialog('form-edit')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Edit Service</button>
+      <button onclick="openDialog('detail')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Service Detail</button>
+      <button onclick="openDialog('deactivate')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Deactivate Confirm</button>
+    </div>
+  </div>
+
+  <!-- ===== BACKGROUND SERVICES TABLE ===== -->
+  <div style="padding-top:64px;padding-left:32px;padding-right:32px;padding-bottom:32px;">
+    <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h1 style="color:#0a0a0a;font-size:22px;font-weight:700;margin:0;">Services</h1>
+        <p style="color:#737373;font-size:13px;margin:4px 0 0;">Manage your service catalogue</p>
+      </div>
+      <button style="background:#0a0a0a;color:#ffffff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">+ New Service</button>
+    </div>
+    <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:16px;overflow:hidden;">
+      <!-- Table header -->
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:10px 20px;border-bottom:1px solid #e5e5e5;">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Service</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Category</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Duration</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Price</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Status</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Actions</span>
+      </div>
+      <!-- Row 1 -->
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div>
+          <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Personal Training (60 min)</div>
+          <div style="color:#737373;font-size:12px;margin-top:2px;">10 sessions</div>
+        </div>
+        <span style="color:#a3a3a3;font-size:13px;">Personal Training</span>
+        <span style="color:#a3a3a3;font-size:13px;">60 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 350.00</span>
+        <span class="badge-active">Active</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openDialog('form-edit')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;">Edit</button>
+        </div>
+      </div>
+      <!-- Row 2 -->
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div>
+          <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Group Yoga Class</div>
+          <div style="color:#737373;font-size:12px;margin-top:2px;">8 sessions</div>
+        </div>
+        <span style="color:#a3a3a3;font-size:13px;">Group Classes</span>
+        <span style="color:#a3a3a3;font-size:13px;">45 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 180.00</span>
+        <span class="badge-active">Active</span>
+        <div style="display:flex;gap:6px;">
+          <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;">Edit</button>
+        </div>
+      </div>
+      <!-- Row 3 -->
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div>
+          <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Pilates Reformer (30 min)</div>
+          <div style="color:#737373;font-size:12px;margin-top:2px;">12 sessions</div>
+        </div>
+        <span style="color:#a3a3a3;font-size:13px;">Pilates</span>
+        <span style="color:#a3a3a3;font-size:13px;">30 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 240.00</span>
+        <span class="badge-inactive">Inactive</span>
+        <div style="display:flex;gap:6px;">
+          <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;">Edit</button>
+        </div>
+      </div>
+      <!-- Row 4 -->
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;align-items:center;">
+        <div>
+          <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Strength & Conditioning</div>
+          <div style="color:#737373;font-size:12px;margin-top:2px;">6 sessions</div>
+        </div>
+        <span style="color:#a3a3a3;font-size:13px;">Personal Training</span>
+        <span style="color:#a3a3a3;font-size:13px;">90 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 420.00</span>
+        <span class="badge-active">Active</span>
+        <div style="display:flex;gap:6px;">
+          <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;">Edit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OVERLAY ===== -->
+  <div id="overlay" onclick="closeAll()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:40;"></div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: NEW SERVICE (FORM CREATE) — Two-Column Modal  -->
+  <!-- ===================================================== -->
+  <div id="form-create" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:860px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
+      <!-- Header -->
+      <div style="padding:32px 32px 24px;border-bottom:1px solid #e5e5e5;display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <h2 style="color:#0a0a0a;font-size:18px;font-weight:700;margin:0;">New Service</h2>
+          <p style="color:#737373;font-size:13px;margin:4px 0 0;">Define a new service package for your members</p>
+        </div>
+        <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:20px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>
+      <!-- Body: two columns -->
+      <div style="display:grid;grid-template-columns:2fr 3fr;">
+        <!-- Left column: BASICS -->
+        <div style="padding:24px 32px;border-right:1px solid #e5e5e5;">
+          <span class="section-label">Basics</span>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Service Name</label>
+            <input class="field-input" type="text" placeholder="e.g. Personal Training (60 min)" />
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Category</label>
+            <select class="field-input">
+              <option value="">Select category…</option>
+              <option>Personal Training</option>
+              <option>Group Classes</option>
+              <option>Pilates</option>
+              <option>Yoga</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Session Duration</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="field-input" type="number" placeholder="60" style="width:80px;" />
+              <span style="color:#737373;font-size:13px;">minutes</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label class="field-label">Max Attendees</label>
+            <input class="field-input" type="number" placeholder="1" style="width:80px;" />
+          </div>
+
+          <div>
+            <span class="section-label" style="margin-bottom:10px;">Scheduling Type</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="radio" name="scheduling" value="fixed" checked />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Fixed Schedule</div>
+                  <div style="color:#737373;font-size:11px;">Trainer sets availability slots</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="radio" name="scheduling" value="flexible" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Flexible Booking</div>
+                  <div style="color:#737373;font-size:11px;">Member picks any open slot</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: PRICING + EXPIRY + PAYMENT PLANS -->
+        <div style="padding:24px 32px;">
+          <span class="section-label">Pricing</span>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label class="field-label">Price (RM)</label>
+              <input class="field-input" type="number" placeholder="350.00" />
+            </div>
+            <div>
+              <label class="field-label">Number of Sessions</label>
+              <input class="field-input" type="number" placeholder="10" />
+            </div>
+          </div>
+
+          <!-- Credit summary card -->
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Price per session</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">RM 35.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Total sessions</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">10</span>
+            </div>
+            <div style="height:1px;background:#e5e5e5;margin:10px 0;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#737373;font-size:12px;">Package total</span>
+              <span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span>
+            </div>
+          </div>
+
+          <!-- Expiry section -->
+          <div style="border-top:1px solid #e5e5e5;padding-top:20px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span class="section-label" style="margin-bottom:0;">Expiry</span>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="expiry-toggle-create" onchange="toggleExpiry('create')" />
+                <span style="color:#a3a3a3;font-size:12px;">Enable expiry</span>
+              </label>
+            </div>
+            <div id="expiry-fields-create" style="display:none;margin-bottom:0;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label class="field-label">Expiry Duration</label>
+                  <input class="field-input" type="number" placeholder="90" />
+                </div>
+                <div>
+                  <label class="field-label">Unit</label>
+                  <select class="field-input">
+                    <option>Days</option>
+                    <option>Weeks</option>
+                    <option>Months</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <p id="expiry-hint-create" style="color:#a3a3a3;font-size:12px;margin:0;">Sessions do not expire by default.</p>
+          </div>
+
+          <!-- Payment plans -->
+          <div style="border-top:1px solid #e5e5e5;padding-top:20px;">
+            <span class="section-label" style="margin-bottom:12px;">Payment Plans</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Full Payment</div>
+                  <div style="color:#737373;font-size:11px;">Pay once in full at purchase</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">2-Part Instalment</div>
+                  <div style="color:#737373;font-size:11px;">Split into 2 equal payments</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Monthly Billing</div>
+                  <div style="color:#737373;font-size:11px;">Recurring charge each month</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div style="padding:20px 32px;border-top:1px solid #e5e5e5;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn-secondary" onclick="closeAll()">Cancel</button>
+        <button class="btn-primary">Create Service</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: EDIT SERVICE (FORM EDIT) — Two-Column Modal   -->
+  <!-- ===================================================== -->
+  <div id="form-edit" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:860px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
+      <!-- Header -->
+      <div style="padding:32px 32px 24px;border-bottom:1px solid #e5e5e5;display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <h2 style="color:#0a0a0a;font-size:18px;font-weight:700;margin:0;">Edit Service</h2>
+          <p style="color:#737373;font-size:13px;margin:4px 0 0;">Personal Training (60 min)</p>
+        </div>
+        <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:20px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>
+      <!-- Body -->
+      <div style="display:grid;grid-template-columns:2fr 3fr;">
+        <!-- Left col -->
+        <div style="padding:24px 32px;border-right:1px solid #e5e5e5;">
+          <span class="section-label">Basics</span>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Service Name</label>
+            <input class="field-input" type="text" value="Personal Training (60 min)" />
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Category</label>
+            <select class="field-input">
+              <option selected>Personal Training</option>
+              <option>Group Classes</option>
+              <option>Pilates</option>
+              <option>Yoga</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Session Duration</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="field-input" type="number" value="60" style="width:80px;" />
+              <span style="color:#737373;font-size:13px;">minutes</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label class="field-label">Max Attendees</label>
+            <input class="field-input" type="number" value="1" style="width:80px;" />
+          </div>
+
+          <div>
+            <span class="section-label" style="margin-bottom:10px;">Scheduling Type</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="radio" name="scheduling-edit" value="fixed" checked />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Fixed Schedule</div>
+                  <div style="color:#737373;font-size:11px;">Trainer sets availability slots</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="radio" name="scheduling-edit" value="flexible" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Flexible Booking</div>
+                  <div style="color:#737373;font-size:11px;">Member picks any open slot</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right col -->
+        <div style="padding:24px 32px;">
+          <span class="section-label">Pricing</span>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label class="field-label">Price (RM)</label>
+              <input class="field-input" type="number" value="350.00" />
+            </div>
+            <div>
+              <label class="field-label">Number of Sessions</label>
+              <input class="field-input" type="number" value="10" />
+            </div>
+          </div>
+
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Price per session</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">RM 35.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Total sessions</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">10</span>
+            </div>
+            <div style="height:1px;background:#e5e5e5;margin:10px 0;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#737373;font-size:12px;">Package total</span>
+              <span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span>
+            </div>
+          </div>
+
+          <!-- Expiry (pre-enabled) -->
+          <div style="border-top:1px solid #e5e5e5;padding-top:20px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span class="section-label" style="margin-bottom:0;">Expiry</span>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" checked onchange="toggleExpiry('edit')" id="expiry-toggle-edit" />
+                <span style="color:#a3a3a3;font-size:12px;">Enable expiry</span>
+              </label>
+            </div>
+            <div id="expiry-fields-edit">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label class="field-label">Expiry Duration</label>
+                  <input class="field-input" type="number" value="90" />
+                </div>
+                <div>
+                  <label class="field-label">Unit</label>
+                  <select class="field-input">
+                    <option selected>Days</option>
+                    <option>Weeks</option>
+                    <option>Months</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <p id="expiry-hint-edit" style="color:#a3a3a3;font-size:12px;margin:0;display:none;">Sessions do not expire by default.</p>
+          </div>
+
+          <!-- Payment plans -->
+          <div style="border-top:1px solid #e5e5e5;padding-top:20px;">
+            <span class="section-label" style="margin-bottom:12px;">Payment Plans</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" checked />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Full Payment</div>
+                  <div style="color:#737373;font-size:11px;">Pay once in full at purchase</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">2-Part Instalment</div>
+                  <div style="color:#737373;font-size:11px;">Split into 2 equal payments</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="checkbox" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Monthly Billing</div>
+                  <div style="color:#737373;font-size:11px;">Recurring charge each month</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div style="padding:20px 32px;border-top:1px solid #e5e5e5;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn-secondary" onclick="closeAll()">Cancel</button>
+        <button class="btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: SERVICE DETAIL — Two-Column Modal              -->
+  <!-- ===================================================== -->
+  <div id="detail" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:860px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
+      <!-- Header -->
+      <div style="padding:28px 32px 22px;border-bottom:1px solid #e5e5e5;display:flex;align-items:flex-start;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="badge-active">Active</span>
+          <div>
+            <h2 style="color:#0a0a0a;font-size:18px;font-weight:700;margin:0;">Personal Training (60 min)</h2>
+            <p style="color:#737373;font-size:13px;margin:4px 0 0;">Personal Training · ID: svc_pt60_001</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="closeAll();setTimeout(()=>openDialog('form-edit'),50)" class="btn-secondary" style="padding:7px 14px;font-size:12px;">Edit</button>
+          <button onclick="closeAll();setTimeout(()=>openDialog('deactivate'),50)" class="btn-destructive" style="padding:7px 14px;font-size:12px;">Deactivate</button>
+          <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:20px;cursor:pointer;padding:0 0 0 8px;line-height:1;">✕</button>
+        </div>
+      </div>
+      <!-- Body -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;">
+        <!-- Left col -->
+        <div style="padding:24px 32px;border-right:1px solid #e5e5e5;">
+          <span class="section-label">Overview</span>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Service Name</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:500;text-align:right;max-width:200px;">Personal Training (60 min)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Category</span>
+              <span style="color:#0a0a0a;font-size:13px;">Personal Training</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Status</span>
+              <span class="badge-active">Active</span>
+            </div>
+          </div>
+
+          <span class="section-label">Scheduling</span>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Session Duration</span>
+              <span style="color:#0a0a0a;font-size:13px;">60 min</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Max Attendees</span>
+              <span style="color:#0a0a0a;font-size:13px;">1</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Scheduling Type</span>
+              <span style="color:#0a0a0a;font-size:13px;">Fixed Schedule</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:13px;">Expiry</span>
+              <span style="color:#0a0a0a;font-size:13px;">90 days</span>
+            </div>
+          </div>
+
+          <span class="section-label">Timestamps</span>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Created</span>
+              <span style="color:#a3a3a3;font-size:12px;">12 Jan 2025, 9:42 AM</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Last updated</span>
+              <span style="color:#a3a3a3;font-size:12px;">3 May 2025, 2:15 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right col -->
+        <div style="padding:24px 32px;">
+          <span class="section-label">Pricing &amp; Sessions</span>
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="color:#737373;font-size:13px;">Package price</span>
+              <span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="color:#737373;font-size:13px;">Sessions included</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">10 sessions</span>
+            </div>
+            <div style="height:1px;background:#e5e5e5;margin:12px 0;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Price per session</span>
+              <span style="color:#a3a3a3;font-size:12px;">RM 35.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#737373;font-size:12px;">Payment plans</span>
+              <span style="color:#a3a3a3;font-size:12px;">Full payment</span>
+            </div>
+          </div>
+
+          <span class="section-label">Trainers</span>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:13px;color:#0a0a0a;font-weight:600;flex-shrink:0;">AT</div>
+              <div>
+                <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Alice Tan</div>
+                <div style="color:#737373;font-size:11px;">Senior Trainer</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:13px;color:#0a0a0a;font-weight:600;flex-shrink:0;">BR</div>
+              <div>
+                <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Bob Rahman</div>
+                <div style="color:#737373;font-size:11px;">Trainer</div>
+              </div>
+            </div>
+            <button style="width:100%;background:transparent;border:1px dashed #e5e5e5;color:#737373;border-radius:10px;padding:9px;font-size:12px;cursor:pointer;margin-top:4px;">+ Assign Trainer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: DEACTIVATE CONFIRM — Small centered modal      -->
+  <!-- ===================================================== -->
+  <div id="deactivate" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);padding:32px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:52px;height:52px;background:#fef9c3;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;">⚠️</div>
+        <h3 style="color:#0a0a0a;font-size:17px;font-weight:700;margin:0 0 8px;">Deactivate Service?</h3>
+        <p style="color:#737373;font-size:13px;line-height:1.5;margin:0;">
+          <strong style="color:#a3a3a3;">Personal Training (60 min)</strong> will be hidden from new purchases. Existing active packages will not be affected.
+        </p>
+      </div>
+      <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:12px;padding:12px 14px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="color:#737373;font-size:12px;">Active packages</span>
+          <span style="color:#0a0a0a;font-size:12px;font-weight:600;">23 members</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#737373;font-size:12px;">Pending renewals</span>
+          <span style="color:#0a0a0a;font-size:12px;font-weight:600;">4</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-secondary" onclick="closeAll()" style="flex:1;">Cancel</button>
+        <button class="btn-destructive" onclick="closeAll()" style="flex:1;">Deactivate</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openDialog(id) {
+      document.querySelectorAll('.dialog-panel').forEach(el => el.style.display = 'none');
+      document.getElementById('overlay').style.display = 'block';
+      const panel = document.getElementById(id);
+      panel.style.display = 'flex';
+    }
+
+    function closeAll() {
+      document.querySelectorAll('.dialog-panel').forEach(el => el.style.display = 'none');
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    function toggleExpiry(mode) {
+      const checkbox = document.getElementById('expiry-toggle-' + mode);
+      const fields = document.getElementById('expiry-fields-' + mode);
+      const hint = document.getElementById('expiry-hint-' + mode);
+      if (checkbox.checked) {
+        fields.style.display = 'block';
+        hint.style.display = 'none';
+      } else {
+        fields.style.display = 'none';
+        hint.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

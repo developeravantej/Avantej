@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design B Preview — Step Wizard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: {} } }</script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #737373 !important; }
+    input[type="radio"] { accent-color: #0a0a0a; }
+    input[type="checkbox"] { accent-color: #0a0a0a; }
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-weight: 700;
+      color: #737373;
+      margin-bottom: 14px;
+      display: block;
+    }
+    .field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 600;
+      color: #737373;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .field-input {
+      background: #f3f3f3;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #0a0a0a;
+      font-size: 13px;
+      width: 100%;
+    }
+    .field-input::placeholder { color: #a3a3a3; }
+    select.field-input option { background: #f3f3f3; }
+    .btn-primary {
+      background: #0a0a0a;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: #404040; }
+    .btn-secondary {
+      background: #f3f3f3;
+      border: 1px solid #e5e5e5;
+      color: #a3a3a3;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #f3f3f3; }
+    .btn-destructive {
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-destructive:hover { background: #fef2f2; }
+    .btn-ghost {
+      background: transparent;
+      border: none;
+      color: #737373;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-ghost:hover { color: #a3a3a3; background: #e8e8e8; }
+    .dialog-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .dialog-panel.active { pointer-events: all; }
+    .dialog-box {
+      position: relative;
+      z-index: 51;
+    }
+    .badge-active {
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    .badge-inactive {
+      background: #f3f3f3;
+      color: #737373;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    /* Step indicator styles */
+    .step-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .step-circle.done {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+    .step-circle.active {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+    .step-circle.upcoming {
+      background: transparent;
+      border: 2px solid #333;
+      color: #333;
+    }
+    .step-line {
+      flex: 1;
+      height: 1px;
+      background: #e5e5e5;
+      margin: 0 8px;
+      position: relative;
+      top: -14px;
+    }
+    .step-line.done { background: #0a0a0a; }
+    /* Detail side nav */
+    .detail-nav-item {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #737373;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .detail-nav-item:hover { background: #e8e8e8; color: #a3a3a3; }
+    .detail-nav-item.active { background: #f3f3f3; color: #0a0a0a; font-weight: 500; }
+  </style>
+</head>
+<body style="background:#ffffff; font-family: system-ui, -apple-system, sans-serif;">
+
+  <!-- ===== TOP DEMO BAR ===== -->
+  <div style="position:fixed;top:0;left:0;right:0;z-index:100;background:#ffffff border-bottom:1px solid #e8e8e8;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <span style="color:#0a0a0a;font-size:14px;font-weight:600;">Design B</span>
+      <span style="color:#737373;font-size:13px;margin-left:10px;">— Step Wizard</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="openDialog('form-create')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">New Service</button>
+      <button onclick="openDialog('form-edit')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Edit Service</button>
+      <button onclick="openDialog('detail')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Service Detail</button>
+      <button onclick="openDialog('deactivate-standalone')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;">Deactivate Confirm</button>
+    </div>
+  </div>
+
+  <!-- ===== BACKGROUND SERVICES TABLE ===== -->
+  <div style="padding-top:64px;padding-left:32px;padding-right:32px;padding-bottom:32px;">
+    <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h1 style="color:#0a0a0a;font-size:22px;font-weight:700;margin:0;">Services</h1>
+        <p style="color:#737373;font-size:13px;margin:4px 0 0;">Manage your service catalogue</p>
+      </div>
+      <button style="background:#0a0a0a;color:#ffffff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">+ New Service</button>
+    </div>
+    <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:16px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:10px 20px;border-bottom:1px solid #e5e5e5;">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Service</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Category</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Duration</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Price</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Status</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#737373;font-weight:600;">Actions</span>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Personal Training (60 min)</div><div style="color:#737373;font-size:12px;margin-top:2px;">10 sessions</div></div>
+        <span style="color:#a3a3a3;font-size:13px;">Personal Training</span>
+        <span style="color:#a3a3a3;font-size:13px;">60 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 350.00</span>
+        <span class="badge-active">Active</span>
+        <button onclick="openDialog('form-edit')" style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;width:fit-content;">Edit</button>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Group Yoga Class</div><div style="color:#737373;font-size:12px;margin-top:2px;">8 sessions</div></div>
+        <span style="color:#a3a3a3;font-size:13px;">Group Classes</span>
+        <span style="color:#a3a3a3;font-size:13px;">45 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 180.00</span>
+        <span class="badge-active">Active</span>
+        <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;width:fit-content;">Edit</button>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;border-bottom:1px solid #f3f3f3;align-items:center;">
+        <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Pilates Reformer (30 min)</div><div style="color:#737373;font-size:12px;margin-top:2px;">12 sessions</div></div>
+        <span style="color:#a3a3a3;font-size:13px;">Pilates</span>
+        <span style="color:#a3a3a3;font-size:13px;">30 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 240.00</span>
+        <span class="badge-inactive">Inactive</span>
+        <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;width:fit-content;">Edit</button>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 100px 100px 80px 100px;padding:14px 20px;align-items:center;">
+        <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Strength &amp; Conditioning</div><div style="color:#737373;font-size:12px;margin-top:2px;">6 sessions</div></div>
+        <span style="color:#a3a3a3;font-size:13px;">Personal Training</span>
+        <span style="color:#a3a3a3;font-size:13px;">90 min</span>
+        <span style="color:#0a0a0a;font-size:13px;font-weight:500;">RM 420.00</span>
+        <span class="badge-active">Active</span>
+        <button style="background:#f3f3f3;border:1px solid #e5e5e5;color:#a3a3a3;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;width:fit-content;">Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OVERLAY ===== -->
+  <div id="overlay" onclick="closeAll()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:40;"></div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: NEW SERVICE — Step Wizard                      -->
+  <!-- ===================================================== -->
+  <div id="form-create" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:580px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);display:flex;flex-direction:column;max-height:90vh;">
+
+      <!-- Header: title + close -->
+      <div style="padding:28px 32px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <h2 style="color:#0a0a0a;font-size:17px;font-weight:700;margin:0;" id="create-step-title">Step 1 of 3 — Basics</h2>
+          <p style="color:#737373;font-size:12px;margin:3px 0 0;">Create a new service package</p>
+        </div>
+        <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:20px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>
+
+      <!-- Step indicator -->
+      <div style="padding:20px 32px 0;flex-shrink:0;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:4px;">
+          <!-- Step 1 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle active" id="c-circle-1">1</div>
+            <span style="font-size:11px;font-weight:600;color:#0a0a0a;margin-top:6px;text-align:center;" id="c-label-1">Basics</span>
+          </div>
+          <div class="step-line" id="c-line-1" style="margin-top:14px;"></div>
+          <!-- Step 2 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle upcoming" id="c-circle-2">2</div>
+            <span style="font-size:11px;font-weight:400;color:#333;margin-top:6px;text-align:center;" id="c-label-2">Pricing</span>
+          </div>
+          <div class="step-line" id="c-line-2" style="margin-top:14px;"></div>
+          <!-- Step 3 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle upcoming" id="c-circle-3">3</div>
+            <span style="font-size:11px;font-weight:400;color:#333;margin-top:6px;text-align:center;" id="c-label-3">Plans &amp; Review</span>
+          </div>
+        </div>
+        <div style="height:1px;background:#e5e5e5;margin-top:16px;"></div>
+      </div>
+
+      <!-- Scrollable step content -->
+      <div style="flex:1;overflow-y:auto;padding:24px 32px;">
+
+        <!-- Step 1: Basics -->
+        <div class="step-content" id="c-step-1">
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Service Name</label>
+            <input class="field-input" type="text" placeholder="e.g. Personal Training (60 min)" />
+          </div>
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Category</label>
+            <select class="field-input">
+              <option value="">Select category…</option>
+              <option>Personal Training</option>
+              <option>Group Classes</option>
+              <option>Pilates</option>
+              <option>Yoga</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label class="field-label">Session Duration</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="field-input" type="number" placeholder="60" />
+                <span style="color:#737373;font-size:12px;white-space:nowrap;">min</span>
+              </div>
+            </div>
+            <div>
+              <label class="field-label">Max Attendees</label>
+              <input class="field-input" type="number" placeholder="1" />
+            </div>
+          </div>
+          <div>
+            <span class="section-label">Scheduling Type</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="radio" name="c-scheduling" value="fixed" checked />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Fixed Schedule</div>
+                  <div style="color:#737373;font-size:11px;">Trainer sets availability slots</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="radio" name="c-scheduling" value="flexible" />
+                <div>
+                  <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Flexible Booking</div>
+                  <div style="color:#737373;font-size:11px;">Member picks any open slot</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Pricing & Expiry -->
+        <div class="step-content" id="c-step-2" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label class="field-label">Price (RM)</label>
+              <input class="field-input" type="number" placeholder="350.00" />
+            </div>
+            <div>
+              <label class="field-label">Number of Sessions</label>
+              <input class="field-input" type="number" placeholder="10" />
+            </div>
+          </div>
+          <!-- Credit summary -->
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="color:#737373;font-size:12px;">Price per session</span>
+              <span style="color:#0a0a0a;font-size:13px;font-weight:600;">RM 35.00</span>
+            </div>
+            <div style="height:1px;background:#e5e5e5;margin:8px 0;"></div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Package total</span>
+              <span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span>
+            </div>
+          </div>
+          <!-- Taxable toggle -->
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;cursor:pointer;margin-bottom:10px;">
+            <input type="checkbox" />
+            <div>
+              <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Taxable</div>
+              <div style="color:#737373;font-size:11px;">Apply applicable tax rate at checkout</div>
+            </div>
+          </label>
+          <!-- Expirable toggle -->
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;cursor:pointer;">
+            <input type="checkbox" id="c-expiry-toggle" onchange="toggleCExpiry()" />
+            <div>
+              <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Sessions expire</div>
+              <div style="color:#737373;font-size:11px;">Set a time limit for using sessions</div>
+            </div>
+          </label>
+          <div id="c-expiry-fields" style="display:none;margin-top:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label class="field-label">Expiry Duration</label>
+                <input class="field-input" type="number" placeholder="90" />
+              </div>
+              <div>
+                <label class="field-label">Unit</label>
+                <select class="field-input">
+                  <option>Days</option>
+                  <option>Weeks</option>
+                  <option>Months</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Plans & Review -->
+        <div class="step-content" id="c-step-3" style="display:none;">
+          <span class="section-label">Payment Plans</span>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+              <input type="checkbox" checked />
+              <div>
+                <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Full Payment</div>
+                <div style="color:#737373;font-size:11px;">Pay once in full at purchase</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+              <input type="checkbox" />
+              <div>
+                <div style="color:#0a0a0a;font-size:13px;font-weight:500;">2-Part Instalment</div>
+                <div style="color:#737373;font-size:11px;">Split into 2 equal payments</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+              <input type="checkbox" />
+              <div>
+                <div style="color:#0a0a0a;font-size:13px;font-weight:500;">Monthly Billing</div>
+                <div style="color:#737373;font-size:11px;">Recurring charge each month</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Review summary -->
+          <span class="section-label">Review Summary</span>
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Service Name</span>
+              <span style="color:#0a0a0a;font-size:12px;font-weight:500;">Personal Training (60 min)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Category</span>
+              <span style="color:#0a0a0a;font-size:12px;">Personal Training</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Duration</span>
+              <span style="color:#0a0a0a;font-size:12px;">60 min</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Max Attendees</span>
+              <span style="color:#0a0a0a;font-size:12px;">1</span>
+            </div>
+            <div style="height:1px;background:#e5e5e5;"></div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Price</span>
+              <span style="color:#0a0a0a;font-size:12px;font-weight:600;">RM 350.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Sessions</span>
+              <span style="color:#0a0a0a;font-size:12px;">10</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Expiry</span>
+              <span style="color:#0a0a0a;font-size:12px;">None</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:#737373;font-size:12px;">Scheduling</span>
+              <span style="color:#0a0a0a;font-size:12px;">Fixed Schedule</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:16px 32px 24px;border-top:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <span style="color:#737373;font-size:12px;" id="c-step-counter">Step 1 of 3</span>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-ghost" id="c-back-btn" onclick="createGoStep(createCurrentStep - 1)" style="display:none;">Back</button>
+          <button class="btn-secondary" onclick="closeAll()">Cancel</button>
+          <button class="btn-primary" id="c-next-btn" onclick="createGoStep(createCurrentStep + 1)">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: EDIT SERVICE — Step Wizard (pre-filled)        -->
+  <!-- ===================================================== -->
+  <div id="form-edit" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:580px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);display:flex;flex-direction:column;max-height:90vh;">
+
+      <div style="padding:28px 32px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <h2 style="color:#0a0a0a;font-size:17px;font-weight:700;margin:0;" id="edit-step-title">Step 1 of 3 — Basics</h2>
+          <p style="color:#737373;font-size:12px;margin:3px 0 0;">Personal Training (60 min)</p>
+        </div>
+        <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:20px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>
+
+      <!-- Step indicator -->
+      <div style="padding:20px 32px 0;flex-shrink:0;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:4px;">
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle active" id="e-circle-1">1</div>
+            <span style="font-size:11px;font-weight:600;color:#0a0a0a;margin-top:6px;" id="e-label-1">Basics</span>
+          </div>
+          <div class="step-line" id="e-line-1" style="margin-top:14px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle upcoming" id="e-circle-2">2</div>
+            <span style="font-size:11px;font-weight:400;color:#333;margin-top:6px;" id="e-label-2">Pricing</span>
+          </div>
+          <div class="step-line" id="e-line-2" style="margin-top:14px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div class="step-circle upcoming" id="e-circle-3">3</div>
+            <span style="font-size:11px;font-weight:400;color:#333;margin-top:6px;" id="e-label-3">Plans &amp; Review</span>
+          </div>
+        </div>
+        <div style="height:1px;background:#e5e5e5;margin-top:16px;"></div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:24px 32px;">
+        <!-- Step 1 -->
+        <div class="step-content" id="e-step-1">
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Service Name</label>
+            <input class="field-input" type="text" value="Personal Training (60 min)" />
+          </div>
+          <div style="margin-bottom:16px;">
+            <label class="field-label">Category</label>
+            <select class="field-input"><option selected>Personal Training</option><option>Group Classes</option><option>Pilates</option></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label class="field-label">Session Duration</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="field-input" type="number" value="60" />
+                <span style="color:#737373;font-size:12px;white-space:nowrap;">min</span>
+              </div>
+            </div>
+            <div>
+              <label class="field-label">Max Attendees</label>
+              <input class="field-input" type="number" value="1" />
+            </div>
+          </div>
+          <div>
+            <span class="section-label">Scheduling Type</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="radio" name="e-scheduling" checked />
+                <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Fixed Schedule</div><div style="color:#737373;font-size:11px;">Trainer sets availability slots</div></div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <input type="radio" name="e-scheduling" />
+                <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Flexible Booking</div><div style="color:#737373;font-size:11px;">Member picks any open slot</div></div>
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- Step 2 -->
+        <div class="step-content" id="e-step-2" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div><label class="field-label">Price (RM)</label><input class="field-input" type="number" value="350.00" /></div>
+            <div><label class="field-label">Number of Sessions</label><input class="field-input" type="number" value="10" /></div>
+          </div>
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#737373;font-size:12px;">Price per session</span><span style="color:#0a0a0a;font-size:13px;font-weight:600;">RM 35.00</span></div>
+            <div style="height:1px;background:#e5e5e5;margin:8px 0;"></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Package total</span><span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span></div>
+          </div>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;cursor:pointer;margin-bottom:10px;">
+            <input type="checkbox" checked />
+            <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Taxable</div><div style="color:#737373;font-size:11px;">Apply applicable tax rate at checkout</div></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;cursor:pointer;">
+            <input type="checkbox" checked />
+            <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Sessions expire</div><div style="color:#737373;font-size:11px;">90 days after purchase</div></div>
+          </label>
+        </div>
+        <!-- Step 3 -->
+        <div class="step-content" id="e-step-3" style="display:none;">
+          <span class="section-label">Payment Plans</span>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;"><input type="checkbox" checked /><div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Full Payment</div><div style="color:#737373;font-size:11px;">Pay once in full</div></div></label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;"><input type="checkbox" /><div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">2-Part Instalment</div><div style="color:#737373;font-size:11px;">Split into 2 equal payments</div></div></label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;"><input type="checkbox" /><div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Monthly Billing</div><div style="color:#737373;font-size:11px;">Recurring charge each month</div></div></label>
+          </div>
+          <span class="section-label">Review Summary</span>
+          <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Service Name</span><span style="color:#0a0a0a;font-size:12px;font-weight:500;">Personal Training (60 min)</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Category</span><span style="color:#0a0a0a;font-size:12px;">Personal Training</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Duration</span><span style="color:#0a0a0a;font-size:12px;">60 min</span></div>
+            <div style="height:1px;background:#e5e5e5;"></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Price</span><span style="color:#0a0a0a;font-size:12px;font-weight:600;">RM 350.00 · 10 sessions</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Expiry</span><span style="color:#0a0a0a;font-size:12px;">90 days</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:16px 32px 24px;border-top:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <span style="color:#737373;font-size:12px;" id="e-step-counter">Step 1 of 3</span>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-ghost" id="e-back-btn" onclick="editGoStep(editCurrentStep - 1)" style="display:none;">Back</button>
+          <button class="btn-secondary" onclick="closeAll()">Cancel</button>
+          <button class="btn-primary" id="e-next-btn" onclick="editGoStep(editCurrentStep + 1)">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: SERVICE DETAIL — Left nav + right content      -->
+  <!-- ===================================================== -->
+  <div id="detail" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:680px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);max-height:90vh;display:flex;flex-direction:column;">
+      <!-- Header -->
+      <div style="padding:24px 24px 20px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="badge-active">Active</span>
+          <h2 style="color:#0a0a0a;font-size:16px;font-weight:700;margin:0;">Personal Training (60 min)</h2>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="closeAll();setTimeout(()=>openDialog('form-edit'),50)" class="btn-secondary" style="padding:6px 12px;font-size:12px;">Edit</button>
+          <button onclick="showDetailSection('deactivate-confirm')" class="btn-destructive" style="padding:6px 12px;font-size:12px;">Deactivate</button>
+          <button onclick="closeAll()" style="background:none;border:none;color:#737373;font-size:18px;cursor:pointer;padding:0 0 0 6px;">✕</button>
+        </div>
+      </div>
+      <!-- Body: left nav + right content -->
+      <div style="display:flex;flex:1;overflow:hidden;">
+        <!-- Left nav -->
+        <div style="width:160px;padding:16px 12px;border-right:1px solid #e5e5e5;display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+          <div class="detail-nav-item active" id="detail-nav-overview" onclick="showDetailSection('overview')">Overview</div>
+          <div class="detail-nav-item" id="detail-nav-pricing" onclick="showDetailSection('pricing')">Pricing</div>
+          <div class="detail-nav-item" id="detail-nav-trainers" onclick="showDetailSection('trainers')">Trainers</div>
+        </div>
+        <!-- Right content -->
+        <div style="flex:1;overflow-y:auto;padding:20px 24px;position:relative;">
+
+          <!-- Overview section -->
+          <div id="detail-section-overview">
+            <span class="section-label">Overview</span>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Service Name</span><span style="color:#0a0a0a;font-size:13px;font-weight:500;">Personal Training (60 min)</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Category</span><span style="color:#0a0a0a;font-size:13px;">Personal Training</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Status</span><span class="badge-active">Active</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Scheduling</span><span style="color:#0a0a0a;font-size:13px;">Fixed Schedule</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Duration</span><span style="color:#0a0a0a;font-size:13px;">60 min</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#737373;font-size:13px;">Max Attendees</span><span style="color:#0a0a0a;font-size:13px;">1</span></div>
+            </div>
+            <span class="section-label">Timestamps</span>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Created</span><span style="color:#a3a3a3;font-size:12px;">12 Jan 2025</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Last updated</span><span style="color:#a3a3a3;font-size:12px;">3 May 2025</span></div>
+            </div>
+          </div>
+
+          <!-- Pricing section -->
+          <div id="detail-section-pricing" style="display:none;">
+            <span class="section-label">Pricing &amp; Sessions</span>
+            <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:14px;padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:13px;">Package price</span><span style="color:#0a0a0a;font-size:15px;font-weight:700;">RM 350.00</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:13px;">Sessions included</span><span style="color:#0a0a0a;font-size:13px;font-weight:600;">10 sessions</span></div>
+              <div style="height:1px;background:#e5e5e5;"></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Price per session</span><span style="color:#a3a3a3;font-size:12px;">RM 35.00</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Expiry</span><span style="color:#a3a3a3;font-size:12px;">90 days</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Taxable</span><span style="color:#a3a3a3;font-size:12px;">Yes</span></div>
+            </div>
+            <span class="section-label">Payment Plans</span>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;color:#0a0a0a;font-size:13px;font-weight:500;">Full Payment <span style="color:#737373;font-weight:400;font-size:12px;">— enabled</span></div>
+              <div style="padding:10px 12px;background:#f3f3f3;border:1px solid #e8e8e8;border-radius:10px;color:#737373;font-size:13px;">2-Part Instalment <span style="font-size:12px;">— disabled</span></div>
+              <div style="padding:10px 12px;background:#f3f3f3;border:1px solid #e8e8e8;border-radius:10px;color:#737373;font-size:13px;">Monthly Billing <span style="font-size:12px;">— disabled</span></div>
+            </div>
+          </div>
+
+          <!-- Trainers section -->
+          <div id="detail-section-trainers" style="display:none;">
+            <span class="section-label">Assigned Trainers</span>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0a0a0a;font-weight:600;">AT</div>
+                  <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Alice Tan</div><div style="color:#737373;font-size:11px;">Senior Trainer</div></div>
+                </div>
+                <button style="background:none;border:none;color:#737373;font-size:14px;cursor:pointer;padding:4px;">✕</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f3f3f3;border:1px solid #e5e5e5;border-radius:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0a0a0a;font-weight:600;">BR</div>
+                  <div><div style="color:#0a0a0a;font-size:13px;font-weight:500;">Bob Rahman</div><div style="color:#737373;font-size:11px;">Trainer</div></div>
+                </div>
+                <button style="background:none;border:none;color:#737373;font-size:14px;cursor:pointer;padding:4px;">✕</button>
+              </div>
+            </div>
+            <button style="width:100%;background:transparent;border:1px dashed #e5e5e5;color:#737373;border-radius:10px;padding:10px;font-size:12px;cursor:pointer;">+ Assign Trainer</button>
+          </div>
+
+          <!-- Deactivate confirm panel (inline) -->
+          <div id="detail-section-deactivate-confirm" style="display:none;">
+            <div style="text-align:center;padding:24px 0 20px;">
+              <div style="width:48px;height:48px;background:#fef9c3;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px;">⚠️</div>
+              <h3 style="color:#0a0a0a;font-size:16px;font-weight:700;margin:0 0 8px;">Deactivate Service?</h3>
+              <p style="color:#737373;font-size:13px;line-height:1.5;margin:0 0 20px;"><strong style="color:#a3a3a3;">Personal Training (60 min)</strong> will be hidden from new purchases. Existing packages remain active.</p>
+            </div>
+            <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:12px;padding:12px 14px;margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#737373;font-size:12px;">Active packages</span><span style="color:#0a0a0a;font-size:12px;font-weight:600;">23 members</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Pending renewals</span><span style="color:#0a0a0a;font-size:12px;font-weight:600;">4</span></div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn-secondary" onclick="showDetailSection('overview')" style="flex:1;">Go Back</button>
+              <button class="btn-destructive" onclick="closeAll()" style="flex:1;">Deactivate</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- DIALOG: DEACTIVATE STANDALONE                          -->
+  <!-- ===================================================== -->
+  <div id="deactivate-standalone" class="dialog-panel" style="display:none;">
+    <div class="dialog-box" style="background:#f3f3f3;border-radius:20px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 24px 64px rgba(0,0,0,0.8);padding:32px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:52px;height:52px;background:#fef9c3;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;">⚠️</div>
+        <h3 style="color:#0a0a0a;font-size:17px;font-weight:700;margin:0 0 8px;">Deactivate Service?</h3>
+        <p style="color:#737373;font-size:13px;line-height:1.5;margin:0;"><strong style="color:#a3a3a3;">Personal Training (60 min)</strong> will be hidden from new purchases. Existing active packages will not be affected.</p>
+      </div>
+      <div style="background:#f3f3f3;border:1px solid #e5e5e5;border-radius:12px;padding:12px 14px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#737373;font-size:12px;">Active packages</span><span style="color:#0a0a0a;font-size:12px;font-weight:600;">23 members</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:#737373;font-size:12px;">Pending renewals</span><span style="color:#0a0a0a;font-size:12px;font-weight:600;">4</span></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-secondary" onclick="closeAll()" style="flex:1;">Cancel</button>
+        <button class="btn-destructive" onclick="closeAll()" style="flex:1;">Deactivate</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Dialog open/close =====
+    function openDialog(id) {
+      document.querySelectorAll('.dialog-panel').forEach(el => el.style.display = 'none');
+      document.getElementById('overlay').style.display = 'block';
+      document.getElementById(id).style.display = 'flex';
+    }
+    function closeAll() {
+      document.querySelectorAll('.dialog-panel').forEach(el => el.style.display = 'none');
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    // ===== Create wizard =====
+    let createCurrentStep = 1;
+    const createStepTitles = ['', 'Basics', 'Pricing & Expiry', 'Plans & Review'];
+
+    function createGoStep(n) {
+      if (n < 1 || n > 3) return;
+      document.querySelectorAll('#form-create .step-content').forEach((el, i) => {
+        el.style.display = (i + 1 === n) ? 'block' : 'none';
+      });
+      createCurrentStep = n;
+      updateCreateStepUI();
+    }
+
+    function updateCreateStepUI() {
+      const n = createCurrentStep;
+      document.getElementById('create-step-title').textContent = `Step ${n} of 3 — ${createStepTitles[n]}`;
+      document.getElementById('c-step-counter').textContent = `Step ${n} of 3`;
+      document.getElementById('c-back-btn').style.display = n > 1 ? 'block' : 'none';
+      const nextBtn = document.getElementById('c-next-btn');
+      nextBtn.textContent = n === 3 ? 'Create Service' : 'Next';
+
+      // Update circles
+      for (let i = 1; i <= 3; i++) {
+        const circle = document.getElementById('c-circle-' + i);
+        const label = document.getElementById('c-label-' + i);
+        if (i < n) {
+          circle.className = 'step-circle done';
+          circle.textContent = '✓';
+          label.style.color = '#0a0a0a'; label.style.fontWeight = '500';
+        } else if (i === n) {
+          circle.className = 'step-circle active';
+          circle.textContent = i;
+          label.style.color = '#0a0a0a'; label.style.fontWeight = '600';
+        } else {
+          circle.className = 'step-circle upcoming';
+          circle.textContent = i;
+          label.style.color = '#333'; label.style.fontWeight = '400';
+        }
+      }
+      // Update lines
+      for (let i = 1; i <= 2; i++) {
+        const line = document.getElementById('c-line-' + i);
+        line.style.background = i < n ? '#0a0a0a' : '#e5e5e5';
+      }
+
+      if (n === 3) {
+        nextBtn.onclick = closeAll;
+      } else {
+        nextBtn.onclick = function() { createGoStep(createCurrentStep + 1); };
+      }
+    }
+
+    function toggleCExpiry() {
+      const chk = document.getElementById('c-expiry-toggle');
+      document.getElementById('c-expiry-fields').style.display = chk.checked ? 'block' : 'none';
+    }
+
+    // ===== Edit wizard =====
+    let editCurrentStep = 1;
+    const editStepTitles = ['', 'Basics', 'Pricing & Expiry', 'Plans & Review'];
+
+    function editGoStep(n) {
+      if (n < 1 || n > 3) return;
+      document.querySelectorAll('#form-edit .step-content').forEach((el, i) => {
+        el.style.display = (i + 1 === n) ? 'block' : 'none';
+      });
+      editCurrentStep = n;
+      updateEditStepUI();
+    }
+
+    function updateEditStepUI() {
+      const n = editCurrentStep;
+      document.getElementById('edit-step-title').textContent = `Step ${n} of 3 — ${editStepTitles[n]}`;
+      document.getElementById('e-step-counter').textContent = `Step ${n} of 3`;
+      document.getElementById('e-back-btn').style.display = n > 1 ? 'block' : 'none';
+      const nextBtn = document.getElementById('e-next-btn');
+      nextBtn.textContent = n === 3 ? 'Save Changes' : 'Next';
+
+      for (let i = 1; i <= 3; i++) {
+        const circle = document.getElementById('e-circle-' + i);
+        const label = document.getElementById('e-label-' + i);
+        if (i < n) {
+          circle.className = 'step-circle done'; circle.textContent = '✓';
+          label.style.color = '#0a0a0a'; label.style.fontWeight = '500';
+        } else if (i === n) {
+          circle.className = 'step-circle active'; circle.textContent = i;
+          label.style.color = '#0a0a0a'; label.style.fontWeight = '600';
+        } else {
+          circle.className = 'step-circle upcoming'; circle.textContent = i;
+          label.style.color = '#333'; label.style.fontWeight = '400';
+        }
+      }
+      for (let i = 1; i <= 2; i++) {
+        document.getElementById('e-line-' + i).style.background = i < n ? '#0a0a0a' : '#e5e5e5';
+      }
+
+      if (n === 3) {
+        nextBtn.onclick = closeAll;
+      } else {
+        nextBtn.onclick = function() { editGoStep(editCurrentStep + 1); };
+      }
+    }
+
+    // ===== Detail section nav =====
+    function showDetailSection(section) {
+      const sections = ['overview', 'pricing', 'trainers', 'deactivate-confirm'];
+      const navItems = ['overview', 'pricing', 'trainers'];
+      sections.forEach(s => {
+        document.getElementById('detail-section-' + s).style.display = 'none';
+      });
+      navItems.forEach(s => {
+        const el = document.getElementById('detail-nav-' + s);
+        if (el) el.classList.remove('active');
+      });
+      document.getElementById('detail-section-' + section).style.display = 'block';
+      const navEl = document.getElementById('detail-nav-' + section);
+      if (navEl) navEl.classList.add('active');
+    }
+
+    // Reset state when closing
+    const origCloseAll = closeAll;
+    window.closeAll = function() {
+      origCloseAll();
+      // Reset create wizard
+      createCurrentStep = 1;
+      document.querySelectorAll('#form-create .step-content').forEach((el, i) => {
+        el.style.display = i === 0 ? 'block' : 'none';
+      });
+      updateCreateStepUI();
+      // Reset edit wizard
+      editCurrentStep = 1;
+      document.querySelectorAll('#form-edit .step-content').forEach((el, i) => {
+        el.style.display = i === 0 ? 'block' : 'none';
+      });
+      updateEditStepUI();
+    };
+
+    // Init
+    updateCreateStepUI();
+    updateEditStepUI();
+  </script>
+</body>
+</html>

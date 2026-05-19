@@ -1,0 +1,121 @@
+project_name: Avantej
+framework: vite-react
+router: tanstack-router
+auth_provider: better-auth
+api_style: orpc
+realtime_sync: none
+
+base_url: http://localhost:3001
+dev_command: bun dev
+dev_server_timeout_ms: 180000
+
+source_root: apps/web/src
+route_tree_path: apps/web/src/routeTree.gen.ts
+api_routers_path: packages/api/src/routers
+test_dir: ./e2e
+auth_state_dir: e2e/.auth
+
+# Permission gating context (informational; tests assert behaviour, not perms directly)
+# - Tenant admin "franchisee@gmail.com" has full perms in test tenant (Test Fitness Franchise)
+# - Tenant trainer/staff role would need a separate seeded user; not configured yet
+# - Control panel admin "developer.avantej@gmail.com" is for super-admin surfaces, NOT tenant flows
+
+test_actors:
+  - id: tenant_admin
+    role: admin
+    email: franchisee@gmail.com
+    password: password123
+    auth_state: tenant-admin.json
+    notes: Admin of "Test Fitness Franchise" tenant; has all dashboard perms
+  - id: control_panel_admin
+    role: super_admin
+    email: developer.avantej@gmail.com
+    password: password1234
+    auth_state: cp-admin.json
+    notes: Control-panel super admin; only used for /platform-admin surfaces
+
+test_areas:
+  - id: branch-onboarding
+    name: Branch QR Customer Onboarding (Phase 0)
+    priority: P0
+    routes:
+      - /dashboard/branch/$id
+      - /onboarding/$token
+    notes: Admin generates QR; customer self-registers via /onboarding/<token>?org=<orgId>
+  - id: commission-rule
+    name: Commission Rule (Phase 1)
+    priority: P0
+    routes:
+      - /dashboard/appointment/view
+      - /dashboard/commissions/view
+      - /dashboard/commissions/my
+    notes: Cancelled appointment → commission earns; POS service-line → defers
+  - id: payouts
+    name: Payouts UI (Phase 2)
+    priority: P1
+    routes:
+      - /dashboard/payouts/view
+    notes: KPI strip + run-batch drawer
+  - id: native-installments
+    name: Native Installment Picker (Phase 3)
+    priority: P2
+    routes: []
+    notes: Native-only — covered by manual smoke; out of web e2e scope
+  - id: trainer-assigned-packages
+    name: Trainer Assigned Packages Tab (Phase 4)
+    priority: P1
+    routes:
+      - /dashboard/my-services/view
+    notes: Tab list + listPending scope expansion
+  - id: package-lifecycle
+    name: Package-Instance Lifecycle (Phase 5)
+    priority: P0
+    routes:
+      - /dashboard/packages/instances/view
+      - /dashboard/memberships/view
+    notes: cancel / freeze / unfreeze / extend mutations
+  - id: sales-cancellation
+    name: Sales KPI + Cancellation (Phase 6)
+    priority: P1
+    routes:
+      - /dashboard/sales/view
+      - /dashboard/sales/$id
+      - /dashboard/cancelled-sales/view
+    notes: Status KPI fix, cancelled-sales list, Cancel Sale button, receipt fallback
+  - id: pos-checkout
+    name: POS Sale Creation (regression suite)
+    priority: P0
+    routes:
+      - /dashboard/sales/create
+      - /dashboard/sales/$id
+    notes: Validates Phase 7 hygiene fixes (POS schedule consolidation, salesOrderId populated, member.role=client gate)
+
+snippets:
+  auth_flow: .playwright/snippets/auth-flow.ts
+  nav_pattern: .playwright/snippets/nav-pattern.ts
+
+priority_tiers:
+  P0:
+    name: Smoke + critical-path regression
+    run_when: every PR + every push to main
+    examples: branch-onboarding, commission-rule, package-lifecycle, pos-checkout
+  P1:
+    name: Core admin workflows
+    run_when: every PR
+    examples: payouts, sales-cancellation, trainer-assigned-packages
+  P2:
+    name: Extended / cross-platform
+    run_when: nightly
+    examples: native-installments
+  P3:
+    name: Edge cases / perf
+    run_when: weekly
+    examples: race conditions, concurrent runBatch
+
+notes: |
+  This project already has 9 spec files in e2e/ predating this skill setup
+  (auth.setup, smoke, fixes-verification, batch1-5.dashboard, branch-onboarding).
+  The skill should ADD coverage for the Phase 1-7 work shipped 2026-05-12,
+  not rewrite existing tests. Existing dashboard "batch" tests are smoke-level
+  visit-and-assert-no-error checks; they are NOT a substitute for journey-level
+  testing of the new mutations.
