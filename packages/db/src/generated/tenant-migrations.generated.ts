@@ -3516,8 +3516,9 @@ CREATE INDEX IF NOT EXISTS "package_instances_sales_order_id_idx" ON "package_in
 CREATE INDEX IF NOT EXISTS "package_instances_assigned_trainer_status_idx"
   ON "package_instances" ("assigned_trainer_id", "status");
 ` },
-	{ hash: "0052_add_members_deleted_at", sql: `ALTER TABLE "members" ADD COLUMN "deleted_at" timestamp;--> statement-breakpoint
-CREATE INDEX "members_deleted_at_idx" ON "members" USING btree ("deleted_at");` },
+	{ hash: "0052_add_members_deleted_at", sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" USING btree ("deleted_at");
+` },
 	{ hash: "0052_relax_commission_split_constraint", sql: `-- migration: 0052_relax_commission_split_constraint
 -- description: Relax commission_splits_source_check to allow manual adjustments
 --   that don't target an appointment/sales-order/package-instance.
