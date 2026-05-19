@@ -22,6 +22,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedGoHighlevelIntegrationRouteImport } from './routes/_authenticated/go-highlevel-integration'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as authSignupRouteImport } from './routes/(auth)/signup'
+import { Route as authSignInLinkRouteImport } from './routes/(auth)/sign-in-link'
 import { Route as authSetupPasswordRouteImport } from './routes/(auth)/setup-password'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticated/user/view'
@@ -168,6 +169,11 @@ const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
 const authSignupRoute = authSignupRouteImport.update({
   id: '/(auth)/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authSignInLinkRoute = authSignInLinkRouteImport.update({
+  id: '/(auth)/sign-in-link',
+  path: '/sign-in-link',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authSetupPasswordRoute = authSetupPasswordRouteImport.update({
@@ -687,6 +693,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
   '/setup-password': typeof authSetupPasswordRoute
+  '/sign-in-link': typeof authSignInLinkRoute
   '/signup': typeof authSignupRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
@@ -783,6 +790,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
   '/setup-password': typeof authSetupPasswordRoute
+  '/sign-in-link': typeof authSignInLinkRoute
   '/signup': typeof authSignupRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
@@ -879,6 +887,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/setup-password': typeof authSetupPasswordRoute
+  '/(auth)/sign-in-link': typeof authSignInLinkRoute
   '/(auth)/signup': typeof authSignupRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/go-highlevel-integration': typeof AuthenticatedGoHighlevelIntegrationRoute
@@ -977,6 +986,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/login'
     | '/setup-password'
+    | '/sign-in-link'
     | '/signup'
     | '/customers'
     | '/go-highlevel-integration'
@@ -1073,6 +1083,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/login'
     | '/setup-password'
+    | '/sign-in-link'
     | '/signup'
     | '/customers'
     | '/go-highlevel-integration'
@@ -1168,6 +1179,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/(auth)/login'
     | '/(auth)/setup-password'
+    | '/(auth)/sign-in-link'
     | '/(auth)/signup'
     | '/_authenticated/customers'
     | '/_authenticated/go-highlevel-integration'
@@ -1266,6 +1278,7 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   authLoginRoute: typeof authLoginRoute
   authSetupPasswordRoute: typeof authSetupPasswordRoute
+  authSignInLinkRoute: typeof authSignInLinkRoute
   authSignupRoute: typeof authSignupRoute
 }
 
@@ -1360,6 +1373,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof authSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/sign-in-link': {
+      id: '/(auth)/sign-in-link'
+      path: '/sign-in-link'
+      fullPath: '/sign-in-link'
+      preLoaderRoute: typeof authSignInLinkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/setup-password': {
@@ -2227,6 +2247,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   authLoginRoute: authLoginRoute,
   authSetupPasswordRoute: authSetupPasswordRoute,
+  authSignInLinkRoute: authSignInLinkRoute,
   authSignupRoute: authSignupRoute,
 }
 export const routeTree = rootRouteImport

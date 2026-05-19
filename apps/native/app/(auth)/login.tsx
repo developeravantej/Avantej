@@ -137,6 +137,16 @@ export default function LoginScreen() {
 									</Text>
 								)}
 							</Pressable>
+
+							{/* Magic-link alternative */}
+							<Pressable
+								onPress={() => router.push("/(auth)/sign-in-link")}
+								className="mt-3 h-14 w-full flex-row items-center justify-center rounded-xl border border-zinc-200 bg-white"
+							>
+								<Text className="font-medium text-base text-black">
+									Sign in with email link instead
+								</Text>
+							</Pressable>
 						</View>
 					</View>
 
