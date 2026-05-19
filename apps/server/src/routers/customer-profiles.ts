@@ -15,12 +15,15 @@ import {
 	requirePermission,
 	upsertCustomerProfile,
 } from "@avantej-core/services";
+import { user } from "@avantej-core/db/schema/auth";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
+import { getBetterAuth } from "@/lib/better-auth";
+import { isPlaceholderEmail } from "@/services/gohighlevel.service";
 
 export const serverCustomerProfilesRouter = {
 	upsert: protectedProcedure
@@ -375,6 +378,13 @@ export const serverCustomerProfilesRouter = {
 			if (!profile) {
 				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
 			}
+			// Phase 4: dependent profiles (account_group members) have no user_id
+			// and therefore no Avantej login or GHL sync surface.
+			if (!profile.userId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Cannot retry GHL sync for a dependent customer profile",
+				});
+			}
 
 			const target = await context.tenantDb.query.members.findFirst({
 				where: and(eq(members.userId, profile.userId), eq(members.role, "client")),
@@ -402,5 +412,209 @@ export const serverCustomerProfilesRouter = {
 			}));
 
 			return { ghlSync };
+		}),
+
+	/**
+	 * Phase 4 — staff backfill for placeholder-email leads.
+	 *
+	 * Replaces a `ghl-{contactId}@ghl.placeholder` email with a real address
+	 * on the linked control-panel user, flips `emailVerified=true`, and
+	 * dispatches a fresh magic-link sign-in email so the customer can log in.
+	 *
+	 * Safety rails:
+	 *   - rejects dependents (customer_profile.user_id IS NULL)
+	 *   - rejects profiles whose user already has a non-placeholder email
+	 *   - rejects if the target email is already used by another user
+	 */
+	addEmailAndDispatchMagicLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+				email: z.string().email("Invalid email address"),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.honoContext) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or Hono context not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const profile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.id, input.customerProfileId),
+			});
+			if (!profile) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+			if (!profile.userId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"This profile is a dependent in an account group; it cannot receive its own sign-in link",
+				});
+			}
+
+			const controlPanelDb = context.honoContext.get(
+				"controlPanelDb",
+			) as Parameters<typeof getBetterAuth>[0] extends never
+				? never
+				: ReturnType<typeof getBetterAuth> extends never
+					? never
+					: never;
+			// The above is a type-only no-op; we actually fetch via the Hono ctx below.
+			const cpDb = context.honoContext.get("controlPanelDb");
+			if (!cpDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel database not available",
+				});
+			}
+			void controlPanelDb;
+
+			const existingUser = await (cpDb as any).query.user.findFirst({
+				where: eq(user.id, profile.userId),
+			});
+			if (!existingUser) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Linked user record not found",
+				});
+			}
+			if (!isPlaceholderEmail(existingUser.email)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"User already has a real email. Use 'Resend sign-in link' instead.",
+				});
+			}
+
+			const collision = await (cpDb as any).query.user.findFirst({
+				where: eq(user.email, input.email),
+			});
+			if (collision && collision.id !== existingUser.id) {
+				throw new ORPCError("CONFLICT", {
+					message: "Email already in use by another user",
+				});
+			}
+
+			await (cpDb as any)
+				.update(user)
+				.set({
+					email: input.email,
+					emailVerified: true,
+					updatedAt: new Date(),
+				})
+				.where(eq(user.id, existingUser.id));
+
+			try {
+				const auth = getBetterAuth(context.honoContext);
+				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+				await (auth as any).api.signInMagicLink({
+					body: { email: input.email },
+					headers: context.honoContext.req.raw.headers,
+				});
+			} catch (err) {
+				console.error(
+					"[customerProfiles.addEmailAndDispatchMagicLink] dispatch failed",
+					err,
+				);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Email updated but magic-link dispatch failed",
+				});
+			}
+
+			return { success: true, email: input.email };
+		}),
+
+	/**
+	 * Phase 4 — generic magic-link resend for an existing customer.
+	 *
+	 * Dispatches a fresh sign-in link to the user already linked to the
+	 * profile. Rejects placeholder users (staff should call
+	 * `addEmailAndDispatchMagicLink` first) and dependents.
+	 */
+	resendMagicLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.honoContext) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or Hono context not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const profile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.id, input.customerProfileId),
+			});
+			if (!profile) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+			if (!profile.userId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"This profile is a dependent in an account group; it cannot receive its own sign-in link",
+				});
+			}
+
+			const cpDb = context.honoContext.get("controlPanelDb");
+			if (!cpDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel database not available",
+				});
+			}
+
+			// biome-ignore lint/suspicious/noExplicitAny: tenant/cp db types differ
+			const linkedUser = await (cpDb as any).query.user.findFirst({
+				where: eq(user.id, profile.userId),
+			});
+			if (!linkedUser) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Linked user record not found",
+				});
+			}
+			if (isPlaceholderEmail(linkedUser.email)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"User has a placeholder email. Use 'Add email + send sign-in' first.",
+				});
+			}
+
+			try {
+				const auth = getBetterAuth(context.honoContext);
+				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+				await (auth as any).api.signInMagicLink({
+					body: { email: linkedUser.email },
+					headers: context.honoContext.req.raw.headers,
+				});
+			} catch (err) {
+				console.error(
+					"[customerProfiles.resendMagicLink] dispatch failed",
+					err,
+				);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Magic-link dispatch failed",
+				});
+			}
+
+			return { success: true, email: linkedUser.email };
 		}),
 };
