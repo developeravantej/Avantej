@@ -408,6 +408,78 @@ describe("applyAlphaCanonical (α strict canonical)", () => {
 		expect(linked).toEqual({ skip: false });
 		expect(unlinked).toEqual({ skip: false });
 	});
+
+	// Phase 2 carve-out: placeholder email backfill
+	test("update with placeholder existing + real incoming → skip:false (backfill)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("update with placeholder existing + placeholder incoming → still skipped", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: true,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("update with real existing email is unaffected by carve-out", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "real@example.com",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("delete on placeholder still canonical-skipped (no backfill via delete)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "delete",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	// Phase 3 carve-out: GHL only fires create, so backfill happens on re-submit.
+	test("create re-submit with placeholder existing + real incoming → skip:false (backfill)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "ghl-xyz@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("create re-submit with placeholder + placeholder → still already-linked", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "ghl-xyz@ghl.placeholder",
+			incomingEmailIsPlaceholder: true,
+		});
+		expect(result).toEqual({ skip: true, reason: "already-linked" });
+	});
+
+	test("create re-submit with real existing email is unaffected by carve-out", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "real@example.com",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "already-linked" });
+	});
 });
 
 describe("Placeholder email helpers", () => {
@@ -525,5 +597,20 @@ describe("extractCustomFieldsForProfile", () => {
 			contact: { lead_originatator: "Typo Source" },
 		});
 		expect(fields.leadOriginator).toBe("Typo Source");
+	});
+
+	test("treats literal 'null'/'undefined' strings from GHL merge tags as absent", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: {
+				gender: "null",
+				selected_location: "undefined",
+				lead_acquisition_type: "NULL",
+				lead_originator: "Undefined",
+			},
+		});
+		expect(fields.gender).toBeNull();
+		expect(fields.selectedLocation).toBeNull();
+		expect(fields.leadAcquisitionType).toBeNull();
+		expect(fields.leadOriginator).toBeNull();
 	});
 });
