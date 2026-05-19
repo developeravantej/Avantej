@@ -598,4 +598,19 @@ describe("extractCustomFieldsForProfile", () => {
 		});
 		expect(fields.leadOriginator).toBe("Typo Source");
 	});
+
+	test("treats literal 'null'/'undefined' strings from GHL merge tags as absent", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: {
+				gender: "null",
+				selected_location: "undefined",
+				lead_acquisition_type: "NULL",
+				lead_originator: "Undefined",
+			},
+		});
+		expect(fields.gender).toBeNull();
+		expect(fields.selectedLocation).toBeNull();
+		expect(fields.leadAcquisitionType).toBeNull();
+		expect(fields.leadOriginator).toBeNull();
+	});
 });

@@ -297,7 +297,12 @@ function normalizeString(value: unknown): string | null {
 		return null;
 	}
 	const trimmed = String(value).trim();
-	return trimmed.length > 0 ? trimmed : null;
+	if (trimmed.length === 0) return null;
+	// GHL merge tags resolve to literal "null" or "undefined" when the source
+	// custom field is unset. Treat as absent.
+	const lower = trimmed.toLowerCase();
+	if (lower === "null" || lower === "undefined") return null;
+	return trimmed;
 }
 
 function pickField(payload: AnyRecord, contact: AnyRecord | null, keys: string[]): string | null {

@@ -416,7 +416,8 @@ function createBetterAuth(c?: Context) {
       impersonationSessionDuration: 60 * 60,
     }),
     magicLink({
-      // Token is single-use; default expiry is short (5 min in better-auth).
+      // Single-use token. 30 min covers email delivery + user attention lag.
+      expiresIn: 60 * 30,
       sendMagicLink: async ({
         email,
         url,
