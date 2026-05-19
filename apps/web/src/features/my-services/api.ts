@@ -51,7 +51,7 @@ export function useAssignedPackages(
 				limit: 25,
 				status: statusFilter,
 			});
-			return result as AssignedPackagesPage;
+			return result as unknown as AssignedPackagesPage;
 		},
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

@@ -63,7 +63,7 @@ function makeRefund(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-function makeSalesOrder(overrides: Record<string, unknown> = {}) {
+function _makeSalesOrder(overrides: Record<string, unknown> = {}) {
 	return {
 		id: SO_ID,
 		salesOrderNumber: "SO-20260514-0001",
@@ -78,6 +78,7 @@ function makeSalesOrder(overrides: Record<string, unknown> = {}) {
 		...overrides,
 	};
 }
+void _makeSalesOrder;
 
 // Chainable select mock that resolves to given rows and supports .for()
 function selectChainResolving(value: unknown) {

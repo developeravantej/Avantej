@@ -18,6 +18,8 @@ interface PackageDetailDialogProps {
 	installments: Installment[];
 	onClose: () => void;
 	onConfirmInstallment: (inst: Installment) => void;
+	onReschedule: (inst: Installment) => void;
+	onWaive: (inst: Installment) => void;
 	onOpenUnlockDialog: () => void;
 	onOpenOverdraftDialog: () => void;
 	onOpenAdjustCreditsDialog: () => void;
@@ -30,6 +32,8 @@ export function PackageDetailDialog({
 	installments,
 	onClose,
 	onConfirmInstallment,
+	onReschedule,
+	onWaive,
 	onOpenUnlockDialog,
 	onOpenOverdraftDialog,
 	onOpenAdjustCreditsDialog,
@@ -210,14 +214,43 @@ export function PackageDetailDialog({
 																Paid ✓{" "}
 																{inst.paidAt ? formatDate(inst.paidAt) : ""}
 															</span>
+														) : inst.status === "waived" ? (
+															<span className="font-medium text-muted-foreground text-xs">
+																Waived
+															</span>
+														) : inst.status === "cancelled" ? (
+															<span className="font-medium text-muted-foreground text-xs">
+																Cancelled
+															</span>
 														) : (
-															<Button
-																size="sm"
-																variant="outline"
-																onClick={() => onConfirmInstallment(inst)}
-															>
-																Confirm Payment
-															</Button>
+															<div className="flex flex-wrap items-center gap-1.5">
+																<Button
+																	size="sm"
+																	variant="outline"
+																	onClick={() => onConfirmInstallment(inst)}
+																>
+																	Confirm Payment
+																</Button>
+																{(inst.status === "pending" || inst.status === "overdue") && (
+																	<>
+																		<Button
+																			size="sm"
+																			variant="outline"
+																			onClick={() => onReschedule(inst)}
+																		>
+																			Reschedule
+																		</Button>
+																		<Button
+																			size="sm"
+																			variant="outline"
+																			className="border-destructive/40 text-destructive hover:bg-destructive/5"
+																			onClick={() => onWaive(inst)}
+																		>
+																			Waive
+																		</Button>
+																	</>
+																)}
+															</div>
 														)}
 													</td>
 												</tr>

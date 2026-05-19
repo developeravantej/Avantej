@@ -8,9 +8,6 @@ import { Package } from "lucide-react";
 import DataTable from "@/components/tables/products/view/data-table";
 import { columns } from "@/components/tables/products/view/columns";
 import type { ProductRow } from "@/components/tables/products/view/columns";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { ProductPricingPage } from "@/components/pages/products/pricing-page";
 
@@ -78,53 +75,58 @@ function ProductsViewPage() {
 	}));
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+			{/* Page header */}
+			<div className="mb-5 flex items-end justify-between">
 				<div>
-					<h1 className="text-xl font-semibold">Products</h1>
-					<p className="mt-0.5 text-sm text-muted-foreground">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PRODUCT CATALOG
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Products
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
 						Manage your product catalog and branch pricing
 					</p>
 				</div>
 			</div>
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
-					{PAGE_TABS.map((t) => (
-						<button
-							key={t.id}
-							type="button"
-							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
-						>
-							{t.label}
-						</button>
-					))}
-				</div>
+
+			{/* Pill tabs */}
+			<div className="mb-5 flex flex-wrap items-center gap-2">
+				{PAGE_TABS.map((t) => (
+					<button
+						key={t.id}
+						type="button"
+						onClick={() => navigate({ search: { tab: t.id } })}
+						className={
+							tab === t.id
+								? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+								: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+						}
+					>
+						{t.label}
+					</button>
+				))}
 			</div>
-			<div className="min-h-0 flex-1 overflow-hidden">
-				{tab === "pricing" ? (
-					<ProductPricingPage />
-				) : (
-					<ProductsListTab
-						organizationId={organizationId}
-						statusFilter={statusFilter}
-						setStatusFilter={setStatusFilter}
-						tableData={tableData}
-						isLoading={isLoading}
-						isError={isError}
-						error={error}
-						refetch={refetch}
-						brands={brands}
-						categories={categories}
-						suppliers={suppliers}
-						uoms={uoms}
-					/>
-				)}
-			</div>
+
+			{tab === "pricing" ? (
+				<ProductPricingPage />
+			) : (
+				<ProductsListTab
+					organizationId={organizationId}
+					statusFilter={statusFilter}
+					setStatusFilter={setStatusFilter}
+					tableData={tableData}
+					isLoading={isLoading}
+					isError={isError}
+					error={error}
+					refetch={refetch}
+					brands={brands}
+					categories={categories}
+					suppliers={suppliers}
+					uoms={uoms}
+				/>
+			)}
 		</div>
 	);
 }
@@ -160,8 +162,10 @@ function ProductsListTab({
 }: ProductsListTabProps) {
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to view products.
+			<div className="flex flex-col items-center justify-center min-h-96 text-[#737373]">
+				<Package className="h-8 w-8 mb-3 opacity-30" />
+				<p className="text-sm font-medium text-[#0a0a0a]">No organisation selected</p>
+				<p className="text-xs mt-1">Select an organisation to view products.</p>
 			</div>
 		);
 	}
@@ -172,29 +176,26 @@ function ProductsListTab({
 
 	if (isError) {
 		return (
-			<div className="flex flex-col items-center justify-center py-12">
-				<p className="text-lg font-medium text-destructive">Failed to load data</p>
-				<p className="text-sm text-muted-foreground mb-4">
+			<div className="rounded-2xl border border-[#e5e5e5] bg-white p-8 flex flex-col items-center justify-center gap-3">
+				<p className="text-sm font-medium text-[#0a0a0a]">Failed to load products</p>
+				<p className="text-xs text-[#737373]">
 					{error instanceof Error ? error.message : "An unexpected error occurred"}
 				</p>
-				<Button variant="outline" onClick={() => refetch()}>
+				<button
+					type="button"
+					onClick={() => refetch()}
+					className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition"
+				>
 					Try Again
-				</Button>
+				</button>
 			</div>
 		);
 	}
 
 	return (
-		<div className="p-6 space-y-6 h-full overflow-auto">
-			{/* Header */}
-			<PageHeader
-				icon={Package}
-				title="Products"
-				description="Manage your product catalog"
-			/>
-
-			{/* Status filter tabs */}
-			<div className="flex items-center gap-1 border-b">
+		<div className="space-y-5">
+			{/* Status filter pills */}
+			<div className="flex flex-wrap items-center gap-2">
 				{STATUS_TABS.map((tab) => {
 					const isActive = statusFilter === tab.value;
 					return (
@@ -202,11 +203,11 @@ function ProductsListTab({
 							key={tab.label}
 							type="button"
 							onClick={() => setStatusFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+							className={
 								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
-							}`}
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+							}
 						>
 							{tab.label}
 						</button>
@@ -214,25 +215,30 @@ function ProductsListTab({
 				})}
 			</div>
 
-			{/* Empty state */}
-			{tableData.length === 0 && (
-				<EmptyState
-					title="No products found"
-					description="Create your first product to get started."
-					icon={Package}
+			{/* Empty state inside card */}
+			{tableData.length === 0 ? (
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+					<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+						<Package className="h-8 w-8 mb-3 opacity-30" />
+						<p className="text-sm font-medium text-[#0a0a0a]">No products found</p>
+						<p className="text-xs mt-1">
+							{statusFilter
+								? "Try clearing the status filter or searching for a different term."
+								: "Create your first product to get started."}
+						</p>
+					</div>
+				</div>
+			) : (
+				<DataTable
+					columns={columns}
+					data={tableData}
+					organizationId={organizationId}
+					brands={brands}
+					categories={categories}
+					suppliers={suppliers}
+					uoms={uoms}
 				/>
 			)}
-
-			{/* Table */}
-			<DataTable
-				columns={columns}
-				data={tableData}
-				organizationId={organizationId}
-				brands={brands}
-				categories={categories}
-				suppliers={suppliers}
-				uoms={uoms}
-			/>
 		</div>
 	);
 }

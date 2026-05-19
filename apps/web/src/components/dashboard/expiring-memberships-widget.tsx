@@ -91,8 +91,8 @@ export function ExpiringMembershipsWidget() {
 							{topRows.map((row) => (
 								<Link
 									key={row.packageInstanceId}
-									to="/dashboard/customers/view"
-									search={{ customerId: row.clientId }}
+									to="/dashboard/customers/v2/view"
+									search={{} as any}
 									className="flex items-center justify-between py-2 text-sm hover:bg-brand-secondary-3/30"
 								>
 									<div className="min-w-0 flex-1">

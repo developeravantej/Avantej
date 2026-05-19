@@ -12,8 +12,9 @@ import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
@@ -28,12 +29,22 @@ export interface CustomerDirectoryRow {
 	hierarchyScopeId: string;
 	branchName: string | null;
 	activePackageCount: number;
+	activePackageName: string | null;
 	lifetimeValueCents: number;
 	outstandingBalanceCents: number;
 	appointmentCount: number;
 	lastVisitAt: Date | null;
 	createdAt: Date;
 	isDeleted: boolean | null;
+	lifecycleStatus: "lead" | "active" | "lapsed" | "churned";
+}
+
+export interface CustomerDirectoryStats {
+	totalCount: number;
+	activeCount: number;
+	lapsedCount: number;
+	leadCount: number;
+	avgLifetimeValueCents: number;
 }
 
 /**
@@ -78,6 +89,16 @@ export async function listCustomerDirectory(
 	// ----------------------------------------------------------------
 	// We use raw sql here because Drizzle's query builder does not model
 	// COUNT(...) FILTER (WHERE ...) cleanly.
+	//
+	// active_package_name: the name of the most-recently-started active package
+	// for this customer (NULL when none). Uses a lateral subquery so we get exactly
+	// one row per customer without inflating the JOIN fan-out.
+	//
+	// lifecycle_status derivation (server-side):
+	//   lead    — no visits AND no package ever
+	//   active  — has an active package AND last visit within 30 days
+	//   lapsed  — last visit 30–90 days ago, OR active package but no visit in 30d
+	//   churned — last visit >90 days ago AND no active package
 	const aggregationQuery = sql`
 		SELECT
 			m.id                                                       AS member_id,
@@ -89,6 +110,15 @@ export async function listCustomerDirectory(
 			CAST(
 				COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active')
 			AS INTEGER)                                                AS active_package_count,
+			(
+				SELECT svc.name
+				FROM package_instances pi2
+				JOIN services svc ON svc.id = pi2.service_id
+				WHERE pi2.client_id = m.user_id
+				  AND pi2.status = 'active'
+				ORDER BY pi2.starts_at DESC
+				LIMIT 1
+			)                                                          AS active_package_name,
 			COALESCE(
 				SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
 			)::INTEGER                                                 AS lifetime_value_cents,
@@ -99,7 +129,22 @@ export async function listCustomerDirectory(
 			CAST(
 				COUNT(DISTINCT ac.appointment_id)
 			AS INTEGER)                                                AS appointment_count,
-			MAX(ac.created_at)                                         AS last_visit_at
+			MAX(ac.created_at)                                         AS last_visit_at,
+			CASE
+				WHEN COUNT(DISTINCT ac.appointment_id) = 0
+				     AND COUNT(DISTINCT pi.id) = 0
+				THEN 'lead'
+				WHEN COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active') > 0
+				     AND MAX(ac.created_at) >= NOW() - INTERVAL '30 days'
+				THEN 'active'
+				WHEN MAX(ac.created_at) > NOW() - INTERVAL '90 days'
+				  OR (
+				       COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active') > 0
+				       AND (MAX(ac.created_at) IS NULL OR MAX(ac.created_at) < NOW() - INTERVAL '30 days')
+				     )
+				THEN 'lapsed'
+				ELSE 'churned'
+			END                                                        AS lifecycle_status
 		FROM members m
 		LEFT JOIN customer_profiles cp ON cp.user_id = m.user_id
 		LEFT JOIN package_instances pi ON pi.client_id = m.user_id
@@ -140,10 +185,12 @@ export async function listCustomerDirectory(
 		phone: string | null;
 		is_deleted: boolean | null;
 		active_package_count: number;
+		active_package_name: string | null;
 		lifetime_value_cents: number;
 		outstanding_balance_cents: number;
 		appointment_count: number;
 		last_visit_at: Date | null;
+		lifecycle_status: "lead" | "active" | "lapsed" | "churned";
 	}>;
 
 	const total = (countResult.rows[0] as { total: number })?.total ?? 0;
@@ -188,12 +235,14 @@ export async function listCustomerDirectory(
 			hierarchyScopeId: r.hierarchy_scope_id,
 			branchName: nodeMap.get(r.hierarchy_scope_id) ?? null,
 			activePackageCount: r.active_package_count,
+			activePackageName: r.active_package_name,
 			lifetimeValueCents: r.lifetime_value_cents,
 			outstandingBalanceCents: r.outstanding_balance_cents,
 			appointmentCount: r.appointment_count,
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
 			isDeleted: r.is_deleted ?? null,
+			lifecycleStatus: r.lifecycle_status,
 		};
 	});
 
@@ -212,6 +261,91 @@ export async function listCustomerDirectory(
 }
 
 // ----------------------------------------------------------------
+// getCustomerStats — KPI tile aggregates
+// ----------------------------------------------------------------
+
+/**
+ * Returns aggregate stats for the customer KPI tiles:
+ *   - totalCount       : all registered clients in scope
+ *   - activeCount      : clients with at least one active package_instance
+ *   - lapsedCount      : last visit >90 days ago AND no active package
+ *   - leadCount        : no visits AND no package ever
+ *   - avgLifetimeValueCents : mean of per-customer sum(succeeded payments)
+ *
+ * RBAC is applied via accessibleNodeIds (same as list).
+ */
+export async function getCustomerStats(
+	tenantDb: TenantDb,
+	params: {
+		accessibleNodeIds: string[];
+		branchId?: string;
+	},
+): Promise<CustomerDirectoryStats> {
+	const { accessibleNodeIds, branchId } = params;
+
+	if (accessibleNodeIds.length === 0) {
+		return { totalCount: 0, activeCount: 0, lapsedCount: 0, leadCount: 0, avgLifetimeValueCents: 0 };
+	}
+
+	const result = await tenantDb.execute(sql`
+		WITH customer_agg AS (
+			SELECT
+				m.id                                                            AS member_id,
+				CAST(
+					COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active')
+				AS INTEGER)                                                     AS active_pkg_count,
+				CAST(
+					COUNT(DISTINCT pi.id)
+				AS INTEGER)                                                     AS total_pkg_count,
+				CAST(
+					COUNT(DISTINCT ac.appointment_id)
+				AS INTEGER)                                                     AS visit_count,
+				MAX(ac.created_at)                                              AS last_visit_at,
+				COALESCE(
+					SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
+				)::INTEGER                                                      AS lifetime_value_cents
+			FROM members m
+			LEFT JOIN package_instances pi ON pi.client_id = m.user_id
+			LEFT JOIN payments p ON p.customer_id = m.user_id
+			LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
+			WHERE m.role = 'client'
+				AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
+				${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
+			GROUP BY m.id
+		)
+		SELECT
+			CAST(COUNT(*) AS INTEGER)                                          AS total_count,
+			CAST(COUNT(*) FILTER (WHERE active_pkg_count > 0) AS INTEGER)     AS active_count,
+			CAST(COUNT(*) FILTER (
+				WHERE last_visit_at < NOW() - INTERVAL '90 days'
+				  AND active_pkg_count = 0
+			) AS INTEGER)                                                      AS lapsed_count,
+			CAST(COUNT(*) FILTER (
+				WHERE visit_count = 0
+				  AND total_pkg_count = 0
+			) AS INTEGER)                                                      AS lead_count,
+			CAST(COALESCE(AVG(lifetime_value_cents), 0) AS INTEGER)            AS avg_lifetime_value_cents
+		FROM customer_agg
+	`);
+
+	const row = result.rows[0] as {
+		total_count: number;
+		active_count: number;
+		lapsed_count: number;
+		lead_count: number;
+		avg_lifetime_value_cents: number;
+	};
+
+	return {
+		totalCount: row?.total_count ?? 0,
+		activeCount: row?.active_count ?? 0,
+		lapsedCount: row?.lapsed_count ?? 0,
+		leadCount: row?.lead_count ?? 0,
+		avgLifetimeValueCents: row?.avg_lifetime_value_cents ?? 0,
+	};
+}
+
+// ----------------------------------------------------------------
 // getCustomerDetail — all data for the detail drawer
 // ----------------------------------------------------------------
 
@@ -219,7 +353,7 @@ export interface CustomerDetail {
 	member: typeof members.$inferSelect;
 	user: { name: string; email: string };
 	profile: typeof customerProfiles.$inferSelect | null;
-	packageInstances: (typeof packageInstances.$inferSelect)[];
+	packageInstances: (typeof packageInstances.$inferSelect & { serviceName: string | null })[];
 	recentPayments: (typeof payments.$inferSelect)[];
 	appointmentCount: number;
 	outstandingBalanceCents: number;
@@ -262,14 +396,15 @@ export async function getCustomerDetail(
 			where: eq(customerProfiles.userId, userId),
 		}),
 
-		// All package instances ordered: active first, then by expiresAt DESC
+		// All package instances with service name, ordered: active first, then by expiresAt DESC
 		tenantDb
-			.select()
+			.select({ ...getTableColumns(packageInstances), serviceName: services.name })
 			.from(packageInstances)
+			.leftJoin(services, eq(packageInstances.serviceId, services.id))
 			.where(eq(packageInstances.clientId, userId))
 			.orderBy(
-				sql`CASE WHEN status = 'active' THEN 0 ELSE 1 END`,
-				sql`expires_at DESC`,
+				sql`CASE WHEN ${packageInstances.status} = 'active' THEN 0 ELSE 1 END`,
+				sql`${packageInstances.expiresAt} DESC`,
 			),
 
 		// Last 10 payments

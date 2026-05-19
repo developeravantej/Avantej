@@ -51,6 +51,7 @@ export type Resource =
 	| "trainer_tier_management"
 	| "category_commission_management"
 	| "commission_payout"
+	| "commission_review"
 	// Communication
 	| "announcement_management"
 	// Customers
@@ -73,6 +74,7 @@ export type Action =
 	| "delete"
 	| "approve"
 	| "reject"
+	| "resolve"
 	| "process"
 	| "export"
 	| "import";

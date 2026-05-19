@@ -10,7 +10,7 @@
  * a single statement.
  */
 
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
@@ -23,8 +23,15 @@ import { commissionConditionRates } from "@avantej-core/db/schema/tenant/commiss
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { writeAudit } from "./audit-log.service";
 import { applyCommissionCaps } from "./commission-splits.service";
+import {
+	assertConfigSumIs10000,
+	computeEffectiveWeightages,
+	computeFinalAmountCents,
+	dedupeBySlotIndex,
+} from "./commission-math";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type { CommissionEarnReason } from "@avantej-core/types";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -60,6 +67,7 @@ export async function calculateCommissionForAppointment(
 		staffAssignments: StaffAssignment[];
 		actor: Actor;
 		earnedAt?: Date;
+		earnReason: CommissionEarnReason;
 	},
 ): Promise<CommissionSplit[]> {
 	const db = tenantDb as TenantDb;
@@ -173,6 +181,8 @@ export async function calculateCommissionForAppointment(
 		salesOrderId: undefined,
 		actor: params.actor,
 		earnedAt: params.earnedAt ?? new Date(),
+		earnReason: params.earnReason,
+		requireTrainerRole: true,
 	});
 }
 
@@ -186,6 +196,7 @@ export async function calculateCommissionForPos(
 		staffAssignments: StaffAssignment[];
 		actor: Actor;
 		earnedAt?: Date;
+		earnReason: CommissionEarnReason;
 	},
 ): Promise<CommissionSplit[]> {
 	const db = tenantDb as TenantDb;
@@ -231,19 +242,22 @@ export async function calculateCommissionForPos(
 			.from(commissionTierRates)
 			.where(eq(commissionTierRates.configId, config.id));
 	} else {
-		// POS: use first condition (minimum conditionIndex)
-		const [firstCondition] = await db
+		// POS: walk conditions descending by minQuantity to find the best matching tier.
+		// NULL minQuantity = "matches any quantity" (catch-all / first-condition-wins for
+		// existing configs that haven't been migrated to use quantity tiers).
+		const conds = await db
 			.select()
 			.from(commissionConditions)
 			.where(eq(commissionConditions.configId, config.id))
-			.orderBy(asc(commissionConditions.conditionIndex))
-			.limit(1);
+			.orderBy(sql`COALESCE(${commissionConditions.minQuantity}, 0) DESC`, asc(commissionConditions.conditionIndex));
 
-		if (!firstCondition) {
+		const matched = conds.find(c => c.minQuantity == null || c.minQuantity <= params.quantity);
+
+		if (!matched) {
 			return [];
 		}
 
-		matchedConditionId = firstCondition.id;
+		matchedConditionId = matched.id;
 
 		conditionRates = await db
 			.select({
@@ -252,7 +266,7 @@ export async function calculateCommissionForPos(
 				conditionId: commissionConditionRates.conditionId,
 			})
 			.from(commissionConditionRates)
-			.where(eq(commissionConditionRates.conditionId, firstCondition.id));
+			.where(eq(commissionConditionRates.conditionId, matched.id));
 	}
 
 	// Step 4: iterate staff assignments and build splits
@@ -268,6 +282,8 @@ export async function calculateCommissionForPos(
 		salesOrderId: params.salesOrderId,
 		actor: params.actor,
 		earnedAt: params.earnedAt ?? new Date(),
+		earnReason: params.earnReason,
+		requireTrainerRole: false,
 	});
 }
 
@@ -287,6 +303,8 @@ interface BuildSplitsParams {
 	salesOrderId: string | undefined;
 	actor: Actor;
 	earnedAt: Date;
+	earnReason: CommissionEarnReason;
+	requireTrainerRole: boolean;
 }
 
 async function _buildSplits(
@@ -313,10 +331,29 @@ async function _buildSplits(
 		allSlots.map((s) => [s.slotIndex, s.weightageBasisPoints]),
 	);
 
-	// Pre-step B: identify assignments whose slotIndex actually exists on this config.
-	// Sort by slotIndex ASC for deterministic rounding-remainder distribution
-	// (lower slot indices — more senior positions — absorb the +1 bp first).
-	const validAssignments = [...p.staffAssignments]
+	// Pre-step A1 (fix #2): assert configured slots sum to exactly 10000 bp.
+	// Delegates to commission-math for unit-testable invariant.
+	assertConfigSumIs10000(allSlots, p.config.id);
+
+	// Pre-step B (fix #3): dedupe staff assignments by slotIndex before any
+	// math runs. A duplicate slotIndex would double-pay that slot because
+	// presentSlotIndices (a Set) would dedupe but presentCount (array length)
+	// would not.
+	const { deduped: dedupedAssignments, hadDuplicates } = dedupeBySlotIndex(
+		p.staffAssignments,
+	);
+	if (hadDuplicates) {
+		console.warn(
+			JSON.stringify({
+				event: "commission_duplicate_slot_index_deduped",
+				original: p.staffAssignments.length,
+				deduped: dedupedAssignments.length,
+				configId: p.config.id,
+			}),
+		);
+	}
+
+	const validAssignments = dedupedAssignments
 		.filter((a) => {
 			if (!slotWeightByIndex.has(a.slotIndex)) {
 				console.warn(
@@ -334,6 +371,49 @@ async function _buildSplits(
 		.sort((a, b) => a.slotIndex - b.slotIndex);
 
 	if (validAssignments.length === 0) {
+		return results;
+	}
+
+	// Pre-step B3: batch-fetch roles + trainerTierId for all validAssignments.
+	// ONLY applied when requireTrainerRole=true (appointment path).
+	// POS path skips this block entirely — non-trainer earners are valid there.
+	const memberByUserId = await (async () => {
+		if (!p.requireTrainerRole) return new Map<string, { userId: string; role: string; trainerTierId: string | null }>();
+		const memberData = await db
+			.select({ userId: members.userId, role: members.role, trainerTierId: members.trainerTierId })
+			.from(members)
+			.where(inArray(members.userId, validAssignments.map(a => a.staffId)));
+		return new Map(memberData.map(m => [m.userId, m]));
+	})();
+
+	const eligibleAssignments = (() => {
+		if (!p.requireTrainerRole) return validAssignments;
+		return validAssignments.filter(a => {
+			const m = memberByUserId.get(a.staffId);
+			if (!m) {
+				console.warn(JSON.stringify({ event: "commission_skipped_member_not_found", staffId: a.staffId, configId: p.config.id }));
+				return false;
+			}
+			if (m.role !== "trainer") {
+				console.warn(JSON.stringify({ event: "commission_skipped_role_mismatch", staffId: a.staffId, role: m.role, configId: p.config.id, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId }));
+				return false;
+			}
+			if (!m.trainerTierId) {
+				console.warn(JSON.stringify({ event: "commission_skipped_no_tier", staffId: a.staffId, configId: p.config.id }));
+				return false;
+			}
+			return true;
+		});
+	})();
+
+	if (eligibleAssignments.length === 0 && p.requireTrainerRole) {
+		console.warn(JSON.stringify({
+			event: "commission_skipped_no_eligible_staff",
+			configId: p.config.id,
+			appointmentId: p.appointmentId,
+			salesOrderId: p.salesOrderId,
+			originalCount: validAssignments.length,
+		}));
 		return results;
 	}
 
@@ -363,71 +443,53 @@ async function _buildSplits(
 		}
 	}
 
-	// Pre-step C: compute unclaimed weightage from absent slots and distribute
-	// it evenly across present coaches (per plan §3.11 algorithm step h).
-	const presentSlotIndices = new Set(validAssignments.map((a) => a.slotIndex));
-	let unclaimedBP = 0;
-	for (const slot of allSlots) {
-		if (!presentSlotIndices.has(slot.slotIndex)) {
-			unclaimedBP += slot.weightageBasisPoints;
-		}
-	}
-	const presentCount = validAssignments.length;
-	const bonusBP = Math.floor(unclaimedBP / presentCount);
-	const remainder = unclaimedBP - bonusBP * presentCount;
-
-	// Pre-step D: build the effectiveWeightage for each assignment (order matches
-	// validAssignments after its slotIndex-ASC sort). First `remainder` entries
-	// each absorb one extra basis point to preserve the 10000-bp sum.
-	const effectiveWeightages: number[] = validAssignments.map((a, i) => {
-		const base = slotWeightByIndex.get(a.slotIndex) ?? 0;
-		return base + bonusBP + (i < remainder ? 1 : 0);
-	});
+	// Pre-step C+D: distribute unclaimed weightage from absent slots evenly
+	// across present coaches; the first `remainder` coaches each absorb one
+	// extra basis point so the total still sums to 10000. Delegates to
+	// commission-math.computeEffectiveWeightages for unit-testable logic.
+	const effectiveWeightages = computeEffectiveWeightages(
+		allSlots,
+		eligibleAssignments,
+	);
 
 	// Per-staff loop using effectiveWeightage instead of raw slot weightage
-	for (let i = 0; i < validAssignments.length; i++) {
-		const assignment = validAssignments[i];
+	for (let i = 0; i < eligibleAssignments.length; i++) {
+		const assignment = eligibleAssignments[i];
 		if (!assignment) {
 			continue;
 		}
 		const effectiveWeightage = effectiveWeightages[i] ?? 0;
 
-		// 4a: look up member — must be role "trainer"
-		const [member] = await db
-			.select({ role: members.role, trainerTierId: members.trainerTierId })
-			.from(members)
-			.where(eq(members.userId, assignment.staffId))
-			.limit(1);
+		// 4a: look up member — use pre-fetched map when available (avoids N+1 on appointment path)
+		const memberFromMap = memberByUserId.get(assignment.staffId);
+		const member: { role: string; trainerTierId: string | null } | undefined = memberFromMap ?? await (async () => {
+			if (!p.requireTrainerRole) {
+				// POS path: fetch individually since pre-pass was skipped
+				const [row] = await db
+					.select({ role: members.role, trainerTierId: members.trainerTierId })
+					.from(members)
+					.where(eq(members.userId, assignment.staffId))
+					.limit(1);
+				return row;
+			}
+			return undefined; // pre-pass already filtered ineligible members
+		})();
 
 		if (!member) {
-			console.warn(
-				JSON.stringify({
-					event: "commission_skipped_member_not_found",
-					staffId: assignment.staffId,
-				}),
-			);
+			console.warn(JSON.stringify({ event: "commission_skipped_member_not_found", staffId: assignment.staffId }));
 			continue;
 		}
 
-		if (member.role !== "trainer") {
-			console.warn(
-				JSON.stringify({
-					event: "commission_skipped_not_trainer",
-					staffId: assignment.staffId,
-					role: member.role,
-				}),
-			);
+		if (p.requireTrainerRole && member.role !== "trainer") {
+			// Pre-pass should have removed these; this is a safety net
+			console.warn(JSON.stringify({ event: "commission_skipped_not_trainer", staffId: assignment.staffId, role: member.role }));
 			continue;
 		}
 
 		// 4b: must have a trainerTierId
-		if (!member.trainerTierId) {
-			console.warn(
-				JSON.stringify({
-					event: "commission_skipped_no_tier",
-					staffId: assignment.staffId,
-				}),
-			);
+		if (p.requireTrainerRole && !member.trainerTierId) {
+			// Pre-pass should have removed these; this is a safety net
+			console.warn(JSON.stringify({ event: "commission_skipped_no_tier", staffId: assignment.staffId }));
 			continue;
 		}
 
@@ -476,13 +538,14 @@ async function _buildSplits(
 			baseAmountCents = Math.floor((p.unitPriceCents * rateAmount) / 10000);
 		}
 
-		// 4e: apply effective weightage (post-redistribution)
-		const calculatedAmount = Math.floor(
-			(baseAmountCents * effectiveWeightage) / 10000,
+		// 4e + 4f (fix #1): apply effective weightage AND quantity together,
+		// then floor once. Delegates to commission-math.computeFinalAmountCents
+		// for unit-testable rounding behaviour.
+		const finalAmount = computeFinalAmountCents(
+			baseAmountCents,
+			effectiveWeightage,
+			p.quantity,
 		);
-
-		// 4f: multiply by quantity for POS
-		const finalAmount = calculatedAmount * p.quantity;
 
 		// 4g: compute splitPercentage
 		// For fixed type: 0 (absolute amount, percentage not meaningful)
@@ -507,25 +570,52 @@ async function _buildSplits(
 		const cappedAmount = capDecision.amountCents;
 
 		// Insert directly into commission_splits (snapshot effective, not raw, weightage)
-		const [inserted] = await db
-			.insert(commissionSplits)
-			.values({
-				...(p.appointmentId ? { appointmentId: p.appointmentId } : {}),
-				...(p.salesOrderId ? { salesOrderId: p.salesOrderId } : {}),
-				staffId: assignment.staffId,
-				splitPercentage,
-				calculatedAmount: cappedAmount,
-				status: "pending",
-				splitType: "automatic",
-				slotIndex: assignment.slotIndex,
-				conditionId: p.matchedConditionId ?? undefined,
-				trainerTierId: member.trainerTierId,
-				weightageBasisPoints: effectiveWeightage,
-				baseAmountCents,
-				earnedAt: p.earnedAt,
-				...(capDecision.reason ? { notes: capDecision.reason } : {}),
-			})
-			.returning();
+		// Wrap in try/catch to handle concurrent cancellation races on the partial
+		// unique index commission_splits_appt_staff_unique (PG error 23505).
+		// On duplicate, skip silently — the first writer already owns the split.
+		let inserted: (typeof commissionSplits.$inferSelect) | undefined;
+		try {
+			const [row] = await db
+				.insert(commissionSplits)
+				.values({
+					...(p.appointmentId ? { appointmentId: p.appointmentId } : {}),
+					...(p.salesOrderId ? { salesOrderId: p.salesOrderId } : {}),
+					staffId: assignment.staffId,
+					splitPercentage,
+					calculatedAmount: cappedAmount,
+					status: "pending",
+					splitType: "automatic",
+					slotIndex: assignment.slotIndex,
+					conditionId: p.matchedConditionId ?? undefined,
+					trainerTierId: member.trainerTierId,
+					weightageBasisPoints: effectiveWeightage,
+					baseAmountCents,
+					earnedAt: p.earnedAt,
+					earnReason: p.earnReason,
+					...(capDecision.reason ? { notes: capDecision.reason } : {}),
+				})
+				.returning();
+			inserted = row;
+		} catch (err: unknown) {
+			// PG unique-violation (23505) — concurrent cancel raced this insert.
+			// Return the existing row implicitly (skip to next assignment).
+			const pgCode =
+				err != null &&
+				typeof err === "object" &&
+				"code" in err &&
+				(err as { code: unknown }).code;
+			if (pgCode === "23505") {
+				console.info(
+					JSON.stringify({
+						event: "commission_split_duplicate_skipped",
+						appointmentId: p.appointmentId,
+						staffId: assignment.staffId,
+					}),
+				);
+				continue;
+			}
+			throw err;
+		}
 
 		if (inserted) {
 			// Audit the commission creation

@@ -141,8 +141,8 @@ export const accept = o
 		}
 
 		const userEmail = context.session.user.email?.toLowerCase();
-		const invitationEmail = invitation!.email.toLowerCase();
-		if (userEmail !== invitationEmail) {
+		const invitationEmail = invitation!.email?.toLowerCase() ?? null;
+		if (invitationEmail && userEmail !== invitationEmail) {
 			throw new ORPCError("FORBIDDEN", {
 				message: `This invitation was sent to ${invitation!.email}. Please sign up or log in with that email address.`,
 			});

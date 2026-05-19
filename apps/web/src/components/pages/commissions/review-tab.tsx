@@ -185,24 +185,20 @@ export function ReviewTab() {
 		isFetchingNextPage,
 	} = useInfiniteQuery({
 		queryKey: ["commissions", "pendingReview", organizationId],
-		queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+		queryFn: ({ pageParam }: { pageParam: any }) =>
 			client.commissionSplits.listPendingReview({
 				organizationId: organizationId!,
 				limit: 50,
 				cursor: pageParam,
-			}),
-		initialPageParam: undefined as string | undefined,
-		getNextPageParam: (lastPage: {
-			rows: PendingReviewRow[];
-			total: number;
-			nextCursor: string | null;
-		}) => lastPage.nextCursor ?? undefined,
+			} as any),
+		initialPageParam: undefined as any,
+		getNextPageParam: (lastPage: any) => lastPage.nextCursor ?? undefined,
 		enabled: !!organizationId && canRead,
 	});
 
 	// Flatten pages into a single list
 	const allRows: PendingReviewRow[] =
-		data?.pages.flatMap((page) => page.rows) ?? [];
+		(data?.pages.flatMap((page) => page.rows) ?? []) as any;
 	const totalCount = data?.pages[0]?.total ?? 0;
 
 	// ── Dialog state ───────────────────────────────────────────────────────────
@@ -224,7 +220,7 @@ export function ReviewTab() {
 				id,
 				action,
 				reason: reason || undefined,
-			}),
+			} as any),
 		onSuccess: (_data, variables) => {
 			const label = variables.action === "approve" ? "approved" : "rejected";
 			toast.success(`Adjustment ${label} successfully.`);

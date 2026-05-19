@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { AppointmentList } from "@/components/appointments/appointment-list";
 import { TrainerSidebar } from "@/components/calendar/trainer-sidebar";
+import { AppointmentList } from "@/components/appointments/appointment-list";
 import { requirePermission } from "@/lib/route-guards";
 import { client } from "@/utils/orpc";
 import {
@@ -12,12 +12,12 @@ import {
 } from "@/lib/appointment-mapper";
 
 export const Route = createFileRoute(
-	"/_authenticated/dashboard/_layout/appointment/view"
+	"/_authenticated/dashboard/_layout/appointment/view",
 )({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "appointment_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: RouteComponent,
@@ -27,13 +27,18 @@ function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const currentOrg = userContext?.organizations.find((o) => o.id === organizationId);
+	const currentOrg = userContext?.organizations.find(
+		(o) => o.id === organizationId,
+	);
 	const memberRole = currentOrg?.hierarchy?.member?.role?.toLowerCase();
 	const memberId = (currentOrg?.hierarchy?.member as any)?.id;
-	const canViewAllTrainers = memberRole === "admin" || memberRole === "staff";
+	const canViewAllTrainers =
+		memberRole === "admin" || memberRole === "staff";
 
 	const [sidebarSelectedId, setSidebarSelectedId] = useState<string | null>(null);
-	const selectedTrainerId = canViewAllTrainers ? sidebarSelectedId : (memberId ?? null);
+	const selectedTrainerId = canViewAllTrainers
+		? sidebarSelectedId
+		: (memberId ?? null);
 
 	const { startFrom, startTo } = getAppointmentQueryRange();
 
@@ -42,7 +47,13 @@ function RouteComponent() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["appointments", organizationId, selectedTrainerId, startFrom, startTo],
+		queryKey: [
+			"appointments",
+			organizationId,
+			selectedTrainerId,
+			startFrom,
+			startTo,
+		],
 		queryFn: async () => {
 			if (!organizationId) return [];
 			return client.appointments.list({
@@ -59,30 +70,80 @@ function RouteComponent() {
 
 	const appointments = useMemo(
 		() => apiAppointments.map(mapApiAppointmentToCalendar),
-		[apiAppointments]
+		[apiAppointments],
 	);
 
-	if (!organizationId) return <p className="text-muted-foreground">No organization selected.</p>;
+	if (!organizationId) {
+		return (
+			<div className="flex min-h-96 items-center justify-center text-sm text-[#737373]">
+				Select an organization to view appointments.
+			</div>
+		);
+	}
 
-	if (error) return <p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>;
+	if (error) {
+		return (
+			<div className="flex min-h-96 flex-col items-center justify-center px-6">
+				<p className="text-sm font-medium text-[#0a0a0a]">Failed to load appointments</p>
+				<p className="mt-1 text-xs text-[#737373]">
+					{error instanceof Error ? error.message : "Please try again."}
+				</p>
+			</div>
+		);
+	}
 
 	return (
-		<div className="flex gap-4 h-[calc(100vh-3rem)]">
-			{canViewAllTrainers && (
-				<div className="w-60 shrink-0 h-full">
-					<TrainerSidebar
-						organizationId={organizationId}
-						selectedTrainerId={sidebarSelectedId}
-						onSelectTrainer={setSidebarSelectedId}
-					/>
+		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
+			{/* ── Page header ── */}
+			<div className="px-6 pt-6 pb-5 flex items-end justify-between shrink-0">
+				<div>
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						Schedule
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Appointments
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
+						<span className="font-mono tabular-nums">{appointments.length}</span>{" "}
+						booking{appointments.length !== 1 ? "s" : ""} in view
+					</p>
 				</div>
-			)}
-			<div className="flex-1 min-w-0 h-full">
-				<AppointmentList
-					appointments={appointments}
-					isLoading={isLoading}
-					defaultTrainerId={selectedTrainerId}
-				/>
+			</div>
+
+			{/* ── Split-pane content ── */}
+			<div className="mx-6 mb-6 flex-1 min-h-0 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				{canViewAllTrainers ? (
+					/* Admin/Staff: Trainer sidebar + agenda in a horizontal split */
+					<div className="flex h-full min-h-0 overflow-hidden">
+						{/* Sidebar: fixed 280 px column */}
+						<aside className="w-[280px] shrink-0 overflow-hidden">
+							<TrainerSidebar
+								organizationId={organizationId}
+								selectedTrainerId={sidebarSelectedId}
+								onSelectTrainer={setSidebarSelectedId}
+								totalCount={appointments.length}
+							/>
+						</aside>
+
+						{/* Main: toolbar + scrollable agenda */}
+						<div className="flex flex-1 min-w-0 flex-col overflow-hidden border-l border-[#e5e5e5]">
+							<AppointmentList
+								appointments={appointments}
+								isLoading={isLoading}
+								defaultTrainerId={selectedTrainerId}
+							/>
+						</div>
+					</div>
+				) : (
+					/* Trainer: no sidebar, full width */
+					<div className="flex h-full min-h-0 flex-col overflow-hidden">
+						<AppointmentList
+							appointments={appointments}
+							isLoading={isLoading}
+							defaultTrainerId={selectedTrainerId}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
@@ -12,7 +12,7 @@
 
 **Purpose (user perspective):** Main dashboard landing page showing KPI cards, analytics, and activity widgets for organization management (sales, appointments, members, staff performance, payroll, claims).
 
-**Produces:** Multi-section layout: greeting banner, quick actions, period filter pills, 3 KPI cards (sales, appointments, active members), quick insight message, revenue by branch table, staff performance table, and activity widgets (appointments, expiring memberships, announcements, payroll, claims).
+**Produces:** Multi-section layout: greeting banner, quick actions, period filter pills, 3 KPI cards (sales, appointments, active members), quick insight message, revenue by branch table, staff performance table, and activity/team widgets (pending approvals, appointments, expiring memberships, announcements, payroll, claims).
 
 **On success:** Displays real-time analytics data filtered by selected period (today, this_week, this_month, this_year); links to detailed pages for sales, appointments, memberships.
 
@@ -50,7 +50,8 @@
 - `QuickActions` — `@/components/dashboard/quick-actions` — action buttons
 - `SectionHeader` — `@/components/dashboard/section-header` — section titles
 - `QuickInsight` — `@/components/dashboard/quick-insight` — contextual message
-- `AppointmentsWidget, ExpiringMembershipsWidget, AnnouncementsWidget, PayrollWidget, ClaimsWidget` — activity/team cards
+- `PendingApprovalsWidget, AppointmentsWidget, ExpiringMembershipsWidget, AnnouncementsWidget` — Activity-row cards (lg:col-span-3 each)
+- `PayrollWidget, ClaimsWidget` — Team-row cards (lg:col-span-4 / lg:col-span-8)
 - `Card, CardContent` — `@/components/ui/card` — layout
 - `Skeleton` — `@/components/ui/skeleton` — loading placeholders
 - `Link` — TanStack Router — navigate to detail pages
@@ -130,3 +131,7 @@ interface StaffRow {
 - Period "today" maps to "this_week" for staff performance (weekly context).
 - All widgets (AppointmentsWidget, PayrollWidget, etc.) have their own query logic and error handling.
 - Child widgets are mocked in tests to isolate dashboard component testing.
+- `PendingApprovalsWidget` only renders content for admin/trainer roles (returns `null` otherwise); calls `client.packageInstances.listPending({ scope: "all", limit: 100 })` and shows top 3 rows + total badge linking to `/dashboard/operations/approvals`.
+- `PayrollWidget` is also wired to live data — `client.payouts.list({ organizationId, limit: 20 })` — and uses `formatCents` from `@/lib/utils`. Renders "No payroll data available" empty state when list is empty.
+- `team-dashboard.tsx` (`TeamDashboard` component) is NOT used by this page (despite the name); it is a standalone reusable component exported for other surfaces. The web-debt-cleanup pass (commit `25f6d75b`) only stripped `console.*` debug logging and tightened imports — no behaviour change.
+

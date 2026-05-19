@@ -79,7 +79,7 @@ describe("recipientSummary", () => {
 			recipientId: RECIPIENT_ID,
 			accessibleNodeIds: [],
 			callerIsAdmin: true,
-		});
+		} as any);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);
@@ -98,7 +98,7 @@ describe("recipientSummary", () => {
 			recipientId: RECIPIENT_ID,
 			accessibleNodeIds: [],
 			callerIsAdmin: true,
-		});
+		} as any);
 
 		expect(result.lifetimePaidCents).toBe(90000);
 		expect(result.avgPerCycleCents).toBe(4500);
@@ -115,7 +115,7 @@ describe("recipientSummary", () => {
 			recipientId: RECIPIENT_ID,
 			accessibleNodeIds: [],
 			callerIsAdmin: true,
-		});
+		} as any);
 
 		expect(result.avgPerCycleCents).toBe(3333);
 	});
@@ -130,7 +130,7 @@ describe("recipientSummary", () => {
 			recipientId: RECIPIENT_ID,
 			accessibleNodeIds: [],
 			callerIsAdmin: true,
-		});
+		} as any);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);

@@ -13,35 +13,17 @@ import { createMockTenantDb } from "../../helpers/db-mock.factory";
 // ---------------------------------------------------------------------------
 
 const mockSelectResult: any[] = [];
-
-// `.limit(n)` — used by getGracePeriodDaysForPackage
 const mockLimit = mock(() => Promise.resolve(mockSelectResult));
-
-// `.for("update")` — used inside evaluateAndLockIfOverdue's transaction
-// Each test pushes the pkg row(s) it expects via mockForUpdate.mockResolvedValueOnce([pkg]).
-const mockForUpdate = mock(() => Promise.resolve([] as any[]));
-
-// The terminal of `.where(...)` must be:
-//   - thenable (to satisfy `select().from().where()` in evaluateAndExpireIfOverdue)
-//   - have `.limit(...)` (for getGracePeriodDaysForPackage)
-//   - have `.for(mode)` (for the select-for-update inside the transaction)
-function makeWhereResult() {
-	return {
-		limit: mockLimit,
-		for: mockForUpdate,
-		then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
-			Promise.resolve(mockSelectResult).then(resolve, reject),
-	};
-}
-
-const mockWhere = mock(() => makeWhereResult());
+const mockWhere = mock(() => ({ limit: mockLimit }));
 const mockLeftJoin = mock(() => ({ where: mockWhere }));
-// `.from(...)` must support both `.leftJoin(...).where(...)` and direct `.where(...)`.
-const mockFrom = mock(() => ({ leftJoin: mockLeftJoin, where: mockWhere }));
+// mockDirectWhere: used by select().from().where() (no join) — e.g. evaluateAndExpireIfOverdue
+const mockDirectWhere = mock(() => Promise.resolve([]));
+const mockFrom = mock(() => ({ leftJoin: mockLeftJoin, where: mockDirectWhere }));
 const mockSelect = mock(() => ({ from: mockFrom }));
 
 const mockFindFirst = mock(() => Promise.resolve(null));
 const mockFindMany = mock(() => Promise.resolve([]));
+const mockInstallmentsFindFirst = mock(() => Promise.resolve(null));
 const mockReturning = mock(() => Promise.resolve([]));
 const mockSet = mock(() => ({ where: mock(() => ({ returning: mockReturning }) ) }));
 const mockUpdate = mock(() => ({ set: mockSet }));
@@ -49,13 +31,25 @@ const mockInsertReturning = mock(() => Promise.resolve([]));
 const mockInsertValues = mock(() => ({ returning: mockInsertReturning }));
 const mockInsert = mock(() => ({ values: mockInsertValues }));
 
-// `transaction(cb)` invokes cb with the same mockTenantDb so test assertions on
-// mockUpdate / mockInsert capture both outer and tx-scoped calls uniformly.
-const mockTransaction = mock(
-	(cb: (tx: unknown) => Promise<unknown>) => cb(mockTenantDb),
-);
+// Transaction inner chain: tx.select().from().where().for("update")
+const mockForUpdate = mock(() => Promise.resolve([]));
+const mockTxInnerWhere = mock(() => ({ for: mockForUpdate }));
+const mockTxFrom = mock(() => ({ where: mockTxInnerWhere }));
+const mockTxSelect = mock(() => ({ from: mockTxFrom }));
 
-const mockInstallmentsFindFirst = mock(() => Promise.resolve(null));
+// Transaction mock: calls callback with a tx that shares update/insert/query
+const mockTransaction = mock((callback: (tx: unknown) => Promise<unknown>) => {
+	const tx = {
+		select: mockTxSelect,
+		update: mockUpdate,
+		insert: mockInsert,
+		query: {
+			packageInstances: { findFirst: mockFindFirst, findMany: mockFindMany },
+			installments: { findFirst: mockInstallmentsFindFirst, findMany: mock(() => Promise.resolve([])) },
+		},
+	};
+	return callback(tx);
+});
 
 const mockTenantDb = {
 	select: mockSelect,
@@ -80,7 +74,7 @@ beforeEach(() => {
 	mockLeftJoin.mockClear();
 	mockWhere.mockClear();
 	mockLimit.mockClear();
-	mockForUpdate.mockClear();
+	mockDirectWhere.mockClear();
 	mockFindFirst.mockClear();
 	mockFindMany.mockClear();
 	mockInstallmentsFindFirst.mockClear();
@@ -91,6 +85,10 @@ beforeEach(() => {
 	mockUpdate.mockClear();
 	mockSet.mockClear();
 	mockTransaction.mockClear();
+	mockForUpdate.mockClear();
+	mockTxInnerWhere.mockClear();
+	mockTxFrom.mockClear();
+	mockTxSelect.mockClear();
 	// Reset select result
 	mockSelectResult.length = 0;
 });
@@ -196,20 +194,20 @@ describe("evaluateAndLockIfOverdue", () => {
 	test("returns package unchanged when not on installment plan", async () => {
 		mockServiceGracePeriod(14);
 		const pkg = makePackage({ paymentPlanType: null });
-		// Service reads pkg via select-for-update inside the transaction
-		mockForUpdate.mockResolvedValueOnce([pkg]);
+		// tx.select().from().where().for("update") → [pkg]
+		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
 		expect(result).toEqual(pkg as any);
-		// No update should have been issued
+		// No update should have been issued (early-exit inside tx)
 		expect(mockUpdate).not.toHaveBeenCalled();
 	});
 
 	test("returns package unchanged when already locked", async () => {
 		mockServiceGracePeriod(14);
 		const pkg = makePackage({ isLocked: true });
-		mockForUpdate.mockResolvedValueOnce([pkg]);
+		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
@@ -221,7 +219,7 @@ describe("evaluateAndLockIfOverdue", () => {
 		mockServiceGracePeriod(14);
 		const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000); // +10 days
 		const pkg = makePackage({ nextDueDate: future });
-		mockForUpdate.mockResolvedValueOnce([pkg]);
+		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
@@ -230,59 +228,56 @@ describe("evaluateAndLockIfOverdue", () => {
 	});
 
 	test("overdue by 10 days with gracePeriodDays=14 → starts grace period, does NOT lock", async () => {
-		// service grace = 14 days
 		mockServiceGracePeriod(14);
 
-		// nextDueDate was 10 days ago → overdue by 10 days
 		const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 		const pkg = makePackage({ nextDueDate: tenDaysAgo, gracePeriodEndsAt: null });
-		mockForUpdate.mockResolvedValueOnce([pkg]);
+		// tx.select().from().where().for("update") → [pkg]
+		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
-		// installments query (findFirst for next pending)
+		// tx.update(installments)…returning() → [] (no overdue rows yet)
+		const mkUpdateSet = (rows: unknown[]) =>
+			mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })) }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([]) }));
+
+		// tx.query.installments.findFirst → first overdue installment
 		mockInstallmentsFindFirst.mockResolvedValueOnce({ id: "inst-1" } as any);
 
-		// update installments (mark overdue) — returns nothing significant
-		const mockUpdateSet = mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockUpdateSet }));
-
-		// update packageInstances (set gracePeriodEndsAt) — returns updated pkg
+		// tx.update(packageInstances)…returning() → updatedPkg with gracePeriodEndsAt set
 		const updatedPkg = { ...pkg, gracePeriodEndsAt: new Date(tenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000) };
-		const mockUpdateSet2 = mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([updatedPkg])) })) }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockUpdateSet2 }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([updatedPkg]) }));
 
-		// insert (logInstallmentEvent) — returns nothing significant
+		// tx.insert(installmentEvents).values(…).returning() for logInstallmentEvent
 		mockInsertReturning.mockResolvedValueOnce([]);
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
 
 		expect(result.isLocked).toBeFalsy();
-		// gracePeriodEndsAt should have been set
 		expect(result.gracePeriodEndsAt).toBeDefined();
 	});
 
 	test("overdue by 15 days with gracePeriodDays=14 → locks the package", async () => {
-		// service grace = 14 days
 		mockServiceGracePeriod(14);
 
-		// nextDueDate was 15 days ago, grace period has already ended
 		const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
 		const gracePeriodEndsAt = new Date(fifteenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000); // ended 1 day ago
 		const pkg = makePackage({ nextDueDate: fifteenDaysAgo, gracePeriodEndsAt });
-		mockForUpdate.mockResolvedValueOnce([pkg]);
+		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
-		// installments query
+		const mkUpdateSet = (rows: unknown[]) =>
+			mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })) }));
+
+		// update installments → [] (overdueRows empty)
+		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([]) }));
+
+		// tx.query.installments.findFirst → first overdue
 		mockInstallmentsFindFirst.mockResolvedValueOnce({ id: "inst-1" } as any);
 
-		// update installments (mark overdue)
-		const mockUpdateSet = mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockUpdateSet }));
-
-		// update packageInstances (lock) — returns locked pkg
+		// update packageInstances (lock) → lockedPkg
 		const lockedPkg = { ...pkg, isLocked: true, lockedAt: new Date(), lockedReason: "non_payment" };
-		const mockUpdateSet2 = mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([lockedPkg])) })) }));
-		mockUpdate.mockImplementationOnce(() => ({ set: mockUpdateSet2 }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([lockedPkg]) }));
 
-		// insert (logInstallmentEvent)
+		// logInstallmentEvent insert
 		mockInsertReturning.mockResolvedValueOnce([]);
 
 		const result = await evaluateAndLockIfOverdue(mockTenantDb, "pi-test");
@@ -573,7 +568,7 @@ describe("setPackageOverdraft", () => {
 		// insert was called twice: installmentEvents + auditLog
 		expect(mockInsert).toHaveBeenCalledTimes(2);
 		// first insert values contain overdraft_enabled eventType
-		const firstInsertArg = ((mockInsertValues as any).mock.calls[0] ?? [])[0]! as any;
+		const firstInsertArg = (mockInsertValues.mock.calls as any)[0]?.[0] as any;
 		expect(firstInsertArg?.eventType).toBe("overdraft_enabled");
 	});
 
@@ -639,7 +634,7 @@ describe("setPackageOverdraft", () => {
 		expect(result.allowCreditOverdraft).toBe(false);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
 		// event row written with overdraft_disabled
-		const firstInsertArg = ((mockInsertValues as any).mock.calls[0] ?? [])[0]! as any;
+		const firstInsertArg = (mockInsertValues.mock.calls as any)[0]?.[0] as any;
 		expect(firstInsertArg?.eventType).toBe("overdraft_disabled");
 	});
 

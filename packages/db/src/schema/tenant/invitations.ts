@@ -17,12 +17,12 @@
  * - Only one pending invitation per email in this organization (enforced in app layer)
  */
 
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, integer, boolean } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 
 export const invitations = pgTable("invitations", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	email: text("email").notNull(),
+	email: text("email"), // nullable for branch_self_signup invites (no target email)
 	invitedBy: text("invited_by").notNull(), // References control panel users.id (text, no FK constraint due to cross-database)
 	role: text("role").notNull(), // admin, trainer, staff, client
 	hierarchyScopeId: uuid("hierarchy_scope_id")
@@ -32,14 +32,15 @@ export const invitations = pgTable("invitations", {
 	status: text("status").notNull(), // pending, accepted, declined, expired
 	expiresAt: timestamp("expires_at").notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
+	// Phase 0: branch QR onboarding (sales-pipeline-fixes 0051)
+	kind: text("kind").notNull().default("staff"), // "staff" | "branch_self_signup"
+	usesCount: integer("uses_count").notNull().default(0),
+	maxUses: integer("max_uses"), // null = unlimited
+	isActive: boolean("is_active").notNull().default(true),
 }, (table) => ({
-	// Unique constraint on token for invitation links
-	// Note: token already has unique constraint/index via .unique()
-	// Composite index for checking duplicate pending invitations
 	emailStatusIdx: index("invitations_email_status_idx").on(table.email, table.status),
-	// Index for expiration queries
 	expiresAtIdx: index("invitations_expires_idx").on(table.expiresAt),
-	// Index for queries by inviter
 	invitedByIdx: index("invitations_invited_by_idx").on(table.invitedBy),
+	kindBranchIdx: index("invitations_kind_branch_idx").on(table.kind, table.hierarchyScopeId),
 }));
 

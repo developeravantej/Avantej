@@ -20,6 +20,7 @@ import { packageInstances } from "./package-instances";
 import { classSlots } from "./class-slots";
 import { rooms } from "./rooms";
 import { salesOrders } from "./sales-orders";
+import { categoryCommissionConfigVersions } from "./category-commission-config-versions";
 
 export const appointments = pgTable("appointments", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -114,6 +115,20 @@ export const appointments = pgTable("appointments", {
 
 	// POS linkage for double-commission guard (Policy P6)
 	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
+
+	// Commission snapshot fields (Flaws #9, #10, #11)
+	// priceSnapshotCents: write-once at booking — commission reads this, not live pricePerClient.
+	// Null on historical rows; calculator falls back to pricePerClient when null.
+	priceSnapshotCents: integer("price_snapshot_cents"),
+	// configVersionId: audit anchor recording which config version was active at booking.
+	// Commission rates are still calculated from the live config (Option A — audit trail only).
+	configVersionId: uuid("config_version_id").references(
+		() => categoryCommissionConfigVersions.id,
+	),
+	// isComplimentary: walk-in/direct comp appointments do not generate commission splits
+	// even without a sales order (which was the only prior guard).
+	isComplimentary: boolean("is_complimentary").notNull().default(false),
+	complimentaryReason: text("complimentary_reason"),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),

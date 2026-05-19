@@ -8,10 +8,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PauseCircle } from "lucide-react";
 import { useState } from "react";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +20,6 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import { AppointmentsTab } from "@/features/customers-detail/components/AppointmentsTab";
-import { CustomerHeader } from "@/features/customers-detail/components/CustomerHeader";
 import { FreezeMembershipDialog } from "@/features/customers-detail/components/FreezeMembershipDialog";
 import { HouseholdSection } from "@/features/customers-detail/components/HouseholdSection";
 import { KpiCard } from "@/features/customers-detail/components/KpiCard";
@@ -27,7 +27,7 @@ import { LeadSourceSection } from "@/features/customers-detail/components/LeadSo
 import { OverviewTab } from "@/features/customers-detail/components/OverviewTab";
 import { PageSkeleton } from "@/features/customers-detail/components/PageSkeleton";
 import { PaymentsTab } from "@/features/customers-detail/components/PaymentsTab";
-import { SavedCardsSection } from "@/features/customers-detail/components/SavedCardsSection";
+import { getInitials, memberStatusVariant, formatDate } from "@/features/customers-detail/utils";
 
 // ─── Route ─────────────────────────────────────────────────────────────────────
 
@@ -152,8 +152,8 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-						<ArrowLeft className="mr-2 size-4" />
+					<Link to="/dashboard/customers/v2/view" search={{} as any}>
+						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
 				</Button>
@@ -178,8 +178,8 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-						<ArrowLeft className="mr-2 size-4" />
+					<Link to="/dashboard/customers/v2/view" search={{} as any}>
+						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
 				</Button>
@@ -191,6 +191,7 @@ function Customer360Page() {
 
 	const { member, user, profile, packageInstances, recentPayments, appointmentCount, outstandingBalanceCents } = detail;
 	const activePackageCount = packageInstances.filter((p) => p.status === "active").length;
+	const initials = getInitials(user.name ?? "?");
 
 	// ── Render ─────────────────────────────────────────────────────────────
 
@@ -198,22 +199,49 @@ function Customer360Page() {
 		<div className="space-y-6 p-6">
 			{/* Back navigation */}
 			<Button variant="ghost" size="sm" asChild className="-ml-1">
-				<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
-					<ArrowLeft className="mr-1 size-4" />
+				<Link to="/dashboard/customers/v2/view" search={{} as any}>
+					<ArrowLeft className="mr-1 h-4 w-4" />
 					Customers
 				</Link>
 			</Button>
 
 			{/* ── Customer Header ─────────────────────────────────────────── */}
-			<CustomerHeader
-				member={member}
-				user={user}
-				profile={profile ?? null}
-				organizationId={organizationId}
-				canFreeze={canFreeze}
-				canShowFreezeButton={packageInstances.some((p) => p.status !== "paused")}
-				onFreezeClick={() => setFreezeOpen(true)}
-			/>
+			<div className="flex items-start gap-4">
+				<span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xl">
+					{initials}
+				</span>
+				<div className="min-w-0 flex-1 space-y-1">
+					<div className="flex flex-wrap items-center gap-2">
+						<h1 className="font-bold text-2xl leading-tight">{user.name}</h1>
+						<Badge variant={memberStatusVariant(member.status ?? "")}>
+							{member.status ?? "unknown"}
+						</Badge>
+					</div>
+					<p className="text-muted-foreground text-sm">{user.email}</p>
+					{profile?.phone && (
+						<p className="text-muted-foreground text-sm">
+							{profile.phone}
+						</p>
+					)}
+					<p className="text-muted-foreground text-xs">
+						Joined {formatDate(member.joinedAt)}
+					</p>
+				</div>
+				{/* === 3.1 membership freeze === */}
+				<div className="flex shrink-0 items-start gap-2">
+					{canFreeze && packageInstances.some((p) => p.status !== "paused") && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setFreezeOpen(true)}
+						>
+							<PauseCircle className="mr-1.5 h-4 w-4" />
+							Pause Membership
+						</Button>
+					)}
+				</div>
+				{/* === /3.1 === */}
+			</div>
 
 			{/* === 3.1 membership freeze === dialog mount */}
 			{canFreeze && (
@@ -306,13 +334,7 @@ function Customer360Page() {
 				</TabsContent>
 
 				{/* ── Payments tab ───────────────────────────────────────── */}
-				<TabsContent value="payments" className="mt-4 space-y-4">
-					{detail?.profile?.id && (
-						<SavedCardsSection
-							organizationId={organizationId}
-							customerProfileId={detail.profile.id}
-						/>
-					)}
+				<TabsContent value="payments" className="mt-4">
 					<PaymentsTab recentPayments={recentPayments} />
 				</TabsContent>
 

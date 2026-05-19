@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/subscribe.tsx`
 **Platform:** web
 **Auth required:** public (has different flows for authenticated vs. guest users)
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
@@ -78,7 +78,7 @@
 - Button, Card (CardHeader, CardTitle, CardDescription, CardContent, CardFooter) - shadcn/ui
 - Alert - shadcn/ui
 - Input, Label - shadcn/ui
-- Sheet (SheetContent, SheetDescription, SheetHeader, SheetTitle) - shadcn/ui
+- Dialog (DialogContent, DialogDescription, DialogHeader, DialogTitle) - shadcn/ui (guest checkout uses Dialog, not Sheet — variable name `isGuestSheetOpen` remains for legacy reasons)
 - lucide-react icons (Loader2, Check, Star, Zap, Shield, Users, Mail, User)
 
 **Uses these hooks:** 
@@ -143,4 +143,5 @@
 - Popular plan badge uses hardcoded "pro" check - should use metadata or explicit flag instead
 - Processing state prevents all plan cards from being interacted with while waiting for session
 - No retry logic if Stripe session retrieval fails - user must reload to retry
+- **2026-05-12 cleanup (commit `25f6d75b`):** Removed `console.*` calls, tightened error-handling types (`isAuthError` helper extracted), and switched guest checkout from `Sheet` to `Dialog`. State variable `isGuestSheetOpen` was NOT renamed.
 

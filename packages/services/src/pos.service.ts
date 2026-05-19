@@ -16,7 +16,6 @@ import { payments } from "@avantej-core/db/schema/tenant/payments";
 import { paymentItems } from "@avantej-core/db/schema/tenant/payment-items";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
-import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
@@ -28,9 +27,12 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
-import { calculateInstallmentAmounts, calculateCreditsUnlocked } from "./installment.service";
+import { createInstallmentSchedule, calculateCreditsUnlocked } from "./installment.service";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
+import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
+import * as branchStatsCache from "./branch-stats-cache.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 // Drizzle transaction type — structurally compatible with TenantDb for inserts/selects
@@ -62,7 +64,7 @@ export interface RecordPosSaleInput {
 	// Tax — undefined means no tax (0%)
 	taxRateId?: string;
 	// Payment
-	paymentMethod: "cash" | "card" | "bank_transfer" | "online";
+	paymentMethod: "cash" | "card" | "manual_transfer" | "fpx" | "stripe";
 	paymentReference?: string; // card auth code, bank transfer ref, etc.
 	amountTenderedCents?: number; // for cash, may exceed total — change calculated
 	// Installment (only valid if items contains exactly one "package")
@@ -71,6 +73,8 @@ export interface RecordPosSaleInput {
 	notes?: string;
 	/** Per-item trainer assignments. Key = item index (0-based). Optional — POS commission is optional. */
 	itemTrainerAssignments?: Record<number, { staffId: string; slotIndex: number }[]>;
+	/** Preferred trainer for package instances created by this sale. Written to package_instances.preferred_trainer_id. */
+	preferredTrainerId?: string;
 	// Actor
 	actor: { userId: string; memberId: string; role: string };
 }
@@ -263,14 +267,19 @@ export async function recordPosSale(
 		// Step 1: Validate customer
 		if (input.customerType === "member") {
 			const member = await tx.query.members.findFirst({
-				where: and(
-					eq(members.userId, input.customerId),
-					eq(members.role, "client"),
-				),
+				where: eq(members.userId, input.customerId),
 			});
 			if (!member) {
 				throw new ORPCError("NOT_FOUND", {
-					message: `Member (client) not found for userId: ${input.customerId}`,
+					message: `Member not found for userId: ${input.customerId}`,
+				});
+			}
+			// 7.8a: surface a typed BAD_REQUEST so the frontend can show a friendly message
+			// (e.g. "This staff member cannot be sold to via POS")
+			if (member.role !== "client") {
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Cannot create a POS sale for a member with role '${member.role}'. Only members with role 'client' may purchase via POS.`,
+					cause: "non_client_member",
 				});
 			}
 		}
@@ -363,6 +372,13 @@ export async function recordPosSale(
 
 		// Step 7: Insert sales_orders
 		// totalAmount = subtotal - discount (PRE-TAX, per existing schema convention)
+		// Walk-in customers: when customerType='walk_in', customerId references
+		// walk_in_customers.id. Mirror it into the typed FK column so cross-joins
+		// (Cancelled Sales, repeat-offender count, etc.) work even when the text
+		// columns drift. Members keep walk_in_customer_id NULL.
+		const walkInCustomerId =
+			input.customerType === "walk_in" ? input.customerId : null;
+
 		const [salesOrder] = await tx
 			.insert(salesOrders)
 			.values({
@@ -371,11 +387,12 @@ export async function recordPosSale(
 				customerId: input.customerId,
 				customerName: input.customerName,
 				customerType: input.customerType,
+				walkInCustomerId,
 				createdBy: input.actor.userId,
 				branchId: input.branchId,
 				// Plan B Phase 3c.1 — online sale stays "pending" until webhook
 				// (payment_intent.succeeded for sales_order) flips it to "completed".
-				status: input.paymentMethod === "online" ? "pending" : "confirmed",
+				status: input.paymentMethod === "stripe" ? "pending" : "confirmed",
 				totalAmount: taxBase, // pre-tax, post-discount
 				notes: input.notes ?? null,
 			})
@@ -389,12 +406,21 @@ export async function recordPosSale(
 		// Phase 3 Task 3.1: also snapshot rateInBasisPoints and code so
 		// the historical rate is self-contained even after rate row edits.
 		for (const item of input.items) {
+			// Service items (serviceId IS NOT NULL) do NOT earn commission at sale time.
+			// Commission is deferred until the linked appointment is delivered
+			// (completed or cancelled). Mark the line so the appointment handler
+			// can read it without a commission_pending_intents table (Open Q-2 Option B).
+			const isServiceItem =
+				(item.type === "service" || item.type === "package") && Boolean(item.refId);
+			const isProductItem = item.type === "product" && Boolean(item.refId);
+			// commissionDeferred = true  → service item, wait for appointment delivery
+			// commissionDeferred = false → product item or no refId, earn at sale
+			const commissionDeferred = isServiceItem && !isProductItem;
+
 			await tx.insert(salesOrderItems).values({
 				salesOrderId: salesOrder.id,
-				serviceId:
-					(item.type === "service" || item.type === "package") && item.refId
-						? item.refId
-						: null,
+				serviceId: isServiceItem ? item.refId! : null,
+				productId: isProductItem ? item.refId! : null,
 				taxRateId: resolvedTaxRateId,
 				taxRateBps: taxRate?.rateInBasisPoints ?? null,
 				taxRateCode: taxRate?.code ?? null,
@@ -402,6 +428,7 @@ export async function recordPosSale(
 				quantity: item.quantity,
 				unitPrice: item.unitPriceCents,
 				totalPrice: item.unitPriceCents * item.quantity,
+				commissionDeferred,
 			});
 		}
 
@@ -412,7 +439,7 @@ export async function recordPosSale(
 		// Plan B Phase 3c.1 — "online" sales park the payment row in pending
 		// state; webhook flips it to "succeeded" once Stripe confirms.
 		const paymentStatus =
-			input.paymentMethod === "online"
+			input.paymentMethod === "stripe"
 				? "pending"
 				: input.paymentMethod === "card" && !input.paymentReference
 					? "pending"
@@ -498,9 +525,19 @@ export async function recordPosSale(
 		// which would conflict with this outer tx. We inline the two operations here
 		// to keep everything in the same transaction and ensure rollback atomicity.)
 		if (promotionId) {
+			// 7.10: For walk-in customers, store the actual walkInCustomer.id when available
+			// rather than the literal string "anonymous", so per-customer usage limits
+			// apply correctly. The sentinel "anonymous" is only used when no walkInId
+			// is known (e.g. quick add without a registered walk-in record).
+			const promoCustomerId =
+				input.customerType === "walk_in" && input.customerId !== "anonymous"
+					? input.customerId
+					: input.customerType === "member"
+						? input.customerId
+						: null; // truly anonymous — do not write a usage row per-customer
 			await tx.insert(promotionUsages).values({
 				promotionId,
-				customerId: input.customerId,
+				customerId: promoCustomerId ?? "anonymous",
 				salesOrderId: salesOrder.id,
 				discountAmount: discountCents,
 			});
@@ -526,14 +563,19 @@ export async function recordPosSale(
 				paymentMode: input.paymentMethod,
 				totalAmount: totalCents,
 				// Plan B Phase 3c.1 — online sales aren't paid until webhook fires.
-				amountPaid: input.paymentMethod === "online" ? 0 : totalCents,
-				status: input.paymentMethod === "online" ? "pending" : "paid",
+				amountPaid: input.paymentMethod === "stripe" ? 0 : totalCents,
+				status: input.paymentMethod === "stripe" ? "pending" : "paid",
 			})
 			.returning();
 
 		if (!invoice) throw new Error("Failed to insert invoice");
 
 		// Step 13: Package instances + installments
+		// Installment plan flow: schedule is created with installment 1 due today (day 0),
+		// installment 2 due at intervalDays, etc. Installment 1 is immediately confirmed paid
+		// inline because the customer is paying right now at the POS counter.
+		// 7.2: Schedule creation delegated to createInstallmentSchedule (replaces open-coded loop).
+		// 7.3: salesOrderId backfilled on both package_instance and installment rows.
 		let packageInstanceId: string | undefined;
 		const installmentIds: string[] = [];
 
@@ -559,8 +601,9 @@ export async function recordPosSale(
 				const expiresAt = addDays(now, service.expiryDays!);
 
 				const installmentsTotal = installmentPlan?.numInstallments ?? 1;
+				const isInstallmentPlan = !!installmentPlan && installmentsTotal > 1;
 
-				// installmentsPaid=1: first installment is paid at POS
+				// 7.1: Web semantics — start at 0, credits unlocked starts at 0 for plans
 				const [pkgInstance] = await tx
 					.insert(packageInstances)
 					.values({
@@ -568,97 +611,80 @@ export async function recordPosSale(
 						clientId: input.customerType === "member" ? input.customerId : null,
 						walkInCustomerId: input.customerType === "walk_in" && input.customerId !== "anonymous" ? input.customerId : null,
 						source: "purchased",
+						salesOrderId: salesOrder.id, // 7.3
 						paymentId: payment.id,
 						totalPrice: itemTotal,
 						taxAmount: itemTaxAmount,
-						// Plan B Phase 3c.1 — online sale keeps package_instance
-						// pending until webhook flips paymentStatus->paid, status->active.
-						paymentStatus: input.paymentMethod === "online" ? "pending" : "paid",
+						paymentStatus: isInstallmentPlan ? "partially_paid" : "paid",
 						paymentMethod: input.paymentMethod,
 						creditsTotal: service.sessionCount!,
 						creditsUsed: 0,
 						startsAt,
 						expiresAt,
-						status: input.paymentMethod === "online" ? "pending" : "active",
+						status: input.paymentMethod === "stripe" ? "pending" : "active",
 						paymentPlanType: input.installmentPlanCode ?? "full",
 						installmentsTotal,
-						// Plan B Phase 3c.1 — online sale: nothing actually paid yet.
-						installmentsPaid: input.paymentMethod === "online" ? 0 : 1,
-						// creditsUnlocked: null = all credits available (full payment)
-						// For installment plans, will be set below after schedule creation
-						creditsUnlocked:
-							installmentPlan && installmentsTotal > 1
-								? calculateCreditsUnlocked(service.sessionCount!, 1, installmentsTotal)
-								: null,
+						installmentsPaid: 0, // 7.1: web semantics — starts at 0
+						// creditsUnlocked: null = all credits available (full/single payment)
+						// For installment plans: 0 = no credits until first installment confirmed
+						creditsUnlocked: isInstallmentPlan ? 0 : null,
+						preferredTrainerId: input.preferredTrainerId ?? null,
 					})
 					.returning();
 
 				if (!pkgInstance) throw new Error("Failed to insert package_instance");
 				packageInstanceId = pkgInstance.id;
 
-				// Step 13c: Installment schedule
-				if (installmentPlan && installmentsTotal > 1) {
-					const amounts = calculateInstallmentAmounts(itemTotal, installmentsTotal);
-					const baseTax = Math.floor(itemTaxAmount / installmentsTotal);
-					const taxRemainder = itemTaxAmount - baseTax * installmentsTotal;
-					const intervalDays =
-						installmentPlan.defaultIntervalDays ?? 30;
-
-					for (let i = 1; i <= installmentsTotal; i++) {
-						const amount = amounts[i - 1] ?? 0;
-						const instTaxAmount =
-							i === installmentsTotal ? baseTax + taxRemainder : baseTax;
-						const dueDate = addDays(now, i * intervalDays);
-						const creditsUnlockedByThis =
-							calculateCreditsUnlocked(service.sessionCount!, i, installmentsTotal) -
-							calculateCreditsUnlocked(service.sessionCount!, i - 1, installmentsTotal);
-
-						const [installmentRow] = await tx
-							.insert(installments)
-							.values({
-								packageInstanceId: pkgInstance.id,
-								installmentNumber: i,
-								amount,
-								taxAmount: instTaxAmount,
-								// Plan B Phase 3c.1 — online sale leaves all installments
-							// in "pending" (webhook converts on confirmation).
-							status:
-								input.paymentMethod === "online"
-									? "pending"
-									: i === 1
-										? "paid"
-										: "pending", // first paid at POS
-								dueDate,
-								paidAt: i === 1 && input.paymentMethod !== "online" ? now : null,
-								paymentMethod:
-									i === 1 && input.paymentMethod !== "online"
-										? input.paymentMethod
-										: null,
-								confirmedBy:
-									i === 1 && input.paymentMethod !== "online"
-										? input.actor.userId
-										: null,
-								creditsUnlockedByThis,
-							})
-							.returning();
-
-						if (installmentRow) {
-							installmentIds.push(installmentRow.id);
-						}
+				// Step 13c: Installment schedule — 7.2: use shared helper
+				if (isInstallmentPlan && installmentPlan) {
+					const intervalDays = installmentPlan.defaultIntervalDays ?? 30;
+					const scheduleRows = await createInstallmentSchedule(
+						tx,
+						{
+							packageInstanceId: pkgInstance.id,
+							creditsTotal: service.sessionCount!,
+							totalPrice: itemTotal,
+							taxAmount: itemTaxAmount,
+							installmentsTotal,
+							intervalDays,
+							purchaseDate: now,
+							salesOrderId: salesOrder.id,
+						},
+						{ inTransaction: true },
+					);
+					for (const row of scheduleRows) {
+						installmentIds.push(row.id);
 					}
 
-					// Update package instance with schedule metadata
-					const firstDueDate = addDays(now, installmentPlan.defaultIntervalDays ?? 30);
-					await tx
-						.update(packageInstances)
-						.set({
-							installmentsTotal,
-							nextDueDate: installmentIds.length > 1
-								? addDays(now, 2 * intervalDays) // next due = 2nd installment
-								: firstDueDate,
-							updatedAt: now,
-						})
-						.where(eq(packageInstances.id, pkgInstance.id));
+					// Auto-confirm installment #1: customer pays the first installment at the counter.
+					if (scheduleRows.length > 0) {
+						const first = scheduleRows[0]!;
+						const creditsAfterFirst = calculateCreditsUnlocked(service.sessionCount!, 1, installmentsTotal);
+						const nextDueDate = scheduleRows[1]?.dueDate ?? null;
+						console.log("[pos] auto-confirming installment #1", {
+							packageInstanceId: pkgInstance.id,
+							installmentId: first.id,
+							amount: first.amount,
+							creditsAfterFirst,
+							nextDueDate: nextDueDate?.toISOString() ?? null,
+						});
+
+						await tx
+							.update(installments)
+							.set({ status: "paid", paidAt: now, paymentMethod: input.paymentMethod, confirmedBy: input.actor.userId, updatedAt: now })
+							.where(eq(installments.id, first.id));
+
+						await tx
+							.update(packageInstances)
+							.set({ installmentsPaid: 1, creditsUnlocked: creditsAfterFirst, nextDueDate, updatedAt: now })
+							.where(eq(packageInstances.id, pkgInstance.id));
+
+						await tx.insert(installmentEvents).values([
+							{ packageInstanceId: pkgInstance.id, installmentId: first.id, eventType: "payment_received", actorId: input.actor.userId, amount: first.amount },
+							{ packageInstanceId: pkgInstance.id, installmentId: first.id, eventType: "credits_unlocked", actorId: input.actor.userId, metadata: JSON.stringify({ creditsUnlocked: creditsAfterFirst }) },
+						]);
+						console.log("[pos] installment #1 auto-confirmed", { packageInstanceId: pkgInstance.id, creditsAfterFirst });
+					}
 				}
 			}
 		}
@@ -711,26 +737,84 @@ export async function recordPosSale(
 		};
 	});
 
-	// Commission: fire per-item if trainer assignments provided (outside transaction)
+	// Commission: fire per-item for PRODUCT items only (commission earns at sale time).
+	// Service items (type === "service" | "package") are deferred — commission fires
+	// when the linked appointment is delivered (completed or cancelled). The line's
+	// commissionDeferred flag is already set to true in the transaction above.
 	if (input.itemTrainerAssignments && Object.keys(input.itemTrainerAssignments).length > 0) {
 		const { calculateCommissionForPos } = await import("./commission-calculator.service");
+
+		// Fix #13 (defensive): the calculator's Pre-step B2 only bails when *all*
+		// lines on the order are commission_excluded. It can't tell which specific
+		// line each invocation is for. So we must filter excluded lines at the
+		// caller. Today no UI sets this flag (POS service writes it as default
+		// false), but a future admin "mark line excluded" flow would silently
+		// double-pay otherwise. Fetch the persisted rows once and build an
+		// excluded-set keyed by service/product refId.
+		const persistedItems = await tenantDb
+			.select({
+				serviceId: salesOrderItems.serviceId,
+				productId: salesOrderItems.productId,
+				commissionExcluded: salesOrderItems.commissionExcluded,
+			})
+			.from(salesOrderItems)
+			.where(eq(salesOrderItems.salesOrderId, result.salesOrderId));
+		const excludedRefIds = new Set(
+			persistedItems
+				.filter((r) => r.commissionExcluded)
+				.map((r) => r.serviceId ?? r.productId)
+				.filter((id): id is string => id != null),
+		);
 
 		for (const [indexStr, staffAssignments] of Object.entries(input.itemTrainerAssignments)) {
 			const itemIndex = parseInt(indexStr, 10);
 			const item = input.items[itemIndex];
-			if (!item || !item.refId) continue; // Skip items without a service refId
+			if (!item || !item.refId) continue; // Skip items without a refId
 
-			try {
-				await calculateCommissionForPos(tenantDb, {
+			// Only products earn commission at sale time.
+			// Services/packages defer to appointment delivery — skip here.
+			if (item.type !== "product") {
+				console.info(JSON.stringify({
+					event: "commission_deferred_service_item",
 					salesOrderId: result.salesOrderId,
-					serviceId: item.refId,
-					unitPriceCents: item.unitPriceCents,
-					quantity: item.quantity,
-					staffAssignments,
-					actor: input.actor,
+					itemIndex,
+					itemType: item.type,
+				}));
+				continue;
+			}
+
+			// Fix #13: skip per-line commission_excluded items.
+			if (excludedRefIds.has(item.refId)) {
+				console.info(JSON.stringify({
+					event: "commission_skipped_line_excluded",
+					salesOrderId: result.salesOrderId,
+					itemIndex,
+					refId: item.refId,
+				}));
+				continue;
+			}
+
+			// Fix #19: wrap each per-item commission calc in its own transaction.
+			// Previously the calculator's per-staff inserts ran on the bare
+			// `tenantDb` outside any tx; a mid-loop throw left partial rows
+			// committed and re-runs hit the 23505 path inconsistently. Each item
+			// is its own atomic unit — one item failing shouldn't roll back
+			// commissions for sibling items.
+			try {
+				await tenantDb.transaction(async (tx) => {
+					await calculateCommissionForPos(tx as unknown as typeof tenantDb, {
+						salesOrderId: result.salesOrderId,
+						serviceId: item.refId!,
+						unitPriceCents: item.unitPriceCents,
+						quantity: item.quantity,
+						staffAssignments,
+						actor: input.actor,
+						earnReason: "pos_product",
+					});
 				});
 			} catch (err) {
-				// Commission failure must not fail the sale — log and continue
+				// Commission failure must not fail the sale — log and continue.
+				// The per-item tx ensures any partial inserts are rolled back.
 				console.error(JSON.stringify({
 					event: "commission_calculation_failed",
 					salesOrderId: result.salesOrderId,
@@ -739,6 +823,11 @@ export async function recordPosSale(
 				}));
 			}
 		}
+	}
+
+	// Enqueue branch stats cache refresh for revenue (debounced, fire-and-forget)
+	if (input.branchId) {
+		branchStatsCache.refresh(tenantDb, input.branchId, "revenue");
 	}
 
 	return result;
@@ -789,13 +878,13 @@ export async function searchPosCustomers(
 		const { inArray } = await import("drizzle-orm");
 
 		const users = await controlPanelDb
-			.select({ id: user.id, name: user.name, email: user.email })
+			.select({ id: user.id, name: user.name, email: user.email, phone: user.phone })
 			.from(user)
 			.where(inArray(user.id, userIds));
 
 		const userMap = new Map(users.map((u) => [u.id, u]));
 
-		// Step 3: Filter by query (name or email match)
+		// Step 3: Filter by query (name or email or phone match)
 		const lowerQuery = query.toLowerCase();
 		for (const member of scopedMembers) {
 			const userDetail = userMap.get(member.userId);
@@ -803,14 +892,15 @@ export async function searchPosCustomers(
 
 			const nameMatch = userDetail.name?.toLowerCase().includes(lowerQuery);
 			const emailMatch = userDetail.email?.toLowerCase().includes(lowerQuery);
+			const phoneMatch = userDetail.phone?.toLowerCase().includes(lowerQuery);
 
-			if (nameMatch || emailMatch) {
+			if (nameMatch || emailMatch || phoneMatch) {
 				results.push({
 					type: "member",
 					id: member.userId,
 					name: userDetail.name ?? "Unknown",
 					email: userDetail.email ?? null,
-					phone: null, // control panel user table may not have phone
+					phone: userDetail.phone ?? null, // 7.9: joined from control panel user table
 					branchId: member.hierarchyScopeId,
 					lastVisitAt: null,
 				});

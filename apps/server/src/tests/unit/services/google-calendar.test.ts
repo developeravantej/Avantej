@@ -71,7 +71,7 @@ describe("listGoogleCalendars", () => {
 				accessRole: "owner",
 			},
 		];
-		globalThis.fetch = mockFetchOk({ items: rawItems });
+		globalThis.fetch = mockFetchOk({ items: rawItems }) as unknown as typeof fetch;
 
 		const result = await listGoogleCalendars("test-access-token");
 
@@ -91,19 +91,19 @@ describe("listGoogleCalendars", () => {
 	});
 
 	test("returns empty array when items is absent", async () => {
-		globalThis.fetch = mockFetchOk({});
+		globalThis.fetch = mockFetchOk({}) as unknown as typeof fetch;
 		const result = await listGoogleCalendars("test-token");
 		expect(result).toEqual([]);
 	});
 
 	test("returns empty array when items is empty", async () => {
-		globalThis.fetch = mockFetchOk({ items: [] });
+		globalThis.fetch = mockFetchOk({ items: [] }) as unknown as typeof fetch;
 		const result = await listGoogleCalendars("test-token");
 		expect(result).toEqual([]);
 	});
 
 	test("throws on non-ok Google response", async () => {
-		globalThis.fetch = mockFetchError(401, "Unauthorized");
+		globalThis.fetch = mockFetchError(401, "Unauthorized") as unknown as typeof fetch;
 		await expect(listGoogleCalendars("bad-token")).rejects.toThrow(
 			"Calendar list fetch failed: Unauthorized",
 		);
@@ -122,7 +122,7 @@ describe("listGoogleCalendars", () => {
 				json: () => Promise.resolve({ items: [] }),
 				text: () => Promise.resolve(""),
 			} as unknown as Response);
-		});
+		}) as unknown as typeof fetch;
 
 		await listGoogleCalendars("my-access-token-123");
 

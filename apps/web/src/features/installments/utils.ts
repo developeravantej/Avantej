@@ -19,6 +19,8 @@ export function getInstanceStatus(
 	instance: InstallmentOverviewItem,
 ): "Active" | "Overdue" | "Locked" {
 	if (instance.isLocked) return "Locked";
+	// Overdue if grace period started OR nextDueDate has passed (before cron sweeps it)
 	if (instance.gracePeriodEndsAt) return "Overdue";
+	if (instance.nextDueDate && new Date(instance.nextDueDate) < new Date()) return "Overdue";
 	return "Active";
 }

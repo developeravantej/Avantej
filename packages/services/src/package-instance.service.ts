@@ -14,11 +14,13 @@
 import { eq, and, asc, inArray, sql, or, lt, desc } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { packageInstanceStatusHistory } from "@avantej-core/db/schema/tenant/package-instance-status-history";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { user } from "@avantej-core/db/schema/auth";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { appendPackageInstanceStatusHistory } from "./status-history.helper";
+import { writeAudit } from "./audit-log.service";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -57,6 +59,8 @@ export type CreatePackageInstanceParams = ClientOwner & {
   installmentsPaid?: number;
   creditsUnlocked?: number | null;
   preferredTrainerId?: string | null;
+  /** Reconciliation FK added by migration 0051 — populate when originating from a sales order. */
+  salesOrderId?: string | null;
 };
 
 export type UpdatePackageInstanceParams = {
@@ -144,6 +148,7 @@ export async function createPackageInstance(
       installmentsPaid: params.installmentsPaid ?? 0,
       creditsUnlocked: params.creditsUnlocked ?? null,
       preferredTrainerId: params.preferredTrainerId ?? null,
+      salesOrderId: params.salesOrderId ?? null,
     })
     .returning();
 
@@ -458,4 +463,501 @@ export async function getPackageInstanceStatusHistory(
 			desc(packageInstanceStatusHistory.id),
 		)
 		.limit(limit + 1);
+}
+
+// ----------------------------------------------------------------
+// listAssignedToMember — trainer's own assigned packages view
+// ----------------------------------------------------------------
+
+export interface AssignedPackageRow {
+	id: string;
+	clientId: string | null;
+	serviceId: string;
+	serviceName: string | null;
+	clientDisplayName: string | null;
+	clientEmail: string | null;
+	status: string;
+	creditsRemaining: number;
+	creditsTotal: number;
+	nextDueDate: Date | null;
+	startsAt: Date;
+	expiresAt: Date;
+	createdAt: Date;
+}
+
+export type ListAssignedToMemberParams = {
+	memberId: string;
+	/** "active" | "frozen" → filter by that status; "all" → no status filter */
+	status?: "active" | "frozen" | "all";
+	cursor?: { createdAt: Date; id: string } | null;
+	limit?: number;
+};
+
+/**
+ * List package instances assigned to a specific trainer member.
+ *
+ * Scoped to assignedTrainerId = memberId. Names are batch-hydrated from
+ * the control-panel user table to avoid N+1 queries.
+ *
+ * Index: package_instances_assigned_trainer_status_idx (assigned_trainer_id, status)
+ * — added in migration 0051_sales_pipeline_fixes.
+ */
+export async function listAssignedToMember(
+	controlPanelDb: ControlPanelDb,
+	tenantDb: TenantDb,
+	params: ListAssignedToMemberParams,
+): Promise<AssignedPackageRow[]> {
+	const { memberId, status = "active", cursor = null, limit = 50 } = params;
+
+	// Status predicate: default shows active+frozen; "all" shows everything.
+	const statusCondition = (() => {
+		if (status === "active") return eq(packageInstances.status, "active");
+		if (status === "frozen") return eq(packageInstances.status, "frozen");
+		return undefined; // "all" — no filter
+	})();
+
+	// Cursor: (createdAt DESC, id DESC) — same shape as status-history.
+	const cursorCondition = cursor
+		? or(
+				lt(packageInstances.createdAt, cursor.createdAt),
+				and(
+					eq(packageInstances.createdAt, cursor.createdAt),
+					lt(packageInstances.id, cursor.id),
+				),
+			)
+		: undefined;
+
+	const rows = await tenantDb
+		.select({
+			id: packageInstances.id,
+			clientId: packageInstances.clientId,
+			serviceId: packageInstances.serviceId,
+			status: packageInstances.status,
+			creditsRemaining: packageInstances.creditsRemaining,
+			creditsTotal: packageInstances.creditsTotal,
+			nextDueDate: packageInstances.nextDueDate,
+			startsAt: packageInstances.startsAt,
+			expiresAt: packageInstances.expiresAt,
+			createdAt: packageInstances.createdAt,
+			serviceName: services.name,
+		})
+		.from(packageInstances)
+		.leftJoin(services, eq(packageInstances.serviceId, services.id))
+		.where(
+			and(
+				eq(packageInstances.assignedTrainerId, memberId),
+				statusCondition,
+				cursorCondition,
+			),
+		)
+		.orderBy(desc(packageInstances.createdAt), desc(packageInstances.id))
+		.limit(limit);
+
+	if (rows.length === 0) return [];
+
+	// Batch-hydrate client display names from control-panel user table.
+	const clientIds = [
+		...new Set(rows.map((r) => r.clientId).filter((id): id is string => !!id)),
+	];
+
+	let clientMap = new Map<string, { name: string; email: string }>();
+	if (clientIds.length > 0) {
+		const userRows = await controlPanelDb
+			.select({ id: user.id, name: user.name, email: user.email })
+			.from(user)
+			.where(inArray(user.id, clientIds));
+		clientMap = new Map(
+			userRows.map((u) => [u.id, { name: u.name, email: u.email }]),
+		);
+	}
+
+	return rows.map((r) => ({
+		...r,
+		clientDisplayName: r.clientId
+			? (clientMap.get(r.clientId)?.name ?? null)
+			: null,
+		clientEmail: r.clientId
+			? (clientMap.get(r.clientId)?.email ?? null)
+			: null,
+	}));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 — package lifecycle mutations (cancel / freeze / unfreeze / extend)
+// ---------------------------------------------------------------------------
+
+// Drizzle transaction type (structural compatibility, no circular import)
+// biome-ignore lint/suspicious/noExplicitAny: tx type is internal to Drizzle
+type TenantTx = any;
+
+export type CancelPackageInstanceParams = {
+	id: string;
+	actorUserId: string;
+	actorMemberId?: string;
+	actorRole?: string;
+	reason: string;
+};
+
+/**
+ * Cancel a package instance.
+ *
+ * Idempotency: if already `cancelled`, throws CONFLICT so the caller can
+ * detect and surface a friendly "already cancelled" message rather than
+ * silently no-op'ing (which would hide double-submission bugs).
+ *
+ * Branch-scope check is the caller's (router's) responsibility.
+ */
+export async function cancelPackageInstance(
+	tenantDb: TenantDb,
+	params: CancelPackageInstanceParams,
+): Promise<{ id: string; status: "cancelled" }> {
+	return tenantDb.transaction(async (tx: TenantTx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.id))
+			.for("update");
+
+		if (!pkg) {
+			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+		}
+		if (pkg.status === "cancelled") {
+			throw Object.assign(new Error("Package is already cancelled"), { code: "CONFLICT" });
+		}
+
+		const now = new Date();
+		const previousStatus = pkg.status;
+
+		await tx
+			.update(packageInstances)
+			.set({
+				status: "cancelled",
+				cancellationReason: params.reason,
+				cancelledBy: params.actorUserId,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, params.id));
+
+		await appendPackageInstanceStatusHistory(tx, params.id, {
+			fromStatus: previousStatus,
+			toStatus: "cancelled",
+			changedBy: params.actorUserId,
+			reason: params.reason,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: params.actorUserId,
+			actorMemberId: params.actorMemberId,
+			actorRole: params.actorRole,
+			action: "package.cancelled",
+			entityType: "package_instance",
+			entityId: params.id,
+			summary: `Package instance ${params.id} cancelled: ${params.reason}`,
+			changes: { previousStatus, reason: params.reason },
+		});
+
+		return { id: params.id, status: "cancelled" as const };
+	});
+}
+
+export type FreezePackageInstanceParams = {
+	id: string;
+	actorUserId: string;
+	actorMemberId?: string;
+	actorRole?: string;
+	until?: Date;
+	reason: string;
+};
+
+/**
+ * Freeze an active package instance.
+ *
+ * Only `active` packages may be frozen. Idempotent guard: already-frozen
+ * throws BAD_REQUEST (not CONFLICT) — it is a caller logic error, not a
+ * race condition.
+ */
+export async function freezePackageInstance(
+	tenantDb: TenantDb,
+	params: FreezePackageInstanceParams,
+): Promise<{ id: string; status: "frozen"; frozenUntil: Date | null }> {
+	return tenantDb.transaction(async (tx: TenantTx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.id))
+			.for("update");
+
+		if (!pkg) {
+			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+		}
+		if (pkg.status !== "active") {
+			throw Object.assign(
+				new Error(`Only active packages can be frozen (current status: ${pkg.status})`),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+
+		const now = new Date();
+		const frozenUntil = params.until ?? null;
+
+		await tx
+			.update(packageInstances)
+			.set({
+				status: "frozen",
+				frozenUntil,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, params.id));
+
+		await appendPackageInstanceStatusHistory(tx, params.id, {
+			fromStatus: "active",
+			toStatus: "frozen",
+			changedBy: params.actorUserId,
+			reason: params.reason,
+			notes: frozenUntil ? `Frozen until ${frozenUntil.toISOString()}` : undefined,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: params.actorUserId,
+			actorMemberId: params.actorMemberId,
+			actorRole: params.actorRole,
+			action: "package.frozen",
+			entityType: "package_instance",
+			entityId: params.id,
+			summary: `Package instance ${params.id} frozen${frozenUntil ? ` until ${frozenUntil.toISOString()}` : ""}`,
+			changes: { frozenUntil: frozenUntil?.toISOString() ?? null, reason: params.reason },
+		});
+
+		return { id: params.id, status: "frozen" as const, frozenUntil };
+	});
+}
+
+export type UnfreezePackageInstanceParams = {
+	id: string;
+	actorUserId: string;
+	actorMemberId?: string;
+	actorRole?: string;
+};
+
+/**
+ * Unfreeze a frozen package instance, returning it to `active`.
+ */
+export async function unfreezePackageInstance(
+	tenantDb: TenantDb,
+	params: UnfreezePackageInstanceParams,
+): Promise<{ id: string; status: "active" }> {
+	return tenantDb.transaction(async (tx: TenantTx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.id))
+			.for("update");
+
+		if (!pkg) {
+			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+		}
+		if (pkg.status !== "frozen") {
+			throw Object.assign(
+				new Error(`Package is not frozen (current status: ${pkg.status})`),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+
+		const now = new Date();
+
+		await tx
+			.update(packageInstances)
+			.set({
+				status: "active",
+				frozenUntil: null,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, params.id));
+
+		await appendPackageInstanceStatusHistory(tx, params.id, {
+			fromStatus: "frozen",
+			toStatus: "active",
+			changedBy: params.actorUserId,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: params.actorUserId,
+			actorMemberId: params.actorMemberId,
+			actorRole: params.actorRole,
+			action: "package.unfrozen",
+			entityType: "package_instance",
+			entityId: params.id,
+			summary: `Package instance ${params.id} unfrozen`,
+			changes: {},
+		});
+
+		return { id: params.id, status: "active" as const };
+	});
+}
+
+export type ExtendPackageInstanceParams = {
+	id: string;
+	actorUserId: string;
+	actorMemberId?: string;
+	actorRole?: string;
+	/** Number of calendar days to add. Must be 1–365. */
+	addDays: number;
+	reason: string;
+};
+
+/**
+ * Extend a package instance's `expiresAt` by the given number of days.
+ *
+ * Terminal statuses (cancelled / expired / completed) are rejected.
+ * Packages with a null `expiresAt` (non-expirable) are also rejected —
+ * they have no expiry to extend.
+ */
+export async function extendPackageInstance(
+	tenantDb: TenantDb,
+	params: ExtendPackageInstanceParams,
+): Promise<{ id: string; expiresAt: Date }> {
+	return tenantDb.transaction(async (tx: TenantTx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.id))
+			.for("update");
+
+		if (!pkg) {
+			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+		}
+
+		const terminalStatuses = ["cancelled", "expired", "completed"];
+		if (terminalStatuses.includes(pkg.status)) {
+			throw Object.assign(
+				new Error(`Cannot extend a ${pkg.status} package`),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+
+		if (!pkg.expiresAt) {
+			throw Object.assign(
+				new Error("Cannot extend a non-expirable package (expiresAt is null)"),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+
+		const newExpiresAt = new Date(pkg.expiresAt.getTime() + params.addDays * 24 * 60 * 60 * 1000);
+		const now = new Date();
+
+		await tx
+			.update(packageInstances)
+			.set({
+				expiresAt: newExpiresAt,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, params.id));
+
+		await appendPackageInstanceStatusHistory(tx, params.id, {
+			fromStatus: pkg.status,
+			toStatus: pkg.status, // status unchanged — history row records the extension event
+			changedBy: params.actorUserId,
+			reason: params.reason,
+			notes: `Extended by ${params.addDays} day(s); new expiresAt: ${newExpiresAt.toISOString()}`,
+		});
+
+		await writeAudit(tx, {
+			actorUserId: params.actorUserId,
+			actorMemberId: params.actorMemberId,
+			actorRole: params.actorRole,
+			action: "package.extended",
+			entityType: "package_instance",
+			entityId: params.id,
+			summary: `Package instance ${params.id} extended by ${params.addDays} day(s)`,
+			changes: {
+				previousExpiresAt: pkg.expiresAt.toISOString(),
+				newExpiresAt: newExpiresAt.toISOString(),
+				addDays: params.addDays,
+				reason: params.reason,
+			},
+		});
+
+		return { id: params.id, expiresAt: newExpiresAt };
+	});
+}
+
+/**
+ * Mark a package instance as `completed` if all delivery conditions are met.
+ *
+ * Completion conditions (both must hold):
+ *   1. installmentsPaid >= installmentsTotal
+ *   2. creditsRemaining <= 0  (generated column: creditsUnlocked ?? creditsTotal - creditsUsed)
+ *
+ * Only transitions `active` or `frozen` packages — all other statuses are left alone.
+ * Safe to call repeatedly (idempotent by design).
+ *
+ * Call sites:
+ *   - installment.service.ts → confirmInstallmentPayment (after credit-unlock)
+ *   - check-ins.service.ts   → after creditsUsed increment
+ */
+export async function markCompleteIfFinal(
+	tenantDb: TenantDb,
+	instanceId: string,
+): Promise<void> {
+	// Read outside tx first — if conditions clearly not met we skip the tx overhead.
+	const [pkg] = await tenantDb
+		.select({
+			id: packageInstances.id,
+			status: packageInstances.status,
+			installmentsPaid: packageInstances.installmentsPaid,
+			installmentsTotal: packageInstances.installmentsTotal,
+			creditsRemaining: packageInstances.creditsRemaining,
+		})
+		.from(packageInstances)
+		.where(eq(packageInstances.id, instanceId));
+
+	if (!pkg) return; // Deleted concurrently — safe to ignore
+	if (pkg.status !== "active" && pkg.status !== "frozen") return;
+	if (pkg.installmentsPaid < pkg.installmentsTotal) return;
+	if (pkg.creditsRemaining > 0) return;
+
+	// Conditions met — acquire row lock and re-check inside tx to prevent races.
+	await tenantDb.transaction(async (tx: TenantTx) => {
+		const [locked] = await tx
+			.select({
+				id: packageInstances.id,
+				status: packageInstances.status,
+				installmentsPaid: packageInstances.installmentsPaid,
+				installmentsTotal: packageInstances.installmentsTotal,
+				creditsRemaining: packageInstances.creditsRemaining,
+			})
+			.from(packageInstances)
+			.where(eq(packageInstances.id, instanceId))
+			.for("update");
+
+		if (!locked) return;
+		if (locked.status !== "active" && locked.status !== "frozen") return;
+		if (locked.installmentsPaid < locked.installmentsTotal) return;
+		if (locked.creditsRemaining > 0) return;
+
+		const now = new Date();
+		await tx
+			.update(packageInstances)
+			.set({ status: "completed", updatedAt: now })
+			.where(eq(packageInstances.id, instanceId));
+
+		await appendPackageInstanceStatusHistory(tx, instanceId, {
+			fromStatus: locked.status,
+			toStatus: "completed",
+			changedBy: "system",
+			reason: "All installments paid and credits exhausted",
+		});
+
+		await writeAudit(tx, {
+			actorUserId: "system",
+			action: "package.completed",
+			entityType: "package_instance",
+			entityId: instanceId,
+			summary: `Package instance ${instanceId} automatically completed`,
+			changes: {
+				installmentsPaid: locked.installmentsPaid,
+				installmentsTotal: locked.installmentsTotal,
+			},
+		});
+	});
 }

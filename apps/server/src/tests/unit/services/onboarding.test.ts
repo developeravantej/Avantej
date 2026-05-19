@@ -9,7 +9,7 @@
  *   because they call a live HTTP server; the integration tests cover the full flow)
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { randomUUID } from "crypto";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -409,7 +409,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb))
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -423,7 +423,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb))
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -437,7 +437,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb))
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -450,7 +450,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb))
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
 });

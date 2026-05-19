@@ -4,8 +4,6 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import DataTable from "@/components/tables/sales/view/data-table";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,10 +26,9 @@ import {
 } from "@/components/ui/select";
 import { formatPrice, rmToCents } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
-import { Plus, Edit, Percent } from "lucide-react";
+import { Plus, Edit, Percent, Search } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 type PromotionType = "percentage" | "fixed_amount" | "free_item" | "buy_x_get_y";
 
@@ -123,116 +120,13 @@ const defaultCreateForm: CreateFormState = {
 	validUntil: "",
 };
 
-function buildColumns(
-	onEdit: (row: PromotionRow) => void,
-	onDeactivate: (id: string) => void,
-	isDeactivating: boolean,
-): ColumnDef<PromotionRow>[] {
-	return [
-		{
-			accessorKey: "code",
-			header: "Code",
-			cell: ({ row }) => <CopyableCell value={row.original.code} />,
-		},
-		{
-			accessorKey: "name",
-			header: "Name",
-			cell: ({ row }) => (
-				<span className="font-medium">{row.original.name}</span>
-			),
-		},
-		{
-			accessorKey: "type",
-			header: "Type",
-			cell: ({ row }) => {
-				const type = row.original.type;
-				const label = TYPE_LABELS[type] ?? type;
-				return (
-					<Badge variant="secondary" className="whitespace-nowrap">
-						{label}
-					</Badge>
-				);
-			},
-		},
-		{
-			accessorKey: "value",
-			header: "Value",
-			cell: ({ row }) => (
-				<span className="tabular-nums">
-					{formatPromotionValue(row.original.type, row.original.value)}
-				</span>
-			),
-		},
-		{
-			accessorKey: "validFrom",
-			header: "Valid From",
-			cell: ({ row }) => formatDateDisplay(row.original.validFrom),
-		},
-		{
-			accessorKey: "validUntil",
-			header: "Valid Until",
-			cell: ({ row }) => formatDateDisplay(row.original.validUntil),
-		},
-		{
-			id: "usage",
-			header: "Usage",
-			cell: ({ row }) => {
-				const { usageCount, usageLimit } = row.original;
-				return (
-					<span className="tabular-nums text-muted-foreground">
-						{usageCount} / {usageLimit ?? "∞"}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "isActive",
-			header: "Status",
-			cell: ({ row }) =>
-				row.original.isActive ? (
-					<StatusBadge status="active" />
-				) : (
-					<StatusBadge status="inactive" />
-				),
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			cell: ({ row }) => (
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => onEdit(row.original)}
-						className="h-7 px-2 text-xs"
-					>
-						<Edit className="size-3 mr-1" />
-						Edit
-					</Button>
-					{row.original.isActive && (
-						<Button
-							variant="destructive"
-							size="sm"
-							disabled={isDeactivating}
-							onClick={() => onDeactivate(row.original.id)}
-							className="h-7 px-2 text-xs"
-						>
-							Deactivate
-						</Button>
-					)}
-				</div>
-			),
-		},
-	];
-}
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function PromotionsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const promotionsKey = ["promotions", organizationId];
 
+	const [search, setSearch] = useState("");
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editOpen, setEditOpen] = useState(false);
 	const [editTarget, setEditTarget] = useState<PromotionRow | null>(null);
@@ -426,7 +320,12 @@ export function PromotionsPage() {
 		});
 	}
 
-	const columns = buildColumns(handleOpenEdit, setDeactivateTarget, isDeactivating);
+	const filteredData = data.filter(
+		(p) =>
+			!search ||
+			p.code.toLowerCase().includes(search.toLowerCase()) ||
+			p.name.toLowerCase().includes(search.toLowerCase()),
+	);
 
 	if (!organizationId) {
 		return (
@@ -453,24 +352,117 @@ export function PromotionsPage() {
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
 			{/* Action bar */}
-			<div className="flex shrink-0 items-center justify-end px-6 pt-4 pb-2">
-				<Button onClick={() => setCreateOpen(true)} className="gap-2" size="sm">
-					<Plus className="size-4" />
-					New Promotion
-				</Button>
+			<div className="flex shrink-0 items-center justify-between pt-2 pb-4">
+				<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5 w-64">
+					<Search className="h-4 w-4 text-[#737373] shrink-0" />
+					<input
+						placeholder="Search promotions..."
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="flex-1 bg-transparent text-[13px] text-[#0a0a0a] placeholder:text-[#737373] outline-none"
+					/>
+				</div>
+				<div className="flex items-center gap-3">
+					<span className="text-sm text-[#737373]">
+						<span className="font-mono tabular-nums font-semibold text-[#0a0a0a]">{filteredData.length}</span>{" "}
+						promotion{filteredData.length !== 1 ? "s" : ""}
+					</span>
+					<button
+						type="button"
+						onClick={() => setCreateOpen(true)}
+						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+					>
+						<Plus className="h-4 w-4" />
+						New Promotion
+					</button>
+				</div>
 			</div>
 
 			{/* Table */}
-			<div className="min-h-0 flex-1 overflow-auto px-6 pb-6">
-				<DataTable<PromotionRow, unknown>
-					columns={columns}
-					data={data}
-					emptyTitle="No promotions found"
-					emptyAction={{
-						label: "New Promotion",
-						onClick: () => setCreateOpen(true),
-					}}
-				/>
+			<div className="min-h-0 flex-1 overflow-auto pb-6">
+				<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+					<table className="w-full">
+						<thead>
+							<tr className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
+								{["Code", "Name", "Type", "Value", "Valid From", "Valid Until", "Usage", "Status", "Actions"].map((h) => (
+									<th key={h} className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap">
+										{h}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{filteredData.length === 0 ? (
+								<tr>
+									<td colSpan={9} className="py-16 text-center text-[13px] text-[#737373]">
+										{search ? "No promotions match your search." : "No promotions found."}
+									</td>
+								</tr>
+							) : (
+								filteredData.map((row) => (
+									<tr key={row.id} className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60">
+										<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
+											<CopyableCell value={row.code} />
+										</td>
+										<td className="py-3 px-3 text-[13px] text-[#0a0a0a] font-semibold whitespace-nowrap">
+											{row.name}
+										</td>
+										<td className="py-3 px-3 whitespace-nowrap">
+											<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-[#f3f3f3] text-[#737373]">
+												{TYPE_LABELS[row.type] ?? row.type}
+											</span>
+										</td>
+										<td className="py-3 px-3 text-[13px] tabular-nums text-[#0a0a0a] whitespace-nowrap">
+											{formatPromotionValue(row.type, row.value)}
+										</td>
+										<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
+											{formatDateDisplay(row.validFrom)}
+										</td>
+										<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
+											{formatDateDisplay(row.validUntil)}
+										</td>
+										<td className="py-3 px-3 text-[13px] tabular-nums text-[#737373] whitespace-nowrap">
+											{row.usageCount} <span className="text-[#d4d4d4]">·</span> {row.usageLimit ?? "∞"}
+										</td>
+										<td className="py-3 px-3 whitespace-nowrap">
+											{row.isActive ? (
+												<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-green-50 text-green-700">
+													Active
+												</span>
+											) : (
+												<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-[#f3f3f3] text-[#737373]">
+													Inactive
+												</span>
+											)}
+										</td>
+										<td className="py-3 px-3 whitespace-nowrap">
+											<div className="flex items-center gap-2">
+												<button
+													type="button"
+													onClick={() => handleOpenEdit(row)}
+													className="rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#262626] hover:bg-[#f3f3f3] transition inline-flex items-center gap-1"
+												>
+													<Edit className="h-3 w-3" />
+													Edit
+												</button>
+												{row.isActive && (
+													<button
+														type="button"
+														disabled={isDeactivating}
+														onClick={() => setDeactivateTarget(row.id)}
+														className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+													>
+														Deactivate
+													</button>
+												)}
+											</div>
+										</td>
+									</tr>
+								))
+							)}
+						</tbody>
+					</table>
+				</div>
 			</div>
 
 			{/* Create Dialog */}
@@ -478,7 +470,7 @@ export function PromotionsPage() {
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader className="pb-4">
 						<DialogTitle className="flex items-center gap-2">
-							<Percent className="size-4 text-primary" />
+							<Percent className="h-4 w-4 text-primary" />
 							New Promotion
 						</DialogTitle>
 						<DialogDescription>
@@ -541,7 +533,7 @@ export function PromotionsPage() {
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<label htmlFor="promo-type" className="text-sm font-medium">
+							<label className="text-sm font-medium">
 								Type <span className="text-destructive">*</span>
 							</label>
 							<Select
@@ -550,7 +542,7 @@ export function PromotionsPage() {
 									setCreateForm((f) => ({ ...f, type: v as PromotionType, value: "" }))
 								}
 							>
-								<SelectTrigger id="promo-type" className="w-full">
+								<SelectTrigger className="w-full">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -757,7 +749,7 @@ export function PromotionsPage() {
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader className="pb-4">
 						<DialogTitle className="flex items-center gap-2">
-							<Edit className="size-4 text-primary" />
+							<Edit className="h-4 w-4 text-primary" />
 							Edit Promotion
 						</DialogTitle>
 						<DialogDescription>

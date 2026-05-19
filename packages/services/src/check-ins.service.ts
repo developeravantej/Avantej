@@ -37,6 +37,7 @@ import {
 } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { markCompleteIfFinal } from "./package-instance.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -389,6 +390,12 @@ export async function recordCheckIn(
 
 		return row;
 	});
+
+	// Post-transaction: attempt auto-completion if credits were consumed.
+	// Idempotent — safe to call even when conditions aren't fully met yet.
+	if (input.packageInstanceId && input.creditsConsumed && input.creditsConsumed > 0) {
+		await markCompleteIfFinal(tenantDb, input.packageInstanceId);
+	}
 
 	return inserted;
 }

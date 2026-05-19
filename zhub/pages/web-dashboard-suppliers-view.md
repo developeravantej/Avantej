@@ -1,19 +1,22 @@
-# Suppliers
+# Suppliers (Redirect)
 
 **Route:** `/dashboard/suppliers/view`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/suppliers/view.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/suppliers/view.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-15
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Lets admins manage product suppliers — view, add, edit, deactivate, and filter by active status.
-**Produces:** A paginated, searchable table of suppliers with dialogs for create/edit/details/deactivate-confirm.
-**On success:** Toast notification and cache invalidated.
-**On failure / error states:** Spinner while loading; "Select an organization" prompt; error panel with "Try Again" button on fetch failure; toast errors on mutation failure.
+**Purpose (user perspective):** Legacy route. Visiting it redirects to the consolidated Inventory Options page on the Suppliers tab.
+
+**Produces:** Nothing — `beforeLoad` throws a TanStack Router `redirect()` to `/dashboard/inventory-options?tab=suppliers`.
+
+**On success:** User lands on `InventoryOptionsPage` with the Suppliers tab active.
+
+**On failure / error states:** N/A — pure redirect.
 
 ---
 
@@ -21,95 +24,72 @@
 
 **Execution flow:**
 ```
-SuppliersViewPage
-  → useUserContext() → organizationId
-  → activeFilter state (true | undefined | false)
-  → useQuery([...orpc.suppliers.list.key(), { organizationId, isActive: activeFilter }])
-      → client.suppliers.list({ organizationId, isActive: activeFilter })
-  → maps API data → SupplierRow[]
-  → DataTable (suppliers/view/data-table)
-      → SupplierFormDialog (create) → createMutation → client.suppliers.create
-      → SupplierFormDialog (edit) → updateMutation → client.suppliers.update
-      → SupplierDetailsDialog (view details, read-only)
-      → deactivate confirm Dialog → deactivateMutation → client.suppliers.deactivate
+Route.beforeLoad
+  → makeTabRedirect("/dashboard/inventory-options", "suppliers")()
+  → throw redirect({ to, search: { tab: "suppliers" } })
 ```
 
-**Inputs:** Active/All/Inactive filter tabs. Mutations receive `SupplierFormData`.
-**State management:** `useState` for `activeFilter`; TanStack Query for server state using `orpc.suppliers.list.key()` for cache key.
-**Outputs:** Table render with pagination and name filter; three dialogs (add, edit, details); deactivate confirmation dialog.
-**Side effects:** All mutations invalidate `[...orpc.suppliers.list.key(), { organizationId }]`.
+`makeTabRedirect` is defined in `apps/web/src/lib/tab-redirect.ts`:
+
+```typescript
+export function makeTabRedirect(to: string, tab: string) {
+  return () => { throw redirect({ to, search: { tab } }); };
+}
+```
+
+The redirect target renders `InventoryOptionsDashboard` (`apps/web/src/components/merge-tables/inventory-options-dashboard.tsx`), which is a `ConsolidatedTabs` host for three tabs:
+- `brands` → `BrandsTabPage`
+- `categories` → `CategoriesTabPage`
+- `suppliers` → `SuppliersTabPage` (in `apps/web/src/components/pages/inventory/suppliers-tab.tsx`)
+
+`SuppliersTabPage` is the real implementation: query (`orpc.suppliers.list.key()`), Active/All/Inactive filter, `DataTable` with create/edit/details dialogs and deactivate confirm.
+
+**Inputs:** None at the route — the redirect is unconditional.
+
+**State management:** None at this route.
+
+**Outputs:** Browser navigation only.
+
+**Side effects:** None.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `suppliers.list` — filtered by `isActive`
-- `suppliers.create` — new supplier
-- `suppliers.update` — edit supplier fields
-- `suppliers.deactivate` — soft-delete
+**Calls these API endpoints:** None at the route layer.
 
-**Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/suppliers/view/data-table.tsx` — table with all dialogs embedded
-- `SupplierFormDialog` — `apps/web/src/components/forms/supplier-form.tsx` — create/edit form
-- `SupplierDetailsDialog` — `apps/web/src/components/dialogs/supplier-details-dialog.tsx` — read-only detail view
-- `Badge` — supplier count display
-- `Building2` icon — `lucide-react`
+**Uses these components:** None — only `createFileRoute` and `makeTabRedirect`.
 
-**Uses these hooks:**
-- `useUserContext` — `currentOrganizationId`
-- `useQuery`, `useMutation`, `useQueryClient`
-- `useState`
+**Uses these hooks:** None.
 
 **Navigation: who navigates here:**
-- App sidebar → Inventory section → "Suppliers" link
+- Legacy sidebar / bookmark links that still point to `/dashboard/suppliers/view`.
+- The current `app-sidebar.tsx` "Suppliers" entry points directly to `/dashboard/inventory-options?tab=suppliers`, so this route is largely dormant.
 
-**Navigation: where it goes:** Stays on this page; dialogs are modal overlays.
+**Navigation: where it goes:**
+- `/dashboard/inventory-options?tab=suppliers` (always).
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `suppliers` | SELECT | `id`, `name`, `description`, `accountNumber`, `paymentTerms`, `contactPerson`, `contactPhone`, `officePhone`, `email`, `website`, `barcode`, `isActive`, `createdAt`, `updatedAt` |
-| `suppliers` | INSERT | all above fields |
-| `suppliers` | UPDATE | all mutable fields |
-| `suppliers` | UPDATE | `isActive = false` (deactivate) |
-
-**Key types:**
-```ts
-type SupplierRow = {
-  id: string; name: string; description: string | null;
-  accountNumber: string | null; paymentTerms: string | null;
-  contactPerson: string | null; contactPhone: string | null;
-  officePhone: string | null; email: string | null;
-  website: string | null; barcode: string | null;
-  isActive: boolean; createdAt: string | null; updatedAt: string | null;
-};
-```
+Not a data page. See `web-dashboard-inventory-options.md` (or the source at `apps/web/src/components/pages/inventory/suppliers-tab.tsx`) for `SupplierRow` shape and the `suppliers.{list,create,update,deactivate}` procedures.
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/web/src/__tests__/routes/suppliers.test.tsx`
+**Test files:** `apps/web/src/__tests__/routes/suppliers.test.tsx` (predates the consolidation — assertions target the standalone page that no longer exists; may need to be retargeted to `SuppliersTabPage` or removed).
 
-**Scenarios covered:**
-- Renders without crashing (heading visible)
-- `client.suppliers.list` called on mount
-- Supplier name displayed in table
-- "Add Supplier" button visible
-
-**Not tested:** Create/edit/deactivate flows, filter tabs (Active/All/Inactive), error state, details dialog.
+**Not tested (risk areas):**
+- Redirect behaviour itself (no test asserts `beforeLoad` redirects).
+- Supplier-invoice workflows — these have moved entirely (see below) and are not covered by this route's tests.
 
 ---
 
 ## 6. Notes
 
-- The `orpc.suppliers.list.key()` helper is used for the query key instead of a plain string, which is different from most other pages that use plain string arrays.
-- The DataTable component handles all dialog state internally; the page only passes mutation callbacks and loading flags.
-- The "All" filter tab passes `isActive: undefined` (not filtered), while "Active" passes `true` and "Inactive" passes `false`.
-- `isDeactivating` is tracked in the DataTable for the confirmation dialog button state but the page-level mutation does not show a toast on success — toast is inside the DataTable's `handleDeactivateConfirm`.
+- **Why this route still exists:** Kept as a thin redirect for backwards compatibility with bookmarks and any unmigrated deep links. The real Suppliers UI now lives inside `inventory-options` alongside Brands and Categories.
+- **Supplier-invoice intake moved**: Anything related to recording, matching, and paying supplier invoices is no longer here. It now lives in the Purchase Orders feature as the "Supplier Invoices" tab — see `apps/web/src/features/purchase-orders/components/SupplierInvoicesTab.tsx`. The relevant page doc is [`web-dashboard-purchase-orders.md`](./web-dashboard-purchase-orders.md).
+- **No DB tables touched here.** The redirect cascade is purely client-side router state.
+- **If you need to deprecate the redirect**, search for inbound links via `Grep "suppliers/view"` before removing the route file.

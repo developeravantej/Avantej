@@ -1,10 +1,13 @@
 # Payouts View
 
 **Route:** `/dashboard/payouts/view`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/payouts/view.tsx:1`
+**Files:**
+- `apps/web/src/routes/_authenticated/dashboard/_layout/payouts/view.tsx` — empty route shell (registers route only)
+- `apps/web/src/routes/_authenticated/dashboard/_layout/payouts/view.lazy.tsx` — `createLazyFileRoute`, all UI + queries live here
+
 **Platform:** web
 **Auth required:** authenticated (rbac `user_management:read` enforced server-side)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-05-12
 
 ---
 
@@ -12,11 +15,11 @@
 
 **Purpose (user perspective):** View commission payout records for staff and trainers — a read-only ledger of all payouts generated from appointments.
 
-**Produces:** A filterable data table showing payout ID (copyable/truncated), recipient name, amount (MYR), status badge, paid-at date, and created-at date.
+**Produces:** A KPI strip (Pending count + total, Processing count, Paid total + count, Failed count with amber callout when >0) plus a filterable data table showing payout ID (copyable/truncated), recipient name, amount (MYR), status badge, paid-at date, and created-at date.
 
 **On success:** Table renders payouts, enriched with recipient names fetched from the control panel user table.
 
-**On failure / error states:** Spinner while loading; "Select an organization" guard when no org is selected. No dedicated error UI for fetch failures.
+**On failure / error states:** `PageLoader` while loading; "Select an organization" guard when no org is selected; `StatusCallout` error banner with retry button on fetch failure; `EmptyState` (Banknote icon) when no rows.
 
 ---
 
@@ -40,7 +43,7 @@ PayoutsViewPage
 **State management:**
 - `statusFilter` (`PayoutStatus | undefined`) — drives query re-fetch
 
-**Outputs:** `DataTable<PayoutRow>` with columns: id (truncated copyable), recipientName, amount, status (badge), paidAt, createdAt. No create button — payouts are auto-generated from appointments.
+**Outputs:** KPI strip + `DataTable<PayoutRow>` with columns: id (truncated copyable), recipientName, amount, status (badge), paidAt, createdAt. No create button — payouts are auto-generated from appointments.
 
 **Side effects:** None — read-only page.
 
@@ -54,6 +57,8 @@ PayoutsViewPage
 **Uses these components:**
 - `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — reused generic table
 - `columns` / `PayoutRow` — `apps/web/src/components/tables/payouts/view/columns.tsx` — column defs with status badge
+- `PageLoader`, `EmptyState`, `StatusCallout` — `@/components/ui/*` — loading / empty / error UX
+- `formatPrice` — `@/lib/money` — MYR currency display on KPI strip
 
 **Uses these hooks:**
 - `useUserContext` — provides `organizationId`
@@ -95,7 +100,7 @@ interface PayoutRow {
 
 **Not tested (risk areas):**
 - Recipient name enrichment fails silently if `controlPanelDb` is not in the Hono context — recipients show as "Unknown".
-- No error UI for fetch failures — the spinner never resolves.
+- KPI strip aggregates only over the currently-loaded 50 rows — not a true org total when more rows exist.
 - Default limit of 50 payouts — no pagination controls; older payouts are not visible.
 - Status `"canceled"` (one 'l') used in API vs "cancelled" (two 'l's) used elsewhere — be consistent when filtering.
 
@@ -108,3 +113,6 @@ interface PayoutRow {
 - `amount` in payouts is in cents; `formatPrice(amount, "MYR")` in the column renderer handles display.
 - The `user_management:read` permission guards this page (same as members/trainers pages), not a dedicated payout permission.
 - The page uses the generic sales DataTable (`apps/web/src/components/tables/sales/view/data-table.tsx`) rather than a payout-specific table component.
+- **Lazy-route split (Phase 5 of web-debt-cleanup):** `view.tsx` is now a minimal `createFileRoute` stub; all component code lives in `view.lazy.tsx` via `createLazyFileRoute`. This keeps the route out of the initial dashboard bundle.
+- Row shape adds optional `batchId` field (payouts may belong to a batch run); the column file may surface this when present.
+

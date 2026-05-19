@@ -361,6 +361,10 @@ export default {
             .then((r) => console.log(`[scheduled] usage-snapshot done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] usage-snapshot failed:`, e)),
         );
+      } else if (cron === "0 2 * * *") {
+        // Phase 4 installments — daily installment sweep (merged from PR #23).
+        // TODO: merged from main — wire real multi-tenant sweep service.
+        console.log("[scheduled] installment sweep trigger received (stub)");
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }

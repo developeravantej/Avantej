@@ -11,6 +11,7 @@
 import { requirePermission } from "@avantej-core/services";
 import {
 	approveRefund,
+	bulkApproveRefunds,
 	createPartialRefund,
 	getRefundById,
 	listRefunds,
@@ -207,6 +208,10 @@ export const refundsRouter = {
 
 	/**
 	 * Approve a pending refund.
+	 *
+	 * 1.5 — approveAmountCents (optional): approve a smaller amount than requested.
+	 * Must be a positive integer ≤ requested AND ≤ remaining-refundable on the target.
+	 * Omit to approve the full requested amount.
 	 */
 	approve: protectedProcedure
 		.input(
@@ -214,6 +219,8 @@ export const refundsRouter = {
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
 				reviewNotes: z.string().max(2000).optional(),
+				/** Partial-approve amount in cents. When omitted the full requested amount is approved. */
+				approveAmountCents: z.number().int().positive().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -238,6 +245,7 @@ export const refundsRouter = {
 			try {
 				return await approveRefund(context.tenantDb, input.id, {
 					reviewNotes: input.reviewNotes,
+					approveAmountCents: input.approveAmountCents,
 					actor: {
 						userId: context.session.user.id,
 						memberId: context.member.id,
@@ -365,6 +373,71 @@ export const refundsRouter = {
 				}
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
+				}
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+			}
+		}),
+
+	/**
+	 * Bulk-approve up to 50 pending refunds in a single call.
+	 *
+	 * 1.6 — Each row is processed in its own independent transaction; a failure
+	 * on one item does NOT roll back others. The response is a per-id success/error
+	 * array that the caller must inspect.
+	 *
+	 * Accepts the same optional approveAmountCents and reviewNotes overrides as the
+	 * single-row approve endpoint.
+	 */
+	bulkApprove: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				items: z
+					.array(
+						z.object({
+							id: z.string().uuid(),
+							approveAmountCents: z.number().int().positive().optional(),
+							reviewNotes: z.string().max(2000).optional(),
+						}),
+					)
+					.min(1)
+					.max(50),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"approve",
+			);
+
+			try {
+				return await bulkApproveRefunds(
+					context.tenantDb,
+					input.items,
+					{
+						userId: context.session.user.id,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				);
+			} catch (err) {
+				if (err instanceof ORPCError) throw err;
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") {
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
 				}
 				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}

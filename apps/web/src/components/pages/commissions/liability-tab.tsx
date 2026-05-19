@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { StatusCallout } from "@/components/ui/status-callout";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import DataTable from "@/components/tables/sales/view/data-table";
@@ -49,37 +50,27 @@ type LiabilitySummaryOutput = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Returns ISO datetime string for the start of a YYYY-MM-DD date */
 function toIsoStart(dateStr: string): string {
 	return new Date(`${dateStr}T00:00:00`).toISOString();
 }
 
-/** Returns ISO datetime string for the end of a YYYY-MM-DD date */
 function toIsoEnd(dateStr: string): string {
 	return new Date(`${dateStr}T23:59:59.999`).toISOString();
 }
 
-/** Returns YYYY-MM-DD for the first day of the current month */
 function firstOfMonth(): string {
 	const now = new Date();
 	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-/** Returns YYYY-MM-DD for today */
 function today(): string {
 	const now = new Date();
 	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-/**
- * Escape a CSV cell value: wrap in quotes and double any internal quotes.
- * Produces plain RM values (no currency symbol) for amount columns.
- */
 function csvCell(value: string): string {
 	return `"${value.replace(/"/g, '""')}"`;
 }
-
-// centsToRm imported from @/lib/money
 
 // ─── CSV Export ───────────────────────────────────────────────────────────────
 
@@ -148,7 +139,6 @@ function MarkPaidDialog({
 }) {
 	const displayedTrainers = selectedTrainers.slice(0, 5);
 	const overflow = selectedTrainers.length - 5;
-
 	const trainerPreview =
 		displayedTrainers.map((t) => t.name).join(", ") +
 		(overflow > 0 ? `, ... and ${overflow} more` : "");
@@ -188,8 +178,6 @@ function MarkPaidDialog({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function LiabilityTab() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -197,7 +185,7 @@ export function LiabilityTab() {
 	const canRead = hasPermission("commission_payout:read");
 	const canUpdate = hasPermission("commission_payout:update");
 
-	// ── Branch options (derived from userContext, same pattern as all-tab.tsx) ──
+	// Branch options
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
@@ -212,13 +200,13 @@ export function LiabilityTab() {
 			? accessibleBranches
 			: allNodes.filter((n) => accessibleNodeIds.includes(n.id));
 
-	// ── Filters ────────────────────────────────────────────────────────────────
-	const [fromDate, setFromDate] = useState<string>(() => firstOfMonth());
-	const [toDate, setToDate] = useState<string>(() => today());
+	// Filters
+	const [fromDate, setFromDate] = useState<string>(firstOfMonth());
+	const [toDate, setToDate] = useState<string>(today());
 	const [hierarchyNodeId, setHierarchyNodeId] = useState<string>("");
 	const [categoryId, setCategoryId] = useState<string>("");
 
-	// ── Service categories ─────────────────────────────────────────────────────
+	// Service categories
 	const { data: categoriesData } = useQuery({
 		queryKey: ["service-categories-list", organizationId],
 		queryFn: () =>
@@ -230,7 +218,7 @@ export function LiabilityTab() {
 	});
 	const categories = categoriesData ?? [];
 
-	// ── Liability summary ──────────────────────────────────────────────────────
+	// Liability summary
 	const queryKey = [
 		"commissionLiability",
 		{ from: fromDate, to: toDate, hierarchyNodeId, categoryId },
@@ -251,10 +239,9 @@ export function LiabilityTab() {
 		enabled: !!organizationId && canRead && !!fromDate && !!toDate,
 	});
 
-	// ── Sort by netPayableCents DESC ───────────────────────────────────────────
 	const sortedTrainers = useMemo<TrainerLiabilityRow[]>(() => {
 		const trainers = (data as LiabilitySummaryOutput | null)?.trainers ?? [];
-		return trainers.toSorted((a, b) => b.netPayableCents - a.netPayableCents);
+		return [...trainers].sort((a, b) => b.netPayableCents - a.netPayableCents);
 	}, [data]);
 
 	const totals = (data as LiabilitySummaryOutput | null)?.totals ?? {
@@ -264,7 +251,7 @@ export function LiabilityTab() {
 		netPayableCents: 0,
 	};
 
-	// ── Row selection ──────────────────────────────────────────────────────────
+	// Row selection
 	const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(
 		new Set(),
 	);
@@ -272,11 +259,8 @@ export function LiabilityTab() {
 	function toggleRow(memberId: string) {
 		setSelectedMemberIds((prev) => {
 			const next = new Set(prev);
-			if (next.has(memberId)) {
-				next.delete(memberId);
-			} else {
-				next.add(memberId);
-			}
+			if (next.has(memberId)) next.delete(memberId);
+			else next.add(memberId);
 			return next;
 		});
 	}
@@ -293,15 +277,13 @@ export function LiabilityTab() {
 		}
 	}
 
-	// Clear selection when filters change
 	function applyFilter(cb: () => void) {
 		cb();
 		setSelectedMemberIds(new Set());
 	}
 
-	// ── Mark as Paid ───────────────────────────────────────────────────────────
+	// Mark as Paid
 	const [markPaidOpen, setMarkPaidOpen] = useState(false);
-
 	const selectedTrainers = sortedTrainers.filter((t) =>
 		selectedMemberIds.has(t.memberId),
 	);
@@ -328,7 +310,7 @@ export function LiabilityTab() {
 		},
 	});
 
-	// ── Columns ────────────────────────────────────────────────────────────────
+	// Columns
 	const columns: ColumnDef<TrainerLiabilityRow>[] = [
 		{
 			id: "select",
@@ -336,6 +318,7 @@ export function LiabilityTab() {
 				<input
 					type="checkbox"
 					className="cursor-pointer rounded"
+					style={{ width: 15, height: 15, accentColor: "#000" }}
 					checked={allSelected}
 					onChange={toggleAll}
 					aria-label="Select all trainers"
@@ -345,6 +328,7 @@ export function LiabilityTab() {
 				<input
 					type="checkbox"
 					className="cursor-pointer rounded"
+					style={{ width: 15, height: 15, accentColor: "#000" }}
 					checked={selectedMemberIds.has(row.original.memberId)}
 					onChange={() => toggleRow(row.original.memberId)}
 					onClick={(e) => e.stopPropagation()}
@@ -356,14 +340,14 @@ export function LiabilityTab() {
 			id: "name",
 			header: "Trainer",
 			cell: ({ row }) => (
-				<span className="font-medium text-sm">{row.original.name}</span>
+				<span className="font-medium text-sm text-[#0a0a0a]">{row.original.name}</span>
 			),
 		},
 		{
 			id: "approvedUnpaidCents",
 			header: "Approved (Unpaid)",
 			cell: ({ row }) => (
-				<span className="text-sm tabular-nums">
+				<span className="text-sm tabular-nums font-mono">
 					{formatPrice(row.original.approvedUnpaidCents, "MYR")}
 				</span>
 			),
@@ -372,7 +356,7 @@ export function LiabilityTab() {
 			id: "paidCents",
 			header: "Paid",
 			cell: ({ row }) => (
-				<span className="text-green-700 text-sm tabular-nums">
+				<span className="text-sm tabular-nums font-mono text-[#15803d]">
 					{formatPrice(row.original.paidCents, "MYR")}
 				</span>
 			),
@@ -381,7 +365,7 @@ export function LiabilityTab() {
 			id: "manualAdjustmentCents",
 			header: "Manual Adj.",
 			cell: ({ row }) => (
-				<span className="text-sm tabular-nums">
+				<span className="text-sm tabular-nums font-mono">
 					{formatPrice(row.original.manualAdjustmentCents, "MYR")}
 				</span>
 			),
@@ -390,17 +374,17 @@ export function LiabilityTab() {
 			id: "netPayableCents",
 			header: "Net Payable",
 			cell: ({ row }) => (
-				<span className="font-semibold text-sm tabular-nums">
+				<span className="font-semibold text-sm tabular-nums font-mono">
 					{formatPrice(row.original.netPayableCents, "MYR")}
 				</span>
 			),
 		},
 	];
 
-	// ── Guards ─────────────────────────────────────────────────────────────────
+	// Guards
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#6b7170]">
 				Select an organization to view liability summary.
 			</div>
 		);
@@ -408,7 +392,7 @@ export function LiabilityTab() {
 
 	if (!canRead) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#6b7170]">
 				<div className="space-y-2 text-center">
 					<p className="font-medium">Permission Denied</p>
 					<p className="text-sm">
@@ -421,8 +405,10 @@ export function LiabilityTab() {
 
 	if (error) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-destructive">
-				Failed to load liability summary. Please try again.
+			<div className="p-6">
+				<StatusCallout variant="error" onRetry={() => {}}>
+					Failed to load liability summary. Please try again.
+				</StatusCallout>
 			</div>
 		);
 	}
@@ -431,160 +417,147 @@ export function LiabilityTab() {
 		return <PageLoader />;
 	}
 
-	// ── Render ─────────────────────────────────────────────────────────────────
+	// Render
 	return (
-		<div className="space-y-6">
-			{/* Controls */}
-			<div className="flex flex-wrap items-end gap-3">
-				{/* Date range */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">From</Label>
-					<Input
-						type="date"
-						value={fromDate}
-						onChange={(e) => applyFilter(() => setFromDate(e.target.value))}
-						className="h-9 w-40"
-					/>
-				</div>
-
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">To</Label>
-					<Input
-						type="date"
-						value={toDate}
-						onChange={(e) => applyFilter(() => setToDate(e.target.value))}
-						className="h-9 w-40"
-					/>
-				</div>
-
-				{/* Branch filter */}
-				{branchOptions.length > 0 && (
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Branch</Label>
-						<Select
-							value={hierarchyNodeId || "all"}
-							onValueChange={(v) =>
-								applyFilter(() => setHierarchyNodeId(v === "all" ? "" : v))
-							}
-						>
-							<SelectTrigger className="h-9 w-48">
-								<SelectValue placeholder="All branches" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All branches</SelectItem>
-								{branchOptions.map((node) => (
-									<SelectItem key={node.id} value={node.id}>
-										{node.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				)}
-
-				{/* Category filter */}
-				{categories.length > 0 && (
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Category</Label>
-						<Select
-							value={categoryId || "all"}
-							onValueChange={(v) =>
-								applyFilter(() => setCategoryId(v === "all" ? "" : v))
-							}
-						>
-							<SelectTrigger className="h-9 w-48">
-								<SelectValue placeholder="All categories" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All categories</SelectItem>
-								{categories.map((cat: any) => (
-									<SelectItem key={cat.id} value={cat.id}>
-										{cat.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				)}
-
-				{/* Action buttons pushed to end */}
-				<div className="ml-auto flex items-end gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={sortedTrainers.length === 0}
-						onClick={() =>
-							exportToCsv(sortedTrainers, totals, fromDate, toDate)
-						}
+		<div className="px-6 pb-6">
+			{/* KPI band */}
+			<div className="mb-4 grid grid-cols-4 gap-4">
+				{[
+					{ label: "Approved (Unpaid)", val: totals.approvedUnpaidCents, color: "" },
+					{ label: "Paid", val: totals.paidCents, color: "text-[#1d4ed8]" },
+					{ label: "Manual Adj.", val: totals.manualAdjustmentCents, color: "" },
+					{ label: "Net Payable", val: totals.netPayableCents, color: "" },
+				].map((kpi) => (
+					<div
+						key={kpi.label}
+						className="rounded-2xl border border-[#e5e5e5] bg-white px-5 py-4"
 					>
-						Export CSV
-					</Button>
-
-					{canUpdate && (
-						<Button
-							size="sm"
-							disabled={selectedMemberIds.size === 0 || isMarkingPaid}
-							onClick={() => setMarkPaidOpen(true)}
+						<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							{kpi.label}
+						</div>
+						<div
+							className={`mt-1 font-mono text-2xl font-bold tabular-nums text-[#0a0a0a] ${kpi.color}`}
 						>
-							Mark as Paid
-						</Button>
-					)}
-				</div>
+							{formatPrice(kpi.val, "MYR")}
+						</div>
+					</div>
+				))}
 			</div>
 
-			{/* Table */}
-			{sortedTrainers.length === 0 ? (
-				<div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed">
-					<p className="text-muted-foreground text-sm">
-						No commission activity in the selected period.
-					</p>
+			{/* Main card */}
+			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				{/* Toolbar */}
+				<div className="flex items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
+					<span className="text-sm font-semibold text-[#0a0a0a]">
+						Liability by Trainer
+					</span>
+					<div className="flex items-center gap-2">
+						{/* Date range */}
+						<div className="flex items-center gap-2">
+							<Label className="text-xs text-[#6b7170]">From</Label>
+							<Input
+								type="date"
+								value={fromDate}
+								onChange={(e) => applyFilter(() => setFromDate(e.target.value))}
+								className="h-8 w-36 text-xs"
+							/>
+						</div>
+						<div className="flex items-center gap-2">
+							<Label className="text-xs text-[#6b7170]">To</Label>
+							<Input
+								type="date"
+								value={toDate}
+								onChange={(e) => applyFilter(() => setToDate(e.target.value))}
+								className="h-8 w-36 text-xs"
+							/>
+						</div>
+
+						{/* Branch filter */}
+						{branchOptions.length > 0 && (
+							<Select
+								value={hierarchyNodeId || "all"}
+								onValueChange={(v) =>
+									applyFilter(() => setHierarchyNodeId(v === "all" ? "" : v))
+								}
+							>
+								<SelectTrigger className="h-8 w-40 text-xs">
+									<SelectValue placeholder="All branches" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All branches</SelectItem>
+									{branchOptions.map((node) => (
+										<SelectItem key={node.id} value={node.id}>
+											{node.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+
+						{/* Category filter */}
+						{categories.length > 0 && (
+							<Select
+								value={categoryId || "all"}
+								onValueChange={(v) =>
+									applyFilter(() => setCategoryId(v === "all" ? "" : v))
+								}
+							>
+								<SelectTrigger className="h-8 w-40 text-xs">
+									<SelectValue placeholder="All categories" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All categories</SelectItem>
+									{categories.map((cat) => (
+										<SelectItem key={cat.id} value={cat.id}>
+											{cat.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+
+						<button
+							type="button"
+							className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-[14px] py-[8px] text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-40"
+							disabled={sortedTrainers.length === 0}
+							onClick={() => exportToCsv(sortedTrainers, totals, fromDate, toDate)}
+						>
+							Export CSV
+						</button>
+					</div>
 				</div>
-			) : (
-				<>
+
+				{/* Table */}
+				{sortedTrainers.length === 0 ? (
+					<div className="flex min-h-48 items-center justify-center text-sm text-[#6b7170]">
+						No commission activity in the selected period.
+					</div>
+				) : (
 					<DataTable<TrainerLiabilityRow, unknown>
 						columns={columns}
 						data={sortedTrainers}
 					/>
+				)}
 
-					{/* Totals row */}
-					<div className="rounded-lg border bg-muted/40 px-4 py-3">
-						<div className="grid grid-cols-4 gap-4 text-sm">
-							<div>
-								<p className="text-muted-foreground text-xs uppercase tracking-wide">
-									Total Approved (Unpaid)
-								</p>
-								<p className="mt-0.5 font-semibold tabular-nums">
-									{formatPrice(totals.approvedUnpaidCents, "MYR")}
-								</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground text-xs uppercase tracking-wide">
-									Total Paid
-								</p>
-								<p className="mt-0.5 font-semibold text-green-700 tabular-nums">
-									{formatPrice(totals.paidCents, "MYR")}
-								</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground text-xs uppercase tracking-wide">
-									Total Manual Adj.
-								</p>
-								<p className="mt-0.5 font-semibold tabular-nums">
-									{formatPrice(totals.manualAdjustmentCents, "MYR")}
-								</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground text-xs uppercase tracking-wide">
-									Net Payable
-								</p>
-								<p className="mt-0.5 font-semibold tabular-nums">
-									{formatPrice(totals.netPayableCents, "MYR")}
-								</p>
-							</div>
-						</div>
-					</div>
-				</>
-			)}
+				{/* Footer */}
+				<div className="flex items-center justify-between border-t border-[#e5e5e5] px-6 py-4">
+					<span className="text-xs text-[#6b7170]">
+						{sortedTrainers.length} trainer{sortedTrainers.length !== 1 ? "s" : ""} ·{" "}
+						{fromDate} to {toDate}
+					</span>
+					{canUpdate && (
+						<button
+							type="button"
+							className="inline-flex items-center gap-1.5 rounded-lg bg-[#15803d] px-[14px] py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40"
+							disabled={selectedMemberIds.size === 0 || isMarkingPaid}
+							onClick={() => setMarkPaidOpen(true)}
+						>
+							Mark as Paid
+							{selectedMemberIds.size > 0 && ` · ${selectedMemberIds.size} trainer${selectedMemberIds.size !== 1 ? "s" : ""}`}
+						</button>
+					)}
+				</div>
+			</div>
 
 			{/* Mark as Paid confirmation dialog */}
 			<MarkPaidDialog

@@ -9,6 +9,7 @@ import {
   listServices,
   getServiceById,
   createService,
+  duplicateService,
   updateService,
   getDescendantNodeIds,
   requirePermission,
@@ -17,6 +18,9 @@ import {
   setServicePrice,
   expireServicePrice,
   deleteServicePrice,
+  revenueShareByCategory,
+  avgSessionsSoldPerMonth,
+  listServicesWithTrainerTiers,
 } from "@avantej-core/services";
 import { servicePrices } from "@avantej-core/db/schema/tenant/service-prices";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
@@ -192,6 +196,7 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
+        defaultCommissionBps: z.number().int().min(0).max(100_000).optional(),
         timePresetConfig: timePresetConfigSchema.optional(),
       })
     )
@@ -284,6 +289,7 @@ export const servicesRouter = {
           ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
           ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
           ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+          ...(input.defaultCommissionBps !== undefined ? { defaultCommissionBps: input.defaultCommissionBps } : {}),
           ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
           createdBy: context.session?.user?.id ?? null,
         } as Parameters<typeof createService>[1]);
@@ -327,6 +333,7 @@ export const servicesRouter = {
         availablePaymentPlans: z.array(z.string()).optional(),
         installmentIntervalDays: z.number().int().min(1).optional(),
         gracePeriodDays: z.number().int().min(0).max(90).nullish(),
+        defaultCommissionBps: z.number().int().min(0).max(100_000).optional(),
         timePresetConfig: timePresetConfigSchema.optional(),
       })
     )
@@ -437,6 +444,7 @@ export const servicesRouter = {
             ...(input.availablePaymentPlans !== undefined ? { availablePaymentPlans: input.availablePaymentPlans } : {}),
             ...(input.installmentIntervalDays !== undefined ? { installmentIntervalDays: input.installmentIntervalDays } : {}),
             ...(input.gracePeriodDays !== undefined ? { gracePeriodDays: input.gracePeriodDays ?? null } : {}),
+            ...(input.defaultCommissionBps !== undefined ? { defaultCommissionBps: input.defaultCommissionBps } : {}),
             ...(input.timePresetConfig !== undefined ? { timePresetConfig: input.timePresetConfig } : {}),
             updatedBy: context.session?.user?.id ?? null,
             } as Parameters<typeof updateService>[2]
@@ -448,6 +456,55 @@ export const servicesRouter = {
         });
       }
     }),
+
+  // #region duplicate
+  duplicate: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "create"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      try {
+        return await duplicateService(context.tenantDb, input.id, {
+          createdBy: context.session?.user?.id ?? null,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "Service not found") {
+          throw new ORPCError("NOT_FOUND", { message: "Service not found" });
+        }
+        throw new ORPCError("BAD_REQUEST", {
+          message: error instanceof Error ? error.message : "Failed to duplicate service",
+        });
+      }
+    }),
+  // #endregion
 
   // #region Agent 2.2 — branch pricing (J2)
   resolvePrice: protectedProcedure
@@ -695,6 +752,168 @@ export const servicesRouter = {
       }
       await deleteServicePrice(context.tenantDb, input.priceId);
       return { success: true };
+    }),
+  // #endregion
+
+  // #region 1.24 — revenueShareByCategory
+  revenueShareByCategory: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        from: z.string().datetime(),
+        to: z.string().datetime(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "service_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const accessibleNodeIds =
+        context.accessibleNodeIds ??
+        (context.member
+          ? await getDescendantNodeIds(
+              context.tenantDb,
+              context.member.hierarchyScopeId
+            )
+          : []);
+
+      const from = new Date(input.from);
+      const to = new Date(input.to);
+
+      try {
+        return await revenueShareByCategory(context.tenantDb, {
+          from,
+          to,
+          accessibleNodeIds,
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error as NodeJS.ErrnoException & { code?: string }).code === "BAD_REQUEST"
+        ) {
+          throw new ORPCError("BAD_REQUEST", { message: error.message });
+        }
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: error instanceof Error ? error.message : "Failed to compute revenue share",
+        });
+      }
+    }),
+  // #endregion
+
+  // #region 1.25 — avgSessionsSoldPerMonth
+  avgSessionsSoldPerMonth: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        serviceId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+      }
+      return avgSessionsSoldPerMonth(context.tenantDb, {
+        serviceId: input.serviceId,
+      });
+    }),
+  // #endregion
+
+  // #region 1.26 — listWithTrainerTiers
+  listWithTrainerTiers: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        categoryId: z.string().uuid().nullable().optional(),
+        branchId: z.string().uuid().nullable().optional(),
+        isActive: z.boolean().optional(),
+        type: serviceTypeSchema.optional(),
+        schedulingType: schedulingTypeSchema.optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      if (context.member.role !== "client") {
+        try {
+          await requirePermission(
+            context.tenantDb,
+            context.member,
+            "service_management",
+            "read"
+          );
+        } catch (error) {
+          throw new ORPCError("FORBIDDEN", {
+            message: error instanceof Error ? error.message : "Permission denied",
+          });
+        }
+      }
+
+      const accessibleNodeIds =
+        context.accessibleNodeIds ??
+        (context.member
+          ? await getDescendantNodeIds(
+              context.tenantDb,
+              context.member.hierarchyScopeId
+            )
+          : []);
+
+      return listServicesWithTrainerTiers(context.tenantDb, {
+        categoryId: input.categoryId ?? undefined,
+        branchId: input.branchId ?? undefined,
+        isActive: input.isActive,
+        type: input.type,
+        schedulingType: input.schedulingType,
+        accessibleNodeIds,
+      });
     }),
   // #endregion
 };

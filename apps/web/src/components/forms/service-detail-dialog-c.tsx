@@ -111,23 +111,25 @@ interface TrainersTabProps {
 function TrainersSection({ serviceId, organizationId }: TrainersTabProps) {
 	const queryClient = useQueryClient();
 
-	const { data: assigned, isLoading: loadingAssigned } = useQuery(
-		orpc.serviceMembers.listForService.queryOptions({
+	const { data: assignedRaw, isLoading: loadingAssigned } = useQuery(
+		(orpc.serviceMembers.listForService as any).queryOptions({
 			organizationId,
 			serviceId,
 		})
 	);
+	const assigned = assignedRaw as any[] | undefined;
 
-	const { data: allMembers, isLoading: loadingMembers } = useQuery(
-		orpc.members.list.queryOptions({ organizationId })
+	const { data: allMembersRaw, isLoading: loadingMembers } = useQuery(
+		(orpc.members.list as any).queryOptions({ organizationId })
 	);
+	const allMembers = allMembersRaw as any[] | undefined;
 
 	const [selectedMemberId, setSelectedMemberId] = useState<string>("");
 
-	const assignedIds = new Set((assigned ?? []).map((m) => m.memberId));
+	const assignedIds = new Set((assigned ?? []).map((m: any) => m.memberId));
 
 	const unassigned = (allMembers ?? []).filter(
-		(m) => !assignedIds.has(m.id)
+		(m: any) => !assignedIds.has(m.id)
 	);
 
 	const assignMutation = useMutation({
@@ -136,7 +138,7 @@ function TrainersSection({ serviceId, organizationId }: TrainersTabProps) {
 		onSuccess: () => {
 			setSelectedMemberId("");
 			queryClient.invalidateQueries({
-				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId } as any),
 			});
 			toast.success("Trainer assigned");
 		},
@@ -150,7 +152,7 @@ function TrainersSection({ serviceId, organizationId }: TrainersTabProps) {
 			client.serviceMembers.remove({ organizationId, serviceId, memberId }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId }),
+				queryKey: orpc.serviceMembers.listForService.key({ organizationId, serviceId } as any),
 			});
 			toast.success("Trainer removed");
 		},
@@ -186,7 +188,7 @@ function TrainersSection({ serviceId, organizationId }: TrainersTabProps) {
 						/>
 					</SelectTrigger>
 					<SelectContent>
-						{unassigned.map((m) => (
+						{unassigned.map((m: any) => (
 							<SelectItem key={m.id} value={m.id}>
 								{m.name ?? m.email ?? m.id}
 							</SelectItem>
@@ -215,7 +217,7 @@ function TrainersSection({ serviceId, organizationId }: TrainersTabProps) {
 				</p>
 			) : (
 				<ul className="space-y-2">
-					{(assigned ?? []).map((m) => (
+					{(assigned ?? []).map((m: any) => (
 						<li
 							key={m.memberId}
 							className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-white px-4 py-3"

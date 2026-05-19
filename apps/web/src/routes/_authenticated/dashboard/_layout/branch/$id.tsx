@@ -9,7 +9,6 @@ import { client } from "@/utils/orpc";
 import { QrCodeCard } from "@/features/branch-invites/components/qr-code-card";
 
 // routeTree.gen.ts will be updated by TanStack Router devtools on next dev run.
-// @ts-expect-error routeTree not yet aware of this new route
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/branch/$id",
 )({

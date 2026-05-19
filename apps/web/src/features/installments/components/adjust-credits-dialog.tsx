@@ -34,6 +34,14 @@ interface AdjustCreditsDialogProps {
 			reason: string;
 		}
 	>;
+	resetOverrideMutation: UseMutationResult<
+		unknown,
+		Error,
+		{
+			packageInstanceId: string;
+			reason: string;
+		}
+	>;
 }
 
 export function AdjustCreditsDialog({
@@ -47,6 +55,7 @@ export function AdjustCreditsDialog({
 	setAdjustReason,
 	onClose,
 	adjustCreditsMutation,
+	resetOverrideMutation,
 }: AdjustCreditsDialogProps) {
 	return (
 		<Dialog
@@ -60,7 +69,8 @@ export function AdjustCreditsDialog({
 					<DialogTitle>Adjust Credits</DialogTitle>
 					<DialogDescription>
 						Override the credits for this package. Future installment payments will only increase
-						unlocked credits, never decrease them past this value.
+						unlocked credits, never decrease them past this value. If a credits override is active,
+						use "Reset to formula" to restore automatic calculation.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -150,10 +160,31 @@ export function AdjustCreditsDialog({
 					<Button
 						variant="outline"
 						onClick={onClose}
-						disabled={adjustCreditsMutation.isPending}
+						disabled={adjustCreditsMutation.isPending || resetOverrideMutation.isPending}
 					>
 						Cancel
 					</Button>
+					{selectedInstance?.creditsAdminOverride && (
+						<Button
+							variant="outline"
+							onClick={() => {
+								if (
+									window.confirm(
+										"This will recompute credits from installment history. The current override will be discarded. Continue?",
+									)
+								) {
+									resetOverrideMutation.mutate({
+										packageInstanceId: selectedInstance.id,
+										reason: "Admin reset credits override",
+									});
+									onClose();
+								}
+							}}
+							disabled={resetOverrideMutation.isPending}
+						>
+							{resetOverrideMutation.isPending ? "Resetting…" : "Reset to formula"}
+						</Button>
+					)}
 					<Button
 						onClick={() => {
 							if (!selectedInstance || !adjustReason.trim()) {

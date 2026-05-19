@@ -3,72 +3,62 @@
 **Route:** `/dashboard/access-control/permissions`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/permissions.tsx`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Auth required:** authenticated (inherited from `_authenticated` layout)
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Legacy redirect stub. This page is slated for rewrite and does not render UI.
+**Purpose (user perspective):** Legacy redirect stub. Forwards bookmarks to the Roles page's Permissions tab.
 
-**Produces:** No user-visible output (immediate redirect).
+**Produces:** No UI — redirects in `beforeLoad`.
 
-**On success:** Redirects to `/dashboard/access-control/roles` with tab param `permissions`.
+**On success:** Redirects to `/dashboard/access-control/roles?tab=permissions`.
 
-**On failure / error states:** N/A (stub route)
+**On failure / error states:** None (no user-facing logic).
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:** Route loads → beforeLoad hook calls `makeTabRedirect("/dashboard/access-control/roles", "permissions")` → user redirected before component renders
+**Execution flow:** Route loaded → `beforeLoad: makeTabRedirect("/dashboard/access-control/roles", "permissions")` → router replaces history before render.
 
-**Inputs:** None (redirect is automatic)
-
-**State management:** None
-
-**Outputs:** Navigation redirect only
-
-**Side effects:** Router history updated
+**Inputs:** None.
+**State management:** None.
+**Outputs:** Single navigation redirect.
+**Side effects:** Router history entry updated.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None
+**Calls these API endpoints:** None.
+**Uses these components:** None.
+**Uses these hooks:** None.
 
-**Uses these components:** None
-
-**Uses these hooks:** None
-
-**Navigation: who navigates here:** Old bookmarks, legacy links (deprecated)
-
-**Navigation: where it goes:** `/dashboard/access-control/roles?tab=permissions`
+**Navigation in:** Old bookmarks, legacy in-app links.
+**Navigation out:** `/dashboard/access-control/roles?tab=permissions` (which renders `PermissionsTabPage` inside the Roles shell).
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** None
-
-**Key types / Zod schemas:** None
+None.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
 
-**Scenarios covered:** None
-
-**Not tested (risk areas):** Redirect loop if roles page doesn't exist
+**Not tested:** Redirect target's `requirePermission` guard rejecting users — they'd be sent to `/dashboard` after a double redirect.
 
 ---
 
 ## 6. Notes
 
-- Marked as LEGACY in code (though comment is in invitations.tsx file).
-- Component file exists but is a stub that never renders.
-- Actual permissions/roles functionality moved to `/dashboard/access-control/roles` route.
-- `makeTabRedirect` helper handles the redirect logic in beforeLoad guard.
+- `makeTabRedirect` lives at `@/lib/tab-redirect`; shared with the `/access-control/invitations` redirect stub.
+- Actual permission browsing UI is `PermissionsTabPage` @ `apps/web/src/components/pages/access-control/permissions-tab.tsx`, mounted by the Roles route when `?tab=permissions`.
+- The Roles route requires `role_management:read` via `requirePermission`; users without it will bounce again to `/dashboard` after this redirect.
+- Phase 1 web-debt-cleanup did not touch this stub.

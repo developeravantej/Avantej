@@ -64,6 +64,11 @@ import { membershipsRouter } from "./memberships";
 // #region Agent 3.6 — household linking (Phase 3)
 import { householdsRouter } from "./households";
 // #endregion
+// #region Phase 0 — branch QR onboarding (sales-pipeline-fixes)
+import { branchInvitesRouter } from "./branch-invites";
+import { onboardingRouter } from "./onboarding";
+// #endregion
+import { trainersRouter } from "./trainers";
 
 // Base router without auth (auth router is added by server with server-specific dependencies)
 export const baseRouter = {
@@ -139,6 +144,11 @@ export const baseRouter = {
 	// #region Agent 3.6 — household linking (Phase 3)
 	households: householdsRouter,
 	// #endregion
+	// #region Phase 0 — branch QR onboarding (sales-pipeline-fixes)
+	branchInvites: branchInvitesRouter,
+	onboarding: onboardingRouter,
+	// #endregion
+	trainers: trainersRouter,
 };
 
 // Auth router type definition for client type inference

@@ -3,210 +3,134 @@
 **Route:** `/dashboard/refunds/view`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/refunds/view.tsx`
 **Platform:** web
-**Auth required:** authenticated + rbac(refund_management:read)
-**Last updated:** 2026-04-23
+**Auth required:** authenticated + rbac(`refund_management:read`)
+**Last updated:** 2026-05-12
+
+> Companion doc: [`web-dashboard-refunds-view.md`](./web-dashboard-refunds-view.md) — deeper details on the ledger page (KPI strip, target cell, audit drawer). This file is the route-group index; both docs describe the same single route.
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Review, approve, reject, and process refund requests from customers.
+**Purpose (user perspective):** Review, approve, reject, and process refund requests from customers. Single landing page for the full refund lifecycle.
 
-**Produces:** Tabbed refund ledger with columns for date, refund#, customer, target (sale/payment/package), amount, reason, requestor, status; expandable detail drawer with audit trail; process/reject dialogs.
+**Produces:** Status-tabbed refund ledger (all / pending / approved / rejected / processed) with KPI strip; per-row contextual actions (Approve, Reject, Mark Processed, View Details); detail drawer with audit trail; rejection-notes and process-method dialogs.
 
 **On success:**
-- Refund approved (status: pending → approved, toast confirmation)
-- Refund rejected (status: pending → rejected, with review notes)
-- Refund marked processed (status: approved → processed, with method and reference)
-- Detail drawer shows full history and audit trail
+- Refund approved (pending → approved) — toast, list invalidated.
+- Refund rejected (pending → rejected) — `reviewNotes` required.
+- Refund marked processed (approved → processed) via `ProcessRefundDialog` (method + optional reference).
+- Detail drawer renders refund info, review block, processing block, and audit trail.
 
 **On failure / error states:**
-- Loading spinner during fetch
-- "No refunds found" empty state (or filtered state)
-- Error card with retry button
-- Toast errors for failed mutations
-- Permission guards: "You do not have permission to view refunds"
+- `<PageLoader />` while loading.
+- `EmptyState` ("No refunds found") when zero rows match the filter.
+- `StatusCallout variant="error"` with `onRetry` on fetch failure.
+- Permission guard: "You do not have permission to view refunds."
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-1. Route loads, fetches refunds via `client.refunds.list()` filtered by activeTab (all/pending/approved/rejected/processed)
-2. Data mapped to `RefundRow[]` with status mapping
-3. Table columns include date, refund#, customer, target (linked to sales order if applicable), amount, reason, requestor, status, actions
-4. Status tabs allow filtering (pending, approved, rejected, processed, all)
-5. Detail drawer:
-   - Opened on row click or "View Details" button
-   - Fetches audit trail via `client.auditLogs.list()` for refund entity
-   - Shows refund info, review section (if reviewed), processing info (if processed), audit trail
-6. Approve action:
-   - Triggered by "Approve" button on pending refunds
-   - `client.refunds.approve()` with optional reviewNotes
-   - Invalidates refund list cache
-7. Reject dialog:
-   - Opens on "Reject" button (pending refunds only)
-   - Requires rejection notes (text input, min 1 char)
-   - `client.refunds.reject()` with reviewNotes
-   - Invalidates cache
-8. Process dialog (ProcessRefundDialog component):
-   - Opens on "Mark Processed" button (approved refunds only)
-   - User selects refund method (cash, card_reversal, bank_transfer, store_credit)
-   - Optional reference field (required for non-cash)
-   - `client.refunds.process()` with method and reference
-   - Invalidates cache
+```
+RefundsLedgerPage
+  → useUserContext() → organizationId, hasPermission (canApprove, canProcess)
+  → activeTab → useQuery(["refunds", orgId, activeTab])
+      → client.refunds.list({ status?, limit: 100, offset: 0 })
+  → KPI computed in memory from rows (pendingCount, approvedTodayCount, totalRefundedCents)
 
-**Inputs:**
-- Tab filter (all/pending/approved/rejected/processed)
-- Row click → detail drawer
-- Reject notes (textarea)
-- Process method (radio group) + optional reference
+Row actions:
+- pending  + canApprove → Approve → approveMutation (useApiMutation, invalidate refundsKey)
+                       → Reject  → RejectDialog → rejectMutation
+- approved + canProcess → Mark Processed → ProcessRefundDialog → client.refunds.process
+- processed/rejected   → View Details → RefundDetailDrawer
+                         → useQuery(["audit-refund", orgId, refundId])
+                             → client.auditLogs.list({ entityType: "refund", entityId })
+```
+
+**Inputs:** activeTab; row clicks; rejection notes; refund method + reference.
 
 **State management:**
-- TanStack Query: `["refunds", organizationId, activeTab]`
-- Local state: activeTab, detail drawer (open + selectedRefund), process dialog (id), reject dialog (id + notes)
-- Cache invalidation on approve/reject/process
+- TanStack Query: refunds list + audit trail.
+- Local `useState`: `activeTab`, drawer/dialog open flags, in-flight IDs (`approveRefundId`, `processRefundId`, `rejectRefundId`).
+- Approve/reject use `useApiMutation` (`invalidate: [refundsKey]`).
+- `ProcessRefundDialog` invalidates `["refunds", orgId]` directly on success.
 
-**Outputs:**
-- Table renders all refunds with status badges
-- Buttons conditional on status and permission (refund_management:approve, :process)
-- Detail drawer side panel (max-width xl)
-- Toast notifications
+**Outputs:** Table with status badges; conditional action buttons; drawer + dialogs.
 
-**Side effects:**
-- Approves, rejects, processes refunds
-- Invalidates refund list cache
-- Toast feedback
-- No navigation
+**Side effects:** Approves, rejects, processes refunds; invalidates list cache; toast feedback.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.refunds.list()` — fetch refunds, optionally filtered by status
-- `client.refunds.approve()` — transition to approved
-- `client.refunds.reject()` — transition to rejected with notes
-- `client.refunds.process()` — transition to processed with method and reference
-- `client.auditLogs.list()` — fetch audit trail for refund
+- `client.refunds.list`
+- `client.refunds.approve` (optional reviewNotes)
+- `client.refunds.reject` (reviewNotes required)
+- `client.refunds.process` (refundMethod, optional refundReference) — via `ProcessRefundDialog`
+- `client.auditLogs.list` — drawer-scoped, lazy
 
 **Uses these components:**
-- `DataTable` from `@/components/tables/sales/view/data-table` — renders refund table
-- `StatusBadge` — status display (mapped via REFUND_STATUS_MAP)
+- `DataTable` — `@/components/tables/sales/view/data-table`
+- `StatusBadge` (wrapped as `RefundStatusBadge`)
 - `CopyableCell` — refund number
-- `RefundDetailDrawer` — side panel with refund details and audit trail
-- `ProcessRefundDialog` from `@/components/refunds/process-refund-dialog` — process method selection
-- `RejectDialog` (inline) — rejection notes input
-- `Link` — navigation to sales order detail if applicable
-- Sheet, Button, Dialog, Textarea, Separator — shadcn/ui
+- `ProcessRefundDialog` — `@/components/refunds/process-refund-dialog`
+- Inline `RefundDetailDrawer`, inline `RejectDialog`, inline `TargetCell`
+- `EmptyState`, `StatusCallout`, `PageLoader`, `Dialog`, `Textarea`, `Separator`, `Button`, `Label`
 
 **Uses these hooks:**
-- `useUserContext()` — org ID, permission checks (refund_management:read, :approve, :process)
-- `useQuery` (React Query) — fetch refunds and audit logs
-- `useMutation` (React Query) — approve/reject/process mutations
-- `useQueryClient()` — cache invalidation
-- `useState` — tab, drawer, dialog state
+- `useUserContext()` (org + `hasPermission`)
+- `useQuery`, `useApiMutation`, `useState`
 
-**Navigation: who navigates here:**
-- Sidebar link
-- Direct URL
+**Navigation: who navigates here:** Sidebar (Sales & Finance → Refunds); direct URL.
 
-**Navigation: where it goes:**
-- TargetCell renders Link to `/dashboard/sales/$id` for sales order refunds
-- No other navigation
+**Navigation: where it goes:** `TargetCell` → `/dashboard/sales/$id` for sales-order targets. Payment/package targets render as plain text.
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-- `refunds` (select, update)
-- `auditLogs` (select, where entityType = 'refund')
+**DB tables:** `refunds` (read/update via procedures), `audit_logs` (read).
 
-**Key types / Zod schemas:**
+**Key types:**
 ```typescript
 type RefundStatus = "pending" | "approved" | "rejected" | "processed" | "cancelled";
 
-type RefundRow = {
-  id: string;
-  refundNumber: string;
-  status: string;
-  salesOrderId: string | null;
-  paymentId: string | null;
-  packageInstanceId: string | null;
-  amountCents: number;
-  taxAmountCents: number;
-  reason: string;
-  notes: string | null;
-  requestedBy: string;
-  requestedAt: string | Date;
-  reviewedBy: string | null;
-  reviewedAt: string | Date | null;
-  reviewNotes: string | null;
-  processedBy: string | null;
-  processedAt: string | Date | null;
-  refundMethod: string | null; // "cash" | "card_reversal" | "bank_transfer" | "store_credit"
-  refundReference: string | null;
-  customerId: string;
-  customerName: string;
-  requestedByName?: string | null; // enriched from backend join
-  salesOrderNumber?: string | null;
-};
+// list response
+{ rows: RefundRow[]; total: number }
 
-// API list response
-{
-  rows: RefundRow[];
-  total: number;
-}
-
-// API approve input
-{
-  organizationId: string;
-  id: string;
-  reviewNotes?: string;
-}
-
-// API reject input
-{
-  organizationId: string;
-  id: string;
-  reviewNotes: string;
-}
-
-// API process input
-{
-  organizationId: string;
-  id: string;
-  refundMethod: "cash" | "card_reversal" | "bank_transfer" | "store_credit";
-  refundReference?: string;
-}
+// approve input  → { organizationId, id, reviewNotes? }
+// reject input   → { organizationId, id, reviewNotes }  // required
+// process input  → { organizationId, id, refundMethod, refundReference? }
+//                  refundMethod ∈ "cash" | "card_reversal" | "bank_transfer" | "store_credit"
 ```
+
+See `web-dashboard-refunds-view.md` §4 for the full `RefundRow` shape and refundable-cap formulas.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found (none matching refund pattern in `__tests__/`)
-
-**Scenarios covered:** (none currently)
+**Test files:** None found.
 
 **Not tested (risk areas):**
-- Tab filtering logic
-- Approve/reject/process mutations
-- Audit trail loading and display
-- Permission checks (refund_management:read, :approve, :process)
-- Error handling for failed mutations
-- Edge cases: null audit rows, missing customer names, target resolution
+- Tab filtering query-key change.
+- Approve/reject/process mutations + cache invalidation.
+- Audit trail lazy loading (only when drawer open).
+- Permission guards (`:read`, `:approve`, `:process`).
+- `TargetCell` resolution priority (sale > payment > package).
+- KPI math edge cases (timezone in "Approved today").
 
 ---
 
 ## 6. Notes
 
-- **Status mapping:** "processed" mapped to canonical "completed" with label override. "pending", "approved", "rejected", "cancelled" map directly.
-- **TargetCell logic:** Prioritizes salesOrderId > paymentId > packageInstanceId; displays as link to sales order if available.
-- **Audit trail:** Fetched only when detail drawer is open (`enabled: open && !!refund?.id`).
-- **Rejection notes:** Required (min 1 char) for reject action.
-- **Process method:** "cash" optional for reference; others require it.
-- **Permissions:** Read requires `refund_management:read`; approve requires `:approve`; process requires `:process`.
-- **Currency:** All amounts stored in cents (amountCents, taxAmountCents); formatted via `formatPrice()` for display.
-- **Async issue:** The field `(data as any)?.rows` in auditQuery suggests type mismatch; audit logs endpoint returns `{ rows: [] }` but type isn't explicitly declared.
+- **Single route, two docs:** This file and `web-dashboard-refunds-view.md` describe the same route. Treat `-view.md` as the primary deep-dive.
+- **Status mapping:** `processed → completed` canonical (label "Processed"); others map directly.
+- **`installments.processRefund` is deprecated** — UI rewired to open `RequestRefundDialog` everywhere.
+- **`ProcessRefundDialog`** requires reference for non-cash methods (free-form input); enforces no Zod constraint on reference (UI hint only).
+- **Currency**: amounts stored in cents (`amountCents`, `taxAmountCents`); formatted via `formatPrice` from `@/lib/money`.
+- **Concurrency**: backend `processRefund` uses `SELECT FOR UPDATE` on target rows to prevent races with concurrent writes.
+- **`auditQuery` shape**: `(data as { rows?: AuditRow[] } | undefined)?.rows ?? []` — narrowed at the call site because the audit endpoint isn't strictly typed.

@@ -128,3 +128,7 @@ export * from "./lead-sources";
 // #region Agent 3.6 — household linking (Phase 3)
 export * from "./households";
 // #endregion
+
+// #region Design-backfill — branch stats cache (Migration 0059)
+export * from "./branch-stats-cache";
+// #endregion

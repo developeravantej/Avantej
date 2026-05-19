@@ -1,182 +1,167 @@
 # Purchase Orders
 
 **Route:** `/dashboard/purchase-orders/view`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/purchase-orders/view.tsx`
+**Files:**
+- `apps/web/src/routes/_authenticated/dashboard/_layout/purchase-orders/view.tsx` (route stub)
+- `apps/web/src/routes/_authenticated/dashboard/_layout/purchase-orders/view.lazy.tsx` (lazy component)
 **Platform:** web
-**Auth required:** authenticated + rbac(purchase_order_management:read)
-**Last updated:** 2026-04-23
+**Auth required:** authenticated + rbac(`purchase_order_management:read`)
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View, create, approve, and receive purchase orders from suppliers.
+**Purpose (user perspective):** Manage purchase orders and the supplier-invoice intake / 3-way match workflow in one place — create POs, approve, receive items, record supplier invoices, review match, mark invoices paid.
 
-**Produces:** Table of purchase orders with status badges, expandable sheets for creation and receiving items.
+**Produces:** Header (icon + title + "New PO" button) and two tabs:
+- **Purchase Orders**: data table with PO #, supplier, branch, order date, expected delivery, total, status, contextual action buttons (Approve / Receive / Cancel / Invoice).
+- **Supplier Invoices** (`SupplierInvoicesTab`): filterable invoice table (Invoice #, Supplier, PO, dates, amount, status) with "Review Match" / "Mark Paid" actions.
 
-**On success:** 
-- New PO created (draft state, toast confirmation)
-- PO approved (status updated to approved)
-- Items received (status updated, quantities tracked)
+**On success:**
+- PO created (draft) via `CreatePOSheet`, toast confirmation.
+- PO approved (draft → approved).
+- Items received via `ReceiveItemsSheet` (status updates accordingly).
+- PO cancelled (draft/approved → cancelled).
+- Invoice recorded via `RecordInvoiceDialog` from a received PO.
+- Invoice matched/disputed via `MatchReviewDialog` (3-way comparison).
+- Invoice marked paid via `MarkPaidDialog`.
 
-**On failure / error states:**
-- Loading spinner during fetch
-- Empty state: "No purchase orders found" with button to create
-- Error card with retry button
-- Toast errors for failed mutations
+**On failure / error states:** Loading spinner; empty-state CTA "New PO"; `DataTable` error props (`error`, `onRetry`) drive inline error UX; toast errors from `useApiMutation`.
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-1. Route loads, fetches list of POs via `client.purchaseOrders.list()`
-2. Data mapped to `PurchaseOrderRow[]` with status mapping (draft, approved, ordered, partially_received, received, cancelled)
-3. Table columns include PO#, supplier, branch, dates, total, status, and action buttons
-4. CreatePOSheet can be opened via "New PO" button
-   - Queries suppliers and products when sheet opens
-   - User selects supplier, branch, dates, adds line items
-   - On submit: `client.purchaseOrders.create()` with items (qty, cost in cents)
-5. ReceiveItemsSheet opened per-PO
-   - Fetches PO detail + products
-   - User enters received quantities for each item
-   - On submit: `client.purchaseOrders.receiveItems()`
-6. Approval: `client.purchaseOrders.approve()` (draft → approved)
-7. Cancellation: `client.purchaseOrders.cancel()` (draft or approved → cancelled)
+```
+RouteComponent (view.lazy.tsx)
+  → useUserContext() → organizationId, hasPermission
+    → canCreate = "purchase_order_management:create"
+    → canUpdate = "purchase_order_management:update"
+  → useQuery(["purchaseOrders", organizationId])
+      → client.purchaseOrders.list({ organizationId })
+  → Tabs: "orders" | "invoices"
 
-**Inputs:**
-- URL: none (list view)
-- Form inputs: supplier, branch, order date, expected delivery, notes, line items
-- Receive form: quantities per item
+  Orders tab actions (per row, by status):
+    → draft       → Approve  → useApiMutation → client.purchaseOrders.approve
+    → approved/ordered/partially_received → Receive → ReceiveItemsSheet
+    → draft/approved → Cancel  → useApiMutation → client.purchaseOrders.cancel
+    → received/partially_received → Invoice → RecordInvoiceDialog
+
+  Invoices tab (SupplierInvoicesTab):
+    → useQuery(["supplierInvoices", orgId]) → client.goodsReceipts.listInvoices
+    → useQuery(["suppliers", orgId]) → client.suppliers.list (name map)
+    → pending/disputed → Review Match → MatchReviewDialog
+    → matched          → Mark Paid    → MarkPaidDialog
+```
+
+**Dialog mutations:**
+- `CreatePOSheet` → `client.purchaseOrders.create` (items: cents)
+- `ReceiveItemsSheet` → `client.purchaseOrders.receiveItems` (per-item received qty)
+- `RecordInvoiceDialog` → `client.goodsReceipts.createInvoice` (optional `goodsReceiptId`)
+- `MatchReviewDialog` → `client.goodsReceipts.getInvoicePreview` (3-way), then `matchInvoice` or `disputeInvoice`
+- `MarkPaidDialog` → `client.goodsReceipts.markInvoicePaid`
 
 **State management:**
-- TanStack Query: `["purchaseOrders", organizationId]`
-- Local state: create sheet open, receive sheet poId, form data
-- Cache invalidation on create/approve/cancel/receive
+- TanStack Query: `["purchaseOrders", orgId]`, `["purchaseOrders", orgId, poId]`, `["supplierInvoices", orgId]`, `["suppliers", orgId]`, `["products", orgId]`, `["goodsReceiptsForPo", orgId, poId]`, `["invoicePreview", orgId, invoiceId]`.
+- Local state in route: `createSheetOpen`, `receivePoId`, `invoicePoId`.
+- `useApiMutation` wraps each mutation with toast + cache invalidation (`["purchaseOrders", orgId]`).
+- `handleInvalidate` callback passed to all child sheets/dialogs.
 
-**Outputs:**
-- Table renders all POs with status badges
-- Buttons disabled based on status and permission (purchase_order_management:update)
-- Toast notifications on success/failure
-
-**Side effects:**
-- Creates, approves, cancels, receives POs
-- Invalidates PO query cache
-- Toast feedback
-- No navigation (stays on page)
+**Side effects:** Creates/approves/cancels POs, receives items, records/matches/disputes/pays invoices; invalidates relevant queries on success.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `client.purchaseOrders.list()` — fetch all POs for org
-- `client.purchaseOrders.create()` — create draft PO
-- `client.purchaseOrders.approve()` — transition to approved
-- `client.purchaseOrders.cancel()` — cancel draft/approved
-- `client.purchaseOrders.receiveItems()` — record item receipts
-- `client.purchaseOrders.getById()` — fetch PO detail for receive sheet
-- `client.suppliers.list()` — populate supplier dropdown
-- `client.products.list()` — populate product dropdown in line items
+- `client.purchaseOrders.list/getById/create/approve/cancel/receiveItems`
+- `client.suppliers.list` (for supplier dropdowns and name map)
+- `client.products.list` (line-item product picker, receive-items name map)
+- `client.goodsReceipts.listInvoices` — supplier-invoice table
+- `client.goodsReceipts.listForPo` — posted receipts for invoice recording
+- `client.goodsReceipts.createInvoice` — record invoice
+- `client.goodsReceipts.getInvoicePreview` — 3-way match preview
+- `client.goodsReceipts.matchInvoice` / `disputeInvoice` / `markInvoicePaid`
 
-**Uses these components:**
-- `DataTable` from `@/components/tables/sales/view/data-table` — renders PO table
-- `StatusBadge` from `@/components/ui/status-badge` — status display (mapped via PO_STATUS_MAP)
-- `CopyableCell` — PO number cell
-- `BranchSelector` — branch selection in create sheet
-- Sheet, Button, Input, Select, Textarea — shadcn/ui
+**Uses these components (under `@/features/purchase-orders/`):**
+- `POStatusBadge` — domain status → canonical `StatusBadge` mapping
+- `InvoiceStatusBadge` — invoice status → canonical
+- `CreatePOSheet` — `Dialog`-based create form with supplier/branch/dates/line items
+- `ReceiveItemsSheet` — per-item received-qty form (uses PO `getById`)
+- `RecordInvoiceDialog` — invoice intake; optional goods-receipt link
+- `MatchReviewDialog` — 3-way preview table + Match/Dispute
+- `MarkPaidDialog` — payment reference capture
+- `SupplierInvoicesTab` — full invoices tab body
+
+Shared UI: `DataTable` (`@/components/tables/sales/view/data-table`), `CopyableCell`, `BranchSelector`, `PageLoader`, `LoadingSpinner`, shadcn primitives.
 
 **Uses these hooks:**
-- `useUserContext()` — org ID, permission checks (purchase_order_management:create, :update)
-- `useQuery` (React Query) — data fetching
-- `useMutation` (React Query) — create, approve, cancel, receive mutations
-- `useQueryClient()` — cache invalidation
+- `useUserContext()`, `useQuery`, `useQueryClient`, `useApiMutation` (`@/hooks/useApiMutation`), `useState`, `useCallback`
 
-**Navigation: who navigates here:** 
-- Sidebar link (dashboard menu)
-- Direct URL
+**Navigation: who navigates here:** Sidebar; direct URL.
 
-**Navigation: where it goes:**
-- None (self-contained list + modals)
+**Navigation: where it goes:** None — all interactions are modal.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-- `purchaseOrders` (select, insert, update)
-- `purchaseOrderItems` (insert, update)
-- `suppliers` (select)
-- `products` (select)
+- `purchase_orders`, `purchase_order_items` (CRUD via PO procedures)
+- `goods_receipts`, `goods_receipt_items` (receive flow)
+- `supplier_invoices` (intake / match / pay)
+- `suppliers` (read), `products` (read)
 
-**Key types / Zod schemas:**
+**Key types:**
 ```typescript
-type PurchaseOrderRow = {
+// apps/web/src/features/purchase-orders/types.ts
+export type PurchaseOrderRow = {
   id: string;
   purchaseOrderNumber: string;
   supplierId: string;
   branchId: string;
   orderDate: Date | string | null;
-  expectedDeliveryDate: Date | string | null;
-  totalAmount: number; // in cents or RM?
-  status: string; // "draft" | "approved" | "ordered" | "partially_received" | "received" | "cancelled"
-  notes: string | null;
+  expectedDeliveryDate: Date | string | null | undefined;
+  totalAmount: number;            // cents
+  status: string;                  // "draft" | "approved" | "ordered" | "partially_received" | "received" | "cancelled"
+  notes: string | null | undefined;
   createdAt: Date | string | null;
 };
 
-type LineItem = {
-  key: string; // uuid
+export type LineItem = {
+  key: string;                     // crypto.randomUUID
   productId: string;
   orderedQty: string;
-  unitCostRM: string; // user input in RM, converted to cents on submit
+  unitCostRM: string;              // user-entered RM, converted to cents via rmToCents()
 };
-
-// API input (create)
-{
-  organizationId: string;
-  supplierId: string;
-  branchId: string;
-  orderDate: string; // ISO datetime
-  expectedDeliveryDate?: string;
-  notes?: string;
-  items: { productId: string; orderedQty: number; unitCost: number }[]; // unitCost in cents
-}
-
-// API input (receiveItems)
-{
-  organizationId: string;
-  purchaseOrderId: string;
-  items: { itemId: string; receivedQty: number }[];
-}
 ```
+
+`purchaseOrders.create` input: `{ organizationId, supplierId, branchId, orderDate (ISO), expectedDeliveryDate?, notes?, items: [{ productId, orderedQty, unitCost (cents) }] }`.
+`purchaseOrders.receiveItems` input: `{ organizationId, purchaseOrderId, items: [{ itemId, receivedQty }] }`.
+`goodsReceipts.createInvoice` input: `{ organizationId, invoiceNumber, supplierId, purchaseOrderId, goodsReceiptId?, totalCents, taxCents?, invoiceDate (ISO), dueDate? (ISO) }`.
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/web/src/__tests__/routes/purchase-orders.test.tsx`
+**Test files:** `apps/web/src/__tests__/routes/purchase-orders.test.tsx` (predates refactor; may need updates for `features/` paths).
 
-**Scenarios covered:**
-- Empty state rendering
-- "New PO" button visibility
-- PO table rendering with data
-- Draft PO shows Approve and Cancel buttons
-- (More tests likely exist; file was truncated)
-
-**Not tested (risk areas):**
-- Line item addition/removal/editing in form
-- Currency conversion (RM to cents)
-- Promo/tax recalculation on cart changes
-- Receipt dialog and print functionality
-- Edge cases: missing branch, invalid dates
+**Not tested / risk areas:**
+- New `SupplierInvoicesTab` (filter, columns, status conditional buttons).
+- `MatchReviewDialog` 3-way preview rendering + dispute branch.
+- `RecordInvoiceDialog` optional goods-receipt link.
+- `MarkPaidDialog` reference capture flow.
+- `CreatePOSheet` RM→cents conversion (`rmToCents`) and per-line `crypto.randomUUID` keying.
 
 ---
 
 ## 6. Notes
 
-- **Price storage:** `unitCostRM` entered by user in Malaysian Ringgit, converted to cents on submit (`Math.round(parseFloat(l.unitCostRM) * 100)`). API expects `unitCost` in cents.
-- **Status mapping:** PO statuses are domain-specific (draft, approved, ordered, partially_received, received, cancelled); mapped to canonical StatusBadge equivalents for UI.
-- **Branch locking:** Once a customer is selected, branch is inferred and locked (no re-selection per item).
-- **Dates:** Form uses HTML `type="date"`, converted to ISO datetime on submit.
-- **Permissions:** Create requires `purchase_order_management:create`; approve/cancel/receive requires `:update`.
-- **RBAC in action buttons:** Visibility of Approve/Receive/Cancel buttons tied to permission and status.
+- **Refactor**: Route split into `view.tsx` (stub) + `view.lazy.tsx` (component) for code-splitting. All feature logic moved into `apps/web/src/features/purchase-orders/` (components + `types.ts`).
+- **Supplier invoices moved here** from the legacy suppliers route; they now live as a tab under Purchase Orders (`SupplierInvoicesTab`).
+- **Currency**: PO line items and invoice totals are entered in RM and converted to cents on submit via `rmToCents` (`@/lib/money`). `formatPrice(cents, "MYR")` for display.
+- **Status mapping**: `POStatusBadge` maps `ordered → confirmed (Ordered)`, `partially_received → in_transit (Partial)`. `InvoiceStatusBadge` maps `matched → approved`, `disputed → cancelled`.
+- **Action gating**: `canCreate`/`canUpdate` derived from permissions; action buttons are status- + permission-conditional.
+- **Mutation pattern**: All mutations use `useApiMutation` for centralised toast + invalidation. Cache invalidation is funnelled through `handleInvalidate` (PO list) plus per-dialog `qc.invalidateQueries(["supplierInvoices", orgId])`.

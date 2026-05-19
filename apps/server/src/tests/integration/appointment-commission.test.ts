@@ -245,6 +245,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 2,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		// Expect exactly one split
@@ -295,6 +296,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 0,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(0);
@@ -328,21 +330,22 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 		expect(first).toHaveLength(1);
 
-		// Second call with same (appointmentId, staffId) must throw due to the partial
-		// unique index: commission_splits_appt_staff_unique ON (appointment_id, staff_id)
-		// WHERE appointment_id IS NOT NULL
-		await expect(
-			calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-				actor: ACTOR,
-			}),
-		).rejects.toThrow();
+		// Second call with same (appointmentId, staffId): the 23505 unique-violation
+		// is now caught and swallowed (concurrent-cancel race guard, audit P2-19).
+		// The call must NOT throw; it returns an empty array for the duplicate staff.
+		const second = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(second).toHaveLength(0);
 	}, 30000);
 });

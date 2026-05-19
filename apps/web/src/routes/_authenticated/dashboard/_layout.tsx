@@ -1,21 +1,18 @@
-import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
-import { CommandPalette } from "@/components/platform-admin/command-palette";
+import { EmailVerifyBanner } from "@/components/email-verify-banner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/_layout")({
 	component: DashboardLayout,
 });
 
 function DashboardLayout() {
-	const location = useLocation();
-	const isPlatformAdmin = location.pathname.startsWith(
-		"/dashboard/platform-admin",
-	);
 	return (
 		<>
 			<ImpersonationBanner />
+			<EmailVerifyBanner />
 			<Outlet />
-			{isPlatformAdmin && <CommandPalette />}
 		</>
 	);
 }
+

@@ -40,7 +40,10 @@ export const payouts = pgTable("payouts", {
 		.references(() => payoutBatches.id, { onDelete: "set null" }),
 	
 	// Amount details
-	amount: integer("amount").notNull(), // Amount in cents (pre-tax commission)
+	amount: integer("amount").notNull(),
+	// Migration 0056
+	grossAmountCents: integer("gross_amount_cents"),
+	deductionsCents: integer("deductions_cents").notNull().default(0),
 	currency: text("currency").default("usd").notNull(),
 	
 	// Payout method

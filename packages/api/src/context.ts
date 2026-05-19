@@ -69,6 +69,8 @@ export async function createContext({ context }: CreateContextOptions) {
     console.log(`[createContext] Final state - member: ${member.id}, accessibleNodeIds count: ${accessibleNodeIds?.length || 0}`);
   }
 
+  const installmentLockOnOpen = context.get("installmentLockOnOpen") as boolean | undefined;
+
   return {
     session,
     organizationId,
@@ -76,6 +78,7 @@ export async function createContext({ context }: CreateContextOptions) {
     member,
     organization,
     accessibleNodeIds,
+    installmentLockOnOpen: installmentLockOnOpen !== false,
     honoContext: context,
   };
 }

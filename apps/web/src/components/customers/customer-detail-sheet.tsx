@@ -39,6 +39,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
+import { PackageRow } from "@/components/customers/customer-360/package-row";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,6 @@ function Section({
 	defaultOpen?: boolean;
 	children: React.ReactNode;
 }) {
-	// react-doctor-disable-next-line react-doctor/no-derived-useState -- initial seed pattern: defaultOpen seeds initial uncontrolled state, user toggles thereafter
 	const [open, setOpen] = useState(defaultOpen);
 
 	return (
@@ -161,13 +161,13 @@ function Section({
 					className="flex w-full items-center justify-between py-2 text-left"
 				>
 					<div className="flex items-center gap-2">
-						<Icon className="size-4 text-muted-foreground" />
+						<Icon className="h-4 w-4 text-muted-foreground" />
 						<span className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
 							{title}
 						</span>
 					</div>
 					<ChevronDown
-						className={`size-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+						className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
 					/>
 				</button>
 			</CollapsibleTrigger>
@@ -187,7 +187,6 @@ interface CustomerDetailSheetProps {
 	onSaved?: () => void;
 }
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function CustomerDetailSheet({
 	memberId,
 	organizationId,
@@ -234,27 +233,6 @@ export function CustomerDetailSheet({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [memberId]);
 
-	// ── Soft-delete mutation ───────────────────────────────────────────────
-
-	const deleteMutation = useApiMutation({
-		mutationFn: () => {
-			if (!data) throw new Error("No customer data loaded");
-			return client.customerProfiles.softDelete({
-				organizationId,
-				targetUserId: data.member.userId,
-			});
-		},
-		successMessage: "Customer deleted",
-		invalidate: [
-			["customerDirectory", "detail", organizationId, memberId],
-			["customerDirectory", organizationId],
-		],
-		onSuccess: () => {
-			onSaved?.();
-			onOpenChange(false);
-		},
-	});
-
 	// ── Profile upsert mutation ────────────────────────────────────────────
 
 	const upsertMutation = useApiMutation({
@@ -273,10 +251,8 @@ export function CustomerDetailSheet({
 				fitnessGoals: profileForm.fitnessGoals
 					? profileForm.fitnessGoals
 							.split(",")
-							.flatMap((s) => {
-								const t = s.trim();
-								return t ? [t] : [];
-							})
+							.map((s) => s.trim())
+							.filter(Boolean)
 					: undefined,
 				notes: profileForm.notes || undefined,
 			});
@@ -526,7 +502,6 @@ export function CustomerDetailSheet({
 									<div className="flex justify-end">
 										<Button
 											type="button"
-											data-testid="save-profile-btn"
 											onClick={() => upsertMutation.mutate()}
 											disabled={!formDirty || upsertMutation.isPending}
 										>
@@ -545,26 +520,21 @@ export function CustomerDetailSheet({
 								) : (
 									<div className="space-y-2">
 										{packageInstances.map((pkg) => (
-											<div
+											<PackageRow
 												key={pkg.id}
-												className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
-											>
-												<div className="flex min-w-0 flex-col gap-0.5">
-													<span className="truncate font-medium">
-														{(pkg as any).serviceName ?? pkg.id}
-													</span>
-													<span className="text-muted-foreground text-xs">
-														{pkg.creditsUsed ?? 0} / {pkg.creditsTotal ?? "∞"}{" "}
-														credits
-														{pkg.expiresAt
-															? ` · expires ${formatDate(pkg.expiresAt)}`
-															: ""}
-													</span>
-												</div>
-												<Badge variant={packageStatusVariant(pkg.status ?? "")}>
-													{pkg.status ?? "unknown"}
-												</Badge>
-											</div>
+												pkg={{
+													id: pkg.id,
+													clientId: pkg.clientId ?? "",
+													status: pkg.status,
+													creditsUsed: pkg.creditsUsed,
+													creditsTotal: pkg.creditsTotal,
+													creditsUnlocked: pkg.creditsUnlocked,
+													expiresAt: pkg.expiresAt,
+													serviceName: pkg.serviceName,
+													paymentPlanCode: pkg.paymentPlanType,
+												}}
+												organizationId={organizationId}
+											/>
 										))}
 									</div>
 								)}
@@ -610,7 +580,7 @@ export function CustomerDetailSheet({
 							{/* ── Section 4: Stats ───────────────────────── */}
 							<Section title="Stats" icon={BarChart2} defaultOpen={true}>
 								<div className="grid grid-cols-3 gap-4">
-									<div className="flex flex-col gap-1 rounded-lg border p-3">
+									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
 										<span className="text-muted-foreground text-xs">
 											Outstanding
 										</span>
@@ -620,7 +590,7 @@ export function CustomerDetailSheet({
 											{formatPrice(outstandingBalanceCents, "MYR")}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border p-3">
+									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
 										<span className="text-muted-foreground text-xs">
 											Appointments
 										</span>
@@ -628,7 +598,7 @@ export function CustomerDetailSheet({
 											{appointmentCount}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border p-3">
+									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
 										<span className="text-muted-foreground text-xs">
 											Last Visit
 										</span>
@@ -638,27 +608,6 @@ export function CustomerDetailSheet({
 									</div>
 								</div>
 							</Section>
-						</div>
-
-						{/* ── Danger zone footer ───────────────────────── */}
-						<div className="border-t px-6 py-4">
-							<Button
-								type="button"
-								variant="destructive"
-								data-testid="delete-customer-btn"
-								onClick={() => {
-									if (
-										!window.confirm(
-											"Delete this customer? This will also remove them from GoHighLevel.",
-										)
-									)
-										return;
-									deleteMutation.mutate();
-								}}
-								disabled={deleteMutation.isPending}
-							>
-								{deleteMutation.isPending ? "Deleting..." : "Delete customer"}
-							</Button>
 						</div>
 					</>
 				)}

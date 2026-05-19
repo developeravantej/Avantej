@@ -4,156 +4,147 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/customers/$id.tsx`
 **Platform:** web
 **Auth required:** rbac(customer_management:read)
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Full customer profile view showing overview, packages with installments, payment history, and appointment history in a 360-degree view.
+**Purpose (user perspective):** Full customer profile view showing overview, packages, payments, and appointment history in a 360-degree layout — plus lead-source attribution, household linkage, and a membership-freeze action.
 
-**Produces:** A multi-tabbed customer profile page with:
-- Header with customer avatar, name, email, phone, status badge, and join date
-- KPI strip: LTV (N/A placeholder), outstanding balance, active packages count, total appointments
+**Produces:** A multi-section profile page:
+- Header (avatar, name, email, phone, status badge, joined date, **Pause Membership** action when eligible)
+- **Lead Source** section (source / referrer / campaign) with edit dialog
+- **Household** section (current household + members, attach / create / detach)
+- KPI strip: LTV (placeholder), outstanding balance, active packages, appointments
 - Four tabs: Overview, Packages, Payments, Appointments
 
-**On success:** All data loads and tabs are interactive. Overview tab shows recent payments and upcoming appointments. Packages tab lists active packages with rows. Payments/Appointments tabs show full history in tables.
+**On success:** All sections load; freeze, attribution, and household mutations invalidate the detail query and re-render in place.
 
 **On failure / error states:**
-- Loading: Page skeleton shown
-- No org: Card message "Select an organization to view this customer"
-- No permission: Destructive alert "You don't have permission to view customer profiles"
-- Not found: Alert + back button "Customer not found. They may have been removed"
-- API error: Alert + back button "Failed to load customer profile. Please try again"
+- Loading → `PageSkeleton`
+- No org → "Select an organization to view this customer"
+- No permission → destructive alert
+- Invalid UUID → "Invalid customer link" + back button
+- Not found (NOT_FOUND/404) → "Customer not found"
+- Other API error → "Failed to load customer profile" + back button
 
 ---
 
 ## 2. How It Works
 
 **Execution flow:**
-1. Route loads; extracts `id` URL param (customer/member ID)
-2. Checks `organizationId` from user context (guard: no org → message)
-3. Checks `canRead` permission (guard: no permission → alert)
-4. Fetches customer detail via `client.customerDirectory.getById({ organizationId, memberId: id })`
-   - Retry logic: no retry on NOT_FOUND/FORBIDDEN (404/403)
-   - Stale time: 60s
-5. Fetches upcoming appointments (status="confirmed", limit 3) via `client.appointments.list()`
-6. Fetches all appointments (limit 50) via `client.appointments.list()` (no status filter)
-7. Maps data to display formats (resolved names, formatted prices/dates)
-8. Renders profile header with resolved person-in-charge info
-9. Renders KPI strip (outstanding balance as MYR, active package count, appointment count)
-10. Renders tabs with detail tables/cards
+1. Read `id` URL param; validate against UUID regex (early-exit with alert if malformed).
+2. Read `organizationId` + permissions (`customer_management:read` for view, `customer_management:update` for freeze/edit).
+3. `useQuery` on `["customerDirectory", "detail", organizationId, id]` → `client.customerDirectory.getById`. Retry skips NOT_FOUND / FORBIDDEN; stale 60s.
+4. Two parallel `useQuery`s for upcoming (status="confirmed", limit 3) and all (limit 50) appointments via `client.appointments.list`, keyed on `member.userId`.
+5. Compute derived: `activePackageCount`, `initials`.
+6. Render header + `LeadSourceSection` + `HouseholdSection` + KPI strip + tabs.
+7. `FreezeMembershipDialog` is mounted but hidden, toggled by header action.
 
 **Inputs:**
-- URL param: `id` — customer/member ID
-- User context: organizationId, canRead permission
+- URL param `id` (UUID)
+- User context: `currentOrganizationId`, `customer_management:read|update`
 
 **State management:**
-- TanStack Query: `["customerDirectory", "detail", organizationId, id]`, `["appointments", "upcoming", ...]`, `["appointments", "all", ...]`
-- Local state: none (pure data presentation)
-- Derived state: `activePackageCount`, `initials` (from name)
+- TanStack Query keys: `["customerDirectory", "detail", orgId, id]`, `["appointments", "upcoming"|"all", orgId, userId]`, `["households", "get"|"list", ...]`, `["leadSources", orgId]`
+- Local: `freezeOpen` boolean. All section-level edit dialogs own their own local form state.
 
-**Outputs:**
-- Renders: profile header, KPI cards, tabbed interface with tables
-- No mutations
+**Outputs / mutations (triggered by feature components):**
+- `client.memberships.freeze` (FreezeMembershipDialog) — invalidates `customerDirectory.detail`
+- `client.customerProfiles.upsertForCustomer` (LeadSourceSection)
+- `client.households.create | addMember | removeMember` (HouseholdSection)
 
-**Side effects:**
-- Queries enabled only when organizationId is valid and user has read permission
-- No cache invalidation
+**Side effects:** All mutations invalidate `["customerDirectory", "detail", organizationId]` (and `["households"]` for household ops).
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `client.customerDirectory.getById({ organizationId, memberId })` — fetch full customer profile with packages, payments, metadata
-- `client.appointments.list({ organizationId, clientUserId, status, limit })` — fetch appointments
+**Calls these API endpoints (direct on this page):**
+- `client.customerDirectory.getById({ organizationId, memberId })`
+- `client.appointments.list({ organizationId, clientUserId, status?, limit })`
 
-**Uses these components:**
-- `PackageRow` — `@/components/customers/customer-360/package-row` — renders individual package with installments
-- `Alert`, `AlertDescription` — shadcn/ui alert
-- `Badge` — shadcn/ui badge with variants
-- `Button` — shadcn/ui button
-- `Card`, `CardHeader`, `CardTitle`, `CardContent` — shadcn/ui card
-- `Skeleton` — shadcn/ui skeleton loader
-- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` — shadcn/ui tabs
+**API endpoints used by mounted feature components:**
+- `client.memberships.freeze` (FreezeMembershipDialog)
+- `client.customerProfiles.upsertForCustomer`, `client.customerProfiles.listLeadSources` (LeadSourceSection)
+- `client.households.get | list | create | addMember | removeMember` (HouseholdSection)
 
-**Uses these hooks:**
-- `useQuery()` — fetch detail, upcoming appointments, all appointments
-- `useUserContext()` — get organizationId, check permission
+**Uses these components (refactored into `features/customers-detail/components/`):**
+- `OverviewTab` — recent payments + upcoming appointments cards
+- `PaymentsTab` — payments table
+- `AppointmentsTab` — appointments table
+- `KpiCard` — single KPI tile
+- `PageSkeleton` — loading skeleton
+- `LeadSourceSection` — source/referrer/campaign card + edit dialog
+- `HouseholdSection` — household card + attach/create/detach dialogs
+- `FreezeMembershipDialog` — pause-membership form
+- `PackageRow` @ `@/components/customers/customer-360/package-row` (unchanged)
 
-**Navigation: who navigates here:**
-- From `/dashboard/customers/view` (customers list page, likely)
-- Via Link: `/dashboard/customers/view?tab=registered`
+**Shared utils:** `getInitials`, `formatDate`, `formatDateTime`, `todayIso`, `memberStatusVariant`, `appointmentStatusVariant`, `paymentStatusVariant` — all in `features/customers-detail/utils.ts`.
 
-**Navigation: where it goes:**
-- Back button navigates to `/dashboard/customers/view?tab=registered`
-- No forward navigation
+**Shared types:** `FreezeFormState`, `LeadSourceProfileShape`, `HouseholdProfileShape` — in `features/customers-detail/types.ts`.
+
+**Hooks:** `useQuery`, `useMutation`, `useQueryClient`, `useUserContext`, `useState`.
+
+**Navigation in:** From `/dashboard/customers/view?tab=registered` (customer list).
+**Navigation out:** Back button → `/dashboard/customers/view?tab=registered`.
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:**
-- `customers` (tenantDb) — user, profile, contact info
-- `customer_packages` (tenantDb) — package instances with status
-- `package_installments` (tenantDb) — installment schedule
-- `payments` (tenantDb) — payment history
-- `appointments` (tenantDb) — appointment history
-- `users` (controlPanelDb) — implicit, for user data
+**DB tables touched (via backend services):**
+- `members`, `customer_profiles`, `customer_packages`, `package_installments`, `payments`, `appointments` (tenantDb)
+- `households`, `household_members` (tenantDb) — household linking
+- `lead_sources` (tenantDb) — attribution
+- `package_freezes` (tenantDb) — membership pauses
+- `users` (controlPanelDb) — implicit
 
-**Key types / Zod schemas:**
+**Key types:**
 ```typescript
-type CustomerDetail = {
-  member: { status: string; userId: string; joinedAt: Date };
-  user: { name: string; email: string };
-  profile: { phone?: string };
-  packageInstances: Array<{ id: string; status: string }>;
-  recentPayments: Array<{
-    id: string;
-    totalAmount: number;
-    createdAt: Date;
-    paymentMethod?: string;
-    status: string;
-  }>;
-  appointmentCount: number;
-  outstandingBalanceCents: number;
+type FreezeFormState = {
+  packageInstanceId: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  reason: "medical" | "travel" | "other";
+  feeWaived: boolean;
+  notes: string;
 };
 
-type Appointment = {
-  id: string;
-  startTime: Date;
-  status: string;
-  serviceName?: string;
-};
+type LeadSourceProfileShape = {
+  leadSourceId?: string | null;
+  referrerMemberId?: string | null;
+  campaignId?: string | null;
+} | null;
+
+type HouseholdProfileShape = {
+  id?: string | null;
+  householdId?: string | null;
+} | null;
 ```
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
-
-**Scenarios covered:** N/A
+**Test files:** None found.
 
 **Not tested (risk areas):**
-- Permission check and guard logic
-- Customer not found vs. API error differentiation (404 vs. other errors)
-- Null/undefined handling in profile fields (phone, profile data, etc.)
-- Date/price formatting edge cases
-- Package installment rendering (`PackageRow` component not examined)
-- Concurrent requests and race conditions
-- Tab switching and data stale time management
+- Freeze validation (end date > start date, eligible package filter)
+- Lead source attribution edge cases (empty strings → null normalization)
+- Household create-then-attach-as-non-primary path (two sequential mutations)
+- Invalid UUID early-exit guard
+- Permission downgrade mid-session (canFreeze flips false)
 
 ---
 
 ## 6. Notes
 
-- **Large file (566 lines):** Complex multi-tab page with detailed data shapes and conditional rendering
-- **Retry logic:** Smart retry — skips retry on NOT_FOUND/FORBIDDEN to avoid unnecessary retries on auth/permission errors
-- **Derived display values:** Computes `activePackageCount` (filtered by status), `initials` for avatar
-- **Member status variants:** Maps status ("active", "inactive", etc.) to badge variants; likewise for appointments and payments
-- **Outstanding balance formatting:** Uses `formatPrice(cents, "MYR")` and applies red color if > 0
-- **Back navigation:** Uses `search={{ tab: "registered" }}` to preserve tab state in customer list
-- **Guard order:** Checks org first, then permission, then loading state — prevents rendering if any guard fails
-- **Appointments tab:** Shows service name, date, time, status; status has destructive styling for cancelled/no-show
+- **Refactored 2026-05-12 (Web Debt Cleanup, Phase 1):** Page split from a ~566-line monolith into the `apps/web/src/features/customers-detail/` feature folder with one component per section. Route file is now ~350 lines, mostly orchestration.
+- **Sibling component `customer-profile-panel.tsx`** still embeds an older copy of the page (used by the v2 split-pane view at `/dashboard/customers/view`). It duplicates the formatting helpers — not yet migrated to the feature-folder utils.
+- **Freeze gate:** "Pause Membership" button only shows when `canFreeze` AND at least one package is not already paused. The eligible-packages filter is enforced again inside the dialog.
+- **Household:** create dialog supports "make this customer primary" toggle; when off, a follow-up `addMember` is issued so the new household isn't empty for this customer.
+- **Lead source:** empty form values are normalized to `null` before sending to `customerProfiles.upsertForCustomer`.
+- **Smart retry:** detail query skips retries on NOT_FOUND/FORBIDDEN — avoids hammering the API for missing/unauthorized records.
+- **Outstanding balance** formatted via `formatPrice(cents, "MYR")`, red when > 0.

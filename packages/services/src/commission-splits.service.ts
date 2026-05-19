@@ -661,6 +661,27 @@ export async function approveCommissionSplits(
 			});
 		}
 
+		// Batch invariant: all splits must be for the same staff member and within 31 days.
+		// Prevents cross-trainer and cross-period approval accidents.
+		if (existing.length === 0) return [];
+
+		const staffIds = new Set(existing.map((r) => r.staffId));
+		if (staffIds.size > 1) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Approval batch must contain splits for a single staff member. Got ${staffIds.size} distinct staff IDs: ${[...staffIds].join(", ")}.`,
+				data: { code: "MIXED_BATCH_STAFF", staffIds: [...staffIds] },
+			});
+		}
+
+		const earned = existing.map((r) => r.earnedAt.getTime()).sort((a, b) => a - b);
+		const spreadDays = (earned[earned.length - 1]! - earned[0]!) / 86_400_000;
+		if (spreadDays > 31) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Approval batch spans ${Math.ceil(spreadDays)} days; max allowed is 31. Filter to a single payout period.`,
+				data: { code: "MIXED_BATCH_PERIOD", spreadDays: Math.ceil(spreadDays) },
+			});
+		}
+
 		const now = new Date();
 		const updated = await tx
 			.update(commissionSplits)
@@ -825,7 +846,38 @@ export async function voidCommissionSplitsForSalesOrder(
 
 	if (rows.length === 0) return [];
 
-	const ids = rows.map(r => r.id);
+	// Task 1.7: skip splits whose linked appointment has already been delivered
+	// (status = 'completed' or 'cancelled'). Those splits were earned at delivery
+	// time and must not be voided when the parent sale is cancelled after the fact.
+	const toVoid: typeof rows = [];
+	const skipped: typeof rows = [];
+
+	for (const row of rows) {
+		if (row.appointmentId) {
+			const [appt] = await tenantDb
+				.select({ status: appointments.status })
+				.from(appointments)
+				.where(eq(appointments.id, row.appointmentId))
+				.limit(1);
+
+			if (appt?.status === "completed" || appt?.status === "cancelled" || appt?.status === "no_show") {
+				skipped.push(row);
+				console.info(JSON.stringify({
+					event: "commission_void_skipped_delivered",
+					splitId: row.id,
+					appointmentId: row.appointmentId,
+					appointmentStatus: appt.status,
+					salesOrderId,
+				}));
+				continue;
+			}
+		}
+		toVoid.push(row);
+	}
+
+	if (toVoid.length === 0) return [];
+
+	const ids = toVoid.map(r => r.id);
 	const updated = await tenantDb
 		.update(commissionSplits)
 		.set({ status: "void", notes: reason, updatedAt: new Date() })
@@ -1161,10 +1213,36 @@ export async function markPaidBatch(
 	});
 }
 
+// Manual adjustments above this threshold are flagged for review before paying out.
+const MANUAL_REVIEW_THRESHOLD_CENTS = 50_000; // RM 500
+
 export async function createManualAdjustment(
 	tenantDb: TenantDb,
 	params: CreateManualAdjustmentParams,
 ): Promise<CommissionSplit> {
+	// Duplicate guard: reject if a non-void manual split already exists for the
+	// same staff + appointment combination. Prevents accidental double-entry.
+	if (params.appointmentId) {
+		const dupe = await tenantDb.query.commissionSplits.findFirst({
+			where: and(
+				eq(commissionSplits.staffId, params.staffId),
+				eq(commissionSplits.appointmentId, params.appointmentId),
+				eq(commissionSplits.splitType, "manual"),
+				ne(commissionSplits.status, "void"),
+			),
+		});
+		if (dupe) {
+			throw Object.assign(
+				new Error(`A manual adjustment for this staff member and appointment already exists (split ${dupe.id}). Void it first before creating another.`),
+				{ code: "CONFLICT" },
+			);
+		}
+	}
+
+	// High-value flag: amounts above the threshold enter "pending_review" so they
+	// need explicit approval before appearing in payout calculations.
+	const requiresReview = Math.abs(params.amountCents) >= MANUAL_REVIEW_THRESHOLD_CENTS;
+
 	const [inserted] = await tenantDb
 		.insert(commissionSplits)
 		.values({
@@ -1174,10 +1252,11 @@ export async function createManualAdjustment(
 			splitPercentage: 0,
 			calculatedAmount: params.amountCents,
 			notes: params.note,
-			status: "pending",
+			status: requiresReview ? "pending_review" : "pending",
 			splitType: "manual",
 			manualNote: params.note,
 			earnedAt: new Date(),
+			createdByUserId: params.actor.userId,
 		})
 		.returning();
 
@@ -1193,6 +1272,164 @@ export async function createManualAdjustment(
 	});
 
 	return inserted!;
+}
+
+// ---------------------------------------------------------------------------
+// liabilityByStaff (Phase 1b §1.9)
+// ---------------------------------------------------------------------------
+
+export interface LiabilityByStaffRow {
+	staffId: string;
+	staffName: string; // best-effort from control-panel; falls back to staffId
+	pendingCents: number;
+	approvedCents: number;
+	paidCents: number;
+}
+
+export interface LiabilityByStaffParams {
+	branchId?: string; // optional — filter to a specific branch
+	from?: Date; // earnedAt range start (inclusive)
+	to?: Date; // earnedAt range end (inclusive)
+	/** Caller must pass context.accessibleNodeIds. Empty array = admin (no restriction). */
+	accessibleNodeIds: string[];
+}
+
+/**
+ * Aggregate pending/approved/paid commission totals per staff member.
+ * Single GROUP BY query — no per-staff loop. LIMIT 500.
+ *
+ * RBAC: scope by accessibleNodeIds via JOIN to appointments.branchId /
+ * salesOrders.branchId. An empty accessibleNodeIds means the caller sees all
+ * (admin). A non-empty list restricts to rows whose resolved branchId is in
+ * the list — consistent with listCommissionLedger scoping.
+ *
+ * Uses indexes: commission_splits_staff_status_idx,
+ *               commission_splits_staff_status_amount_idx.
+ */
+export async function liabilityByStaff(
+	tenantDb: TenantDb,
+	controlPanelDb: ControlPanelDb,
+	params: LiabilityByStaffParams,
+): Promise<LiabilityByStaffRow[]> {
+	const { branchId, from, to, accessibleNodeIds } = params;
+
+	// Build conditions on commissionSplits directly
+	const conditions = [ne(commissionSplits.status, "void")];
+
+	if (from) conditions.push(gte(commissionSplits.earnedAt, from));
+	if (to) conditions.push(lte(commissionSplits.earnedAt, to));
+
+	// When branchId or accessibleNodeIds scope is needed, resolve via JOIN.
+	// Otherwise run the simpler no-join query.
+	const needsBranchJoin =
+		branchId !== undefined ||
+		(accessibleNodeIds !== undefined && accessibleNodeIds.length > 0);
+
+	let rows: { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+
+	if (needsBranchJoin) {
+		// LEFT JOIN appointments + salesOrders to resolve the effective branchId
+		const branchConditions = [...conditions];
+
+		if (branchId) {
+			branchConditions.push(
+				or(
+					eq(appointments.branchId, branchId),
+					eq(salesOrders.branchId, branchId),
+				)!,
+			);
+		}
+
+		if (accessibleNodeIds.length > 0) {
+			branchConditions.push(
+				or(
+					inArray(appointments.branchId, accessibleNodeIds),
+					inArray(salesOrders.branchId, accessibleNodeIds),
+				)!,
+			);
+		}
+
+		rows = await tenantDb
+			.select({
+				staffId: commissionSplits.staffId,
+				pendingCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'pending'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				approvedCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				paidCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+			})
+			.from(commissionSplits)
+			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
+			.where(and(...branchConditions))
+			.groupBy(commissionSplits.staffId)
+			.limit(500) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+	} else {
+		rows = await tenantDb
+			.select({
+				staffId: commissionSplits.staffId,
+				pendingCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'pending'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				approvedCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+				paidCents: sql<number>`
+					COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+				`.mapWith(Number),
+			})
+			.from(commissionSplits)
+			.where(and(...conditions))
+			.groupBy(commissionSplits.staffId)
+			.limit(500) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+	}
+
+	if (rows.length === 0) return [];
+
+	// Enrich names from control-panel (best-effort)
+	const staffIds = rows.map((r) => r.staffId);
+	const staffNameMap = new Map<string, string>();
+	try {
+		const { user } = await import("@avantej-core/db/schema/auth");
+		const { inArray: inArr } = await import("drizzle-orm");
+		const users = await controlPanelDb
+			.select({ id: user.id, name: user.name })
+			.from(user)
+			.where(inArr(user.id, staffIds));
+		for (const u of users) staffNameMap.set(u.id, u.name);
+	} catch {
+		// Best-effort — fall back to staffId as name
+	}
+
+	return rows.map((r) => ({
+		staffId: r.staffId,
+		staffName: staffNameMap.get(r.staffId) ?? r.staffId,
+		pendingCents: r.pendingCents,
+		approvedCents: r.approvedCents,
+		paidCents: r.paidCents,
+	}));
 }
 
 // ---------------------------------------------------------------------------
@@ -1698,5 +1935,228 @@ export async function reverseForRefund(
 	}
 
 	return { reversalIds: inserted.map((r) => r.id) };
+}
+
+// ---------------------------------------------------------------------------
+// listPendingReview (Flaw #13)
+// ---------------------------------------------------------------------------
+
+export interface ListPendingReviewParams {
+	accessibleNodeIds: string[];
+	limit: number;
+	cursor?: { earnedAt: string; id: string };
+}
+
+export interface PendingReviewRow {
+	id: string;
+	staffId: string;
+	staffName: string;
+	amountCents: number;
+	note: string | null;
+	appointmentId: string | null;
+	salesOrderId: string | null;
+	createdAt: string;
+	createdByUserId: string | null;
+	createdByName: string;
+	earnedAt: string;
+}
+
+export interface ListPendingReviewResult {
+	rows: PendingReviewRow[];
+	total: number;
+	nextCursor: { earnedAt: string; id: string } | null;
+}
+
+export async function listPendingReview(
+	tenantDb: TenantDb,
+	controlPanelDb: ControlPanelDb,
+	params: ListPendingReviewParams,
+): Promise<ListPendingReviewResult> {
+	// Scope filter — mirror listCommissionLedger pattern.
+	// Splits with no appointmentId and no salesOrderId (pure manual) are always visible.
+	const scopeCondition = params.accessibleNodeIds.length > 0
+		? or(
+				sql`${commissionSplits.appointmentId} IS NULL AND ${commissionSplits.salesOrderId} IS NULL`,
+				inArray(
+					sql`(SELECT branch_id FROM appointments WHERE id = ${commissionSplits.appointmentId})::uuid`,
+					params.accessibleNodeIds,
+				),
+				inArray(
+					sql`(SELECT branch_id FROM sales_orders WHERE id = ${commissionSplits.salesOrderId})::uuid`,
+					params.accessibleNodeIds,
+				),
+			)
+		: sql`true`;
+
+	// COUNT query for badge
+	const [countRow] = await tenantDb
+		.select({ count: sql<number>`COUNT(*)::int` })
+		.from(commissionSplits)
+		.where(and(eq(commissionSplits.status, "pending_review"), scopeCondition));
+	const total = countRow?.count ?? 0;
+
+	// Row query with cursor
+	const cursorCondition = params.cursor
+		? sql`(${commissionSplits.earnedAt}, ${commissionSplits.id}) < (${params.cursor.earnedAt}::timestamptz, ${params.cursor.id}::uuid)`
+		: sql`true`;
+
+	const rows = await tenantDb
+		.select()
+		.from(commissionSplits)
+		.where(and(eq(commissionSplits.status, "pending_review"), scopeCondition, cursorCondition))
+		.orderBy(desc(commissionSplits.earnedAt), desc(commissionSplits.id))
+		.limit(params.limit);
+
+	// Batch display-name lookup from control-panel DB — mirror liabilityByStaff pattern
+	const userIds = [...new Set([
+		...rows.map(r => r.staffId),
+		...rows.map(r => r.createdByUserId).filter((id): id is string => id != null),
+	])];
+
+	const nameMap = new Map<string, string>();
+	if (userIds.length > 0) {
+		try {
+			const { user } = await import("@avantej-core/db/schema/auth");
+			const { inArray: inArr } = await import("drizzle-orm");
+			const users = await controlPanelDb
+				.select({ id: user.id, name: user.name })
+				.from(user)
+				.where(inArr(user.id, userIds));
+			for (const u of users) {
+				nameMap.set(u.id, u.name);
+			}
+		} catch {
+			// Best-effort — fall back to IDs as names
+		}
+	}
+
+	const resultRows: PendingReviewRow[] = rows.map(r => ({
+		id: r.id,
+		staffId: r.staffId,
+		staffName: nameMap.get(r.staffId) ?? r.staffId,
+		amountCents: r.calculatedAmount,
+		note: r.notes,
+		appointmentId: r.appointmentId ?? null,
+		salesOrderId: r.salesOrderId ?? null,
+		createdAt: r.createdAt.toISOString(),
+		createdByUserId: r.createdByUserId ?? null,
+		createdByName: r.createdByUserId ? (nameMap.get(r.createdByUserId) ?? "(unknown)") : "(unknown)",
+		earnedAt: r.earnedAt.toISOString(),
+	}));
+
+	const lastRow = rows[rows.length - 1];
+	const nextCursor = rows.length < params.limit || !lastRow
+		? null
+		: { earnedAt: lastRow.earnedAt.toISOString(), id: lastRow.id };
+
+	return { rows: resultRows, total, nextCursor };
+}
+
+// ---------------------------------------------------------------------------
+// resolvePendingReview (Flaw #13)
+// ---------------------------------------------------------------------------
+
+export async function resolvePendingReview(
+	tenantDb: TenantDb,
+	id: string,
+	action: "approve" | "reject",
+	reason: string | null,
+	actor: { userId: string; memberId: string; role: string; accessibleNodeIds: string[] },
+): Promise<CommissionSplit> {
+	return tenantDb.transaction(async (tx) => {
+		// 1. Lock the row
+		const [split] = await tx
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, id))
+			.for("update");
+
+		if (!split) {
+			throw new ORPCError("NOT_FOUND", { message: "Commission split not found" });
+		}
+
+		// 2. Scope check — verify the earner's branch is within actor's accessible nodes
+		if (actor.accessibleNodeIds.length > 0) {
+			// Look up earner's hierarchyScopeId via members table
+			const [earnerMember] = await tx
+				.select({ hierarchyScopeId: members.hierarchyScopeId })
+				.from(members)
+				.where(eq(members.userId, split.staffId))
+				.limit(1);
+
+			if (earnerMember?.hierarchyScopeId && !actor.accessibleNodeIds.includes(earnerMember.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "You do not have access to this commission split",
+					data: { code: "OUT_OF_SCOPE" },
+				});
+			}
+		}
+
+		// 3. Verify status
+		if (split.status !== "pending_review") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot resolve: split status is '${split.status}', expected 'pending_review'`,
+				data: { code: "NOT_REVIEWABLE" },
+			});
+		}
+
+		const now = new Date();
+
+		if (action === "approve") {
+			// 4. Promote to pending (do NOT overwrite notes — preserve original adjustment note)
+			const [updated] = await tx
+				.update(commissionSplits)
+				.set({ status: "pending", updatedAt: now })
+				.where(eq(commissionSplits.id, id))
+				.returning();
+
+			// 5. Audit
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.review_approved",
+				entityType: "commission_split",
+				entityId: id,
+				summary: `Manual adjustment approved for staff ${split.staffId} — ${split.calculatedAmount} cents`,
+				changes: { previousStatus: "pending_review", newStatus: "pending", reason: reason ?? null },
+			});
+
+			return updated!;
+		} else {
+			// 4. Void (do NOT overwrite notes — preserve original adjustment note)
+			const [updated] = await tx
+				.update(commissionSplits)
+				.set({ status: "void", updatedAt: now })
+				.where(eq(commissionSplits.id, id))
+				.returning();
+
+			// 5. Void audit (matches what voidCommissionSplit writes for consistency)
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.void",
+				entityType: "commission_split",
+				entityId: id,
+				summary: `Commission split voided during review for staff ${split.staffId}`,
+				changes: { previousStatus: "pending_review", newStatus: "void", reason },
+			});
+
+			// 6. Review-rejected audit (second row distinguishes this void from a generic admin void)
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.review_rejected",
+				entityType: "commission_split",
+				entityId: id,
+				summary: `Manual adjustment rejected for staff ${split.staffId} — reason: ${reason}`,
+				changes: { reason },
+			});
+
+			return updated!;
+		}
+	});
 }
 

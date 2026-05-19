@@ -20,27 +20,12 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { client } from "@/utils/orpc";
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
 
 const markPaidSchema = z.object({
-	payoutMethod: z.enum(["cash", "bank_transfer", "other"]),
-	payoutReference: z.string().trim().optional(),
-	payoutId: z
-		.string()
-		.optional()
-		.refine(
-			(val) => !val || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val),
-			{ message: "Must be a valid UUID" },
-		),
+	paymentReference: z.string().trim().min(1, "Payment reference is required"),
 });
 
 type MarkPaidFormValues = z.input<typeof markPaidSchema>;
@@ -69,18 +54,16 @@ export function MarkPaidDialog({
 	const form = useForm<MarkPaidFormValues>({
 		resolver: zodResolver(markPaidSchema),
 		defaultValues: {
-			payoutMethod: "cash",
-			payoutReference: "",
-			payoutId: "",
+			paymentReference: "",
 		},
 	});
 
 	const mutation = useApiMutation({
 		mutationFn: (values: MarkPaidFormValues) =>
-			client.commissionSplits.markPaid({
+			client.commissionSplits.markPaidById({
 				organizationId,
 				ids: selectedIds,
-				payoutId: values.payoutId || undefined,
+				paymentReference: values.paymentReference,
 			}),
 		successMessage: `Marked ${count} commission split${count !== 1 ? "s" : ""} as paid.`,
 		errorMessage: (err) => err.message || "Failed to mark commission splits as paid.",
@@ -121,70 +104,19 @@ export function MarkPaidDialog({
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="space-y-5 py-2"
 					>
-						{/* Payout Method */}
+						{/* Payment Reference */}
 						<FormField
 							control={form.control}
-							name="payoutMethod"
+							name="paymentReference"
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>
-										Payout Method <span className="text-destructive">*</span>
-									</FormLabel>
-									<Select
-										value={field.value}
-										onValueChange={field.onChange}
-									>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue placeholder="Select method" />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											<SelectItem value="cash">Cash</SelectItem>
-											<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-											<SelectItem value="other">Other</SelectItem>
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						{/* Payout Reference */}
-						<FormField
-							control={form.control}
-							name="payoutReference"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Reference</FormLabel>
-									<FormControl>
-										<Input
-											{...field}
-											placeholder="Transaction ID, receipt no., etc."
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						{/* Payout ID (optional UUID) */}
-						<FormField
-							control={form.control}
-							name="payoutId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Payout ID{" "}
-										<span className="font-normal text-muted-foreground text-xs">
-											optional, link to an existing payout record
-										</span>
+										Payment Reference <span className="text-destructive">*</span>
 									</FormLabel>
 									<FormControl>
 										<Input
 											{...field}
-											placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-											className="font-mono text-xs"
+											placeholder="Transaction ID, receipt no., bank transfer ref…"
 										/>
 									</FormControl>
 									<FormMessage />

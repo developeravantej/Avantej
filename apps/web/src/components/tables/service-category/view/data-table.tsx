@@ -5,24 +5,14 @@
 // See zplan/04-23_15-31_frontend-table-consolidation/plan/plan.md §5 Phase 3.
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
 	flexRender,
 	getCoreRowModel,
 	useReactTable,
 	getFilteredRowModel,
 } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ServiceFormDialog } from "@/components/forms/service-category-form";
 import { ServiceCategoryDetailDialog } from "@/components/forms/service-category-detail-dialog";
 import { CategoryCommissionForm } from "@/components/forms/category-commission-form";
@@ -44,11 +34,10 @@ export default function DataTable<TData, TValue>({
 	columns,
 	data,
 	organizationId,
-	isLoading: _isLoading = false,
+	isLoading = false,
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -129,38 +118,38 @@ export default function DataTable<TData, TValue>({
 	);
 
 	return (
-		<div className="flex h-full flex-col">
-			<div className="flex shrink-0 items-center justify-between border-b border-border/40 px-6 py-3">
-				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
+		<div className="flex h-full flex-col gap-4">
+			{/* Toolbar */}
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5 w-64">
+					<Search className="h-4 w-4 text-[#737373] shrink-0" />
+					<input
 						placeholder="Search categories..."
 						value={globalFilter ?? ""}
 						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="pl-9"
+						className="flex-1 bg-transparent text-[13px] text-[#0a0a0a] placeholder:text-[#737373] outline-none"
 					/>
 				</div>
-				<Button
-					size="sm"
+				<button
+					type="button"
 					onClick={() => setIsAddDialogOpen(true)}
+					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
 				>
-					<Plus className="mr-2 size-4" />
+					<Plus className="h-4 w-4" />
 					Add Category
-				</Button>
+				</button>
 			</div>
 
-			<div className="flex-1 overflow-y-auto">
-				<Table>
-					<TableHeader className="sticky top-0 z-10 bg-white">
+			{/* Table */}
+			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				<table className="w-full">
+					<thead>
 						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
-							>
+							<tr key={headerGroup.id} className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
 								{headerGroup.headers.map((header) => (
-									<TableHead
+									<th
 										key={header.id}
-										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap"
 									>
 										{header.isPlaceholder
 											? null
@@ -168,20 +157,19 @@ export default function DataTable<TData, TValue>({
 													header.column.columnDef.header,
 													header.getContext()
 												)}
-									</TableHead>
+									</th>
 								))}
-								<TableHead className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								<th className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap">
 									Actions
-								</TableHead>
-							</TableRow>
+								</th>
+							</tr>
 						))}
-					</TableHeader>
-					<TableBody>
+					</thead>
+					<tbody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => (
-								<TableRow
+								<tr
 									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
 									onClick={() => {
 										const categoryId = (row.original as { id?: string }).id;
 										if (categoryId) {
@@ -189,23 +177,22 @@ export default function DataTable<TData, TValue>({
 											setIsDetailDialogOpen(true);
 										}
 									}}
-									className="border-b border-border/30 cursor-pointer transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+									className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60 cursor-pointer"
 								>
 									{row.getVisibleCells().map((cell) => (
-										<TableCell
+										<td
 											key={cell.id}
-											className="whitespace-nowrap px-6 py-4 text-sm"
+											className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap"
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
 												cell.getContext()
 											)}
-										</TableCell>
+										</td>
 									))}
-									<TableCell className="whitespace-nowrap px-6 py-4 text-sm">
-										<Button
-											size="sm"
-											variant="outline"
+									<td className="py-3 px-3 whitespace-nowrap">
+										<button
+											type="button"
 											onClick={(e) => {
 												e.stopPropagation();
 												const categoryId = (row.original as { id?: string }).id ?? "";
@@ -214,26 +201,27 @@ export default function DataTable<TData, TValue>({
 												setCommissionCategoryName(categoryName);
 												setIsCommissionSheetOpen(true);
 											}}
+											className="rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#262626] hover:bg-[#f3f3f3] transition"
 										>
 											Commission Config
-										</Button>
-									</TableCell>
-								</TableRow>
+										</button>
+									</td>
+								</tr>
 							))
 						) : (
-							<TableRow>
-								<TableCell colSpan={columns.length} className="p-0">
+							<tr>
+								<td colSpan={columns.length + 1} className="p-0">
 									<EmptyState
 										title={emptyTitle ?? "No results found"}
 										description={emptyDescription}
 										action={emptyAction}
 										context={globalFilter ? "search" : "empty"}
 									/>
-								</TableCell>
-							</TableRow>
+								</td>
+							</tr>
 						)}
-					</TableBody>
-				</Table>
+					</tbody>
+				</table>
 			</div>
 
 			<ServiceFormDialog

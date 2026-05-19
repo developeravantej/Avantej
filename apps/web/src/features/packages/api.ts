@@ -62,8 +62,8 @@ export function useFreezePackageInstance(organizationId: string) {
 		mutationFn: (vars) =>
 			client.packageInstances.freeze({
 				...vars,
-				until: vars.until ? new Date(vars.until) : undefined,
-			}),
+				until: vars.until ? (new Date(vars.until) as any) : undefined,
+			} as any),
 		successMessage: "Package frozen.",
 		errorMessage: (err) => err.message || "Failed to freeze package.",
 		invalidate: [
@@ -87,7 +87,7 @@ export function useUnfreezePackageInstance(organizationId: string) {
 
 export function useExtendPackageInstance(organizationId: string) {
 	return useApiMutation<unknown, ExtendInstanceVars>({
-		mutationFn: (vars) => client.packageInstances.extend(vars),
+		mutationFn: (vars) => client.packageInstances.extend(vars as any),
 		successMessage: "Package expiry extended.",
 		errorMessage: (err) => err.message || "Failed to extend package.",
 		invalidate: [

@@ -1,6 +1,22 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index, pgEnum } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { walkInCustomers } from "./walk-in-customers";
+
+export const salesOrderRefundStatusEnum = pgEnum("sales_order_refund_status", [
+	"none",
+	"pending",
+	"partial",
+	"processed",
+]);
+
+export const cancellationReasonCategoryEnum = pgEnum("cancellation_reason_category", [
+	"customer_changed_mind",
+	"payment_failed",
+	"wrong_item",
+	"fraud_suspected",
+	"system_error",
+	"other",
+]);
 
 export const salesOrders = pgTable("sales_orders", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -39,6 +55,11 @@ export const salesOrders = pgTable("sales_orders", {
 		() => walkInCustomers.id,
 		{ onDelete: "restrict" },
 	),
+	// Migration 0054
+	refundStatus: salesOrderRefundStatusEnum("refund_status").notNull().default("none"),
+	refundedAmountCents: integer("refunded_amount_cents").notNull().default(0),
+	// Migration 0055
+	cancellationReasonCategory: cancellationReasonCategoryEnum("cancellation_reason_category"),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),

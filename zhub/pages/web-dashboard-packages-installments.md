@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/packages/installments/view.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
@@ -80,4 +80,5 @@ N/A — redirect only.
 - **Scheduled for rewrite**: Code comment says "LEGACY — slated for rewrite; do not extend"
 - **Consolidation**: Package installments are now under the Packages tab instead of separate route
 - **Helper utility**: `makeTabRedirect()` from `@/lib/tab-redirect` handles the redirect logic
+- **Target page rewrite (May 2026):** The destination tab content (`PackageInstallmentsPage`) was refactored into `features/installments/` (split components/hook/types/utils). See `web-dashboard-packages-installments-view.md`.
 

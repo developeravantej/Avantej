@@ -56,7 +56,7 @@ async function main() {
 	if (!databaseUrl) throw new Error("DATABASE_URL is required");
 
 	const { user: userTable } = controlPanelSchema;
-	const { members, packageInstances, payments, services } = tenantSchema;
+	const { packageInstances, payments, services } = tenantSchema;
 
 	const controlPool = new Pool({ connectionString: databaseUrl });
 	const controlDb = drizzle({ client: controlPool, schema: controlPanelSchema });

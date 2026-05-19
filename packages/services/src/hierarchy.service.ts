@@ -16,9 +16,11 @@
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
+import { branchStatsCache } from "@avantej-core/db/schema/tenant/branch-stats-cache";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import * as branchStatsCacheService from "./branch-stats-cache.service";
 import type {
   CreateHierarchyNodeParams,
   UpdateHierarchyNodeParams,
@@ -801,4 +803,105 @@ export async function moveHierarchyNode(
   }
 }
 
+// ---------------------------------------------------------------------------
+// listNodesWithStats (task 1.14)
+// ---------------------------------------------------------------------------
 
+export interface NodeWithStats {
+  id: string;
+  name: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  address: string | null;
+  openingHours: unknown | null;
+  membersCount: number | null;
+  staffCount: number | null;
+  monthRevenueCents: number | null;
+  stale: boolean;
+}
+
+/**
+ * List hierarchy nodes enriched with stats from branch_stats_cache.
+ *
+ * - Admin members see ALL nodes; staff members see only their accessibleNodeIds.
+ * - Stats are read ONLY from the cache table (never computed inline).
+ * - Cache miss → stale: true + null stats; a debounced refresh is enqueued.
+ *
+ * RBAC: caller must hold `hierarchy_management:read`.
+ */
+export async function listNodesWithStats(
+  tenantDb: NeonDatabase<typeof tenantSchema>,
+  options: {
+    accessibleNodeIds: string[];
+    isAdmin: boolean;
+  },
+): Promise<NodeWithStats[]> {
+  // 1. Fetch all (or scoped) hierarchy nodes
+  const allNodes = await tenantDb
+    .select()
+    .from(hierarchyNodes)
+    .orderBy(hierarchyNodes.depth, hierarchyNodes.name);
+
+  const scopedNodes = options.isAdmin
+    ? allNodes
+    : allNodes.filter((n) => options.accessibleNodeIds.includes(n.id));
+
+  if (scopedNodes.length === 0) return [];
+
+  // 2. Fetch all cached stats rows for these nodes in one query
+  const nodeIds = scopedNodes.map((n) => n.id);
+  const cacheRows =
+    nodeIds.length > 0
+      ? await tenantDb
+          .select()
+          .from(branchStatsCache)
+          .where(inArray(branchStatsCache.hierarchyNodeId, nodeIds))
+      : [];
+
+  const cacheMap = new Map(cacheRows.map((r) => [r.hierarchyNodeId, r]));
+
+  // 3. Merge and enqueue refresh for cache misses
+  return scopedNodes.map((node) => {
+    const cached = cacheMap.get(node.id);
+
+    if (!cached) {
+      // Cache miss — enqueue debounced refresh for all three kinds
+      branchStatsCacheService.refresh(tenantDb, node.id, "members");
+      branchStatsCacheService.refresh(tenantDb, node.id, "staff");
+      branchStatsCacheService.refresh(tenantDb, node.id, "revenue");
+
+      return {
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        depth: node.depth,
+        parentId: node.parentId ?? null,
+        address: null,
+        openingHours: null,
+        membersCount: null,
+        staffCount: null,
+        monthRevenueCents: null,
+        stale: true,
+      };
+    }
+
+    // Staleness: data older than 5 minutes is considered stale
+    const staleness =
+      Date.now() - new Date(cached.computedAt).getTime() > 5 * 60 * 1000;
+
+    return {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      depth: node.depth,
+      parentId: node.parentId ?? null,
+      address: null,
+      openingHours: null,
+      membersCount: cached.membersCount,
+      staffCount: cached.staffCount,
+      monthRevenueCents: cached.monthRevenueCents,
+      stale: staleness,
+    };
+  });
+}

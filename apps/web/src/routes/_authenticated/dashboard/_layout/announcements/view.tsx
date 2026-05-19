@@ -4,15 +4,8 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
-import { useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import DataTable from "@/components/tables/sales/view/data-table";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { StatusCallout } from "@/components/ui/status-callout";
-import { PageLoader } from "@/components/ui/loading-spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -32,18 +25,28 @@ import {
 	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { Megaphone, Plus, Pin, Edit, Trash2 } from "lucide-react";
-import { requirePermission } from "@/lib/route-guards";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
+import {
+	Plus,
+	Search,
+	Pin,
+	PinOff,
+	Pencil,
+	Archive,
+	ChevronDown,
+	ChevronUp,
+	Megaphone,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/announcements/view",
 )({
-	beforeLoad: async () => {
-		await requirePermission("announcement_management:read");
-	},
 	component: AnnouncementsViewPage,
 });
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type Priority = "low" | "normal" | "high" | "urgent";
 type TargetAudience = "all" | "staff" | "clients";
@@ -60,6 +63,7 @@ type AnnouncementRow = {
 	endDate: string | null;
 	isPinned: boolean;
 	isActive: boolean;
+	requiresAcknowledgement: boolean;
 	createdAt: string;
 	scopedBranchIds?: string[];
 };
@@ -72,6 +76,7 @@ type FormState = {
 	startDate: string;
 	endDate: string;
 	isPinned: boolean;
+	requiresAcknowledgement: boolean;
 	scopedBranchIds: string[];
 };
 
@@ -83,60 +88,167 @@ const EMPTY_FORM: FormState = {
 	startDate: "",
 	endDate: "",
 	isPinned: false,
+	requiresAcknowledgement: false,
 	scopedBranchIds: [],
 };
 
-function priorityBadge(priority: Priority) {
+// ─── Audience rail config ─────────────────────────────────────────────────────
+
+type AudienceKey = "all" | "staff" | "clients" | "branch";
+
+const AUDIENCE_FILTERS: {
+	key: AudienceKey | "all";
+	label: string;
+	dot: string;
+}[] = [
+	{ key: "all", label: "All", dot: "" },
+	{ key: "staff", label: "All Staff", dot: "bg-emerald-500" },
+	{ key: "clients", label: "All Members", dot: "bg-purple-500" },
+	{ key: "branch", label: "Branch-scoped", dot: "bg-sky-500" },
+];
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+	{ key: "active", label: "Active" },
+	{ key: "inactive", label: "Inactive" },
+	{ key: "all", label: "All" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string | null): string {
+	if (!iso) return "—";
+	return new Date(iso).toLocaleDateString("en-MY", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+	});
+}
+
+function formatShortDate(iso: string | null): string {
+	if (!iso) return "—";
+	return new Date(iso).toLocaleDateString("en-MY", {
+		day: "numeric",
+		month: "short",
+	});
+}
+
+function priorityDot(priority: Priority): string {
 	switch (priority) {
-		case "low":
-			return (
-				<Badge variant="outline" className="text-brand-secondary-1">
-					Low
-				</Badge>
-			);
-		case "normal":
-			return <Badge variant="secondary">Normal</Badge>;
-		case "high":
-			// Priority level indicator — documented exception per §2.5 (semantic priority scale, not lifecycle status)
-			return (
-				<Badge variant="secondary" className="text-orange-600 border-orange-200 bg-orange-50">
-					High
-				</Badge>
-			);
 		case "urgent":
-			return <Badge variant="destructive">Urgent</Badge>;
+			return "bg-red-500";
+		case "high":
+			return "bg-orange-500";
+		case "normal":
+			return "bg-blue-500";
+		case "low":
+			return "bg-slate-400";
 	}
 }
 
-function capitalize(str: string): string {
-	if (!str) return "";
-	return str.charAt(0).toUpperCase() + str.slice(1);
+function priorityLabel(priority: Priority): string {
+	return priority.charAt(0).toUpperCase() + priority.slice(1);
 }
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+function audienceLabel(audience: TargetAudience): string {
+	switch (audience) {
+		case "all":
+			return "All";
+		case "staff":
+			return "Staff";
+		case "clients":
+			return "Members";
+	}
+}
+
+// ─── Audience badge chip ─────────────────────────────────────────────────────
+
+function AudienceChip({ audience }: { audience: TargetAudience }) {
+	const base =
+		"inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold";
+	switch (audience) {
+		case "all":
+			return (
+				<span className={cn(base, "bg-blue-50 text-blue-700")}>All</span>
+			);
+		case "staff":
+			return (
+				<span className={cn(base, "bg-emerald-50 text-emerald-700")}>
+					Staff
+				</span>
+			);
+		case "clients":
+			return (
+				<span className={cn(base, "bg-purple-50 text-purple-700")}>
+					Members
+				</span>
+			);
+	}
+}
+
+// ─── Status pill ─────────────────────────────────────────────────────────────
+
+function StatusPill({ isActive, isPinned }: { isActive: boolean; isPinned: boolean }) {
+	if (isPinned) {
+		return (
+			<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600">
+				<Pin className="h-2.5 w-2.5" /> Pinned
+			</span>
+		);
+	}
+	if (isActive) {
+		return (
+			<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">
+				<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+				Active
+			</span>
+		);
+	}
+	return (
+		<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+			Inactive
+		</span>
+	);
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 function AnnouncementsViewPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const announcementsKey = ["announcements", organizationId];
 
+	// Filters
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
 	const [audienceFilter, setAudienceFilter] = useState<string>("all");
+	const [search, setSearch] = useState("");
+	const [sortNewest, setSortNewest] = useState(true);
 
-	// Sheet state
+	// Expanded row
+	const [expandedId, setExpandedId] = useState<string | null>(null);
+
+	// Form / dialog state
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
-	// Confirmation dialog state
+	// Confirmation dialogs
 	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 	const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null);
 
-	// Derived isActive filter for query
+	// API isActive filter
 	const isActiveFilter =
-		statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined;
+		statusFilter === "active"
+			? true
+			: statusFilter === "inactive"
+				? false
+				: undefined;
 
-	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
 		queryKey: ["announcements", organizationId, isActiveFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -166,6 +278,8 @@ function AnnouncementsViewPage() {
 		nodeNameMap[node.id] = node.name;
 	}
 
+	// ─── Mutations ──────────────────────────────────────────────────────────
+
 	const createMutation = useApiMutation({
 		mutationFn: (values: FormState) => {
 			if (!organizationId) throw new Error("No organization selected");
@@ -175,9 +289,14 @@ function AnnouncementsViewPage() {
 				message: values.message,
 				priority: values.priority,
 				targetAudience: values.targetAudience,
-				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
-				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+				startDate: values.startDate
+					? new Date(values.startDate).toISOString()
+					: undefined,
+				endDate: values.endDate
+					? new Date(values.endDate).toISOString()
+					: undefined,
 				isPinned: values.isPinned,
+				requiresAcknowledgement: values.requiresAcknowledgement,
 				scopedBranchIds: values.scopedBranchIds,
 			});
 		},
@@ -200,9 +319,14 @@ function AnnouncementsViewPage() {
 				message: values.message,
 				priority: values.priority,
 				targetAudience: values.targetAudience,
-				startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
-				endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+				startDate: values.startDate
+					? new Date(values.startDate).toISOString()
+					: undefined,
+				endDate: values.endDate
+					? new Date(values.endDate).toISOString()
+					: undefined,
 				isPinned: values.isPinned,
+				requiresAcknowledgement: values.requiresAcknowledgement,
 				scopedBranchIds: values.scopedBranchIds,
 			});
 		},
@@ -214,6 +338,16 @@ function AnnouncementsViewPage() {
 			setEditingId(null);
 			setForm(EMPTY_FORM);
 		},
+	});
+
+	const pinMutation = useApiMutation({
+		mutationFn: ({ id, isPinned }: { id: string; isPinned: boolean }) => {
+			if (!organizationId) throw new Error("No organization selected");
+			return client.announcements.update({ organizationId, id, isPinned });
+		},
+		successMessage: "Pin updated.",
+		errorMessage: (err) => err.message || "Failed to update pin.",
+		invalidate: [announcementsKey],
 	});
 
 	const deactivateMutation = useApiMutation({
@@ -240,6 +374,77 @@ function AnnouncementsViewPage() {
 		invalidate: [announcementsKey],
 	});
 
+	// ─── Derived data ────────────────────────────────────────────────────────
+
+	const allRows: AnnouncementRow[] = apiData.map((item) => ({
+		id: item.id,
+		title: item.title,
+		message: item.message,
+		priority: item.priority as Priority,
+		targetAudience: item.targetAudience as TargetAudience,
+		branchId: item.branchId ?? null,
+		startDate: item.startDate ? String(item.startDate) : null,
+		endDate: item.endDate ? String(item.endDate) : null,
+		isPinned: item.isPinned ?? false,
+		isActive: item.isActive ?? true,
+		requiresAcknowledgement: item.requiresAcknowledgement ?? false,
+		createdAt: item.createdAt ? String(item.createdAt) : "",
+		scopedBranchIds: item.scopedBranchIds ?? [],
+	}));
+
+	// Counts for audience rail
+	const audienceCounts = useMemo(() => {
+		const counts: Record<string, number> = { all: allRows.length };
+		for (const row of allRows) {
+			counts[row.targetAudience] = (counts[row.targetAudience] ?? 0) + 1;
+			if ((row.scopedBranchIds?.length ?? 0) > 0) {
+				counts["branch"] = (counts["branch"] ?? 0) + 1;
+			}
+		}
+		return counts;
+	}, [allRows]);
+
+	const filteredRows = useMemo(() => {
+		let rows = allRows;
+
+		// Audience filter
+		if (audienceFilter === "branch") {
+			rows = rows.filter((r) => (r.scopedBranchIds?.length ?? 0) > 0);
+		} else if (audienceFilter !== "all") {
+			rows = rows.filter((r) => r.targetAudience === audienceFilter);
+		}
+
+		// Search
+		if (search.trim()) {
+			const q = search.toLowerCase();
+			rows = rows.filter(
+				(r) =>
+					r.title.toLowerCase().includes(q) ||
+					r.message.toLowerCase().includes(q),
+			);
+		}
+
+		// Sort
+		rows = [...rows].sort((a, b) => {
+			// Pinned always first
+			if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+			const ta = new Date(a.createdAt).getTime();
+			const tb = new Date(b.createdAt).getTime();
+			return sortNewest ? tb - ta : ta - tb;
+		});
+
+		return rows;
+	}, [allRows, audienceFilter, search, sortNewest]);
+
+	const isMutating =
+		createMutation.isPending ||
+		updateMutation.isPending ||
+		pinMutation.isPending ||
+		deactivateMutation.isPending ||
+		deleteMutation.isPending;
+
+	// ─── Form helpers ─────────────────────────────────────────────────────────
+
 	function openCreate() {
 		setEditingId(null);
 		setForm(EMPTY_FORM);
@@ -248,10 +453,8 @@ function AnnouncementsViewPage() {
 
 	function openEdit(row: AnnouncementRow) {
 		setEditingId(row.id);
-		// Convert ISO dates to datetime-local format (strip seconds/Z for input compatibility)
 		const toDatetimeLocal = (iso: string | null) => {
 			if (!iso) return "";
-			// datetime-local expects "YYYY-MM-DDTHH:MM"
 			return iso.slice(0, 16);
 		};
 		setForm({
@@ -262,6 +465,7 @@ function AnnouncementsViewPage() {
 			startDate: toDatetimeLocal(row.startDate),
 			endDate: toDatetimeLocal(row.endDate),
 			isPinned: row.isPinned,
+			requiresAcknowledgement: row.requiresAcknowledgement,
 			scopedBranchIds: row.scopedBranchIds ?? [],
 		});
 		setSheetOpen(true);
@@ -273,7 +477,11 @@ function AnnouncementsViewPage() {
 			toast.error("Title and message are required.");
 			return;
 		}
-		if (form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate)) {
+		if (
+			form.startDate &&
+			form.endDate &&
+			new Date(form.endDate) <= new Date(form.startDate)
+		) {
 			toast.error("End Date must be after Start Date.");
 			return;
 		}
@@ -284,158 +492,17 @@ function AnnouncementsViewPage() {
 		}
 	}
 
-	// Filter by audience on the client side (API doesn't support targetAudience filter)
-	const filteredData: AnnouncementRow[] = apiData.flatMap((item) => {
-		if (audienceFilter !== "all" && item.targetAudience !== audienceFilter) {
-			return [];
-		}
-		return [
-			{
-				id: item.id,
-				title: item.title,
-				message: item.message,
-				priority: item.priority as Priority,
-				targetAudience: item.targetAudience as TargetAudience,
-				branchId: item.branchId ?? null,
-				startDate: item.startDate ? String(item.startDate) : null,
-				endDate: item.endDate ? String(item.endDate) : null,
-				isPinned: item.isPinned ?? false,
-				isActive: item.isActive ?? true,
-				createdAt: item.createdAt ? String(item.createdAt) : "",
-				scopedBranchIds: item.scopedBranchIds ?? [],
-			},
-		];
-	});
-
-	const isMutating =
-		createMutation.isPending ||
-		updateMutation.isPending ||
-		deactivateMutation.isPending ||
-		deleteMutation.isPending;
-
-	const columns: ColumnDef<AnnouncementRow>[] = [
-		{
-			accessorKey: "title",
-			header: "Title",
-			cell: ({ row }) => (
-				<span className="font-semibold">{row.original.title}</span>
-			),
-		},
-		{
-			accessorKey: "priority",
-			header: "Priority",
-			cell: ({ row }) => priorityBadge(row.original.priority),
-		},
-		{
-			accessorKey: "targetAudience",
-			header: "Target",
-			cell: ({ row }) => <span>{capitalize(row.original.targetAudience)}</span>,
-		},
-		{
-			id: "scope",
-			header: "Scope",
-			cell: ({ row }) => {
-				const ids = row.original.scopedBranchIds ?? [];
-				if (ids.length === 0) {
-					return <Badge variant="outline" className="text-muted-foreground">Org-wide</Badge>;
-				}
-				const names = ids.map((id) => nodeNameMap[id] ?? id);
-				if (names.length <= 2) {
-					return <span className="text-sm">{names.join(", ")}</span>;
-				}
-				return (
-					<span className="text-sm" title={names.join(", ")}>
-						{names.slice(0, 2).join(", ")} (+{names.length - 2})
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "startDate",
-			header: "Valid From",
-			cell: ({ row }) =>
-				row.original.startDate
-					? new Date(row.original.startDate).toLocaleDateString()
-					: "—",
-		},
-		{
-			accessorKey: "endDate",
-			header: "Valid Until",
-			cell: ({ row }) =>
-				row.original.endDate
-					? new Date(row.original.endDate).toLocaleDateString()
-					: "No expiry",
-		},
-		{
-			accessorKey: "isPinned",
-			header: "Pinned",
-			cell: ({ row }) =>
-				row.original.isPinned ? (
-					<Pin className="size-4 text-amber-500" />
-				) : null,
-		},
-		{
-			accessorKey: "isActive",
-			header: "Status",
-			cell: ({ row }) =>
-				row.original.isActive ? (
-					<StatusBadge status="active" />
-				) : (
-					<StatusBadge status="inactive" />
-				),
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			enableSorting: false,
-			enableHiding: false,
-			cell: ({ row }) => (
-				<div className="flex items-center gap-2">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => openEdit(row.original)}
-						disabled={isMutating}
-					>
-						<Edit className="size-4 mr-1" />
-						Edit
-					</Button>
-					{row.original.isActive && (
-						<Button
-							variant="ghost"
-							size="sm"
-							className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-							onClick={() => setDeactivateTarget(row.original.id)}
-							disabled={isMutating}
-						>
-							Deactivate
-						</Button>
-					)}
-					<Button
-						variant="ghost"
-						size="sm"
-						className="text-destructive hover:text-destructive hover:bg-destructive/10"
-						onClick={() => setDeleteTarget(row.original.id)}
-						disabled={isMutating}
-					>
-						<Trash2 className="size-4" />
-					</Button>
-				</div>
-			),
-		},
-	];
+	// ─── Early returns ────────────────────────────────────────────────────────
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+			<div className="flex items-center justify-center min-h-96 text-[#737373] text-sm">
 				Select an organization to manage announcements.
 			</div>
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
+	if (isLoading) return <PageLoader />;
 
 	if (isError) {
 		return (
@@ -447,83 +514,360 @@ function AnnouncementsViewPage() {
 		);
 	}
 
+	// ─── Render ───────────────────────────────────────────────────────────────
+
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Megaphone className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-2xl font-semibold font-heading">Announcements</h1>
-						<p className="text-brand-secondary-1 text-sm">
-							Manage organization-wide and branch-specific announcements.
-						</p>
-					</div>
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+			{/* Page header */}
+			<div className="mb-6 flex items-end justify-between">
+				<div>
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						Internal Communications
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Announcements
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
+						{allRows.length} total
+					</p>
 				</div>
-				<Button onClick={openCreate} disabled={isMutating}>
-					<Plus className="size-4 mr-2" />
-					Create Announcement
-				</Button>
+				<button
+					type="button"
+					onClick={openCreate}
+					disabled={isMutating}
+					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
+				>
+					<Plus className="h-4 w-4" />
+					New
+				</button>
 			</div>
 
-			{/* Filters */}
-			<div className="flex flex-wrap items-center gap-3">
-				{/* Status tabs */}
-				<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
-					{(["active", "inactive", "all"] as const).map((s) => (
+			{/* Two-column layout */}
+			<div className="grid grid-cols-[220px_1fr] gap-5">
+
+				{/* ── Left rail: audience + status filters ── */}
+				<div className="space-y-1 rounded-2xl border border-[#e5e5e5] bg-white p-3 self-start">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
+						Filter by audience
+					</p>
+
+					{AUDIENCE_FILTERS.map(({ key, label, dot }) => {
+						const count = audienceCounts[key] ?? 0;
+						const isActive = audienceFilter === key;
+						return (
+							<button
+								key={key}
+								type="button"
+								onClick={() => setAudienceFilter(key)}
+								className={cn(
+									"w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition",
+									isActive
+										? "bg-[#0a0a0a] text-white font-semibold"
+										: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
+								)}
+							>
+								<span className="flex items-center gap-2">
+									{dot && (
+										<span
+											className={cn("w-2 h-2 rounded-full flex-shrink-0", dot)}
+										/>
+									)}
+									{label}
+								</span>
+								<span
+									className={cn(
+										"font-mono text-xs tabular-nums",
+										isActive ? "opacity-70" : "",
+									)}
+								>
+									{count}
+								</span>
+							</button>
+						);
+					})}
+
+					<div className="border-t border-[#e5e5e5] my-2" />
+
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
+						Filter by status
+					</p>
+
+					{STATUS_FILTERS.map(({ key, label }) => {
+						const isActive = statusFilter === key;
+						return (
+							<button
+								key={key}
+								type="button"
+								onClick={() => setStatusFilter(key)}
+								className={cn(
+									"w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition",
+									isActive
+										? "bg-[#0a0a0a] text-white font-semibold"
+										: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
+								)}
+							>
+								<span>{label}</span>
+							</button>
+						);
+					})}
+				</div>
+
+				{/* ── Right: inbox list ── */}
+				<div>
+					{/* Search + sort bar */}
+					<div className="mb-3 flex gap-2">
+						<div className="flex flex-1 items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
+							<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
+							<input
+								className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a]"
+								placeholder="Search announcements…"
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+							/>
+						</div>
 						<button
-							key={s}
 							type="button"
-							onClick={() => setStatusFilter(s)}
-							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-								statusFilter === s
-									? "bg-background shadow-sm text-foreground"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
+							onClick={() => setSortNewest((v) => !v)}
+							className="inline-flex items-center gap-2 bg-white border border-[#e5e5e5] px-3.5 py-2 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition"
 						>
-							{capitalize(s)}
+							Sort: {sortNewest ? "Newest" : "Oldest"}
+							<ChevronDown className="h-3 w-3" />
 						</button>
-					))}
-				</div>
+					</div>
 
-				{/* Target audience filter */}
-				<Select value={audienceFilter} onValueChange={setAudienceFilter}>
-					<SelectTrigger className="w-44">
-						<SelectValue placeholder="Audience" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All Audiences</SelectItem>
-						<SelectItem value="staff">Staff only</SelectItem>
-						<SelectItem value="clients">Clients only</SelectItem>
-					</SelectContent>
-				</Select>
+					{/* Inbox list */}
+					{filteredRows.length === 0 ? (
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white flex flex-col items-center justify-center py-16 text-[#737373]">
+							<Megaphone className="h-8 w-8 mb-3 opacity-30" />
+							<p className="text-sm font-medium">No announcements</p>
+							<p className="text-xs mt-1">
+								{search
+									? "No results for your search."
+									: "No announcements match the current filters."}
+							</p>
+						</div>
+					) : (
+						<div className="divide-y divide-[#e5e5e5] rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+							{filteredRows.map((row) => {
+								const isExpanded = expandedId === row.id;
+								const scopeNames = (row.scopedBranchIds ?? []).map(
+									(id) => nodeNameMap[id] ?? id,
+								);
+
+								return (
+									<div
+										key={row.id}
+										className={cn(
+											"transition",
+											isExpanded
+												? "bg-[#f3f3f3] border-l-2 border-l-[#0a0a0a]"
+												: "border-l-2 border-l-transparent",
+										)}
+									>
+										{/* ─ Row header (always visible) ─ */}
+										<div
+											className={cn(
+												"flex items-start gap-4 px-5 cursor-pointer",
+												isExpanded ? "pt-4 pb-2" : "py-3.5 hover:bg-[#fafafa]",
+											)}
+											onClick={() =>
+												setExpandedId(isExpanded ? null : row.id)
+											}
+										>
+											{/* Priority dot */}
+											<span
+												className={cn(
+													"mt-1.5 w-2 h-2 rounded-full flex-shrink-0",
+													priorityDot(row.priority),
+												)}
+												title={`${priorityLabel(row.priority)} priority`}
+											/>
+
+											{/* Content */}
+											<div className="flex-1 min-w-0">
+												<div className="flex items-baseline gap-2 flex-wrap">
+													<span className="font-semibold text-sm text-[#0a0a0a]">
+														{row.title}
+													</span>
+													<AudienceChip audience={row.targetAudience} />
+													{scopeNames.length > 0 && (
+														<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700">
+															{scopeNames.length === 1
+																? scopeNames[0]
+																: `${scopeNames[0]} +${scopeNames.length - 1}`}
+														</span>
+													)}
+													{row.requiresAcknowledgement && (
+														<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
+															Requires ack
+														</span>
+													)}
+													<StatusPill
+														isActive={row.isActive}
+														isPinned={row.isPinned}
+													/>
+												</div>
+												{!isExpanded && (
+													<p className="mt-0.5 text-xs text-[#737373] truncate">
+														{row.message}
+													</p>
+												)}
+											</div>
+
+											{/* Right meta */}
+											<div className="text-right flex-shrink-0 space-y-0.5 flex flex-col items-end">
+												{/* STUB: views/ack counts not available from API */}
+												<div className="text-[10px] text-[#737373] font-mono tabular-nums">
+													{formatShortDate(row.createdAt)}
+												</div>
+												{isExpanded ? (
+													<ChevronUp className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
+												) : (
+													<ChevronDown className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
+												)}
+											</div>
+										</div>
+
+										{/* ─ Expanded body ─ */}
+										{isExpanded && (
+											<div className="px-5 pb-4">
+												{/* Message body */}
+												<p className="text-sm text-[#404040] leading-relaxed mb-4 pl-6">
+													{row.message}
+												</p>
+
+												{/* Meta row */}
+												<div className="pl-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-[#737373] mb-4">
+													{/* STUB: views count — not returned by API */}
+													<span className="flex items-center gap-1">
+														<span className="font-mono tabular-nums font-semibold text-[#737373]">
+															—
+														</span>{" "}
+														views
+													</span>
+
+													{/* STUB: ack count — not returned by API */}
+													<span className="flex items-center gap-1">
+														<span className="font-mono tabular-nums font-semibold text-[#737373]">
+															—
+														</span>{" "}
+														acknowledged
+													</span>
+
+													{row.startDate && (
+														<span>
+															From{" "}
+															<span className="font-medium text-[#0a0a0a]">
+																{formatDate(row.startDate)}
+															</span>
+														</span>
+													)}
+													{row.endDate ? (
+														<span>
+															Expires{" "}
+															<span className="font-medium text-[#0a0a0a]">
+																{formatDate(row.endDate)}
+															</span>
+														</span>
+													) : (
+														<span>No expiry</span>
+													)}
+													<span>
+														Priority:{" "}
+														<span className="font-medium text-[#0a0a0a]">
+															{priorityLabel(row.priority)}
+														</span>
+													</span>
+												</div>
+
+												{/* Action buttons */}
+												<div className="pl-6 flex flex-wrap gap-1.5">
+													{/* Pin / Unpin */}
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															pinMutation.mutate({
+																id: row.id,
+																isPinned: !row.isPinned,
+															});
+														}}
+														disabled={isMutating}
+														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
+													>
+														{row.isPinned ? (
+															<>
+																<PinOff className="h-3.5 w-3.5" /> Unpin
+															</>
+														) : (
+															<>
+																<Pin className="h-3.5 w-3.5" /> Pin
+															</>
+														)}
+													</button>
+
+													{/* Edit */}
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															openEdit(row);
+														}}
+														disabled={isMutating}
+														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
+													>
+														<Pencil className="h-3.5 w-3.5" /> Edit
+													</button>
+
+													{/* Deactivate (archive) — only when active */}
+													{row.isActive && (
+														<button
+															type="button"
+															onClick={(e) => {
+																e.stopPropagation();
+																setDeactivateTarget(row.id);
+															}}
+															disabled={isMutating}
+															className="inline-flex items-center gap-1.5 bg-white border border-rose-200 px-3 py-1 rounded-[10px] text-[13px] font-medium text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+														>
+															<Archive className="h-3.5 w-3.5" /> Archive
+														</button>
+													)}
+
+													{/* Delete */}
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															setDeleteTarget(row.id);
+														}}
+														disabled={isMutating}
+														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a] transition disabled:opacity-50"
+													>
+														Delete
+													</button>
+												</div>
+											</div>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					)}
+				</div>
 			</div>
 
-			<Separator />
-
-			{/* Table or empty state */}
-			{filteredData.length === 0 ? (
-				<EmptyState
-					icon={Megaphone}
-					title="No announcements"
-					description="No announcements match the current filters."
-				/>
-			) : (
-				<DataTable<AnnouncementRow, unknown>
-					columns={columns}
-					data={filteredData}
-				/>
-			)}
-
-			{/* Delete Confirmation Dialog */}
-			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+			{/* ── Confirmation: Delete ── */}
+			<Dialog
+				open={!!deleteTarget}
+				onOpenChange={(open) => !open && setDeleteTarget(null)}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Confirm Delete</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to delete this announcement? This action cannot be undone.
+							Are you sure you want to delete this announcement? This action
+							cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
@@ -540,23 +884,30 @@ function AnnouncementsViewPage() {
 							}}
 							disabled={deleteMutation.isPending}
 						>
-							{deleteMutation.isPending ? "Deleting..." : "Delete"}
+							{deleteMutation.isPending ? "Deleting…" : "Delete"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* Deactivate Confirmation Dialog */}
-			<Dialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
+			{/* ── Confirmation: Deactivate ── */}
+			<Dialog
+				open={!!deactivateTarget}
+				onOpenChange={(open) => !open && setDeactivateTarget(null)}
+			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Confirm Deactivate</DialogTitle>
+						<DialogTitle>Archive Announcement</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to deactivate this announcement?
+							This will deactivate the announcement. It will no longer be
+							visible to recipients.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeactivateTarget(null)}>
+						<Button
+							variant="outline"
+							onClick={() => setDeactivateTarget(null)}
+						>
 							Cancel
 						</Button>
 						<Button
@@ -568,24 +919,27 @@ function AnnouncementsViewPage() {
 							}}
 							disabled={deactivateMutation.isPending}
 						>
-							{deactivateMutation.isPending ? "Deactivating..." : "Deactivate"}
+							{deactivateMutation.isPending ? "Archiving…" : "Archive"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* Create / Edit Dialog */}
-			<Dialog open={sheetOpen} onOpenChange={(open) => {
-				setSheetOpen(open);
-				if (!open) {
-					setEditingId(null);
-					setForm(EMPTY_FORM);
-				}
-			}}>
+			{/* ── Create / Edit dialog ── */}
+			<Dialog
+				open={sheetOpen}
+				onOpenChange={(open) => {
+					setSheetOpen(open);
+					if (!open) {
+						setEditingId(null);
+						setForm(EMPTY_FORM);
+					}
+				}}
+			>
 				<DialogContent className="sm:max-w-lg overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>
-							{editingId ? "Edit Announcement" : "Create Announcement"}
+							{editingId ? "Edit Announcement" : "New Announcement"}
 						</DialogTitle>
 						<DialogDescription>
 							{editingId
@@ -604,7 +958,9 @@ function AnnouncementsViewPage() {
 								id="ann-title"
 								placeholder="Announcement title"
 								value={form.title}
-								onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+								onChange={(e) =>
+									setForm((f) => ({ ...f, title: e.target.value }))
+								}
 								required
 							/>
 						</div>
@@ -619,7 +975,9 @@ function AnnouncementsViewPage() {
 								placeholder="Announcement body text"
 								rows={4}
 								value={form.message}
-								onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+								onChange={(e) =>
+									setForm((f) => ({ ...f, message: e.target.value }))
+								}
 								required
 							/>
 						</div>
@@ -651,7 +1009,10 @@ function AnnouncementsViewPage() {
 							<Select
 								value={form.targetAudience}
 								onValueChange={(v) =>
-									setForm((f) => ({ ...f, targetAudience: v as TargetAudience }))
+									setForm((f) => ({
+										...f,
+										targetAudience: v as TargetAudience,
+									}))
 								}
 							>
 								<SelectTrigger id="ann-audience">
@@ -660,7 +1021,7 @@ function AnnouncementsViewPage() {
 								<SelectContent>
 									<SelectItem value="all">All</SelectItem>
 									<SelectItem value="staff">Staff</SelectItem>
-									<SelectItem value="clients">Clients</SelectItem>
+									<SelectItem value="clients">Members</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -682,7 +1043,9 @@ function AnnouncementsViewPage() {
 													...f,
 													scopedBranchIds: checked
 														? [...f.scopedBranchIds, node.id]
-														: f.scopedBranchIds.filter((id) => id !== node.id),
+														: f.scopedBranchIds.filter(
+																(id) => id !== node.id,
+															),
 												}))
 											}
 										/>
@@ -712,7 +1075,10 @@ function AnnouncementsViewPage() {
 									type="datetime-local"
 									value={form.startDate}
 									onChange={(e) =>
-										setForm((f) => ({ ...f, startDate: e.target.value }))
+										setForm((f) => ({
+											...f,
+											startDate: e.target.value,
+										}))
 									}
 								/>
 							</div>
@@ -723,7 +1089,10 @@ function AnnouncementsViewPage() {
 									type="datetime-local"
 									value={form.endDate}
 									onChange={(e) =>
-										setForm((f) => ({ ...f, endDate: e.target.value }))
+										setForm((f) => ({
+											...f,
+											endDate: e.target.value,
+										}))
 									}
 								/>
 							</div>
@@ -741,6 +1110,25 @@ function AnnouncementsViewPage() {
 							<Label htmlFor="ann-pinned" className="cursor-pointer font-normal">
 								Pin to top
 							</Label>
+						</div>
+
+						{/* Requires acknowledgement */}
+						<div className="flex flex-col gap-1">
+							<div className="flex items-center gap-2">
+								<Checkbox
+									id="ann-requires-ack"
+									checked={form.requiresAcknowledgement}
+									onCheckedChange={(checked) =>
+										setForm((f) => ({ ...f, requiresAcknowledgement: checked === true }))
+									}
+								/>
+								<Label htmlFor="ann-requires-ack" className="cursor-pointer font-normal">
+									Requires acknowledgement
+								</Label>
+							</div>
+							<p className="text-xs text-muted-foreground pl-6">
+								Members will see an Acknowledge button. Tracking arrives in a future release.
+							</p>
 						</div>
 
 						<DialogFooter className="px-0 pt-2">
@@ -763,8 +1151,8 @@ function AnnouncementsViewPage() {
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"
 									: editingId
-									? "Save Changes"
-									: "Create"}
+										? "Save Changes"
+										: "Create"}
 							</Button>
 						</DialogFooter>
 					</form>

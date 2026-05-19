@@ -17,7 +17,7 @@
  *   - All commission rows in fixtures have earnReason non-null
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ function makeTestSplit(overrides: Record<string, unknown> = {}) {
 }
 
 // A minimal fake appointment row
-function makeTestAppointment(overrides: Record<string, unknown> = {}) {
+function _makeTestAppointment(overrides: Record<string, unknown> = {}) {
 	return {
 		id: APPOINTMENT_ID,
 		serviceId: SERVICE_ID,
@@ -97,7 +97,7 @@ function selectChainResolving(value: unknown) {
 }
 
 // Insert chain that either resolves or throws
-function insertChainWith(resolveValue: unknown) {
+function _insertChainWith(resolveValue: unknown) {
 	const valuesChain: Record<string, unknown> = {};
 	valuesChain.returning = mock(() => Promise.resolve(resolveValue));
 	valuesChain.onConflictDoNothing = mock(() => valuesChain);
@@ -105,13 +105,14 @@ function insertChainWith(resolveValue: unknown) {
 	return mock(() => ({ values: mock(() => valuesChain) }));
 }
 
-function insertChainThrowing(error: unknown) {
+function _insertChainThrowing(error: unknown) {
 	const valuesChain: Record<string, unknown> = {};
 	valuesChain.returning = mock(() => Promise.reject(error));
 	valuesChain.onConflictDoNothing = mock(() => valuesChain);
 	valuesChain.onConflictDoUpdate = mock(() => valuesChain);
 	return mock(() => ({ values: mock(() => valuesChain) }));
 }
+void _makeTestAppointment; void _insertChainWith; void _insertChainThrowing;
 
 // ---------------------------------------------------------------------------
 // Helpers: build a realistic mock db for calculateCommissionForAppointment
@@ -295,7 +296,7 @@ describe("concurrent cancellation race — PG 23505 guard", () => {
 		let splits: ReturnType<typeof makeTestSplit>[] = [];
 		let threw = false;
 		try {
-			splits = await calculateCommissionForAppointment(db, {
+			splits = (await calculateCommissionForAppointment(db, {
 				appointmentId: APPOINTMENT_ID,
 				serviceId: SERVICE_ID,
 				sessionTotalCents: 10000,
@@ -303,7 +304,7 @@ describe("concurrent cancellation race — PG 23505 guard", () => {
 				staffAssignments: [{ staffId: TRAINER_USER_ID, slotIndex: 0 }],
 				actor: ACTOR,
 				earnReason: "completion",
-			});
+			})) as any;
 		} catch {
 			threw = true;
 		}
@@ -372,7 +373,7 @@ describe("voidCommissionSplitsForSalesOrder — delivered appointment guard", ()
 		});
 
 		// update should NOT be called (all splits skipped)
-		const { updateMock } = (() => {
+		(() => {
 			let called = false;
 			const setChain: Record<string, unknown> = {};
 			setChain.where = mock(() => ({
@@ -383,7 +384,7 @@ describe("voidCommissionSplitsForSalesOrder — delivered appointment guard", ()
 			}));
 			const updateMock = mock(() => ({ set: mock(() => setChain) }));
 			db.update.mockImplementation(updateMock);
-			return { updateMock, called };
+			return { updateMock, called } as any;
 		})();
 
 		const voided = await voidCommissionSplitsForSalesOrder(

@@ -1,22 +1,29 @@
-# Sales View
+# Sales & Payments
 
 **Route:** `/dashboard/sales/view`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx:1`
+**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx`
 **Platform:** web
 **Auth required:** authenticated (rbac `sales:read` enforced server-side)
-**Last updated:** 2026-04-20
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View a list of all sales orders for the current organization.
+**Purpose (user perspective):** Two-tab "Sales & Payments" workspace — orders tab with KPI cards, filters, sortable sales-order table; payments tab with invoice/payment table.
 
-**Produces:** A sortable data table showing date, sales order number, total amount (MYR), customer name, and created-by for every sales order, plus a "New Sale" button in the header.
+**Produces:**
+- Page header with count summary (`N orders · M invoices`) and "New Sale" link.
+- Tabs: **Sales Orders** (default) and **Payments**, each with a count chip.
+- Sales tab: 4 KPI cards (Total Orders, Total Revenue, Completed, Cancelled), `FilterToolbar` (from/to dates, status, branch, Clear), then paginated `SalesDataTable` (page size 50).
+- Payments tab: `PaymentDataTable` for invoices in scope.
 
-**On success:** Table renders with all visible sales orders, scoped to the user's accessible hierarchy nodes.
+**On success:** Tables render under their tab with current filters/page applied.
 
-**On failure / error states:** Spinner while loading; error card with "Try Again" button on fetch failure; empty table when no orders exist.
+**On failure / error states:**
+- `<PageLoader />` while loading.
+- `ErrorCard` with "Try Again" button on fetch failure (per tab).
+- DataTable empty state ("No sales found" / "No payments found"); empty sales offers a "New Sale" CTA via `useNavigate`.
 
 ---
 
@@ -25,62 +32,82 @@
 **Execution flow:**
 ```
 RouteComponent
-  → useUserContext()                  # reads organizationId
-  → useQuery(["salesOrders", orgId])
-    → client.salesOrders.list({ organizationId })
-      → salesOrdersRouter.list        # rbac: sales:read
-        → listSalesOrders()           # service fn
-          → sales_orders (tenant DB)  # filtered by accessibleNodeIds
+  → useUserContext() → organizationId
+  → Route.useSearch() → { from, to, status, branchId, page, period }
+  → derivedFilters = period && !from && !to ? getPeriodDates(period) : { from, to }
+
+  → useQuery(["salesOrders", orgId, from, to, status, branchId, page])
+      → client.salesOrders.list({ organizationId, from, to, status, branchId, limit: 50, offset })
+  → useQuery(["invoices", orgId])
+      → client.invoices.list({ organizationId })
+
+  → SalesTab: KPI cards (computed from rows) + FilterToolbar + SalesDataTable
+  → PaymentsTab: PaymentDataTable
 ```
 
-**Inputs:** None (no filters or search on this page currently).
+**Inputs:** URL search params validated by `salesSearchSchema` (`from`, `to`, `status`, `branchId`, `page`, `period`).
 
-**State management:** Only TanStack Query cache (`salesOrders`, `organizationId`).
+**State management:** URL search state via `useNavigate({ from: Route.fullPath })`. TanStack Query for sales + invoices. No local state.
 
-**Outputs:** `DataTable<SalesRow>` with columns: date, sales_order (copyable), total_sales, customer_name, created_by (avatar), actions (View/Edit stubs).
+**Outputs:** Two data tables. "New Sale" navigates to `/dashboard/sales/create`.
 
-**Side effects:** None — read-only page.
+**Side effects:** Read-only. Filter/page changes update URL search; no mutations.
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints:**
-- `salesOrders.list` — list sales orders filtered by `accessibleNodeIds`
+- `client.salesOrders.list` — paginated, filtered by `from/to/status/branchId`, scoped to `accessibleNodeIds` server-side
+- `client.invoices.list` — invoices for org (payments tab)
 
 **Uses these components:**
-- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` — generic sortable table
-- `columns` / `SalesRow` — `apps/web/src/components/tables/sales/view/columns.tsx` — column definitions
+- `SalesDataTable` + `salesColumns` — `@/components/tables/sales/view/data-table` + `columns`
+- `FilterToolbar` — `@/components/tables/sales/view/filter-toolbar`
+- `PaymentDataTable` + `paymentColumns` — `@/components/tables/payment/view/...`
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `Button`, `PageLoader`
+- Lucide icons: `CheckCircle2`, `Plus`, `ShoppingCart`, `TrendingUp`, `XCircle`
 
 **Uses these hooks:**
-- `useUserContext` — provides `organizationId`
+- `useUserContext()` — `organizationId`
+- `useQuery` x2 — sales + invoices
+- `useNavigate` + `Route.useSearch()` — URL state
+- `getPeriodDates(period)` from `@/lib/period` — KPI deep-link support
 
 **Navigation: who navigates here:**
-- `apps/web/src/components/app-sidebar.tsx` — "Sales" link under the Sales nav group
-- `apps/web/src/components/app-sidebar.tsx` — "Reports" link (also points to this route)
+- `app-sidebar.tsx` — "Sales" link
+- Dashboard KPI card with `?period=...` query
 
 **Navigation: where it goes:**
-- `/dashboard/sales/$id` — via "View" action button in columns (now wired via `useNavigate`; uses `row.original.id`)
-- `/dashboard/sales/create` — via "New Sale" button in page header (`<Link to="/dashboard/sales/create">`)
+- `/dashboard/sales/$id` — `SalesActionCell` "View" button (uses `row.original.id`)
+- `/dashboard/customers/view?customerId=…` — customer name link (when `customerId` present)
+- `/dashboard/sales/create` — "New Sale" header button + empty-state CTA
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-| Table | Operation | Key columns used |
-|-------|-----------|-----------------|
-| `sales_orders` (tenant) | READ | `id`, `salesOrderNumber`, `date`, `totalAmount`, `customerName`, `createdBy`, `status`, `branchId` |
+| Table | Operation | Key columns |
+|-------|-----------|-------------|
+| `sales_orders` (tenant) | READ | `id`, `salesOrderNumber`, `date`, `totalAmount`, `customerName`, `customerId`, `createdBy`, `status`, `branchId` |
+| `invoices` (tenant) | READ | `id`, `invoiceNumber`, `salesOrderId`, `paymentMode`, `totalAmount`, `customerName`, `createdBy`, `date`, `eInvoiceStatus` |
 
 **Key types:**
 ```typescript
 interface SalesRow {
+  id: string;
   date?: string | null;
-  sales_order?: string | null;    // salesOrderNumber
-  total_sales?: number;           // cents
+  sales_order?: string | null;          // salesOrderNumber
+  total_sales?: number;                  // cents
   customer_name?: string | null;
+  customerId?: string | null;
   created_by?: string | null;
+  status?: string | null;
 }
+
+// salesSearchSchema (URL search)
+{ from: string; to: string; status: string; branchId: string; page: number (>=1, default 1); period?: string }
 ```
 
 ---
@@ -90,14 +117,18 @@ interface SalesRow {
 **Test files:** None found specifically for this route.
 
 **Not tested (risk areas):**
-- "View" and "Edit" action buttons in the columns file use `console.log` — they are not wired to any navigation or mutation.
-- No client-side filtering or pagination — large datasets may be slow.
+- Filter/period derivation (`getPeriodDates` integration).
+- Status whitelist (`["draft","confirmed","completed","cancelled"]`) — other values silently treated as undefined.
+- Pagination via URL `page` param.
+- KPI computation (revenue excludes `status === "cancelled"`).
 
 ---
 
 ## 6. Notes
 
-- The `list` procedure filters by `context.accessibleNodeIds` so staff members only see orders from their hierarchy scope.
-- `total_sales` is in cents from the API; the `formatPrice(amount, "MYR")` call in the column renderer handles display.
-- The "Actions" column in `columns.tsx` has a single "View" button that navigates to `/dashboard/sales/$id` using `row.original.id`. The "Edit" button was removed. `SalesRow` now includes `id: string` to support this navigation.
-- Amounts/dates are mapped from API response shapes before passing to `SalesRow` (`.toISOString()` for dates).
+- **Server-side scoping**: `salesOrders.list` filters by `context.accessibleNodeIds`; staff only see orders within their hierarchy scope.
+- **Cents vs RM**: `total_sales` arrives in cents from the API; `formatPrice(amount, "MYR")` handles display.
+- **`SalesActionCell`** in `columns.tsx` uses `useNavigate` to push `/dashboard/sales/$id` with `row.original.id`. Customer-name cell is a `Link` to `/dashboard/customers/view?customerId=...` when `customerId` is present.
+- **`formatPrice` import path** is `@/lib/money` (post-refactor).
+- **Period KPI deep-link**: When arriving from a dashboard KPI tile with `?period=…` and no explicit `from/to`, `getPeriodDates` derives the date window.
+- **Status mapping for table cell**: column passes raw `status` to `StatusBadge`. Refer to detail page for `SalesStatusBadge` mapping wrapper.

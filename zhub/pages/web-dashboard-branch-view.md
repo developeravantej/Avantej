@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/branch/view.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
@@ -154,10 +154,11 @@ type MappedBranch = {
 
 ## 6. Notes
 
-- **Large file (1019 lines):** Complex state management with cascading dropdowns, caching, and multi-step edit flow
+- **Large file (~987 lines after 2026-05-12 cleanup):** Complex state management with cascading dropdowns, caching, and multi-step edit flow. The `25f6d75b` refactor stripped console logging and removed unused branches but left the structural shape (no extract-to-features yet — this file is still flagged in the Phase 4 god-file ledger).
 - **localStorage caching strategy:** 30s TTL to balance freshness vs. performance; fallback to API if stale
 - **Hierarchy mapping:** Builds node lookup map to traverse parents for area → region → country resolution
 - **Member resolution:** PIC user IDs resolved to names/emails via members query; fallback to "Unknown" if not found
 - **Edit dialog:** Includes nested `MemberReassignment` component for reassigning members to other branches
 - **Error handling:** Granular toast messages for different error types (circular ref, duplicate name, permission denied, etc.)
 - **Performance concern:** Re-fetches entire hierarchy on every edit; consider incremental updates for large organizations
+- **`hierarchical-branch-form.tsx`** (used by `/dashboard/branch/create`, see `zhub/pages/web-dashboard-branch-create.md`) was also touched in the cleanup — console statements removed and minor type narrowing — no public API change for that form.

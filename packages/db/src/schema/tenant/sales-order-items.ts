@@ -31,6 +31,10 @@ export const salesOrderItems = pgTable("sales_order_items", {
 	// taxRateCode: human-readable code string (e.g. "SST-6").
 	taxRateBps: integer("tax_rate_bps"),
 	taxRateCode: text("tax_rate_code"),
+	// Phase 1 (sales-pipeline-fixes): when true, commission for this line is
+	// deferred until the linked appointment transitions to completed/cancelled.
+	// Set by POS for service-line items; products always earn at sale (false).
+	commissionDeferred: boolean("commission_deferred").default(false).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
 	salesOrderIdIdx: index("sales_order_items_order_idx").on(table.salesOrderId),

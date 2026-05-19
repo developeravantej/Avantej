@@ -6,9 +6,15 @@
  * Recurring weekly availability windows for trainer members.
  */
 
-import { pgTable, uuid, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, index, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { members } from "./members";
+
+export const trainerAvailabilityKindEnum = pgEnum("trainer_availability_kind", [
+	"available",
+	"blocked",
+	"timeoff",
+]);
 
 export const trainerAvailability = pgTable("trainer_availability", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -20,6 +26,7 @@ export const trainerAvailability = pgTable("trainer_availability", {
 	dayOfWeek: text("day_of_week").notNull(), // "monday" - "sunday"
 	startTime: text("start_time").notNull(), // "09:00"
 	endTime: text("end_time").notNull(), // "17:00"
+	kind: trainerAvailabilityKindEnum("kind").notNull().default("available"),
 	isActive: boolean("is_active").default(true).notNull(),
 
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

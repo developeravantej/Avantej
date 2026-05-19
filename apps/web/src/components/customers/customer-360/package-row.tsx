@@ -27,6 +27,7 @@ interface PackageInstanceRow {
 	status: string | null;
 	creditsUsed: number | null;
 	creditsTotal: number | null;
+	creditsUnlocked?: number | null;
 	expiresAt: Date | string | null;
 	serviceName?: string | null;
 	paymentPlanCode?: string | null;
@@ -231,6 +232,30 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 
 	const queryClient = useQueryClient();
 
+	const hasInstallmentPlan = !!pkg.paymentPlanCode && pkg.paymentPlanCode !== "full";
+
+	// Installment summary — always fetched when plan is active (lightweight)
+	const { data: installmentData } = useQuery({
+		queryKey: ["installments", organizationId, pkg.id],
+		queryFn: () =>
+			client.installments.listByPackageInstance({
+				organizationId,
+				packageInstanceId: pkg.id,
+			}),
+		staleTime: 60_000,
+		enabled: hasInstallmentPlan,
+	});
+
+	const installmentSummary = (() => {
+		if (!installmentData || installmentData.length === 0) return null;
+		const paid = installmentData.filter((i) => i.status === "paid").length;
+		const total = installmentData.length;
+		const nextPending = installmentData.find(
+			(i) => i.status === "pending" || i.status === "overdue",
+		);
+		return { paid, total, nextDueDate: nextPending?.dueDate ?? null };
+	})();
+
 	// Preferred times query — lifted here so edit mode can access the data
 	const { data: preferredData, isLoading: preferredLoading } = useQuery({
 		queryKey: ["preferredTimes", organizationId, pkg.id],
@@ -260,7 +285,9 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 	const label = pkg.serviceName ?? pkg.id.slice(0, 8) + "…";
 	const credits =
 		pkg.creditsUsed != null && pkg.creditsTotal != null
-			? `${pkg.creditsUsed} / ${pkg.creditsTotal} credits`
+			? hasInstallmentPlan && pkg.creditsUnlocked != null
+				? `${pkg.creditsUsed} used · ${pkg.creditsUnlocked} unlocked / ${pkg.creditsTotal} total`
+				: `${pkg.creditsUsed} / ${pkg.creditsTotal} credits`
 			: null;
 
 	return (
@@ -273,7 +300,7 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 			>
 				<div className="flex min-w-0 flex-col gap-0.5">
 					<span className="truncate font-medium text-sm">{label}</span>
-					<div className="flex items-center gap-3 text-muted-foreground text-xs">
+					<div className="flex flex-wrap items-center gap-3 text-muted-foreground text-xs">
 						{credits && <span>{credits}</span>}
 						{pkg.expiresAt && (
 							<span>expires {formatDate(pkg.expiresAt)}</span>
@@ -281,6 +308,14 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 						{pkg.paymentPlanCode && (
 							<span className="rounded-sm bg-muted px-1 py-0.5 font-mono">
 								{pkg.paymentPlanCode}
+							</span>
+						)}
+						{installmentSummary && (
+							<span>
+								{installmentSummary.paid} of {installmentSummary.total} paid
+								{installmentSummary.nextDueDate
+									? ` · next due ${formatDate(installmentSummary.nextDueDate)}`
+									: ""}
 							</span>
 						)}
 					</div>

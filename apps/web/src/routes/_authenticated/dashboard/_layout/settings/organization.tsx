@@ -7,11 +7,26 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings } from "lucide-react";
-import { OrganizationSettingsForm } from "./organization-settings-form";
-import type { OrgSettingsValues } from "./organization-settings-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { Lock } from "lucide-react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/organization",
@@ -28,6 +43,7 @@ const orgSettingsSchema = z.object({
 	packageApprovalRequired: z.boolean(),
 });
 
+type OrgSettingsValues = z.infer<typeof orgSettingsSchema>;
 
 const DEFAULT_VALUES: OrgSettingsValues = {
 	gracePeriodDays: 7,
@@ -41,8 +57,28 @@ const DEFAULT_VALUES: OrgSettingsValues = {
 function FieldSkeleton() {
 	return (
 		<div className="space-y-2">
-			<div className="h-4 w-32 rounded bg-muted animate-pulse" />
-			<div className="h-10 w-full rounded-md bg-muted animate-pulse" />
+			<div className="h-4 w-32 rounded bg-[#e5e5e5] animate-pulse" />
+			<div className="h-10 w-full rounded-md bg-[#e5e5e5] animate-pulse" />
+		</div>
+	);
+}
+
+// ─── FormSection ──────────────────────────────────────────────────────────────
+
+function FormSection({
+	title,
+	helper,
+	children,
+}: {
+	title: string;
+	helper?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+			<h2 className="text-base font-bold text-[#0a0a0a] mb-1">{title}</h2>
+			{helper && <p className="text-sm text-[#737373] mb-4">{helper}</p>}
+			<div className="space-y-4">{children}</div>
 		</div>
 	);
 }
@@ -108,19 +144,20 @@ function OrganizationSettingsPage() {
 	// Pre-fill form when queries resolve
 	useEffect(() => {
 		if (isLoading) return;
-		const grace = (gracePeriodData as any)?.value;
-		const commission = (commissionData as any)?.value;
-		const locale = (localeData as any)?.value;
+		const gp = gracePeriodData as any;
+		const cm = commissionData as any;
+		const lc = localeData as any;
+		const pa = packageApprovalData as any;
 		form.reset({
-			gracePeriodDays: grace
-				? parseInt(grace, 10) || DEFAULT_VALUES.gracePeriodDays
+			gracePeriodDays: gp?.value
+				? parseInt(gp.value, 10) || DEFAULT_VALUES.gracePeriodDays
 				: DEFAULT_VALUES.gracePeriodDays,
-			commissionPct: commission
-				? parseFloat(commission) || DEFAULT_VALUES.commissionPct
+			commissionPct: cm?.value
+				? parseFloat(cm.value) || DEFAULT_VALUES.commissionPct
 				: DEFAULT_VALUES.commissionPct,
-			locale: (locale as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
+			locale: (lc?.value as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
 			packageApprovalRequired:
-				(((packageApprovalData as any)?.value as string | undefined) ?? "true") === "true",
+				(pa?.value ?? "true") === "true",
 		});
 	}, [isLoading, gracePeriodData, commissionData, localeData, packageApprovalData, form]);
 
@@ -163,8 +200,12 @@ function OrganizationSettingsPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to manage settings.
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex items-center justify-center">
+				<div className="flex flex-col items-center justify-center text-[#737373]">
+					<Lock className="h-8 w-8 mb-3 opacity-30" />
+					<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
+					<p className="text-xs mt-1">Select an organization to manage settings.</p>
+				</div>
 			</div>
 		);
 	}
@@ -172,49 +213,191 @@ function OrganizationSettingsPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="p-6 space-y-6">
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
 			{/* Page header */}
-			<div className="flex items-center gap-3">
-				<div className="p-2 rounded-lg bg-brand-primary-1/10">
-					<Settings className="size-6 text-brand-primary-1" />
-				</div>
+			<div className="mb-5 flex items-end justify-between">
 				<div>
-					<h1 className="text-2xl font-semibold font-heading text-brand-primary-1">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						ORG SETTINGS
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
 						Organization Settings
 					</h1>
-					<p className="text-brand-secondary-1 text-sm">
+					<p className="mt-1 text-sm text-[#737373]">
 						Configure organization-wide defaults and policies.
 					</p>
 				</div>
+				{!isAdmin && (
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
+						<span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+						Admin only
+					</span>
+				)}
 			</div>
 
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between">
-					<CardTitle className="text-base font-medium text-brand-primary-1">
-						General Settings
-					</CardTitle>
-					{!isAdmin && (
-						<Badge variant="outline" className="text-xs">
-							Admin only
-						</Badge>
-					)}
-				</CardHeader>
-				<CardContent>
-					{isLoading ? (
-						<div className="space-y-6">
+			<Form {...form}>
+				<form onSubmit={form.handleSubmit(handleSave as any)} className="max-w-[720px] space-y-5 pb-24">
+					{/* General Settings */}
+					<FormSection
+						title="General Settings"
+						helper="Organization-wide defaults applied to all members and operations."
+					>
+						{isLoading ? (
+							<div className="space-y-6">
+								<FieldSkeleton />
+								<FieldSkeleton />
+								<FieldSkeleton />
+							</div>
+						) : (
+							<>
+								{/* Grace Period Days */}
+								<FormField
+									control={form.control as any}
+									name="gracePeriodDays"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Grace Period (Days) <span className="text-rose-600">*</span>
+											</FormLabel>
+											<FormControl>
+												<Input
+													type="number"
+													min={1}
+													max={365}
+													disabled={!isAdmin}
+													{...field}
+													className="max-w-xs"
+												/>
+											</FormControl>
+											<FormDescription className="text-[#737373]">
+												Number of days after a payment due date before an account is
+												considered overdue. Range: 1–365 days.
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{/* Commission Percentage */}
+								<FormField
+									control={form.control as any}
+									name="commissionPct"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Default Commission (%)</FormLabel>
+											<FormControl>
+												<div className="relative max-w-xs">
+													<Input
+														type="number"
+														min={0}
+														max={100}
+														step={0.01}
+														disabled={!isAdmin}
+														{...field}
+														className="pr-8"
+													/>
+													<span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737373] text-sm pointer-events-none">
+														%
+													</span>
+												</div>
+											</FormControl>
+											<FormDescription className="text-[#737373]">
+												Default commission percentage applied to staff sales. Range:
+												0–100%.
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{/* Locale */}
+								<FormField
+									control={form.control as any}
+									name="locale"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Locale</FormLabel>
+											<Select
+												disabled={!isAdmin}
+												value={field.value}
+												onValueChange={field.onChange}
+											>
+												<FormControl>
+													<SelectTrigger className="max-w-xs">
+														<SelectValue placeholder="Select locale" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="en-MY">English (Malaysia)</SelectItem>
+													<SelectItem value="en-US">English (United States)</SelectItem>
+												</SelectContent>
+											</Select>
+											<FormDescription className="text-[#737373]">
+												Locale used for date, currency, and number formatting across the
+												organization.
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</>
+						)}
+					</FormSection>
+
+					{/* Approval Policy */}
+					<FormSection
+						title="Approval Policy"
+						helper="Control how package purchases are handled before sessions can be booked."
+					>
+						{isLoading ? (
 							<FieldSkeleton />
-							<FieldSkeleton />
-							<FieldSkeleton />
-						</div>
-					) : (
-						<OrganizationSettingsForm
-							form={form}
-							isAdmin={isAdmin}
-							onSubmit={handleSave}
-						/>
-					)}
-				</CardContent>
-			</Card>
+						) : (
+							<FormField
+								control={form.control as any}
+								name="packageApprovalRequired"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-center justify-between rounded-xl border border-[#e5e5e5] p-4">
+										<div className="space-y-0.5">
+											<FormLabel className="text-[#0a0a0a] text-sm font-semibold">
+												Require Package Approval
+											</FormLabel>
+											<FormDescription className="text-[#737373]">
+												When enabled, customer-purchased packages start as
+												"Pending" and require a trainer to be assigned before
+												sessions can be booked.
+											</FormDescription>
+										</div>
+										<FormControl>
+											<Switch
+												checked={field.value}
+												onCheckedChange={field.onChange}
+												disabled={!isAdmin}
+											/>
+										</FormControl>
+									</FormItem>
+								)}
+							/>
+						)}
+					</FormSection>
+				</form>
+			</Form>
+
+			{/* Sticky footer */}
+			<div className="fixed bottom-0 left-0 right-0 border-t border-[#e5e5e5] bg-white px-6 py-3 flex items-center justify-end gap-3 z-10">
+				{!isAdmin && (
+					<p className="text-sm text-[#737373]">
+						You need admin permissions to change these settings.
+					</p>
+				)}
+				<Button
+					type="submit"
+					disabled={!isAdmin || form.formState.isSubmitting}
+					onClick={form.handleSubmit(handleSave as any)}
+					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
+				>
+					{form.formState.isSubmitting ? "Saving…" : "Save Settings"}
+				</Button>
+			</div>
 		</div>
 	);
 }

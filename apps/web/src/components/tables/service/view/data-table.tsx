@@ -68,6 +68,7 @@ export default function DataTable<TData, TValue>({
 		globalFilterFn: "includesString",
 		enableSorting: true,
 		state: { globalFilter },
+		meta: { organizationId },
 	});
 
 	// Fetch real data for edit mode

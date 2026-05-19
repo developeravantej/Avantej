@@ -42,7 +42,7 @@ describe("getMembersNewToday", () => {
 
 		expect(result.count).toBe(5);
 		expect(result.recent).toHaveLength(3);
-		expect(result.recent[0].id).toBe("m-1");
+		expect(result.recent[0]!.id).toBe("m-1");
 	});
 
 	test("returns zero count and empty recent when no members joined today", async () => {

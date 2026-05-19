@@ -181,6 +181,11 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         c.set('organizationId', organizationId);
         c.set('tenantDb', tenantDb);
 
+        // Thread installmentLockOnOpen env flag — default true if unset
+        const lockOnOpenRaw = (c.env as Record<string, unknown>)?.INSTALLMENTS_LOCK_ON_OPEN;
+        const installmentLockOnOpen = lockOnOpenRaw !== "false";
+        c.set('installmentLockOnOpen', installmentLockOnOpen);
+
         // Only get member record if user exists (skip for public invitation endpoints without user)
         if (user) {
           // Get member record

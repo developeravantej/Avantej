@@ -124,8 +124,8 @@ describe("getTrainerWeeklySchedule", () => {
 
 		expect(result.memberId).toBe(USER_ID);
 		// slot (08:00) should be before appointment (09:00) after sort
-		expect(result.entries[0].type).toBe("class_slot");
-		expect(result.entries[1].type).toBe("appointment");
+		expect(result.entries[0]!.type).toBe("class_slot");
+		expect(result.entries[1]!.type).toBe("appointment");
 	});
 
 	test("returns empty entries when member not found", async () => {

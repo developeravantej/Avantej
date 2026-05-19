@@ -1,9 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, Clock, CreditCard, Lock, Search } from "lucide-react";
+import { BadgeCheck, Clock, CreditCard, Lock, MoreHorizontal, Search } from "lucide-react";
 import { useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
-import { MembershipTableRow } from "@/components/pages/packages/membership-table-row";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -21,6 +36,16 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CancelInstanceDialog } from "@/features/packages/components/cancel-instance-dialog";
+import { ExtendInstanceDialog } from "@/features/packages/components/extend-instance-dialog";
+import { FreezeInstanceDialog } from "@/features/packages/components/freeze-instance-dialog";
+import { useUnfreezePackageInstance } from "@/features/packages/api";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
@@ -49,6 +74,41 @@ type MembershipRow = {
 	daysUntilExpiry: number | null;
 	outstandingBalanceCents: number;
 };
+
+function formatDate(value: Date | string | null | undefined): string {
+	if (!value) return "—";
+	const d = value instanceof Date ? value : new Date(value as string);
+	if (Number.isNaN(d.getTime())) return "—";
+	return d.toISOString().slice(0, 10);
+}
+
+function expiryLabel(days: number | null): { text: string; className: string } {
+	if (days === null) return { text: "No expiry", className: "text-[#737373]" };
+	if (days <= 0) return { text: "Expired", className: "text-red-600 font-medium" };
+	if (days <= 7)
+		return {
+			text: `in ${days} day${days !== 1 ? "s" : ""}`,
+			className: "text-red-600 font-medium",
+		};
+	if (days <= 30)
+		return {
+			text: `in ${days} days`,
+			className: "text-amber-600 font-medium",
+		};
+	return {
+		text: `in ${days} days`,
+		className: "text-[#737373]",
+	};
+}
+
+function getInitials(name: string): string {
+	return name
+		.split(" ")
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((n) => n[0].toUpperCase())
+		.join("");
+}
 
 function membershipStatusVariant(
 	status: string,
@@ -93,11 +153,9 @@ const TABS: Array<{ value: MembershipFilter; label: string }> = [
 
 const PAGE_LIMIT = 100;
 
-const TH = "px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
-const TD = "px-5 py-4";
+const TH = "px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]";
+const TD = "px-4 py-3 text-sm text-[#0a0a0a]";
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function MembershipsPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -110,6 +168,18 @@ export function MembershipsPage() {
 	const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [search, setSearch] = useState("");
+
+	// Action dialog state
+	const [actionRow, setActionRow] = useState<MembershipRow | null>(null);
+	const [cancelOpen, setCancelOpen] = useState(false);
+	const [freezeOpen, setFreezeOpen] = useState(false);
+	const [extendOpen, setExtendOpen] = useState(false);
+	const [unfreezeOpen, setUnfreezeOpen] = useState(false);
+
+	const canManage = hasPermission("package_management:manage") ||
+		hasPermission("package_management:update");
+
+	const unfreezeMutation = useUnfreezePackageInstance(organizationId ?? "");
 
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
@@ -178,7 +248,7 @@ export function MembershipsPage() {
 	// Guard: no org selected
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-60 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-60 items-center justify-center text-[#737373]">
 				Select an organization to view memberships.
 			</div>
 		);
@@ -187,7 +257,7 @@ export function MembershipsPage() {
 	// Guard: no permission
 	if (!canRead) {
 		return (
-			<div className="flex min-h-60 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-60 items-center justify-center text-[#737373]">
 				<div className="space-y-2 text-center">
 					<p className="font-medium">Permission Denied</p>
 					<p className="text-sm">
@@ -207,7 +277,7 @@ export function MembershipsPage() {
 				error.message.toLowerCase().includes("permission"));
 		if (isForbidden) {
 			return (
-				<div className="flex min-h-60 items-center justify-center text-muted-foreground">
+				<div className="flex min-h-60 items-center justify-center text-[#737373]">
 					<div className="space-y-2 text-center">
 						<p className="font-medium">Permission Denied</p>
 						<p className="text-sm">
@@ -218,7 +288,7 @@ export function MembershipsPage() {
 			);
 		}
 		return (
-			<div className="flex min-h-60 items-center justify-center text-destructive">
+			<div className="flex min-h-60 items-center justify-center text-rose-600">
 				Failed to load memberships. Please try again.
 			</div>
 		);
@@ -227,16 +297,16 @@ export function MembershipsPage() {
 	return (
 		<>
 			{/* Header */}
-				<div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
+				<div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e5] px-5 py-4">
 					<div className="mr-auto">
-						<h1 className="text-base font-semibold tracking-tight">Memberships</h1>
-						<p className="text-xs text-muted-foreground">
-							{isLoading ? "Loading…" : `${total} membership${total !== 1 ? "s" : ""}`}
+						<h2 className="text-base font-bold text-[#0a0a0a] tracking-tight">Memberships</h2>
+						<p className="text-xs text-[#737373]">
+							{isLoading ? "—" : `${total} membership${total !== 1 ? "s" : ""}`}
 						</p>
 					</div>
 					{/* Search */}
 					<div className="relative w-60">
-						<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+						<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#737373]" />
 						<Input
 							placeholder="Search customer…"
 							value={search}
@@ -269,51 +339,51 @@ export function MembershipsPage() {
 				</div>
 
 				{/* Stat cards */}
-				<div className="grid grid-cols-2 gap-3 border-b px-5 py-4 lg:grid-cols-4">
-					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+				<div className="grid grid-cols-2 gap-3 border-b border-[#e5e5e5] px-5 py-4 lg:grid-cols-4">
+					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
 						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total</p>
-							<p className="mt-1 text-2xl font-bold tabular-nums">{total}</p>
+							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Total</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">{total}</p>
 						</div>
-						<div className="rounded-lg bg-muted p-2">
-							<BadgeCheck className="size-4 text-muted-foreground" />
+						<div className="rounded-lg bg-[#e5e5e5] p-2">
+							<BadgeCheck className="h-4 w-4 text-[#737373]" />
 						</div>
 					</div>
-					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
 						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expiring Soon</p>
-							<p className={`mt-1 text-2xl font-bold tabular-nums ${expiringSoonCount > 0 ? "text-red-600" : ""}`}>
+							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Expiring Soon</p>
+							<p className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${expiringSoonCount > 0 ? "text-red-600" : ""}`}>
 								{expiringSoonCount}
 							</p>
 						</div>
-						<div className="rounded-lg bg-muted p-2">
-							<Clock className="size-4 text-muted-foreground" />
+						<div className="rounded-lg bg-[#e5e5e5] p-2">
+							<Clock className="h-4 w-4 text-[#737373]" />
 						</div>
 					</div>
-					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
 						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Frozen</p>
-							<p className="mt-1 text-2xl font-bold tabular-nums">{frozenCount}</p>
+							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Frozen</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">{frozenCount}</p>
 						</div>
-						<div className="rounded-lg bg-muted p-2">
-							<Lock className="size-4 text-muted-foreground" />
+						<div className="rounded-lg bg-[#e5e5e5] p-2">
+							<Lock className="h-4 w-4 text-[#737373]" />
 						</div>
 					</div>
-					<div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 p-4">
+					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
 						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Outstanding</p>
-							<p className={`mt-1 text-2xl font-bold tabular-nums ${outstandingBalanceSum > 0 ? "text-red-600" : ""}`}>
+							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Outstanding</p>
+							<p className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${outstandingBalanceSum > 0 ? "text-red-600" : ""}`}>
 								{formatPrice(outstandingBalanceSum, "MYR")}
 							</p>
 						</div>
-						<div className="rounded-lg bg-muted p-2">
-							<CreditCard className="size-4 text-muted-foreground" />
+						<div className="rounded-lg bg-[#e5e5e5] p-2">
+							<CreditCard className="h-4 w-4 text-[#737373]" />
 						</div>
 					</div>
 				</div>
 
 				{/* Filter tabs */}
-				<div className="flex items-center gap-1.5 overflow-x-auto border-b px-5 py-3">
+				<div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#e5e5e5] px-5 py-3">
 					{TABS.map((tab) => (
 						<button
 							key={tab.value}
@@ -322,10 +392,10 @@ export function MembershipsPage() {
 								setFilter(tab.value);
 								setOffset(0);
 							}}
-							className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+							className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all ${
 								filter === tab.value
-									? "bg-foreground text-background shadow-sm"
-									: "text-muted-foreground hover:bg-muted hover:text-foreground"
+									? "bg-[#0a0a0a] text-white font-semibold"
+									: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3]"
 							}`}
 						>
 							{tab.label}
@@ -335,20 +405,21 @@ export function MembershipsPage() {
 
 				{/* Table */}
 				<Table>
-					<TableHeader>
-						<TableRow className="hover:bg-transparent">
+					<TableHeader className="bg-[#f3f3f3]">
+						<TableRow className="border-b border-[#e5e5e5] hover:bg-transparent">
 							<TableHead className={TH}>Customer</TableHead>
 							<TableHead className={TH}>Package</TableHead>
 							<TableHead className={TH}>Credits</TableHead>
 							<TableHead className={TH}>Expires</TableHead>
 							<TableHead className={TH}>Outstanding</TableHead>
 							<TableHead className={TH}>Status</TableHead>
+							{canManage && <TableHead className={TH} />}
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{isLoading ? (
 							Array.from({ length: 6 }).map((_, i) => (
-								<TableRow key={i} className="hover:bg-muted/20">
+								<TableRow key={i} className="hover:bg-[#fafafa]">
 									<TableCell className={TD}>
 										<div className="flex items-center gap-3.5">
 											<Skeleton className="size-9 shrink-0 rounded-full" />
@@ -363,35 +434,176 @@ export function MembershipsPage() {
 									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
 									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
 									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
+									{canManage && <TableCell className={TD} />}
 								</TableRow>
 							))
 						) : rows.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={6} className="h-60">
+								<TableCell colSpan={canManage ? 7 : 6} className="h-60">
 									<div className="flex flex-col items-center justify-center gap-3 text-center">
-										<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-											<BadgeCheck className="size-6 text-muted-foreground" />
+										<div className="flex size-14 items-center justify-center rounded-full bg-[#f3f3f3]">
+											<BadgeCheck className="h-6 w-6 text-[#737373]" />
 										</div>
 										<p className="text-sm font-medium">No memberships found</p>
-										<p className="text-xs text-muted-foreground">Try adjusting your filters.</p>
+										<p className="text-xs text-[#737373]">Try adjusting your filters.</p>
 									</div>
 								</TableCell>
 							</TableRow>
 						) : (
 							rows.map((row) => {
+								const name = row.clientName || "Unknown member";
+								const initials = getInitials(name);
+								const dateStr = formatDate(row.expiresAt);
+								const expiry = expiryLabel(row.daysUntilExpiry);
 								const variant = membershipStatusVariant(row.status, row.isLocked);
 								const label = membershipStatusLabel(row.status, row.isLocked);
+
 								return (
-									<MembershipTableRow
-										key={row.packageInstanceId}
-										row={row}
-										variant={variant}
-										label={label}
-										onCustomerClick={(mid) => {
-											setSelectedMemberId(mid);
-											setSheetOpen(true);
-										}}
-									/>
+									<TableRow key={row.packageInstanceId} className="hover:bg-[#fafafa]">
+										{/* Customer */}
+										<TableCell className={TD}>
+											<button
+												type="button"
+												className="flex items-center gap-3.5 text-left hover:underline focus:outline-none"
+												onClick={() => {
+													setSelectedMemberId(row.memberId || null);
+													setSheetOpen(true);
+												}}
+											>
+												<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1]/30 font-bold text-[#0a0a0a] text-xs">
+													{initials}
+												</span>
+												<span className="font-medium">{name}</span>
+											</button>
+										</TableCell>
+
+										{/* Package */}
+										<TableCell className={TD}>
+											<span className="font-medium">{row.serviceName}</span>
+										</TableCell>
+
+										{/* Credits */}
+										<TableCell className={TD}>
+											<div className="flex flex-col gap-1">
+												<span className="tabular-nums text-sm">
+													{row.creditsRemaining} / {row.creditsTotal}
+												</span>
+												<div className="h-1.5 w-20 overflow-hidden rounded-full bg-[#e5e5e5]">
+													<div
+														className="h-full rounded-full bg-[#0a0a0a] transition-all"
+														style={{
+															width: `${Math.round((row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100)}%`,
+														}}
+													/>
+												</div>
+											</div>
+										</TableCell>
+
+										{/* Expires */}
+										<TableCell className={TD}>
+											<div className="flex flex-col gap-0.5">
+												<span className="text-sm">{dateStr}</span>
+												<span className={`text-xs ${expiry.className}`}>{expiry.text}</span>
+											</div>
+										</TableCell>
+
+										{/* Outstanding */}
+										<TableCell className={TD}>
+											<span
+												className={`tabular-nums ${row.outstandingBalanceCents > 0 ? "font-medium text-red-600" : "text-[#737373]"}`}
+											>
+												{formatPrice(row.outstandingBalanceCents, "MYR")}
+											</span>
+										</TableCell>
+
+										{/* Status */}
+										<TableCell className={TD}>
+											{row.isLocked && row.lockedReason ? (
+												<TooltipProvider>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<span>
+																<Badge variant={variant}>{label}</Badge>
+															</span>
+														</TooltipTrigger>
+														<TooltipContent>
+															<p>{row.lockedReason}</p>
+														</TooltipContent>
+													</Tooltip>
+												</TooltipProvider>
+											) : (
+												<Badge variant={variant}>{label}</Badge>
+											)}
+										</TableCell>
+
+										{/* Actions */}
+										{canManage && (() => {
+											const isActionable =
+												row.status === "active" ||
+												row.status === "frozen" ||
+												row.isLocked;
+											if (!isActionable) {
+												return <TableCell className={TD} />;
+											}
+											const isEffectivelyFrozen = row.isLocked || row.status === "frozen";
+											return (
+												<TableCell className={TD} onClick={(e) => e.stopPropagation()}>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-7 w-7"
+																aria-label="Actions"
+															>
+																<MoreHorizontal className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															{!isEffectivelyFrozen && (
+																<DropdownMenuItem
+																	onClick={() => {
+																		setActionRow(row);
+																		setFreezeOpen(true);
+																	}}
+																>
+																	Freeze
+																</DropdownMenuItem>
+															)}
+															{isEffectivelyFrozen && (
+																<DropdownMenuItem
+																	onClick={() => {
+																		setActionRow(row);
+																		setUnfreezeOpen(true);
+																	}}
+																>
+																	Unfreeze
+																</DropdownMenuItem>
+															)}
+															<DropdownMenuItem
+																onClick={() => {
+																	setActionRow(row);
+																	setExtendOpen(true);
+																}}
+															>
+																Extend
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																className="text-rose-600 focus:text-rose-600"
+																onClick={() => {
+																	setActionRow(row);
+																	setCancelOpen(true);
+																}}
+															>
+																Cancel Package
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</TableCell>
+											);
+										})()}
+									</TableRow>
 								);
 							})
 						)}
@@ -400,7 +612,7 @@ export function MembershipsPage() {
 
 				{/* Pagination */}
 				{total > PAGE_LIMIT && (
-					<div className="flex items-center justify-between border-t px-5 py-4 text-sm text-muted-foreground">
+					<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5 text-[13px]">
 						<span>
 							Showing {offset + 1}–{Math.min(offset + PAGE_LIMIT, total)} of {total}
 						</span>
@@ -416,7 +628,7 @@ export function MembershipsPage() {
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setOffset((prev) => prev + PAGE_LIMIT)}
+								onClick={() => setOffset(offset + PAGE_LIMIT)}
 								disabled={offset + PAGE_LIMIT >= total}
 							>
 								Next
@@ -435,6 +647,80 @@ export function MembershipsPage() {
 						if (!open) setSelectedMemberId(null);
 					}}
 				/>
+			)}
+
+			{/* ── Package lifecycle dialogs ── */}
+			{organizationId && actionRow && (
+				<>
+					<CancelInstanceDialog
+						open={cancelOpen}
+						onOpenChange={(v) => {
+							setCancelOpen(v);
+							if (!v) setActionRow(null);
+						}}
+						instanceId={actionRow.packageInstanceId}
+						organizationId={organizationId}
+						instanceLabel={actionRow.serviceName}
+					/>
+					<FreezeInstanceDialog
+						open={freezeOpen}
+						onOpenChange={(v) => {
+							setFreezeOpen(v);
+							if (!v) setActionRow(null);
+						}}
+						instanceId={actionRow.packageInstanceId}
+						organizationId={organizationId}
+						instanceLabel={actionRow.serviceName}
+					/>
+					<ExtendInstanceDialog
+						open={extendOpen}
+						onOpenChange={(v) => {
+							setExtendOpen(v);
+							if (!v) setActionRow(null);
+						}}
+						instanceId={actionRow.packageInstanceId}
+						organizationId={organizationId}
+						instanceLabel={actionRow.serviceName}
+						currentExpiresAt={actionRow.expiresAt ? String(actionRow.expiresAt) : null}
+					/>
+					<Dialog
+						open={unfreezeOpen}
+						onOpenChange={(v) => {
+							setUnfreezeOpen(v);
+							if (!v) setActionRow(null);
+						}}
+					>
+						<DialogContent className="sm:max-w-sm">
+							<DialogHeader>
+								<DialogTitle>Unfreeze Package?</DialogTitle>
+								<DialogDescription>
+									"{actionRow.serviceName}" will be reactivated and the customer can
+									book sessions again.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => { setUnfreezeOpen(false); setActionRow(null); }}
+									disabled={unfreezeMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									onClick={() => {
+										unfreezeMutation.mutate(
+											{ organizationId, id: actionRow.packageInstanceId },
+											{ onSuccess: () => { setUnfreezeOpen(false); setActionRow(null); } },
+										);
+									}}
+									disabled={unfreezeMutation.isPending}
+								>
+									{unfreezeMutation.isPending ? "Unfreezing…" : "Unfreeze"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</>
 			)}
 		</>
 	);

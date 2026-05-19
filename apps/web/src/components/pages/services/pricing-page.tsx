@@ -12,14 +12,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -40,7 +32,6 @@ function formatDateOrOpen(date: Date | null | undefined): string {
 	});
 }
 
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function ServicePricingPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -67,7 +58,7 @@ export function ServicePricingPage() {
 	});
 
 	const branchMap = new Map(
-		(hierarchyData?.nodes ?? []).map((n: { id: string; name: string }) => [n.id, n.name]),
+		((hierarchyData as any)?.nodes ?? []).map((n: any) => [n.id, n.name]),
 	);
 
 	const { data: overrides = [], isLoading: overridesLoading } = useQuery({
@@ -131,7 +122,7 @@ export function ServicePricingPage() {
 	}
 
 	return (
-		<div className="flex h-full flex-col gap-4 overflow-auto p-6">
+		<div className="flex h-full flex-col gap-4 overflow-auto">
 			{/* Filter bar */}
 			<div className="flex flex-wrap items-center gap-3">
 				<div className="w-72">
@@ -143,7 +134,7 @@ export function ServicePricingPage() {
 							<SelectValue placeholder="Select a service to view overrides..." />
 						</SelectTrigger>
 						<SelectContent>
-							{services.map((s: any) => (
+							{services.map((s) => (
 								<SelectItem key={s.id} value={s.id}>
 									{s.name}
 								</SelectItem>
@@ -151,82 +142,91 @@ export function ServicePricingPage() {
 						</SelectContent>
 					</Select>
 				</div>
-				<Button
-					size="sm"
+				<button
+					type="button"
 					onClick={() => setAddDialogOpen(true)}
 					disabled={!selectedServiceId}
+					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-40 disabled:cursor-not-allowed"
 				>
-					<Plus className="mr-1 size-4" />
+					<Plus className="h-4 w-4" />
 					Add Override
-				</Button>
+				</button>
 			</div>
 
 			{/* Table */}
 			{!selectedServiceId ? (
-				<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed text-muted-foreground text-sm">
+				<div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[#e5e5e5] text-[#737373] text-[13px]">
 					Select a service above to view its price overrides.
 				</div>
 			) : overridesLoading ? (
-				<div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-					Loading…
+				<div className="flex flex-1 items-center justify-center text-[#737373] text-[13px]">
+					Loading...
 				</div>
 			) : overrides.length === 0 ? (
-				<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed text-muted-foreground text-sm">
+				<div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[#e5e5e5] text-[#737373] text-[13px]">
 					No price overrides configured for this service.
 				</div>
 			) : (
-				<div className="rounded-lg border">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Branch</TableHead>
-								<TableHead>Customer Type</TableHead>
-								<TableHead>Price</TableHead>
-								<TableHead>Effective From</TableHead>
-								<TableHead>Effective Until</TableHead>
-								<TableHead />
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{overrides.map((row: any) => (
-								<TableRow key={row.id}>
-									<TableCell>
+				<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+					<table className="w-full">
+						<thead>
+							<tr className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
+								{["Branch", "Customer Type", "Price", "Effective From", "Effective Until", ""].map((h, i) => (
+									<th
+										key={i}
+										className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap"
+									>
+										{h}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{overrides.map((row) => (
+								<tr key={row.id} className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60">
+									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{row.branchId
-											? String(branchMap.get(row.branchId) ?? row.branchId)
+											? ((branchMap.get(row.branchId) as string | undefined) ?? row.branchId)
 											: "Org-wide / All branches"}
-									</TableCell>
-									<TableCell>
+									</td>
+									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{row.customerType === "member"
 											? "Member"
 											: row.customerType === "walk_in"
 												? "Walk-in"
 												: "All"}
-									</TableCell>
-									<TableCell>{formatPrice(row.priceCents)}</TableCell>
-									<TableCell>{formatDateOrOpen(row.effectiveFrom)}</TableCell>
-									<TableCell>{formatDateOrOpen(row.effectiveUntil)}</TableCell>
-									<TableCell>
+									</td>
+									<td className="py-3 px-3 text-[13px] font-mono tabular-nums text-[#0a0a0a] whitespace-nowrap">
+										{formatPrice(row.priceCents)}
+									</td>
+									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
+										{formatDateOrOpen(row.effectiveFrom)}
+									</td>
+									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
+										{formatDateOrOpen(row.effectiveUntil)}
+									</td>
+									<td className="py-3 px-3 whitespace-nowrap">
 										<div className="flex items-center gap-2">
-											<Button
-												size="sm"
-												variant="outline"
+											<button
+												type="button"
 												onClick={() => setExpireConfirmId(row.id)}
+												className="rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#262626] hover:bg-[#f3f3f3] transition"
 											>
 												Expire
-											</Button>
-											<Button
-												size="sm"
-												variant="destructive"
+											</button>
+											<button
+												type="button"
 												onClick={() => setDeleteConfirmId(row.id)}
+												className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 transition"
 											>
 												Delete
-											</Button>
+											</button>
 										</div>
-									</TableCell>
-								</TableRow>
+									</td>
+								</tr>
 							))}
-						</TableBody>
-					</Table>
+						</tbody>
+					</table>
 				</div>
 			)}
 

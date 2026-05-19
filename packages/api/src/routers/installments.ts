@@ -16,6 +16,9 @@ import {
 	requirePermission,
 	getSuggestedRefund,
 	setPackageOverdraft,
+	rescheduleInstallment,
+	waiveInstallment,
+	resetCreditsOverride,
 } from "@avantej-core/services";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { ORPCError } from "@orpc/server";
@@ -29,7 +32,7 @@ const confirmPayment = protectedProcedure
 		z.object({
 			organizationId: z.string().uuid(),
 			installmentId: z.string().uuid(),
-			paymentMethod: z.enum(["manual_transfer", "cash"]),
+			paymentMethod: z.enum(["manual_transfer", "cash", "card", "fpx", "stripe"]),
 			notes: z.string().optional(),
 			nextIntervalDays: z.number().int().min(1).optional(),
 		})
@@ -112,10 +115,12 @@ const listByPackageInstance = protectedProcedure
 			}
 		}
 
-		await evaluateAndLockIfOverdue(
-			context.tenantDb,
-			input.packageInstanceId,
-		);
+		if (context.installmentLockOnOpen !== false) {
+			await evaluateAndLockIfOverdue(
+				context.tenantDb,
+				input.packageInstanceId,
+			);
+		}
 
 		return getInstallmentsByPackageInstance(context.tenantDb, input.packageInstanceId);
 	});
@@ -196,7 +201,7 @@ const processRefundProcedure = protectedProcedure
 			role: context.member.role,
 		};
 
-		await processRefund(
+		const result = await processRefund(
 			context.tenantDb,
 			input.packageInstanceId,
 			input.amount,
@@ -205,7 +210,7 @@ const processRefundProcedure = protectedProcedure
 			actor,
 		);
 
-		return { success: true };
+		return { success: true, cancelledInstallmentIds: result.cancelledInstallmentIds };
 	});
 
 const adminOverview = protectedProcedure
@@ -419,12 +424,72 @@ const setOverdraft = protectedProcedure
 		);
 	});
 
+const reschedule = protectedProcedure
+	.input(z.object({
+		organizationId: z.string().uuid(),
+		installmentId: z.string().uuid(),
+		newDueDate: z.string().datetime(),
+		reason: z.string().min(1),
+	}))
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
+		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
+		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
+			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+		});
+		try {
+			return rescheduleInstallment(context.tenantDb, input.installmentId, new Date(input.newDueDate), context.member.userId, input.reason);
+		} catch (err: any) {
+			if (err?.code === "CONFLICT") throw new ORPCError("CONFLICT", { message: err.message });
+			if (err?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: err.message });
+			throw err;
+		}
+	});
+
+const waive = protectedProcedure
+	.input(z.object({
+		organizationId: z.string().uuid(),
+		installmentId: z.string().uuid(),
+		reason: z.string().min(1),
+	}))
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
+		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
+		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
+			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+		});
+		try {
+			return waiveInstallment(context.tenantDb, input.installmentId, context.member.userId, input.reason);
+		} catch (err: any) {
+			if (err?.code === "CONFLICT") throw new ORPCError("CONFLICT", { message: err.message });
+			throw err;
+		}
+	});
+
+const resetOverride = protectedProcedure
+	.input(z.object({
+		organizationId: z.string().uuid(),
+		packageInstanceId: z.string().uuid(),
+		reason: z.string().min(1),
+	}))
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
+		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
+		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
+			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+		});
+		return resetCreditsOverride(context.tenantDb, input.packageInstanceId, context.member.userId, input.reason);
+	});
+
 export const installmentsRouter = {
 	adjustCredits: adjustCreditsProcedure,
 	confirmPayment,
 	listByPackageInstance,
 	manualUnlock,
 	processRefund: processRefundProcedure,
+	reschedule,
+	waive,
+	resetOverride,
 	adminOverview,
 	getEvents,
 	suggestRefund,

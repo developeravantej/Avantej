@@ -32,9 +32,14 @@ export interface PurchaseFlowState {
 	// Step 3 - Info
 	remark: string | null;
 	// Step 4 - Plan
-	paymentPlanType: "full" | "half" | "quarterly" | null;
+	paymentPlanType: string | null;
 	availablePaymentPlans: string[];
 	installmentIntervalDays: number;
+	// Dynamic installment plan selection
+	selectedInstallmentPlanId: string | null;
+	selectedInstallmentPlanNumInstallments: number;
+	selectedInstallmentPlanPricePremiumBps: number;
+	selectedInstallmentPlanLabel: string | null;
 	// Step 5 - Sign
 	signature: string | null;
 	termsAgreed: boolean;
@@ -68,6 +73,10 @@ const initialState: PurchaseFlowState = {
 	paymentPlanType: null,
 	availablePaymentPlans: [],
 	installmentIntervalDays: 30,
+	selectedInstallmentPlanId: null,
+	selectedInstallmentPlanNumInstallments: 1,
+	selectedInstallmentPlanPricePremiumBps: 0,
+	selectedInstallmentPlanLabel: null,
 	signature: null,
 	termsAgreed: false,
 	termsAgreedAt: null,

@@ -1,10 +1,13 @@
 # Notifications
 
 **Route:** `/dashboard/notifications/view`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/notifications/view.tsx:1`
+**Files:**
+- `apps/web/src/routes/_authenticated/dashboard/_layout/notifications/view.tsx` — empty route shell (registers route only)
+- `apps/web/src/routes/_authenticated/dashboard/_layout/notifications/view.lazy.tsx` — `createLazyFileRoute`, all UI + mutations live here
+
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-16
+**Last updated:** 2026-05-12
 
 ---
 
@@ -13,7 +16,7 @@
 **Purpose (user perspective):** Shows the user's full notification history with the ability to mark individual notifications as read or mark all as read at once.
 **Produces:** A filterable table of notifications (All / Unread / Read tabs) with title, message (truncated at 80 chars), type badge, relative timestamp, read/unread status, and a "Mark Read" action per unread row.
 **On success:** Notifications update immediately after marking; "All marked as read" toast on bulk action.
-**On failure / error states:** Full-page spinner while loading; "Select an organization" guard; empty state with bell icon when no notifications match the current filter.
+**On failure / error states:** `PageLoader` while loading; "Select an organization" guard; `EmptyState` (Bell icon) with copy that varies by filter ("You're all caught up!" for Unread filter, "No notifications" otherwise) when no rows match.
 
 ---
 
@@ -98,3 +101,6 @@ interface NotificationRow {
 - Message text is truncated to 80 characters in the column cell renderer.
 - Relative timestamps use a local `timeAgo` helper in the columns file (minutes / hours / days ago).
 - The `isRead` badge shows only for unread rows; read rows show nothing in that column.
+- **Lazy-route split (Phase 5 of web-debt-cleanup):** `view.tsx` is now a minimal `createFileRoute` stub; all component code lives in `view.lazy.tsx` via `createLazyFileRoute`. This keeps the route out of the initial dashboard bundle.
+- `createdAt` is normalised to an ISO string (`new Date(item.createdAt).toISOString()`) before being passed to the column renderer; the `timeAgo` helper expects this string format.
+

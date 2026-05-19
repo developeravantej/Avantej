@@ -21,7 +21,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { inArray, eq, and } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 import {
 	loadDevVars,
 	shouldSkipIntegration,

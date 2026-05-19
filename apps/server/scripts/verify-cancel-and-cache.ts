@@ -4,7 +4,7 @@ import { readFileSync } from "fs";
 import { decrypt } from "@avantej-core/db/lib/encryption";
 neonConfig.webSocketConstructor = ws;
 const env = Object.fromEntries(readFileSync(".dev.vars","utf8").split(/\r?\n/).filter(l=>l && !l.startsWith("#")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i), l.slice(i+1).replace(/^"|"$/g,"")];}));
-process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY;
+process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY!;
 const cp = new Pool({ connectionString: env.DATABASE_URL });
 const conn = decrypt((await cp.query("SELECT connection_string FROM organizations WHERE slug='test-fitness-franchise'")).rows[0].connection_string);
 const t = new Pool({ connectionString: conn });

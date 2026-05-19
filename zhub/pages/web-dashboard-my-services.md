@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/my-services/view.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
@@ -128,4 +128,5 @@ type ServiceBufferAssignment = {
 - **Empty default**: Leaving input blank is treated as `null` override (use category default)
 - **Naming**: "My Override" column indicates personal customization per service
 - **Category display**: Shows category name as subtext under service name in table
+- **Note (2026-05-12 cleanup):** The web-debt cleanup refactor (commit `25f6d75b`) did NOT touch this page directly. It refactored the sibling **services catalog** page (`/dashboard/service/view` — see `zhub/pages/web-service-view.md` and `zhub/pages/web-dashboard-service.md`): `service-form.tsx` was reorganised, the `time-preset` configuration block extracted to `apps/web/src/features/services/components/TimePresetEditor.tsx`, and `components/tables/service/view/data-table.tsx` saw minor cleanup. None of those files are imported here.
 

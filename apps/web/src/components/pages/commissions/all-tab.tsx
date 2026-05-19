@@ -1,12 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { PageLoader } from "@/components/ui/loading-spinner";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
-import { CopyableCell } from "@/components/tables/copyable-cell";
-import DataTable from "@/components/tables/sales/view/data-table";
 import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +13,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -27,9 +21,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { PageLoader } from "@/components/ui/loading-spinner";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,6 +55,7 @@ type CommissionLedgerRow = {
 	paidBy: string | null;
 	paidAt: string | Date | null;
 	payoutId: string | null;
+	earnReason?: string | null;
 };
 
 type LedgerTotals = {
@@ -65,16 +63,6 @@ type LedgerTotals = {
 	approved: number;
 	paid: number;
 };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUS_TABS: { value: ActiveTab; label: string }[] = [
-	{ value: "all", label: "All" },
-	{ value: "pending", label: "Pending" },
-	{ value: "approved", label: "Approved" },
-	{ value: "paid", label: "Paid" },
-	{ value: "void", label: "Void" },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,20 +75,47 @@ function formatDate(value: string | Date | null | undefined): string {
 	}
 }
 
+function initials(name: string | null | undefined): string {
+	if (!name) return "?";
+	return name
+		.split(" ")
+		.slice(0, 2)
+		.map((w) => w[0]?.toUpperCase() ?? "")
+		.join("");
+}
+
+function statusBadgeClass(status: string): string {
+	switch (status) {
+		case "approved":
+			return "bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0]";
+		case "paid":
+			return "bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]";
+		case "void":
+			return "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]";
+		default:
+			return "bg-white text-[#4a4f51] border border-[#e5e5e5]";
+	}
+}
+
+function StatusPill({ status }: { status: string }) {
+	return (
+		<span
+			className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-medium leading-[1.4] ${statusBadgeClass(status)}`}
+		>
+			{status}
+		</span>
+	);
+}
 
 // ─── SourceCell ───────────────────────────────────────────────────────────────
 
 function SourceCell({ row }: { row: CommissionLedgerRow }) {
-	// Appointment source — no detail route exists, render as plain text
 	if (row.appointmentId) {
 		const label = row.appointmentNumber
-			? `Appointment ${row.appointmentNumber.slice(0, 8)}…`
-			: `Appointment ${row.appointmentId.slice(0, 8)}…`;
-		return (
-			<span className="font-mono text-muted-foreground text-sm">{label}</span>
-		);
+			? `Appt ${row.appointmentNumber.slice(0, 8)}…`
+			: `Appt ${row.appointmentId.slice(0, 8)}…`;
+		return <span className="font-mono text-[#6b7170] text-xs">{label}</span>;
 	}
-	// Sales order source — detail route exists at /dashboard/sales/$id
 	if (row.salesOrderId) {
 		const label = row.salesOrderNumber
 			? `Sale ${row.salesOrderNumber}`
@@ -109,41 +124,13 @@ function SourceCell({ row }: { row: CommissionLedgerRow }) {
 			<Link
 				to="/dashboard/sales/$id"
 				params={{ id: row.salesOrderId }}
-				className="font-mono text-primary text-sm hover:underline"
+				className="font-mono text-xs text-[#1d4ed8] hover:underline"
 			>
 				{label}
 			</Link>
 		);
 	}
-	return <span className="text-muted-foreground">-</span>;
-}
-
-// ─── KPI Cards ────────────────────────────────────────────────────────────────
-
-function KpiCard({
-	label,
-	amountCents,
-	count,
-	colorClass,
-}: {
-	label: string;
-	amountCents: number;
-	count: number;
-	colorClass: string;
-}) {
-	return (
-		<div className="rounded-lg border bg-card p-4 shadow-sm">
-			<p className="text-muted-foreground text-xs uppercase tracking-wide">
-				{label}
-			</p>
-			<p className={`mt-1 font-bold text-2xl tabular-nums ${colorClass}`}>
-				{formatPrice(amountCents, "MYR")}
-			</p>
-			<p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-				{count} {count === 1 ? "split" : "splits"}
-			</p>
-		</div>
-	);
+	return <span className="text-[#6b7170]">—</span>;
 }
 
 // ─── VoidRowDialog ────────────────────────────────────────────────────────────
@@ -177,7 +164,7 @@ function VoidRowDialog({
 				<DialogHeader>
 					<DialogTitle>Void Commission Split</DialogTitle>
 					<DialogDescription>
-						Provide a required reason. This is recorded in the audit trail.
+						Provide a required reason — this is recorded in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3 py-2">
@@ -213,10 +200,18 @@ function VoidRowDialog({
 	);
 }
 
+// ─── Staff entry in sidebar ───────────────────────────────────────────────────
+
+type StaffSummary = {
+	staffId: string;
+	staffName: string | null;
+	pendingTotal: number;
+	pendingCount: number;
+	dominantStatus: string;
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function AllCommissionsPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -227,7 +222,7 @@ export function AllCommissionsPage() {
 	const canApprove = hasPermission("commission_management:approve");
 	const canProcess = hasPermission("commission_management:process");
 
-	// ── Branch options ─────────────────────────────────────────────────────────
+	// Branch options
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
@@ -244,24 +239,18 @@ export function AllCommissionsPage() {
 
 	// ── Filters ────────────────────────────────────────────────────────────────
 	const [activeTab, setActiveTab] = useState<ActiveTab>("all");
-	const [staffId, setStaffId] = useState("");
+	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 	const [branchId, setBranchId] = useState("");
-	const [fromInput, setFromInput] = useState("");
-	const [toInput, setToInput] = useState("");
-	const [fromApplied, setFromApplied] = useState("");
-	const [toApplied, setToApplied] = useState("");
+	const [staffSearch, setStaffSearch] = useState("");
 
-	// ── Row selection (managed manually — DataTable has no built-in selection) ──
+	// ── Row selection ──────────────────────────────────────────────────────────
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 	function toggleRow(id: string) {
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
-			if (next.has(id)) {
-				next.delete(id);
-			} else {
-				next.add(id);
-			}
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
 			return next;
 		});
 	}
@@ -272,37 +261,25 @@ export function AllCommissionsPage() {
 		return false;
 	}
 
-	// ── Staff list for combobox ────────────────────────────────────────────────
-	const { data: membersData } = useQuery({
-		queryKey: ["members-list", organizationId],
-		queryFn: () =>
-			client.members.list({
-				organizationId: organizationId ?? "",
-				status: "active",
-			}),
-		enabled: !!organizationId && canRead,
-	});
-	// Exclude clients from the staff filter — only admins, trainers, and staff earn commissions
-	const staffMembers = (membersData ?? []).filter(
-		(m: { role: string; id: string; userId: string; name?: string; email?: string }) => m.role !== "client",
-	);
+	function resetSelection() {
+		setSelectedIds(new Set());
+	}
 
-	// ── Per-row void state ─────────────────────────────────────────────────────
-	const voidRowIdRef = useRef<string | null>(null);
+	// ── Per-row void ───────────────────────────────────────────────────────────
+	const [voidRowId, setVoidRowId] = useState<string | null>(null);
 	const [voidDialogOpen, setVoidDialogOpen] = useState(false);
 	const [voidingId, setVoidingId] = useState<string | null>(null);
 
 	function handleVoidRow(id: string) {
-		voidRowIdRef.current = id;
+		setVoidRowId(id);
 		setVoidDialogOpen(true);
 	}
 
 	async function confirmVoidRow(reason: string) {
-		const voidRowId = voidRowIdRef.current;
 		if (!voidRowId || !organizationId) return;
 		setVoidingId(voidRowId);
 		try {
-			await client.commissionSplits.void({
+			await client.commissionSplits.voidById({
 				organizationId,
 				id: voidRowId,
 				reason,
@@ -310,7 +287,7 @@ export function AllCommissionsPage() {
 			toast.success("Commission split voided.");
 			queryClient.invalidateQueries({ queryKey: ["commissions"] });
 			setVoidDialogOpen(false);
-			voidRowIdRef.current = null;
+			setVoidRowId(null);
 		} catch (err) {
 			toast.error(
 				err instanceof Error ? err.message : "Failed to void commission split.",
@@ -326,21 +303,18 @@ export function AllCommissionsPage() {
 			"commissions",
 			organizationId,
 			activeTab,
-			staffId,
+			selectedStaffId,
 			branchId,
-			fromApplied,
-			toApplied,
 		],
 		queryFn: async () => {
-			if (!organizationId) return { rows: [], total: 0, totals: { pending: 0, approved: 0, paid: 0 } };
+			if (!organizationId)
+				return { rows: [], total: 0, totals: { pending: 0, approved: 0, paid: 0 } };
 			return client.commissionSplits.listLedger({
 				organizationId,
 				status: activeTab === "all" ? "all" : activeTab,
-				staffId: staffId || undefined,
+				staffId: selectedStaffId || undefined,
 				branchId: branchId || undefined,
-				from: fromApplied || undefined,
-				to: toApplied || undefined,
-				limit: 100,
+				limit: 200,
 				offset: 0,
 			});
 		},
@@ -354,26 +328,59 @@ export function AllCommissionsPage() {
 		paid: 0,
 	};
 
-	// Compute counts from loaded rows (client-side — no extra queries)
-	const pendingCount = rows.filter((r) => r.status === "pending").length;
-	const approvedCount = rows.filter((r) => r.status === "approved").length;
-	const paidCount = rows.filter((r) => r.status === "paid").length;
-
-	// Reset selection when tab or filters change
-	function resetSelection() {
-		setSelectedIds(new Set());
+	// ── Derive staff list from rows ────────────────────────────────────────────
+	const staffMap = new Map<string, StaffSummary>();
+	for (const row of rows) {
+		const existing = staffMap.get(row.staffId);
+		const isPending = row.status === "pending";
+		if (!existing) {
+			staffMap.set(row.staffId, {
+				staffId: row.staffId,
+				staffName: row.staffName,
+				pendingTotal: isPending ? row.calculatedAmount : 0,
+				pendingCount: isPending ? 1 : 0,
+				dominantStatus: row.status,
+			});
+		} else {
+			if (isPending) {
+				existing.pendingTotal += row.calculatedAmount;
+				existing.pendingCount += 1;
+			}
+		}
 	}
+	const staffList = Array.from(staffMap.values()).sort(
+		(a, b) => b.pendingTotal - a.pendingTotal,
+	);
 
-	function handleTabChange(tab: ActiveTab) {
-		setActiveTab(tab);
-		resetSelection();
-	}
+	// Filtered staff by search
+	const filteredStaff = staffList.filter((s) =>
+		!staffSearch
+			? true
+			: (s.staffName ?? "").toLowerCase().includes(staffSearch.toLowerCase()),
+	);
 
-	// ── Columns ────────────────────────────────────────────────────────────────
-	const showSelectionColumn =
-		activeTab === "pending" || activeTab === "approved";
+	// Detail rows = rows for selected staff (or all if none selected)
+	const detailRows = selectedStaffId
+		? rows.filter((r) => r.staffId === selectedStaffId)
+		: rows;
 
-	const selectableRows = rows.filter(isRowSelectable);
+	const selectedStaff = selectedStaffId
+		? staffMap.get(selectedStaffId)
+		: null;
+
+	const detailPendingRows = detailRows.filter((r) => r.status === "pending");
+	const detailPendingTotal = detailPendingRows.reduce(
+		(s, r) => s + r.calculatedAmount,
+		0,
+	);
+	const detailGrossSales = detailRows.reduce(
+		(s, r) => s + r.calculatedAmount / (r.splitPercentage / 100 || 1),
+		0,
+	);
+
+	// Row selection for detail
+	const showSelectionColumn = activeTab === "pending" || activeTab === "approved";
+	const selectableRows = detailRows.filter(isRowSelectable);
 	const allSelectableSelected =
 		selectableRows.length > 0 &&
 		selectableRows.every((r) => selectedIds.has(r.id));
@@ -386,141 +393,14 @@ export function AllCommissionsPage() {
 		}
 	}
 
-	const columns: ColumnDef<CommissionLedgerRow>[] = [
-		...(showSelectionColumn
-			? [
-					{
-						id: "select",
-						header: () => (
-							<input
-								type="checkbox"
-								className="cursor-pointer rounded"
-								checked={allSelectableSelected}
-								onChange={toggleAllSelectable}
-								aria-label="Select all"
-							/>
-						),
-						cell: ({ row }: { row: { original: CommissionLedgerRow } }) => {
-							const r = row.original;
-							const selectable = isRowSelectable(r);
-							return (
-								<input
-									type="checkbox"
-									className="cursor-pointer rounded disabled:cursor-not-allowed disabled:opacity-30"
-									checked={selectedIds.has(r.id)}
-									disabled={!selectable}
-									onChange={() => {
-										if (selectable) toggleRow(r.id);
-									}}
-									onClick={(e) => e.stopPropagation()}
-									aria-label={`Select commission ${r.id}`}
-								/>
-							);
-						},
-					} satisfies ColumnDef<CommissionLedgerRow>,
-				]
-			: []),
-		{
-			id: "createdAt",
-			header: "Date",
-			cell: ({ row }) => (
-				<span className="whitespace-nowrap text-sm">
-					{formatDate(row.original.createdAt)}
-				</span>
-			),
-		},
-		{
-			id: "staff",
-			header: "Staff",
-			cell: ({ row }) => (
-				<div className="flex flex-col gap-0.5">
-					<span className="font-medium text-sm">{row.original.staffName}</span>
-					<CopyableCell
-						value={row.original.staffId}
-						displayText={`${row.original.staffId.slice(0, 8)}…`}
-					/>
-				</div>
-			),
-		},
-		{
-			id: "source",
-			header: "Source",
-			cell: ({ row }) => <SourceCell row={row.original} />,
-		},
-		{
-			id: "service",
-			header: "Service",
-			cell: ({ row }) => (
-				<span className="text-sm">
-					{row.original.serviceName ?? (
-						<span className="text-muted-foreground">-</span>
-					)}
-				</span>
-			),
-		},
-		{
-			id: "branch",
-			header: "Branch",
-			cell: ({ row }) => (
-				<span className="text-muted-foreground text-sm">
-					{row.original.branchName ?? "—"}
-				</span>
-			),
-		},
-		{
-			id: "splitPercentage",
-			header: "Split %",
-			cell: ({ row }) => (
-				<span className="tabular-nums text-sm">
-					{row.original.splitPercentage}%
-				</span>
-			),
-		},
-		{
-			id: "calculatedAmount",
-			header: "Amount",
-			cell: ({ row }) => (
-				<span className="font-medium tabular-nums text-sm">
-					{formatPrice(row.original.calculatedAmount, "MYR")}
-				</span>
-			),
-		},
-		{
-			id: "status",
-			header: "Status",
-			cell: ({ row }) => (
-				<StatusBadge status={row.original.status as CanonicalStatus} />
-			),
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => {
-				const r = row.original;
-				const isVoid = r.status === "void";
-				if (isVoid || !canApprove) return null;
-				return (
-					<Button
-						size="sm"
-						variant="outline"
-						className="border-destructive/40 text-destructive hover:bg-destructive/5"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleVoidRow(r.id);
-						}}
-						disabled={voidingId === r.id}
-					>
-						Void
-					</Button>
-				);
-			},
-		},
-	];
+	const selectedTotalCents = detailRows
+		.filter((r) => selectedIds.has(r.id))
+		.reduce((s, r) => s + r.calculatedAmount, 0);
 
 	// ── Guards ─────────────────────────────────────────────────────────────────
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#6b7170]">
 				Select an organization to view commissions.
 			</div>
 		);
@@ -528,7 +408,7 @@ export function AllCommissionsPage() {
 
 	if (!canRead) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#6b7170]">
 				<div className="space-y-2 text-center">
 					<p className="font-medium">Permission Denied</p>
 					<p className="text-sm">
@@ -542,7 +422,11 @@ export function AllCommissionsPage() {
 	if (isError) {
 		return (
 			<div className="p-6">
-				<StatusCallout variant="error" title="Couldn't load commissions" onRetry={() => refetch()} />
+				<StatusCallout
+					variant="error"
+					title="Couldn't load commissions"
+					onRetry={() => refetch()}
+				/>
 			</div>
 		);
 	}
@@ -552,184 +436,439 @@ export function AllCommissionsPage() {
 	}
 
 	// ── Render ─────────────────────────────────────────────────────────────────
-	const selectedTotalCents = rows
-		.filter((r) => selectedIds.has(r.id))
-		.reduce((sum, r) => sum + r.calculatedAmount, 0);
-
 	return (
-		<div className="space-y-6">
-			{/* KPI Strip */}
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-				<KpiCard
-					label="Pending"
-					amountCents={totals.pending}
-					count={pendingCount}
-					colorClass="text-yellow-700"
-				/>
-				<KpiCard
-					label="Approved"
-					amountCents={totals.approved}
-					count={approvedCount}
-					colorClass="text-blue-700"
-				/>
-				<KpiCard
-					label="Paid"
-					amountCents={totals.paid}
-					count={paidCount}
-					colorClass="text-green-700"
-				/>
-			</div>
-
-			{/* Status Tabs */}
-			<div className="flex items-center gap-1 border-b">
-				{STATUS_TABS.map((tab) => {
-					const isActive = activeTab === tab.value;
-					return (
-						<button
-							key={tab.value}
-							type="button"
-							onClick={() => handleTabChange(tab.value)}
-							className={`border-b-2 px-4 py-2 font-medium text-sm transition-colors ${
-								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:border-muted hover:text-foreground"
-							}`}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Filters */}
-			<div className="flex flex-wrap items-end gap-3">
-				{/* Staff combobox */}
-				{staffMembers.length > 0 && (
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Staff</Label>
-						<Select
-							value={staffId || "all"}
-							onValueChange={(v) => {
-								setStaffId(v === "all" ? "" : v);
-								resetSelection();
-							}}
-						>
-							<SelectTrigger className="h-9 w-52">
-								<SelectValue placeholder="All staff" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All staff</SelectItem>
-								{staffMembers.map((m: { role: string; id: string; userId: string; name?: string; email?: string }) => (
-									<SelectItem key={m.id} value={m.userId}>
-										{m.name ?? m.email ?? m.userId.slice(0, 8)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+		<div className="px-6 pb-6">
+			{/* V1 card */}
+			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				{/* Inner toolbar: status tabs + branch filter */}
+				<div className="flex items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
+					<div className="flex items-center gap-1">
+						{(
+							[
+								{ value: "all", label: "All" },
+								{ value: "pending", label: "Pending" },
+								{ value: "approved", label: "Approved" },
+								{ value: "paid", label: "Paid" },
+								{ value: "void", label: "Void" },
+							] as { value: ActiveTab; label: string }[]
+						).map((t) => (
+							<button
+								key={t.value}
+								type="button"
+								onClick={() => {
+									setActiveTab(t.value);
+									resetSelection();
+								}}
+								className={
+									activeTab === t.value
+										? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+										: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+								}
+							>
+								{t.label}
+							</button>
+						))}
 					</div>
-				)}
-
-				{/* Branch combobox */}
-				{branchOptions.length > 0 && (
-					<div className="flex flex-col gap-1">
-						<Label className="text-xs">Branch</Label>
-						<Select
-							value={branchId || "all"}
-							onValueChange={(v) => {
-								setBranchId(v === "all" ? "" : v);
-								resetSelection();
-							}}
-						>
-							<SelectTrigger className="h-9 w-48">
-								<SelectValue placeholder="All branches" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All branches</SelectItem>
-								{branchOptions.map((node) => (
-									<SelectItem key={node.id} value={node.id}>
-										{node.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+					<div className="flex items-center gap-2">
+						{branchOptions.length > 0 && (
+							<Select
+								value={branchId || "all"}
+								onValueChange={(v) => {
+									setBranchId(v === "all" ? "" : v);
+									resetSelection();
+								}}
+							>
+								<SelectTrigger className="h-8 w-44 text-xs">
+									<SelectValue placeholder="All branches" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All branches</SelectItem>
+									{branchOptions.map((node) => (
+										<SelectItem key={node.id} value={node.id}>
+											{node.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
 					</div>
-				)}
-
-				{/* Date range */}
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">From</Label>
-					<Input
-						type="date"
-						value={fromInput}
-						onChange={(e) => setFromInput(e.target.value)}
-						onBlur={() => {
-							setFromApplied(fromInput);
-							resetSelection();
-						}}
-						className="h-9 w-40"
-					/>
 				</div>
 
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs">To</Label>
-					<Input
-						type="date"
-						value={toInput}
-						onChange={(e) => setToInput(e.target.value)}
-						onBlur={() => {
-							setToApplied(toInput);
-							resetSelection();
-						}}
-						className="h-9 w-40"
-					/>
+				<div className="grid grid-cols-[260px_1fr] divide-x divide-[#e5e5e5]">
+					{/* ── STAFF SIDEBAR ── */}
+					<aside className="flex flex-col">
+						<div className="border-b border-[#e5e5e5] px-4 py-3">
+							<input
+								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-[7px] text-xs text-[#0a0a0a] outline-none transition-colors focus:border-[#0a0a0a]"
+								placeholder="Search staff…"
+								value={staffSearch}
+								onChange={(e) => setStaffSearch(e.target.value)}
+							/>
+						</div>
+						<div className="flex-1 overflow-y-auto">
+							{/* "All staff" entry */}
+							<div
+								className={`flex cursor-pointer items-center gap-3 border-b border-[#e5e5e5] px-4 py-3 transition-colors ${
+									selectedStaffId === null
+										? "bg-[#f3f3f3]"
+										: "hover:bg-[#f3f3f3]/50"
+								}`}
+								onClick={() => {
+									setSelectedStaffId(null);
+									resetSelection();
+								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										setSelectedStaffId(null);
+										resetSelection();
+									}
+								}}
+								role="button"
+								tabIndex={0}
+							>
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d9d9ca] text-xs font-bold text-[#0a0a0a]">
+									All
+								</div>
+								<div className="min-w-0 flex-1">
+									<div className="truncate text-sm font-semibold text-[#0a0a0a]">All Staff</div>
+									<div className="text-xs text-[#6b7170]">{staffList.length} trainers</div>
+								</div>
+								<div className="text-right">
+									<div className="font-mono text-sm font-semibold tabular-nums">
+										{formatPrice(totals.pending, "MYR")}
+									</div>
+									<StatusPill status="pending" />
+								</div>
+							</div>
+
+							{filteredStaff.map((s, idx) => {
+								const avatarColors = [
+									"bg-black text-white",
+									"bg-[#d9d9ca] text-[#0a0a0a]",
+									"bg-[#e5e5e5] text-[#0a0a0a]",
+									"bg-[#f3f3f3] text-[#0a0a0a]",
+								];
+								const avatarClass = avatarColors[idx % avatarColors.length];
+								const isActive = selectedStaffId === s.staffId;
+								return (
+									<div
+										key={s.staffId}
+										className={`flex cursor-pointer items-center gap-3 border-t border-[#e5e5e5] px-4 py-3 transition-colors ${
+											isActive
+												? "bg-[#f3f3f3]"
+												: "hover:bg-[#f3f3f3]/50"
+										}`}
+										onClick={() => {
+											setSelectedStaffId(isActive ? null : s.staffId);
+											resetSelection();
+										}}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												setSelectedStaffId(isActive ? null : s.staffId);
+												resetSelection();
+											}
+										}}
+										role="button"
+										tabIndex={0}
+									>
+										<div
+											className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarClass}`}
+										>
+											{initials(s.staffName)}
+										</div>
+										<div className="min-w-0 flex-1">
+											<div className="truncate text-sm font-medium text-[#0a0a0a]">
+												{s.staffName ?? s.staffId.slice(0, 8)}
+											</div>
+											<div className="text-xs text-[#6b7170]">
+												{s.pendingCount} pending
+											</div>
+										</div>
+										<div className="text-right">
+											<div className="font-mono text-sm font-medium tabular-nums">
+												{formatPrice(s.pendingTotal, "MYR")}
+											</div>
+											<StatusPill status={s.dominantStatus} />
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					</aside>
+
+					{/* ── DETAIL PANEL ── */}
+					<div className="flex flex-col">
+						{/* Staff hero */}
+						<div className="flex items-start justify-between border-b border-[#e5e5e5] px-6 py-5">
+							<div className="flex items-center gap-4">
+								<div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-black text-[17px] font-bold text-white">
+									{selectedStaff ? initials(selectedStaff.staffName) : "ALL"}
+								</div>
+								<div>
+									<div className="text-lg font-bold text-[#0a0a0a]">
+										{selectedStaff
+											? (selectedStaff.staffName ?? selectedStaff.staffId.slice(0, 8))
+											: "All Staff"}
+									</div>
+									<div className="mt-0.5 text-xs text-[#6b7170]">
+										{activeTab === "all"
+											? "All commissions"
+											: `${activeTab} commissions`}
+										{selectedStaff ? "" : ` · ${staffList.length} trainers`}
+									</div>
+								</div>
+							</div>
+							<div className="text-right">
+								<div className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8a8f91]">
+									To Be Paid
+								</div>
+								<div className="mt-1 font-mono text-[28px] font-bold leading-none tabular-nums tracking-tight">
+									{formatPrice(
+										selectedStaff ? selectedStaff.pendingTotal : totals.pending,
+										"MYR",
+									)}
+								</div>
+								<div className="mt-2">
+									<StatusPill status="pending" />
+								</div>
+							</div>
+						</div>
+
+						{/* Mini KPI band */}
+						<div className="grid grid-cols-4 divide-x divide-[#e5e5e5] border-b border-[#e5e5e5]">
+							<div className="px-5 py-4">
+								<div className="text-[10px] uppercase tracking-widest text-[#8a8f91]">Pending</div>
+								<div className="mt-1 font-mono text-lg font-semibold tabular-nums">
+									{formatPrice(totals.pending, "MYR")}
+								</div>
+							</div>
+							<div className="px-5 py-4">
+								<div className="text-[10px] uppercase tracking-widest text-[#8a8f91]">Approved</div>
+								<div className="mt-1 font-mono text-lg font-semibold tabular-nums">
+									{formatPrice(totals.approved, "MYR")}
+								</div>
+							</div>
+							<div className="px-5 py-4">
+								<div className="text-[10px] uppercase tracking-widest text-[#8a8f91]">Paid</div>
+								<div className="mt-1 font-mono text-lg font-semibold tabular-nums">
+									{formatPrice(totals.paid, "MYR")}
+								</div>
+							</div>
+							<div className="px-5 py-4">
+								<div className="text-[10px] uppercase tracking-widest text-[#8a8f91]">Splits</div>
+								<div className="mt-1 text-lg font-semibold">{detailRows.length}</div>
+							</div>
+						</div>
+
+						{/* Bulk action bar (contextual) */}
+						{selectedIds.size > 0 && organizationId && (
+							<div className="border-b border-[#e5e5e5] px-6 py-2">
+								<BulkActionBar
+									selectedIds={Array.from(selectedIds)}
+									selectedRows={detailRows.filter((r) => selectedIds.has(r.id))}
+									tab={activeTab}
+									organizationId={organizationId}
+									canApprove={canApprove}
+									canProcess={canProcess}
+									onDone={resetSelection}
+									totalAmountCents={selectedTotalCents}
+								/>
+							</div>
+						)}
+
+						{/* Ledger table */}
+						<div className="flex-1 overflow-auto">
+							{detailRows.length === 0 ? (
+								<div className="flex min-h-48 items-center justify-center text-sm text-[#6b7170]">
+									No commission splits found.
+								</div>
+							) : (
+								<table className="w-full">
+									<thead>
+										<tr>
+											{showSelectionColumn && (
+												<th className="w-9 border-b border-[#e5e5e5] py-[9px] pl-[14px] pr-0">
+													<input
+														type="checkbox"
+														className="cursor-pointer accent-black"
+														style={{ width: 15, height: 15 }}
+														checked={allSelectableSelected}
+														onChange={toggleAllSelectable}
+														aria-label="Select all"
+													/>
+												</th>
+											)}
+											{[
+												"Date",
+												"Staff",
+												"Source",
+												"Service",
+												"Branch",
+												"Rate",
+												"Commission",
+												"Earn Reason",
+												"Status",
+											].map((h) => (
+												<th
+													key={h}
+													className={`border-b border-[#e5e5e5] px-[14px] py-[9px] text-left text-[11px] font-semibold uppercase tracking-[.06em] whitespace-nowrap text-[#8a8f91] ${
+														h === "Rate" || h === "Commission"
+															? "text-right"
+															: ""
+													}`}
+												>
+													{h}
+												</th>
+											))}
+											<th className="border-b border-[#e5e5e5] px-[14px] py-[9px]" />
+										</tr>
+									</thead>
+									<tbody>
+										{detailRows.map((row) => {
+											const isVoid = row.status === "void";
+											const selectable = isRowSelectable(row);
+											return (
+												<tr
+													key={row.id}
+													className="border-b border-[#f7f5ee] hover:bg-[#fcfaf6] last:border-0"
+												>
+													{showSelectionColumn && (
+														<td className="w-9 py-[11px] pl-[14px] pr-0 align-middle">
+															<input
+																type="checkbox"
+																className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+																style={{ width: 15, height: 15, accentColor: "#000" }}
+																checked={selectedIds.has(row.id)}
+																disabled={!selectable}
+																onChange={() => {
+																	if (selectable) toggleRow(row.id);
+																}}
+																onClick={(e) => e.stopPropagation()}
+																aria-label={`Select commission ${row.id}`}
+															/>
+														</td>
+													)}
+													<td className="px-[14px] py-[11px] text-sm whitespace-nowrap text-[#0a0a0a] align-middle">
+														{formatDate(row.createdAt)}
+													</td>
+													<td className="px-[14px] py-[11px] align-middle">
+														<span className="text-sm font-medium text-[#0a0a0a]">
+															{row.staffName ?? "—"}
+														</span>
+													</td>
+													<td className="px-[14px] py-[11px] align-middle">
+														<SourceCell row={row} />
+													</td>
+													<td className="px-[14px] py-[11px] text-sm text-[#0a0a0a] align-middle">
+														{row.serviceName ?? (
+															<span className="text-[#6b7170]">—</span>
+														)}
+													</td>
+													<td className="px-[14px] py-[11px] text-sm text-[#6b7170] align-middle">
+														{row.branchName ?? "—"}
+													</td>
+													<td className="px-[14px] py-[11px] text-right font-mono tabular-nums text-sm text-[#6b7170] align-middle">
+														{row.splitPercentage}%
+													</td>
+													<td className="px-[14px] py-[11px] text-right font-semibold font-mono tabular-nums text-sm text-[#0a0a0a] align-middle">
+														{formatPrice(row.calculatedAmount, "MYR")}
+													</td>
+													<td className="px-[14px] py-[11px] align-middle">
+														{row.earnReason ? (
+															<Badge
+																variant="secondary"
+																className="text-xs"
+																data-testid="commission-earn-reason-badge"
+															>
+																{row.earnReason}
+															</Badge>
+														) : (
+															<span className="text-[#6b7170] text-sm">—</span>
+														)}
+													</td>
+													<td className="px-[14px] py-[11px] align-middle">
+														<span data-testid="commission-status-badge">
+															<StatusPill status={row.status} />
+														</span>
+													</td>
+													<td className="px-[14px] py-[11px] pr-4 text-right align-middle">
+														{!isVoid && canApprove && (
+															<button
+																type="button"
+																className="text-xs text-[#6b7170] underline underline-offset-2 hover:text-[#0a0a0a]"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	handleVoidRow(row.id);
+																}}
+																disabled={voidingId === row.id}
+															>
+																Void
+															</button>
+														)}
+													</td>
+												</tr>
+											);
+										})}
+										{/* Pending total footer row */}
+										{detailPendingRows.length > 0 && (
+											<tr className="bg-[#f7f5ee]">
+												<td
+													colSpan={showSelectionColumn ? 7 : 6}
+													className="px-[14px] py-[11px] text-right text-sm font-semibold text-[#0a0a0a]"
+												>
+													Total Pending
+												</td>
+												<td className="px-[14px] py-[11px] text-right font-bold font-mono tabular-nums text-base text-[#0a0a0a]">
+													{formatPrice(detailPendingTotal, "MYR")}
+												</td>
+												<td colSpan={3} />
+											</tr>
+										)}
+									</tbody>
+								</table>
+							)}
+						</div>
+
+						{/* Footer actions */}
+						<div className="flex items-center justify-between border-t border-[#e5e5e5] px-6 py-4">
+							<div className="flex gap-2">
+								<span className="text-xs text-[#6b7170]">
+									{detailRows.length} split{detailRows.length !== 1 ? "s" : ""}
+									{selectedStaff ? ` for ${selectedStaff.staffName ?? "this trainer"}` : ""}
+								</span>
+							</div>
+							<div className="flex items-center gap-2">
+								{selectedIds.size > 0 && (
+									<span className="font-mono text-sm font-semibold tabular-nums text-[#0a0a0a]">
+										{selectedIds.size} selected · {formatPrice(selectedTotalCents, "MYR")}
+									</span>
+								)}
+								{canApprove && detailPendingTotal > 0 && (
+									<button
+										type="button"
+										className="inline-flex items-center gap-1.5 rounded-lg bg-[#15803d] px-[14px] py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-85"
+										onClick={() => {
+											// Select all pending rows in view
+											setSelectedIds(
+												new Set(detailPendingRows.map((r) => r.id)),
+											);
+										}}
+									>
+										Approve all · {formatPrice(detailPendingTotal, "MYR")}
+									</button>
+								)}
+							</div>
+						</div>
+					</div>
 				</div>
-
-				{/* Clear filters */}
-				{(staffId || branchId || fromApplied || toApplied) && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-9 self-end"
-						onClick={() => {
-							setStaffId("");
-							setBranchId("");
-							setFromInput("");
-							setToInput("");
-							setFromApplied("");
-							setToApplied("");
-							resetSelection();
-						}}
-					>
-						Clear filters
-					</Button>
-				)}
 			</div>
-
-			{/* Bulk Action Bar */}
-			{selectedIds.size > 0 && organizationId && (
-				<BulkActionBar
-					selectedIds={Array.from(selectedIds)}
-					tab={activeTab}
-					organizationId={organizationId}
-					canApprove={canApprove}
-					canProcess={canProcess}
-					onDone={resetSelection}
-					totalAmountCents={selectedTotalCents}
-				/>
-			)}
-
-			{/* Table */}
-			<DataTable<CommissionLedgerRow, unknown>
-				columns={columns}
-				data={rows}
-			/>
 
 			{/* Per-row void dialog */}
 			<VoidRowDialog
 				open={voidDialogOpen}
 				onOpenChange={(o) => {
 					setVoidDialogOpen(o);
-					if (!o) voidRowIdRef.current = null;
+					if (!o) setVoidRowId(null);
 				}}
 				onConfirm={confirmVoidRow}
 				isPending={voidingId !== null}

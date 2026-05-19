@@ -9,7 +9,7 @@ const cpDb = getControlPanelDb();
 const [org] = await cpDb.select({ connectionString: organizations.connectionString })
   .from(organizations).where(eq(organizations.id, orgId));
 
-const connStr = decrypt(org.connectionString);
+const connStr = decrypt(org!.connectionString);
 const pool = new Pool({ connectionString: connStr });
 const q = (sql: string) => pool.query(sql).then(r => r.rows);
 
@@ -42,7 +42,7 @@ console.log("\n2.4 EXCLUDE constraints total in DB:", excl[0].count);
 // Agent 2.5 — commission config versions
 const ccv = await q(`SELECT COUNT(*) FROM category_commission_config_versions`);
 const ccvConfigsWithVersionId = await q(`SELECT COUNT(*) FROM commission_splits WHERE "configVersionId" IS NOT NULL`).catch(() => q(`SELECT COUNT(*) FROM commission_splits WHERE config_version_id IS NOT NULL`).catch(() => ({rows:[{count:'col_unknown'}]})));
-console.log("\n2.5 config_versions rows=" + ccv[0].count + "  splits with configVersionId=" + ccvConfigsWithVersionId.rows?.[0]?.count);
+console.log("\n2.5 config_versions rows=" + ccv[0].count + "  splits with configVersionId=" + (ccvConfigsWithVersionId as any).rows?.[0]?.count);
 
 // Agent 2.7 — status history populated?
 const sosh = await q(`SELECT COUNT(*) FROM sales_order_status_history`);
@@ -81,7 +81,7 @@ console.log("3.1 membership_holds:", mh[0].count);
 // Agent 3.2 — lead_sources
 const ls = await q(`SELECT COUNT(*) FROM lead_sources`);
 const lsMembers = await q(`SELECT COUNT(*) FROM members WHERE lead_source_id IS NOT NULL`).catch(() => ({rows:[{count:'col_missing'}]}));
-console.log("3.2 lead_sources=" + ls[0].count + " members.lead_source_id set=" + (lsMembers.rows?.[0]?.count || 'col_missing'));
+console.log("3.2 lead_sources=" + ls[0].count + " members.lead_source_id set=" + ((lsMembers as any).rows?.[0]?.count || 'col_missing'));
 
 // Agent 3.3 — complimentary tracking
 const compCols = await q(`SELECT column_name FROM information_schema.columns WHERE table_name='sales_orders' AND column_name IN ('is_complimentary','complimentary_reason','complimentary_approved_by')`);
@@ -100,6 +100,6 @@ console.log("3.5 walk_in_customers conv cols:", wcCols.map((r:any) => r.column_n
 // Agent 3.6 — households
 const hh = await q(`SELECT COUNT(*) FROM households`);
 const hhMembers = await q(`SELECT COUNT(*) FROM members WHERE household_id IS NOT NULL`).catch(() => ({rows:[{count:'col_missing'}]}));
-console.log("3.6 households=" + hh[0].count + " members.household_id set=" + (hhMembers.rows?.[0]?.count || 'col_missing'));
+console.log("3.6 households=" + hh[0].count + " members.household_id set=" + ((hhMembers as any).rows?.[0]?.count || 'col_missing'));
 
 await pool.end();

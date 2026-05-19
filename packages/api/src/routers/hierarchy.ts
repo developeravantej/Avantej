@@ -7,6 +7,7 @@ import {
   deleteHierarchyNode,
   moveHierarchyNode,
   getDescendantNodeIds,
+  listNodesWithStats,
   requirePermission,
   validateHierarchyRules,
   validateParentAccess,
@@ -264,15 +265,14 @@ export const hierarchyRouter = {
       // Use the accessibleNodeIds from context (already calculated in createContext)
       const finalAccessibleNodeIds = accessibleNodeIds || [];
 
-      // Get all nodes
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allNodes = await tenantDb.query.hierarchyNodes.findMany({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        orderBy: (nodes: any, { asc }: any) => [
-          asc(nodes.depth),
-          asc(nodes.name),
-        ],
-      });
+      // Get all nodes — use plain select instead of the relational query API so
+      // the SELECT column list matches the actual Drizzle schema definition (the
+      // query API's auto-include can drift if the table has columns the schema
+      // doesn't model).
+      const allNodes = await tenantDb
+        .select()
+        .from(hierarchyNodes)
+        .orderBy(hierarchyNodes.depth, hierarchyNodes.name);
 
       // If admin: return all nodes; if no accessible IDs: return all nodes; otherwise filter
       let accessibleNodes: typeof allNodes;
@@ -1465,6 +1465,59 @@ export const hierarchyRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message:
             error instanceof Error ? error.message : "Failed to list all members",
+        });
+      }
+    }),
+
+  /**
+   * List hierarchy nodes enriched with branch stats from the cache.
+   *
+   * Stats (membersCount, staffCount, monthRevenueCents) are read ONLY from the
+   * branch_stats_cache table — never computed inline. A cache miss results in
+   * stale: true + null stats; a debounced background refresh is enqueued.
+   *
+   * RBAC: requires hierarchy_management:read. Admin sees all nodes; staff sees
+   * only their accessibleNodeIds.
+   */
+  listNodesWithStats: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: `Tenant database not available for organization ${input.organizationId}.`,
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const { tenantDb, member } = context;
+
+      // Check permission
+      try {
+        await requirePermission(tenantDb, member, "hierarchy_management", "read");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const isAdmin = member.role === "admin";
+      const accessibleNodeIds = context.accessibleNodeIds ?? [];
+
+      try {
+        const nodes = await listNodesWithStats(tenantDb, { accessibleNodeIds, isAdmin });
+        return { nodes };
+      } catch (error) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: error instanceof Error ? error.message : "Failed to list nodes with stats",
         });
       }
     }),

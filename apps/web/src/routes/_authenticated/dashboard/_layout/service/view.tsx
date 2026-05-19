@@ -40,34 +40,43 @@ function ServicesTabPage() {
 		);
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div>
-					<h1 className="text-xl font-semibold">Services</h1>
-					<p className="mt-0.5 text-sm text-muted-foreground">
-						Manage services, categories, rooms, and promotions for your organization
-					</p>
-				</div>
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+			{/* ── Page header ─────────────────────────────────────────────────── */}
+			<div className="mb-5">
+				<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+					Service Catalog
+				</p>
+				<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+					Services
+				</h1>
+				<p className="mt-1 text-sm text-[#737373]">
+					Manage services, categories, rooms, and promotions for your organization
+				</p>
 			</div>
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
-					{TABS.map((t) => (
+
+			{/* ── Tab pills ───────────────────────────────────────────────────── */}
+			<div className="mb-5 flex flex-wrap items-center gap-2">
+				{TABS.map((t) => {
+					const isActive = tab === t.id;
+					return (
 						<button
 							key={t.id}
 							type="button"
 							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
+							className={
+								isActive
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold transition"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium transition"
+							}
 						>
 							{t.label}
 						</button>
-					))}
-				</div>
+					);
+				})}
 			</div>
-			<div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+
+			{/* ── Tab content ─────────────────────────────────────────────────── */}
+			<div>{content}</div>
 		</div>
 	);
 }

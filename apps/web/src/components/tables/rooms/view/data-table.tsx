@@ -9,14 +9,6 @@ import {
 	getFilteredRowModel,
 } from "@tanstack/react-table";
 import type { SortingState } from "@tanstack/react-table";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import {
@@ -29,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TableToolbar } from "@/components/ui/table-toolbar";
+import { Search } from "lucide-react";
 import { createColumns, type RoomRow } from "./columns";
 
 interface DataTableProps {
@@ -106,27 +98,28 @@ export function DataTable({
 	}
 
 	return (
-		<div className="flex h-full flex-col">
-			<TableToolbar
-				search={{
-					value: globalFilter,
-					onChange: setGlobalFilter,
-					placeholder: "Search rooms...",
-				}}
-			/>
+		<div className="flex h-full flex-col gap-4">
+			{/* Search toolbar */}
+			<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5 w-64">
+				<Search className="h-4 w-4 text-[#737373] shrink-0" />
+				<input
+					placeholder="Search rooms..."
+					value={globalFilter}
+					onChange={(e) => setGlobalFilter(e.target.value)}
+					className="flex-1 bg-transparent text-[13px] text-[#0a0a0a] placeholder:text-[#737373] outline-none"
+				/>
+			</div>
 
-			<div className="flex-1 overflow-y-auto">
-				<Table>
-					<TableHeader className="sticky top-0 z-10 bg-white">
+			{/* Table */}
+			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				<table className="w-full">
+					<thead>
 						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b border-border/40 bg-muted/40 hover:bg-muted/40"
-							>
+							<tr key={headerGroup.id} className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
 								{headerGroup.headers.map((header) => (
-									<TableHead
+									<th
 										key={header.id}
-										className="whitespace-nowrap px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+										className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap"
 									>
 										{header.isPlaceholder
 											? null
@@ -134,46 +127,45 @@ export function DataTable({
 													header.column.columnDef.header,
 													header.getContext(),
 												)}
-									</TableHead>
+									</th>
 								))}
-							</TableRow>
+							</tr>
 						))}
-					</TableHeader>
-					<TableBody>
+					</thead>
+					<tbody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => (
-								<TableRow
+								<tr
 									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-									className="border-b border-border/30 transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary data-[state=selected]:text-primary-foreground"
+									className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60"
 								>
 									{row.getVisibleCells().map((cell) => (
-										<TableCell
+										<td
 											key={cell.id}
-											className="whitespace-nowrap px-6 py-4 text-sm"
+											className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap"
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
 												cell.getContext(),
 											)}
-										</TableCell>
+										</td>
 									))}
-								</TableRow>
+								</tr>
 							))
 						) : (
-							<TableRow>
-								<TableCell colSpan={columns.length} className="p-0">
+							<tr>
+								<td colSpan={columns.length} className="p-0">
 									<EmptyState
 										title={emptyTitle ?? "No results found"}
 										description={emptyDescription}
 										action={emptyAction}
 										context={globalFilter ? "search" : "empty"}
 									/>
-								</TableCell>
-							</TableRow>
+								</td>
+							</tr>
 						)}
-					</TableBody>
-				</Table>
+					</tbody>
+				</table>
 			</div>
 
 			{/* Deactivate Confirmation Dialog */}

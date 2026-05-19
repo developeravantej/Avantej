@@ -9,7 +9,7 @@ const env = Object.fromEntries(
     return [l.slice(0,i), l.slice(i+1).replace(/^"|"$/g, "")];
   })
 );
-process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY;
+process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY!;
 const cp = new Pool({ connectionString: env.DATABASE_URL });
 const orgs = await cp.query("SELECT id, name, slug, connection_string FROM organizations WHERE slug = 'test-fitness-franchise'");
 console.log("org:", orgs.rows[0]?.id, orgs.rows[0]?.name);

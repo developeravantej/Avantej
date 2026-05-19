@@ -58,13 +58,17 @@ export const posRouter = {
 				// Tax
 				taxRateId: z.string().uuid().optional(),
 				// Payment
-				paymentMethod: z.enum(["cash", "card", "bank_transfer", "online"]),
+				paymentMethod: z
+					.enum(["cash", "card", "manual_transfer", "bank_transfer", "fpx", "stripe"])
+					.transform((v) => (v === "bank_transfer" ? "manual_transfer" : v)),
 				paymentReference: z.string().optional(),
 				amountTenderedCents: z.number().int().min(0).optional(),
 				// Installment
 				installmentPlanCode: z.string().optional(),
 				// Notes
 				notes: z.string().optional(),
+				// Package: preferred trainer (optional, written to package_instances.preferred_trainer_id)
+				preferredTrainerId: z.string().uuid().optional(),
 				// Commission: per-item trainer assignments
 				itemTrainerAssignments: z.record(z.string(), z.array(z.object({
 					staffId: z.string().uuid(),
@@ -114,6 +118,7 @@ export const posRouter = {
 				amountTenderedCents: input.amountTenderedCents,
 				installmentPlanCode: input.installmentPlanCode,
 				notes: input.notes,
+				preferredTrainerId: input.preferredTrainerId,
 				itemTrainerAssignments: input.itemTrainerAssignments
 					? Object.fromEntries(
 							Object.entries(input.itemTrainerAssignments).map(([k, v]) => [parseInt(k, 10), v]),

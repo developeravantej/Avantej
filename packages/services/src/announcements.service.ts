@@ -19,6 +19,7 @@ export type CreateAnnouncementParams = {
 	startDate?: Date;
 	endDate?: Date;
 	isPinned?: boolean;
+	requiresAcknowledgement?: boolean;
 	createdBy: string;
 	scopedBranchIds?: string[];
 };
@@ -212,6 +213,7 @@ export async function createAnnouncement(
 				endDate: data.endDate ?? null,
 				isActive: true,
 				isPinned: data.isPinned ?? false,
+				requiresAcknowledgement: data.requiresAcknowledgement ?? false,
 				createdBy: data.createdBy,
 			})
 			.returning();
@@ -244,6 +246,7 @@ export async function updateAnnouncement(
 				...(data.endDate !== undefined && { endDate: data.endDate }),
 				...(data.isActive !== undefined && { isActive: data.isActive }),
 				...(data.isPinned !== undefined && { isPinned: data.isPinned }),
+				...(data.requiresAcknowledgement !== undefined && { requiresAcknowledgement: data.requiresAcknowledgement }),
 				...(data.createdBy !== undefined && { createdBy: data.createdBy }),
 				updatedAt: new Date(),
 			})

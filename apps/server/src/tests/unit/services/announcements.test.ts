@@ -43,7 +43,7 @@ describe("listAnnouncements", () => {
 
 		const result = await listAnnouncements(mockDb, {});
 
-		expect(result).toEqual(expectEnriched(items));
+		expect(result).toEqual(expectEnriched(items) as any);
 		expect(mockDb.select).toHaveBeenCalledTimes(2);
 	});
 
@@ -74,7 +74,7 @@ describe("listActiveAnnouncements", () => {
 			accessibleNodeIds: [BRANCH_NODE_ID],
 		});
 
-		expect(result).toEqual(expectEnriched(active));
+		expect(result).toEqual(expectEnriched(active) as any);
 	});
 
 	test("filters by memberType when provided", async () => {

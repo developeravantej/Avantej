@@ -29,7 +29,7 @@ import { neonConfig, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { users, organizationMembers } from "@avantej-core/db/schema/control-panel/index";
-import { like, inArray, and } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -69,10 +69,10 @@ function parseArgs(): { emailPrefix: string; apply: boolean; tenantId: string | 
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === "--apply") apply = true;
 		if (args[i] === "--email-prefix" && args[i + 1]) {
-			emailPrefix = args[++i];
+			emailPrefix = args[++i]!;
 		}
 		if (args[i] === "--tenant" && args[i + 1]) {
-			tenantId = args[++i];
+			tenantId = args[++i]!;
 		}
 	}
 	return { emailPrefix, apply, tenantId };
