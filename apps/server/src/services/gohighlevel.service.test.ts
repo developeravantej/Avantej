@@ -4,8 +4,13 @@ import {
 	applyAlphaCanonical,
 	buildGhlEventKey,
 	buildGhlResponseData,
+	buildPlaceholderEmail,
+	deriveDobFromAge,
 	detectGhlEventType,
+	extractCustomFieldsForProfile,
 	extractGhlContactPayload,
+	findHierarchyBranchByName,
+	isPlaceholderEmail,
 	verifyGhlWebhookAuth,
 } from "./gohighlevel.service";
 
@@ -202,10 +207,30 @@ describe("GoHighLevel Service", () => {
 		);
 	});
 
-	test("throws when email is missing", () => {
+	test("throws when both email and phone are missing", () => {
 		expect(() => extractGhlContactPayload({ id: "ghl_777" })).toThrow(
-			"Missing required field: email"
+			"Missing required field: email or phone",
 		);
+	});
+
+	test("synthesizes placeholder email when only phone provided", () => {
+		const extracted = extractGhlContactPayload({
+			id: "ghl_phone_only",
+			phone: "+60123456789",
+		});
+		expect(extracted.contactId).toBe("ghl_phone_only");
+		expect(extracted.email).toBe("ghl-ghl_phone_only@ghl.placeholder");
+		expect(extracted.emailIsPlaceholder).toBe(true);
+		expect(extracted.phone).toBe("+60123456789");
+	});
+
+	test("emailIsPlaceholder is false when real email present", () => {
+		const extracted = extractGhlContactPayload({
+			id: "ghl_real",
+			email: "real@example.com",
+		});
+		expect(extracted.emailIsPlaceholder).toBe(false);
+		expect(extracted.email).toBe("real@example.com");
 	});
 
 	test("detects delete event type from explicit event type", () => {
@@ -382,5 +407,123 @@ describe("applyAlphaCanonical (α strict canonical)", () => {
 		});
 		expect(linked).toEqual({ skip: false });
 		expect(unlinked).toEqual({ skip: false });
+	});
+});
+
+describe("Placeholder email helpers", () => {
+	test("buildPlaceholderEmail produces ghl-<id>@ghl.placeholder", () => {
+		expect(buildPlaceholderEmail("abc123")).toBe("ghl-abc123@ghl.placeholder");
+	});
+
+	test("isPlaceholderEmail detects placeholder domain", () => {
+		expect(isPlaceholderEmail("ghl-xyz@ghl.placeholder")).toBe(true);
+		expect(isPlaceholderEmail("real@example.com")).toBe(false);
+		expect(isPlaceholderEmail(null)).toBe(false);
+		expect(isPlaceholderEmail("")).toBe(false);
+	});
+});
+
+describe("deriveDobFromAge", () => {
+	test("returns Jan 1 of (currentYear - age) as UTC", () => {
+		const now = new Date(Date.UTC(2026, 4, 19));
+		const dob = deriveDobFromAge(30, now);
+		expect(dob).not.toBeNull();
+		expect(dob?.toISOString()).toBe("1996-01-01T00:00:00.000Z");
+	});
+
+	test("returns null for non-positive or absurd age", () => {
+		expect(deriveDobFromAge(0)).toBeNull();
+		expect(deriveDobFromAge(-5)).toBeNull();
+		expect(deriveDobFromAge(200)).toBeNull();
+		expect(deriveDobFromAge(Number.NaN)).toBeNull();
+	});
+
+	test("floors fractional age", () => {
+		const now = new Date(Date.UTC(2026, 0, 1));
+		const dob = deriveDobFromAge(25.9, now);
+		expect(dob?.getUTCFullYear()).toBe(2001);
+	});
+});
+
+describe("findHierarchyBranchByName", () => {
+	const branches = [
+		{ id: "b1", name: "KL Branch", type: "branch" },
+		{ id: "b2", name: "Penang Branch", type: "branch" },
+		{ id: "c1", name: "Malaysia", type: "country" },
+	];
+
+	test("matches branch name case-insensitively", () => {
+		expect(findHierarchyBranchByName(branches, "kl branch")).toBe("b1");
+		expect(findHierarchyBranchByName(branches, "  PENANG Branch  ")).toBe("b2");
+	});
+
+	test("returns null when no branch matches", () => {
+		expect(findHierarchyBranchByName(branches, "Singapore")).toBeNull();
+		expect(findHierarchyBranchByName(branches, "")).toBeNull();
+		expect(findHierarchyBranchByName(branches, null)).toBeNull();
+	});
+
+	test("ignores non-branch nodes even if name matches", () => {
+		expect(findHierarchyBranchByName(branches, "Malaysia")).toBeNull();
+	});
+});
+
+describe("extractCustomFieldsForProfile", () => {
+	test("extracts standard fields from nested contact", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: {
+				id: "c1",
+				gender: "female",
+				age: "29",
+				selected_country: "Malaysia",
+				selected_location: "KL Branch",
+				primary_staff: "Coach A",
+				referrer_phone: "+60111222333",
+				lead_acquisition_type: "Walk-in",
+				lead_originator: "Instagram Campaign",
+			},
+		});
+		expect(fields.gender).toBe("female");
+		expect(fields.age).toBe(29);
+		expect(fields.selectedCountry).toBe("Malaysia");
+		expect(fields.selectedLocation).toBe("KL Branch");
+		expect(fields.primaryStaff).toBe("Coach A");
+		expect(fields.referrerPhone).toBe("+60111222333");
+		expect(fields.leadAcquisitionType).toBe("Walk-in");
+		expect(fields.leadOriginator).toBe("Instagram Campaign");
+	});
+
+	test("accepts sys_-prefixed and ops_-prefixed variants", () => {
+		const fields = extractCustomFieldsForProfile({
+			sys_selected_location: "Penang Branch",
+			ops_primary_staff: "Coach B",
+			sys_lead_acquisition_type: "Referral",
+			sys_lead_originator: "Friend",
+		});
+		expect(fields.selectedLocation).toBe("Penang Branch");
+		expect(fields.primaryStaff).toBe("Coach B");
+		expect(fields.leadAcquisitionType).toBe("Referral");
+		expect(fields.leadOriginator).toBe("Friend");
+	});
+
+	test("invalid age string yields null", () => {
+		const fields = extractCustomFieldsForProfile({ age: "abc" });
+		expect(fields.age).toBeNull();
+	});
+
+	test("empty strings yield null", () => {
+		const fields = extractCustomFieldsForProfile({
+			gender: "",
+			selected_location: "",
+		});
+		expect(fields.gender).toBeNull();
+		expect(fields.selectedLocation).toBeNull();
+	});
+
+	test("tolerates lead_originatator typo (matches GHL field id)", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: { lead_originatator: "Typo Source" },
+		});
+		expect(fields.leadOriginator).toBe("Typo Source");
 	});
 });
