@@ -11,6 +11,7 @@ import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { createMember } from "@avantej-core/services";
+import { getBetterAuth } from "@/lib/better-auth";
 
 export type GhlEventType = "create" | "update" | "delete" | "custom";
 
@@ -119,6 +120,11 @@ export function detectGhlEventType(payload: AnyRecord): GhlEventType {
  * been linked once. Returns null if the webhook should proceed normally,
  * or a skip reason if it must be ignored.
  *
+ * Carve-out (Phase 2): if the linked user still carries a placeholder email
+ * AND the incoming payload has a real email, allow the update through so the
+ * placeholder gets backfilled. Other update/delete cases on linked contacts
+ * stay canonical-skipped.
+ *
  * Pure function — easy to unit-test without DB.
  */
 export type AlphaCanonicalSkip =
@@ -128,13 +134,34 @@ export type AlphaCanonicalSkip =
 export function applyAlphaCanonical(args: {
 	existingLink: { id: string } | null | undefined;
 	eventType: GhlEventType;
+	existingUserEmail?: string | null;
+	incomingEmailIsPlaceholder?: boolean;
 }): AlphaCanonicalSkip {
-	const { existingLink, eventType } = args;
+	const { existingLink, eventType, existingUserEmail, incomingEmailIsPlaceholder } = args;
 	if (!existingLink) return { skip: false };
-	if (eventType === "update" || eventType === "delete") {
+	if (eventType === "update") {
+		// Carve-out: placeholder backfill — let the update through.
+		if (
+			isPlaceholderEmail(existingUserEmail) &&
+			incomingEmailIsPlaceholder === false
+		) {
+			return { skip: false };
+		}
+		return { skip: true, reason: "avantej-canonical" };
+	}
+	if (eventType === "delete") {
 		return { skip: true, reason: "avantej-canonical" };
 	}
 	if (eventType === "create") {
+		// Carve-out: GHL only emits `create` events on form re-submit. Allow
+		// a re-submit through when it backfills a placeholder email with a
+		// real one — otherwise phone-only leads stay locked out forever.
+		if (
+			isPlaceholderEmail(existingUserEmail) &&
+			incomingEmailIsPlaceholder === false
+		) {
+			return { skip: false };
+		}
 		return { skip: true, reason: "already-linked" };
 	}
 	return { skip: false }; // "custom" event type — let existing logic run
@@ -561,8 +588,26 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		.where(eq(ghlContactLinks.ghlContactId, extracted.contactId))
 		.limit(1);
 
+	// Pre-canonical user lookup — needed so applyAlphaCanonical can detect
+	// placeholder backfill (existing user has placeholder email + real email
+	// incoming → allow update through to backfill the placeholder).
+	const linkedUser = existingLink
+		? (
+				await controlPanelDb
+					.select({ email: user.email })
+					.from(user)
+					.where(eq(user.id, existingLink.userId))
+					.limit(1)
+			)[0]
+		: undefined;
+
 	// α strict canonical: ignore GHL-initiated mutations on linked contacts.
-	const canonical = applyAlphaCanonical({ existingLink, eventType });
+	const canonical = applyAlphaCanonical({
+		existingLink,
+		eventType,
+		existingUserEmail: linkedUser?.email ?? null,
+		incomingEmailIsPlaceholder: extracted.emailIsPlaceholder,
+	});
 	if (canonical.skip) {
 		await updateEventStatus(tenantDb, eventKey, "skipped", canonical.reason);
 		return {
@@ -682,6 +727,10 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		throw new GhlWebhookError("Failed to create or resolve user record", 500, "user_resolution_failed");
 	}
 
+	// Phase 3: detect placeholder → real email transition for backfill dispatch.
+	const emailJustBackfilled =
+		isPlaceholderEmail(userRecord.email) && !extracted.emailIsPlaceholder;
+
 	// Preserve existing real email if incoming is placeholder; same for phone fallback.
 	const keepExistingEmail =
 		extracted.emailIsPlaceholder && !isPlaceholderEmail(userRecord.email);
@@ -765,6 +814,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		.where(eq(members.userId, userRecord.id))
 		.limit(1);
 
+	let memberJustCreated = false;
 	if (!existingMember) {
 		try {
 			await createMember(controlPanelDb, tenantDb, {
@@ -773,11 +823,25 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 				role: "client",
 				hierarchyScopeId: branchNodeId,
 			});
+			memberJustCreated = true;
 		} catch (error) {
 			// Best-effort: don't fail the whole webhook if member creation has a
 			// transient conflict (e.g. concurrent submit). Log via event status.
 			console.error("[ghl-webhook] createMember failed", error);
 		}
+	}
+
+	// Phase 2 + 3: dispatch magic-link welcome email when email is real and
+	// either (a) member was just created, or (b) email just transitioned from
+	// placeholder to real (re-submit backfill). Stable email = no dispatch.
+	if (
+		(memberJustCreated || emailJustBackfilled) &&
+		!extracted.emailIsPlaceholder
+	) {
+		await dispatchWelcomeMagicLink({
+			c,
+			email: extracted.email,
+		});
 	}
 
 	if (!existingLink) {
@@ -933,6 +997,36 @@ async function resolveReferrerMemberId(
 		.where(eq(members.userId, userRow.id))
 		.limit(1);
 	return memberRow?.id ?? null;
+}
+
+/**
+ * Best-effort welcome magic-link dispatch. Failure here must never fail
+ * the webhook — login can be re-issued by staff via the standard flow.
+ */
+async function dispatchWelcomeMagicLink(args: {
+	c: Context;
+	email: string;
+}): Promise<void> {
+	try {
+		const auth = getBetterAuth(args.c);
+		// Better-Auth signInMagicLink: generates single-use token, persists in
+		// verification table, invokes the `sendMagicLink` plugin callback which
+		// in turn calls sendMagicLinkEmail on our side.
+		// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+		const api = (auth as any).api;
+		if (typeof api?.signInMagicLink !== "function") {
+			console.warn(
+				"[ghl-webhook] auth.api.signInMagicLink unavailable — magic-link plugin not loaded",
+			);
+			return;
+		}
+		await api.signInMagicLink({
+			body: { email: args.email },
+			headers: args.c.req.raw.headers,
+		});
+	} catch (error) {
+		console.error("[ghl-webhook] dispatchWelcomeMagicLink failed", error);
+	}
 }
 
 export async function markGhlWebhookFailed(args: {

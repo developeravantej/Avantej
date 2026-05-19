@@ -26,6 +26,7 @@ import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
+import { magicLink } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
 import { Pool, neonConfig } from "@neondatabase/serverless";
@@ -41,6 +42,7 @@ import {
   sendVerificationEmail as sendVerificationEmailResend,
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
+  sendMagicLinkEmail as sendMagicLinkEmailResend,
 } from "@/lib/email";
 import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -412,6 +414,19 @@ function createBetterAuth(c?: Context) {
     }),
     admin({
       impersonationSessionDuration: 60 * 60,
+    }),
+    magicLink({
+      // Token is single-use; default expiry is short (5 min in better-auth).
+      sendMagicLink: async ({
+        email,
+        url,
+      }: {
+        email: string;
+        token: string;
+        url: string;
+      }) => {
+        await sendMagicLinkEmailResend(email, url);
+      },
     }),
   ],
   });

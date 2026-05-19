@@ -86,7 +86,12 @@ export interface SendEmailOptions {
 	fromName?: string;
 }
 
-type CapturedEmailType = "verification" | "password-reset" | "invitation" | "generic";
+type CapturedEmailType =
+	| "verification"
+	| "password-reset"
+	| "invitation"
+	| "magic-link"
+	| "generic";
 
 interface CapturedEmail {
 	type: CapturedEmailType;
@@ -465,6 +470,83 @@ If you don't want to join this organization, you can safely ignore this email.
 			invitationLink,
 			organizationName,
 			role,
+		},
+	});
+}
+
+/**
+ * Send a magic-link sign-in email
+ *
+ * @param to - Recipient email
+ * @param magicLink - One-click sign-in URL
+ * @param userName - Recipient name (optional)
+ * @param organizationName - Org name displayed in subject/body (optional)
+ */
+export async function sendMagicLinkEmail(
+	to: string,
+	magicLink: string,
+	userName?: string,
+	organizationName?: string,
+): Promise<void> {
+	const orgPhrase = organizationName ? ` to ${organizationName}` : "";
+	const subject = `Sign in${orgPhrase}`;
+	const greeting = userName ? `Hi ${userName},` : "Hi there,";
+	const html = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Sign in to Avantej</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
+				<h1 style="color: #2c3e50;">Sign in${orgPhrase}</h1>
+				<p>${greeting}</p>
+				<p>Click the button below to sign in. This link is single-use and expires shortly.</p>
+				<div style="text-align: center; margin: 30px 0;">
+					<a href="${magicLink}" style="background-color: #2980b9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign in</a>
+				</div>
+				<p>Or copy and paste this link into your browser:</p>
+				<p style="word-break: break-all; color: #7f8c8d;">${magicLink}</p>
+				<p>If you did not request this email, you can safely ignore it.</p>
+				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
+			</div>
+		</body>
+		</html>
+	`;
+
+	const text = `
+Sign in${orgPhrase}
+
+${greeting}
+
+Click the link below to sign in. This link is single-use and expires shortly.
+
+${magicLink}
+
+If you did not request this email, you can safely ignore it.
+
+© ${new Date().getFullYear()} Avantej Core. All rights reserved.
+	`.trim();
+
+	await sendEmail({
+		to,
+		subject,
+		html,
+		text,
+	});
+
+	recordEmailCapture({
+		type: "magic-link",
+		to,
+		subject,
+		html,
+		text,
+		metadata: {
+			magicLink,
+			organizationName,
 		},
 	});
 }
