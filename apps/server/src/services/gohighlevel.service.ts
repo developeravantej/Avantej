@@ -1,12 +1,16 @@
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { user } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { createHash } from "node:crypto";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { createMember } from "@avantej-core/services";
 
 export type GhlEventType = "create" | "update" | "delete" | "custom";
 
@@ -26,11 +30,45 @@ type AnyRecord = Record<string, unknown>;
 export type ExtractedGhlContactPayload = {
 	contactId: string;
 	email: string;
+	emailIsPlaceholder: boolean;
 	name?: string;
 	phone?: string;
 	payloadLocationId?: string;
 	dynamicFields: Record<string, unknown>;
 };
+
+export const GHL_PLACEHOLDER_EMAIL_DOMAIN = "ghl.placeholder";
+
+export function buildPlaceholderEmail(contactId: string): string {
+	return `ghl-${contactId}@${GHL_PLACEHOLDER_EMAIL_DOMAIN}`;
+}
+
+export function isPlaceholderEmail(email: string | null | undefined): boolean {
+	if (!email) return false;
+	return email.endsWith(`@${GHL_PLACEHOLDER_EMAIL_DOMAIN}`);
+}
+
+export function deriveDobFromAge(
+	age: number,
+	now: Date = new Date(),
+): Date | null {
+	if (!Number.isFinite(age) || age <= 0 || age > 150) return null;
+	const year = now.getUTCFullYear() - Math.floor(age);
+	return new Date(Date.UTC(year, 0, 1));
+}
+
+export function findHierarchyBranchByName(
+	branches: Array<{ id: string; name: string; type: string }>,
+	selectedLocation: string | null | undefined,
+): string | null {
+	if (!selectedLocation) return null;
+	const needle = selectedLocation.trim().toLowerCase();
+	if (!needle) return null;
+	const match = branches.find(
+		(b) => b.type === "branch" && b.name.trim().toLowerCase() === needle,
+	);
+	return match?.id ?? null;
+}
 
 export type GhlContactResponseData = {
 	id: string | null;
@@ -135,15 +173,23 @@ export function extractGhlContactPayload(
 	if (!contactId) {
 		throw new GhlWebhookError("Missing required field: contact.id", 400, "missing_contact_id");
 	}
-	if (!email) {
-		throw new GhlWebhookError("Missing required field: email", 400, "missing_email");
+	if (!email && !phone) {
+		throw new GhlWebhookError(
+			"Missing required field: email or phone",
+			400,
+			"missing_contact_identifier",
+		);
 	}
+
+	const resolvedEmail = email || buildPlaceholderEmail(contactId);
+	const emailIsPlaceholder = !email;
 
 	const dynamicFields = removeCoreKeys(payload, contact);
 
 	return {
 		contactId,
-		email,
+		email: resolvedEmail,
+		emailIsPlaceholder,
 		name: name || undefined,
 		phone: phone || undefined,
 		payloadLocationId: payloadLocationId || undefined,
@@ -574,6 +620,8 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		};
 	}
 
+	const customFields = extractCustomFieldsForProfile(payload);
+
 	let userRecord =
 		existingLink
 			? (
@@ -585,7 +633,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 				)[0]
 			: undefined;
 
-	if (!userRecord) {
+	if (!userRecord && !extracted.emailIsPlaceholder) {
 		userRecord = (
 			await controlPanelDb
 				.select()
@@ -595,18 +643,30 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		)[0];
 	}
 
+	if (!userRecord && extracted.phone) {
+		userRecord = (
+			await controlPanelDb
+				.select()
+				.from(user)
+				.where(eq(user.phone, extracted.phone))
+				.limit(1)
+		)[0];
+	}
+
 	const now = new Date();
 	if (!userRecord) {
+		const nameParts = (extracted.name || "").trim().split(/\s+/).filter(Boolean);
 		[userRecord] = await controlPanelDb
 			.insert(user)
 			.values({
 				id: crypto.randomUUID(),
 				name: extracted.name || extracted.email,
-				firstName: extracted.name?.split(" ")[0] || extracted.email,
-				lastName: extracted.name?.split(" ").slice(1).join(" ") || "",
+				firstName: nameParts[0] || extracted.email,
+				lastName: nameParts.slice(1).join(" ") || "",
 				email: extracted.email,
-				emailVerified: true,
+				emailVerified: !extracted.emailIsPlaceholder,
 				image: null,
+				phone: extracted.phone || null,
 				role: null,
 				banned: false,
 				banReason: null,
@@ -622,14 +682,33 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		throw new GhlWebhookError("Failed to create or resolve user record", 500, "user_resolution_failed");
 	}
 
+	// Preserve existing real email if incoming is placeholder; same for phone fallback.
+	const keepExistingEmail =
+		extracted.emailIsPlaceholder && !isPlaceholderEmail(userRecord.email);
 	await controlPanelDb
 		.update(user)
 		.set({
 			name: extracted.name || userRecord.name,
-			email: extracted.email,
+			email: keepExistingEmail ? userRecord.email : extracted.email,
+			emailVerified: keepExistingEmail
+				? userRecord.emailVerified
+				: !extracted.emailIsPlaceholder
+					? true
+					: userRecord.emailVerified,
+			phone: extracted.phone || userRecord.phone,
 			updatedAt: now,
 		})
 		.where(eq(user.id, userRecord.id));
+
+	const dobFromAge = customFields.age != null ? deriveDobFromAge(customFields.age, now) : null;
+	const leadSourceId = await resolveLeadSourceId(tenantDb, customFields.leadAcquisitionType);
+	const referrerMemberId = await resolveReferrerMemberId(
+		tenantDb,
+		controlPanelDb,
+		customFields.referrerPhone,
+	);
+	const campaignId = customFields.leadOriginator || null;
+	const gender = customFields.gender || null;
 
 	const [existingProfile] = await tenantDb
 		.select()
@@ -644,6 +723,11 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.values({
 				userId: userRecord.id,
 				phone: extracted.phone || null,
+				dateOfBirth: dobFromAge,
+				gender,
+				leadSourceId,
+				referrerMemberId,
+				campaignId,
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -654,6 +738,11 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.update(customerProfiles)
 			.set({
 				phone: extracted.phone || existingProfile.phone,
+				dateOfBirth: dobFromAge ?? existingProfile.dateOfBirth,
+				gender: gender ?? existingProfile.gender,
+				leadSourceId: leadSourceId ?? existingProfile.leadSourceId,
+				referrerMemberId: referrerMemberId ?? existingProfile.referrerMemberId,
+				campaignId: campaignId ?? existingProfile.campaignId,
 				isDeleted: false,
 				deletedAt: null,
 				deletedSource: null,
@@ -662,12 +751,41 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.where(eq(customerProfiles.id, existingProfile.id));
 	}
 
+	// Resolve branch node from selected_location (if provided), else fallback to link's branch.
+	const branchNodeId = await resolveBranchNodeId(
+		tenantDb,
+		customFields.selectedLocation,
+		locationLink.tenantBranchId,
+	);
+
+	// Auto-create member row (role='client') so lead becomes a usable customer immediately.
+	const [existingMember] = await tenantDb
+		.select({ id: members.id })
+		.from(members)
+		.where(eq(members.userId, userRecord.id))
+		.limit(1);
+
+	if (!existingMember) {
+		try {
+			await createMember(controlPanelDb, tenantDb, {
+				userId: userRecord.id,
+				organizationId: locationLink.organizationId,
+				role: "client",
+				hierarchyScopeId: branchNodeId,
+			});
+		} catch (error) {
+			// Best-effort: don't fail the whole webhook if member creation has a
+			// transient conflict (e.g. concurrent submit). Log via event status.
+			console.error("[ghl-webhook] createMember failed", error);
+		}
+	}
+
 	if (!existingLink) {
 		await tenantDb.insert(ghlContactLinks).values({
 			ghlContactId: extracted.contactId,
 			userId: userRecord.id,
 			customerProfileId: customerProfileId || null,
-			branchNodeId: locationLink.tenantBranchId,
+			branchNodeId,
 			ghlLocationId: locationLink.ghlLocationId,
 			syncStatus: "active",
 			lastSyncedAt: now,
@@ -680,6 +798,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.set({
 				userId: userRecord.id,
 				customerProfileId: customerProfileId || existingLink.customerProfileId,
+				branchNodeId,
 				syncStatus: "active",
 				lastSyncedAt: now,
 				updatedAt: now,
@@ -712,6 +831,108 @@ async function updateEventStatus(
 			errorMessage: errorMessage ?? null,
 		})
 		.where(eq(ghlSyncEvents.eventKey, eventKey));
+}
+
+export type GhlCustomFields = {
+	gender: string | null;
+	age: number | null;
+	selectedCountry: string | null;
+	selectedLocation: string | null;
+	primaryStaff: string | null;
+	referrerPhone: string | null;
+	leadAcquisitionType: string | null;
+	leadOriginator: string | null;
+};
+
+export function extractCustomFieldsForProfile(
+	payload: AnyRecord,
+): GhlCustomFields {
+	const contact = asRecord(payload.contact);
+	const pick = (keys: string[]): string | null =>
+		pickField(payload, contact, keys);
+
+	const ageRaw = pick(["age"]);
+	const ageNum = ageRaw ? Number.parseInt(ageRaw, 10) : Number.NaN;
+	const age =
+		Number.isFinite(ageNum) && ageNum > 0 && ageNum < 150 ? ageNum : null;
+
+	return {
+		gender: pick(["gender"]),
+		age,
+		selectedCountry: pick(["selected_country", "sys_selected_country"]),
+		selectedLocation: pick(["selected_location", "sys_selected_location"]),
+		primaryStaff: pick(["primary_staff", "ops_primary_staff"]),
+		referrerPhone: pick(["referrer_phone"]),
+		leadAcquisitionType: pick([
+			"lead_acquisition_type",
+			"sys_lead_acquisition_type",
+		]),
+		leadOriginator: pick([
+			"lead_originator",
+			"lead_originatator",
+			"sys_lead_originator",
+		]),
+	};
+}
+
+async function resolveBranchNodeId(
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>,
+	selectedLocation: string | null,
+	fallbackBranchId: string,
+): Promise<string> {
+	if (!selectedLocation) return fallbackBranchId;
+	const rows = await tenantDb
+		.select({
+			id: hierarchyNodes.id,
+			name: hierarchyNodes.name,
+			type: hierarchyNodes.type,
+		})
+		.from(hierarchyNodes)
+		.where(eq(hierarchyNodes.type, "branch"));
+	const matchId = findHierarchyBranchByName(rows, selectedLocation);
+	return matchId ?? fallbackBranchId;
+}
+
+async function resolveLeadSourceId(
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>,
+	name: string | null,
+): Promise<string | null> {
+	if (!name) return null;
+	const trimmed = name.trim();
+	if (!trimmed) return null;
+	const [row] = await tenantDb
+		.select({ id: leadSources.id })
+		.from(leadSources)
+		.where(
+			and(
+				sql`lower(${leadSources.name}) = lower(${trimmed})`,
+				eq(leadSources.isActive, true),
+			),
+		)
+		.limit(1);
+	return row?.id ?? null;
+}
+
+async function resolveReferrerMemberId(
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>,
+	controlPanelDb: ReturnType<typeof getControlPanelDb>,
+	phone: string | null,
+): Promise<string | null> {
+	if (!phone) return null;
+	const trimmed = phone.trim();
+	if (!trimmed) return null;
+	const [userRow] = await controlPanelDb
+		.select({ id: user.id })
+		.from(user)
+		.where(eq(user.phone, trimmed))
+		.limit(1);
+	if (!userRow) return null;
+	const [memberRow] = await tenantDb
+		.select({ id: members.id })
+		.from(members)
+		.where(eq(members.userId, userRow.id))
+		.limit(1);
+	return memberRow?.id ?? null;
 }
 
 export async function markGhlWebhookFailed(args: {
