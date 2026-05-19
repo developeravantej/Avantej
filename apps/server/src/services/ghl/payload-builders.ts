@@ -19,7 +19,9 @@ export interface AvantejUser {
 
 export interface AvantejCustomerProfile {
 	id: string;
-	userId: string;
+	// Nullable since Phase 4 — dependents in an account_group have no
+	// control-panel user. GHL sync callers must early-return when this is null.
+	userId: string | null;
 	phone: string | null;
 	dateOfBirth: Date | null;
 	gender: string | null;

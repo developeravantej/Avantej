@@ -7,6 +7,7 @@
  * userId references Control Panel user.id (no FK due to cross-database).
  */
 
+import { sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
@@ -14,15 +15,26 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	uuid,
 } from "drizzle-orm/pg-core";
+import { accountGroups } from "./account-groups";
 import { households } from "./households";
 import { leadSources } from "./lead-sources";
 import { members } from "./members";
 
 export const customerProfiles = pgTable("customer_profiles", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	userId: text("user_id").notNull().unique(),
+	// Phase 4: nullable so dependents in an account_group can exist without
+	// a control-panel user row (shared-email case). Uniqueness for primaries
+	// is enforced via the partial unique index declared in the table options.
+	userId: text("user_id"),
+
+	// Phase 4 — shared-email grouping
+	accountGroupId: uuid("account_group_id").references(() => accountGroups.id, {
+		onDelete: "set null",
+	}),
+	relationship: text("relationship"),
 
 	// Contact & personal info
 	phone: text("phone"),
@@ -82,7 +94,11 @@ export const customerProfiles = pgTable("customer_profiles", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-	userIdIdx: index("customer_profiles_user_idx").on(table.userId),
+	// Phase 4: partial unique index — primaries keep 1:1 user<->profile,
+	// dependents (user_id IS NULL) are allowed to coexist.
+	userIdUniqueIdx: uniqueIndex("customer_profiles_user_id_unique_not_null")
+		.on(table.userId)
+		.where(sql`${table.userId} IS NOT NULL`),
 	creditPointsIdx: index("customer_profiles_credits_idx").on(table.creditPoints),
 	isDeletedIdx: index("customer_profiles_is_deleted_idx").on(table.isDeleted),
 	// === 3.2 attribution lookup indexes ===
@@ -94,4 +110,8 @@ export const customerProfiles = pgTable("customer_profiles", {
 	// === 3.6 household linking ===
 	householdIdx: index("customer_profiles_household_idx").on(table.householdId),
 	// === /3.6 ===
+	// Phase 4
+	accountGroupIdx: index("customer_profiles_account_group_idx").on(
+		table.accountGroupId,
+	),
 }));

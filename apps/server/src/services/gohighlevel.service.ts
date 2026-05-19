@@ -4,6 +4,7 @@ import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch
 import { and, eq, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { createHash } from "node:crypto";
+import { accountGroups } from "@avantej-core/db/schema/tenant/account-groups";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
@@ -704,6 +705,41 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 	}
 
 	const now = new Date();
+
+	// Phase 4 — shared-email collision detection.
+	//
+	// If we matched an existing user (by email or phone) AND that user is
+	// already linked to a DIFFERENT GHL contact, this is two distinct
+	// customers sharing one inbox (family / friend registering on behalf).
+	// Route the second registration into an account_group as a dependent
+	// (no `user` row, no magic-link dispatch) so the unique constraints on
+	// user.email and ghl_contact_links.customer_profile_id don't trip.
+	if (userRecord && !existingLink) {
+		const [otherLink] = await tenantDb
+			.select({
+				id: ghlContactLinks.id,
+				ghlContactId: ghlContactLinks.ghlContactId,
+			})
+			.from(ghlContactLinks)
+			.where(eq(ghlContactLinks.userId, userRecord.id))
+			.limit(1);
+
+		if (otherLink && otherLink.ghlContactId !== extracted.contactId) {
+			return await processDependentInGroup({
+				tenantDb,
+				locationLink,
+				extracted,
+				customFields,
+				payload,
+				eventKey,
+				eventType,
+				responseData,
+				primaryUserId: userRecord.id,
+				now,
+			});
+		}
+	}
+
 	if (!userRecord) {
 		const nameParts = (extracted.name || "").trim().split(/\s+/).filter(Boolean);
 		[userRecord] = await controlPanelDb
@@ -883,6 +919,142 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		contactId: extracted.contactId,
 		eventKey,
 		message: existingLink ? "Contact updated" : "Customer created from webhook",
+		responseData,
+	};
+}
+
+/**
+ * Phase 4 — shared-email dependent path.
+ *
+ * Invoked when an incoming GHL contact shares an email with an existing
+ * Avantej user who already has a different ghl_contact_link. Creates an
+ * `account_group` (or reuses one if the primary already has it) and inserts
+ * a dependent `customer_profile` with `user_id = NULL` + the group id. The
+ * new ghl_contact_link points at the dependent profile, leaving the primary
+ * user untouched.
+ *
+ * Dispatching a magic-link here would be wrong (no user row to sign in),
+ * so it's skipped.
+ */
+async function processDependentInGroup(args: {
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>;
+	locationLink: { organizationId: string; tenantBranchId: string; ghlLocationId: string };
+	extracted: ExtractedGhlContactPayload;
+	customFields: GhlCustomFields;
+	payload: AnyRecord;
+	eventKey: string;
+	eventType: GhlEventType;
+	responseData: GhlContactResponseData;
+	primaryUserId: string;
+	now: Date;
+}): Promise<{
+	status: "processed";
+	eventType: GhlEventType;
+	contactId: string;
+	eventKey: string;
+	message: string;
+	responseData: GhlContactResponseData;
+}> {
+	const {
+		tenantDb,
+		locationLink,
+		extracted,
+		customFields,
+		eventKey,
+		eventType,
+		responseData,
+		primaryUserId,
+		now,
+	} = args;
+
+	// Find-or-create account group keyed on the primary's user id.
+	let [group] = await tenantDb
+		.select({ id: accountGroups.id })
+		.from(accountGroups)
+		.where(eq(accountGroups.primaryUserId, primaryUserId))
+		.limit(1);
+
+	if (!group) {
+		[group] = await tenantDb
+			.insert(accountGroups)
+			.values({
+				primaryUserId,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning({ id: accountGroups.id });
+	}
+
+	if (!group) {
+		throw new GhlWebhookError(
+			"Failed to create or resolve account group",
+			500,
+			"account_group_resolution_failed",
+		);
+	}
+
+	const dobFromAge =
+		customFields.age != null ? deriveDobFromAge(customFields.age, now) : null;
+	const leadSourceId = await resolveLeadSourceId(
+		tenantDb,
+		customFields.leadAcquisitionType,
+	);
+	const campaignId = customFields.leadOriginator || null;
+	const gender = customFields.gender || null;
+
+	// Insert dependent customer_profile (user_id = NULL by design).
+	const [dependentProfile] = await tenantDb
+		.insert(customerProfiles)
+		.values({
+			userId: null,
+			accountGroupId: group.id,
+			phone: extracted.phone || null,
+			dateOfBirth: dobFromAge,
+			gender,
+			leadSourceId,
+			campaignId,
+			createdAt: now,
+			updatedAt: now,
+		})
+		.returning({ id: customerProfiles.id });
+
+	if (!dependentProfile) {
+		throw new GhlWebhookError(
+			"Failed to create dependent customer profile",
+			500,
+			"dependent_profile_failed",
+		);
+	}
+
+	const branchNodeId = await resolveBranchNodeId(
+		tenantDb,
+		customFields.selectedLocation,
+		locationLink.tenantBranchId,
+	);
+
+	// Dependent links never carry a user_id (the primary keeps theirs).
+	// Better-Auth signInMagicLink dispatch is skipped — there is no user row
+	// for the dependent to sign in as.
+	await tenantDb.insert(ghlContactLinks).values({
+		ghlContactId: extracted.contactId,
+		userId: primaryUserId,
+		customerProfileId: dependentProfile.id,
+		branchNodeId,
+		ghlLocationId: locationLink.ghlLocationId,
+		syncStatus: "active",
+		lastSyncedAt: now,
+		createdAt: now,
+		updatedAt: now,
+	});
+
+	await updateEventStatus(tenantDb, eventKey, "processed");
+
+	return {
+		status: "processed",
+		eventType,
+		contactId: extracted.contactId,
+		eventKey,
+		message: "Dependent added to existing account group",
 		responseData,
 	};
 }

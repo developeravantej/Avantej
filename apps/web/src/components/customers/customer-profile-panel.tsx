@@ -11,6 +11,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -494,6 +495,15 @@ export function CustomerProfilePanel({
 					<p className="text-muted-foreground text-xs">
 						Joined {formatDate(member.joinedAt)}
 					</p>
+					{organizationId && profile?.id && (
+						<div className="pt-2">
+							<MagicLinkActions
+								organizationId={organizationId}
+								customerProfileId={profile.id}
+								customerEmail={user.email}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 

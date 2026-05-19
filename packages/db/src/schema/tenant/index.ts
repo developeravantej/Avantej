@@ -17,6 +17,7 @@ export * from "./appointments";
 export * from "./audit-logs";
 export * from "./branch-details";
 export * from "./brands";
+export * from "./account-groups";
 export * from "./check-ins";
 export * from "./coach-intake-availability";
 export * from "./coach-intake-exceptions";

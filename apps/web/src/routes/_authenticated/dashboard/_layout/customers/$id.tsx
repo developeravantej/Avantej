@@ -209,6 +209,7 @@ function Customer360Page() {
 				member={member}
 				user={user}
 				profile={profile ?? null}
+				organizationId={organizationId}
 				canFreeze={canFreeze}
 				canShowFreezeButton={packageInstances.some((p) => p.status !== "paused")}
 				onFreezeClick={() => setFreezeOpen(true)}

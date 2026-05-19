@@ -212,9 +212,20 @@ export const memberRouter = {
           .from(customerProfiles)
           .where(inArray(customerProfiles.userId, clientUserIds));
 
-        const profileIds = profileRows.map((p: { id: string; userId: string }) => p.id);
+        // Phase 4 — customer_profiles.user_id is now nullable for dependents
+        // in an account_group. Members are always primaries (the linked user
+        // is the caller), so filter out any incidental null rows.
+        const primaryProfileRows = profileRows.filter(
+          (p: { id: string; userId: string | null }): p is { id: string; userId: string } =>
+            p.userId !== null,
+        );
+        const profileIds = primaryProfileRows.map(
+          (p: { id: string; userId: string }) => p.id,
+        );
         const profileIdToUserId = new Map<string, string>(
-          profileRows.map((p: { id: string; userId: string }) => [p.id, p.userId]),
+          primaryProfileRows.map(
+            (p: { id: string; userId: string }): [string, string] => [p.id, p.userId],
+          ),
         );
 
         if (profileIds.length > 0) {
