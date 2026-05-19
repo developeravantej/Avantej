@@ -1,4 +1,5 @@
 import { PauseCircle } from "lucide-react";
+import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getInitials, memberStatusVariant, formatDate } from "../utils";
@@ -14,6 +15,7 @@ type User = {
 };
 
 type Profile = {
+	id?: string | null;
 	phone?: string | null;
 } | null;
 
@@ -21,6 +23,7 @@ type Props = {
 	member: Member;
 	user: User;
 	profile: Profile;
+	organizationId?: string | null;
 	canFreeze: boolean;
 	canShowFreezeButton: boolean;
 	onFreezeClick: () => void;
@@ -30,6 +33,7 @@ export function CustomerHeader({
 	member,
 	user,
 	profile,
+	organizationId,
 	canFreeze,
 	canShowFreezeButton,
 	onFreezeClick,
@@ -54,6 +58,15 @@ export function CustomerHeader({
 				<p className="text-muted-foreground text-xs">
 					Joined {formatDate(member.joinedAt)}
 				</p>
+				{organizationId && profile?.id && (
+					<div className="pt-2">
+						<MagicLinkActions
+							organizationId={organizationId}
+							customerProfileId={profile.id}
+							customerEmail={user.email}
+						/>
+					</div>
+				)}
 			</div>
 			<div className="flex shrink-0 items-start gap-2">
 				{canFreeze && canShowFreezeButton && (
