@@ -599,6 +599,29 @@ const serverCustomerProfilesRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+	// Phase 4 — staff backfill: replace placeholder email + dispatch magic-link
+	addEmailAndDispatchMagicLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+				email: z.string().email(),
+			}),
+		)
+		.handler((): { success: boolean; email: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	// Phase 4 — generic magic-link resend for an existing customer
+	resendMagicLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+			}),
+		)
+		.handler((): { success: boolean; email: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Subscriptions router type definition for client type inference.
