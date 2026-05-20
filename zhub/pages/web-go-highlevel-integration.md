@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/go-highlevel-integration.tsx`
 **Platform:** web
 **Auth required:** authenticated, rbac(system_admin)
-**Last updated:** 2026-05-12
+**Last updated:** 2026-04-23
 
 ---
 
@@ -123,5 +123,3 @@ type GhlContactLink = {
 - Server URL loaded from `import.meta.env.VITE_SERVER_URL` (fallback `http://localhost:3000`).
 - "Recent Sync Events" limited to 25; "Contact Links" limited to 50 per query.
 - Missing error state for auth failures on individual API calls (only shows loading state).
-- **2026-05-12 cleanup (commit `25f6d75b`):** Removed `console.*` debug logging and tightened type narrowing in payload extraction helpers (`extractParsedFieldsPreview`); behaviour and endpoints unchanged.
-
