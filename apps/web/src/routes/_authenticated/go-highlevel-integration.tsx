@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { requireSystemAdmin } from "@/lib/route-guards";
-import { useIsSystemAdmin } from "@/hooks/usePermissions";
-import { Lock, RefreshCw, Zap } from "lucide-react";
+import { requirePermission } from "@/lib/route-guards";
+import { RefreshCw, Zap } from "lucide-react";
 
 type GhlLocation = {
 	locationId: string;
@@ -41,7 +40,7 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
 
 export const Route = createFileRoute("/_authenticated/go-highlevel-integration")({
 	beforeLoad: async () => {
-		await requireSystemAdmin("/dashboard");
+		await requirePermission("user_management:update");
 	},
 	component: GoHighLevelIntegrationPage,
 });
@@ -67,7 +66,6 @@ function FormSection({
 }
 
 function GoHighLevelIntegrationPage() {
-	const { isSystemAdmin, loading: adminLoading } = useIsSystemAdmin();
 	const [locations, setLocations] = useState<GhlLocation[]>([]);
 	const [selectedLocationId, setSelectedLocationId] = useState("");
 	const [events, setEvents] = useState<GhlSyncEvent[]>([]);
@@ -270,22 +268,6 @@ function GoHighLevelIntegrationPage() {
 			}
 		})();
 	}, [selectedLocationId]);
-
-	// ─── Guards (must come AFTER all hook calls per Rules of Hooks) ────────────
-
-	if (adminLoading) return null;
-
-	if (!isSystemAdmin) {
-		return (
-			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex items-center justify-center">
-				<div className="flex flex-col items-center justify-center text-[#737373]">
-					<Lock className="h-8 w-8 mb-3 opacity-30" />
-					<p className="text-sm font-medium text-[#0a0a0a]">You don&apos;t have access to this page</p>
-					<p className="text-xs mt-1">Ask a system admin to grant access.</p>
-				</div>
-			</div>
-		);
-	}
 
 	// ─── Status badge helper ───────────────────────────────────────────────────
 
