@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, UserPlus, Trash2, Search } from "lucide-react";
+import { Shield, UserPlus, Trash2, Search, ShieldCheck } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -9,6 +9,8 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Dialog,
 	DialogContent,
@@ -324,7 +326,7 @@ function PlatformAdminAdminsPage() {
 	const [revokeTarget, setRevokeTarget] = useState<AdminRow | null>(null);
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-	const { data: admins, isLoading } = useQuery({
+	const { data: admins, isLoading, error, refetch } = useQuery({
 		queryKey: ["admin", "listAdmins"],
 		queryFn: () => client.admin.listAdmins({}),
 	});
@@ -347,95 +349,128 @@ function PlatformAdminAdminsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-semibold">Platform Admin: Admins</h1>
+					<div className="text-sm text-muted-foreground">Platform admin</div>
+					<h1 className="text-2xl font-semibold">Admins</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Manage platform admin accounts. Only super admins can view or modify
 						this list.
 					</p>
 				</div>
-				<Button onClick={() => setAddDialogOpen(true)}>
+				<Button variant="default" onClick={() => setAddDialogOpen(true)}>
 					<UserPlus className="mr-2 size-4" />
 					Add Admin
 				</Button>
 			</div>
 
 			{/* Admins table */}
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Email</TableHead>
-							<TableHead>Name</TableHead>
-							<TableHead>Role</TableHead>
-							<TableHead>Granted At</TableHead>
-							<TableHead>Granted By</TableHead>
-							<TableHead className="w-20">Actions</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
-							<TableRow>
-								<TableCell
-									colSpan={6}
-									className="text-center text-muted-foreground py-8"
-								>
-									Loading admins…
-								</TableCell>
-							</TableRow>
-						) : adminList.length === 0 ? (
-							<TableRow>
-								<TableCell
-									colSpan={6}
-									className="text-center text-muted-foreground py-8"
-								>
-									No platform admins found.
-								</TableCell>
-							</TableRow>
-						) : (
-							adminList.map((admin) => {
-								const isSelf = admin.userId === currentUserId;
-								return (
-									<TableRow key={admin.userId}>
-										<TableCell className="font-medium">
-											{admin.email ?? "—"}
-											{isSelf && (
-												<span className="ml-2 text-xs text-muted-foreground">
-													(you)
-												</span>
-											)}
-										</TableCell>
-										<TableCell>{admin.name ?? "—"}</TableCell>
-										<TableCell>
-											<Badge variant={ROLE_VARIANTS[admin.role]}>
-												<Shield className="mr-1 size-3" />
-												{ROLE_LABELS[admin.role]}
-											</Badge>
-										</TableCell>
-										<TableCell>{formatGrantedAt(admin.grantedAt)}</TableCell>
-										<TableCell className="text-muted-foreground text-sm">
-											{admin.grantedByEmail ?? "—"}
-										</TableCell>
-										<TableCell>
-											{/* Hide Revoke for own row to prevent self-lockout */}
-											{!isSelf && (
-												<Button
-													variant="ghost"
-													size="sm"
-													className="text-destructive hover:text-destructive hover:bg-destructive/10"
-													onClick={() => setRevokeTarget(admin)}
-												>
-													<Trash2 className="size-4" />
-													<span className="sr-only">Revoke</span>
-												</Button>
-											)}
+			{error ? (
+				<StatusCallout
+					variant="error"
+					title="Couldn't load admins"
+					message={error instanceof Error ? error.message : "An error occurred"}
+					onRetry={() => refetch()}
+				/>
+			) : (
+				<div className="flex h-full flex-col rounded-2xl border border-brand-secondary-3 bg-card overflow-hidden">
+					<div className="flex-1 overflow-y-auto">
+						<Table>
+							<TableHeader>
+								<TableRow className="sticky top-0 z-10 bg-white hover:bg-white">
+									<TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Email
+									</TableHead>
+									<TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Name
+									</TableHead>
+									<TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Role
+									</TableHead>
+									<TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Granted At
+									</TableHead>
+									<TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Granted By
+									</TableHead>
+									<TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground px-6 py-3">
+										Actions
+									</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{isLoading ? (
+									<TableRow>
+										<TableCell
+											colSpan={6}
+											className="text-center text-muted-foreground py-8"
+										>
+											Loading admins…
 										</TableCell>
 									</TableRow>
-								);
-							})
-						)}
-					</TableBody>
-				</Table>
-			</div>
+								) : adminList.length === 0 ? (
+									<TableRow>
+										<TableCell colSpan={6} className="p-0">
+											<EmptyState
+												icon={ShieldCheck}
+												title="No platform admins found"
+												description="Add a platform admin to get started."
+												action={{
+													label: "Add Admin",
+													onClick: () => setAddDialogOpen(true),
+												}}
+											/>
+										</TableCell>
+									</TableRow>
+								) : (
+									adminList.map((admin) => {
+										const isSelf = admin.userId === currentUserId;
+										return (
+											<TableRow key={admin.userId} className="hover:bg-muted/30">
+												<TableCell className="text-sm px-6 py-4 whitespace-nowrap font-medium">
+													{admin.email ?? "—"}
+													{isSelf && (
+														<span className="ml-2 text-xs text-muted-foreground">
+															(you)
+														</span>
+													)}
+												</TableCell>
+												<TableCell className="text-sm px-6 py-4 whitespace-nowrap">
+													{admin.name ?? "—"}
+												</TableCell>
+												<TableCell className="text-sm px-6 py-4 whitespace-nowrap">
+													<Badge variant={ROLE_VARIANTS[admin.role]}>
+														<Shield className="mr-1 size-3" />
+														{ROLE_LABELS[admin.role]}
+													</Badge>
+												</TableCell>
+												<TableCell className="text-sm px-6 py-4 whitespace-nowrap">
+													{formatGrantedAt(admin.grantedAt)}
+												</TableCell>
+												<TableCell className="text-muted-foreground text-sm px-6 py-4 whitespace-nowrap">
+													{admin.grantedByEmail ?? "—"}
+												</TableCell>
+												<TableCell className="text-sm px-6 py-4 whitespace-nowrap">
+													{/* Hide Revoke for own row to prevent self-lockout */}
+													{!isSelf && (
+														<Button
+															variant="ghost"
+															size="sm"
+															className="text-destructive hover:text-destructive hover:bg-destructive/10"
+															onClick={() => setRevokeTarget(admin)}
+														>
+															<Trash2 className="size-4" />
+															<span className="sr-only">Revoke</span>
+														</Button>
+													)}
+												</TableCell>
+											</TableRow>
+										);
+									})
+								)}
+							</TableBody>
+						</Table>
+					</div>
+				</div>
+			)}
 
 			{/* Revoke confirmation dialog */}
 			<RevokeDialog

@@ -33,6 +33,7 @@ import {
 	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 import { BigNumberCard } from "@/components/platform-admin/big-number-card";
 import { MigrationStatusTable } from "@/components/platform-admin/migration-status-table";
@@ -87,16 +88,14 @@ function MigrationsTab({ schema }: { schema: SchemaKind }) {
 	return (
 		<div className="space-y-4" data-testid={`migrations-tab-${schema}`}>
 			{summary && summary.orphanedCount > 0 ? (
-				<Card
-					className="border-red-300 bg-red-50/40 dark:bg-red-950/20"
-					data-testid="migrations-orphaned-banner"
-				>
-					<CardContent className="p-3 text-sm text-red-800 dark:text-red-300">
-						<strong>Journal drift detected.</strong>{" "}
-						{summary.orphanedCount} migration(s) applied to the DB but not in
-						the drizzle journal. Investigate before generating new migrations.
-					</CardContent>
-				</Card>
+				<div data-testid="migrations-orphaned-banner">
+					<StatusCallout variant="error" title="Journal drift detected">
+						<p className="text-sm">
+							{summary.orphanedCount} migration(s) applied to the DB but not in
+							the drizzle journal. Investigate before generating new migrations.
+						</p>
+					</StatusCallout>
+				</div>
 			) : null}
 
 			{listQ.isLoading ? (
@@ -154,11 +153,24 @@ function MigrationsTab({ schema }: { schema: SchemaKind }) {
 					</div>
 				</CardHeader>
 				<CardContent>
-					<MigrationStatusTable
-						status={listQ.data?.status ?? []}
-						isLoading={listQ.isLoading || listQ.isFetching}
-						onRowClick={(tag) => setOpenTag(tag)}
-					/>
+					{listQ.error ? (
+						<StatusCallout
+							variant="error"
+							title="Couldn't load migrations"
+							message={
+								listQ.error instanceof Error
+									? listQ.error.message
+									: "An error occurred"
+							}
+							onRetry={() => listQ.refetch()}
+						/>
+					) : (
+						<MigrationStatusTable
+							status={listQ.data?.status ?? []}
+							isLoading={listQ.isLoading || listQ.isFetching}
+							onRowClick={(tag) => setOpenTag(tag)}
+						/>
+					)}
 				</CardContent>
 			</Card>
 
@@ -187,7 +199,7 @@ function MigrationsTab({ schema }: { schema: SchemaKind }) {
 						{fileQ.isLoading ? (
 							<Skeleton className="h-48 w-full" />
 						) : fileQ.error ? (
-							<div className="text-sm text-red-700 dark:text-red-400">
+							<div className="text-sm text-red-700">
 								Could not load: {(fileQ.error as Error).message}
 							</div>
 						) : fileQ.data ? (

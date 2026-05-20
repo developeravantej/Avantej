@@ -5,12 +5,14 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { Search, LogIn } from "lucide-react";
+import { Search, LogIn, Users } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Dialog,
 	DialogContent,
@@ -58,6 +60,8 @@ interface UsersTableProps {
 	searchValue: string;
 	pagination: Pagination | undefined;
 	onPageChange: (page: number) => void;
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 // ─── Role badge ───────────────────────────────────────────────────────────────
@@ -88,6 +92,8 @@ export function UsersTable({
 	searchValue,
 	pagination,
 	onPageChange,
+	error,
+	onRetry,
 }: UsersTableProps) {
 	// Controlled dialog for confirmation — one dialog shared across all rows
 	const [confirmingUser, setConfirmingUser] = useState<UserRow | null>(null);
@@ -192,72 +198,93 @@ export function UsersTable({
 			</div>
 
 			{/* Table */}
-			<div className="rounded-md border shadow-sm">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b bg-muted/50 hover:bg-muted/60"
-							>
-								{headerGroup.headers.map((header) => (
-									<TableHead
-										key={header.id}
-										className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
+			{error ? (
+				<StatusCallout
+					variant="error"
+					title="Couldn't load users"
+					message={error instanceof Error ? error.message : "An error occurred"}
+					onRetry={onRetry}
+				/>
+			) : (
+				<div className="flex h-full flex-col rounded-2xl border border-brand-secondary-3 bg-card overflow-hidden">
+					<div className="flex-1 overflow-y-auto">
+						<Table>
+							<TableHeader>
+								{table.getHeaderGroups().map((headerGroup) => (
+									<TableRow
+										key={headerGroup.id}
+										className="sticky top-0 z-10 bg-white hover:bg-white"
 									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
+										{headerGroup.headers.map((header) => (
+											<TableHead
+												key={header.id}
+												className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+											>
+												{header.isPlaceholder
+													? null
+													: flexRender(
+															header.column.columnDef.header,
+															header.getContext(),
+														)}
+											</TableHead>
+										))}
+									</TableRow>
 								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center text-muted-foreground"
-								>
-									Loading…
-								</TableCell>
-							</TableRow>
-						) : table.getRowModel().rows.length ? (
-							table.getRowModel().rows.map((row, index) => (
-								<TableRow
-									key={row.id}
-									className={`border-b transition-colors hover:bg-muted/50 ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-								>
-									{row.getVisibleCells().map((cell) => (
+							</TableHeader>
+							<TableBody>
+								{isLoading ? (
+									<TableRow>
 										<TableCell
-											key={cell.id}
-											className="px-4 py-3 text-sm whitespace-nowrap"
+											colSpan={columns.length}
+											className="h-24 text-center text-muted-foreground"
 										>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
+											Loading…
 										</TableCell>
-									))}
-								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
-									No users found.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
+									</TableRow>
+								) : table.getRowModel().rows.length ? (
+									table.getRowModel().rows.map((row) => (
+										<TableRow
+											key={row.id}
+											className="transition-colors hover:bg-muted/30"
+										>
+											{row.getVisibleCells().map((cell) => (
+												<TableCell
+													key={cell.id}
+													className="px-6 py-4 text-sm whitespace-nowrap"
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</TableCell>
+											))}
+										</TableRow>
+									))
+								) : (
+									<TableRow>
+										<TableCell colSpan={columns.length} className="p-0">
+											<EmptyState
+												icon={Users}
+												title={
+													searchValue
+														? "No users match your search"
+														: "No users found"
+												}
+												description={
+													searchValue
+														? "Try different search terms."
+														: undefined
+												}
+												context={searchValue ? "search" : "empty"}
+											/>
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+					</div>
+				</div>
+			)}
 
 			{/* Pagination */}
 			{pagination && pagination.totalPages > 1 && (
