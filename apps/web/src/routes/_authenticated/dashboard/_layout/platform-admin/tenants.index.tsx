@@ -1,13 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Building2, Search } from "lucide-react";
 import { client } from "@/utils/orpc";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Select,
 	SelectContent,
@@ -34,7 +36,27 @@ export const Route = createFileRoute(
 	component: PlatformAdminTenantsPage,
 });
 
+/**
+ * Payment-status badge. `paymentStatus` is not a CanonicalStatus (no
+ * `suspended`/`failed` in StatusBadge's union), so we map to §2.3 status
+ * classes directly via the shared Badge primitive (§7.4).
+ */
+function PaymentStatusBadge({ status }: { status: string }) {
+	const classMap: Record<string, string> = {
+		active: "border-green-300 bg-green-50 text-green-700",
+		suspended: "border-yellow-200 bg-yellow-50 text-yellow-800",
+		failed: "border-red-200 bg-red-50 text-red-700",
+		cancelled: "border-red-200 bg-red-50 text-red-700",
+	};
+	return (
+		<Badge variant="outline" className={classMap[status]}>
+			{status}
+		</Badge>
+	);
+}
+
 function PlatformAdminTenantsPage() {
+	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
 	const [paymentStatus, setPaymentStatus] = useState<string>("any");
 	const [countryCode, setCountryCode] = useState<string>("any");
@@ -55,7 +77,7 @@ function PlatformAdminTenantsPage() {
 		(meData?.role as "super_admin" | "support" | "billing" | null | undefined) ??
 		null;
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, error, refetch } = useQuery({
 		queryKey: [
 			"platformAdminTenants",
 			"listTenants",
@@ -149,12 +171,18 @@ function PlatformAdminTenantsPage() {
 	};
 
 	return (
-		<div className="p-6 space-y-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Platform Admin: Tenants</h1>
-				<p className="text-sm text-muted-foreground mt-1">
-					Cross-tenant management. Search by name, slug, or owner email.
-				</p>
+		<div className="flex h-full flex-col gap-4 p-6">
+			<div className="flex items-center justify-between">
+				<div>
+					<p className="text-sm text-muted-foreground">Platform Admin</p>
+					<h1 className="text-2xl font-semibold">Tenants</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Cross-tenant management. Search by name, slug, or owner email.
+					</p>
+				</div>
+				<Button asChild>
+					<Link to="/dashboard/platform-admin/tenants/new">New Tenant</Link>
+				</Button>
 			</div>
 
 			<div className="flex gap-3 items-center">
@@ -240,145 +268,210 @@ function PlatformAdminTenantsPage() {
 				}}
 			/>
 
-			<div className="border rounded-md">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead className="w-10">
-								<Checkbox
-									checked={allVisibleSelected}
-									onCheckedChange={toggleAllVisible}
-									aria-label="Select all visible tenants"
-									data-testid="tenants-select-all"
-								/>
-							</TableHead>
-							<TableHead>Name / Slug</TableHead>
-							<TableHead>Tags</TableHead>
-							<TableHead>Country</TableHead>
-							<TableHead>Owner</TableHead>
-							<TableHead>Payment</TableHead>
-							<TableHead>Sub</TableHead>
-							<TableHead>Connect</TableHead>
-							<TableHead>Created</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{filteredTenants.length === 0 && !isLoading && (
-							<TableRow>
-								<TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-									No tenants match.
-								</TableCell>
-							</TableRow>
-						)}
-						{filteredTenants.map((t) => {
-							const orgTags = tagsByOrgData?.[t.id] ?? [];
-							return (
-								<TableRow key={t.id} data-testid={`tenant-row-${t.id}`}>
-									<TableCell>
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-brand-secondary-3 bg-card">
+				{error ? (
+					<div className="flex flex-1 items-center justify-center p-6">
+						<StatusCallout
+							variant="error"
+							title="Couldn't load tenants"
+							message={
+								error instanceof Error ? error.message : "An error occurred"
+							}
+							onRetry={() => refetch()}
+						/>
+					</div>
+				) : (
+					<div className="flex-1 overflow-y-auto">
+						<Table>
+							<TableHeader className="sticky top-0 z-10 bg-white">
+								<TableRow className="border-b border-border/40 hover:bg-transparent">
+									<TableHead className="w-10 px-6 py-3">
 										<Checkbox
-											checked={selectedIds.includes(t.id)}
-											onCheckedChange={() => toggleRow(t.id)}
-											aria-label={`Select ${t.name}`}
-											data-testid={`tenant-row-checkbox-${t.id}`}
+											checked={allVisibleSelected}
+											onCheckedChange={toggleAllVisible}
+											aria-label="Select all visible tenants"
+											data-testid="tenants-select-all"
 										/>
-									</TableCell>
-									<TableCell>
-										<Link
-											to="/dashboard/platform-admin/tenants/$id"
-											params={{ id: t.id }}
-											className="font-medium hover:underline"
-										>
-											{t.name}
-										</Link>
-										<div className="text-xs text-muted-foreground">{t.slug}</div>
-									</TableCell>
-									<TableCell>
-										<div
-											className="flex flex-wrap gap-1"
-											data-testid={`tenant-row-tags-${t.id}`}
-										>
-											{orgTags.length === 0 && (
-												<span className="text-xs text-muted-foreground">—</span>
-											)}
-											{orgTags.map((tag) => (
-												<TagChip key={tag.label} label={tag.label} color={tag.color} />
-											))}
-										</div>
-									</TableCell>
-									<TableCell>
-										{t.countryCode ? (
-											<Badge variant="outline" className="font-mono text-xs">
-												{t.countryCode}
-											</Badge>
-										) : (
-											<span className="text-muted-foreground text-xs">—</span>
-										)}
-									</TableCell>
-									<TableCell>
-										<div className="text-sm">{t.ownerEmail ?? "—"}</div>
-										{t.ownerName && (
-											<div className="text-xs text-muted-foreground">{t.ownerName}</div>
-										)}
-									</TableCell>
-									<TableCell>
-										<Badge
-											variant={
-												t.paymentStatus === "active"
-													? "default"
-													: t.paymentStatus === "failed"
-														? "destructive"
-														: "secondary"
-											}
-										>
-											{t.paymentStatus}
-										</Badge>
-									</TableCell>
-									<TableCell>
-										{t.subTier ? (
-											<div className="text-sm">
-												{t.subTier}
-												<div className="text-xs text-muted-foreground">{t.subStatus}</div>
-											</div>
-										) : (
-											<span className="text-muted-foreground text-sm">none</span>
-										)}
-									</TableCell>
-									<TableCell>
-										<div className="text-sm">
-											{t.connectAccounts.chargesEnabled}/{t.connectAccounts.total} live
-										</div>
-									</TableCell>
-									<TableCell className="text-sm text-muted-foreground">
-										{new Date(t.createdAt).toLocaleDateString()}
-									</TableCell>
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Name / Slug
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Tags
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Country
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Owner
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Payment
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Sub
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Connect
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Created
+									</TableHead>
 								</TableRow>
-							);
-						})}
-					</TableBody>
-				</Table>
-			</div>
+							</TableHeader>
+							<TableBody>
+								{filteredTenants.length === 0 && !isLoading && (
+									<TableRow className="hover:bg-transparent">
+										<TableCell colSpan={9} className="p-0">
+											<EmptyState
+												icon={Building2}
+												context={
+													search || activeTagLabels.length > 0
+														? "search"
+														: "empty"
+												}
+												title={
+													search || activeTagLabels.length > 0
+														? "No tenants match"
+														: "No tenants yet"
+												}
+												description={
+													search || activeTagLabels.length > 0
+														? "Try a different search term or clear your filters."
+														: "Provision the first tenant to get started."
+												}
+												action={{
+													label: "New Tenant",
+													onClick: () =>
+														navigate({
+															to: "/dashboard/platform-admin/tenants/new",
+														}),
+												}}
+												data-testid="tenants-empty-state"
+											/>
+										</TableCell>
+									</TableRow>
+								)}
+								{filteredTenants.map((t) => {
+									const orgTags = tagsByOrgData?.[t.id] ?? [];
+									return (
+										<TableRow
+											key={t.id}
+											data-testid={`tenant-row-${t.id}`}
+											className="border-b border-border/30 transition-colors hover:bg-muted/30"
+										>
+											<TableCell className="px-6 py-4">
+												<Checkbox
+													checked={selectedIds.includes(t.id)}
+													onCheckedChange={() => toggleRow(t.id)}
+													aria-label={`Select ${t.name}`}
+													data-testid={`tenant-row-checkbox-${t.id}`}
+												/>
+											</TableCell>
+											<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+												<Link
+													to="/dashboard/platform-admin/tenants/$id"
+													params={{ id: t.id }}
+													className="font-medium hover:underline"
+												>
+													{t.name}
+												</Link>
+												<div className="text-xs text-muted-foreground">
+													{t.slug}
+												</div>
+											</TableCell>
+											<TableCell className="px-6 py-4 whitespace-nowrap">
+												<div
+													className="flex flex-wrap gap-1"
+													data-testid={`tenant-row-tags-${t.id}`}
+												>
+													{orgTags.length === 0 && (
+														<span className="text-xs text-muted-foreground">
+															—
+														</span>
+													)}
+													{orgTags.map((tag) => (
+														<TagChip
+															key={tag.label}
+															label={tag.label}
+															color={tag.color}
+														/>
+													))}
+												</div>
+											</TableCell>
+											<TableCell className="px-6 py-4 whitespace-nowrap">
+												{t.countryCode ? (
+													<Badge variant="outline" className="font-mono text-xs">
+														{t.countryCode}
+													</Badge>
+												) : (
+													<span className="text-muted-foreground text-xs">—</span>
+												)}
+											</TableCell>
+											<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+												<div className="text-sm">{t.ownerEmail ?? "—"}</div>
+												{t.ownerName && (
+													<div className="text-xs text-muted-foreground">
+														{t.ownerName}
+													</div>
+												)}
+											</TableCell>
+											<TableCell className="px-6 py-4 whitespace-nowrap">
+												<PaymentStatusBadge status={t.paymentStatus} />
+											</TableCell>
+											<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+												{t.subTier ? (
+													<div className="text-sm">
+														{t.subTier}
+														<div className="text-xs text-muted-foreground">
+															{t.subStatus}
+														</div>
+													</div>
+												) : (
+													<span className="text-muted-foreground text-sm">
+														none
+													</span>
+												)}
+											</TableCell>
+											<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+												<div className="text-sm">
+													{t.connectAccounts.chargesEnabled}/
+													{t.connectAccounts.total} live
+												</div>
+											</TableCell>
+											<TableCell className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
+												{new Date(t.createdAt).toLocaleDateString()}
+											</TableCell>
+										</TableRow>
+									);
+								})}
+							</TableBody>
+						</Table>
+					</div>
+				)}
 
-			<div className="flex items-center justify-between text-sm">
-				<div className="text-muted-foreground">
-					Page {page} of {totalPages}
-				</div>
-				<div className="flex gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={page <= 1}
-						onClick={() => setPage((p) => Math.max(1, p - 1))}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={page >= totalPages}
-						onClick={() => setPage((p) => p + 1)}
-					>
-						Next
-					</Button>
+				<div className="flex shrink-0 items-center justify-between border-t border-border/40 px-6 py-3 text-sm">
+					<div className="text-muted-foreground">
+						Page {page} of {totalPages}
+					</div>
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={page <= 1}
+							onClick={() => setPage((p) => Math.max(1, p - 1))}
+						>
+							Previous
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={page >= totalPages}
+							onClick={() => setPage((p) => p + 1)}
+						>
+							Next
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>

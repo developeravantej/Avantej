@@ -14,6 +14,7 @@ import {
 	ArrowLeft,
 	CheckCircle2,
 	Circle,
+	CreditCard as CreditCardIcon,
 	ExternalLink,
 	Loader2,
 	RefreshCw,
@@ -23,7 +24,17 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Table,
 	TableBody,
@@ -70,6 +81,25 @@ function fmtMinor(amountMinor: number, currency: string) {
 	})} ${currency.toUpperCase()}`;
 }
 
+/**
+ * Payment-status badge. `paymentStatus` is not a CanonicalStatus (no
+ * `suspended`/`failed` in StatusBadge's union), so we map to §2.3 status
+ * classes directly via the shared Badge primitive (§7.4).
+ */
+function PaymentStatusBadge({ status }: { status: string }) {
+	const classMap: Record<string, string> = {
+		active: "border-green-300 bg-green-50 text-green-700",
+		suspended: "border-yellow-200 bg-yellow-50 text-yellow-800",
+		failed: "border-red-200 bg-red-50 text-red-700",
+		cancelled: "border-red-200 bg-red-50 text-red-700",
+	};
+	return (
+		<Badge variant="outline" className={classMap[status]}>
+			{status}
+		</Badge>
+	);
+}
+
 function TenantDrillInPage() {
 	const { id } = Route.useParams();
 	const { data, isLoading, error } = useQuery({
@@ -90,16 +120,18 @@ function TenantDrillInPage() {
 
 	if (error || !data) {
 		return (
-			<div className="p-6 space-y-3">
+			<div className="space-y-3 p-6">
 				<Link to="/dashboard/platform-admin/tenants">
 					<Button variant="ghost" size="sm">
-						<ArrowLeft className="h-4 w-4 mr-1" />
+						<ArrowLeft className="mr-1 h-4 w-4" />
 						Back to tenants
 					</Button>
 				</Link>
-				<div className="text-destructive">
-					{(error as Error)?.message ?? "Tenant not found."}
-				</div>
+				<StatusCallout
+					variant="error"
+					title="Couldn't load tenant"
+					message={(error as Error)?.message ?? "Tenant not found."}
+				/>
 			</div>
 		);
 	}
@@ -107,14 +139,17 @@ function TenantDrillInPage() {
 	const { organization, owner, subscription, connectAccounts, lastPayment } = data;
 
 	return (
-		<div className="p-6 space-y-4">
+		<div className="space-y-4 p-6">
 			<div>
 				<Link to="/dashboard/platform-admin/tenants">
 					<Button variant="ghost" size="sm" className="mb-2">
-						<ArrowLeft className="h-4 w-4 mr-1" />
+						<ArrowLeft className="mr-1 h-4 w-4" />
 						Back to tenants
 					</Button>
 				</Link>
+				<p className="text-sm text-muted-foreground">
+					Platform Admin · Tenants
+				</p>
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-2xl font-semibold">{organization.name}</h1>
 					<Badge variant="outline" className="font-mono text-xs">
@@ -125,20 +160,11 @@ function TenantDrillInPage() {
 							{organization.countryCode}
 						</Badge>
 					)}
-					<Badge
-						variant={
-							organization.paymentStatus === "active"
-								? "default"
-								: organization.paymentStatus === "failed"
-									? "destructive"
-									: "secondary"
-						}
-					>
-						{organization.paymentStatus}
-					</Badge>
+					<PaymentStatusBadge status={organization.paymentStatus} />
 				</div>
-				<p className="text-sm text-muted-foreground mt-1">
-					Neon project: <span className="font-mono">{organization.neonProjectId}</span>
+				<p className="mt-1 text-sm text-muted-foreground">
+					Neon project:{" "}
+					<span className="font-mono">{organization.neonProjectId}</span>
 				</p>
 			</div>
 
@@ -277,35 +303,56 @@ function TenantDrillInPage() {
 						<CardHeader>
 							<CardTitle className="text-base">Stripe Connect accounts</CardTitle>
 						</CardHeader>
-						<CardContent>
+						<CardContent className={connectAccounts.length === 0 ? undefined : "px-0"}>
 							{connectAccounts.length === 0 ? (
-								<div className="text-sm text-muted-foreground">
-									No Connect accounts onboarded.
-								</div>
+								<EmptyState
+									icon={CreditCardIcon}
+									title="No Connect accounts onboarded"
+									description="Per-country Stripe Connect onboarding happens from the tenant detail page."
+								/>
 							) : (
 								<Table>
 									<TableHeader>
-										<TableRow>
-											<TableHead>Country</TableHead>
-											<TableHead>Account</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Charges</TableHead>
-											<TableHead>Payouts</TableHead>
-											<TableHead>Details</TableHead>
-											<TableHead>Updated</TableHead>
+										<TableRow className="border-b border-border/40 hover:bg-transparent">
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Country
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Account
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Status
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Charges
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Payouts
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Details
+											</TableHead>
+											<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+												Updated
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{connectAccounts.map((a) => (
-											<TableRow key={a.id}>
-												<TableCell className="font-mono">{a.countryCode}</TableCell>
-												<TableCell>
+											<TableRow
+												key={a.id}
+												className="border-b border-border/30 transition-colors hover:bg-muted/30"
+											>
+												<TableCell className="px-6 py-4 font-mono text-sm whitespace-nowrap">
+													{a.countryCode}
+												</TableCell>
+												<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 													{a.stripeAccountId ? (
 														<a
 															href={`https://dashboard.stripe.com/connect/accounts/${a.stripeAccountId}`}
 															target="_blank"
 															rel="noreferrer"
-															className="font-mono text-xs hover:underline inline-flex items-center gap-1"
+															className="inline-flex items-center gap-1 font-mono text-xs hover:underline"
 														>
 															{a.stripeAccountId}
 															<ExternalLink className="h-3 w-3" />
@@ -314,25 +361,46 @@ function TenantDrillInPage() {
 														<span className="text-muted-foreground text-xs">—</span>
 													)}
 												</TableCell>
-												<TableCell>
+												<TableCell className="px-6 py-4 whitespace-nowrap">
 													<Badge variant="outline">{a.stripeConnectStatus}</Badge>
 												</TableCell>
-												<TableCell>
-													<Badge variant={a.chargesEnabled ? "default" : "secondary"}>
+												<TableCell className="px-6 py-4 whitespace-nowrap">
+													<Badge
+														variant="outline"
+														className={
+															a.chargesEnabled
+																? "border-green-300 bg-green-50 text-green-700"
+																: undefined
+														}
+													>
 														{a.chargesEnabled ? "yes" : "no"}
 													</Badge>
 												</TableCell>
-												<TableCell>
-													<Badge variant={a.payoutsEnabled ? "default" : "secondary"}>
+												<TableCell className="px-6 py-4 whitespace-nowrap">
+													<Badge
+														variant="outline"
+														className={
+															a.payoutsEnabled
+																? "border-green-300 bg-green-50 text-green-700"
+																: undefined
+														}
+													>
 														{a.payoutsEnabled ? "yes" : "no"}
 													</Badge>
 												</TableCell>
-												<TableCell>
-													<Badge variant={a.detailsSubmitted ? "default" : "secondary"}>
+												<TableCell className="px-6 py-4 whitespace-nowrap">
+													<Badge
+														variant="outline"
+														className={
+															a.detailsSubmitted
+																? "border-green-300 bg-green-50 text-green-700"
+																: undefined
+														}
+													>
 														{a.detailsSubmitted ? "yes" : "no"}
 													</Badge>
 												</TableCell>
-												<TableCell className="text-xs text-muted-foreground">
+												<TableCell className="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">
 													{a.connectAccountUpdatedAt
 														? new Date(a.connectAccountUpdatedAt).toLocaleDateString()
 														: "—"}
@@ -469,8 +537,8 @@ function CommsTab({ organizationId }: { organizationId: string }) {
 						onChange={(e) => setDmSubject(e.target.value)}
 						disabled={dm.isPending}
 					/>
-					<textarea
-						className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm"
+					<Textarea
+						className="min-h-[120px]"
 						placeholder="Message"
 						value={dmMessage}
 						onChange={(e) => setDmMessage(e.target.value)}
@@ -500,39 +568,47 @@ function CommsTab({ organizationId }: { organizationId: string }) {
 						onChange={(e) => setAnnTitle(e.target.value)}
 						disabled={ann.isPending}
 					/>
-					<textarea
-						className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm"
+					<Textarea
+						className="min-h-[100px]"
 						placeholder="Message"
 						value={annMessage}
 						onChange={(e) => setAnnMessage(e.target.value)}
 						disabled={ann.isPending}
 					/>
 					<div className="flex gap-2">
-						<select
-							className="rounded-md border bg-background px-2 py-1 text-sm flex-1"
+						<Select
 							value={annPriority}
-							onChange={(e) =>
-								setAnnPriority(e.target.value as typeof annPriority)
+							onValueChange={(v) =>
+								setAnnPriority(v as typeof annPriority)
 							}
 							disabled={ann.isPending}
 						>
-							<option value="low">low</option>
-							<option value="normal">normal</option>
-							<option value="high">high</option>
-							<option value="urgent">urgent</option>
-						</select>
-						<select
-							className="rounded-md border bg-background px-2 py-1 text-sm flex-1"
+							<SelectTrigger className="flex-1">
+								<SelectValue placeholder="Priority" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="low">low</SelectItem>
+								<SelectItem value="normal">normal</SelectItem>
+								<SelectItem value="high">high</SelectItem>
+								<SelectItem value="urgent">urgent</SelectItem>
+							</SelectContent>
+						</Select>
+						<Select
 							value={annAudience}
-							onChange={(e) =>
-								setAnnAudience(e.target.value as typeof annAudience)
+							onValueChange={(v) =>
+								setAnnAudience(v as typeof annAudience)
 							}
 							disabled={ann.isPending}
 						>
-							<option value="all">all</option>
-							<option value="staff">staff</option>
-							<option value="clients">clients</option>
-						</select>
+							<SelectTrigger className="flex-1">
+								<SelectValue placeholder="Audience" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">all</SelectItem>
+								<SelectItem value="staff">staff</SelectItem>
+								<SelectItem value="clients">clients</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 					<Button
 						size="sm"
@@ -559,9 +635,11 @@ function FunnelTab({ organizationId }: { organizationId: string }) {
 	}
 	if (error || !data) {
 		return (
-			<div className="text-destructive text-sm">
-				{(error as Error)?.message ?? "Failed to load funnel."}
-			</div>
+			<StatusCallout
+				variant="error"
+				title="Couldn't load funnel"
+				message={(error as Error)?.message ?? "Failed to load funnel."}
+			/>
 		);
 	}
 
@@ -1061,23 +1139,36 @@ function UsageTab({ organizationId }: { organizationId: string }) {
 				<CardHeader>
 					<CardTitle className="text-base">Daily history</CardTitle>
 				</CardHeader>
-				<CardContent>
+				<CardContent className={snapshots.length === 0 ? undefined : "px-0"}>
 					{isLoading ? (
 						<div className="text-muted-foreground text-sm">Loading…</div>
 					) : snapshots.length === 0 ? (
-						<div className="text-muted-foreground text-sm">
-							No snapshots yet. Run "Refresh now" to create the first one.
-						</div>
+						<EmptyState
+							title="No snapshots yet"
+							description='Run "Refresh now" to create the first one.'
+						/>
 					) : (
 						<Table>
 							<TableHeader>
-								<TableRow>
-									<TableHead>Date</TableHead>
-									<TableHead className="text-right">Members</TableHead>
-									<TableHead className="text-right">Customers</TableHead>
-									<TableHead className="text-right">Appts 30d</TableHead>
-									<TableHead className="text-right">Sales 30d</TableHead>
-									<TableHead>GHL</TableHead>
+								<TableRow className="border-b border-border/40 hover:bg-transparent">
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Date
+									</TableHead>
+									<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Members
+									</TableHead>
+									<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Customers
+									</TableHead>
+									<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Appts 30d
+									</TableHead>
+									<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										Sales 30d
+									</TableHead>
+									<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+										GHL
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -1085,18 +1176,34 @@ function UsageTab({ organizationId }: { organizationId: string }) {
 									.slice()
 									.reverse()
 									.map((s) => (
-										<TableRow key={s.id}>
-											<TableCell className="font-mono text-xs">
+										<TableRow
+											key={s.id}
+											className="border-b border-border/30 transition-colors hover:bg-muted/30"
+										>
+											<TableCell className="px-6 py-4 font-mono text-xs whitespace-nowrap">
 												{s.snapshotDate}
 											</TableCell>
-											<TableCell className="text-right">{s.memberCount}</TableCell>
-											<TableCell className="text-right">{s.customerCount}</TableCell>
-											<TableCell className="text-right">{s.apptCount30d}</TableCell>
-											<TableCell className="text-right">
+											<TableCell className="px-6 py-4 text-right text-sm tabular-nums whitespace-nowrap">
+												{s.memberCount}
+											</TableCell>
+											<TableCell className="px-6 py-4 text-right text-sm tabular-nums whitespace-nowrap">
+												{s.customerCount}
+											</TableCell>
+											<TableCell className="px-6 py-4 text-right text-sm tabular-nums whitespace-nowrap">
+												{s.apptCount30d}
+											</TableCell>
+											<TableCell className="px-6 py-4 text-right font-mono text-sm tabular-nums whitespace-nowrap">
 												{fmtMinor(s.salesTotal30dMinor, s.salesCurrency)}
 											</TableCell>
-											<TableCell>
-												<Badge variant={s.ghlActive ? "default" : "secondary"}>
+											<TableCell className="px-6 py-4 whitespace-nowrap">
+												<Badge
+													variant="outline"
+													className={
+														s.ghlActive
+															? "border-green-300 bg-green-50 text-green-700"
+															: undefined
+													}
+												>
 													{s.ghlActive ? "active" : "off"}
 												</Badge>
 											</TableCell>
