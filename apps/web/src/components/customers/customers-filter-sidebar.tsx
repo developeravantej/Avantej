@@ -6,6 +6,7 @@ interface CustomerOption {
 	id: string;
 	name: string;
 	email?: string | null;
+	isDeleted?: boolean | null;
 }
 
 interface CustomersFilterSidebarProps {
@@ -16,6 +17,8 @@ interface CustomersFilterSidebarProps {
 	onSelectCustomer: (customerId: string) => void;
 	search: string;
 	onSearchChange: (value: string) => void;
+	showDeleted?: boolean;
+	onShowDeletedChange?: (value: boolean) => void;
 }
 
 function getInitials(name: string) {
@@ -35,6 +38,8 @@ function CustomersFilterSidebarImpl({
 	onSelectCustomer,
 	search,
 	onSearchChange,
+	showDeleted = false,
+	onShowDeletedChange,
 }: CustomersFilterSidebarProps) {
 	return (
 		<div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
@@ -59,6 +64,18 @@ function CustomersFilterSidebarImpl({
 						className="flex-1 bg-transparent text-xs outline-none placeholder:text-[#737373] text-[#0a0a0a]"
 					/>
 				</div>
+				{onShowDeletedChange && (
+					<label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-[#737373]">
+						<input
+							type="checkbox"
+							checked={showDeleted}
+							onChange={(e) => onShowDeletedChange(e.target.checked)}
+							data-testid="show-deleted-toggle"
+							className="h-3.5 w-3.5 rounded border-[#e5e5e5]"
+						/>
+						<span>Show deleted</span>
+					</label>
+				)}
 			</div>
 
 			{/* List */}
@@ -87,6 +104,7 @@ function CustomersFilterSidebarImpl({
 									isSelected
 										? "bg-[#d6cdb1]/20 border-l-2 border-l-[#0a0a0a] pl-[calc(0.5rem-2px)]"
 										: "border-l-2 border-l-transparent hover:bg-[#f3f3f3]",
+									customer.isDeleted && "opacity-50",
 								)}
 							>
 								<div
@@ -109,7 +127,7 @@ function CustomersFilterSidebarImpl({
 										{customer.name}
 									</p>
 									<p className="truncate text-[11px] text-[#737373]">
-										{customer.email ?? "Customer"}
+										{customer.isDeleted ? "Deleted" : customer.email ?? "Customer"}
 									</p>
 								</div>
 							</button>

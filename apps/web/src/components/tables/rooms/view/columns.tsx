@@ -1,4 +1,6 @@
 import type { ColumnDef } from "@tanstack/table-core";
+import { ArrowUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export type RoomRow = {
 	id: string;
@@ -30,7 +32,16 @@ export function createColumns(meta: ColumnMeta): ColumnDef<RoomRow>[] {
 	return [
 		{
 			accessorKey: "name",
-			header: "Name",
+			header: ({ column }) => (
+				<Button
+					variant="ghost"
+					className="h-auto p-0 hover:bg-transparent"
+					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+				>
+					Name
+					<ArrowUpDown className="ml-2 size-4" />
+				</Button>
+			),
 			cell: ({ row }) => (
 				<span className="font-semibold text-[#0a0a0a]">{row.original.name}</span>
 			),

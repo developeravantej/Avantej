@@ -18,6 +18,10 @@ export const Route = createFileRoute(
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "customers",
 		customer: (search.customer as string | undefined) ?? undefined,
+		showDeleted:
+			search.showDeleted === true || search.showDeleted === "true"
+				? true
+				: undefined,
 	}),
 	component: CustomersV2Page,
 });
@@ -35,10 +39,12 @@ type DirectoryRow = {
 	userId: string;
 	name: string;
 	email: string;
+	isDeleted?: boolean | null;
 };
 
 function CustomersV2Page() {
-	const { tab, customer } = Route.useSearch();
+	const { tab, customer, showDeleted: showDeletedSearch } = Route.useSearch();
+	const showDeleted = showDeletedSearch === true;
 	const navigate = Route.useNavigate();
 	const activeTab = NAV_TABS.some((t) => t.id === tab) ? tab : "customers";
 
@@ -64,12 +70,13 @@ function CustomersV2Page() {
 	};
 
 	const { data: listData, isLoading } = useQuery({
-		queryKey: ["customerDirectory", organizationId, debouncedSearch],
+		queryKey: ["customerDirectory", organizationId, debouncedSearch, showDeleted],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
 			return client.customerDirectory.list({
 				organizationId,
 				search: debouncedSearch || undefined,
+				includeDeleted: showDeleted || undefined,
 				limit: PAGE_LIMIT,
 				offset: 0,
 			});
@@ -87,9 +94,22 @@ function CustomersV2Page() {
 
 	// Stable reference for the sidebar so tab switches don't recompute it.
 	const sidebarCustomers = useMemo(
-		() => rows.map((r) => ({ id: r.memberId, name: r.name, email: r.email })),
+		() =>
+			rows.map((r) => ({
+				id: r.memberId,
+				name: r.name,
+				email: r.email,
+				isDeleted: r.isDeleted ?? null,
+			})),
 		[rows],
 	);
+
+	const setShowDeleted = (value: boolean) => {
+		navigate({
+			search: (prev) => ({ ...prev, showDeleted: value || undefined }),
+			replace: true,
+		});
+	};
 
 	// Auto-select the first customer once data arrives, OR re-pick the first
 	// if the current URL selection drops out of the filtered list.
@@ -183,6 +203,8 @@ function CustomersV2Page() {
 						onSelectCustomer={setSelectedMemberId}
 						search={search}
 						onSearchChange={setSearch}
+						showDeleted={showDeleted}
+						onShowDeletedChange={setShowDeleted}
 					/>
 				</div>
 

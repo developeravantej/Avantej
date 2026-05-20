@@ -106,7 +106,7 @@ export const columns: ColumnDef<SalesRow>[] = [
 				return (
 					<Link
 						to="/dashboard/customers/v2/view"
-						search={{ tab: "customers", customer: customerId }}
+						search={{ tab: "customers", customer: customerId, showDeleted: undefined }}
 						className="text-primary underline-offset-4 hover:underline"
 					>
 						{name || "N/A"}
