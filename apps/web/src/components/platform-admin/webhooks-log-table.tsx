@@ -5,8 +5,18 @@
  * fetching, filter state, and pagination handlers.
  */
 
+import { Webhook } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 
 export type WebhookLogRow = {
 	id: string;
@@ -33,29 +43,15 @@ function fmtDate(iso: string): string {
 	});
 }
 
-function statusVariant(
-	status: "succeeded" | "failed" | "pending",
-): "default" | "destructive" | "outline" | "secondary" {
-	switch (status) {
-		case "succeeded":
-			return "default";
-		case "failed":
-			return "destructive";
-		case "pending":
-		default:
-			return "secondary";
-	}
-}
-
 function statusClass(status: "succeeded" | "failed" | "pending"): string {
 	switch (status) {
 		case "succeeded":
-			return "text-emerald-700 dark:text-emerald-400";
+			return "border-green-300 bg-green-50 text-green-700";
 		case "failed":
-			return "text-red-700 dark:text-red-400";
+			return "border-red-200 bg-red-50 text-red-700";
 		case "pending":
 		default:
-			return "text-amber-700 dark:text-amber-400";
+			return "border-yellow-300 bg-yellow-50 text-yellow-800";
 	}
 }
 
@@ -80,81 +76,98 @@ export function WebhooksLogTable({
 
 	return (
 		<div className="space-y-3" data-testid="webhooks-log-table">
-			<div className="overflow-x-auto rounded border">
-				<table className="w-full text-sm">
-					<thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-						<tr>
-							<th className="px-3 py-2 text-left">Received</th>
-							<th className="px-3 py-2 text-left">Event type</th>
-							<th className="px-3 py-2 text-left">Source</th>
-							<th className="px-3 py-2 text-left">Status</th>
-							<th className="px-3 py-2 text-right">Attempts</th>
-							<th className="px-3 py-2 text-left">Event ID</th>
-						</tr>
-					</thead>
-					<tbody>
+			<div className="overflow-hidden rounded-xl border border-brand-secondary-3">
+				<Table>
+					<TableHeader className="sticky top-0 z-10 bg-white">
+						<TableRow className="hover:bg-transparent">
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Received
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Event type
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Source
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Status
+							</TableHead>
+							<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Attempts
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Event ID
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
 						{isLoading ? (
-							<tr>
-								<td
-									className="px-3 py-6 text-center text-muted-foreground"
+							<TableRow className="hover:bg-transparent">
+								<TableCell
+									className="px-6 py-6 text-center text-sm text-muted-foreground"
 									colSpan={6}
 								>
 									Loading…
-								</td>
-							</tr>
+								</TableCell>
+							</TableRow>
 						) : rows.length === 0 ? (
-							<tr>
-								<td
-									className="px-3 py-6 text-center text-muted-foreground"
+							<TableRow className="hover:bg-transparent">
+								<TableCell
 									colSpan={6}
+									className="p-0"
 									data-testid="webhooks-log-empty"
 								>
-									No webhook events match the current filters.
-								</td>
-							</tr>
+									<EmptyState
+										icon={Webhook}
+										title="No webhook events"
+										description="No events match the current filters."
+										context="search"
+									/>
+								</TableCell>
+							</TableRow>
 						) : (
 							rows.map((r) => (
-								<tr
+								<TableRow
 									key={r.eventId}
-									className="border-t hover:bg-muted/30"
+									className="hover:bg-muted/30"
 									data-testid="webhooks-log-row"
 								>
-									<td className="px-3 py-2 whitespace-nowrap font-mono text-xs">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap font-mono text-xs">
 										{fmtDate(r.receivedAt)}
-									</td>
-									<td className="px-3 py-2 whitespace-nowrap">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										{r.eventType}
-									</td>
-									<td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
 										{r.source}
-									</td>
-									<td className="px-3 py-2 whitespace-nowrap">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<Badge
-											variant={statusVariant(r.status)}
+											variant="outline"
 											className={statusClass(r.status)}
 										>
 											{r.status}
 										</Badge>
 										{r.error ? (
 											<div
-												className="mt-0.5 text-[11px] text-red-700 dark:text-red-400 truncate max-w-[24ch]"
+												className="mt-0.5 text-[11px] text-red-700 truncate max-w-[24ch]"
 												title={r.error}
 											>
 												{r.error}
 											</div>
 										) : null}
-									</td>
-									<td className="px-3 py-2 text-right tabular-nums">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-right tabular-nums">
 										{r.attempts}
-									</td>
-									<td className="px-3 py-2 font-mono text-xs text-muted-foreground truncate max-w-[22ch]">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm font-mono text-xs text-muted-foreground truncate max-w-[22ch]">
 										{r.eventId}
-									</td>
-								</tr>
+									</TableCell>
+								</TableRow>
 							))
 						)}
-					</tbody>
-				</table>
+					</TableBody>
+				</Table>
 			</div>
 
 			<div className="flex items-center justify-between text-xs text-muted-foreground">

@@ -6,8 +6,10 @@
  */
 
 import { Link } from "@tanstack/react-router";
+import { Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -104,39 +106,55 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 					: `${props.total} message${props.total === 1 ? "" : "s"}`}
 			</div>
 
-			<div className="border rounded-md">
+			<div className="overflow-hidden rounded-xl border border-brand-secondary-3">
 				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Sent</TableHead>
-							<TableHead>Kind</TableHead>
-							<TableHead>Actor</TableHead>
-							<TableHead>Target</TableHead>
-							<TableHead>Subject</TableHead>
+					<TableHeader className="sticky top-0 z-10 bg-white">
+						<TableRow className="hover:bg-transparent">
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Sent
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Kind
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Actor
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Target
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Subject
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{props.rows.length === 0 && !props.isLoading && (
-							<TableRow>
-								<TableCell
-									colSpan={5}
-									className="text-center py-8 text-muted-foreground"
-								>
-									No comms in this window.
+							<TableRow className="hover:bg-transparent">
+								<TableCell colSpan={5} className="p-0">
+									<EmptyState
+										icon={Inbox}
+										title="No comms in this window"
+										description="Try a different kind or date range."
+										context="search"
+									/>
 								</TableCell>
 							</TableRow>
 						)}
 						{props.rows.map((r) => {
 							const ts = new Date(r.sentAt);
 							return (
-								<TableRow key={r.id} data-testid={`outbox-row-${r.id}`}>
+								<TableRow
+									key={r.id}
+									data-testid={`outbox-row-${r.id}`}
+									className="hover:bg-muted/30"
+								>
 									<TableCell
-										className="font-mono text-xs whitespace-nowrap"
+										className="px-6 py-4 text-sm whitespace-nowrap font-mono text-xs"
 										title={ts.toISOString()}
 									>
 										{ts.toLocaleString()}
 									</TableCell>
-									<TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<Badge
 											variant={
 												r.kind === "announcement" ? "secondary" : "outline"
@@ -145,7 +163,7 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 											{r.kind === "direct_message" ? "DM" : "Announce"}
 										</Badge>
 									</TableCell>
-									<TableCell className="text-sm">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<div>{r.actor?.email ?? "—"}</div>
 										{r.actor?.name && (
 											<div className="text-xs text-muted-foreground">
@@ -153,7 +171,7 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 											</div>
 										)}
 									</TableCell>
-									<TableCell className="text-sm">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										{r.targetOrg ? (
 											<Link
 												to="/dashboard/platform-admin/tenants/$id"
@@ -166,7 +184,10 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 											<span className="text-muted-foreground">—</span>
 										)}
 									</TableCell>
-									<TableCell className="text-sm max-w-md truncate" title={r.subject}>
+									<TableCell
+										className="px-6 py-4 text-sm whitespace-nowrap max-w-md truncate"
+										title={r.subject}
+									>
 										{r.subject}
 									</TableCell>
 								</TableRow>
