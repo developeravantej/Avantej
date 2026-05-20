@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 import { AtRiskWidget } from "@/components/platform-admin/at-risk-widget";
 import { HealthHistogram } from "@/components/platform-admin/health-histogram";
@@ -62,7 +63,7 @@ function PlatformAdminHealthPage() {
 		<div className="p-6 space-y-6" data-testid="health-scoreboard-page">
 			<header className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs text-muted-foreground">Platform admin</div>
+					<div className="text-sm text-muted-foreground">Platform admin</div>
 					<h1 className="text-2xl font-semibold">Health Scoreboard</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Live snapshot — updated each render.
@@ -80,12 +81,12 @@ function PlatformAdminHealthPage() {
 			</header>
 
 			{scoreboardQ.error ? (
-				<Card>
-					<CardContent className="p-4 text-sm text-red-700 dark:text-red-400">
-						Could not load health scoreboard:{" "}
-						{(scoreboardQ.error as Error).message}
-					</CardContent>
-				</Card>
+				<StatusCallout
+					variant="error"
+					title="Could not load health scoreboard"
+					message={(scoreboardQ.error as Error).message}
+					onRetry={() => scoreboardQ.refetch()}
+				/>
 			) : null}
 
 			{/* Row 1: histogram ----------------------------------------------- */}
@@ -100,7 +101,7 @@ function PlatformAdminHealthPage() {
 			) : null}
 
 			{/* Row 2: top at-risk + flag rollup -------------------------------- */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 				{scoreboardQ.isLoading || !scoreboardQ.data ? (
 					<>
 						<Skeleton className="h-64 w-full" />

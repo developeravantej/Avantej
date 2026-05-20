@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Tabs,
 	TabsContent,
@@ -130,7 +131,7 @@ function PlatformAdminBillingPage() {
 		<div className="p-6 space-y-6" data-testid="billing-global-page">
 			<header className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs text-muted-foreground">Platform admin</div>
+					<div className="text-sm text-muted-foreground">Platform admin</div>
 					<h1 className="text-2xl font-semibold">Billing</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Live across all tenants — read-only. Cross-tenant invoice fetch
@@ -150,33 +151,31 @@ function PlatformAdminBillingPage() {
 			</header>
 
 			{overviewQ.error ? (
-				<Card>
-					<CardContent className="p-4 text-sm text-red-700 dark:text-red-400">
-						Could not load billing overview:{" "}
-						{(overviewQ.error as Error).message}
-					</CardContent>
-				</Card>
+				<StatusCallout
+					variant="error"
+					title="Could not load billing overview"
+					message={(overviewQ.error as Error).message}
+					onRetry={() => overviewQ.refetch()}
+				/>
 			) : null}
 
 			{!overviewQ.data?.stripeAvailable && overviewQ.data ? (
-				<Card>
-					<CardContent className="p-3 text-xs text-amber-700 dark:text-amber-400">
-						Stripe API appears unavailable in this environment. Invoice +
-						coupon data may be incomplete.
-					</CardContent>
-				</Card>
+				<StatusCallout
+					variant="warning"
+					message="Stripe API appears unavailable in this environment. Invoice + coupon data may be incomplete."
+				/>
 			) : null}
 
 			{/* KPI row */}
 			{overviewQ.isLoading ? (
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 					{[0, 1, 2, 3].map((i) => (
 						<Skeleton key={i} className="h-24 w-full" />
 					))}
 				</div>
 			) : overviewQ.data ? (
 				<div
-					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
 					data-testid="billing-kpi-row"
 				>
 					<BigNumberCard
