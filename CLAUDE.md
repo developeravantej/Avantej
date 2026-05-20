@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 bun install                    # Install dependencies
-bun dev                        # Start all apps (web:3001, server:3000)
+bun dev                        # Start all apps (web:3021, server:3020)
 bun dev:web                    # Web only
 bun dev:server                 # Server only
 bun dev:native                 # Expo / React Native
@@ -174,8 +174,8 @@ Run `/hub-update` at the end of any feature branch to keep the hub current befor
 
 - **Biome** handles formatting only (tabs, double quotes, sorted Tailwind classes via `cn`/`cva`/`clsx`).
 - **oxlint** is the linter — `bun check` runs oxlint, and lint-staged + Husky run it pre-commit.
-- Web frontend (Vite, port 3001) proxies `/rpc` requests to the server on port 3000.
-- OpenAPI docs available at `http://localhost:3000/api-reference`.
+- Web frontend (Vite, port 3021) proxies `/rpc` requests to the server on port 3020.
+- OpenAPI docs available at `http://localhost:3020/api-reference`.
 - Server runs on Cloudflare Workers via Wrangler; **don't import Node-only modules** in server code paths.
 - Deps use Bun's `catalog:` (root `package.json`) for shared versions and `workspace:*` for internal packages. Always `bun install` at the repo root after dep changes — never `npm`/`yarn`.
 
