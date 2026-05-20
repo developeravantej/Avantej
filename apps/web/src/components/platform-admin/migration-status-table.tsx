@@ -8,7 +8,18 @@
  * NO apply button. Surface only. Applying migrations remains a CLI-only path.
  */
 
+import { GitCommitHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 
 export type MigrationStatusRow = {
 	idx: number;
@@ -25,24 +36,24 @@ function variantFor(state: MigrationStatusRow["state"]):
 	| "secondary" {
 	switch (state) {
 		case "applied":
-			return "default";
+			return "outline";
 		case "orphaned":
 			return "destructive";
 		case "pending":
 		default:
-			return "secondary";
+			return "outline";
 	}
 }
 
 function classFor(state: MigrationStatusRow["state"]): string {
 	switch (state) {
 		case "applied":
-			return "text-emerald-700 dark:text-emerald-400";
+			return "border-green-200 bg-green-50 text-green-700";
 		case "orphaned":
-			return "text-red-700 dark:text-red-400";
+			return "";
 		case "pending":
 		default:
-			return "text-amber-700 dark:text-amber-400";
+			return "border-yellow-200 bg-yellow-50 text-yellow-800";
 	}
 }
 
@@ -56,52 +67,69 @@ export function MigrationStatusTable({
 	onRowClick?: (tag: string) => void;
 }) {
 	return (
-		<div className="space-y-3" data-testid="migration-status-table">
-			<div className="overflow-x-auto rounded border">
-				<table className="w-full text-sm">
-					<thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-						<tr>
-							<th className="px-3 py-2 text-left w-16">Idx</th>
-							<th className="px-3 py-2 text-left">Tag</th>
-							<th className="px-3 py-2 text-left">State</th>
-							<th className="px-3 py-2 text-center">In journal</th>
-							<th className="px-3 py-2 text-center">Applied in DB</th>
-							<th className="px-3 py-2 text-right">View SQL</th>
-						</tr>
-					</thead>
-					<tbody>
+		<div
+			className="flex h-full flex-col"
+			data-testid="migration-status-table"
+		>
+			<div className="flex-1 overflow-y-auto">
+				<Table>
+					<TableHeader>
+						<TableRow className="sticky top-0 z-10 bg-white hover:bg-white">
+							<TableHead className="w-16 px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Idx
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Tag
+							</TableHead>
+							<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								State
+							</TableHead>
+							<TableHead className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								In journal
+							</TableHead>
+							<TableHead className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Applied in DB
+							</TableHead>
+							<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								View SQL
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
 						{isLoading ? (
-							<tr>
-								<td
-									className="px-3 py-6 text-center text-muted-foreground"
+							<TableRow>
+								<TableCell
+									className="px-6 py-6 text-center text-muted-foreground"
 									colSpan={6}
 								>
 									Loading…
-								</td>
-							</tr>
+								</TableCell>
+							</TableRow>
 						) : status.length === 0 ? (
-							<tr>
-								<td
-									className="px-3 py-6 text-center text-muted-foreground"
-									colSpan={6}
-									data-testid="migration-status-empty"
-								>
-									No migrations recorded.
-								</td>
-							</tr>
+							<TableRow>
+								<TableCell colSpan={6} className="p-0">
+									<EmptyState
+										icon={GitCommitHorizontal}
+										title="No migrations recorded"
+										data-testid="migration-status-empty"
+									/>
+								</TableCell>
+							</TableRow>
 						) : (
 							status.map((r) => (
-								<tr
+								<TableRow
 									key={r.tag}
-									className="border-t hover:bg-muted/30 cursor-pointer"
+									className="cursor-pointer hover:bg-muted/30"
 									data-testid="migration-status-row"
 									onClick={() => onRowClick?.(r.tag)}
 								>
-									<td className="px-3 py-2 font-mono text-xs tabular-nums text-muted-foreground">
+									<TableCell className="px-6 py-4 font-mono text-sm tabular-nums whitespace-nowrap text-muted-foreground">
 										{r.inJournal ? r.idx : "—"}
-									</td>
-									<td className="px-3 py-2 font-mono text-xs">{r.tag}</td>
-									<td className="px-3 py-2 whitespace-nowrap">
+									</TableCell>
+									<TableCell className="px-6 py-4 font-mono text-sm whitespace-nowrap">
+										{r.tag}
+									</TableCell>
+									<TableCell className="px-6 py-4 whitespace-nowrap">
 										<Badge
 											variant={variantFor(r.state)}
 											className={classFor(r.state)}
@@ -109,17 +137,17 @@ export function MigrationStatusTable({
 										>
 											{r.state}
 										</Badge>
-									</td>
-									<td className="px-3 py-2 text-center text-xs">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-center text-sm whitespace-nowrap">
 										{r.inJournal ? "✓" : "—"}
-									</td>
-									<td className="px-3 py-2 text-center text-xs">
+									</TableCell>
+									<TableCell className="px-6 py-4 text-center text-sm whitespace-nowrap">
 										{r.appliedInDb ? "✓" : "—"}
-									</td>
-									<td className="px-3 py-2 text-right">
-										<button
-											type="button"
-											className="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+									</TableCell>
+									<TableCell className="px-6 py-4 text-right whitespace-nowrap">
+										<Button
+											variant="ghost"
+											size="sm"
 											onClick={(e) => {
 												e.stopPropagation();
 												onRowClick?.(r.tag);
@@ -127,13 +155,13 @@ export function MigrationStatusTable({
 											data-testid={`migration-view-${r.tag}`}
 										>
 											View
-										</button>
-									</td>
-								</tr>
+										</Button>
+									</TableCell>
+								</TableRow>
 							))
 						)}
-					</tbody>
-				</table>
+					</TableBody>
+				</Table>
 			</div>
 		</div>
 	);

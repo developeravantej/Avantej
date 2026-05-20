@@ -9,13 +9,12 @@ vi.mock("@tanstack/react-router", () => ({
 		TrainersViewPage = opts.component;
 		return {
 			component: opts.component,
-			useSearch: () => ({}),
-			useNavigate: () => () => {},
+			useSearch: vi.fn().mockReturnValue({ tab: "trainers" }),
+			useNavigate: vi.fn().mockReturnValue(vi.fn()),
 		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: () => () => {},
-	useSearch: () => ({}),
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient }));
 vi.mock("@/hooks/useUserContext", () => ({
@@ -24,9 +23,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			organizations: [],
 		},
-		hasPermission: () => true,
-		hasAnyPermission: () => true,
-		hasRole: () => true,
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -46,7 +43,7 @@ describe("Trainers page", () => {
 	test("renders without crashing (empty state)", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			expect(screen.getAllByText("Trainers")[0]).toBeInTheDocument();
+			expect(screen.getAllByText("Trainers").length).toBeGreaterThan(0);
 		});
 	});
 

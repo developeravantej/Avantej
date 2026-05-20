@@ -6,7 +6,17 @@
  */
 
 import { Link } from "@tanstack/react-router";
+import { Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 
 export type CrossTenantInvoice = {
 	orgId: string;
@@ -37,13 +47,11 @@ function fmtDate(d: Date | string): string {
 	});
 }
 
-function statusBand(status: string | null): string {
-	if (!status) return "text-muted-foreground";
-	if (status === "paid") return "text-emerald-700 dark:text-emerald-400";
+function statusClass(status: string | null): string {
+	if (status === "paid") return "border-green-200 bg-green-50 text-green-700";
 	if (status === "open" || status === "uncollectible")
-		return "text-amber-700 dark:text-amber-400";
-	if (status === "void") return "text-muted-foreground";
-	return "text-foreground";
+		return "border-yellow-200 bg-yellow-50 text-yellow-800";
+	return "border-border bg-muted text-muted-foreground";
 }
 
 export function RecentInvoicesPanel({
@@ -65,37 +73,47 @@ export function RecentInvoicesPanel({
 	}
 	if (invoices.length === 0) {
 		return (
-			<div
-				className="text-sm text-muted-foreground p-6 border rounded-md text-center"
+			<EmptyState
+				icon={Receipt}
+				title="No recent invoices"
+				description="Either no tenants have charged Stripe yet, or Stripe is unavailable in this environment."
 				data-testid="recent-invoices-empty"
-			>
-				No recent invoices. Either no tenants have charged Stripe yet, or
-				Stripe is unavailable in this environment.
-			</div>
+			/>
 		);
 	}
 	return (
 		<div
-			className="border rounded-md overflow-hidden"
+			className="overflow-hidden rounded-xl border border-brand-secondary-3"
 			data-testid="recent-invoices-panel"
 		>
-			<table className="w-full text-sm">
-				<thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-					<tr>
-						<th className="text-left p-2">Tenant</th>
-						<th className="text-left p-2">Invoice</th>
-						<th className="text-right p-2">Amount</th>
-						<th className="text-left p-2">Status</th>
-						<th className="text-left p-2">When</th>
-					</tr>
-				</thead>
-				<tbody className="divide-y divide-border">
+			<Table>
+				<TableHeader>
+					<TableRow className="bg-white">
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Tenant
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Invoice
+						</TableHead>
+						<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Amount
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Status
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							When
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
 					{invoices.map((inv) => (
-						<tr
+						<TableRow
 							key={inv.invoiceId}
+							className="hover:bg-muted/30"
 							data-testid={`recent-invoice-row-${inv.invoiceId}`}
 						>
-							<td className="p-2">
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 								<Link
 									to="/dashboard/platform-admin/tenants/$id"
 									params={{ id: inv.orgId }}
@@ -104,28 +122,25 @@ export function RecentInvoicesPanel({
 								>
 									{inv.orgName}
 								</Link>
-							</td>
-							<td className="p-2 font-mono text-xs">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap font-mono text-xs">
 								{inv.invoiceNumber ?? inv.invoiceId}
-							</td>
-							<td className="p-2 text-right tabular-nums">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-right font-mono tabular-nums">
 								{fmtCents(inv.amountPaid, inv.currency)}
-							</td>
-							<td className="p-2">
-								<Badge
-									variant="outline"
-									className={`${statusBand(inv.status)} border-current/30`}
-								>
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+								<Badge variant="outline" className={statusClass(inv.status)}>
 									{inv.status ?? "—"}
 								</Badge>
-							</td>
-							<td className="p-2 text-muted-foreground">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
 								{fmtDate(inv.createdAt)}
-							</td>
-						</tr>
+							</TableCell>
+						</TableRow>
 					))}
-				</tbody>
-			</table>
+				</TableBody>
+			</Table>
 		</div>
 	);
 }

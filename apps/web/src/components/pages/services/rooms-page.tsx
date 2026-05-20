@@ -4,14 +4,34 @@ import { useState, useMemo, useRef } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { DataTable } from "@/components/tables/rooms/view/data-table";
 import type { RoomRow } from "@/components/tables/rooms/view/columns";
-import { RoomFormDialog } from "./room-form-dialog";
-import { RoomsActionBar } from "./rooms-action-bar";
+
+const ACTIVE_TABS = [
+	{ label: "Active", value: true as boolean | undefined },
+	{ label: "All", value: undefined as boolean | undefined },
+	{ label: "Inactive", value: false as boolean | undefined },
+];
 
 const TYPE_OPTIONS = [
 	{ value: "consultation", label: "Consultation" },
@@ -94,7 +114,7 @@ export function RoomsPage() {
 		enabled: !!organizationId,
 	});
 
-	const tableData: RoomRow[] = apiData.map((r: any) => ({
+	const tableData: RoomRow[] = apiData.map((r) => ({
 		id: r.id,
 		name: r.name,
 		type: r.type as RoomRow["type"],
@@ -149,7 +169,6 @@ export function RoomsPage() {
 		},
 	});
 
-	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess calls invalidateRooms() helper (defined at line 131)
 	const deactivateMutation = useMutation({
 		mutationFn: (id: string) =>
 			client.rooms.update({
@@ -160,7 +179,6 @@ export function RoomsPage() {
 		onSuccess: () => invalidateRooms(),
 	});
 
-	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess calls invalidateRooms() helper (defined at line 131)
 	const reactivateMutation = useMutation({
 		mutationFn: (id: string) =>
 			client.rooms.update({
@@ -270,12 +288,38 @@ export function RoomsPage() {
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			<RoomsActionBar
-				activeFilter={activeFilter}
-				setActiveFilter={setActiveFilter}
-				canCreate={canCreate}
-				onCreate={openCreate}
-			/>
+			{/* Action bar + filter pills */}
+			<div className="flex shrink-0 items-center justify-between pt-2 pb-4">
+				<div className="flex items-center gap-2">
+					{ACTIVE_TABS.map((tab) => {
+						const isSelected = activeFilter === tab.value;
+						return (
+							<button
+								key={tab.label}
+								type="button"
+								onClick={() => setActiveFilter(tab.value)}
+								className={
+									isSelected
+										? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold transition"
+										: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium transition"
+								}
+							>
+								{tab.label}
+							</button>
+						);
+					})}
+				</div>
+				{canCreate && (
+					<button
+						type="button"
+						onClick={openCreate}
+						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+					>
+						<Plus className="h-4 w-4" />
+						Create Room
+					</button>
+				)}
+			</div>
 
 			{/* Content */}
 			<div className="min-h-0 flex-1 overflow-hidden">
@@ -307,18 +351,136 @@ export function RoomsPage() {
 				)}
 			</div>
 
-			<RoomFormDialog
+			{/* Create / Edit Dialog */}
+			<Dialog
 				open={isSheetOpen}
-				onOpenChange={(open) => { if (!open) closeSheet(); }}
-				editingRoom={!!editingRoom}
-				form={form}
-				setForm={setForm}
-				branches={branches}
-				branchCombobox={(p) => <BranchCombobox {...p} />}
-				onCancel={closeSheet}
-				onSubmit={handleSubmit}
-				isBusy={isBusy}
-			/>
+				onOpenChange={(open) => {
+					if (!open) closeSheet();
+				}}
+			>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{editingRoom ? "Edit Room" : "Create Room"}
+						</DialogTitle>
+						<DialogDescription>
+							{editingRoom
+								? "Update the room details below."
+								: "Fill in the details to create a new room."}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex flex-col gap-4 px-4 py-2">
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor="room-name" className="text-sm font-medium">
+								Name <span className="text-destructive">*</span>
+							</label>
+							<Input
+								id="room-name"
+								value={form.name}
+								onChange={(e) =>
+									setForm((prev) => ({ ...prev, name: e.target.value }))
+								}
+								placeholder="e.g. Studio A"
+							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label className="text-sm font-medium">
+								Type <span className="text-destructive">*</span>
+							</label>
+							<Select
+								value={form.type}
+								onValueChange={(val) =>
+									setForm((prev) => ({ ...prev, type: val as RoomType }))
+								}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select a type" />
+								</SelectTrigger>
+								<SelectContent>
+									{TYPE_OPTIONS.map((opt) => (
+										<SelectItem key={opt.value} value={opt.value}>
+											{opt.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor="room-capacity" className="text-sm font-medium">
+								Capacity <span className="text-destructive">*</span>
+							</label>
+							<Input
+								id="room-capacity"
+								type="number"
+								min={1}
+								value={form.capacity}
+								onChange={(e) =>
+									setForm((prev) => ({ ...prev, capacity: e.target.value }))
+								}
+								placeholder="e.g. 10"
+							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label className="text-sm font-medium">
+								Branch <span className="text-destructive">*</span>
+							</label>
+							{branches.length === 0 ? (
+								<p className="text-sm text-muted-foreground border border-dashed rounded-md p-3">
+									No branches found. Create a branch first.
+								</p>
+							) : (
+								<BranchCombobox
+									value={form.branchId}
+									onChange={(id) =>
+										setForm((prev) => ({ ...prev, branchId: id }))
+									}
+									branches={branches}
+									placeholder="Search branch..."
+								/>
+							)}
+						</div>
+
+						{editingRoom && (
+							<div className="flex items-center gap-3">
+								<input
+									id="room-active"
+									type="checkbox"
+									checked={form.isActive}
+									onChange={(e) =>
+										setForm((prev) => ({
+											...prev,
+											isActive: e.target.checked,
+										}))
+									}
+									className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+								/>
+								<label htmlFor="room-active" className="text-sm font-medium">
+									Active
+								</label>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="px-4">
+						<Button variant="outline" onClick={closeSheet} disabled={isBusy}>
+							Cancel
+						</Button>
+						<Button onClick={handleSubmit} disabled={isBusy}>
+							{isBusy
+								? editingRoom
+									? "Saving..."
+									: "Creating..."
+								: editingRoom
+									? "Save Changes"
+									: "Create Room"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
@@ -330,13 +492,11 @@ interface BranchNode {
 }
 
 function BranchCombobox({
-	id,
 	value,
 	onChange,
 	branches,
 	placeholder,
 }: {
-	id?: string;
 	value: string;
 	onChange: (id: string) => void;
 	branches: BranchNode[];
@@ -355,7 +515,6 @@ function BranchCombobox({
 	return (
 		<div className="relative" ref={containerRef}>
 			<Input
-				id={id}
 				placeholder={placeholder}
 				value={displayValue}
 				onChange={(e) => {

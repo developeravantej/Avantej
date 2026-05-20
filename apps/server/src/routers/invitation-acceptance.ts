@@ -17,7 +17,7 @@ export type AcceptanceValidationResult =
 	| { ok: false; error: AcceptanceValidationError };
 
 interface InvitationLite {
-	email: string;
+	email: string | null;
 	status: string;
 	expiresAt: Date;
 }
@@ -34,7 +34,7 @@ export function validateAcceptanceInput(
 	if (invitation.status === "accepted") return { ok: false, error: "already-accepted" };
 	if (invitation.status === "declined") return { ok: false, error: "declined" };
 	if (invitation.expiresAt.getTime() < Date.now()) return { ok: false, error: "expired" };
-	if (invitation.email.toLowerCase() !== signupEmail.toLowerCase()) {
+	if (invitation.email && invitation.email.toLowerCase() !== signupEmail.toLowerCase()) {
 		return { ok: false, error: "email-mismatch" };
 	}
 	return { ok: true };

@@ -10,21 +10,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -159,8 +149,8 @@ function PageSkeleton() {
 				</div>
 			</div>
 			<div className="grid grid-cols-4 gap-4">
-				{[0, 1, 2, 3].map((n) => (
-					<Skeleton key={`skel-${n}`} className="h-24 rounded-xl" />
+				{[0, 1, 2, 3].map((i) => (
+					<Skeleton key={i} className="h-24 rounded-xl" />
 				))}
 			</div>
 			<Skeleton className="h-72 rounded-xl" />
@@ -177,7 +167,7 @@ interface KpiCardProps {
 function KpiCard({ label, value, valueClassName }: KpiCardProps) {
 	return (
 		<Card>
-			<CardContent className="p-4">
+			<CardContent className="px-4 py-4">
 				<p className="text-muted-foreground text-xs">{label}</p>
 				<p
 					className={`mt-1 font-semibold text-xl tabular-nums ${valueClassName ?? ""}`}
@@ -196,15 +186,11 @@ interface CustomerProfilePanelProps {
 	memberId: string;
 	/** Show a "Back to Customers" link above the header. Default true. */
 	showBackLink?: boolean;
-	/** Fired after a successful soft-delete so the parent can clear selection. */
-	onDeleted?: () => void;
 }
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 export function CustomerProfilePanel({
 	memberId,
 	showBackLink = true,
-	onDeleted,
 }: CustomerProfilePanelProps) {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -214,9 +200,6 @@ export function CustomerProfilePanel({
 	const [profileForm, setProfileForm] =
 		useState<ProfileFormState>(EMPTY_PROFILE_FORM);
 	const [formDirty, setFormDirty] = useState(false);
-	const [confirmAction, setConfirmAction] = useState<"delete" | "restore" | null>(
-		null,
-	);
 
 	const {
 		data: detail,
@@ -261,103 +244,30 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
-		// Re-runs whenever detail loads or refetches so the form reflects
-		// what's actually in the DB (was [memberId]-only, which left form
-		// empty on initial async load and after save invalidation).
-	}, [detail, memberId]);
-
-	const handleGhlToast = (
-		ghlSync: { status?: string; reason?: string; error?: string } | undefined,
-		baseMessage: string,
-	) => {
-		const status = ghlSync?.status;
-		if (!status || status === "synced") {
-			toast.success(baseMessage);
-		} else if (status === "skipped") {
-			toast.info(
-				`${baseMessage} (GHL sync skipped${ghlSync?.reason ? `: ${ghlSync.reason}` : ""})`,
-			);
-		} else {
-			toast.warning(
-				`${baseMessage} (GHL sync failed${ghlSync?.error ? `: ${ghlSync.error}` : ""})`,
-			);
-		}
-	};
-
-	const deleteMutation = useApiMutation({
-		mutationFn: () => {
-			if (!detail) throw new Error("No customer data loaded");
-			return client.customerProfiles.softDelete({
-				organizationId: organizationId!,
-				targetUserId: detail.member.userId,
-			});
-		},
-		successMessage: false,
-		errorMessage: (err) => err.message || "Failed to delete customer",
-		invalidate: [
-			["customerDirectory", "detail", organizationId, memberId],
-			["customerDirectory", organizationId],
-		],
-		onSuccess: (result) => {
-			handleGhlToast(
-				(result as { ghlSync?: Record<string, unknown> } | undefined)?.ghlSync as
-					| { status?: string; reason?: string; error?: string }
-					| undefined,
-				"Customer deleted",
-			);
-			setConfirmAction(null);
-			onDeleted?.();
-		},
-	});
-
-	const restoreMutation = useApiMutation({
-		mutationFn: () => {
-			if (!detail) throw new Error("No customer data loaded");
-			return client.customerProfiles.restore({
-				organizationId: organizationId!,
-				targetUserId: detail.member.userId,
-			});
-		},
-		successMessage: false,
-		errorMessage: (err) => err.message || "Failed to restore customer",
-		invalidate: [
-			["customerDirectory", "detail", organizationId, memberId],
-			["customerDirectory", organizationId],
-		],
-		onSuccess: (result) => {
-			handleGhlToast(
-				(result as { ghlSync?: Record<string, unknown> } | undefined)?.ghlSync as
-					| { status?: string; reason?: string; error?: string }
-					| undefined,
-				"Customer restored",
-			);
-			setConfirmAction(null);
-		},
-	});
+		// intentional: profile in deps would wipe unsaved form edits on every background refetch
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [memberId]);
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
 			if (!detail) throw new Error("No customer data loaded");
-			// Empty string / cleared field => null (clear in DB).
-			// Non-empty => the value. (Never send undefined here — the field
-			// IS dirty either way; undefined would be "skip".)
-			const orNull = (s: string) => (s.trim() ? s : null);
-			const goals = profileForm.fitnessGoals.split(",").flatMap((g) => {
-				const t = g.trim();
-				return t ? [t] : [];
-			});
 			return client.customerProfiles.upsertForCustomer({
 				organizationId: organizationId!,
 				targetUserId: detail.member.userId,
-				phone: orNull(profileForm.phone),
-				dateOfBirth: orNull(profileForm.dateOfBirth),
-				gender: orNull(profileForm.gender),
-				address: orNull(profileForm.address),
-				emergencyContactName: orNull(profileForm.emergencyContactName),
-				emergencyContactPhone: orNull(profileForm.emergencyContactPhone),
-				medicalNotes: orNull(profileForm.medicalNotes),
-				fitnessGoals: goals.length > 0 ? goals : null,
-				notes: orNull(profileForm.notes),
+				phone: profileForm.phone || undefined,
+				dateOfBirth: profileForm.dateOfBirth || undefined,
+				gender: (profileForm.gender as Gender) || undefined,
+				address: profileForm.address || undefined,
+				emergencyContactName: profileForm.emergencyContactName || undefined,
+				emergencyContactPhone: profileForm.emergencyContactPhone || undefined,
+				medicalNotes: profileForm.medicalNotes || undefined,
+				fitnessGoals: profileForm.fitnessGoals
+					? profileForm.fitnessGoals
+							.split(",")
+							.map((s) => s.trim())
+							.filter(Boolean)
+					: undefined,
+				notes: profileForm.notes || undefined,
 			});
 		},
 		successMessage: "Profile updated successfully.",
@@ -466,8 +376,8 @@ export function CustomerProfilePanel({
 		<div className="space-y-6 p-6">
 			{showBackLink && (
 				<Button variant="ghost" size="sm" asChild className="-ml-1">
-					<Link to="/dashboard/customers/view">
-						<ArrowLeft className="mr-1 size-4" />
+					<Link to="/dashboard/customers/v2/view" search={{} as any}>
+						<ArrowLeft className="mr-1 h-4 w-4" />
 						Customers
 					</Link>
 				</Button>
@@ -479,14 +389,10 @@ export function CustomerProfilePanel({
 				</span>
 				<div className="min-w-0 flex-1 space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<h1 className="font-semibold text-2xl leading-tight">{user.name}</h1>
-						{profile?.isDeleted ? (
-							<Badge variant="destructive">deleted</Badge>
-						) : (
-							<Badge variant={memberStatusVariant(member.status ?? "")}>
-								{member.status ?? "unknown"}
-							</Badge>
-						)}
+						<h1 className="font-bold text-2xl leading-tight">{user.name}</h1>
+						<Badge variant={memberStatusVariant(member.status ?? "")}>
+							{member.status ?? "unknown"}
+						</Badge>
 					</div>
 					<p className="text-muted-foreground text-sm">{user.email}</p>
 					{profile?.phone && (
@@ -495,15 +401,6 @@ export function CustomerProfilePanel({
 					<p className="text-muted-foreground text-xs">
 						Joined {formatDate(member.joinedAt)}
 					</p>
-					{organizationId && profile?.id && (
-						<div className="pt-2">
-							<MagicLinkActions
-								organizationId={organizationId}
-								customerProfileId={profile.id}
-								customerEmail={user.email}
-							/>
-						</div>
-					)}
 				</div>
 			</div>
 
@@ -523,18 +420,35 @@ export function CustomerProfilePanel({
 			</div>
 
 			<Tabs defaultValue="overview">
-				<TabsList>
-					<TabsTrigger value="overview">Overview</TabsTrigger>
-					<TabsTrigger value="packages">
-						Packages{" "}
-						{packageInstances.length > 0 && (
-							<span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
-								{packageInstances.length}
-							</span>
-						)}
-					</TabsTrigger>
-					<TabsTrigger value="payments">Payments</TabsTrigger>
-					<TabsTrigger value="appointments">Appointments</TabsTrigger>
+				<TabsList className="h-auto gap-2 bg-transparent p-0">
+					{(
+						[
+							{ value: "overview", label: "Overview" },
+							{
+								value: "packages",
+								label: (
+									<>
+										Packages
+										{packageInstances.length > 0 && (
+											<span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs tabular-nums">
+												{packageInstances.length}
+											</span>
+										)}
+									</>
+								),
+							},
+							{ value: "payments", label: "Payments" },
+							{ value: "appointments", label: "Appointments" },
+						] as const
+					).map(({ value, label }) => (
+						<TabsTrigger
+							key={value}
+							value={value}
+							className="rounded-full border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#737373] transition hover:bg-[#fafafa] hover:text-[#0a0a0a] data-[state=active]:border-[#0a0a0a] data-[state=active]:bg-[#0a0a0a] data-[state=active]:text-white data-[state=active]:shadow-none"
+						>
+							{label}
+						</TabsTrigger>
+					))}
 				</TabsList>
 
 				<TabsContent value="overview" className="mt-4 space-y-4">
@@ -715,60 +629,6 @@ export function CustomerProfilePanel({
 
 					<Card>
 						<CardHeader className="pb-3">
-							<CardTitle className="text-base text-destructive">Danger zone</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-3">
-							{profile?.isDeleted && (
-								<p
-									className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 text-sm"
-									data-testid="deleted-customer-banner"
-								>
-									Deleted by {profile.deletedSource ?? "unknown"} on{" "}
-									{formatDate(profile.deletedAt)}
-								</p>
-							)}
-							<div className="flex items-center justify-between gap-4">
-								{profile?.isDeleted ? (
-									<>
-										<p className="text-muted-foreground text-sm">
-											Restore this customer. Re-creates their GoHighLevel contact.
-										</p>
-										<Button
-											type="button"
-											variant="default"
-											size="sm"
-											className="bg-green-600 hover:bg-green-700"
-											data-testid="restore-customer-btn"
-											onClick={() => setConfirmAction("restore")}
-											disabled={restoreMutation.isPending}
-										>
-											{restoreMutation.isPending ? "Restoring…" : "Restore customer"}
-										</Button>
-									</>
-								) : (
-									<>
-										<p className="text-muted-foreground text-sm">
-											Delete this customer. Soft-deletes in Avantej and removes the
-											contact from GoHighLevel.
-										</p>
-										<Button
-											type="button"
-											variant="destructive"
-											size="sm"
-											data-testid="delete-customer-btn"
-											onClick={() => setConfirmAction("delete")}
-											disabled={deleteMutation.isPending}
-										>
-											{deleteMutation.isPending ? "Deleting…" : "Delete customer"}
-										</Button>
-									</>
-								)}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader className="pb-3">
 							<CardTitle className="text-base">Recent Payments</CardTitle>
 						</CardHeader>
 						<CardContent>
@@ -817,7 +677,7 @@ export function CustomerProfilePanel({
 								</p>
 							) : (
 								<div className="space-y-2">
-									{upcomingAppts.map((appt: any) => (
+									{upcomingAppts.map((appt) => (
 										<div
 											key={appt.id}
 											className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
@@ -856,7 +716,17 @@ export function CustomerProfilePanel({
 							{packageInstances.map((pkg) => (
 								<PackageRow
 									key={pkg.id}
-									pkg={pkg as Parameters<typeof PackageRow>[0]["pkg"]}
+									pkg={{
+										id: pkg.id,
+										clientId: pkg.clientId ?? "",
+										status: pkg.status,
+										creditsUsed: pkg.creditsUsed,
+										creditsTotal: pkg.creditsTotal,
+										creditsUnlocked: pkg.creditsUnlocked,
+										expiresAt: pkg.expiresAt,
+										serviceName: pkg.serviceName,
+										paymentPlanCode: pkg.paymentPlanType,
+									}}
 									organizationId={organizationId}
 								/>
 							))}
@@ -955,7 +825,7 @@ export function CustomerProfilePanel({
 											</tr>
 										</thead>
 										<tbody className="divide-y">
-											{allAppts.map((appt: any) => {
+											{allAppts.map((appt) => {
 												const start = appt.startTime
 													? appt.startTime instanceof Date
 														? appt.startTime
@@ -994,67 +864,6 @@ export function CustomerProfilePanel({
 					</Card>
 				</TabsContent>
 			</Tabs>
-
-			<Dialog
-				open={confirmAction !== null}
-				onOpenChange={(open) => {
-					if (!open) setConfirmAction(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>
-							{confirmAction === "restore"
-								? "Restore customer?"
-								: "Delete customer?"}
-						</DialogTitle>
-						<DialogDescription>
-							{confirmAction === "restore" ? (
-								<>
-									<span className="font-medium text-foreground">{user.name}</span>{" "}
-									will be restored and re-synced to GoHighLevel.
-								</>
-							) : (
-								<>
-									<span className="font-medium text-foreground">{user.name}</span>{" "}
-									will be marked deleted in Avantej and removed from GoHighLevel.
-								</>
-							)}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="gap-2 sm:gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setConfirmAction(null)}
-							disabled={deleteMutation.isPending || restoreMutation.isPending}
-						>
-							Cancel
-						</Button>
-						{confirmAction === "restore" ? (
-							<Button
-								type="button"
-								className="bg-green-600 hover:bg-green-700"
-								onClick={() => restoreMutation.mutate()}
-								disabled={restoreMutation.isPending}
-								data-testid="confirm-restore-btn"
-							>
-								{restoreMutation.isPending ? "Restoring…" : "Restore"}
-							</Button>
-						) : (
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => deleteMutation.mutate()}
-								disabled={deleteMutation.isPending}
-								data-testid="confirm-delete-btn"
-							>
-								{deleteMutation.isPending ? "Deleting…" : "Delete"}
-							</Button>
-						)}
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }

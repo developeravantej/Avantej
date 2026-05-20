@@ -49,7 +49,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			return listInvoices(context.tenantDb, {
+			const invoiceRows = await listInvoices(context.tenantDb, {
 				status: input.status,
 				customerId: input.customerId,
 				salesOrderId: input.salesOrderId,
@@ -57,6 +57,27 @@ export const invoicesRouter = {
 				to: input.to ? new Date(input.to) : undefined,
 				accessibleNodeIds: context.accessibleNodeIds,
 			});
+
+			if (invoiceRows.length === 0) return invoiceRows;
+
+			// Batch-resolve createdBy IDs → display names
+			const createdByIds = [
+				...new Set(invoiceRows.map((r) => r.createdBy).filter((id): id is string => !!id)),
+			];
+			const cpDb = getControlPanelDb(context);
+			const userRecords =
+				createdByIds.length > 0
+					? await cpDb
+							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.from(cpUsers)
+							.where(inArray(cpUsers.id, createdByIds))
+					: [];
+			const nameMap = new Map(userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown"]));
+
+			return invoiceRows.map((r) => ({
+				...r,
+				createdByName: r.createdBy ? (nameMap.get(r.createdBy) ?? null) : null,
+			}));
 		}),
 
 	getById: protectedProcedure

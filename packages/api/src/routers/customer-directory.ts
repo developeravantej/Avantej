@@ -8,6 +8,7 @@
 import { requirePermission } from "@avantej-core/services";
 import {
 	getCustomerDetail,
+	getCustomerStats,
 	listCustomerDirectory,
 } from "@avantej-core/services/customer-directory.service";
 import { ORPCError } from "@orpc/server";
@@ -68,6 +69,44 @@ export const customerDirectoryRouter = {
 					includeDeleted: input.includeDeleted,
 				},
 			);
+		}),
+
+	/**
+	 * Aggregate KPI stats for the customer directory tiles.
+	 * Respects the same RBAC scope as list (accessibleNodeIds).
+	 */
+	getStats: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"read",
+			);
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+
+			return getCustomerStats(context.tenantDb, {
+				accessibleNodeIds,
+				branchId: input.branchId,
+			});
 		}),
 
 	/**

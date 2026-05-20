@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { MarkPaidDialog } from "@/components/commissions/mark-paid-dialog";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ type ActiveTab = "all" | "pending" | "approved" | "paid" | "void";
 
 interface BulkActionBarProps {
 	selectedIds: string[];
+	selectedRows?: { staffId: string }[];
 	tab: ActiveTab;
 	organizationId: string;
 	canApprove: boolean;
@@ -115,7 +117,7 @@ function VoidConfirmDialog({
 					<DialogTitle>Void Commission Splits</DialogTitle>
 					<DialogDescription>
 						You are about to void {count} commission split{count !== 1 ? "s" : ""}
-						. Provide a required reason. This is recorded in the audit trail.
+						. Provide a required reason — this is recorded in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3 py-2">
@@ -153,6 +155,7 @@ function VoidConfirmDialog({
 
 export function BulkActionBar({
 	selectedIds,
+	selectedRows,
 	tab,
 	organizationId,
 	canApprove,
@@ -187,16 +190,14 @@ export function BulkActionBar({
 	// ── Void mutation — one-by-one (backend void takes a single id + reason) ──
 	const voidMutation = useApiMutation({
 		mutationFn: async (reason: string) => {
-			// Backend void operates on one id at a time per plan §6.4
-			await Promise.all(
-				selectedIds.map((id) =>
-					client.commissionSplits.void({
-						organizationId,
-						id,
-						reason,
-					}),
-				),
-			);
+			// voidById operates on one id at a time — loop sequentially
+			for (const id of selectedIds) {
+				await client.commissionSplits.voidById({
+					organizationId,
+					id,
+					reason,
+				});
+			}
 		},
 		successMessage: `Voided ${count} commission split${count !== 1 ? "s" : ""}.`,
 		errorMessage: (err) => err.message || "Failed to void commission splits.",
@@ -228,7 +229,18 @@ export function BulkActionBar({
 							size="sm"
 							variant="outline"
 							className="border-green-300 text-green-700 hover:bg-green-50"
-							onClick={() => setApproveDialogOpen(true)}
+							onClick={() => {
+								if (selectedRows) {
+									const distinctStaff = new Set(selectedRows.map((r) => r.staffId));
+									if (distinctStaff.size > 1) {
+										toast.error(
+											`Cannot approve splits for ${distinctStaff.size} different staff members at once. Filter by a single staff member first.`,
+										);
+										return;
+									}
+								}
+								setApproveDialogOpen(true);
+							}}
 						>
 							Approve Selected
 						</Button>

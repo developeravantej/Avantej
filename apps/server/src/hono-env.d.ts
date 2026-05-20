@@ -50,6 +50,9 @@ declare module "hono" {
     adminRecord: typeof platformAdmins.$inferSelect;
     adminRole: string;
 
+    // Installment system flags (threaded from env vars via orpcTenantMiddleware)
+    installmentLockOnOpen: boolean;
+
     // Impersonation cookie forwarding — set by impersonateUser / stopImpersonating,
     // consumed by the /rpc/* Hono wrapper in index.ts to re-attach Set-Cookie headers
     // that oRPC's RPCHandler would otherwise strip.

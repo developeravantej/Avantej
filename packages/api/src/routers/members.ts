@@ -5,7 +5,7 @@
  * Members are stored in tenant databases and linked to users in the control panel.
  */
 
-import { createMember } from "@avantej-core/services";
+import { createMember, getMembersNewToday } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
@@ -52,6 +52,11 @@ export const memberRouter = {
         // members are filtered out via `isNull(members.deletedAt)`. Set to
         // true to surface deleted rows for the "view deleted" toggle.
         includeDeleted: z.boolean().optional(),
+        /**
+         * scope='self'  — return only the calling member's own record.
+         * scope='all'   — return all accessible members (default).
+         */
+        scope: z.enum(["self", "all"]).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -80,6 +85,28 @@ export const memberRouter = {
         throw new ORPCError("FORBIDDEN", {
           message: error instanceof Error ? error.message : "Permission denied",
         });
+      }
+
+      // scope='self': short-circuit — return only the caller's own member record
+      if (input.scope === "self") {
+        const selfRow = await context.tenantDb.query.members.findFirst({
+          where: eq(members.id, context.member.id),
+        });
+        if (!selfRow) return [];
+        return [
+          {
+            id: selfRow.id,
+            userId: selfRow.userId,
+            role: selfRow.role,
+            roleId: selfRow.roleId,
+            hierarchyScopeId: selfRow.hierarchyScopeId,
+            status: selfRow.status,
+            joinedAt: selfRow.joinedAt,
+            trainerTierId: selfRow.trainerTierId,
+            name: "Unknown",
+            email: "Unknown",
+          },
+        ];
       }
 
       // Build filter conditions
@@ -1623,6 +1650,58 @@ export const memberRouter = {
       }));
 
       return { ghlSync };
+    }),
+
+  /**
+   * Members joined today (UTC) — dashboard widget.
+   *
+   * Returns count + top-3 most-recent members.
+   * Optionally scoped to a specific branchId.
+   * Requires user_management.read permission.
+   */
+  newToday: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        branchId: z.string().uuid().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      try {
+        await requirePermission(
+          context.tenantDb,
+          context.member,
+          "user_management",
+          "read"
+        );
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const accessibleNodeIds =
+        context.accessibleNodeIds ??
+        (context.member
+          ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
+          : []);
+
+      return getMembersNewToday(context.tenantDb, {
+        accessibleNodeIds,
+        branchId: input.branchId,
+      });
     }),
 };
 

@@ -85,6 +85,10 @@ export const services = pgTable("services", {
 	installmentIntervalDays: integer("installment_interval_days").default(30),
 	gracePeriodDays: integer("grace_period_days"),
 
+	// Commission rate for this service in basis points (e.g. 1000 = 10.00%).
+	// Defaults to 0 (no commission). Used when no staff-level override exists.
+	defaultCommissionBps: integer("default_commission_bps").notNull().default(0),
+
 	// Recurring class-slot template (only used when schedulingType = "class_slot")
 	// Shape: { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> }
 	timePresetConfig: jsonb("time_preset_config").$type<{

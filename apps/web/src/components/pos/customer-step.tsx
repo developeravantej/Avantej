@@ -138,6 +138,7 @@ export function CustomerStep({
 					onChange={(e) => setQuery(e.target.value)}
 					className="pl-9 pr-9"
 					autoComplete="off"
+					data-testid="pos-member-search-input"
 				/>
 				{isFetching && (
 					<div className="absolute top-1/2 right-3 -translate-y-1/2">

@@ -1,10 +1,13 @@
 "use client";
 
 import { Link, useLocation } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { client } from "@/utils/orpc";
 import {
 	Activity,
 	ArrowLeftRight,
 	BadgeDollarSign,
+	Ban,
 	Bell,
 	Briefcase,
 	Building2,
@@ -18,6 +21,7 @@ import {
 	DollarSign,
 	FileChartColumnIncreasing,
 	Grid3x3,
+	History,
 	Home,
 	LayoutDashboard,
 	LogOut,
@@ -26,6 +30,7 @@ import {
 	MessageSquare,
 	Package,
 	PackageSearch,
+	QrCode,
 	Receipt,
 	Ruler,
 	ScrollText,
@@ -76,14 +81,15 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SidebarNavItem = {
+export type SidebarNavItem = {
 	title: string;
 	url: string;
 	icon: React.ComponentType<{ className?: string }>;
 	permission?: string;
+	testId?: string;
 };
 
-type SidebarNavGroup = {
+export type SidebarNavGroup = {
 	label: string;
 	items: SidebarNavItem[];
 	collapsible?: boolean;
@@ -93,6 +99,7 @@ type SidebarNavGroup = {
 // ─── Navigation Structure ─────────────────────────────────────────────────────
 
 const NAV_GROUPS: SidebarNavGroup[] = [
+	// ─── Main ──────────────────────────────────────────────────────────────
 	{
 		label: "Main",
 		items: [
@@ -131,12 +138,27 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: PackageSearch,
 			},
 			{ title: "POS", url: "/dashboard/sales/create", icon: ShoppingCart },
+			{
+				title: "Reports",
+				url: "/dashboard/reports/view",
+				icon: FileChartColumnIncreasing,
+				permission: "reports:read",
+			},
+			{
+				title: "Announcements",
+				url: "/dashboard/announcements/view",
+				icon: Megaphone,
+			},
 		],
 	},
+
+	// ─── Finance ───────────────────────────────────────────────────────────
 	{
 		label: "Finance",
 		items: [
 			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
+			{ title: "Payment History", url: "/dashboard/payment/view", icon: History },
+			{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: Ban, testId: "sidebar-cancelled-sales" },
 			{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
 			{
 				title: "Refunds",
@@ -155,10 +177,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/settings/installment-plans",
 				icon: CreditCard,
 			},
+			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
+			{ title: "Products", url: "/dashboard/products/view", icon: Package },
+			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "service_management:read" },
 		],
 	},
+
+	// ─── Staff & Access (merged per legacy design) ─────────────────────────
 	{
-		label: "Staff",
+		label: "Staff & Access",
 		items: [
 			{
 				title: "Trainers",
@@ -174,17 +201,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				permission: "attendance_management:read",
 			},
 			{
-				title: "Audit Log",
-				url: "/dashboard/audit/view",
-				icon: ScrollText,
-				permission: "audit_log:read",
-			},
-		],
-	},
-	{
-		label: "Access",
-		items: [
-			{
 				title: "Roles",
 				url: "/dashboard/access-control/roles",
 				icon: Shield,
@@ -196,54 +212,51 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: UserPlus,
 				permission: "user_management:read",
 			},
-			{ title: "Branches", url: "/dashboard/branch/view", icon: Store },
+			{ title: "Branches", url: "/dashboard/branch/view", icon: Store, permission: "hierarchy_management:read" },
+			{ title: "Onboarding QR", url: "/dashboard/onboarding/view", icon: QrCode, permission: "hierarchy_management:read" },
+		],
+	},
+
+	// ─── Settings (new group, matching legacy design) ──────────────────────
+	{
+		label: "Settings",
+		items: [
+			{
+				title: "Org Settings",
+				url: "/dashboard/settings/organization",
+				icon: Building2,
+			},
 			{
 				title: "Google Calendar",
 				url: "/dashboard/settings/google-calendar",
 				icon: Calendar,
-			},
-		],
-	},
-	{
-		label: "Coming Soon",
-		collapsible: true,
-		defaultOpen: false,
-		items: [
-			{
-				title: "All Memberships",
-				url: "/dashboard/memberships/view",
-				icon: CreditCard,
-				permission: "service_management:read",
-			},
-			{
-				title: "Reports",
-				url: "/dashboard/reports/view",
-				icon: FileChartColumnIncreasing,
-				permission: "reports:read",
-			},
-			{
-				title: "Announcements",
-				url: "/dashboard/announcements/view",
-				icon: Megaphone,
-				permission: "announcement_management:read",
-			},
-			{
-				title: "Notifications",
-				url: "/dashboard/notifications/view",
-				icon: Bell,
 			},
 			{
 				title: "Notification Preferences",
 				url: "/dashboard/settings/notifications",
 				icon: Bell,
 			},
-			{
-				title: "Organization",
-				url: "/dashboard/settings/organization",
-				icon: Building2,
-			},
 			{ title: "GHL Integration", url: "/go-highlevel-integration", icon: Map },
-			{ title: "Products", url: "/dashboard/products/view", icon: Package },
+			{
+				title: "Audit Log",
+				url: "/dashboard/audit/view",
+				icon: ScrollText,
+				permission: "audit_log:read",
+			},
+		],
+	},
+
+	// ─── Coming Soon (only true stubs remain) ──────────────────────────────
+	{
+		label: "Coming Soon",
+		collapsible: true,
+		defaultOpen: false,
+		items: [
+			{
+				title: "Notifications",
+				url: "/dashboard/notifications/view",
+				icon: Bell,
+			},
 			{
 				title: "Purchase Orders",
 				url: "/dashboard/purchase-orders/view",
@@ -259,12 +272,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Stock Movement",
 				url: "/dashboard/stock-requests/view",
 				icon: ArrowLeftRight,
-			},
-			{
-				title: "Expenses",
-				url: "/dashboard/expenses/view",
-				icon: Receipt,
-				permission: "expense_management:read",
 			},
 		],
 	},
@@ -303,9 +310,9 @@ function SidebarUserFooter() {
 			<DropdownMenuTrigger asChild>
 				<button
 					type="button"
-					className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+					className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
 				>
-					<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 font-semibold text-sm text-white">
+					<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent font-semibold text-sidebar-foreground text-sm">
 						{initial}
 					</span>
 
@@ -324,7 +331,7 @@ function SidebarUserFooter() {
 
 			<DropdownMenuContent side="top" align="start" className="w-56 rounded-xl">
 				<DropdownMenuLabel className="font-normal">
-					<div className="flex flex-col gap-y-1">
+					<div className="flex flex-col space-y-1">
 						<p className="text-sm font-medium leading-none">{displayName}</p>
 						<p className="text-xs leading-none text-brand-secondary-1">{email}</p>
 					</div>
@@ -361,7 +368,13 @@ function SidebarUserFooter() {
 
 // ─── NavGroup ─────────────────────────────────────────────────────────────────
 
-function NavGroup({ group }: { group: SidebarNavGroup }) {
+function NavGroup({
+	group,
+	badges,
+}: {
+	group: SidebarNavGroup;
+	badges?: Record<string, number>;
+}) {
 	const location = useLocation();
 	const pathname = location.pathname;
 	const { hasPermission } = useUserContext();
@@ -374,13 +387,46 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 
 	if (visibleItems.length === 0) return null;
 
+	const renderItems = () => (
+		<SidebarMenu>
+			{visibleItems.map((item) => {
+				const isActive =
+					item.url === "/dashboard"
+						? pathname === "/dashboard"
+						: pathname.startsWith(item.url);
+				const badge = badges?.[item.url];
+
+				return (
+					<SidebarMenuItem key={item.title}>
+						<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+							<Link to={item.url} data-testid={item.testId}>
+								<item.icon className="size-4" />
+								<span>{item.title}</span>
+								{badge && badge > 0 ? (
+									<span
+										className={cn(
+											"ml-auto rounded-full bg-amber-500/20 px-1.5 py-0 text-[10px] font-bold tabular-nums text-amber-300",
+											"group-data-[collapsible=icon]:hidden",
+										)}
+									>
+										{badge > 99 ? "99+" : badge}
+									</span>
+								) : null}
+							</Link>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				);
+			})}
+		</SidebarMenu>
+	);
+
 	if (group.collapsible) {
 		return (
 			<SidebarGroup className="py-1">
 				<button
 					type="button"
 					onClick={() => setIsOpen((v) => !v)}
-					className="flex w-full items-center justify-between px-2 py-1.5 text-left font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden"
+					className="flex w-full items-center justify-between px-2 py-1.5 text-left font-bold text-[10px] text-sidebar-foreground/55 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group-data-[collapsible=icon]:hidden"
 				>
 					<span>{group.label}</span>
 					<ChevronRight
@@ -390,55 +436,19 @@ function NavGroup({ group }: { group: SidebarNavGroup }) {
 						)}
 					/>
 				</button>
-				{isOpen && (
-					<SidebarGroupContent>
-						<NavGroupItems visibleItems={visibleItems} pathname={pathname} />
-					</SidebarGroupContent>
-				)}
+				{isOpen && <SidebarGroupContent>{renderItems()}</SidebarGroupContent>}
 			</SidebarGroup>
 		);
 	}
 
 	return (
 		<SidebarGroup className="py-1">
-			<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+			<SidebarGroupLabel className="font-bold text-[10px] text-sidebar-foreground/55 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 				{group.label}
 			</SidebarGroupLabel>
 
-			<SidebarGroupContent>
-				<NavGroupItems visibleItems={visibleItems} pathname={pathname} />
-			</SidebarGroupContent>
+			<SidebarGroupContent>{renderItems()}</SidebarGroupContent>
 		</SidebarGroup>
-	);
-}
-
-function NavGroupItems({
-	visibleItems,
-	pathname,
-}: {
-	visibleItems: SidebarNavGroup["items"];
-	pathname: string;
-}) {
-	return (
-		<SidebarMenu>
-			{visibleItems.map((item) => {
-				const isActive =
-					item.url === "/dashboard"
-						? pathname === "/dashboard"
-						: pathname.startsWith(item.url);
-
-				return (
-					<SidebarMenuItem key={item.title}>
-						<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-							<Link to={item.url}>
-								<item.icon className="size-4" />
-								<span>{item.title}</span>
-							</Link>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				);
-			})}
-		</SidebarMenu>
 	);
 }
 
@@ -455,6 +465,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === userContext.currentOrganizationId,
 	);
+	const organizationId = userContext?.currentOrganizationId ?? null;
+	// Whether the user belongs to any tenant org. Pure SaaS owners (platform
+	// admins with no membership) get only the Platform Admin section.
+	const hasOrg = (userContext?.organizations?.length ?? 0) > 0;
+
+	// Branches in the current org (leaf hierarchy nodes typed "branch")
+	const branchCount =
+		currentOrg?.hierarchy.nodes.filter((n) => n.type === "branch").length ?? 0;
+
+	// Org initials for the avatar tile (e.g. "Test Fitness Franchise" → "TF")
+	const orgInitials = (() => {
+		const name = currentOrg?.name?.trim();
+		if (!name) return "??";
+		const words = name.split(/\s+/).filter(Boolean);
+		if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+		return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+	})();
+
+	// Live pending-approvals count → chip on the Approvals nav item
+	const pendingApprovalsQuery = useQuery({
+		queryKey: ["packageInstances", "listPending", organizationId, "sidebarBadge"],
+		queryFn: () =>
+			client.packageInstances.listPending({
+				organizationId: organizationId!,
+				limit: 200,
+			}),
+		enabled: !!organizationId,
+		staleTime: 60_000,
+	});
+	const pendingCount = pendingApprovalsQuery.data?.length ?? 0;
+
+	// Badges keyed by nav-item URL — passed into NavGroup
+	const badges: Record<string, number> = {
+		"/dashboard/operations/approvals": pendingCount,
+	};
 
 	return (
 		<Sidebar collapsible="icon" {...props}>
@@ -463,7 +508,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				<div className="flex items-center gap-2 px-2">
 					<img
 						alt="Logo"
-						className="h-8 w-auto group-data-[collapsible=icon]:hidden"
+						className="h-8 w-auto brightness-0 invert group-data-[collapsible=icon]:hidden"
 						src="/logo_only.png"
 					/>
 					<div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
@@ -478,38 +523,60 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarTrigger className="pr-2" />
 				</div>
 
+				{/* Org switcher pill */}
 				{currentOrg && (
-					<div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:hidden">
-						<Building2 className="size-4 shrink-0 text-brand-secondary-1" />
-						<span className="truncate text-brand-secondary-1 text-sm">
-							{currentOrg.name}
-						</span>
-					</div>
+					<button
+						type="button"
+						className={cn(
+							"mx-2 mt-1 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-left transition hover:bg-[#333]",
+							"group-data-[collapsible=icon]:hidden",
+						)}
+					>
+						<div className="flex size-6 shrink-0 items-center justify-center rounded bg-[#d6cdb1] text-[10px] font-bold text-black">
+							{orgInitials}
+						</div>
+						<div className="min-w-0 flex-1">
+							<div className="truncate text-xs font-semibold text-sidebar-foreground">
+								{currentOrg.name}
+							</div>
+							<div className="truncate text-[10px] text-sidebar-foreground/55">
+								{branchCount > 0
+									? `${branchCount} branch${branchCount === 1 ? "" : "es"}`
+									: currentOrg.role}
+							</div>
+						</div>
+						<ChevronRight className="size-3 shrink-0 text-sidebar-foreground/55" />
+					</button>
 				)}
 
+				{/* Power Search with ⌘K hint */}
 				<div className="relative px-2 group-data-[collapsible=icon]:hidden">
-					<Search className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-brand-secondary-1" />
+					<Search className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-sidebar-foreground/60" />
 					<input
 						type="text"
-						placeholder="Power Search..."
+						placeholder="Power search…"
 						className={cn(
-							"w-full rounded-xl border border-brand-secondary-3 bg-card py-2 pr-3 pl-9 text-sm",
-							"placeholder:text-brand-secondary-1",
-							"focus:outline-none focus:ring-2 focus:ring-brand-primary-1/20",
+							"w-full rounded-xl border border-sidebar-border bg-sidebar-accent py-2 pr-10 pl-9 text-sm text-sidebar-foreground",
+							"placeholder:text-sidebar-foreground/45",
+							"focus:outline-none focus:ring-2 focus:ring-sidebar-ring/30",
 							"transition-colors",
 						)}
 					/>
+					<kbd className="pointer-events-none absolute top-1/2 right-5 -translate-y-1/2 rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 font-mono text-[10px] text-sidebar-foreground/55">
+						⌘K
+					</kbd>
 				</div>
 			</SidebarHeader>
 
 			{/* ── Content ── */}
 			<SidebarContent className="overflow-y-auto [&::-webkit-scrollbar]:hidden">
-				{NAV_GROUPS.map((group) => (
-					<NavGroup key={group.label} group={group} />
-				))}
-				{isStaffOrTrainer && (
+				{hasOrg &&
+					NAV_GROUPS.map((group) => (
+						<NavGroup key={group.label} group={group} badges={badges} />
+					))}
+				{hasOrg && isStaffOrTrainer && (
 					<SidebarGroup className="py-1">
-						<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+						<SidebarGroupLabel className="font-bold text-[10px] text-sidebar-foreground/55 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 							My Work
 						</SidebarGroupLabel>
 						<SidebarGroupContent>
@@ -532,7 +599,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				)}
 				{isPlatformAdmin && (
 					<SidebarGroup className="py-1">
-						<SidebarGroupLabel className="font-bold text-[10px] text-brand-secondary-1 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+						<SidebarGroupLabel className="font-bold text-[10px] text-sidebar-foreground/55 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 							Platform Admin
 						</SidebarGroupLabel>
 						<SidebarGroupContent>

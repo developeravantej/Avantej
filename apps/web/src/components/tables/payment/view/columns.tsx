@@ -42,9 +42,8 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 	const displayContent = displayText || value || "N/A";
 
 	return (
-		<button
-			type="button"
-			className="cursor-pointer flex items-center group bg-transparent border-0 p-0"
+		<div
+			className="cursor-pointer flex items-center group"
 			onClick={() => onCopy(value!)}
 		>
 			<Badge
@@ -53,9 +52,9 @@ const CopyableCell: React.FC<CopyableCellProps> = ({ value, displayText }) => {
 				title={value || undefined}
 			>
 				{displayContent}
-				<Copy className="size-3.5 text-muted-foreground" />
+				<Copy className="h-3.5 w-3.5 text-muted-foreground" />
 			</Badge>
-		</button>
+		</div>
 	);
 };
 
@@ -117,7 +116,7 @@ function PaymentActionCell({
 					})
 				}
 			>
-				<Eye className="size-4 mr-1" /> View
+				<Eye className="h-4 w-4 mr-1" /> View
 			</Button>
 			{row.original.payment_id && onHistoryClick && (
 				<Button
@@ -125,7 +124,7 @@ function PaymentActionCell({
 					size="sm"
 					onClick={() => onHistoryClick(row.original.payment_id!)}
 				>
-					<History className="size-4 mr-1" /> History
+					<History className="h-4 w-4 mr-1" /> History
 				</Button>
 			)}
 		</div>
@@ -136,131 +135,129 @@ export function buildColumns(
 	onHistoryClick?: (paymentId: string) => void,
 ): ColumnDef<PaymentRow>[] {
 	return [
-	{
-		accessorKey: "date",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Date" />
-		),
-		cell: ({ getValue }) => formatDate(getValue<string>()),
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "invoice",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Invoice" />
-		),
-		cell: ({ getValue }) => {
-			const invoice = getValue<string>();
-			return invoice ? (
-				<CopyableCell value={invoice} />
-			) : (
-				"N/A"
-			);
+		// 1. When
+		{
+			accessorKey: "date",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Date" />
+			),
+			cell: ({ getValue }) => formatDate(getValue<string>()),
+			enableSorting: true,
+			enableHiding: false,
 		},
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "sales_order",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Sales Order" />
-		),
-		cell: ({ getValue }) => {
-			const salesOrder = getValue<string>();
-			return salesOrder ? (
-				<CopyableCell value={salesOrder} />
-			) : (
-				"N/A"
-			);
+		// 2. Reference — invoice first (primary), then linked sales order
+		{
+			accessorKey: "invoice",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Invoice" />
+			),
+			cell: ({ getValue }) => {
+				const invoice = getValue<string>();
+				return invoice ? <CopyableCell value={invoice} /> : "N/A";
+			},
+			enableSorting: true,
+			enableHiding: false,
 		},
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "mode",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Mode" />
-		),
-		cell: ({ getValue }) => {
-			const mode = getValue<string>();
-			const modeStyles: Record<string, string> = {
-				cash: "bg-green-100 text-green-700 border-green-200",
-				card: "bg-blue-100 text-blue-700 border-blue-200",
-				bank_transfer: "bg-orange-100 text-orange-700 border-orange-200",
-			};
-			return mode ? (
-				<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}>
-					{mode}
-				</Badge>
-			) : (
-				"N/A"
-			);
+		{
+			accessorKey: "sales_order",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Sales Order" />
+			),
+			cell: ({ getValue }) => {
+				const salesOrder = getValue<string>();
+				return salesOrder ? <CopyableCell value={salesOrder} /> : "N/A";
+			},
+			enableSorting: true,
+			enableHiding: true,
 		},
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "total_paid",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Total Paid (MYR)" />
-		),
-		cell: ({ getValue }) => {
-			const totalPaid = getValue<number>();
-			return totalPaid !== undefined ? formatPrice(totalPaid, "MYR") : "N/A";
+		// 3. Who
+		{
+			accessorKey: "customer_name",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Customer Name" />
+			),
+			cell: ({ getValue }) => getValue<string>() || "N/A",
+			enableSorting: true,
+			enableHiding: false,
 		},
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "customer_name",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Customer Name" />
-		),
-		cell: ({ getValue }) => getValue<string>() || "N/A",
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "created_by",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Created By" />
-		),
-		cell: ({ getValue }) => {
-			const createdBy = getValue<string>();
-			return (
-				<div className="flex items-center gap-2">
-					<Avatar className="size-6">
-						<AvatarImage src="" alt={createdBy} />
-						<AvatarFallback className="text-xs">
-							{createdBy ? createdBy.charAt(0).toUpperCase() : "U"}
-						</AvatarFallback>
-					</Avatar>
-					<span className="text-sm">{createdBy || "N/A"}</span>
-				</div>
-			);
+		// 4. How much
+		{
+			accessorKey: "total_paid",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Total Paid (MYR)" />
+			),
+			cell: ({ getValue }) => {
+				const totalPaid = getValue<number>();
+				return totalPaid !== undefined ? formatPrice(totalPaid, "MYR") : "N/A";
+			},
+			enableSorting: true,
+			enableHiding: false,
 		},
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		accessorKey: "e_invoice_status",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="E-Invoice Status" />
-		),
-		cell: ({ getValue }) => formatEInvoiceStatus(getValue<string>()),
-		enableSorting: true,
-		enableHiding: false,
-	},
-	{
-		id: "actions",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Action" />
-		),
-		cell: ({ row }) => <PaymentActionCell row={row} onHistoryClick={onHistoryClick} />,
-		enableSorting: false,
-		enableHiding: false,
-	},
+		// 5. How paid (adjacent to amount)
+		{
+			accessorKey: "mode",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Mode" />
+			),
+			cell: ({ getValue }) => {
+				const mode = getValue<string>();
+				const modeStyles: Record<string, string> = {
+					cash: "bg-green-100 text-green-700 border-green-200",
+					card: "bg-blue-100 text-blue-700 border-blue-200",
+					bank_transfer: "bg-orange-100 text-orange-700 border-orange-200",
+				};
+				return mode ? (
+					<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}>
+						{mode.replace("_", " ")}
+					</Badge>
+				) : "N/A";
+			},
+			enableSorting: true,
+			enableHiding: false,
+		},
+		// 6. Compliance state
+		{
+			accessorKey: "e_invoice_status",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="E-Invoice" />
+			),
+			cell: ({ getValue }) => formatEInvoiceStatus(getValue<string>()),
+			enableSorting: true,
+			enableHiding: true,
+		},
+		// 7. Who processed it
+		{
+			accessorKey: "created_by",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Created By" />
+			),
+			cell: ({ getValue }) => {
+				const createdBy = getValue<string>();
+				if (!createdBy) return <span className="text-sm text-[#737373]">—</span>;
+				const initial = createdBy.charAt(0).toUpperCase();
+				return (
+					<div className="flex items-center gap-2">
+						<Avatar className="h-6 w-6">
+							<AvatarImage src="" alt={createdBy} />
+							<AvatarFallback className="text-xs">{initial}</AvatarFallback>
+						</Avatar>
+						<span className="text-sm">{createdBy}</span>
+					</div>
+				);
+			},
+			enableSorting: true,
+			enableHiding: true,
+		},
+		// 8. Action
+		{
+			id: "actions",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Action" />
+			),
+			cell: ({ row }) => <PaymentActionCell row={row} onHistoryClick={onHistoryClick} />,
+			enableSorting: false,
+			enableHiding: false,
+		},
 	];
 }
 

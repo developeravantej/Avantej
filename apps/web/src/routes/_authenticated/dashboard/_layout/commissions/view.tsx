@@ -1,9 +1,13 @@
+"use client";
+
 import { createFileRoute } from "@tanstack/react-router";
-import { TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { AllCommissionsPage } from "@/components/pages/commissions/all-tab";
 import { LiabilityTab } from "@/components/pages/commissions/liability-tab";
 import { MyCommissionsPage } from "@/components/pages/commissions/mine-tab";
+import { ReviewTab } from "@/components/pages/commissions/review-tab";
 import { useUserContext } from "@/hooks/useUserContext";
+import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/commissions/view",
@@ -17,21 +21,44 @@ export const Route = createFileRoute(
 function CommissionsPage() {
 	const { tab } = Route.useSearch();
 	const navigate = Route.useNavigate();
-	const { hasPermission } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const TABS = [
-		{ id: "mine", label: "My Commissions" },
+	// Always-mounted badge query for pending review count
+	const { data: reviewMeta } = useQuery({
+		queryKey: ["commissionSplits", "pendingReviewTotal"],
+		queryFn: () =>
+			client.commissionSplits.listPendingReview({
+				organizationId: organizationId!,
+				limit: 1,
+			}),
+		enabled: !!organizationId && hasPermission("commission_management:read"),
+		staleTime: 30_000,
+	});
+	const pendingReviewTotal = reviewMeta?.total ?? 0;
+
+	const PILLS = [
+		{ id: "mine", label: "My Commissions", badge: null as number | null },
 		...(!hasPermission("commission_management:read")
 			? []
-			: [{ id: "all", label: "All Commissions" }]),
+			: [
+					{ id: "all", label: "All Commissions", badge: null as number | null },
+					{
+						id: "review",
+						label: "Review",
+						badge: pendingReviewTotal > 0 ? pendingReviewTotal : null,
+					},
+				]),
 		...(!hasPermission("commission_payout:read")
 			? []
-			: [{ id: "liability", label: "Liability" }]),
+			: [{ id: "liability", label: "Liability", badge: null as number | null }]),
 	];
 
 	const content =
 		tab === "all" ? (
 			<AllCommissionsPage />
+		) : tab === "review" ? (
+			<ReviewTab />
 		) : tab === "liability" ? (
 			<LiabilityTab />
 		) : (
@@ -39,44 +66,49 @@ function CommissionsPage() {
 		);
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			{/* Fixed header */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<TrendingUp className="size-6 text-primary" />
-					</div>
+		<div className="-m-6 min-h-screen bg-[#f3f3f3]">
+			{/* Page header */}
+			<div className="px-6 pt-6 pb-5">
+				<div className="mb-5 flex items-end justify-between">
 					<div>
-						<h1 className="text-xl font-semibold">Commissions</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Track commission earnings and approvals
+						<p className="mb-1 text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+							COMMISSIONS
+						</p>
+						<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+							Commissions
+						</h1>
+						<p className="mt-1 text-sm text-[#737373]">
+							Commission ledger and payout tracking
 						</p>
 					</div>
 				</div>
-			</div>
 
-			{/* Tabs band */}
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
-					{TABS.map((t) => (
+				{/* Tab pills */}
+				<div className="flex flex-wrap items-center gap-2">
+					{PILLS.map((pill) => (
 						<button
-							key={t.id}
+							key={pill.id}
 							type="button"
-							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
+							onClick={() => navigate({ search: { tab: pill.id } })}
+							className={
+								tab === pill.id
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold inline-flex items-center gap-1.5"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium inline-flex items-center gap-1.5"
+							}
 						>
-							{t.label}
+							{pill.label}
+							{pill.badge != null && (
+								<span className="rounded-full bg-red-500 text-white text-[10px] px-1.5 py-0.5 font-bold leading-none">
+									{pill.badge}
+								</span>
+							)}
 						</button>
 					))}
 				</div>
 			</div>
 
-			{/* Scroll region */}
-			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
+			{/* Content */}
+			<div>
 				{content}
 			</div>
 		</div>

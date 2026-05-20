@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Users } from "lucide-react";
 import { requirePermission } from "@/lib/route-guards";
 import { TrainersListPage } from "@/components/pages/trainers/trainers-list-page";
 import { TrainerTiersPage } from "@/components/pages/trainers/trainer-tiers-page";
@@ -25,41 +24,77 @@ function TrainersTabPage() {
 	const { tab } = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Users className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Trainers</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Manage trainers and their seniority tiers
-						</p>
-					</div>
+	if (tab === "tiers") {
+		return (
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+				{/* Page header */}
+				<div className="mb-5">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						STAFF DIRECTORY
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Trainers
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">Manage trainers and their seniority tiers</p>
 				</div>
-			</div>
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
+
+				{/* Pill tabs */}
+				<div className="mb-5 flex flex-wrap items-center gap-2">
 					{TABS.map((t) => (
 						<button
 							key={t.id}
 							type="button"
 							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
+							className={
 								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+							}
+						>
+							{t.label}
+						</button>
+					))}
+				</div>
+
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+					<TrainerTiersPage />
+				</div>
+			</div>
+		);
+	}
+
+	// Trainers tab — master-detail layout with paper bg
+	return (
+		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
+			{/* Header + pill tabs */}
+			<div className="shrink-0 px-6 pt-6 pb-4 bg-[#f3f3f3]">
+				<div className="mb-4">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						STAFF DIRECTORY
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Trainers
+					</h1>
+				</div>
+				<div className="flex flex-wrap items-center gap-2">
+					{TABS.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => navigate({ search: { tab: t.id } })}
+							className={
+								tab === t.id
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+							}
 						>
 							{t.label}
 						</button>
 					))}
 				</div>
 			</div>
-			<div className="min-h-0 flex-1 overflow-auto">
-				{tab === "tiers" ? <TrainerTiersPage /> : <TrainersListPage />}
+			<div className="min-h-0 flex-1 rounded-tl-2xl rounded-tr-2xl overflow-hidden border border-[#e5e5e5] bg-white mx-6">
+				<TrainersListPage />
 			</div>
 		</div>
 	);

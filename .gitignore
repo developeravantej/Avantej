@@ -46,6 +46,10 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+# Playwright artifacts (test-results, traces, screenshots) and auth state
+test-results/
+playwright-report/
+e2e/.auth/
 
 # Local Claude settings
 .claude/worktrees/

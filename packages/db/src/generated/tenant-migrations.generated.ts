@@ -3461,8 +3461,157 @@ CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_branch_unique" ON 
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree ("branch_node_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");` },
-	{ hash: "0052_add_members_deleted_at", sql: `ALTER TABLE "members" ADD COLUMN "deleted_at" timestamp;--> statement-breakpoint
-CREATE INDEX "members_deleted_at_idx" ON "members" USING btree ("deleted_at");` },
+	{ hash: "0051_sales_pipeline_fixes", sql: `-- migration: 0051_sales_pipeline_fixes
+-- description: Schema additions for sales-pipeline-fixes session.
+--   Phase 0 (branch QR onboarding): extend invitations table for self-signup invites.
+--   Phase 1 (commission rule): add earn_reason to commission_splits.
+--   Phase 5 (package lifecycle): add frozen_until to package_instances.
+--   Open Q-2 Option B (commission deferral): add commission_deferred to sales_order_items.
+--   Phase 4 (trainer view): add (assigned_trainer_id, status) index.
+--   Reconciliation links: add sales_order_id to installments + package_instances.
+-- All additive, all IF NOT EXISTS — zero downtime, fully backward-compatible.
+
+-- ===== Phase 0: branch QR onboarding =====
+
+ALTER TABLE "invitations" ADD COLUMN IF NOT EXISTS "kind" text NOT NULL DEFAULT 'staff';
+--> statement-breakpoint
+ALTER TABLE "invitations" ADD COLUMN IF NOT EXISTS "uses_count" integer NOT NULL DEFAULT 0;
+--> statement-breakpoint
+ALTER TABLE "invitations" ADD COLUMN IF NOT EXISTS "max_uses" integer;
+--> statement-breakpoint
+ALTER TABLE "invitations" ADD COLUMN IF NOT EXISTS "is_active" boolean NOT NULL DEFAULT true;
+--> statement-breakpoint
+ALTER TABLE "invitations" ALTER COLUMN "email" DROP NOT NULL;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "invitations_kind_branch_idx"
+  ON "invitations" ("kind", "hierarchy_scope_id") WHERE "kind" = 'branch_self_signup';
+
+-- ===== Phase 1: commission rule alignment =====
+--> statement-breakpoint
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "earn_reason" text;
+
+-- ===== Phase 5: package-instance lifecycle =====
+--> statement-breakpoint
+ALTER TABLE "package_instances" ADD COLUMN IF NOT EXISTS "frozen_until" timestamp with time zone;
+
+-- ===== Open Q-2 Option B: commission deferral flag =====
+--> statement-breakpoint
+ALTER TABLE "sales_order_items" ADD COLUMN IF NOT EXISTS "commission_deferred" boolean NOT NULL DEFAULT false;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "sales_order_items_commission_deferred_idx"
+  ON "sales_order_items" ("created_at") WHERE "commission_deferred" = true;
+
+-- ===== Reconciliation FKs =====
+--> statement-breakpoint
+ALTER TABLE "installments" ADD COLUMN IF NOT EXISTS "sales_order_id" uuid REFERENCES "sales_orders"("id");
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "installments_sales_order_id_idx" ON "installments" ("sales_order_id");
+--> statement-breakpoint
+ALTER TABLE "package_instances" ADD COLUMN IF NOT EXISTS "sales_order_id" uuid REFERENCES "sales_orders"("id");
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "package_instances_sales_order_id_idx" ON "package_instances" ("sales_order_id");
+
+-- ===== Phase 4: trainer assigned-packages query index =====
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "package_instances_assigned_trainer_status_idx"
+  ON "package_instances" ("assigned_trainer_id", "status");
+` },
+	{ hash: "0052_add_members_deleted_at", sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" USING btree ("deleted_at");
+` },
+	{ hash: "0052_relax_commission_split_constraint", sql: `-- migration: 0052_relax_commission_split_constraint
+-- description: Relax commission_splits_source_check to allow manual adjustments
+--   that don't target an appointment/sales-order/package-instance.
+--
+-- Background: migration 0046 added a "exactly one of (appointment_id |
+-- sales_order_id | package_instance_id) must be NOT NULL" constraint, which
+-- broke commissionSplits.createManualAdjustment (it sets all three to NULL).
+-- Surfaced by the e2e payouts-confirm-creates-row spec.
+--
+-- New rule: manual adjustments may have zero or one target FK; everything
+-- else still requires exactly one.
+
+ALTER TABLE "commission_splits" DROP CONSTRAINT IF EXISTS "commission_splits_source_check";
+--> statement-breakpoint
+
+ALTER TABLE "commission_splits" ADD CONSTRAINT "commission_splits_source_check"
+	CHECK (
+		(
+			split_type = 'manual'
+			AND ((appointment_id IS NOT NULL)::int +
+			     (sales_order_id IS NOT NULL)::int +
+			     (package_instance_id IS NOT NULL)::int) <= 1
+		)
+		OR
+		(
+			split_type <> 'manual'
+			AND ((appointment_id IS NOT NULL)::int +
+			     (sales_order_id IS NOT NULL)::int +
+			     (package_instance_id IS NOT NULL)::int) = 1
+		)
+	) NOT VALID;
+--> statement-breakpoint
+
+ALTER TABLE "commission_splits" VALIDATE CONSTRAINT "commission_splits_source_check";
+` },
+	{ hash: "0053_coach_slot_weightage_check", sql: `-- migration: 0053_coach_slot_weightage_check
+-- description: Enforce that commission_coach_slots.weightage_basis_points
+--   sums to 10000 (= 100%) per category_commission_configs.config_id.
+--
+-- Background: audit-swarm scalability lens flagged that there is no
+-- DB-level guarantee a commission config has weightages totalling 100%.
+-- A misconfigured config would silently misallocate commission to slots.
+--
+-- Implementation: deferred constraint-trigger (a regular CHECK can't
+-- aggregate across rows). Runs at COMMIT, so multi-row inserts inside a
+-- transaction (the normal admin-edit pattern) finish before validation.
+--
+-- Special cases:
+--   - Empty config (0 slots) → allowed; the engine just won't fire splits.
+--   - Single slot at 10000 → allowed.
+--   - Sum < 10000 OR > 10000 → rejected with a readable message.
+--
+-- Idempotent: DROP IF EXISTS on both the function and trigger.
+
+-- 1. Validation function — sums weightages for the affected config_id and
+--    raises if the total is non-zero AND not exactly 10000.
+CREATE OR REPLACE FUNCTION validate_coach_slot_weightage_total()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_config_id uuid;
+  v_total integer;
+BEGIN
+  v_config_id := COALESCE(NEW.config_id, OLD.config_id);
+
+  SELECT COALESCE(SUM(weightage_basis_points), 0)
+    INTO v_total
+    FROM commission_coach_slots
+    WHERE config_id = v_config_id;
+
+  IF v_total <> 0 AND v_total <> 10000 THEN
+    RAISE EXCEPTION
+      'commission_coach_slots weightages for config % must sum to 10000 bp (100%%); got % bp',
+      v_config_id, v_total
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+-- 2. Deferred constraint trigger — fires AFTER INSERT/UPDATE/DELETE on each
+--    row, but the actual validation runs at COMMIT (deferred). This lets a
+--    multi-row INSERT or UPDATE complete before checking the sum.
+DROP TRIGGER IF EXISTS commission_coach_slots_weightage_check
+  ON commission_coach_slots;
+
+CREATE CONSTRAINT TRIGGER commission_coach_slots_weightage_check
+  AFTER INSERT OR UPDATE OR DELETE ON commission_coach_slots
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION validate_coach_slot_weightage_total();
+` },
 	{ hash: "0053_hierarchy_rename_region_state", sql: `-- Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3.
 -- Prerequisite: zero rows with type='area' (run flatten-areas.ts first per tenant).
 -- Idempotent: WHERE clauses make repeat runs no-op.
@@ -3504,6 +3653,57 @@ WITH RECURSIVE ancestors AS (
 UPDATE hierarchy_nodes h SET country_node_id = a.country_id, updated_at = now()
 FROM ancestors a
 WHERE h.id = a.id AND h.type IN ('state', 'branch') AND h.country_node_id IS NULL;
+` },
+	{ hash: "0054_sales_orders_refund_status", sql: `-- migration: 0054_sales_orders_refund_status
+-- description: Add refund_status + refunded_amount_cents to sales_orders, backfill from refunds table.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Create enum sales_order_refund_status
+-- ============================================================
+DO $$ BEGIN
+	CREATE TYPE "sales_order_refund_status" AS ENUM ('none', 'pending', 'partial', 'processed');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. Add columns to sales_orders
+-- ============================================================
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "refund_status" "sales_order_refund_status" NOT NULL DEFAULT 'none';
+--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "refunded_amount_cents" integer NOT NULL DEFAULT 0;
+--> statement-breakpoint
+
+-- ============================================================
+-- 3. Index
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "sales_orders_refund_status_created_idx"
+	ON "sales_orders" ("refund_status", "created_at" DESC);
+--> statement-breakpoint
+
+-- ============================================================
+-- 4. Backfill from refunds table
+--    refunds.status: 'processed' → 'processed', others → 'pending'
+--    refunds.amount_cents used for refunded_amount_cents
+-- ============================================================
+UPDATE "sales_orders" so
+SET
+	"refund_status" = CASE
+		WHEN r.max_status = 'processed' THEN 'processed'::"sales_order_refund_status"
+		ELSE 'pending'::"sales_order_refund_status"
+	END,
+	"refunded_amount_cents" = COALESCE(r.total_amount, 0)
+FROM (
+	SELECT
+		sales_order_id,
+		MAX(status) AS max_status,
+		SUM(amount_cents) AS total_amount
+	FROM "refunds"
+	WHERE sales_order_id IS NOT NULL
+	GROUP BY sales_order_id
+) r
+WHERE so.id = r.sales_order_id
+  AND r.sales_order_id IS NOT NULL;
 ` },
 	{ hash: "0055_ghl_links_single_entity_unique", sql: `-- Phase G: flip ghl_contact_links and ghl_user_links unique constraints from
 -- (entity, branch) → (entity). Reflects org-shared GHL model: one customer
@@ -3551,6 +3751,38 @@ DROP INDEX IF EXISTS "ghl_user_links_member_branch_unique";
 CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_unique" ON "ghl_contact_links" ("customer_profile_id");
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_unique" ON "ghl_user_links" ("member_id");
+` },
+	{ hash: "0055_sales_orders_cancellation_category", sql: `-- migration: 0055_sales_orders_cancellation_category
+-- description: Add cancellation_reason_category enum column to sales_orders.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Create enum cancellation_reason_category
+-- ============================================================
+DO $$ BEGIN
+	CREATE TYPE "cancellation_reason_category" AS ENUM (
+		'customer_changed_mind',
+		'payment_failed',
+		'wrong_item',
+		'fraud_suspected',
+		'system_error',
+		'other'
+	);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. Add nullable column to sales_orders
+-- ============================================================
+ALTER TABLE "sales_orders" ADD COLUMN IF NOT EXISTS "cancellation_reason_category" "cancellation_reason_category";
+--> statement-breakpoint
+
+-- ============================================================
+-- 3. Partial index (only rows that have a category set)
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "sales_orders_cancellation_category_idx"
+	ON "sales_orders" ("cancellation_reason_category", "created_at" DESC)
+	WHERE "cancellation_reason_category" IS NOT NULL;
 ` },
 	{ hash: "0056_hierarchy_name_uniqueness", sql: `-- Phase H-hygiene: prevent duplicate sibling rows by enforcing uniqueness
 -- on the (parent_id, name) key per type. App layer already validates this
@@ -3600,6 +3832,80 @@ CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
 CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
   ON "hierarchy_nodes" ("parent_id", "name")
   WHERE "type" = 'state' AND "archived_at" IS NULL;
+` },
+	{ hash: "0056_payouts_gross_deductions", sql: `-- migration: 0056_payouts_gross_deductions
+-- description: Add gross_amount_cents + deductions_cents to payouts, backfill gross from existing amount col.
+--   Existing column is "amount" (integer cents, pre-tax commission).
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Add gross_amount_cents (nullable for safe backfill)
+-- ============================================================
+ALTER TABLE "payouts" ADD COLUMN IF NOT EXISTS "gross_amount_cents" integer;
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. Add deductions_cents (NOT NULL default 0)
+-- ============================================================
+ALTER TABLE "payouts" ADD COLUMN IF NOT EXISTS "deductions_cents" integer NOT NULL DEFAULT 0;
+--> statement-breakpoint
+
+-- ============================================================
+-- 3. Backfill gross_amount_cents from existing amount column
+-- ============================================================
+UPDATE "payouts"
+SET "gross_amount_cents" = "amount"
+WHERE "gross_amount_cents" IS NULL;
+` },
+	{ hash: "0057_gcal_sync_direction_conflict_policy", sql: `-- migration: 0057_gcal_sync_direction_conflict_policy
+-- description: Add sync_direction, conflict_policy enums + cached_calendar_list_json/at
+--   to google_calendar_connections. last_sync_at already exists — NOT re-added.
+--   Bundles Task 1.36 (cached_calendar_list_json + cached_calendar_list_at).
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Create enum gcal_sync_direction
+-- ============================================================
+DO $$ BEGIN
+	CREATE TYPE "gcal_sync_direction" AS ENUM (
+		'one_way_to_google',
+		'one_way_from_google',
+		'two_way'
+	);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. Create enum gcal_conflict_policy
+-- ============================================================
+DO $$ BEGIN
+	CREATE TYPE "gcal_conflict_policy" AS ENUM (
+		'avantej_wins',
+		'google_wins',
+		'keep_both',
+		'manual_review'
+	);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+
+-- ============================================================
+-- 3. Add columns to google_calendar_connections
+-- ============================================================
+ALTER TABLE "google_calendar_connections"
+	ADD COLUMN IF NOT EXISTS "sync_direction" "gcal_sync_direction" NOT NULL DEFAULT 'two_way';
+--> statement-breakpoint
+ALTER TABLE "google_calendar_connections"
+	ADD COLUMN IF NOT EXISTS "conflict_policy" "gcal_conflict_policy" NOT NULL DEFAULT 'manual_review';
+--> statement-breakpoint
+
+-- ============================================================
+-- 4. Task 1.36 — calendar list cache
+-- ============================================================
+ALTER TABLE "google_calendar_connections"
+	ADD COLUMN IF NOT EXISTS "cached_calendar_list_json" text;
+--> statement-breakpoint
+ALTER TABLE "google_calendar_connections"
+	ADD COLUMN IF NOT EXISTS "cached_calendar_list_at" timestamptz;
 ` },
 	{ hash: "0057_hierarchy_type_enum", sql: `-- Phase H2: replace text-typed hierarchy_nodes.type with a Postgres enum
 -- so future inserts can't smuggle in typos.
@@ -3665,6 +3971,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
   ON "hierarchy_nodes" ("parent_id", "name")
   WHERE "type" = 'state' AND "archived_at" IS NULL;
 ` },
+	{ hash: "0058_commission_splits_indexes", sql: `-- migration: 0058_commission_splits_indexes
+-- description: Add composite indexes for commission_splits staff+status queries.
+--   Actual column names: staff_id, status, calculated_amount (verified from schema).
+--   staffStatusEarnedIdx (staff_id, status, earned_at) already exists from prior migration.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. staff + status composite (lookup by staff for a given status)
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "commission_splits_staff_status_idx"
+	ON "commission_splits" ("staff_id", "status");
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. staff + status + calculated_amount (liability / payroll aggregate)
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "commission_splits_staff_status_amount_idx"
+	ON "commission_splits" ("staff_id", "status", "calculated_amount");
+` },
 	{ hash: "0058_hierarchy_slug", sql: `-- Phase H2: add stable per-node slug for URL routing / deep links.
 -- Backfill from name; tighten to NOT NULL after backfill.
 
@@ -3729,6 +4054,29 @@ ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
 -- Index pic_user_id on branch_details for member lookups.
 CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");
 ` },
+	{ hash: "0059_branch_stats_cache", sql: `-- migration: 0059_branch_stats_cache
+-- description: Create branch_stats_cache table for write-through branch aggregate caching.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Create table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "branch_stats_cache" (
+	"hierarchy_node_id" uuid PRIMARY KEY REFERENCES "hierarchy_nodes"("id") ON DELETE CASCADE,
+	"members_count" integer NOT NULL DEFAULT 0,
+	"staff_count" integer NOT NULL DEFAULT 0,
+	"month_revenue_cents" integer NOT NULL DEFAULT 0,
+	"month_revenue_period_start" timestamp with time zone NOT NULL DEFAULT date_trunc('month', NOW()),
+	"computed_at" timestamp with time zone NOT NULL DEFAULT NOW()
+);
+--> statement-breakpoint
+
+-- ============================================================
+-- 2. Index on computed_at for staleness checks
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "branch_stats_cache_computed_at_idx"
+	ON "branch_stats_cache" ("computed_at");
+` },
 	{ hash: "0060_appointment_payment_columns", sql: `-- Plan B Phase 2 — Direct Charge payment columns on appointments.
 --
 -- Adds Stripe Connect Direct-Charge tracking fields to existing appointments
@@ -3750,6 +4098,17 @@ ALTER TABLE "appointments"
   ADD COLUMN IF NOT EXISTS "payment_failure_reason" text,
   ADD COLUMN IF NOT EXISTS "payment_method_type" text;
 ` },
+	{ hash: "0060_sales_orders_repeat_offender_index", sql: `-- migration: 0060_sales_orders_repeat_offender_index
+-- description: Partial index on sales_orders for repeat-offender (cancelled) customer lookups.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Partial index — cancelled orders per customer, sorted by date
+-- ============================================================
+CREATE INDEX IF NOT EXISTS "sales_orders_customer_status_created_idx"
+	ON "sales_orders" ("customer_id", "status", "created_at" DESC)
+	WHERE "status" = 'cancelled';
+` },
 	{ hash: "0061_customer_profile_stripe", sql: `-- Plan B Phase 3d — card-on-file support.
 --
 -- Each tenant client gets a Stripe Customer object on the tenant's Connect
@@ -3767,6 +4126,29 @@ ALTER TABLE "customer_profiles"
 
 CREATE INDEX IF NOT EXISTS "customer_profiles_stripe_customer_idx"
   ON "customer_profiles" ("stripe_customer_id");
+` },
+	{ hash: "0061_hierarchy_nodes_opening_hours", sql: `-- migration: 0061_hierarchy_nodes_opening_hours
+-- description: Add opening_hours jsonb column to hierarchy_nodes (branch-level optional metadata).
+--   address already exists — NOT re-added.
+--   Idempotent — safe to re-run.
+
+-- ============================================================
+-- 1. Add opening_hours column (nullable jsonb)
+-- ============================================================
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "opening_hours" jsonb;
+` },
+	{ hash: "0062_hierarchy_align_address_pic", sql: `-- migration: 0062_hierarchy_align_address_pic
+-- description: Restore address + pic_user_id columns on hierarchy_nodes if missing.
+--   The Drizzle schema (packages/db/src/schema/tenant/hierarchy.ts) declares both
+--   columns but some tenant DBs diverged from the schema. This is a defensive
+--   alignment to keep \`SELECT * FROM hierarchy_nodes\` (and the query builder) safe.
+--   Idempotent.
+
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "address" text;
+--> statement-breakpoint
+ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "pic_user_id" text;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hierarchy_pic_user_idx" ON "hierarchy_nodes" ("pic_user_id");
 ` },
 	{ hash: "0062_payments_link_columns", sql: `-- Plan B Phase 3c.1 — Payment Link columns on payments (POS online checkout).
 --
@@ -3844,6 +4226,106 @@ CREATE UNIQUE INDEX IF NOT EXISTS "customer_profiles_user_id_unique_not_null"
 -- Lookup index for dependents by group.
 CREATE INDEX IF NOT EXISTS "customer_profiles_account_group_idx"
   ON "customer_profiles" ("account_group_id");
+` },
+	{ hash: "0063_service_default_commission_bps", sql: `-- Migration 0063: add default_commission_bps to services
+-- Stores default commission rate in basis points (e.g. 1000 = 10.00%).
+-- Idempotent: uses ADD COLUMN IF NOT EXISTS.
+
+ALTER TABLE services
+  ADD COLUMN IF NOT EXISTS default_commission_bps integer NOT NULL DEFAULT 0;
+` },
+	{ hash: "0064_announcements_requires_ack", sql: `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS requires_acknowledgement boolean NOT NULL DEFAULT false;
+` },
+	{ hash: "0065_trainer_availability_kind", sql: `-- 0065_trainer_availability_kind.sql
+-- Add a \`kind\` enum column to trainer_availability for Available / Blocked / Time-off slots.
+-- Idempotent: safe to re-run on partially-migrated tenants.
+
+-- 1. Create enum type (idempotent)
+DO $$
+BEGIN
+  CREATE TYPE trainer_availability_kind AS ENUM ('available', 'blocked', 'timeoff');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 2. Add column with default so existing rows stay 'available'
+ALTER TABLE trainer_availability
+  ADD COLUMN IF NOT EXISTS kind trainer_availability_kind NOT NULL DEFAULT 'available';
+` },
+	{ hash: "0066_commission_condition_between_check", sql: `-- migration: 0066_commission_condition_between_check
+-- description: Validate that commission_conditions with operator='between'
+--   have threshold_max >= threshold. A reversed range (e.g. threshold=10,
+--   threshold_max=5) makes every comparison \`n >= threshold AND n <= threshold_max\`
+--   silently impossible, producing a zero-commission tier nobody notices.
+--
+-- Background: commission-calculator audit (round 2, flaw #16) — the engine
+--   evaluates BETWEEN ranges with no input-side guard, so an admin typo
+--   silently drops every commission this tier should have paid.
+--
+-- Constraint policy:
+--   - operator='between'   → threshold_max IS NOT NULL AND threshold_max >= threshold
+--   - operator='lt|lte|gt|gte|eq' → threshold_max IS NULL (or any value; ignored at calc time)
+--
+-- We enforce only the BETWEEN branch since the calculator only reads
+-- threshold_max for that operator. Other operators with a stray threshold_max
+-- are technically harmless but might confuse admins — out of scope for this
+-- migration.
+--
+-- Idempotent: DROP CONSTRAINT IF EXISTS then re-add.
+
+ALTER TABLE "commission_conditions"
+  DROP CONSTRAINT IF EXISTS "commission_conditions_between_range_valid";
+
+ALTER TABLE "commission_conditions"
+  ADD CONSTRAINT "commission_conditions_between_range_valid"
+  CHECK (
+    operator <> 'between'
+    OR (threshold_max IS NOT NULL AND threshold_max >= threshold)
+  );
+` },
+	{ hash: "0067_installments_waived_counter", sql: `-- Add installments_waived counter to package_instances
+-- Tracks the number of installments administratively waived (distinct from paid or cancelled)
+ALTER TABLE package_instances
+  ADD COLUMN IF NOT EXISTS installments_waived integer NOT NULL DEFAULT 0;
+` },
+	{ hash: "0068_payment_method_unification", sql: `-- Backfill bank_transfer → manual_transfer across all payment-method columns
+-- bank_transfer was the original POS value; manual_transfer is the canonical value used
+-- by confirmInstallmentPayment and all downstream reporting.
+UPDATE package_instances SET payment_method = 'manual_transfer' WHERE payment_method = 'bank_transfer';
+UPDATE installments       SET payment_method = 'manual_transfer' WHERE payment_method = 'bank_transfer';
+UPDATE invoices           SET payment_mode   = 'manual_transfer' WHERE payment_mode   = 'bank_transfer';
+UPDATE payments           SET payment_method = 'manual_transfer' WHERE payment_method = 'bank_transfer';
+` },
+	{ hash: "0069_installments_due_index", sql: `-- Composite index for evaluateAndLockIfOverdue bulk sweep and getAdminInstallmentOverview EXISTS subquery
+-- Covers: WHERE package_instance_id = ? AND status IN (...) AND due_date <= ?
+CREATE INDEX IF NOT EXISTS idx_installments_pkg_status_due
+  ON installments (package_instance_id, status, due_date);
+` },
+	{ hash: "0070_commission_governance", sql: `-- Flaw #9: price snapshot at booking (commission reads this, not live price)
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS price_snapshot_cents integer;
+
+-- Flaw #10: pin commission config version at booking, not at completion (audit anchor only)
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS config_version_id uuid
+  REFERENCES category_commission_config_versions(id);
+
+-- Flaw #11: appointment-level comp flag (no sales order required)
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS is_complimentary boolean
+  NOT NULL DEFAULT false;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS complimentary_reason text;
+
+-- Flaw #13: actor who created the manual adjustment, needed for Review tab "created by" display.
+ALTER TABLE commission_splits ADD COLUMN IF NOT EXISTS created_by_user_id text;
+
+-- Index to speed up the new Review tab query.
+-- Both columns match the ORDER BY (earned_at DESC, id DESC) and the composite cursor
+-- filter. A single-column index on earned_at alone cannot cover the id tie-breaker.
+CREATE INDEX IF NOT EXISTS commission_splits_pending_review_idx
+  ON commission_splits(earned_at DESC, id DESC)
+  WHERE status = 'pending_review';
+` },
+	{ hash: "0071_commission_conditions_min_quantity", sql: `-- Flaw #7: add min_quantity to commission_conditions for POS tiered config matching.
+-- NULL = "matches any quantity" (preserves first-condition-wins for existing configs).
+ALTER TABLE commission_conditions ADD COLUMN IF NOT EXISTS min_quantity integer;
 ` },
 ] as const;
 

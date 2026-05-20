@@ -31,6 +31,20 @@ export function InstallmentStatusBadge({ status }: { status: string }) {
 			</Badge>
 		);
 	}
+	if (status === "waived") {
+		return (
+			<Badge className="border-purple-200 bg-purple-100 text-purple-800 hover:bg-purple-100">
+				Waived
+			</Badge>
+		);
+	}
+	if (status === "cancelled") {
+		return (
+			<Badge className="border-gray-200 bg-gray-100 text-gray-600 hover:bg-gray-100">
+				Cancelled
+			</Badge>
+		);
+	}
 	if (status === "overdue") {
 		return <Badge variant="destructive">Overdue</Badge>;
 	}

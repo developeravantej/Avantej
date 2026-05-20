@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Announcements Page — 5 Design Directions · Avantej</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:   { DEFAULT: '#0a0a0a', soft: '#262626', 2: '#404040', 3: '#737373', 4: '#a3a3a3' },
+          paper: '#f3f3f3',
+          card:  '#ffffff',
+          line:  '#e5e5e5',
+          warm:  '#d6cdb1',
+          muted: { DEFAULT: '#737373', soft: '#a3a3a3' },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background:#f3f3f3; color:#0a0a0a; font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .tabular { font-variant-numeric:tabular-nums; }
+  .label { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:#737373; }
+  .btn-dark { background:#0a0a0a; color:#fff; padding:7px 14px; border-radius:10px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+  .btn-dark:hover { background:#262626; }
+  .btn-outline { background:#fff; border:1px solid #e5e5e5; padding:7px 14px; border-radius:10px; font-size:13px; font-weight:500; color:#0a0a0a; display:inline-flex; align-items:center; gap:6px; }
+  .btn-outline:hover { background:#f3f3f3; }
+  .card { background:#fff; border:1px solid #e5e5e5; border-radius:16px; }
+  .badge { display:inline-flex; align-items:center; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; gap:4px; }
+  .badge-pub   { background:#dcfce7; color:#15803d; }
+  .badge-sched { background:#fef9c3; color:#a16207; }
+  .badge-draft { background:#f3f3f3; color:#737373; border:1px solid #e5e5e5; }
+  .badge-arch  { background:#f1f5f9; color:#64748b; }
+  .badge-pin   { background:#fef2f2; color:#dc2626; }
+  .aud-all    { background:#eff6ff; color:#1d4ed8; }
+  .aud-staff  { background:#f0fdf4; color:#15803d; }
+  .aud-member { background:#fdf4ff; color:#9333ea; }
+  .aud-train  { background:#fff7ed; color:#c2410c; }
+  .aud-branch { background:#f0f9ff; color:#0369a1; }
+  /* RTE mock */
+  .rte { border:1px solid #e5e5e5; border-radius:12px; overflow:hidden; }
+  .rte-toolbar { background:#fafafa; border-bottom:1px solid #e5e5e5; padding:6px 10px; display:flex; gap:6px; align-items:center; }
+  .rte-btn { width:26px; height:26px; border-radius:6px; border:1px solid #e5e5e5; background:#fff; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .rte-btn:hover { background:#f3f3f3; }
+  .rte-body { padding:14px; min-height:90px; font-size:13.5px; line-height:1.65; color:#404040; }
+  /* Reach bar */
+  .reach-bar { height:4px; border-radius:2px; background:#e5e5e5; overflow:hidden; }
+  .reach-fill { height:100%; border-radius:2px; background:#0a0a0a; }
+  /* Timeline line */
+  .tl-line { position:absolute; left:19px; top:0; bottom:0; width:2px; background:#e5e5e5; }
+  /* subtle glow */
+  .warm-glow { background:radial-gradient(ellipse at 70% 50%, rgba(214,205,177,.3) 0%, transparent 65%); }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ─────────────────────────────── TOP NAV ──────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur-sm">
+  <div class="mx-auto flex h-12 max-w-[1400px] items-center gap-1 px-6">
+    <span class="label mr-5">Announcements · 5 designs</span>
+    <a href="#d1" class="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">1 · Editorial Feed</a>
+    <a href="#d2" class="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">2 · Inbox Filters</a>
+    <a href="#d3" class="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">3 · Composer Split</a>
+    <a href="#d4" class="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">4 · Status Grid</a>
+    <a href="#d5" class="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">5 · Timeline Analytics</a>
+    <span class="ml-auto text-[11px] text-muted">design-only · static HTML</span>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DESIGN 1 — EDITORIAL FEED / NEWSROOM
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="border-b-8 border-paper py-12">
+  <div class="mx-auto max-w-[1400px] px-7">
+
+    <!-- Section header -->
+    <div class="mb-8 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Editorial Feed</h2>
+      <span class="text-xs text-muted">Newsroom layout · pinned hero + scrollable feed · rich-text composer drawer at right</span>
+    </div>
+
+    <!-- Page header -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <div class="label mb-1">Internal Communications</div>
+        <h1 class="text-[28px] font-extrabold tracking-tight leading-none">Announcements</h1>
+        <p class="mt-1 text-sm text-muted">Post notices to staff, members, or specific branches.</p>
+      </div>
+      <button class="btn-dark">
+        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+        New Announcement
+      </button>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="mb-6 grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-line bg-line">
+      <div class="bg-white p-5"><div class="label">Published</div><div class="mt-2 font-mono text-3xl font-bold tabular">6</div><div class="mt-1 text-xs text-muted">3 active this week</div></div>
+      <div class="bg-white p-5"><div class="label">Scheduled</div><div class="mt-2 font-mono text-3xl font-bold tabular">2</div><div class="mt-1 text-xs text-muted">next: tomorrow 09:00</div></div>
+      <div class="bg-white p-5"><div class="label">Drafts</div><div class="mt-2 font-mono text-3xl font-bold tabular">3</div><div class="mt-1 text-xs text-muted">2 stale &gt; 7 days</div></div>
+      <div class="bg-white p-5"><div class="label">Avg Read Rate</div><div class="mt-2 font-mono text-3xl font-bold tabular">78%</div><div class="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div class="h-full rounded-full bg-emerald-500" style="width:78%"></div></div></div>
+    </div>
+
+    <div class="grid grid-cols-[1fr_340px] gap-6">
+      <!-- LEFT: Feed -->
+      <div class="space-y-3">
+        <!-- Pinned hero card -->
+        <div class="relative overflow-hidden rounded-2xl border border-line bg-white">
+          <div class="absolute inset-0 warm-glow pointer-events-none"></div>
+          <div class="relative p-6">
+            <div class="mb-3 flex items-center gap-2">
+              <span class="badge badge-pin">📌 Pinned</span>
+              <span class="badge badge-pub">● Published</span>
+              <span class="badge aud-all">All Members &amp; Staff</span>
+              <span class="ml-auto label">May 10, 2026 · 09:00</span>
+            </div>
+            <h3 class="text-xl font-extrabold tracking-tight">Gym Closure — Public Holiday 20 May</h3>
+            <p class="mt-2 text-sm text-muted leading-relaxed">We will be closed on Wednesday 20 May 2026 in observance of Wesak Day. All scheduled classes will be cancelled and rescheduled. Members with active bookings will receive an automatic email. We apologise for any inconvenience.</p>
+            <div class="mt-4 flex items-center gap-5">
+              <span class="text-xs text-muted"><span class="font-semibold font-mono tabular text-ink">142</span> views</span>
+              <span class="text-xs text-muted"><span class="font-semibold font-mono tabular text-ink">98</span> acknowledged</span>
+              <div class="reach-bar w-32"><div class="reach-fill" style="width:69%"></div></div>
+              <span class="text-xs text-muted">69% read</span>
+              <span class="ml-auto text-xs text-muted">by <span class="font-semibold text-ink">Asha Pillai</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feed items -->
+        <!-- Row macro — we'll do 5 more rows inline -->
+        <div class="divide-y divide-line rounded-2xl border border-line bg-white overflow-hidden">
+
+          <!-- item 1 -->
+          <div class="flex items-start gap-4 px-5 py-4 hover:bg-paper transition">
+            <div class="mt-0.5 flex-shrink-0">
+              <span class="badge badge-pub">● Pub</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">New HIIT Classes — Monday &amp; Thursday 7pm</span>
+                <span class="badge aud-member ml-1">Members</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Starting 19 May, we're adding two new HIIT sessions every week. Limited to 15 spots — book now via the app.</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <div class="text-xs text-muted font-mono tabular">114 / 87 ack</div>
+              <div class="reach-bar w-20 mt-1"><div class="reach-fill" style="width:76%"></div></div>
+              <div class="mt-1 text-[10px] text-muted">May 9</div>
+            </div>
+          </div>
+
+          <!-- item 2 -->
+          <div class="flex items-start gap-4 px-5 py-4 hover:bg-paper transition">
+            <div class="mt-0.5 flex-shrink-0"><span class="badge badge-pub">● Pub</span></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Staff Uniform Policy Update — Effective June 1</span>
+                <span class="badge aud-staff ml-1">All Staff</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Please review the updated dress code in the Staff Handbook. Black polo + branded bottoms required for all floor staff from 1 June.</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <div class="text-xs text-muted font-mono tabular">31 / 28 ack</div>
+              <div class="reach-bar w-20 mt-1"><div class="reach-fill" style="width:90%"></div></div>
+              <div class="mt-1 text-[10px] text-muted">May 8</div>
+            </div>
+          </div>
+
+          <!-- item 3 -->
+          <div class="flex items-start gap-4 px-5 py-4 hover:bg-paper transition">
+            <div class="mt-0.5 flex-shrink-0"><span class="badge badge-sched">◷ Sched</span></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Ramadan Raya Promo — 20% Off Annual Plans</span>
+                <span class="badge aud-all ml-1">All Members</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Celebrate with us — annual memberships discounted 20% from 20–31 May. Promo code: RAYA2026.</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <div class="text-xs text-amber-600 font-mono tabular">Goes live: May 20</div>
+              <div class="text-[10px] text-muted mt-1">Expires: Jun 1</div>
+            </div>
+          </div>
+
+          <!-- item 4 -->
+          <div class="flex items-start gap-4 px-5 py-4 hover:bg-paper transition">
+            <div class="mt-0.5 flex-shrink-0"><span class="badge badge-pub">● Pub</span></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Trainer Certification Renewal Reminder</span>
+                <span class="badge aud-train ml-1">Trainers Only</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">All trainers must submit their updated NASM/ACE certification copies by 31 May. Contact HR with any questions.</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <div class="text-xs text-muted font-mono tabular">12 / 9 ack</div>
+              <div class="reach-bar w-20 mt-1"><div class="reach-fill" style="width:75%"></div></div>
+              <div class="mt-1 text-[10px] text-muted">May 5</div>
+            </div>
+          </div>
+
+          <!-- item 5 -->
+          <div class="flex items-start gap-4 px-5 py-4 hover:bg-paper transition">
+            <div class="mt-0.5 flex-shrink-0"><span class="badge badge-draft">◌ Draft</span></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm text-muted">June Group Class Schedule (DRAFT)</span>
+                <span class="badge aud-all ml-1">All Members</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Draft: Updated timetable for June — yoga added Sundays 8am, Pilates moved to Tue 6:30pm…</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <div class="text-[10px] text-muted">Last edited 2h ago</div>
+              <button class="mt-2 btn-outline text-xs py-1 px-3">Edit</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: Composer panel -->
+      <div class="space-y-4">
+        <!-- Quick compose card -->
+        <div class="card p-5">
+          <div class="label mb-3">Quick Compose</div>
+          <input class="w-full rounded-xl border border-line px-3 py-2.5 text-sm outline-none focus:border-ink-4 mb-3 placeholder:text-muted" placeholder="Announcement title…" />
+          <div class="rte mb-3">
+            <div class="rte-toolbar">
+              <button class="rte-btn font-bold">B</button>
+              <button class="rte-btn italic font-normal">I</button>
+              <button class="rte-btn underline font-normal">U</button>
+              <div class="h-4 w-px bg-line mx-1"></div>
+              <button class="rte-btn text-[10px]">H1</button>
+              <button class="rte-btn text-[10px]">•—</button>
+              <button class="rte-btn text-[10px]">🔗</button>
+            </div>
+            <div class="rte-body text-muted-soft text-sm">Write your announcement here…</div>
+          </div>
+          <!-- Audience -->
+          <div class="mb-3">
+            <div class="label mb-1.5">Audience</div>
+            <div class="grid grid-cols-2 gap-1.5 text-xs">
+              <label class="flex items-center gap-2 rounded-lg border border-ink bg-ink text-white px-3 py-2 cursor-pointer font-medium">
+                <input type="radio" name="aud1" class="hidden" checked /> All Staff &amp; Members
+              </label>
+              <label class="flex items-center gap-2 rounded-lg border border-line px-3 py-2 cursor-pointer hover:bg-paper">
+                <input type="radio" name="aud1" class="hidden" /> All Staff Only
+              </label>
+              <label class="flex items-center gap-2 rounded-lg border border-line px-3 py-2 cursor-pointer hover:bg-paper">
+                <input type="radio" name="aud1" class="hidden" /> All Members Only
+              </label>
+              <label class="flex items-center gap-2 rounded-lg border border-line px-3 py-2 cursor-pointer hover:bg-paper">
+                <input type="radio" name="aud1" class="hidden" /> Trainers Only
+              </label>
+              <label class="flex items-center gap-2 rounded-lg border border-line px-3 py-2 cursor-pointer col-span-2 hover:bg-paper">
+                <input type="radio" name="aud1" class="hidden" /> Specific Branch…
+              </label>
+            </div>
+          </div>
+          <!-- Options -->
+          <div class="space-y-2 mb-4 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded border-line" checked /> Pin to top</label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded border-line" /> Require acknowledgement</label>
+            <div class="flex items-center gap-2">
+              <span class="text-muted w-20">Schedule</span>
+              <input class="flex-1 rounded-lg border border-line px-2 py-1.5 text-xs outline-none" type="datetime-local" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-muted w-20">Expires</span>
+              <input class="flex-1 rounded-lg border border-line px-2 py-1.5 text-xs outline-none" type="date" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-outline flex-1 justify-center text-xs">Save Draft</button>
+            <button class="btn-dark flex-1 justify-center text-xs">Publish Now</button>
+          </div>
+        </div>
+
+        <!-- Recent ack stats -->
+        <div class="card p-5">
+          <div class="label mb-3">Acknowledgement Leaderboard</div>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between"><span class="font-medium">KL Sentral Branch</span><span class="font-mono tabular text-emerald-600">94% ack</span></div>
+            <div class="flex items-center justify-between"><span class="font-medium">Bangsar Branch</span><span class="font-mono tabular text-emerald-600">88% ack</span></div>
+            <div class="flex items-center justify-between"><span class="font-medium">Mont Kiara Branch</span><span class="font-mono tabular text-amber-600">72% ack</span></div>
+            <div class="flex items-center justify-between"><span class="font-medium">Petaling Jaya Branch</span><span class="font-mono tabular text-rose-600">41% ack</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DESIGN 2 — INBOX-STYLE WITH AUDIENCE FILTERS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="border-b-8 border-paper py-12">
+  <div class="mx-auto max-w-[1400px] px-7">
+
+    <div class="mb-8 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Inbox Filters</h2>
+      <span class="text-xs text-muted">Dense list · left audience filter rail · expand-in-place · read-receipt badge</span>
+    </div>
+
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-[28px] font-extrabold tracking-tight leading-none">Announcements</h1>
+        <p class="mt-1 text-sm text-muted">11 total · 2 require acknowledgement</p>
+      </div>
+      <button class="btn-dark">
+        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+        New
+      </button>
+    </div>
+
+    <div class="grid grid-cols-[220px_1fr] gap-5">
+
+      <!-- LEFT RAIL: Audience filter -->
+      <div class="space-y-1">
+        <div class="label px-2 mb-2">Filter by audience</div>
+        <button class="w-full flex items-center justify-between rounded-xl bg-ink text-white px-3 py-2.5 text-sm font-semibold">
+          <span>All</span><span class="font-mono text-xs opacity-70 tabular">11</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2.5 text-sm font-medium text-muted hover:text-ink transition">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>All Staff &amp; Members</span><span class="font-mono text-xs tabular">3</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2.5 text-sm font-medium text-muted hover:text-ink transition">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>All Staff</span><span class="font-mono text-xs tabular">2</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2.5 text-sm font-medium text-muted hover:text-ink transition">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></span>All Members</span><span class="font-mono text-xs tabular">3</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2.5 text-sm font-medium text-muted hover:text-ink transition">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>Trainers Only</span><span class="font-mono text-xs tabular">2</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2.5 text-sm font-medium text-muted hover:text-ink transition">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-sky-500 flex-shrink-0"></span>Specific Branch</span><span class="font-mono text-xs tabular">1</span>
+        </button>
+        <div class="border-t border-line my-2"></div>
+        <div class="label px-2 mb-2">Filter by status</div>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2 text-sm font-medium text-muted hover:text-ink transition">
+          <span>Published</span><span class="font-mono text-xs tabular">6</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2 text-sm font-medium text-muted hover:text-ink transition">
+          <span>Scheduled</span><span class="font-mono text-xs tabular">2</span>
+        </button>
+        <button class="w-full flex items-center justify-between rounded-xl hover:bg-white border border-transparent hover:border-line px-3 py-2 text-sm font-medium text-muted hover:text-ink transition">
+          <span>Draft</span><span class="font-mono text-xs tabular">3</span>
+        </button>
+      </div>
+
+      <!-- RIGHT: Inbox list -->
+      <div>
+        <!-- Search bar -->
+        <div class="mb-3 flex gap-2">
+          <div class="flex flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5">
+            <svg class="size-4 text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+            <input class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted" placeholder="Search announcements…" />
+          </div>
+          <button class="btn-outline text-xs gap-2">Sort: Newest <svg class="size-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg></button>
+        </div>
+
+        <!-- List -->
+        <div class="divide-y divide-line rounded-2xl border border-line bg-white overflow-hidden">
+
+          <!-- Expanded row (selected) -->
+          <div class="bg-paper border-l-2 border-ink">
+            <div class="flex items-start gap-4 px-5 py-4 cursor-pointer">
+              <span class="badge badge-pin mt-0.5">📌</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-baseline gap-2 mb-0.5">
+                  <span class="font-semibold text-sm">Gym Closure — Public Holiday 20 May</span>
+                  <span class="badge aud-all">All</span>
+                  <span class="badge badge-pub ml-auto">Published</span>
+                </div>
+                <p class="text-xs text-muted leading-relaxed">We will be closed on Wednesday 20 May 2026 in observance of Wesak Day. All scheduled classes will be cancelled and rescheduled. Members with active bookings will receive automatic notification email.</p>
+                <div class="mt-3 flex items-center gap-4 flex-wrap">
+                  <div class="flex items-center gap-1.5 text-xs">
+                    <svg class="size-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                    <span class="font-mono tabular font-semibold text-ink">142</span> <span class="text-muted">views</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-xs">
+                    <svg class="size-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                    <span class="font-mono tabular font-semibold text-emerald-600">98 / 142</span> <span class="text-muted">acknowledged</span>
+                    <div class="reach-bar w-16 ml-1"><div class="reach-fill bg-emerald-500" style="width:69%"></div></div>
+                  </div>
+                  <span class="text-xs text-muted">by <span class="font-medium text-ink">Asha Pillai</span></span>
+                  <span class="text-xs text-muted">May 10, 09:00 · Expires Jun 1</span>
+                  <div class="ml-auto flex gap-1.5">
+                    <button class="btn-outline text-xs py-1 px-3">Unpin</button>
+                    <button class="btn-outline text-xs py-1 px-3">Edit</button>
+                    <button class="btn-outline text-xs py-1 px-3 text-rose-600 border-rose-200 hover:bg-rose-50">Archive</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Normal rows -->
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition">
+            <span class="badge badge-pub mt-0.5">● Pub</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">New HIIT Classes — Mon &amp; Thu 7pm</span>
+                <span class="badge aud-member">Members</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Starting 19 May, two new HIIT sessions weekly. Limited to 15 spots…</p>
+            </div>
+            <div class="text-right flex-shrink-0 space-y-0.5">
+              <div class="text-xs font-mono tabular text-muted"><span class="text-ink font-semibold">87</span>/114 ack</div>
+              <div class="text-[10px] text-muted">May 9</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition">
+            <span class="badge badge-pub mt-0.5">● Pub</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Staff Uniform Policy — Effective June 1</span>
+                <span class="badge aud-staff">Staff</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Updated dress code: black polo + branded bottoms for all floor staff from 1 June…</p>
+            </div>
+            <div class="text-right flex-shrink-0 space-y-0.5">
+              <div class="text-xs font-mono tabular text-muted"><span class="text-emerald-600 font-semibold">28</span>/31 ack</div>
+              <div class="text-[10px] text-muted">May 8</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition">
+            <span class="badge badge-sched mt-0.5">◷ Sched</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Ramadan Raya Promo — 20% Off Annual Plans</span>
+                <span class="badge aud-all">All</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Celebrate with us — annual memberships discounted 20% from 20–31 May…</p>
+            </div>
+            <div class="text-right flex-shrink-0 space-y-0.5">
+              <div class="text-xs text-amber-600">Goes live May 20</div>
+              <div class="text-[10px] text-muted">Authored May 12</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition">
+            <span class="badge badge-pub mt-0.5">● Pub</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Trainer Cert Renewal Reminder</span>
+                <span class="badge aud-train">Trainers</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Submit updated NASM/ACE certification copies by 31 May…</p>
+            </div>
+            <div class="text-right flex-shrink-0 space-y-0.5">
+              <div class="text-xs font-mono tabular text-muted"><span class="text-amber-600 font-semibold">9</span>/12 ack</div>
+              <div class="text-[10px] text-muted">May 5</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition opacity-60">
+            <span class="badge badge-draft mt-0.5">◌ Draft</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">June Group Class Schedule (DRAFT)</span>
+                <span class="badge aud-all">All</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Updated timetable — yoga added Sundays 8am, Pilates moved to Tue 6:30pm…</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="text-[10px] text-muted">Edited 2h ago</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-paper transition">
+            <span class="badge badge-pub mt-0.5">● Pub</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="font-semibold text-sm">Mont Kiara Branch — Renovation Notice</span>
+                <span class="badge aud-branch">Mont Kiara</span>
+              </div>
+              <p class="mt-0.5 text-xs text-muted truncate">Level 2 weights area closed 14–16 May for flooring upgrade. Access Level 1 equipment…</p>
+            </div>
+            <div class="text-right flex-shrink-0 space-y-0.5">
+              <div class="text-xs font-mono tabular text-muted"><span class="text-ink font-semibold">54</span>/71 ack</div>
+              <div class="text-[10px] text-muted">May 3</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DESIGN 3 — COMPOSER-FIRST SPLIT VIEW
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="border-b-8 border-paper py-12">
+  <div class="mx-auto max-w-[1400px] px-7">
+
+    <div class="mb-8 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — Composer Split</h2>
+      <span class="text-xs text-muted">Edit left · live preview right · scheduling &amp; targeting in settings strip below composer</span>
+    </div>
+
+    <!-- Tabs: Compose | History -->
+    <div class="mb-5 flex items-center gap-1 border-b border-line pb-0">
+      <button class="px-5 py-2.5 text-sm font-semibold border-b-2 border-ink -mb-px">Compose</button>
+      <button class="px-5 py-2.5 text-sm font-medium text-muted hover:text-ink">Published (6)</button>
+      <button class="px-5 py-2.5 text-sm font-medium text-muted hover:text-ink">Scheduled (2)</button>
+      <button class="px-5 py-2.5 text-sm font-medium text-muted hover:text-ink">Drafts (3)</button>
+      <button class="px-5 py-2.5 text-sm font-medium text-muted hover:text-ink">Archived (4)</button>
+      <button class="ml-auto btn-dark text-xs">
+        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+        New Announcement
+      </button>
+    </div>
+
+    <!-- SPLIT -->
+    <div class="grid grid-cols-2 gap-5">
+
+      <!-- LEFT: Composer -->
+      <div class="space-y-4">
+        <div class="card p-5">
+          <div class="label mb-2">Title</div>
+          <input class="w-full rounded-xl border border-line px-3 py-2.5 text-sm font-semibold outline-none focus:border-ink-4 mb-1" value="Gym Closure — Public Holiday 20 May" />
+          <div class="mt-4 label mb-2">Body</div>
+          <div class="rte">
+            <div class="rte-toolbar">
+              <button class="rte-btn font-bold">B</button>
+              <button class="rte-btn italic font-normal">I</button>
+              <button class="rte-btn underline font-normal">U</button>
+              <button class="rte-btn line-through font-normal text-[10px]">S</button>
+              <div class="h-4 w-px bg-line mx-1"></div>
+              <button class="rte-btn text-[10px]">H1</button>
+              <button class="rte-btn text-[10px]">H2</button>
+              <div class="h-4 w-px bg-line mx-1"></div>
+              <button class="rte-btn text-[10px]">•</button>
+              <button class="rte-btn text-[10px]">1.</button>
+              <div class="h-4 w-px bg-line mx-1"></div>
+              <button class="rte-btn text-[10px]">🔗</button>
+              <button class="rte-btn text-[10px]">📎</button>
+            </div>
+            <div class="rte-body" style="min-height:160px">
+              <p>We will be closed on <strong>Wednesday 20 May 2026</strong> in observance of Wesak Day.</p>
+              <p class="mt-2">All scheduled classes will be cancelled and rescheduled. Members with active bookings will receive an automatic notification email.</p>
+              <p class="mt-2">We apologise for any inconvenience and look forward to seeing you on Thursday 21 May!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings strip -->
+        <div class="card p-5 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div class="label mb-1.5">Audience</div>
+            <select class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none bg-white">
+              <option selected>All Staff &amp; Members</option>
+              <option>All Staff</option>
+              <option>All Members</option>
+              <option>Trainers Only</option>
+              <option>Specific Branch…</option>
+            </select>
+          </div>
+          <div>
+            <div class="label mb-1.5">Status</div>
+            <select class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none bg-white">
+              <option>Publish now</option>
+              <option selected>Schedule</option>
+              <option>Save as draft</option>
+            </select>
+          </div>
+          <div>
+            <div class="label mb-1.5">Scheduled publish</div>
+            <input type="datetime-local" class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none" value="2026-05-20T09:00" />
+          </div>
+          <div>
+            <div class="label mb-1.5">Expiry date</div>
+            <input type="date" class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none" value="2026-06-01" />
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked class="rounded" /> Pin to top</label>
+            <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" class="rounded" /> Require ack</label>
+          </div>
+          <div class="flex items-center gap-2 justify-end">
+            <button class="btn-outline text-xs">Discard</button>
+            <button class="btn-outline text-xs">Save Draft</button>
+            <button class="btn-dark text-xs">Schedule →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Live preview -->
+      <div>
+        <div class="label mb-2 px-1">Preview — how members will see it</div>
+        <div class="card overflow-hidden">
+          <!-- Preview app header chrome -->
+          <div class="border-b border-line px-5 py-3 flex items-center gap-3 bg-paper">
+            <div class="w-20 h-4 rounded-full bg-line"></div>
+            <div class="ml-auto flex gap-1.5"><div class="w-3 h-3 rounded-full bg-rose-300"></div><div class="w-3 h-3 rounded-full bg-amber-300"></div><div class="w-3 h-3 rounded-full bg-emerald-300"></div></div>
+          </div>
+          <!-- Preview content -->
+          <div class="p-6">
+            <div class="mb-2 flex items-center gap-2">
+              <span class="badge badge-pin">📌 Pinned</span>
+              <span class="badge aud-all">All Members &amp; Staff</span>
+              <span class="ml-auto text-[10px] text-muted">Scheduled: 20 May, 09:00</span>
+            </div>
+            <h2 class="text-xl font-extrabold tracking-tight mt-3">Gym Closure — Public Holiday 20 May</h2>
+            <div class="mt-3 text-sm text-muted leading-relaxed space-y-2">
+              <p>We will be closed on <strong class="text-ink">Wednesday 20 May 2026</strong> in observance of Wesak Day.</p>
+              <p>All scheduled classes will be cancelled and rescheduled. Members with active bookings will receive an automatic notification email.</p>
+              <p>We apologise for any inconvenience and look forward to seeing you on Thursday 21 May!</p>
+            </div>
+            <div class="mt-5 border-t border-line pt-4 flex items-center gap-4 text-xs text-muted">
+              <span>by <span class="font-semibold text-ink">Asha Pillai</span></span>
+              <span>·</span>
+              <span>Admin · Avantej HQ</span>
+              <span>·</span>
+              <span>Expires Jun 1, 2026</span>
+            </div>
+            <!-- Ack button preview -->
+            <button class="mt-4 w-full btn-dark justify-center text-sm">Acknowledge →</button>
+          </div>
+        </div>
+
+        <!-- History mini list below preview -->
+        <div class="mt-4 card p-4">
+          <div class="label mb-3">Recent announcements</div>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 text-xs">
+              <span class="badge badge-pub">● Pub</span>
+              <span class="flex-1 font-medium truncate">New HIIT Classes — Mon &amp; Thu 7pm</span>
+              <span class="text-muted">May 9</span>
+              <span class="text-emerald-600 font-mono tabular">76%</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="badge badge-pub">● Pub</span>
+              <span class="flex-1 font-medium truncate">Staff Uniform Policy Update</span>
+              <span class="text-muted">May 8</span>
+              <span class="text-emerald-600 font-mono tabular">90%</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="badge badge-draft">◌ Draft</span>
+              <span class="flex-1 font-medium truncate text-muted">June Group Class Schedule</span>
+              <span class="text-muted">—</span>
+              <span class="text-muted font-mono tabular">—</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="badge badge-arch">Arch</span>
+              <span class="flex-1 font-medium truncate text-muted">April Member Survey Results</span>
+              <span class="text-muted">Apr 28</span>
+              <span class="text-muted font-mono tabular">61%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DESIGN 4 — CARD GRID GROUPED BY STATUS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="border-b-8 border-paper py-12">
+  <div class="mx-auto max-w-[1400px] px-7">
+
+    <div class="mb-8 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Status Card Grid</h2>
+      <span class="text-xs text-muted">Kanban-like grid · status swim-lanes · card with reach metrics · drag to schedule/publish</span>
+    </div>
+
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-[28px] font-extrabold tracking-tight leading-none">Announcements</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-outline text-xs">Filter audience ▾</button>
+        <button class="btn-dark">
+          <svg class="size-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+          New Announcement
+        </button>
+      </div>
+    </div>
+
+    <!-- 4-column grid -->
+    <div class="grid grid-cols-4 gap-4 items-start">
+
+      <!-- COL: Draft -->
+      <div>
+        <div class="flex items-center gap-2 mb-3 px-1">
+          <span class="w-2 h-2 rounded-full bg-neutral-400"></span>
+          <span class="label">Drafts</span>
+          <span class="ml-auto font-mono text-xs tabular text-muted">3</span>
+        </div>
+        <div class="space-y-3">
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-all">All</span>
+              <span class="text-[10px] text-muted">edited 2h ago</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">June Group Class Schedule</h4>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Updated timetable — yoga added Sundays 8am…</p>
+            <div class="mt-3 flex gap-1.5">
+              <button class="flex-1 btn-outline text-xs py-1 justify-center">Edit</button>
+              <button class="flex-1 btn-dark text-xs py-1 justify-center">Publish →</button>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-staff">Staff</span>
+              <span class="text-[10px] text-muted">edited 1d ago</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Q2 Performance Bonus Announcement</h4>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Details on the Q2 KPI payout schedule…</p>
+            <div class="mt-3 flex gap-1.5">
+              <button class="flex-1 btn-outline text-xs py-1 justify-center">Edit</button>
+              <button class="flex-1 btn-dark text-xs py-1 justify-center">Publish →</button>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-member">Members</span>
+              <span class="text-[10px] text-muted">edited 6d ago</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">New App Feature: Progress Tracking</h4>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Introduce the revamped progress dashboard…</p>
+            <div class="mt-3 flex gap-1.5">
+              <button class="flex-1 btn-outline text-xs py-1 justify-center">Edit</button>
+              <button class="flex-1 btn-dark text-xs py-1 justify-center">Publish →</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COL: Scheduled -->
+      <div>
+        <div class="flex items-center gap-2 mb-3 px-1">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span class="label">Scheduled</span>
+          <span class="ml-auto font-mono text-xs tabular text-muted">2</span>
+        </div>
+        <div class="space-y-3">
+
+          <div class="card p-4 hover:shadow-md transition border-l-2 border-amber-400">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-all">All</span>
+              <span class="badge badge-sched">◷ May 20</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Raya Promo — 20% Off Annual Plans</h4>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Promo code RAYA2026, valid 20–31 May…</p>
+            <div class="mt-3 text-xs text-muted flex items-center gap-2">
+              <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+              Expires Jun 1, 2026
+            </div>
+            <div class="mt-3 flex gap-1.5">
+              <button class="flex-1 btn-outline text-xs py-1 justify-center">Edit</button>
+              <button class="flex-1 btn-outline text-xs py-1 justify-center text-rose-600 border-rose-200">Cancel</button>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition border-l-2 border-amber-400">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-train">Trainers</span>
+              <span class="badge badge-sched">◷ May 22</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">CPD Workshop — June 7 Sign-ups Open</h4>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Continuing professional development session, seats limited…</p>
+            <div class="mt-3 flex gap-1.5">
+              <button class="flex-1 btn-outline text-xs py-1 justify-center">Edit</button>
+              <button class="flex-1 btn-outline text-xs py-1 justify-center text-rose-600 border-rose-200">Cancel</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COL: Published -->
+      <div>
+        <div class="flex items-center gap-2 mb-3 px-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span class="label">Published</span>
+          <span class="ml-auto font-mono text-xs tabular text-muted">6</span>
+        </div>
+        <div class="space-y-3">
+
+          <div class="card p-4 hover:shadow-md transition border-l-2 border-ink">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex gap-1"><span class="badge badge-pin">📌</span><span class="badge aud-all">All</span></div>
+              <span class="text-[10px] text-muted">May 10</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Gym Closure — Public Holiday 20 May</h4>
+            <div class="mt-2 space-y-1">
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Views</span><span class="font-mono tabular font-semibold">142</span></div>
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Acknowledged</span><span class="font-mono tabular font-semibold text-emerald-600">98 / 142</span></div>
+              <div class="reach-bar w-full mt-1.5"><div class="reach-fill" style="width:69%"></div></div>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-member">Members</span>
+              <span class="text-[10px] text-muted">May 9</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">New HIIT Classes — Mon &amp; Thu 7pm</h4>
+            <div class="mt-2 space-y-1">
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Views</span><span class="font-mono tabular font-semibold">114</span></div>
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Acknowledged</span><span class="font-mono tabular font-semibold text-emerald-600">87 / 114</span></div>
+              <div class="reach-bar w-full mt-1.5"><div class="reach-fill" style="width:76%"></div></div>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-staff">Staff</span>
+              <span class="text-[10px] text-muted">May 8</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Staff Uniform Policy — Effective June 1</h4>
+            <div class="mt-2 space-y-1">
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Views</span><span class="font-mono tabular font-semibold">31</span></div>
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Acknowledged</span><span class="font-mono tabular font-semibold text-emerald-600">28 / 31</span></div>
+              <div class="reach-bar w-full mt-1.5"><div class="reach-fill" style="width:90%"></div></div>
+            </div>
+          </div>
+
+          <div class="card p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-branch">Mont Kiara</span>
+              <span class="text-[10px] text-muted">May 3</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Renovation Notice — Level 2 Weights</h4>
+            <div class="mt-2 space-y-1">
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Views</span><span class="font-mono tabular font-semibold">71</span></div>
+              <div class="flex items-center justify-between text-xs"><span class="text-muted">Acknowledged</span><span class="font-mono tabular font-semibold text-amber-600">54 / 71</span></div>
+              <div class="reach-bar w-full mt-1.5"><div class="reach-fill" style="width:76%"></div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COL: Archived -->
+      <div>
+        <div class="flex items-center gap-2 mb-3 px-1">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span class="label">Archived</span>
+          <span class="ml-auto font-mono text-xs tabular text-muted">4</span>
+        </div>
+        <div class="space-y-3 opacity-60">
+
+          <div class="card p-4">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-all">All</span>
+              <span class="text-[10px] text-muted">Apr 30</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">April Member Survey — Thank You!</h4>
+            <div class="mt-2 text-xs text-muted flex items-center gap-1"><span class="font-mono tabular">89</span> views · <span class="font-mono tabular">61%</span> read</div>
+          </div>
+
+          <div class="card p-4">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-staff">Staff</span>
+              <span class="text-[10px] text-muted">Apr 22</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">Easter Holiday Opening Hours</h4>
+            <div class="mt-2 text-xs text-muted flex items-center gap-1"><span class="font-mono tabular">56</span> views · <span class="font-mono tabular">82%</span> read</div>
+          </div>
+
+          <div class="card p-4">
+            <div class="flex items-start justify-between mb-2">
+              <span class="badge aud-train">Trainers</span>
+              <span class="text-[10px] text-muted">Apr 15</span>
+            </div>
+            <h4 class="font-semibold text-sm leading-snug">New Booking System — Trainer Guide</h4>
+            <div class="mt-2 text-xs text-muted flex items-center gap-1"><span class="font-mono tabular">14</span> views · <span class="font-mono tabular">100%</span> read</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DESIGN 5 — TIMELINE WITH REACH ANALYTICS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="d5" class="py-12">
+  <div class="mx-auto max-w-[1400px] px-7">
+
+    <div class="mb-8 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Timeline Analytics</h2>
+      <span class="text-xs text-muted">Chronological timeline · inline reach analytics · audience breakdown donut · ack trend sparkline</span>
+    </div>
+
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-[28px] font-extrabold tracking-tight leading-none">Announcements</h1>
+        <p class="mt-1 text-sm text-muted">Communication history &amp; reach analytics</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+          <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">All time</button>
+          <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">This month</button>
+          <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Last 30d</button>
+        </div>
+        <button class="btn-dark">
+          <svg class="size-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+          New Announcement
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-[1fr_300px] gap-6">
+
+      <!-- LEFT: Timeline -->
+      <div class="relative">
+        <div class="tl-line" style="top:36px"></div>
+
+        <!-- Month label -->
+        <div class="relative flex items-center gap-3 mb-4 pl-12">
+          <span class="label">May 2026</span>
+          <div class="flex-1 h-px bg-line"></div>
+        </div>
+
+        <!-- Timeline items -->
+        <div class="space-y-4 pl-12">
+
+          <!-- Item 1: Pinned + Published -->
+          <div class="relative">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-ink border-2 border-paper flex items-center justify-center">
+              <span class="text-white text-[10px]">📌</span>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="badge badge-pub">● Published</span>
+                  <span class="badge badge-pin">Pinned</span>
+                  <span class="badge aud-all">All Members &amp; Staff</span>
+                </div>
+                <div class="text-right flex-shrink-0 ml-4">
+                  <div class="text-xs text-muted font-mono tabular">May 10, 09:00</div>
+                  <div class="text-[10px] text-muted mt-0.5">by Asha Pillai</div>
+                </div>
+              </div>
+              <h3 class="font-bold text-base">Gym Closure — Public Holiday 20 May</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">We will be closed on Wednesday 20 May 2026 in observance of Wesak Day. All scheduled classes will be cancelled and rescheduled.</p>
+
+              <!-- Reach metrics row -->
+              <div class="mt-4 grid grid-cols-4 gap-3 border-t border-line pt-3">
+                <div>
+                  <div class="label mb-1">Views</div>
+                  <div class="font-mono text-xl font-bold tabular">142</div>
+                </div>
+                <div>
+                  <div class="label mb-1">Acknowledged</div>
+                  <div class="font-mono text-xl font-bold tabular text-emerald-600">98</div>
+                </div>
+                <div>
+                  <div class="label mb-1">Read rate</div>
+                  <div class="font-mono text-xl font-bold tabular">69%</div>
+                  <div class="reach-bar mt-1"><div class="reach-fill" style="width:69%"></div></div>
+                </div>
+                <div>
+                  <div class="label mb-1">Unread</div>
+                  <div class="font-mono text-xl font-bold tabular text-rose-600">44</div>
+                  <div class="text-[10px] text-muted mt-0.5">pending ack</div>
+                </div>
+              </div>
+
+              <!-- Sparkline-style ack trend (SVG) -->
+              <div class="mt-3 flex items-center gap-3">
+                <span class="text-[10px] text-muted uppercase tracking-widest">Ack trend</span>
+                <svg viewBox="0 0 120 24" class="h-6 w-32 flex-shrink-0" preserveAspectRatio="none">
+                  <polyline points="0,22 20,18 40,14 60,10 80,7 100,5 120,4" fill="none" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <polyline points="0,22 20,18 40,14 60,10 80,7 100,5 120,4 120,24 0,24" fill="rgba(0,0,0,0.06)" />
+                </svg>
+                <span class="text-[10px] text-muted">+8 today</span>
+                <div class="ml-auto flex gap-1.5">
+                  <button class="btn-outline text-xs py-1 px-3">View acks</button>
+                  <button class="btn-outline text-xs py-1 px-3">Edit</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="relative">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-purple-100 border-2 border-paper flex items-center justify-center">
+              <span class="text-purple-600 text-[10px] font-bold">M</span>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2"><span class="badge badge-pub">● Published</span><span class="badge aud-member">Members</span></div>
+                <span class="text-xs text-muted font-mono tabular">May 9, 18:00</span>
+              </div>
+              <h3 class="font-bold text-base">New HIIT Classes — Mon &amp; Thu 7pm</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">Starting 19 May, we're adding two new HIIT sessions weekly. Limited to 15 spots — book via the app.</p>
+              <div class="mt-4 grid grid-cols-4 gap-3 border-t border-line pt-3">
+                <div><div class="label mb-1">Views</div><div class="font-mono text-xl font-bold tabular">114</div></div>
+                <div><div class="label mb-1">Ack'd</div><div class="font-mono text-xl font-bold tabular text-emerald-600">87</div></div>
+                <div><div class="label mb-1">Read rate</div><div class="font-mono text-xl font-bold tabular">76%</div><div class="reach-bar mt-1"><div class="reach-fill" style="width:76%"></div></div></div>
+                <div><div class="label mb-1">Unread</div><div class="font-mono text-xl font-bold tabular text-rose-600">27</div></div>
+              </div>
+              <div class="mt-3 flex items-center gap-3">
+                <svg viewBox="0 0 120 24" class="h-6 w-32" preserveAspectRatio="none">
+                  <polyline points="0,22 30,17 60,11 90,6 120,5" fill="none" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <polyline points="0,22 30,17 60,11 90,6 120,5 120,24 0,24" fill="rgba(0,0,0,0.06)" />
+                </svg>
+                <span class="text-[10px] text-muted uppercase tracking-widest">Ack trend</span>
+                <div class="ml-auto flex gap-1.5"><button class="btn-outline text-xs py-1 px-3">View acks</button></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="relative">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-emerald-100 border-2 border-paper flex items-center justify-center">
+              <span class="text-emerald-700 text-[10px] font-bold">S</span>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2"><span class="badge badge-pub">● Published</span><span class="badge aud-staff">All Staff</span></div>
+                <span class="text-xs text-muted font-mono tabular">May 8, 12:00</span>
+              </div>
+              <h3 class="font-bold text-base">Staff Uniform Policy — Effective June 1</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">Updated dress code: black polo + branded bottoms for all floor staff from 1 June. Review the Staff Handbook for full details.</p>
+              <div class="mt-4 grid grid-cols-4 gap-3 border-t border-line pt-3">
+                <div><div class="label mb-1">Views</div><div class="font-mono text-xl font-bold tabular">31</div></div>
+                <div><div class="label mb-1">Ack'd</div><div class="font-mono text-xl font-bold tabular text-emerald-600">28</div></div>
+                <div><div class="label mb-1">Read rate</div><div class="font-mono text-xl font-bold tabular">90%</div><div class="reach-bar mt-1"><div class="reach-fill" style="width:90%"></div></div></div>
+                <div><div class="label mb-1">Unread</div><div class="font-mono text-xl font-bold tabular">3</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 4: Scheduled future -->
+          <div class="relative opacity-80">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-amber-100 border-2 border-paper border-dashed flex items-center justify-center">
+              <span class="text-amber-700 text-[10px] font-bold">◷</span>
+            </div>
+            <div class="card p-5 border-dashed border-amber-300 bg-amber-50/30">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2"><span class="badge badge-sched">◷ Scheduled</span><span class="badge aud-all">All Members</span></div>
+                <span class="text-xs text-amber-700 font-mono tabular font-semibold">Goes live: May 20, 09:00</span>
+              </div>
+              <h3 class="font-bold text-base">Raya Promo — 20% Off Annual Plans</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">Celebrate Hari Raya — annual memberships 20% off from 20–31 May. Code: RAYA2026. Expires Jun 1.</p>
+              <div class="mt-3 flex gap-1.5"><button class="btn-outline text-xs py-1 px-3">Edit</button><button class="btn-outline text-xs py-1 px-3 text-rose-600 border-rose-200 hover:bg-rose-50">Cancel schedule</button></div>
+            </div>
+          </div>
+
+          <!-- Item 5 -->
+          <div class="relative">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-orange-100 border-2 border-paper flex items-center justify-center">
+              <span class="text-orange-700 text-[10px] font-bold">T</span>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2"><span class="badge badge-pub">● Published</span><span class="badge aud-train">Trainers</span></div>
+                <span class="text-xs text-muted font-mono tabular">May 5, 10:00</span>
+              </div>
+              <h3 class="font-bold text-base">Trainer Certification Renewal Reminder</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">All trainers must submit updated NASM/ACE certification copies by 31 May. Contact HR with questions.</p>
+              <div class="mt-4 grid grid-cols-4 gap-3 border-t border-line pt-3">
+                <div><div class="label mb-1">Views</div><div class="font-mono text-xl font-bold tabular">12</div></div>
+                <div><div class="label mb-1">Ack'd</div><div class="font-mono text-xl font-bold tabular text-amber-600">9</div></div>
+                <div><div class="label mb-1">Read rate</div><div class="font-mono text-xl font-bold tabular">75%</div><div class="reach-bar mt-1"><div class="reach-fill" style="width:75%"></div></div></div>
+                <div><div class="label mb-1">Unread</div><div class="font-mono text-xl font-bold tabular">3</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 6: Branch-specific -->
+          <div class="relative">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-sky-100 border-2 border-paper flex items-center justify-center">
+              <span class="text-sky-700 text-[10px] font-bold">B</span>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2"><span class="badge badge-pub">● Published</span><span class="badge aud-branch">Mont Kiara</span></div>
+                <span class="text-xs text-muted font-mono tabular">May 3, 08:30</span>
+              </div>
+              <h3 class="font-bold text-base">Renovation Notice — Level 2 Weights Area</h3>
+              <p class="mt-1 text-xs text-muted leading-relaxed">Level 2 weights closed 14–16 May for flooring upgrade. Use Level 1 equipment during this period.</p>
+              <div class="mt-4 grid grid-cols-4 gap-3 border-t border-line pt-3">
+                <div><div class="label mb-1">Views</div><div class="font-mono text-xl font-bold tabular">71</div></div>
+                <div><div class="label mb-1">Ack'd</div><div class="font-mono text-xl font-bold tabular text-amber-600">54</div></div>
+                <div><div class="label mb-1">Read rate</div><div class="font-mono text-xl font-bold tabular">76%</div><div class="reach-bar mt-1"><div class="reach-fill" style="width:76%"></div></div></div>
+                <div><div class="label mb-1">Unread</div><div class="font-mono text-xl font-bold tabular">17</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- April divider -->
+          <div class="relative flex items-center gap-3 pt-2 pl-0" style="margin-left:-48px; padding-left:0">
+            <span class="label pl-12">April 2026</span>
+            <div class="flex-1 h-px bg-line"></div>
+          </div>
+
+          <!-- Item 7: archived -->
+          <div class="relative opacity-50">
+            <div class="absolute -left-[37px] top-4 w-9 h-9 rounded-full bg-slate-100 border-2 border-paper flex items-center justify-center">
+              <span class="text-slate-500 text-[10px] font-bold">A</span>
+            </div>
+            <div class="card p-4">
+              <div class="flex items-start justify-between mb-1">
+                <div class="flex items-center gap-2"><span class="badge badge-arch">Archived</span><span class="badge aud-all">All</span></div>
+                <span class="text-xs text-muted font-mono tabular">Apr 30</span>
+              </div>
+              <h3 class="font-semibold text-sm">April Member Survey — Thank You!</h3>
+              <div class="mt-2 text-xs text-muted"><span class="font-mono tabular">89</span> views · <span class="font-mono tabular">61%</span> read · <span class="font-mono tabular">54</span> ack'd</div>
+            </div>
+          </div>
+
+        </div><!-- /timeline items -->
+      </div><!-- /LEFT -->
+
+      <!-- RIGHT: Analytics sidebar -->
+      <div class="space-y-4">
+
+        <!-- Overall reach stats -->
+        <div class="card p-5">
+          <div class="label mb-4">Overall Reach — May 2026</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-paper p-3">
+              <div class="label mb-1">Total views</div>
+              <div class="font-mono text-2xl font-bold tabular">430</div>
+            </div>
+            <div class="rounded-xl bg-paper p-3">
+              <div class="label mb-1">Acknowledged</div>
+              <div class="font-mono text-2xl font-bold tabular text-emerald-600">276</div>
+            </div>
+            <div class="rounded-xl bg-paper p-3">
+              <div class="label mb-1">Avg read rate</div>
+              <div class="font-mono text-2xl font-bold tabular">78%</div>
+            </div>
+            <div class="rounded-xl bg-paper p-3">
+              <div class="label mb-1">Pending ack</div>
+              <div class="font-mono text-2xl font-bold tabular text-rose-600">91</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audience breakdown -->
+        <div class="card p-5">
+          <div class="label mb-3">Audience breakdown</div>
+          <!-- Stacked bar as proxy for donut -->
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between mb-1"><span class="text-muted">All Members &amp; Staff</span><span class="font-mono tabular font-semibold">3</span></div>
+              <div class="h-2 rounded-full bg-line overflow-hidden"><div class="h-full bg-blue-500 rounded-full" style="width:27%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="text-muted">All Members</span><span class="font-mono tabular font-semibold">3</span></div>
+              <div class="h-2 rounded-full bg-line overflow-hidden"><div class="h-full bg-purple-500 rounded-full" style="width:27%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="text-muted">All Staff</span><span class="font-mono tabular font-semibold">2</span></div>
+              <div class="h-2 rounded-full bg-line overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width:18%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="text-muted">Trainers Only</span><span class="font-mono tabular font-semibold">2</span></div>
+              <div class="h-2 rounded-full bg-line overflow-hidden"><div class="h-full bg-orange-400 rounded-full" style="width:18%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="text-muted">Specific Branch</span><span class="font-mono tabular font-semibold">1</span></div>
+              <div class="h-2 rounded-full bg-line overflow-hidden"><div class="h-full bg-sky-400 rounded-full" style="width:9%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Branch ack rates -->
+        <div class="card p-5">
+          <div class="label mb-3">Ack rate by branch</div>
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between mb-1"><span class="font-medium">KL Sentral</span><span class="font-mono tabular font-semibold text-emerald-600">94%</span></div>
+              <div class="reach-bar"><div class="reach-fill bg-emerald-500" style="width:94%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="font-medium">Bangsar</span><span class="font-mono tabular font-semibold text-emerald-600">88%</span></div>
+              <div class="reach-bar"><div class="reach-fill bg-emerald-400" style="width:88%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="font-medium">Mont Kiara</span><span class="font-mono tabular font-semibold text-amber-600">72%</span></div>
+              <div class="reach-bar"><div class="reach-fill bg-amber-400" style="width:72%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="font-medium">Petaling Jaya</span><span class="font-mono tabular font-semibold text-rose-600">41%</span></div>
+              <div class="reach-bar"><div class="reach-fill bg-rose-400" style="width:41%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending acks alert -->
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs">
+          <div class="font-semibold text-rose-700 mb-1.5">91 unread acknowledgements</div>
+          <p class="text-rose-600 leading-relaxed">Petaling Jaya has a 41% ack rate — consider sending a push reminder to unread members.</p>
+          <button class="mt-3 w-full btn-dark text-xs justify-center bg-rose-600 hover:bg-rose-700">Send reminder →</button>
+        </div>
+
+        <!-- Upcoming scheduled -->
+        <div class="card p-5">
+          <div class="label mb-3">Upcoming</div>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-paper">
+              <span class="badge badge-sched">◷</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-medium truncate">Raya Promo — 20% Off</div>
+                <div class="text-muted">May 20, 09:00 · All Members</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-paper">
+              <span class="badge badge-sched">◷</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-medium truncate">CPD Workshop — June 7</div>
+                <div class="text-muted">May 22, 08:00 · Trainers</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /RIGHT -->
+
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

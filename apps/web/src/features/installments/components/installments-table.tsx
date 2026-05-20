@@ -283,7 +283,7 @@ export function InstallmentsTable({
 										</TableCell>
 									)}
 									<TableCell className="px-5 py-4 text-sm">
-										{formatDate(row.nextDueDate)}
+										{row.nextDueDate ? formatDate(row.nextDueDate) : "—"}
 									</TableCell>
 									<TableCell className="px-5 py-4">
 										<div className="flex flex-wrap items-center gap-1.5">

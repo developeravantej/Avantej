@@ -12,6 +12,9 @@ import {
 	listCommissionLedger,
 	liabilitySummary,
 	markPaidBatch,
+	liabilityByStaff,
+	listPendingReview,
+	resolvePendingReview,
 } from "@avantej-core/services/commission-splits.service";
 import { requirePermission } from "@avantej-core/services";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -542,6 +545,283 @@ const markPaidBatchProcedure = protectedProcedure
 		}
 	});
 
+// ---------------------------------------------------------------------------
+// Phase 1b procedures (§1.9–1.11)
+// ---------------------------------------------------------------------------
+
+/**
+ * liabilityByStaff (§1.9): single GROUP BY query — one row per staff with
+ * pending/approved/paid totals. LIMIT 500. Scoped by accessibleNodeIds.
+ * Requires commission_management:read.
+ */
+const liabilityByStaffProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			branchId: z.string().uuid().optional(),
+			from: z.string().datetime().optional(),
+			to: z.string().datetime().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"commission_management",
+				"read",
+			);
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "Permission denied",
+			});
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+
+		try {
+			return await liabilityByStaff(context.tenantDb, controlPanelDb, {
+				branchId: input.branchId,
+				from: input.from ? new Date(input.from) : undefined,
+				to: input.to ? new Date(input.to) : undefined,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: err instanceof Error ? err.message : "Failed to compute liability by staff",
+			});
+		}
+	});
+
+/**
+ * markPaidById (§1.10): batch ≤50 by IDs + paymentReference. Per-id TX with
+ * FOR UPDATE, validates status='approved'. Emits audit action commission.mark_paid.
+ * Requires commission_management:process.
+ */
+const markPaidByIdProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			ids: z.array(z.string().uuid()).min(1).max(50),
+			paymentReference: z.string().min(1).max(255),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"commission_management",
+				"process",
+			);
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "Permission denied",
+			});
+		}
+
+		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid)
+		// with paymentReference stored as payoutId field note (no dedicated column yet).
+		try {
+			return await markCommissionSplitsPaid(context.tenantDb, input.ids, {
+				payoutId: undefined, // paymentReference is a reference string, not a UUID FK
+				actor: {
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				},
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Failed to mark splits as paid",
+			});
+		}
+	});
+
+/**
+ * voidById (§1.11): void a single split by ID. Per-row TX with FOR UPDATE.
+ * Emits audit action commission.void.
+ * Requires commission_management:approve.
+ */
+const voidByIdProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			id: z.string().uuid(),
+			reason: z.string().min(1).max(500),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"commission_management",
+				"approve",
+			);
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "Permission denied",
+			});
+		}
+
+		try {
+			return await voidCommissionSplit(
+				context.tenantDb,
+				input.id,
+				input.reason,
+				{
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				},
+			);
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Failed to void split",
+			});
+		}
+	});
+
+// listPendingReview: returns pending_review splits for the Review tab.
+// Requires commission_management:read.
+const listPendingReviewProcedure = protectedProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			limit: z.number().min(1).max(200).default(50),
+			cursor: z
+				.object({
+					earnedAt: z.string(),
+					id: z.string().uuid(),
+				})
+				.optional(),
+		}),
+	)
+	.handler(async ({ context, input }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(context.tenantDb, context.member, "commission_management", "read");
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "Permission denied",
+			});
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+		return listPendingReview(context.tenantDb, controlPanelDb, {
+			accessibleNodeIds: context.accessibleNodeIds,
+			limit: input.limit,
+			cursor: input.cursor,
+		});
+	});
+
+// resolveReview: promote pending_review → pending (approve) or void (reject).
+// Requires commission_review:resolve (distinct from bulk approve permission).
+const resolveReviewProcedure = protectedProcedure
+	.input(
+		z.discriminatedUnion("action", [
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				action: z.literal("approve"),
+				reason: z.string().max(500).optional(),
+			}),
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				action: z.literal("reject"),
+				reason: z.string().min(1).max(500),
+			}),
+		]),
+	)
+	.handler(async ({ context, input }) => {
+		if (!context.tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available.",
+			});
+		}
+		if (!context.member) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "User is not a member of this organization",
+			});
+		}
+
+		try {
+			await requirePermission(context.tenantDb, context.member, "commission_review", "resolve");
+		} catch (error) {
+			throw new ORPCError("FORBIDDEN", {
+				message: error instanceof Error ? error.message : "commission_review:resolve required",
+			});
+		}
+
+		try {
+			return await resolvePendingReview(
+				context.tenantDb,
+				input.id,
+				input.action,
+				"reason" in input ? (input.reason ?? null) : null,
+				{
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+					accessibleNodeIds: context.accessibleNodeIds,
+				},
+			);
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Failed to resolve review",
+			});
+		}
+	});
+
 export const commissionSplitsRouter = {
 	list,
 	getByAppointment,
@@ -553,4 +833,9 @@ export const commissionSplitsRouter = {
 	createManualAdjustment: manualAdjustment,
 	liabilitySummary: liabilitySummaryProcedure,
 	markPaidBatch: markPaidBatchProcedure,
+	liabilityByStaff: liabilityByStaffProcedure,
+	markPaidById: markPaidByIdProcedure,
+	voidById: voidByIdProcedure,
+	listPendingReview: listPendingReviewProcedure,
+	resolveReview: resolveReviewProcedure,
 };

@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Trainer Availability — 5 Design Directions</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:   { DEFAULT: '#0a0a0a', soft: '#262626', 2: '#404040', 3: '#737373', 4: '#a3a3a3' },
+          paper: '#f3f3f3',
+          card:  '#ffffff',
+          line:  '#e5e5e5',
+          warm:  '#d6cdb1',
+          muted: { DEFAULT: '#737373', soft: '#a3a3a3' },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: #f3f3f3; color: #0a0a0a; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #737373; }
+
+  /* availability block colours */
+  .avail  { background: #d1fae5; color: #065f46; }
+  .avail2 { background: #dbeafe; color: #1e40af; }
+  .block  { background: #fee2e2; color: #991b1b; }
+  .timeoff{ background: #fef3c7; color: #92400e; }
+  .lunch  { background: #f3f4f6; color: #374151; }
+
+  /* slim scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 9999px; }
+
+  /* utilisation bar */
+  .util-bar { height: 4px; border-radius: 9999px; background: #e5e5e5; }
+  .util-fill { height: 4px; border-radius: 9999px; }
+
+  /* pill */
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  .pill-green  { background: #d1fae5; color: #065f46; }
+  .pill-red    { background: #fee2e2; color: #991b1b; }
+  .pill-amber  { background: #fef3c7; color: #92400e; }
+  .pill-blue   { background: #dbeafe; color: #1e40af; }
+  .pill-gray   { background: #f3f4f6; color: #374151; }
+  .pill-warm   { background: #f5f0e6; color: #78614e; }
+
+  /* conflict ring */
+  .conflict { outline: 2px solid #f87171; outline-offset: 1px; }
+
+  /* toggle switch */
+  .tog { width: 32px; height: 18px; background: #e5e5e5; border-radius: 9999px; position: relative; cursor: pointer; transition: background 150ms; flex-shrink:0; }
+  .tog.on { background: #0a0a0a; }
+  .tog::after { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:9999px; background:white; transition: transform 150ms; }
+  .tog.on::after { transform: translateX(14px); }
+
+  /* time input mock */
+  .time-input { border: 1px solid #e5e5e5; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; background: white; color: #0a0a0a; width: 80px; }
+
+  /* design section separator */
+  .design-sep { border-bottom: 8px solid #f3f3f3; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════ TOP NAV ═══════════════════════════════════════ -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1440px] items-center gap-1 px-6 text-xs">
+    <span class="label mr-4">Trainer Availability · 5 designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-xs">1 · Weekly Grid</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-xs">2 · Roster + Chips</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-xs">3 · Calendar + Overlays</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-xs">4 · Side-by-Side</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-xs">5 · Edit Form</a>
+    <span class="ml-auto text-muted-soft text-[11px] text-ink-4">design-only · no logic</span>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — WEEKLY RECURRING SCHEDULE GRID                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Weekly Recurring Grid</h2>
+    <span class="text-xs text-muted">Each trainer's default weekly template · time slots as filled blocks · conflicts highlighted · bulk-edit row actions</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <div class="label mb-1">Trainer Availability</div>
+      <h1 class="text-xl font-extrabold tracking-tight">Weekly Schedule Template</h1>
+      <p class="mt-0.5 text-xs text-muted">Recurring availability applied every week · override with time-off for exceptions</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold transition hover:bg-paper">Export Schedule</button>
+      <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold transition hover:bg-paper">+ Block Time</button>
+      <button class="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">+ Add Availability</button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="mb-5 flex items-center gap-3">
+    <div class="flex flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+      <svg class="size-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+      <input class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-soft" placeholder="Search trainer…" />
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">All</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Strength</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">HIIT</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Yoga</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Pilates</button>
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink flex items-center gap-1">All branches <svg class="size-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+    <label class="flex items-center gap-2 text-xs font-medium text-ink-2">
+      <div class="tog on"></div> Show conflicts only
+    </label>
+  </div>
+
+  <!-- Grid table -->
+  <div class="overflow-hidden rounded-2xl border border-line bg-white">
+
+    <!-- Column headers -->
+    <div class="grid border-b border-line" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-3 bg-paper/60">
+        <span class="label">Trainer</span>
+      </div>
+      <!-- Day headers -->
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Mon</span></div>
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Tue</span></div>
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Wed</span></div>
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Thu</span></div>
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Fri</span></div>
+      <div class="border-r border-line px-3 py-3 text-center"><span class="label">Sat</span></div>
+      <div class="px-3 py-3 text-center"><span class="label">Sun</span></div>
+    </div>
+
+    <!-- Trainer rows -->
+
+    <!-- Row 1: Aaron Lim -->
+    <div class="grid border-b border-line hover:bg-paper/30 transition" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-4 flex items-start gap-3">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-warm/50 text-xs font-bold">AL</div>
+        <div>
+          <div class="text-sm font-bold">Aaron Lim</div>
+          <div class="text-[11px] text-muted">Strength · HIIT</div>
+          <div class="mt-1 flex items-center gap-1.5">
+            <div class="util-bar w-20"><div class="util-fill bg-emerald-500" style="width:78%"></div></div>
+            <span class="mono text-[10px] text-muted">78%</span>
+          </div>
+          <div class="mt-1 text-[10px] text-muted"><span class="mono font-semibold text-ink">18h</span> booked / <span class="mono">23h</span> avail</div>
+        </div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">07:00–12:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">14:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">07:00–12:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">14:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">07:00–12:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">14:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">07:00–12:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">14:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">07:00–12:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">14:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–13:00</div>
+      </div>
+      <div class="px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Maya Patel — has conflict -->
+    <div class="grid border-b border-line hover:bg-paper/30 transition" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-4 flex items-start gap-3">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">MP</div>
+        <div>
+          <div class="text-sm font-bold flex items-center gap-1.5">Maya Patel <span class="pill pill-red text-[9px]">Conflict</span></div>
+          <div class="text-[11px] text-muted">Yoga · Pilates</div>
+          <div class="mt-1 flex items-center gap-1.5">
+            <div class="util-bar w-20"><div class="util-fill bg-amber-400" style="width:54%"></div></div>
+            <span class="mono text-[10px] text-muted">54%</span>
+          </div>
+          <div class="mt-1 text-[10px] text-muted"><span class="mono font-semibold text-ink">13h</span> booked / <span class="mono">24h</span> avail</div>
+        </div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">06:00–10:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">17:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">06:00–10:00</div>
+        <div class="block rounded-md px-2 py-1 text-[10px] font-semibold conflict">09:00–11:00 ⚠</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">06:00–10:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">17:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">06:00–10:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">17:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">06:00–10:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">17:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="timeoff rounded-md px-2 py-1 text-[10px] font-semibold">Time Off</div>
+      </div>
+      <div class="px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">09:00–13:00</div>
+      </div>
+    </div>
+
+    <!-- Row 3: James Wong -->
+    <div class="grid border-b border-line hover:bg-paper/30 transition" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-4 flex items-start gap-3">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">JW</div>
+        <div>
+          <div class="text-sm font-bold">James Wong</div>
+          <div class="text-[11px] text-muted">Boxing · Cardio</div>
+          <div class="mt-1 flex items-center gap-1.5">
+            <div class="util-bar w-20"><div class="util-fill bg-emerald-500" style="width:92%"></div></div>
+            <span class="mono text-[10px] text-muted">92%</span>
+          </div>
+          <div class="mt-1 text-[10px] text-muted"><span class="mono font-semibold text-ink">22h</span> booked / <span class="mono">24h</span> avail</div>
+        </div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+      <div class="px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+    </div>
+
+    <!-- Row 4: Siti Aminah -->
+    <div class="grid border-b border-line hover:bg-paper/30 transition" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-4 flex items-start gap-3">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-800">SA</div>
+        <div>
+          <div class="text-sm font-bold">Siti Aminah</div>
+          <div class="text-[11px] text-muted">Pilates · Yoga</div>
+          <div class="mt-1 flex items-center gap-1.5">
+            <div class="util-bar w-20"><div class="util-fill bg-amber-400" style="width:41%"></div></div>
+            <span class="mono text-[10px] text-muted">41%</span>
+          </div>
+          <div class="mt-1 text-[10px] text-muted"><span class="mono font-semibold text-ink">8h</span> booked / <span class="mono">20h</span> avail</div>
+        </div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">09:00–13:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">09:00–13:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">15:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">09:00–13:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">15:00–18:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">08:00–14:00</div>
+      </div>
+      <div class="px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+    </div>
+
+    <!-- Row 5: Raj Kumar — time-off upcoming -->
+    <div class="grid border-b border-line hover:bg-paper/30 transition" style="grid-template-columns: 220px repeat(7, 1fr);">
+      <div class="border-r border-line px-4 py-4 flex items-start gap-3">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-800">RK</div>
+        <div>
+          <div class="text-sm font-bold flex items-center gap-1.5">Raj Kumar <span class="pill pill-amber text-[9px]">Time Off Soon</span></div>
+          <div class="text-[11px] text-muted">Strength · Powerlifting</div>
+          <div class="mt-1 flex items-center gap-1.5">
+            <div class="util-bar w-20"><div class="util-fill bg-emerald-500" style="width:65%"></div></div>
+            <span class="mono text-[10px] text-muted">65%</span>
+          </div>
+          <div class="mt-1 text-[10px] text-muted"><span class="mono font-semibold text-ink">13h</span> booked / <span class="mono">20h</span> avail</div>
+        </div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">10:00–14:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">16:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">10:00–14:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">16:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">10:00–14:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">16:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">10:00–14:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">16:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">10:00–14:00</div>
+        <div class="avail rounded-md px-2 py-1 text-[10px] font-semibold">16:00–20:00</div>
+      </div>
+      <div class="border-r border-line px-2 py-3 space-y-1">
+        <div class="timeoff rounded-md px-2 py-1 text-[10px] font-semibold">20–24 May</div>
+      </div>
+      <div class="px-2 py-3 flex items-start justify-center">
+        <div class="pill pill-gray text-[10px]">Off</div>
+      </div>
+    </div>
+
+    <!-- Legend row -->
+    <div class="flex items-center gap-5 border-t border-line bg-paper/40 px-5 py-3">
+      <span class="label">Legend</span>
+      <span class="avail rounded px-2 py-0.5 text-[10px] font-semibold">Available</span>
+      <span class="block rounded px-2 py-0.5 text-[10px] font-semibold">Blocked</span>
+      <span class="timeoff rounded px-2 py-0.5 text-[10px] font-semibold">Time Off</span>
+      <div class="flex items-center gap-1.5"><div class="size-3 rounded-sm bg-rose-300 ring-2 ring-rose-400"></div><span class="text-[11px] text-muted">Schedule conflict</span></div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — TRAINER ROSTER WITH AVAILABILITY SUMMARY CHIPS                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Roster + Availability Chips</h2>
+    <span class="text-xs text-muted">Card-per-trainer · day chips show available window at a glance · click chip to edit · status summary at top</span>
+  </div>
+
+  <!-- KPI bar -->
+  <div class="mb-6 grid grid-cols-4 gap-4">
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="label mb-2">Active Trainers</div>
+      <div class="mono text-3xl font-extrabold">8</div>
+      <div class="mt-1 text-[11px] text-muted">6 available this week</div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="label mb-2">Avg Utilisation</div>
+      <div class="mono text-3xl font-extrabold">67<span class="text-xl text-muted">%</span></div>
+      <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div class="h-full rounded-full bg-amber-400" style="width:67%"></div></div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="label mb-2">Conflicts This Week</div>
+      <div class="mono text-3xl font-extrabold text-rose-600">2</div>
+      <div class="mt-1 text-[11px] text-rose-500">Requires attention</div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="label mb-2">Upcoming Time Off</div>
+      <div class="mono text-3xl font-extrabold">3</div>
+      <div class="mt-1 text-[11px] text-muted">Next 14 days</div>
+    </div>
+  </div>
+
+  <!-- Filters + actions -->
+  <div class="mb-5 flex items-center gap-3">
+    <div class="flex flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+      <svg class="size-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+      <input class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-soft" placeholder="Search by name or specialisation…" />
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">All</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Has Conflict</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Time Off Soon</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Under 50%</button>
+    </div>
+    <button class="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">+ Add Availability</button>
+  </div>
+
+  <!-- Roster cards grid -->
+  <div class="grid grid-cols-2 gap-4">
+
+    <!-- Card 1: Aaron Lim -->
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-11 shrink-0 items-center justify-center rounded-full bg-warm/50 text-sm font-bold">AL</div>
+          <div>
+            <div class="font-bold text-sm">Aaron Lim</div>
+            <div class="text-[11px] text-muted mt-0.5">Strength · HIIT · KL Sentral</div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <div class="util-bar w-24"><div class="util-fill bg-emerald-500" style="width:78%"></div></div>
+              <span class="mono text-[10px] text-muted">78% utilised</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="mono text-right">
+            <div class="text-xs font-bold text-ink">18h / 23h</div>
+            <div class="text-[10px] text-muted">booked / avail</div>
+          </div>
+          <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">Edit</button>
+        </div>
+      </div>
+      <!-- Day chips -->
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Mon</span>
+          <span class="pill pill-green text-[10px]">07:00–12:00</span>
+          <span class="pill pill-green text-[10px]">14:00–18:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Tue</span>
+          <span class="pill pill-green text-[10px]">07:00–12:00</span>
+          <span class="pill pill-green text-[10px]">14:00–18:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Wed</span>
+          <span class="pill pill-green text-[10px]">07:00–12:00</span>
+          <span class="pill pill-green text-[10px]">14:00–18:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Thu</span>
+          <span class="pill pill-green text-[10px]">07:00–12:00</span>
+          <span class="pill pill-green text-[10px]">14:00–18:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Fri</span>
+          <span class="pill pill-green text-[10px]">07:00–12:00</span>
+          <span class="pill pill-green text-[10px]">14:00–18:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sat</span>
+          <span class="pill pill-green text-[10px]">08:00–13:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sun</span>
+          <span class="pill pill-gray text-[10px]">Off</span>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 border-t border-line pt-3">
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">+ Block Time</button>
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">Request Time Off</button>
+      </div>
+    </div>
+
+    <!-- Card 2: Maya Patel — conflict -->
+    <div class="rounded-2xl border border-rose-200 bg-white p-5 ring-1 ring-rose-200">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">MP</div>
+          <div>
+            <div class="font-bold text-sm flex items-center gap-2">Maya Patel <span class="pill pill-red text-[9px]">⚠ Conflict</span></div>
+            <div class="text-[11px] text-muted mt-0.5">Yoga · Pilates · Bangsar</div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <div class="util-bar w-24"><div class="util-fill bg-amber-400" style="width:54%"></div></div>
+              <span class="mono text-[10px] text-muted">54% utilised</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="mono text-right">
+            <div class="text-xs font-bold text-ink">13h / 24h</div>
+            <div class="text-[10px] text-muted">booked / avail</div>
+          </div>
+          <button class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition">Resolve</button>
+        </div>
+      </div>
+      <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        <span class="font-semibold">Conflict on Tuesday:</span> 09:00–11:00 availability overlaps with a booked class slot (Yoga Beginners · Studio 2)
+      </div>
+      <!-- Day chips -->
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Mon</span>
+          <span class="pill pill-green text-[10px]">06:00–10:00</span>
+          <span class="pill pill-green text-[10px]">17:00–20:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Tue</span>
+          <span class="pill pill-green text-[10px]">06:00–10:00</span>
+          <span class="pill pill-red text-[10px] ring-1 ring-rose-400">09:00–11:00 ⚠</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Wed–Fri</span>
+          <span class="pill pill-green text-[10px]">06:00–10:00</span>
+          <span class="pill pill-green text-[10px]">17:00–20:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sat</span>
+          <span class="pill pill-amber text-[10px]">Time Off · 20–24 May</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sun</span>
+          <span class="pill pill-green text-[10px]">09:00–13:00</span>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 border-t border-line pt-3">
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">+ Block Time</button>
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">Request Time Off</button>
+      </div>
+    </div>
+
+    <!-- Card 3: James Wong — high util -->
+    <div class="rounded-2xl border border-line bg-white p-5">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">JW</div>
+          <div>
+            <div class="font-bold text-sm flex items-center gap-2">James Wong <span class="pill pill-green text-[9px]">92% util</span></div>
+            <div class="text-[11px] text-muted mt-0.5">Boxing · Cardio · Mont Kiara</div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <div class="util-bar w-24"><div class="util-fill bg-emerald-500" style="width:92%"></div></div>
+              <span class="mono text-[10px] text-muted">92% utilised</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="mono text-right">
+            <div class="text-xs font-bold text-ink">22h / 24h</div>
+            <div class="text-[10px] text-muted">booked / avail</div>
+          </div>
+          <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">Edit</button>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Mon–Fri</span>
+          <span class="pill pill-green text-[10px]">08:00–18:00</span>
+          <span class="text-[10px] text-muted">(full day)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sat–Sun</span>
+          <span class="pill pill-gray text-[10px]">Off</span>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 border-t border-line pt-3">
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">+ Block Time</button>
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">Request Time Off</button>
+      </div>
+    </div>
+
+    <!-- Card 4: Raj Kumar — time off soon -->
+    <div class="rounded-2xl border border-amber-200 bg-white p-5">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-bold text-rose-800">RK</div>
+          <div>
+            <div class="font-bold text-sm flex items-center gap-2">Raj Kumar <span class="pill pill-amber text-[9px]">Time Off 20–24 May</span></div>
+            <div class="text-[11px] text-muted mt-0.5">Strength · Powerlifting · KLCC</div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <div class="util-bar w-24"><div class="util-fill bg-amber-400" style="width:65%"></div></div>
+              <span class="mono text-[10px] text-muted">65% utilised</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="mono text-right">
+            <div class="text-xs font-bold text-ink">13h / 20h</div>
+            <div class="text-[10px] text-muted">booked / avail</div>
+          </div>
+          <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">Edit</button>
+        </div>
+      </div>
+      <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <span class="font-semibold">5 sessions booked</span> during time-off period · reassignment needed
+      </div>
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Mon–Fri</span>
+          <span class="pill pill-green text-[10px]">10:00–14:00</span>
+          <span class="pill pill-green text-[10px]">16:00–20:00</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sat</span>
+          <span class="pill pill-amber text-[10px]">Time Off · 20–24 May</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="label w-7 shrink-0">Sun</span>
+          <span class="pill pill-gray text-[10px]">Off</span>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 border-t border-line pt-3">
+        <button class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition">Reassign Sessions</button>
+        <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">Edit Availability</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — CALENDAR WITH BLOCKS / TIME-OFF OVERLAYS                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — Calendar + Overlays</h2>
+    <span class="text-xs text-muted">Month/week calendar · availability as background shading · blocks and time-off as overlay events · select trainer to filter</span>
+  </div>
+
+  <!-- Header + trainer selector -->
+  <div class="mb-5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button class="rounded-lg border border-line bg-white p-2 hover:bg-paper transition">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <h3 class="text-lg font-extrabold">May 2026</h3>
+      <button class="rounded-lg border border-line bg-white p-2 hover:bg-paper transition">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <button class="rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-paper transition">Today</button>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Trainer filter chips -->
+      <div class="flex items-center gap-1.5">
+        <span class="label mr-1">Trainer</span>
+        <button class="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">All</button>
+        <button class="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:bg-paper transition flex items-center gap-1.5"><div class="size-2 rounded-full bg-warm"></div>Aaron L.</button>
+        <button class="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:bg-paper transition flex items-center gap-1.5"><div class="size-2 rounded-full bg-blue-400"></div>Maya P.</button>
+        <button class="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:bg-paper transition flex items-center gap-1.5"><div class="size-2 rounded-full bg-emerald-400"></div>James W.</button>
+        <button class="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:bg-paper transition flex items-center gap-1.5">+4</button>
+      </div>
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Month</button>
+        <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">Week</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Day</button>
+      </div>
+      <button class="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">+ Add Availability</button>
+    </div>
+  </div>
+
+  <!-- Calendar week view -->
+  <div class="overflow-hidden rounded-2xl border border-line bg-white">
+
+    <!-- Day headers -->
+    <div class="grid border-b border-line" style="grid-template-columns: 60px repeat(7, 1fr);">
+      <div class="border-r border-line bg-paper/60 p-3"></div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Mon</div>
+        <div class="mono text-sm font-bold mt-0.5">12</div>
+      </div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Tue</div>
+        <div class="mono text-sm font-bold mt-0.5">13</div>
+      </div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Wed</div>
+        <div class="mono text-sm font-bold mt-0.5">14</div>
+      </div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Thu</div>
+        <div class="mono text-sm font-bold mt-0.5 text-blue-600">15 ·</div>
+      </div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Fri</div>
+        <div class="mono text-sm font-bold mt-0.5">16</div>
+      </div>
+      <div class="border-r border-line p-3 text-center">
+        <div class="label">Sat</div>
+        <div class="mono text-sm font-bold mt-0.5">17</div>
+      </div>
+      <div class="p-3 text-center">
+        <div class="label">Sun</div>
+        <div class="mono text-sm font-bold mt-0.5 text-muted">18</div>
+      </div>
+    </div>
+
+    <!-- Time grid body (simplified 3 bands) -->
+    <!-- Morning band -->
+    <div class="grid border-b border-line" style="grid-template-columns: 60px repeat(7, 1fr); min-height: 90px;">
+      <div class="border-r border-line p-3 bg-paper/40">
+        <span class="mono text-[10px] text-muted">06–12</span>
+      </div>
+      <!-- Mon -->
+      <div class="border-r border-line p-1.5 relative">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 07–12</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold mb-1">Maya P. · 06–10</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 08–12</div>
+      </div>
+      <!-- Tue — has conflict -->
+      <div class="border-r border-line p-1.5 relative">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 07–12</div>
+        <div class="block rounded-md p-1.5 text-[10px] font-semibold conflict mb-1">Maya P. ⚠ 09–11</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 08–12</div>
+      </div>
+      <!-- Wed -->
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 07–12</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold mb-1">Maya P. · 06–10</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 08–12</div>
+      </div>
+      <!-- Thu (today) -->
+      <div class="border-r border-line p-1.5 bg-blue-50/40">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 07–12</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold mb-1">Maya P. · 06–10</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 08–12</div>
+      </div>
+      <!-- Fri -->
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 07–12</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold mb-1">Maya P. · 06–10</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 08–12</div>
+      </div>
+      <!-- Sat -->
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 08–13</div>
+        <div class="timeoff rounded-md p-1.5 text-[10px] font-semibold">Maya P. · Time Off</div>
+      </div>
+      <!-- Sun -->
+      <div class="p-1.5 bg-paper/20">
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold">Maya P. · 09–13</div>
+      </div>
+    </div>
+
+    <!-- Afternoon band -->
+    <div class="grid border-b border-line" style="grid-template-columns: 60px repeat(7, 1fr); min-height: 80px;">
+      <div class="border-r border-line p-3 bg-paper/40">
+        <span class="mono text-[10px] text-muted">12–17</span>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="lunch rounded-md p-1.5 text-[10px] font-semibold mb-1">Raj K. · 10–14</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 12–17</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Raj K. · 10–14</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 12–17</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Siti A. · 15–18</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 12–17</div>
+      </div>
+      <div class="border-r border-line p-1.5 bg-blue-50/40">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Raj K. · 10–14</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 12–17</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Siti A. · 15–18</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">James W. · 12–17</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="block rounded-md p-1.5 text-[10px] font-semibold">Raj K. · Blocked 13–15</div>
+      </div>
+      <div class="p-1.5 bg-paper/20"></div>
+    </div>
+
+    <!-- Evening band -->
+    <div class="grid" style="grid-template-columns: 60px repeat(7, 1fr); min-height: 80px;">
+      <div class="border-r border-line p-3 bg-paper/40">
+        <span class="mono text-[10px] text-muted">17–22</span>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 14–18</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold">Maya P. · 17–20</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 14–18</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">Raj K. · 16–20</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 14–18</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold">Maya P. · 17–20</div>
+      </div>
+      <div class="border-r border-line p-1.5 bg-blue-50/40">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 14–18</div>
+        <div class="avail2 rounded-md p-1.5 text-[10px] font-semibold">Maya P. · 17–20</div>
+      </div>
+      <div class="border-r border-line p-1.5">
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold mb-1">Aaron L. · 14–18</div>
+        <div class="avail rounded-md p-1.5 text-[10px] font-semibold">Raj K. · 16–20</div>
+      </div>
+      <div class="border-r border-line p-1.5"></div>
+      <div class="p-1.5 bg-paper/20"></div>
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="mt-4 flex items-center gap-5">
+    <span class="label">Legend</span>
+    <span class="avail rounded px-2 py-0.5 text-[10px] font-semibold">Strength/HIIT trainer</span>
+    <span class="avail2 rounded px-2 py-0.5 text-[10px] font-semibold">Yoga/Pilates trainer</span>
+    <span class="block rounded px-2 py-0.5 text-[10px] font-semibold">Blocked</span>
+    <span class="timeoff rounded px-2 py-0.5 text-[10px] font-semibold">Time Off</span>
+    <div class="flex items-center gap-1.5"><div class="size-3 rounded-sm bg-rose-300 ring-2 ring-rose-400"></div><span class="text-[11px] text-muted">Conflict</span></div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — SIDE-BY-SIDE TRAINER COMPARISON                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Side-by-Side Comparison</h2>
+    <span class="text-xs text-muted">Compare 2–4 trainers simultaneously · time axis on left · gaps / overlaps instantly visible · ideal for scheduling decisions</span>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="mb-5 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="label">Comparing</span>
+      <!-- Active trainer tabs -->
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+        <button class="rounded-lg px-3 py-1.5 text-xs font-semibold bg-warm/40 text-ink-2 flex items-center gap-1.5"><div class="size-2 rounded-full bg-amber-400"></div>Aaron Lim ×</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-semibold bg-blue-100 text-blue-800 flex items-center gap-1.5"><div class="size-2 rounded-full bg-blue-400"></div>Maya Patel ×</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1.5"><div class="size-2 rounded-full bg-emerald-400"></div>James Wong ×</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">+ Add trainer</button>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Mon</button>
+        <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">Tue</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Wed</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Thu</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Fri</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Sat</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Sun</button>
+      </div>
+      <button class="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">+ Block Time</button>
+    </div>
+  </div>
+
+  <!-- Comparison grid -->
+  <div class="overflow-hidden rounded-2xl border border-line bg-white">
+
+    <!-- Trainer header row -->
+    <div class="grid border-b border-line bg-paper/60" style="grid-template-columns: 64px repeat(3, 1fr);">
+      <div class="border-r border-line p-3"><span class="label">Time</span></div>
+      <!-- Aaron -->
+      <div class="border-r border-line p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-full bg-warm/50 text-xs font-bold">AL</div>
+          <div>
+            <div class="text-sm font-bold">Aaron Lim</div>
+            <div class="text-[11px] text-muted">Strength · HIIT</div>
+          </div>
+          <div class="ml-auto text-right">
+            <div class="mono text-xs font-bold">18h / 23h</div>
+            <div class="flex items-center gap-1.5 mt-1"><div class="util-bar w-16"><div class="util-fill bg-emerald-500" style="width:78%"></div></div><span class="mono text-[10px] text-muted">78%</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Maya -->
+      <div class="border-r border-line p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">MP</div>
+          <div>
+            <div class="text-sm font-bold flex items-center gap-1.5">Maya Patel <span class="pill pill-red text-[9px]">⚠</span></div>
+            <div class="text-[11px] text-muted">Yoga · Pilates</div>
+          </div>
+          <div class="ml-auto text-right">
+            <div class="mono text-xs font-bold">13h / 24h</div>
+            <div class="flex items-center gap-1.5 mt-1"><div class="util-bar w-16"><div class="util-fill bg-amber-400" style="width:54%"></div></div><span class="mono text-[10px] text-muted">54%</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- James -->
+      <div class="p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">JW</div>
+          <div>
+            <div class="text-sm font-bold">James Wong</div>
+            <div class="text-[11px] text-muted">Boxing · Cardio</div>
+          </div>
+          <div class="ml-auto text-right">
+            <div class="mono text-xs font-bold">22h / 24h</div>
+            <div class="flex items-center gap-1.5 mt-1"><div class="util-bar w-16"><div class="util-fill bg-emerald-500" style="width:92%"></div></div><span class="mono text-[10px] text-muted">92%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Time rows — Tuesday 13 May -->
+    <!-- Each row = 1-hour band -->
+
+    <!-- Helper macro via repeated rows -->
+    <style>
+      .cmp-row { display: grid; grid-template-columns: 64px repeat(3, 1fr); border-bottom: 1px solid #e5e5e5; min-height: 52px; }
+      .cmp-time { border-right: 1px solid #e5e5e5; padding: 8px 10px; background: #fafafa; display:flex; align-items:center; }
+      .cmp-cell { border-right: 1px solid #e5e5e5; padding: 4px 6px; }
+      .cmp-cell:last-child { border-right: none; }
+    </style>
+
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">06:00</span></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail2 rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">07:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell"><div class="avail2 rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">08:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell"><div class="avail2 rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya · Available</div></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row bg-rose-50/40">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted font-bold text-rose-600">09:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell"><div class="block conflict rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya ⚠ Conflict · Booked class overlaps</div></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">10:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">11:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">12:00</span></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">14:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">James · Available</div></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">17:00</span></div>
+      <div class="cmp-cell"><div class="avail rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Aaron · Available</div></div>
+      <div class="cmp-cell"><div class="avail2 rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya · Available</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+    </div>
+    <div class="cmp-row" style="border-bottom:none;">
+      <div class="cmp-time"><span class="mono text-[10px] text-muted">18:00+</span></div>
+      <div class="cmp-cell bg-paper/20"></div>
+      <div class="cmp-cell"><div class="avail2 rounded-md px-2 py-1.5 text-[10px] font-semibold h-full">Maya · Available till 20:00</div></div>
+      <div class="cmp-cell bg-paper/20"></div>
+    </div>
+
+  </div>
+
+  <!-- Gap summary -->
+  <div class="mt-4 rounded-2xl border border-line bg-white p-5">
+    <div class="label mb-3">Availability Summary — Tuesday 13 May</div>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-2"><div class="size-2 rounded-full bg-amber-400"></div>Aaron Lim</div>
+        <div class="text-[11px] text-muted space-y-1">
+          <div>Available: <span class="mono font-semibold text-ink">07:00–12:00, 14:00–18:00</span></div>
+          <div>Total available: <span class="mono font-semibold text-ink">10h</span></div>
+          <div>Booked sessions: <span class="mono font-semibold text-ink">4 sessions (7h)</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-2"><div class="size-2 rounded-full bg-blue-400"></div>Maya Patel <span class="pill pill-red text-[9px] ml-1">Conflict</span></div>
+        <div class="text-[11px] text-muted space-y-1">
+          <div>Available: <span class="mono font-semibold text-ink">06:00–10:00, 17:00–20:00</span></div>
+          <div class="text-rose-600">⚠ Overlap: <span class="mono font-semibold">09:00–11:00 (Yoga class)</span></div>
+          <div>Net available: <span class="mono font-semibold text-ink">6h (unresolved)</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-2"><div class="size-2 rounded-full bg-emerald-400"></div>James Wong</div>
+        <div class="text-[11px] text-muted space-y-1">
+          <div>Available: <span class="mono font-semibold text-ink">08:00–18:00</span></div>
+          <div>Total available: <span class="mono font-semibold text-ink">10h</span></div>
+          <div>Booked sessions: <span class="mono font-semibold text-ink">5 sessions (9.5h)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — EDIT-FOCUSED FORM WITH DAY TOGGLES + TIME PICKERS                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<section id="d5">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Edit-Focused Form</h2>
+    <span class="text-xs text-muted">Select trainer · toggle days on/off · time range pickers per day · add multiple windows · schedule exceptions inline</span>
+  </div>
+
+  <!-- Two-column layout: trainer list + form -->
+  <div class="grid grid-cols-[300px_1fr] gap-5">
+
+    <!-- Left: trainer list -->
+    <div class="rounded-2xl border border-line bg-white overflow-hidden self-start sticky top-16">
+      <div class="border-b border-line px-4 py-3 bg-paper/60 flex items-center justify-between">
+        <span class="label">Trainers</span>
+        <button class="text-[10px] font-semibold text-ink hover:underline">+ New Trainer</button>
+      </div>
+      <div class="divide-y divide-line">
+
+        <!-- Trainer items -->
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left bg-ink/5 border-l-2 border-ink">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-warm/50 text-[11px] font-bold">AL</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">Aaron Lim</div>
+            <div class="text-[11px] text-muted">Strength · HIIT</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-emerald-600">78%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-800">MP</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate flex items-center gap-1.5">Maya Patel <span class="size-1.5 rounded-full bg-rose-500 inline-block"></span></div>
+            <div class="text-[11px] text-muted">Yoga · Pilates</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-amber-600">54%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-800">JW</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">James Wong</div>
+            <div class="text-[11px] text-muted">Boxing · Cardio</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-emerald-600">92%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-purple-100 text-[11px] font-bold text-purple-800">SA</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">Siti Aminah</div>
+            <div class="text-[11px] text-muted">Pilates · Yoga</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-amber-600">41%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-[11px] font-bold text-rose-800">RK</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate flex items-center gap-1.5">Raj Kumar <span class="pill pill-amber text-[9px]">OOO</span></div>
+            <div class="text-[11px] text-muted">Strength · Powerlifting</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-amber-600">65%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[11px] font-bold text-teal-800">NN</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">Nurul Nadia</div>
+            <div class="text-[11px] text-muted">Zumba · Dance</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-muted">30%</div>
+          </div>
+        </button>
+
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-paper transition text-left">
+          <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-800">ZH</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">Zack Hassan</div>
+            <div class="text-[11px] text-muted">Muay Thai · Boxing</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="mono text-[11px] font-bold text-emerald-600">88%</div>
+          </div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Right: edit form for Aaron Lim (selected) -->
+    <div class="space-y-5">
+
+      <!-- Form header -->
+      <div class="rounded-2xl border border-line bg-white p-6">
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center gap-3">
+            <div class="flex size-11 items-center justify-center rounded-full bg-warm/50 text-sm font-bold">AL</div>
+            <div>
+              <h3 class="text-lg font-extrabold">Aaron Lim</h3>
+              <div class="text-xs text-muted">Strength · HIIT · KL Sentral Branch</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="pill pill-green">Active</span>
+            <button class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper transition">View Profile</button>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-3 gap-4 border-t border-line pt-4">
+          <div>
+            <div class="label mb-1">This Week Booked</div>
+            <div class="mono text-xl font-extrabold">18h</div>
+            <div class="text-[11px] text-muted">of 23h available</div>
+          </div>
+          <div>
+            <div class="label mb-1">Utilisation</div>
+            <div class="mono text-xl font-extrabold">78%</div>
+            <div class="util-bar w-full mt-1"><div class="util-fill bg-emerald-500" style="width:78%"></div></div>
+          </div>
+          <div>
+            <div class="label mb-1">Upcoming Time Off</div>
+            <div class="mono text-xl font-extrabold text-muted">—</div>
+            <div class="text-[11px] text-muted">None scheduled</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly availability form -->
+      <div class="rounded-2xl border border-line bg-white overflow-hidden">
+        <div class="border-b border-line bg-paper/60 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div class="label mb-0.5">Weekly Recurring Availability</div>
+            <p class="text-[11px] text-muted">Set the default schedule applied every week. Use exceptions below for one-off changes.</p>
+          </div>
+          <button class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">Copy Last Week</button>
+        </div>
+
+        <div class="divide-y divide-line">
+
+          <!-- Monday — enabled -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Monday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <!-- Window 1 -->
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="07:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="12:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <!-- Window 2 -->
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="14:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="18:00" type="text" />
+                  <span class="pill pill-green text-[10px]">4h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tuesday — enabled -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Tuesday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="07:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="12:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="14:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="18:00" type="text" />
+                  <span class="pill pill-green text-[10px]">4h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wednesday -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Wednesday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="07:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="12:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="14:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="18:00" type="text" />
+                  <span class="pill pill-green text-[10px]">4h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thursday -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Thursday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="07:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="12:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="14:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="18:00" type="text" />
+                  <span class="pill pill-green text-[10px]">4h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Friday -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Friday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="07:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="12:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="14:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="18:00" type="text" />
+                  <span class="pill pill-green text-[10px]">4h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Saturday — half day -->
+          <div class="px-6 py-4">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog on"></div>
+                <span class="text-sm font-semibold">Saturday</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <input class="time-input" value="08:00" type="text" />
+                  <span class="text-muted text-sm">–</span>
+                  <input class="time-input" value="13:00" type="text" />
+                  <span class="pill pill-green text-[10px]">5h</span>
+                  <button class="ml-1 rounded-md border border-line px-2 py-1 text-[10px] font-medium hover:bg-paper transition text-muted">Block</button>
+                  <button class="rounded-md px-2 py-1 text-[10px] font-medium text-rose-500 hover:bg-rose-50 transition">✕</button>
+                </div>
+                <button class="text-[11px] font-semibold text-ink-3 hover:text-ink transition flex items-center gap-1">+ Add window</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sunday — off -->
+          <div class="px-6 py-4 bg-paper/30">
+            <div class="flex items-start gap-4">
+              <div class="flex items-center gap-3 w-28 shrink-0 pt-0.5">
+                <div class="tog"></div>
+                <span class="text-sm font-medium text-muted">Sunday</span>
+              </div>
+              <div class="flex-1">
+                <span class="text-[11px] text-muted">Day off — toggle to add availability</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Exceptions / Time Off section -->
+      <div class="rounded-2xl border border-line bg-white overflow-hidden">
+        <div class="border-b border-line bg-paper/60 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div class="label mb-0.5">Exceptions &amp; Time Off</div>
+            <p class="text-[11px] text-muted">One-off overrides applied on top of the recurring schedule above.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold hover:bg-paper transition">+ Block Time</button>
+            <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-soft transition">+ Request Time Off</button>
+          </div>
+        </div>
+
+        <!-- No exceptions state for Aaron -->
+        <div class="px-6 py-8 text-center">
+          <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-paper">
+            <svg class="size-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+          </div>
+          <div class="text-sm font-semibold text-ink-2">No exceptions or time off scheduled</div>
+          <div class="mt-1 text-[11px] text-muted">Aaron's recurring schedule is applied every week without modification.</div>
+        </div>
+
+      </div>
+
+      <!-- Upcoming blocked slots (example: for another trainer) -->
+      <div class="rounded-2xl border border-amber-200 bg-amber-50/40 overflow-hidden">
+        <div class="border-b border-amber-200 bg-amber-50 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div class="label mb-0.5 text-amber-700">Blocked Periods</div>
+            <p class="text-[11px] text-amber-700/70">Times within availability that have been manually blocked (e.g. admin tasks, meetings).</p>
+          </div>
+          <button class="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-200 transition">+ Block Time</button>
+        </div>
+        <div class="divide-y divide-amber-100">
+          <div class="flex items-center gap-4 px-6 py-3.5">
+            <div class="flex size-8 items-center justify-center rounded-lg bg-amber-100">
+              <svg class="size-4 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-sm font-semibold">Staff Meeting</div>
+              <div class="text-[11px] text-muted">Fri 16 May · 10:00 – 11:30</div>
+            </div>
+            <span class="pill pill-amber text-[10px]">Weekly</span>
+            <button class="text-[11px] text-muted hover:text-ink transition">Edit</button>
+            <button class="text-[11px] text-rose-500 hover:text-rose-700 transition">Remove</button>
+          </div>
+          <div class="flex items-center gap-4 px-6 py-3.5">
+            <div class="flex size-8 items-center justify-center rounded-lg bg-amber-100">
+              <svg class="size-4 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-sm font-semibold">CPD Training</div>
+              <div class="text-[11px] text-muted">Wed 21 May · 09:00 – 17:00 · One-off</div>
+            </div>
+            <span class="pill pill-gray text-[10px]">One-off</span>
+            <button class="text-[11px] text-muted hover:text-ink transition">Edit</button>
+            <button class="text-[11px] text-rose-500 hover:text-rose-700 transition">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save bar -->
+      <div class="sticky bottom-0 flex items-center justify-between rounded-2xl border border-line bg-white px-6 py-4 shadow-lg">
+        <div class="text-xs text-muted">
+          <span class="font-semibold text-ink">Unsaved changes</span> · changes apply from next Monday unless you choose a custom start date
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-muted">Apply from</span>
+            <input class="time-input" style="width:110px;" value="Mon 19 May" type="text" />
+          </div>
+          <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold transition hover:bg-paper">Discard</button>
+          <button class="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">Save Availability</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- bottom breathing room -->
+<div class="h-20"></div>
+
+</body>
+</html>

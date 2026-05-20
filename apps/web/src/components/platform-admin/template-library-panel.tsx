@@ -5,9 +5,11 @@
  * + "New template" actions; other admin roles see read-only cards.
  */
 
+import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -86,9 +88,21 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 			{props.isLoading ? (
 				<div className="text-sm text-muted-foreground">Loading…</div>
 			) : props.templates.length === 0 ? (
-				<div className="border rounded-md p-8 text-center text-sm text-muted-foreground">
-					No templates yet.
-					{props.isSuperAdmin && " Create one to get started."}
+				<div className="rounded-xl border border-brand-secondary-3 bg-card">
+					<EmptyState
+						icon={FileText}
+						title="No templates yet"
+						description={
+							props.isSuperAdmin
+								? "Create one to get started."
+								: undefined
+						}
+						action={
+							props.isSuperAdmin
+								? { label: "New template", onClick: props.onCreate }
+								: undefined
+						}
+					/>
 				</div>
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

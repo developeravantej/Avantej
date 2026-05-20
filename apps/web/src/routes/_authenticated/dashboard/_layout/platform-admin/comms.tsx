@@ -218,8 +218,9 @@ function PlatformAdminCommsPage() {
 	};
 
 	return (
-		<div className="p-6 space-y-4" data-testid="comms-page">
+		<div className="p-6 space-y-6" data-testid="comms-page">
 			<div>
+				<div className="text-sm text-muted-foreground">Platform admin</div>
 				<h1 className="text-2xl font-semibold">Comms</h1>
 				<p className="text-sm text-muted-foreground mt-1">
 					Outbox + template library.

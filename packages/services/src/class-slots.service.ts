@@ -1,8 +1,10 @@
-import { eq, and, inArray, gte, lte, asc, ne } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, asc, ne, sql } from "drizzle-orm";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
+import { waitlistEntries } from "@avantej-core/db/schema/tenant/waitlist-entries";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -75,12 +77,43 @@ export async function listClassSlots(
 		conditions.push(inArray(classSlots.branchId, accessibleNodeIds));
 	}
 
-	return tenantDb.query.classSlots.findMany({
-		where: conditions.length > 0 ? and(...conditions) : undefined,
-		orderBy: [asc(classSlots.date), asc(classSlots.startTime)],
-		limit,
-		offset,
-	});
+	const rows = await tenantDb
+		.select({
+			id: classSlots.id,
+			serviceId: classSlots.serviceId,
+			branchId: classSlots.branchId,
+			date: classSlots.date,
+			startTime: classSlots.startTime,
+			endTime: classSlots.endTime,
+			capacity: classSlots.capacity,
+			spotsBooked: classSlots.spotsBooked,
+			spotsAvailable: classSlots.spotsAvailable,
+			isFull: classSlots.isFull,
+			isAvailable: classSlots.isAvailable,
+			isCancelled: classSlots.isCancelled,
+			cancellationReason: classSlots.cancellationReason,
+			instructorId: classSlots.instructorId,
+			location: classSlots.location,
+			createdAt: classSlots.createdAt,
+			updatedAt: classSlots.updatedAt,
+			// Waitlist: count active waiting entries for this slot
+			waitlistCount: sql<number>`COALESCE(COUNT(DISTINCT ${waitlistEntries.id}) FILTER (WHERE ${waitlistEntries.status} IN ('waiting', 'notified')), 0)::int`,
+			// Price: pull from the joined service row (in cents)
+			pricePerSpotCents: sql<number>`COALESCE(MAX(${services.price}), 0)::int`,
+		})
+		.from(classSlots)
+		.leftJoin(
+			waitlistEntries,
+			eq(waitlistEntries.classSlotId, classSlots.id),
+		)
+		.leftJoin(services, eq(services.id, classSlots.serviceId))
+		.where(conditions.length > 0 ? and(...conditions) : undefined)
+		.groupBy(classSlots.id)
+		.orderBy(asc(classSlots.date), asc(classSlots.startTime))
+		.limit(limit)
+		.offset(offset);
+
+	return rows;
 }
 
 export async function getClassSlotById(

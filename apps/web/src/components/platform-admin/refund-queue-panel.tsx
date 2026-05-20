@@ -6,7 +6,17 @@
  */
 
 import { Link } from "@tanstack/react-router";
+import { Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 
 export type RecentRefund = {
 	refundId: string;
@@ -35,10 +45,11 @@ function fmtDate(d: Date | string): string {
 	});
 }
 
-function reasonBadgeClass(reason: string): string {
-	if (reason === "fraudulent") return "text-red-700 dark:text-red-400";
-	if (reason === "duplicate") return "text-amber-700 dark:text-amber-400";
-	return "text-muted-foreground";
+function reasonClass(reason: string): string {
+	if (reason === "fraudulent") return "border-red-200 bg-red-50 text-red-700";
+	if (reason === "duplicate")
+		return "border-yellow-200 bg-yellow-50 text-yellow-800";
+	return "border-border bg-muted text-muted-foreground";
 }
 
 export function RefundQueuePanel({
@@ -60,36 +71,47 @@ export function RefundQueuePanel({
 	}
 	if (refunds.length === 0) {
 		return (
-			<div
-				className="text-sm text-muted-foreground p-6 border rounded-md text-center"
+			<EmptyState
+				icon={Undo2}
+				title="No refunds"
+				description="No refunds issued in the platform audit log."
 				data-testid="refund-queue-empty"
-			>
-				No refunds issued in the platform audit log.
-			</div>
+			/>
 		);
 	}
 	return (
 		<div
-			className="border rounded-md overflow-hidden"
+			className="overflow-hidden rounded-xl border border-brand-secondary-3"
 			data-testid="refund-queue-panel"
 		>
-			<table className="w-full text-sm">
-				<thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-					<tr>
-						<th className="text-left p-2">Tenant</th>
-						<th className="text-right p-2">Amount</th>
-						<th className="text-left p-2">Reason</th>
-						<th className="text-left p-2">Refunded by</th>
-						<th className="text-left p-2">When</th>
-					</tr>
-				</thead>
-				<tbody className="divide-y divide-border">
+			<Table>
+				<TableHeader>
+					<TableRow className="bg-white">
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Tenant
+						</TableHead>
+						<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Amount
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Reason
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							Refunded by
+						</TableHead>
+						<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+							When
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
 					{refunds.map((r) => (
-						<tr
+						<TableRow
 							key={r.refundId}
+							className="hover:bg-muted/30"
 							data-testid={`refund-row-${r.refundId}`}
 						>
-							<td className="p-2">
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 								<Link
 									to="/dashboard/platform-admin/tenants/$id"
 									params={{ id: r.orgId }}
@@ -98,28 +120,25 @@ export function RefundQueuePanel({
 								>
 									{r.orgName}
 								</Link>
-							</td>
-							<td className="p-2 text-right tabular-nums text-red-700 dark:text-red-400">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-right font-mono tabular-nums text-red-700">
 								-{fmtCents(r.amountCents)}
-							</td>
-							<td className="p-2">
-								<Badge
-									variant="outline"
-									className={`${reasonBadgeClass(r.reason)} border-current/30`}
-								>
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+								<Badge variant="outline" className={reasonClass(r.reason)}>
 									{r.reason.replace(/_/g, " ")}
 								</Badge>
-							</td>
-							<td className="p-2 text-muted-foreground truncate">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground truncate">
 								{r.actorEmail ?? "—"}
-							</td>
-							<td className="p-2 text-muted-foreground">
+							</TableCell>
+							<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
 								{fmtDate(r.refundedAt)}
-							</td>
-						</tr>
+							</TableCell>
+						</TableRow>
 					))}
-				</tbody>
-			</table>
+				</TableBody>
+			</Table>
 		</div>
 	);
 }

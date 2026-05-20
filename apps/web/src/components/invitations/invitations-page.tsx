@@ -57,13 +57,13 @@ export function InvitationsPage() {
 
 	const invitations: Invitation[] = (invitationsData || []).map((invitation) => ({
 		id: invitation.id,
-		email: invitation.email,
+		email: invitation.email ?? "",
 		role: invitation.role,
 		hierarchyScopeId: invitation.hierarchyScopeId,
 		status: normalizeInvitationStatus(invitation.status, invitation.expiresAt),
 		expiresAt: invitation.expiresAt,
 		createdAt: invitation.createdAt,
-	}));
+	})) as Invitation[];
 
 	// Revoke invitation mutation
 	const revokeMutation = useApiMutation({
@@ -92,7 +92,7 @@ export function InvitationsPage() {
 			await client.invitations.sendEmail({
 				invitation: {
 					token: result.invitation.token,
-					email: result.invitation.email,
+					email: result.invitation.email ?? "",
 					role: result.invitation.role,
 				},
 				organizationId,

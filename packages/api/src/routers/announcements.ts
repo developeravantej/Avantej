@@ -96,6 +96,7 @@ const create = protectedProcedure
 			startDate: z.string().datetime().optional(),
 			endDate: z.string().datetime().optional(),
 			isPinned: z.boolean().optional(),
+			requiresAcknowledgement: z.boolean().optional(),
 			scopedBranchIds: z.array(z.string().uuid()).optional(),
 		}),
 	)
@@ -129,6 +130,7 @@ const create = protectedProcedure
 			startDate: input.startDate ? new Date(input.startDate) : undefined,
 			endDate: input.endDate ? new Date(input.endDate) : undefined,
 			isPinned: input.isPinned,
+			requiresAcknowledgement: input.requiresAcknowledgement,
 			createdBy: context.member.userId,
 			scopedBranchIds: input.scopedBranchIds,
 		});
@@ -145,6 +147,7 @@ const update = protectedProcedure
 			targetAudience: z.enum(["all", "staff", "clients"]).optional(),
 			isActive: z.boolean().optional(),
 			isPinned: z.boolean().optional(),
+			requiresAcknowledgement: z.boolean().optional(),
 			startDate: z.string().datetime().optional(),
 			endDate: z.string().datetime().optional(),
 			scopedBranchIds: z.array(z.string().uuid()).optional(),
@@ -179,6 +182,7 @@ const update = protectedProcedure
 				targetAudience: input.targetAudience,
 				isActive: input.isActive,
 				isPinned: input.isPinned,
+				requiresAcknowledgement: input.requiresAcknowledgement,
 				startDate: input.startDate ? new Date(input.startDate) : undefined,
 				endDate: input.endDate ? new Date(input.endDate) : undefined,
 				scopedBranchIds: input.scopedBranchIds,

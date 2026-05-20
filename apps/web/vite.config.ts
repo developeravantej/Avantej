@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	// Override server port via SERVER_PORT env (used by E2E to avoid worktree port conflicts).
 	const serverUrl =
-		env.VITE_SERVER_URL ?? `http://localhost:${process.env.SERVER_PORT ?? 3000}`;
+		env.VITE_SERVER_URL ?? `http://localhost:${process.env.SERVER_PORT ?? 3020}`;
 
 	return {
 		plugins: [
@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		server: {
-			// In local dev the API (Wrangler) runs on :3000 while the web app runs on :3001.
+			// In local dev the API (Wrangler) runs on :3020 while the web app runs on :3021.
 			// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
 			proxy: {
 				"/rpc": { target: serverUrl, changeOrigin: true },

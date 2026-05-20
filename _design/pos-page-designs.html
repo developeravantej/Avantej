@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>POS Page — 5 Design Directions · Avantej</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink: { DEFAULT: '#0a0a0a', soft: '#262626', 2: '#404040', 3: '#737373', 4: '#a3a3a3' },
+          paper: '#f3f3f3',
+          card: '#ffffff',
+          line: '#e5e5e5',
+          warm: '#d6cdb1',
+          g: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  * { -webkit-font-smoothing: antialiased; }
+  body { background: #f3f3f3; color: #0a0a0a; font-family: 'Inter', system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #737373; }
+  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; }
+  .card-sm { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; }
+  .btn-ink { background: #0a0a0a; color: #fff; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 120ms; }
+  .btn-ink:hover { background: #262626; }
+  .btn-outline { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 500; color: #0a0a0a; cursor: pointer; transition: border-color 120ms; }
+  .btn-outline:hover { border-color: #a3a3a3; }
+  .btn-ghost { border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500; color: #737373; cursor: pointer; transition: background 120ms; }
+  .btn-ghost:hover { background: #f3f3f3; color: #0a0a0a; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+  .chip-green { background: #dcfce7; color: #15803d; }
+  .chip-amber { background: #fef9c3; color: #a16207; }
+  .chip-red { background: #fee2e2; color: #b91c1c; }
+  .chip-blue { background: #dbeafe; color: #1d4ed8; }
+  .chip-warm { background: #faf5eb; color: #92400e; }
+  .chip-ink { background: #0a0a0a; color: #fff; }
+  .input { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px 12px; font-size: 13px; outline: none; transition: border-color 120ms; width: 100%; }
+  .input:focus { border-color: #0a0a0a; }
+  .input-sm { background: #f3f3f3; border: 1px solid #e5e5e5; border-radius: 8px; padding: 6px 10px; font-size: 12px; outline: none; }
+  .sep { border: none; border-top: 1px solid #e5e5e5; margin: 0; }
+  .divider-section { border-top: 8px solid #f3f3f3; }
+  /* Payment method pills */
+  .pm-pill { border: 1.5px solid #e5e5e5; border-radius: 10px; padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 120ms; display: flex; align-items: center; gap-6px; background: #fff; }
+  .pm-pill.active { border-color: #0a0a0a; background: #0a0a0a; color: #fff; }
+  /* catalog grid item */
+  .cat-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 12px; cursor: pointer; transition: border-color 120ms, box-shadow 120ms; }
+  .cat-item:hover { border-color: #0a0a0a; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  /* receipt-style dashed */
+  .receipt-dash { border-top: 1.5px dashed #e5e5e5; }
+  /* big touch button */
+  .touch-btn { background: #fff; border: 1.5px solid #e5e5e5; border-radius: 16px; cursor: pointer; transition: all 120ms; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 8px; }
+  .touch-btn:hover { border-color: #0a0a0a; background: #f9f9f9; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .touch-btn.in-cart { border-color: #0a0a0a; background: #0a0a0a; color: #fff; }
+  /* timeline step */
+  .tl-step { display: flex; gap: 16px; }
+  .tl-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #e5e5e5; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .tl-dot.done { background: #0a0a0a; border-color: #0a0a0a; color: #fff; }
+  .tl-dot.active { border-color: #0a0a0a; }
+  .tl-line { width: 1px; background: #e5e5e5; margin: 4px 0 4px 13px; height: 24px; }
+  /* quick key */
+  .qk { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 120ms; }
+  .qk:hover { border-color: #0a0a0a; background: #fafafa; }
+  .qk.dark { background: #0a0a0a; color: #fff; border-color: #0a0a0a; }
+  .qk.warm { background: #d6cdb1; color: #0a0a0a; border-color: #d6cdb1; }
+  /* scroll */
+  .scrollbar-hide { scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ─── TOP NAV ──────────────────────────────────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1600px] items-center gap-1 px-6 text-xs">
+    <span class="mr-4 label">POS · 5 designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">1 · Two-Pane</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">2 · Touch Grid</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">3 · Customer-First</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">4 · Quick-Keys</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">5 · Conversational</a>
+    <span class="ml-auto text-ink-4">design-only · no logic</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — CLASSIC TWO-PANE                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="divider-section">
+<div class="mx-auto max-w-[1600px] px-7 py-8">
+  <div class="mb-5 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Classic Two-Pane</h2>
+    <span class="text-xs text-ink-3">Catalog left, live cart right — familiar desktop cashier layout with category tabs and search</span>
+  </div>
+
+  <!-- Header bar -->
+  <div class="mb-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-ink text-white">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13l1.5-6"/></svg>
+      </div>
+      <div>
+        <div class="text-sm font-bold leading-none">Point of Sale</div>
+        <div class="text-[10px] text-ink-3 mt-0.5">Front Desk · Thu 15 May 2026</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="chip chip-green">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
+        Terminal Online
+      </span>
+      <button class="btn-outline text-xs py-1.5">New Sale</button>
+      <button class="btn-outline text-xs py-1.5">⌘ Void Last</button>
+      <div class="h-8 w-px bg-line mx-1"></div>
+      <div class="flex items-center gap-2 rounded-xl bg-white border border-line px-3 py-1.5">
+        <div class="h-6 w-6 rounded-full bg-warm flex items-center justify-center text-xs font-bold">S</div>
+        <span class="text-xs font-semibold">Siti</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-[1fr_380px] gap-4 h-[680px]">
+    <!-- LEFT: Catalog -->
+    <div class="flex flex-col gap-3 overflow-hidden">
+      <!-- Customer + search row -->
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="input pl-8 text-sm" placeholder="Search items, barcode scan…" value="" />
+        </div>
+        <div class="flex items-center gap-2 card-sm px-3 py-2 cursor-pointer hover:border-ink-4 transition-colors">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-ink-3"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <div>
+            <div class="text-xs font-semibold leading-none">Amir Hassan</div>
+            <div class="text-[10px] text-ink-3">Member · Gold · Exp 30 Jun</div>
+          </div>
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-ink-4 ml-1"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <!-- Category tabs -->
+      <div class="flex gap-1 overflow-x-auto scrollbar-hide">
+        <button class="btn-ink text-xs py-1.5 px-3 whitespace-nowrap">All</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Memberships</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Packages</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Drop-Ins</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Merchandise</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Food &amp; Bev</button>
+        <button class="btn-outline text-xs py-1.5 px-3 whitespace-nowrap">Rentals</button>
+      </div>
+
+      <!-- Catalog grid -->
+      <div class="grid grid-cols-4 gap-2.5 overflow-y-auto scrollbar-hide flex-1 content-start pb-1">
+        <!-- item -->
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Membership</div>
+          <div class="text-sm font-bold leading-snug mb-1">Monthly<br/>Membership</div>
+          <div class="mono text-sm font-bold">RM 199</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Package</div>
+          <div class="text-sm font-bold leading-snug mb-1">10-PT<br/>Session Pack</div>
+          <div class="mono text-sm font-bold">RM 1,800</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Package</div>
+          <div class="text-sm font-bold leading-snug mb-1">5-PT<br/>Session Pack</div>
+          <div class="mono text-sm font-bold">RM 950</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Drop-In</div>
+          <div class="text-sm font-bold leading-snug mb-1">Day<br/>Pass</div>
+          <div class="mono text-sm font-bold">RM 35</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Drop-In</div>
+          <div class="text-sm font-bold leading-snug mb-1">Yoga<br/>Drop-In</div>
+          <div class="mono text-sm font-bold">RM 45</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Drop-In</div>
+          <div class="text-sm font-bold leading-snug mb-1">Spin<br/>Class</div>
+          <div class="mono text-sm font-bold">RM 40</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Merch</div>
+          <div class="text-sm font-bold leading-snug mb-1">Avantej<br/>T-Shirt</div>
+          <div class="mono text-sm font-bold">RM 65</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Merch</div>
+          <div class="text-sm font-bold leading-snug mb-1">Water<br/>Bottle</div>
+          <div class="mono text-sm font-bold">RM 42</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Food &amp; Bev</div>
+          <div class="text-sm font-bold leading-snug mb-1">Protein<br/>Shake</div>
+          <div class="mono text-sm font-bold">RM 18</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Food &amp; Bev</div>
+          <div class="text-sm font-bold leading-snug mb-1">Energy<br/>Bar</div>
+          <div class="mono text-sm font-bold">RM 12</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Rental</div>
+          <div class="text-sm font-bold leading-snug mb-1">Towel<br/>Rental</div>
+          <div class="mono text-sm font-bold">RM 5</div>
+        </div>
+        <div class="cat-item">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-3">Rental</div>
+          <div class="text-sm font-bold leading-snug mb-1">Locker<br/>Rental</div>
+          <div class="mono text-sm font-bold">RM 10</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Cart -->
+    <div class="flex flex-col card overflow-hidden">
+      <!-- Cart header -->
+      <div class="px-4 py-3 border-b border-line flex items-center justify-between">
+        <div>
+          <div class="text-sm font-bold">Current Order</div>
+          <div class="text-[10px] text-ink-3">Amir Hassan · #TXN-2024051</div>
+        </div>
+        <button class="btn-ghost text-red-500 text-xs px-2 py-1">Clear</button>
+      </div>
+      <!-- Line items -->
+      <div class="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 flex flex-col gap-2">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1">
+            <div class="text-sm font-semibold">Monthly Membership</div>
+            <div class="text-[11px] text-ink-3">Jun 2026 · Auto-renew</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 bg-paper rounded-lg">
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">−</button>
+              <span class="mono text-xs w-5 text-center">1</span>
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">+</button>
+            </div>
+            <div class="mono text-sm font-bold w-16 text-right">199.00</div>
+          </div>
+        </div>
+        <hr class="sep" />
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1">
+            <div class="text-sm font-semibold">Protein Shake</div>
+            <div class="text-[11px] text-ink-3">Chocolate · 450ml</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 bg-paper rounded-lg">
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">−</button>
+              <span class="mono text-xs w-5 text-center">2</span>
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">+</button>
+            </div>
+            <div class="mono text-sm font-bold w-16 text-right">36.00</div>
+          </div>
+        </div>
+        <hr class="sep" />
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1">
+            <div class="text-sm font-semibold">Towel Rental</div>
+            <div class="text-[11px] text-ink-3">Daily</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 bg-paper rounded-lg">
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">−</button>
+              <span class="mono text-xs w-5 text-center">1</span>
+              <button class="w-6 h-6 flex items-center justify-center text-ink-3 font-bold">+</button>
+            </div>
+            <div class="mono text-sm font-bold w-16 text-right">5.00</div>
+          </div>
+        </div>
+        <hr class="sep" />
+        <!-- Promo -->
+        <div class="flex items-center gap-2 mt-1">
+          <input class="input-sm flex-1 text-xs" placeholder="Promo code" value="MEMBER10" />
+          <button class="btn-ghost text-xs px-3 py-1.5 border border-line rounded-lg">Apply</button>
+        </div>
+        <div class="flex items-center justify-between text-xs">
+          <span class="chip chip-green text-[10px]">MEMBER10 applied</span>
+          <span class="mono text-green-600 font-semibold">−RM 24.00</span>
+        </div>
+      </div>
+      <!-- Totals -->
+      <div class="border-t border-line px-4 py-3 space-y-1.5">
+        <div class="flex justify-between text-xs text-ink-3">
+          <span>Subtotal</span><span class="mono">240.00</span>
+        </div>
+        <div class="flex justify-between text-xs text-green-600">
+          <span>Promo (MEMBER10)</span><span class="mono">−24.00</span>
+        </div>
+        <div class="flex justify-between text-xs text-ink-3">
+          <span>SST 8%</span><span class="mono">17.28</span>
+        </div>
+        <hr class="sep" />
+        <div class="flex justify-between text-base font-extrabold">
+          <span>Total</span><span class="mono">RM 233.28</span>
+        </div>
+      </div>
+      <!-- Payment methods -->
+      <div class="border-t border-line px-4 py-3">
+        <div class="label mb-2">Payment</div>
+        <div class="grid grid-cols-4 gap-1.5 mb-3">
+          <button class="pm-pill active justify-center text-xs">Cash</button>
+          <button class="pm-pill justify-center text-xs">Card</button>
+          <button class="pm-pill justify-center text-xs">FPX</button>
+          <button class="pm-pill justify-center text-xs">QR</button>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <div class="flex-1">
+            <div class="label mb-1">Cash Tendered</div>
+            <input class="input mono font-bold text-base" value="RM 250.00" />
+          </div>
+          <div class="flex-1">
+            <div class="label mb-1">Change</div>
+            <div class="bg-paper rounded-xl px-3 py-2.5 mono text-base font-bold text-green-600">RM 16.72</div>
+          </div>
+        </div>
+        <button class="btn-ink w-full text-sm py-3 rounded-xl">Charge RM 233.28</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent transactions strip -->
+  <div class="mt-4">
+    <div class="label mb-2">Recent Transactions</div>
+    <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+      <div class="card-sm px-3 py-2.5 flex items-center gap-3 min-w-[200px]">
+        <div class="h-7 w-7 rounded-full bg-warm flex items-center justify-center text-xs font-bold flex-shrink-0">L</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Lim Wei Chen</div>
+          <div class="text-[10px] text-ink-3">Day Pass · RM 35 · 09:14</div>
+        </div>
+        <span class="chip chip-green text-[9px]">Done</span>
+      </div>
+      <div class="card-sm px-3 py-2.5 flex items-center gap-3 min-w-[200px]">
+        <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0">N</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Nurul Ain</div>
+          <div class="text-[10px] text-ink-3">10-PT Pack · RM 1,800 · 08:52</div>
+        </div>
+        <span class="chip chip-green text-[9px]">Done</span>
+      </div>
+      <div class="card-sm px-3 py-2.5 flex items-center gap-3 min-w-[200px]">
+        <div class="h-7 w-7 rounded-full bg-paper border border-line flex items-center justify-center text-xs font-bold flex-shrink-0">?</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Walk-in</div>
+          <div class="text-[10px] text-ink-3">Yoga + Towel · RM 50 · 08:31</div>
+        </div>
+        <span class="chip chip-green text-[9px]">Done</span>
+      </div>
+      <div class="card-sm px-3 py-2.5 flex items-center gap-3 min-w-[200px]">
+        <div class="h-7 w-7 rounded-full bg-red-100 flex items-center justify-center text-xs font-bold flex-shrink-0">R</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Rajan Kumar</div>
+          <div class="text-[10px] text-ink-3">Monthly · RM 199 · 08:10</div>
+        </div>
+        <span class="chip chip-red text-[9px]">Voided</span>
+      </div>
+      <div class="card-sm px-3 py-2.5 flex items-center gap-3 min-w-[200px]">
+        <div class="h-7 w-7 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold flex-shrink-0">F</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Farah Aziz</div>
+          <div class="text-[10px] text-ink-3">Spin + Protein · RM 58 · 07:55</div>
+        </div>
+        <span class="chip chip-green text-[9px]">Done</span>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — TOUCH-OPTIMIZED BIG-BUTTON GRID                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="divider-section">
+<div class="mx-auto max-w-[1600px] px-7 py-8">
+  <div class="mb-5 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Touch-Optimized Grid</h2>
+    <span class="text-xs text-ink-3">Large tap targets, icon-forward item tiles, thumb-friendly layout for tablet-mounted terminals</span>
+  </div>
+
+  <div class="grid grid-cols-[1fr_320px] gap-4">
+    <!-- LEFT -->
+    <div class="flex flex-col gap-3">
+      <!-- Top bar -->
+      <div class="flex items-center gap-2">
+        <div class="flex gap-1">
+          <button class="btn-ink text-xs py-2 px-4 rounded-xl">All</button>
+          <button class="btn-outline text-xs py-2 px-4 rounded-xl">Membership</button>
+          <button class="btn-outline text-xs py-2 px-4 rounded-xl">Packages</button>
+          <button class="btn-outline text-xs py-2 px-4 rounded-xl">Drop-In</button>
+          <button class="btn-outline text-xs py-2 px-4 rounded-xl">Merch</button>
+          <button class="btn-outline text-xs py-2 px-4 rounded-xl">F&amp;B</button>
+        </div>
+        <div class="ml-auto relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="input pl-8 w-52" placeholder="Search…" />
+        </div>
+      </div>
+
+      <!-- Big touch grid -->
+      <div class="grid grid-cols-4 gap-3">
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🏋️</div>
+          <div class="text-xs font-bold text-center leading-snug">Monthly<br/>Membership</div>
+          <div class="mono text-sm font-extrabold">RM 199</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">💪</div>
+          <div class="text-xs font-bold text-center leading-snug">10-PT<br/>Pack</div>
+          <div class="mono text-sm font-extrabold">RM 1,800</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">💪</div>
+          <div class="text-xs font-bold text-center leading-snug">5-PT<br/>Pack</div>
+          <div class="mono text-sm font-extrabold">RM 950</div>
+        </div>
+        <div class="touch-btn in-cart" style="height:108px">
+          <div class="text-2xl">🎫</div>
+          <div class="text-xs font-bold text-center leading-snug">Day<br/>Pass</div>
+          <div class="mono text-sm font-extrabold">RM 35</div>
+          <div class="absolute top-2 right-2 bg-white text-ink rounded-full w-5 h-5 text-[10px] font-black flex items-center justify-center" style="position:absolute;top:8px;right:8px;background:#fff;color:#0a0a0a;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;">1</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🧘</div>
+          <div class="text-xs font-bold text-center leading-snug">Yoga<br/>Drop-In</div>
+          <div class="mono text-sm font-extrabold">RM 45</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🚴</div>
+          <div class="text-xs font-bold text-center leading-snug">Spin<br/>Class</div>
+          <div class="mono text-sm font-extrabold">RM 40</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">👕</div>
+          <div class="text-xs font-bold text-center leading-snug">Avantej<br/>T-Shirt</div>
+          <div class="mono text-sm font-extrabold">RM 65</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">💧</div>
+          <div class="text-xs font-bold text-center leading-snug">Water<br/>Bottle</div>
+          <div class="mono text-sm font-extrabold">RM 42</div>
+        </div>
+        <div class="touch-btn in-cart relative" style="height:108px">
+          <div class="text-2xl">🥤</div>
+          <div class="text-xs font-bold text-center leading-snug">Protein<br/>Shake</div>
+          <div class="mono text-sm font-extrabold">RM 18</div>
+          <div style="position:absolute;top:8px;right:8px;background:#fff;color:#0a0a0a;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;">2</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🍫</div>
+          <div class="text-xs font-bold text-center leading-snug">Energy<br/>Bar</div>
+          <div class="mono text-sm font-extrabold">RM 12</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🏊</div>
+          <div class="text-xs font-bold text-center leading-snug">Towel<br/>Rental</div>
+          <div class="mono text-sm font-extrabold">RM 5</div>
+        </div>
+        <div class="touch-btn" style="height:108px">
+          <div class="text-2xl">🔐</div>
+          <div class="text-xs font-bold text-center leading-snug">Locker<br/>Rental</div>
+          <div class="mono text-sm font-extrabold">RM 10</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Cart + numpad -->
+    <div class="flex flex-col card overflow-hidden">
+      <div class="px-4 py-3 border-b border-line">
+        <div class="label mb-1">Customer</div>
+        <div class="flex items-center gap-2 bg-paper rounded-xl px-3 py-2 cursor-pointer">
+          <div class="h-6 w-6 rounded-full bg-warm flex items-center justify-center text-xs font-bold">?</div>
+          <span class="text-sm text-ink-3">Walk-in / Search member…</span>
+        </div>
+      </div>
+      <!-- Cart lines -->
+      <div class="flex-1 px-4 py-3 space-y-2 overflow-y-auto scrollbar-hide">
+        <div class="flex justify-between items-center">
+          <div>
+            <div class="text-sm font-semibold">Day Pass</div>
+            <div class="text-[11px] text-ink-3">× 1</div>
+          </div>
+          <div class="mono text-sm font-bold">35.00</div>
+        </div>
+        <hr class="sep"/>
+        <div class="flex justify-between items-center">
+          <div>
+            <div class="text-sm font-semibold">Protein Shake</div>
+            <div class="text-[11px] text-ink-3">× 2</div>
+          </div>
+          <div class="mono text-sm font-bold">36.00</div>
+        </div>
+        <hr class="sep"/>
+        <div class="text-xs text-ink-4 text-center py-4">Tap items to add</div>
+      </div>
+      <!-- Totals -->
+      <div class="border-t border-line px-4 py-3 space-y-1">
+        <div class="flex justify-between text-xs text-ink-3"><span>Subtotal</span><span class="mono">71.00</span></div>
+        <div class="flex justify-between text-xs text-ink-3"><span>SST 8%</span><span class="mono">5.68</span></div>
+        <div class="flex justify-between text-sm font-extrabold mt-1"><span>Total</span><span class="mono">RM 76.68</span></div>
+      </div>
+      <!-- Payment row -->
+      <div class="border-t border-line px-4 py-3">
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button class="pm-pill justify-center active text-xs">Cash</button>
+          <button class="pm-pill justify-center text-xs">Card</button>
+          <button class="pm-pill justify-center text-xs">FPX</button>
+          <button class="pm-pill justify-center text-xs">QR Pay</button>
+        </div>
+        <!-- Numpad -->
+        <div class="bg-paper rounded-xl p-2 mb-3">
+          <div class="mono text-right text-xl font-bold px-2 py-1 mb-1 text-ink">80.00</div>
+          <div class="grid grid-cols-3 gap-1">
+            <button class="qk py-3 text-sm font-bold">7</button><button class="qk py-3 text-sm font-bold">8</button><button class="qk py-3 text-sm font-bold">9</button>
+            <button class="qk py-3 text-sm font-bold">4</button><button class="qk py-3 text-sm font-bold">5</button><button class="qk py-3 text-sm font-bold">6</button>
+            <button class="qk py-3 text-sm font-bold">1</button><button class="qk py-3 text-sm font-bold">2</button><button class="qk py-3 text-sm font-bold">3</button>
+            <button class="qk py-3 text-sm font-bold col-span-2">0</button><button class="qk py-3 text-sm font-bold">⌫</button>
+          </div>
+        </div>
+        <button class="btn-ink w-full text-sm py-3.5 rounded-xl text-base">Charge RM 76.68</button>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — CUSTOMER-FIRST                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="divider-section">
+<div class="mx-auto max-w-[1600px] px-7 py-8">
+  <div class="mb-5 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — Customer-First</h2>
+    <span class="text-xs text-ink-3">Identify the customer first, surface their membership status and purchase history, then build the order</span>
+  </div>
+
+  <div class="grid grid-cols-[300px_1fr_340px] gap-4 h-[700px]">
+    <!-- PANEL 1: Customer -->
+    <div class="card flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-line">
+        <div class="label mb-2">Customer</div>
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="input pl-8 text-sm" placeholder="Name, phone, barcode…" value="amir" />
+        </div>
+      </div>
+      <!-- Customer card (selected) -->
+      <div class="px-4 py-3 border-b border-line bg-paper/50">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="h-10 w-10 rounded-full bg-warm flex items-center justify-center text-sm font-bold flex-shrink-0">AH</div>
+          <div>
+            <div class="text-sm font-bold">Amir Hassan</div>
+            <div class="text-[11px] text-ink-3">+60 12-345 6789</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          <div class="bg-white rounded-lg border border-line px-2.5 py-2">
+            <div class="label" style="font-size:9px">Status</div>
+            <div class="text-xs font-bold text-green-600">Active Member</div>
+          </div>
+          <div class="bg-white rounded-lg border border-line px-2.5 py-2">
+            <div class="label" style="font-size:9px">Tier</div>
+            <div class="text-xs font-bold">Gold</div>
+          </div>
+          <div class="bg-white rounded-lg border border-line px-2.5 py-2">
+            <div class="label" style="font-size:9px">Expires</div>
+            <div class="text-xs font-bold">30 Jun 2026</div>
+          </div>
+          <div class="bg-white rounded-lg border border-line px-2.5 py-2">
+            <div class="label" style="font-size:9px">PT Sessions</div>
+            <div class="text-xs font-bold">3 / 10 left</div>
+          </div>
+        </div>
+      </div>
+      <!-- Past visits -->
+      <div class="px-4 py-3 overflow-y-auto scrollbar-hide flex-1">
+        <div class="label mb-2">Purchase History</div>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center py-1.5 border-b border-line">
+            <div>
+              <div class="font-semibold">Monthly Membership</div>
+              <div class="text-ink-3">01 May 2026 · Cash</div>
+            </div>
+            <div class="mono font-bold">199.00</div>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-line">
+            <div>
+              <div class="font-semibold">10-PT Pack</div>
+              <div class="text-ink-3">15 Apr 2026 · Card</div>
+            </div>
+            <div class="mono font-bold">1,800.00</div>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-line">
+            <div>
+              <div class="font-semibold">Protein Shake × 3</div>
+              <div class="text-ink-3">10 Apr 2026 · FPX</div>
+            </div>
+            <div class="mono font-bold">54.00</div>
+          </div>
+          <div class="flex justify-between items-center py-1.5">
+            <div>
+              <div class="font-semibold">Day Pass + Towel</div>
+              <div class="text-ink-3">02 Apr 2026 · Cash</div>
+            </div>
+            <div class="mono font-bold">40.00</div>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-line px-4 py-3">
+        <button class="btn-outline w-full text-xs py-2">Walk-in (No account)</button>
+      </div>
+    </div>
+
+    <!-- PANEL 2: Catalog (filtered for member) -->
+    <div class="flex flex-col gap-3 overflow-hidden">
+      <!-- Suggested for customer -->
+      <div class="card-sm px-3 py-2.5 flex items-center gap-2 border-warm bg-warm/10" style="border-color:#d6cdb1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="text-xs text-amber-800 font-semibold">Renewal suggestion: Monthly Membership expires in 16 days</span>
+        <button class="ml-auto btn-outline text-xs py-1 px-2" style="font-size:11px">Add to cart</button>
+      </div>
+      <div class="flex items-center justify-between">
+        <div class="flex gap-1">
+          <button class="btn-ink text-xs py-1.5 px-3">All</button>
+          <button class="btn-outline text-xs py-1.5 px-3">Memberships</button>
+          <button class="btn-outline text-xs py-1.5 px-3">Packages</button>
+          <button class="btn-outline text-xs py-1.5 px-3">Drop-Ins</button>
+          <button class="btn-outline text-xs py-1.5 px-3">Other</button>
+        </div>
+        <div class="text-[11px] text-ink-3 flex items-center gap-1">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 4h18M7 8h10M10 12h4"/></svg>
+          Member price applied
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-2.5 overflow-y-auto scrollbar-hide flex-1 content-start pb-1">
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="flex items-start justify-between">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-amber-600">Renewal</div>
+            <span class="chip chip-amber text-[9px]">−10%</span>
+          </div>
+          <div class="text-sm font-bold">Monthly Membership</div>
+          <div class="flex items-end gap-1.5">
+            <div class="mono text-sm font-extrabold">RM 179</div>
+            <div class="mono text-[10px] text-ink-4 line-through">199</div>
+          </div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Package</div>
+          <div class="text-sm font-bold">10-PT Pack</div>
+          <div class="mono text-sm font-extrabold">RM 1,800</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Package</div>
+          <div class="text-sm font-bold">5-PT Pack</div>
+          <div class="mono text-sm font-extrabold">RM 950</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Drop-In</div>
+          <div class="text-sm font-bold">Day Pass</div>
+          <div class="mono text-sm font-extrabold">RM 35</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Drop-In</div>
+          <div class="text-sm font-bold">Yoga Drop-In</div>
+          <div class="mono text-sm font-extrabold">RM 45</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">F&amp;B</div>
+          <div class="text-sm font-bold">Protein Shake</div>
+          <div class="mono text-sm font-extrabold">RM 18</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">F&amp;B</div>
+          <div class="text-sm font-bold">Energy Bar</div>
+          <div class="mono text-sm font-extrabold">RM 12</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Rental</div>
+          <div class="text-sm font-bold">Towel Rental</div>
+          <div class="mono text-sm font-extrabold">RM 5</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+        <div class="cat-item flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-ink-3">Merch</div>
+          <div class="text-sm font-bold">T-Shirt</div>
+          <div class="mono text-sm font-extrabold">RM 65</div>
+          <button class="btn-ink text-xs py-1 mt-auto w-full rounded-lg">+ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: Cart & Checkout -->
+    <div class="flex flex-col card overflow-hidden">
+      <div class="px-4 py-3 border-b border-line">
+        <div class="text-sm font-bold">Order Summary</div>
+        <div class="text-[10px] text-ink-3">Amir Hassan · Gold Member</div>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 space-y-2">
+        <div class="flex justify-between text-sm">
+          <div><div class="font-semibold">Monthly Membership</div><div class="text-[11px] text-ink-3">Member renewal price</div></div>
+          <div class="mono font-bold text-right">179.00</div>
+        </div>
+        <hr class="sep"/>
+        <div class="flex justify-between text-sm">
+          <div><div class="font-semibold">Protein Shake × 2</div><div class="text-[11px] text-ink-3">Chocolate</div></div>
+          <div class="mono font-bold text-right">36.00</div>
+        </div>
+        <hr class="sep"/>
+        <div class="text-xs text-center text-ink-4 py-3">— tap catalog items to add —</div>
+        <!-- Promo -->
+        <div class="bg-paper rounded-xl px-3 py-2.5">
+          <div class="label mb-1.5">Promo Code</div>
+          <div class="flex gap-2">
+            <input class="input-sm flex-1 text-xs" placeholder="Enter code" />
+            <button class="btn-ink text-xs px-3 rounded-lg">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-line px-4 py-3 space-y-1.5">
+        <div class="flex justify-between text-xs text-ink-3"><span>Subtotal</span><span class="mono">215.00</span></div>
+        <div class="flex justify-between text-xs text-ink-3"><span>SST 8%</span><span class="mono">17.20</span></div>
+        <div class="flex justify-between text-base font-extrabold"><span>Total</span><span class="mono">RM 232.20</span></div>
+      </div>
+      <div class="border-t border-line px-4 py-3">
+        <div class="label mb-2">Payment Method</div>
+        <div class="grid grid-cols-2 gap-1.5 mb-3">
+          <button class="pm-pill active justify-center text-xs">Cash</button>
+          <button class="pm-pill justify-center text-xs">Card</button>
+          <button class="pm-pill justify-center text-xs">FPX</button>
+          <button class="pm-pill justify-center text-xs">QR Pay</button>
+        </div>
+        <button class="btn-ink w-full py-3 rounded-xl text-sm">Charge RM 232.20</button>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — QUICK-KEYS + BARCODE FAST CHECKOUT                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="divider-section">
+<div class="mx-auto max-w-[1600px] px-7 py-8">
+  <div class="mb-5 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Quick-Keys &amp; Fast Checkout</h2>
+    <span class="text-xs text-ink-3">Keyboard-driven: barcode scan line, hotkey presets, numpad, minimal chrome for maximum throughput</span>
+  </div>
+
+  <div class="grid grid-cols-[1fr_420px] gap-4">
+    <!-- LEFT: Scan + Quick keys + Recent -->
+    <div class="flex flex-col gap-4">
+      <!-- Scan bar -->
+      <div class="card px-5 py-4 flex items-center gap-4">
+        <div class="flex-shrink-0 flex items-center gap-2 text-ink-3">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="18"/><rect x="11" y="3" width="2" height="18"/><rect x="16" y="3" width="2" height="18"/><rect x="20" y="3" width="1" height="18"/></svg>
+          <span class="label">Scan / Search</span>
+        </div>
+        <input class="input flex-1 mono text-sm font-bold border-2 border-ink focus:border-ink" placeholder="Scan barcode or type item name…" />
+        <div class="label text-[10px]">or press <kbd class="bg-paper border border-line rounded px-1.5 py-0.5 font-mono text-[10px]">F2</kbd></div>
+      </div>
+
+      <!-- Quick key presets -->
+      <div class="card p-4">
+        <div class="label mb-3">Quick Keys</div>
+        <div class="grid grid-cols-6 gap-2">
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F3</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Monthly<br/>Membership</div>
+              <div class="mono text-xs font-bold">199</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F4</div>
+              <div class="text-[11px] font-bold text-center leading-tight">10-PT<br/>Pack</div>
+              <div class="mono text-xs font-bold">1,800</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F5</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Day<br/>Pass</div>
+              <div class="mono text-xs font-bold">35</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F6</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Yoga<br/>Drop-In</div>
+              <div class="mono text-xs font-bold">45</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F7</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Protein<br/>Shake</div>
+              <div class="mono text-xs font-bold">18</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F8</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Towel<br/>Rental</div>
+              <div class="mono text-xs font-bold">5</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F9</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Spin<br/>Class</div>
+              <div class="mono text-xs font-bold">40</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F10</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Energy<br/>Bar</div>
+              <div class="mono text-xs font-bold">12</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F11</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Water<br/>Bottle</div>
+              <div class="mono text-xs font-bold">42</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#d6cdb1;background:#0a0a0a;padding:1px 5px;border-radius:4px">F12</div>
+              <div class="text-[11px] font-bold text-center leading-tight">5-PT<br/>Pack</div>
+              <div class="mono text-xs font-bold">950</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk warm py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px">DISC</div>
+              <div class="text-[11px] font-bold text-center leading-tight">Member<br/>10%</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="qk dark py-4 flex flex-col items-center gap-1.5">
+              <div class="label" style="font-size:8px;color:#a3a3a3">VOID</div>
+              <div class="text-[11px] font-bold text-center leading-tight text-white">Void<br/>Last</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent transactions table -->
+      <div class="card p-4 flex-1">
+        <div class="flex items-center justify-between mb-3">
+          <div class="label">Today's Transactions</div>
+          <div class="mono text-xs text-ink-3">5 transactions · RM 2,142</div>
+        </div>
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-line">
+              <th class="text-left pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Ref</th>
+              <th class="text-left pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Customer</th>
+              <th class="text-left pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Items</th>
+              <th class="text-left pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Method</th>
+              <th class="text-right pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Total</th>
+              <th class="text-right pb-2 font-bold text-ink-3 text-[10px] uppercase tracking-widest">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line">
+            <tr><td class="py-2 mono text-ink-4">#051</td><td class="py-2 font-medium">Lim Wei Chen</td><td class="py-2 text-ink-3">Day Pass</td><td class="py-2">Cash</td><td class="py-2 mono font-bold text-right">35.00</td><td class="py-2 text-right"><span class="chip chip-green">Done</span></td></tr>
+            <tr><td class="py-2 mono text-ink-4">#050</td><td class="py-2 font-medium">Nurul Ain</td><td class="py-2 text-ink-3">10-PT Pack, Shake</td><td class="py-2">Card</td><td class="py-2 mono font-bold text-right">1,818.00</td><td class="py-2 text-right"><span class="chip chip-green">Done</span></td></tr>
+            <tr><td class="py-2 mono text-ink-4">#049</td><td class="py-2 font-medium">Walk-in</td><td class="py-2 text-ink-3">Yoga + Towel</td><td class="py-2">FPX</td><td class="py-2 mono font-bold text-right">50.00</td><td class="py-2 text-right"><span class="chip chip-green">Done</span></td></tr>
+            <tr><td class="py-2 mono text-ink-4">#048</td><td class="py-2 font-medium">Rajan Kumar</td><td class="py-2 text-ink-3">Monthly Membership</td><td class="py-2">Card</td><td class="py-2 mono font-bold text-right">199.00</td><td class="py-2 text-right"><span class="chip chip-red">Voided</span></td></tr>
+            <tr><td class="py-2 mono text-ink-4">#047</td><td class="py-2 font-medium">Farah Aziz</td><td class="py-2 text-ink-3">Spin + Protein × 2</td><td class="py-2">QR</td><td class="py-2 mono font-bold text-right">76.00</td><td class="py-2 text-right"><span class="chip chip-green">Done</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: Receipt-style cart -->
+    <div class="flex flex-col" style="gap:12px">
+      <div class="card flex-1 flex flex-col overflow-hidden font-mono">
+        <!-- Receipt header -->
+        <div class="border-b border-line px-5 py-4 text-center">
+          <div class="text-xs font-bold tracking-widest uppercase text-ink-3">Avantej Fitness</div>
+          <div class="text-[10px] text-ink-4 mt-0.5">KL Sentral · Terminal 01 · Siti</div>
+          <div class="text-[10px] text-ink-4">15 May 2026 · 10:42 AM</div>
+          <div class="text-[10px] font-bold text-ink mt-1">#TXN-052</div>
+        </div>
+        <!-- Customer line -->
+        <div class="px-5 py-2.5 border-b border-dashed border-line flex justify-between text-xs">
+          <span class="text-ink-3">Customer</span>
+          <span class="font-bold">Amir Hassan</span>
+        </div>
+        <!-- Items -->
+        <div class="flex-1 overflow-y-auto scrollbar-hide px-5 py-3 space-y-2">
+          <div class="flex justify-between text-xs">
+            <div>
+              <div class="font-semibold">Monthly Membership</div>
+              <div class="text-ink-4 text-[10px]">1 × 199.00</div>
+            </div>
+            <div class="font-bold">199.00</div>
+          </div>
+          <div class="flex justify-between text-xs">
+            <div>
+              <div class="font-semibold">Protein Shake</div>
+              <div class="text-ink-4 text-[10px]">2 × 18.00</div>
+            </div>
+            <div class="font-bold">36.00</div>
+          </div>
+          <div class="flex justify-between text-xs">
+            <div>
+              <div class="font-semibold">Towel Rental</div>
+              <div class="text-ink-4 text-[10px]">1 × 5.00</div>
+            </div>
+            <div class="font-bold">5.00</div>
+          </div>
+        </div>
+        <!-- Totals receipt style -->
+        <div class="px-5 py-3 border-t border-dashed border-line space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-ink-3">Subtotal</span><span>240.00</span></div>
+          <div class="flex justify-between text-green-600"><span>Promo MEMBER10</span><span>−24.00</span></div>
+          <div class="flex justify-between"><span class="text-ink-3">SST 8%</span><span>17.28</span></div>
+          <div class="receipt-dash my-1"></div>
+          <div class="flex justify-between text-sm font-extrabold"><span>TOTAL</span><span>RM 233.28</span></div>
+          <div class="flex justify-between text-ink-3"><span>Cash Tendered</span><span>250.00</span></div>
+          <div class="flex justify-between font-bold text-green-600"><span>Change</span><span>16.72</span></div>
+        </div>
+        <!-- Payment & Charge -->
+        <div class="border-t border-line px-5 py-3">
+          <div class="flex gap-1.5 mb-3">
+            <button class="pm-pill active flex-1 justify-center text-xs">💵 Cash</button>
+            <button class="pm-pill flex-1 justify-center text-xs">💳 Card</button>
+            <button class="pm-pill flex-1 justify-center text-xs">🏦 FPX</button>
+            <button class="pm-pill flex-1 justify-center text-xs">📱 QR</button>
+          </div>
+          <button class="btn-ink w-full py-3.5 rounded-xl text-sm tracking-wide">⏎ CHARGE RM 233.28</button>
+          <div class="text-center text-[10px] text-ink-4 mt-2">Press Enter to charge</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — CONVERSATIONAL / TIMELINE FLOW                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d5" class="divider-section" style="padding-bottom:80px">
+<div class="mx-auto max-w-[1600px] px-7 py-8">
+  <div class="mb-5 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Conversational / Timeline Flow</h2>
+    <span class="text-xs text-ink-3">Step-by-step guided checkout: each stage unlocks the next, with a persistent order timeline on the right</span>
+  </div>
+
+  <div class="grid grid-cols-[1fr_360px] gap-6">
+    <!-- LEFT: Step flow -->
+    <div class="flex flex-col gap-4">
+
+      <!-- Step 1: Customer — DONE -->
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-1">
+          <div class="tl-dot done">
+            <svg width="12" height="12" fill="white" viewBox="0 0 16 16"><path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-widest text-ink-3">Step 1</div>
+            <div class="text-sm font-bold">Customer</div>
+          </div>
+          <button class="ml-auto btn-ghost text-[11px]">Change</button>
+        </div>
+        <div class="flex items-center gap-3 bg-paper rounded-xl px-3 py-2.5 mt-3">
+          <div class="h-8 w-8 rounded-full bg-warm flex items-center justify-center text-xs font-bold flex-shrink-0">AH</div>
+          <div>
+            <div class="text-sm font-semibold">Amir Hassan</div>
+            <div class="text-[11px] text-ink-3">Gold Member · Exp 30 Jun 2026 · +60 12-345 6789</div>
+          </div>
+          <span class="chip chip-green ml-auto text-[10px]">Active</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Items — DONE -->
+      <div class="card p-5">
+        <div class="flex items-center gap-3 mb-1">
+          <div class="tl-dot done">
+            <svg width="12" height="12" fill="white" viewBox="0 0 16 16"><path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-widest text-ink-3">Step 2</div>
+            <div class="text-sm font-bold">Items</div>
+          </div>
+          <button class="ml-auto btn-ghost text-[11px]">Edit</button>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div class="flex justify-between items-center text-sm">
+            <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-paper border border-line flex items-center justify-center text-[10px] font-bold">×1</span><span class="font-medium">Monthly Membership</span></div>
+            <span class="mono font-bold">199.00</span>
+          </div>
+          <div class="flex justify-between items-center text-sm">
+            <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-paper border border-line flex items-center justify-center text-[10px] font-bold">×2</span><span class="font-medium">Protein Shake</span></div>
+            <span class="mono font-bold">36.00</span>
+          </div>
+          <div class="flex justify-between items-center text-sm">
+            <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-paper border border-line flex items-center justify-center text-[10px] font-bold">×1</span><span class="font-medium">Towel Rental</span></div>
+            <span class="mono font-bold">5.00</span>
+          </div>
+        </div>
+        <!-- Inline add more -->
+        <div class="mt-3 flex gap-2">
+          <div class="relative flex-1">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input class="input pl-8 text-xs" placeholder="Add another item…" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Promotions — ACTIVE -->
+      <div class="card p-5 border-ink" style="border-width:1.5px">
+        <div class="flex items-center gap-3 mb-1">
+          <div class="tl-dot active">
+            <span class="text-[10px] font-extrabold">3</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-widest text-ink">Step 3 — Current</div>
+            <div class="text-sm font-bold">Promotions &amp; Discounts</div>
+          </div>
+        </div>
+        <div class="mt-4 space-y-3">
+          <!-- Auto-suggested promo -->
+          <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <div class="flex-1">
+              <div class="text-xs font-bold text-amber-800">MEMBER10 suggested</div>
+              <div class="text-[10px] text-amber-700">Gold member · 10% off — saves RM 24.00</div>
+            </div>
+            <button class="bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors">Apply</button>
+          </div>
+          <!-- Manual code -->
+          <div>
+            <div class="label mb-1.5">Or enter a code manually</div>
+            <div class="flex gap-2">
+              <input class="input flex-1 text-sm" placeholder="PROMO code" />
+              <button class="btn-outline text-xs px-4">Apply</button>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end mt-4">
+          <button class="btn-ink text-sm px-6 py-2 rounded-xl">Continue to Payment →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Payment — LOCKED -->
+      <div class="card p-5 opacity-50">
+        <div class="flex items-center gap-3">
+          <div class="tl-dot">
+            <span class="text-[10px] font-extrabold text-ink-4">4</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-widest text-ink-3">Step 4</div>
+            <div class="text-sm font-bold text-ink-3">Payment Method</div>
+          </div>
+          <span class="ml-auto chip chip-ink text-[9px]">Locked</span>
+        </div>
+        <div class="mt-4 grid grid-cols-4 gap-2 pointer-events-none">
+          <div class="pm-pill justify-center text-xs opacity-60">Cash</div>
+          <div class="pm-pill justify-center text-xs opacity-60">Card</div>
+          <div class="pm-pill justify-center text-xs opacity-60">FPX</div>
+          <div class="pm-pill justify-center text-xs opacity-60">QR</div>
+        </div>
+      </div>
+
+      <!-- Step 5: Confirm — LOCKED -->
+      <div class="card p-5 opacity-40">
+        <div class="flex items-center gap-3">
+          <div class="tl-dot">
+            <span class="text-[10px] font-extrabold text-ink-4">5</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-widest text-ink-3">Step 5</div>
+            <div class="text-sm font-bold text-ink-3">Confirm &amp; Charge</div>
+          </div>
+          <span class="ml-auto chip chip-ink text-[9px]">Locked</span>
+        </div>
+        <div class="mt-4 h-12 bg-paper rounded-xl flex items-center justify-center text-xs text-ink-4">Complete previous steps to unlock</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Live order summary + history -->
+    <div class="flex flex-col gap-4">
+      <!-- Order summary card -->
+      <div class="card flex flex-col overflow-hidden flex-1">
+        <div class="px-4 py-3 border-b border-line flex items-center justify-between">
+          <div class="text-sm font-bold">Live Order</div>
+          <div class="mono text-[10px] text-ink-3">#TXN-052</div>
+        </div>
+        <!-- Timeline of steps -->
+        <div class="px-4 py-4 flex-1 space-y-4">
+          <div class="flex gap-3 items-start">
+            <div class="w-5 h-5 rounded-full bg-ink flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg width="10" height="10" fill="white" viewBox="0 0 16 16"><path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-[10px] font-bold text-ink-3 uppercase tracking-widest mb-0.5">Customer</div>
+              <div class="text-xs font-semibold">Amir Hassan · Gold</div>
+            </div>
+          </div>
+          <div class="ml-2.5 w-px h-4 bg-line"></div>
+          <div class="flex gap-3 items-start">
+            <div class="w-5 h-5 rounded-full bg-ink flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg width="10" height="10" fill="white" viewBox="0 0 16 16"><path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-[10px] font-bold text-ink-3 uppercase tracking-widest mb-0.5">Items (3)</div>
+              <div class="text-xs text-ink-2">Monthly Membership, Protein Shake ×2, Towel Rental</div>
+            </div>
+          </div>
+          <div class="ml-2.5 w-px h-4 bg-line"></div>
+          <div class="flex gap-3 items-start">
+            <div class="w-5 h-5 rounded-full border-2 border-ink flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-[9px] font-extrabold">3</span>
+            </div>
+            <div class="flex-1">
+              <div class="text-[10px] font-bold text-ink uppercase tracking-widest mb-0.5">Promotions</div>
+              <div class="text-xs text-amber-600 font-semibold">Applying MEMBER10…</div>
+            </div>
+          </div>
+          <div class="ml-2.5 w-px h-4 bg-line"></div>
+          <div class="flex gap-3 items-start opacity-40">
+            <div class="w-5 h-5 rounded-full border-2 border-line flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-[9px] font-extrabold text-ink-4">4</span>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold text-ink-3 uppercase tracking-widest">Payment</div>
+            </div>
+          </div>
+          <div class="ml-2.5 w-px h-4 bg-line"></div>
+          <div class="flex gap-3 items-start opacity-40">
+            <div class="w-5 h-5 rounded-full border-2 border-line flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-[9px] font-extrabold text-ink-4">5</span>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold text-ink-3 uppercase tracking-widest">Confirm</div>
+            </div>
+          </div>
+        </div>
+        <!-- Live totals -->
+        <div class="border-t border-line px-4 py-4 space-y-1.5">
+          <div class="flex justify-between text-xs text-ink-3"><span>Items (3)</span><span class="mono">240.00</span></div>
+          <div class="flex justify-between text-xs text-amber-600"><span>Promo MEMBER10 (pending)</span><span class="mono">−24.00</span></div>
+          <div class="flex justify-between text-xs text-ink-3"><span>SST 8%</span><span class="mono">17.28</span></div>
+          <hr class="sep" />
+          <div class="flex justify-between text-base font-extrabold"><span>Est. Total</span><span class="mono">RM 233.28</span></div>
+        </div>
+      </div>
+
+      <!-- Recent + receipt preview -->
+      <div class="card p-4">
+        <div class="label mb-3">Last Receipt Preview</div>
+        <div class="bg-paper rounded-xl p-3 font-mono text-[10px] space-y-1 text-ink-3">
+          <div class="text-center font-bold text-ink text-[11px]">AVANTEJ FITNESS</div>
+          <div class="text-center">KL Sentral · 15 May 2026</div>
+          <div class="receipt-dash my-1.5"></div>
+          <div class="flex justify-between"><span>Lim Wei Chen</span><span>#TXN-051</span></div>
+          <div class="flex justify-between"><span>Day Pass ×1</span><span>35.00</span></div>
+          <div class="flex justify-between"><span>SST 8%</span><span>2.80</span></div>
+          <div class="receipt-dash my-1.5"></div>
+          <div class="flex justify-between font-bold text-ink"><span>TOTAL</span><span>RM 37.80</span></div>
+          <div class="flex justify-between"><span>Cash</span><span>40.00</span></div>
+          <div class="flex justify-between text-green-600 font-bold"><span>Change</span><span>2.20</span></div>
+          <div class="receipt-dash my-1.5"></div>
+          <div class="text-center text-[9px]">Thank you · See you next time!</div>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn-outline text-xs py-1.5 flex-1">Print</button>
+          <button class="btn-outline text-xs py-1.5 flex-1">Email</button>
+          <button class="btn-ghost text-xs py-1.5 flex-1">WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+</body>
+</html>

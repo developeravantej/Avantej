@@ -3,72 +3,62 @@
 **Route:** `/dashboard/access-control/invitations`
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/access-control/invitations.tsx`
 **Platform:** web
-**Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Auth required:** authenticated (inherited from `_authenticated` layout)
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Legacy redirect stub. This page is slated for rewrite and does not render UI.
+**Purpose (user perspective):** Legacy redirect stub. Old bookmarks land here and are forwarded into the Staff Access page's Invitations tab.
 
-**Produces:** No user-visible output (immediate redirect).
+**Produces:** No UI — redirects in `beforeLoad`.
 
-**On success:** Redirects to `/dashboard/access-control/user-assignment` with tab param `invitations`.
+**On success:** Redirects to `/dashboard/access-control/user-assignment?tab=invitations`.
 
-**On failure / error states:** N/A (stub route)
+**On failure / error states:** None (no user-facing logic).
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:** Route loads → beforeLoad hook calls `makeTabRedirect("/dashboard/access-control/user-assignment", "invitations")` → user redirected before component renders
+**Execution flow:** Route loaded → `beforeLoad: makeTabRedirect("/dashboard/access-control/user-assignment", "invitations")` → router replaces history before render.
 
-**Inputs:** None (redirect is automatic)
-
-**State management:** None
-
-**Outputs:** Navigation redirect only
-
-**Side effects:** Router history updated
+**Inputs:** None.
+**State management:** None.
+**Outputs:** Single navigation redirect.
+**Side effects:** Router history entry updated.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:** None
+**Calls these API endpoints:** None.
+**Uses these components:** None.
+**Uses these hooks:** None (router-level `beforeLoad`).
 
-**Uses these components:** None
-
-**Uses these hooks:** None
-
-**Navigation: who navigates here:** Old bookmarks, legacy links (deprecated)
-
-**Navigation: where it goes:** `/dashboard/access-control/user-assignment?tab=invitations`
+**Navigation in:** Old bookmarks, legacy in-app links.
+**Navigation out:** `/dashboard/access-control/user-assignment?tab=invitations` (which renders `InvitationsTabPage`).
 
 ---
 
 ## 4. Data Shapes
 
-**DB tables touched:** None
-
-**Key types / Zod schemas:** None
+None.
 
 ---
 
 ## 5. Tests
 
-**Test files:** None found
+**Test files:** None found.
 
-**Scenarios covered:** None
-
-**Not tested (risk areas):** Redirect loop if user-assignment page doesn't exist
+**Not tested:** Redirect target existence, query-param preservation.
 
 ---
 
 ## 6. Notes
 
-- Marked as LEGACY in code comment.
-- Component file exists but is a stub that never renders.
-- Actual invitations/user-assignment functionality moved to a different route.
-- `makeTabRedirect` helper handles the redirect logic in beforeLoad guard.
+- File comment marks it `// LEGACY — slated for rewrite; do not extend`.
+- `makeTabRedirect` lives at `@/lib/tab-redirect` and is shared with the `/access-control/permissions` redirect stub.
+- The real invitation management UI is `InvitationsTabPage` (file: `apps/web/src/components/pages/access-control/invitations-tab.tsx`) rendered as the `tab=invitations` view of the Staff Access page.
+- Standalone invitation list (older surface) still exists at `apps/web/src/components/invitations/invitations-page.tsx` — both wrap `CreateInvitationDialog` and share the same `client.invitations.*` API. The Phase 1 refactor only updated the `MembersTabPage` invite flow (now delegates `inviterHierarchyScopeId` resolution to the org context).

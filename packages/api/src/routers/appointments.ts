@@ -63,6 +63,11 @@ export const appointmentsRouter = {
         startFrom: z.string().datetime().optional(),
         startTo: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(500).optional(),
+        /**
+         * scope='assignable_to_me' — WHERE trainer_id = caller.member.id OR trainer_id IS NULL.
+         * scope='all' — no additional trainer filter (default).
+         */
+        scope: z.enum(["assignable_to_me", "all"]).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -124,6 +129,13 @@ export const appointmentsRouter = {
       }
       if (input.branchId) {
         items = items.filter((r) => r.branchId === input.branchId);
+      }
+      // scope='assignable_to_me': keep rows where trainerId equals caller's memberId OR trainerId is null
+      if (input.scope === "assignable_to_me") {
+        const callerMemberId = context.member.id;
+        items = items.filter(
+          (r) => r.trainerId === null || r.trainerId === undefined || r.trainerId === callerMemberId,
+        );
       }
       if (input.limit) {
         items = items.slice(0, input.limit);
@@ -931,6 +943,17 @@ export const appointmentsRouter = {
         });
       }
 
+      // Actor is required by the service layer to fire commission generation
+      // when status transitions to 'completed' or 'cancelled' (Phase 1 rule).
+      // Without it, commission splits are never created.
+      const actor = context.member
+        ? {
+            userId: context.session?.user?.id ?? "",
+            memberId: context.member.id,
+            role: context.member.role,
+          }
+        : undefined;
+
       const updateParams = {
         status: input.status,
         startTime: input.startTime ? new Date(input.startTime) : undefined,
@@ -945,6 +968,7 @@ export const appointmentsRouter = {
         description: input.description,
         imageUrl: input.imageUrl,
         staffAssignments: input.staffAssignments,
+        actor,
       };
 
       try {

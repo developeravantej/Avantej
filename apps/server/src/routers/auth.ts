@@ -342,45 +342,66 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
       }) as NeonDatabase<typeof tenantSchema>;
 
       try {
-        // Get all hierarchy nodes (no soft-delete in current schema)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const allNodes = await tenantDb.query.hierarchyNodes.findMany({
-          orderBy: (nodes: any, { asc }: any) => [
-            asc(nodes.depth),
-            asc(nodes.name),
-          ],
-        });
+        // Hierarchy load — best-effort. Failures here MUST NOT block permission
+        // loading below, otherwise dev/staging schema drift on hierarchy_nodes
+        // (e.g. new column added to schema before migration applied) blocks
+        // every page that gates on a permission.
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const allNodes = await tenantDb.query.hierarchyNodes.findMany({
+            orderBy: (nodes: any, { asc }: any) => [
+              asc(nodes.depth),
+              asc(nodes.name),
+            ],
+          });
 
-        hierarchyData.nodes = allNodes.map((node) => ({
-          id: node.id,
-          name: node.name,
-          type: node.type,
-          depth: node.depth,
-          parentId: node.parentId,
-          createdAt: node.createdAt,
-          updatedAt: node.updatedAt,
-        }));
+          hierarchyData.nodes = allNodes.map((node) => ({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            depth: node.depth,
+            parentId: node.parentId,
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt,
+          }));
+        } catch (hierarchyError) {
+          console.error(
+            `[userContext] Failed to load hierarchy nodes for org ${org.id} (continuing with empty hierarchy):`,
+            hierarchyError,
+          );
+        }
 
-        // Get member record and accessible nodes
+        // Member + permissions — load independently so hierarchy drift doesn't
+        // strip permissions and lock admins out of every page.
         const member = await tenantDb.query.members.findFirst({
           where: eq(members.userId, userId),
         });
 
         if (member) {
-          const accessibleNodeIds = await getDescendantNodeIds(
-            tenantDb,
-            member.hierarchyScopeId
-          );
-
-          const scopeNode = await tenantDb.query.hierarchyNodes.findFirst({
-            where: eq(hierarchyNodes.id, member.hierarchyScopeId),
-          });
+          // accessibleNodeIds best-effort (depends on hierarchy table)
+          let accessibleNodeIds: string[] = [];
+          let scopeName = "Unknown";
+          try {
+            accessibleNodeIds = await getDescendantNodeIds(
+              tenantDb,
+              member.hierarchyScopeId,
+            );
+            const scopeNode = await tenantDb.query.hierarchyNodes.findFirst({
+              where: eq(hierarchyNodes.id, member.hierarchyScopeId),
+            });
+            scopeName = scopeNode?.name || "Unknown";
+          } catch (scopeError) {
+            console.error(
+              `[userContext] Failed to compute accessibleNodeIds for member ${member.id} (continuing without scope):`,
+              scopeError,
+            );
+          }
 
           hierarchyData.member = {
             id: member.id,
             role: member.role,
             hierarchyScopeId: member.hierarchyScopeId,
-            hierarchyScopeName: scopeNode?.name || "Unknown",
+            hierarchyScopeName: scopeName,
             accessibleNodeIds,
           };
 
@@ -427,7 +448,7 @@ const userContext = o.use(authMiddleware).handler(async ({ context }) => {
         await tenantPool.end();
       }
     } catch (error) {
-      console.error(`Failed to load hierarchy for org ${org.id}:`, error);
+      console.error(`[userContext] Tenant DB connection failed for org ${org.id}:`, error);
       // Continue with empty hierarchy data
     }
 

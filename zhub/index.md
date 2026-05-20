@@ -1,8 +1,8 @@
 # Project Hub Index
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-12
 
-Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-15: **Plan B (Stripe Connect + payments)**. New page: `billing-connect` (multi-country onboarding). Updated shared: api-overview (55 routers — added `payments` / `stripeConnect` / `subscriptions`). Plan B work: 14 feature commits + 1 ADR commit (0013-0017) + 1 unit-test commit on branch `payment-backend`. Previous batch (2026-05-09, 52 routers): 7-feature batch (trainer scheduling, branch pricing, status history, multi-staff+recurrence, service config, announcement scoping, supplier invoices).
+Generated from full hub scan. Contains 105 pages (76 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-12: web-debt-cleanup refactor (commit `25f6d75b`) — `features/{appointments,customers-detail,installments,purchase-orders,services}/` extraction, route+lazy splits (payouts, notifications, tax-rates, purchase-orders), `useApiMutation` rollout, refunds workflow promoted to first-class, and 2 new routes. Updated pages: sales-detail, sales-view, purchase-orders, refunds(-view), suppliers-view, appointment-view, dashboard-appointment, attendance-view, customer-detail, access-control-{roles,user-assignment,invitations}, accept-invitation, packages-installments(-view), commissions(-view,-my), trainers-tiers, home, payouts-view, notifications-view, settings-tax-rates, branch-view, go-highlevel-integration, subscribe. New: `operations-approvals`, `trainers-availability`.
 
 ---
 
@@ -51,7 +51,7 @@ Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) pl
 | [Invitations](pages/web-dashboard-access-control-invitations.md) | `/dashboard/access-control/invitations` | Pending invite management |
 | [User Detail](pages/web-dashboard-user-view.md) | `/dashboard/user/$id` | User profile (legacy exempt) |
 
-### Dashboard: Operations (8)
+### Dashboard: Operations (9)
 
 | Page | Route | Purpose |
 |------|-------|---------|
@@ -59,6 +59,7 @@ Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) pl
 | [Class Slots](pages/web-dashboard-appointment-class-slots-view.md) | `/dashboard/appointment/class-slots/view` | Class slot scheduling |
 | [Rooms](pages/web-dashboard-rooms-view.md) | `/dashboard/rooms/view` | Room list and management |
 | [Attendance Today](pages/web-dashboard-attendance-view.md) | `/dashboard/attendance/view` | Today bookings + drop-in check-in |
+| [Pending Approvals](pages/web-dashboard-operations-approvals.md) | `/dashboard/operations/approvals` | Package-purchase approval queue + trainer assignment |
 | [Audit Log](pages/web-dashboard-audit-view.md) | `/dashboard/audit/view` | System audit trail |
 | [Announcements](pages/web-dashboard-announcements-view.md) | `/dashboard/announcements/view` | Org announcements CRUD |
 | [Notifications](pages/web-dashboard-notifications-view.md) | `/dashboard/notifications/view` | Notification history |
@@ -72,7 +73,8 @@ Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) pl
 | [Walk-in Customers](pages/web-dashboard-customers-walk-in-view.md) | `/dashboard/customers/walk-in/view` | Walk-in customer log |
 | [Customer 360](pages/web-dashboard-customers-360.md) | `/dashboard/customers/$id` | Customer detail sheet |
 | [Trainers](pages/web-dashboard-trainers-view.md) | `/dashboard/trainers/view` | Trainer directory |
-| [Trainer Tiers](pages/web-dashboard-trainers-tiers.md) | `/dashboard/trainers/tiers` | Trainer tier configuration |
+| [Trainer Tiers](pages/web-dashboard-trainers-tiers.md) | `/dashboard/trainers/tiers` | Trainer tier configuration (redirect → trainers/view?tab=tiers) |
+| [Trainer Availability](pages/web-dashboard-trainers-availability.md) | `/dashboard/trainers/availability` | Trainer + coach-intake availability scheduling |
 
 ### Dashboard: Branch & Hierarchy (2)
 
@@ -95,7 +97,6 @@ Generated from full hub scan. Contains 104 pages (75 web + 29 native screens) pl
 | [Payouts](pages/web-dashboard-payouts-view.md) | `/dashboard/payouts/view` | Payout records |
 | [Expenses](pages/web-dashboard-expenses-view.md) | `/dashboard/expenses/view` | Expense submit and approval |
 | [Payments](pages/web-dashboard-payment-view.md) | `/dashboard/payment/view` | Payment transaction log |
-| [Billing — Stripe Connect](pages/web-dashboard-billing-connect.md) | `/billing/connect` | Per-country Stripe Connect onboarding (Phase 4 multi-country) |
 | [Promotions](pages/web-dashboard-promotions-view.md) | `/dashboard/promotions/view` | Promo code management |
 | [Purchase Orders](pages/web-dashboard-purchase-orders-view.md) | `/dashboard/purchase-orders/view` | Supplier PO management |
 

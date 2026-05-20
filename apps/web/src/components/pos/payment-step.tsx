@@ -52,7 +52,7 @@ const METHOD_CONFIG = [
 		icon: CreditCard,
 	},
 	{
-		method: "bank_transfer" as const,
+		method: "manual_transfer" as const,
 		label: "Bank Transfer",
 		subtitle: "Reference required",
 		icon: Landmark,
@@ -76,10 +76,13 @@ interface PaymentStepProps {
 	paymentReference: string;
 	amountTenderedCents: number;
 	selectedInstallmentPlanId: string | null;
+	/** Preferred trainer UUID for package purchase — optional. */
+	preferredTrainerId: string | null;
 	onMethodChange: (method: PaymentMethod) => void;
 	onReferenceChange: (ref: string) => void;
 	onAmountTenderedChange: (cents: number) => void;
 	onInstallmentPlanChange: (planId: string | null) => void;
+	onPreferredTrainerChange: (trainerId: string | null) => void;
 }
 
 export function PaymentStep({
@@ -91,10 +94,12 @@ export function PaymentStep({
 	paymentReference,
 	amountTenderedCents,
 	selectedInstallmentPlanId,
+	preferredTrainerId,
 	onMethodChange,
 	onReferenceChange,
 	onAmountTenderedChange,
 	onInstallmentPlanChange,
+	onPreferredTrainerChange,
 }: PaymentStepProps) {
 	const totalCents = calcTotalCents(items, discountCents, taxRateBps);
 	const amountTenderedRm =
@@ -112,8 +117,8 @@ export function PaymentStep({
 			? amountTenderedCents - totalCents
 			: null;
 
-	const packageItems = items.filter((i) => i.type === "package");
-	const showInstallmentPicker = packageItems.length === 1;
+	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
+	const showInstallmentPicker = packageItems.length >= 1;
 
 	const { data: installmentPlans = [] } = useQuery({
 		queryKey: ["installment-plans", organizationId],
@@ -133,6 +138,13 @@ export function PaymentStep({
 		numInstallments: p.numInstallments,
 	}));
 
+	// Trainer list — only fetched when a package item is in the cart
+	const { data: trainers = [] } = useQuery({
+		queryKey: ["members-trainers", organizationId],
+		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
+		enabled: showInstallmentPicker,
+	});
+
 	return (
 		<div className="space-y-6">
 			{/* Payment method cards */}
@@ -145,7 +157,7 @@ export function PaymentStep({
 							<button
 								key={m}
 								type="button"
-								onClick={() => onMethodChange(m)}
+								onClick={() => onMethodChange(m as any)}
 								className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
 									isSelected
 										? "border-primary bg-primary/5 shadow-sm"
@@ -175,7 +187,7 @@ export function PaymentStep({
 			</div>
 
 			{/* Online payment callout */}
-			{method === "online" && (
+			{(method as any) === "online" && (
 				<StatusCallout variant="info" title="Payment link will be generated">
 					A payment link will be generated after you finalize the sale. Forward
 					it to the customer to collect payment.
@@ -183,7 +195,7 @@ export function PaymentStep({
 			)}
 
 			{/* Reference input — card / bank transfer */}
-			{(method === "card" || method === "bank_transfer") && (
+			{(method === "card" || method === "manual_transfer") && (
 				<div className="space-y-1.5">
 					<Label htmlFor="payment-ref">
 						{method === "card" ? "Card auth code" : "Bank transfer reference"}
@@ -248,7 +260,7 @@ export function PaymentStep({
 							onInstallmentPlanChange(v === "full" ? null : v)
 						}
 					>
-						<SelectTrigger id="installment-plan" className="w-full max-w-xs">
+						<SelectTrigger id="installment-plan" className="w-full max-w-xs" data-testid="pos-installment-plan-select">
 							<SelectValue placeholder="Pay in full" />
 						</SelectTrigger>
 						<SelectContent>
@@ -263,6 +275,37 @@ export function PaymentStep({
 					{planOptions.length === 0 && (
 						<p className="text-muted-foreground text-xs">
 							No instalment plans configured. Will charge full amount.
+						</p>
+					)}
+				</div>
+			)}
+
+			{/* Preferred trainer picker — shown for package purchases */}
+			{showInstallmentPicker && (
+				<div className="space-y-1.5">
+					<Label htmlFor="preferred-trainer">
+						Preferred trainer{" "}
+						<span className="font-normal text-muted-foreground">(optional)</span>
+					</Label>
+					<Select
+						value={preferredTrainerId ?? "none"}
+						onValueChange={(v) => onPreferredTrainerChange(v === "none" ? null : v)}
+					>
+						<SelectTrigger id="preferred-trainer" className="w-full max-w-xs">
+							<SelectValue placeholder="No preference" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="none">No preference</SelectItem>
+							{trainers.map((trainer: any) => (
+								<SelectItem key={trainer.id} value={trainer.id}>
+									{trainer.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{trainers.length === 0 && (
+						<p className="text-muted-foreground text-xs">
+							No trainers found. You can assign one later from the package detail.
 						</p>
 					)}
 				</div>

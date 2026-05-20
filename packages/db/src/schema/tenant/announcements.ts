@@ -26,6 +26,7 @@ export const announcements = pgTable("announcements", {
 
 	isActive: boolean("is_active").default(true).notNull(),
 	isPinned: boolean("is_pinned").default(false).notNull(),
+	requiresAcknowledgement: boolean("requires_acknowledgement").notNull().default(false),
 
 	createdBy: text("created_by").notNull(),
 

@@ -1,13 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { ProcessRefundDialog } from "@/components/refunds/process-refund-dialog";
-import { CopyableCell } from "@/components/tables/copyable-cell";
-import DataTable from "@/components/tables/sales/view/data-table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -16,16 +13,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
-import { PageLoader } from "@/components/ui/loading-spinner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
-import { StatusBadge } from "@/components/ui/status-badge";
-import type { CanonicalStatus } from "@/components/ui/status-badge";
-import { formatPrice } from "@/lib/money";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
@@ -65,12 +58,9 @@ type RefundRow = {
 	refundReference: string | null;
 	customerId: string;
 	customerName: string;
-	// Enriched fields from backend join
 	requestedByName?: string | null;
 	salesOrderNumber?: string | null;
 };
-
-// ─── Audit row type ────────────────────────────────────────────────────────────
 
 type AuditRow = {
 	id: string;
@@ -92,10 +82,14 @@ const STATUS_TABS: { value: RefundStatus | "all"; label: string }[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(value: string | Date | null | undefined): string {
+function timeAgo(value: string | Date | null | undefined): string {
 	if (!value) return "—";
 	try {
-		return new Date(value).toLocaleDateString("en-MY");
+		const diff = Date.now() - new Date(value).getTime();
+		const days = Math.floor(diff / 86_400_000);
+		if (days === 0) return "today";
+		if (days === 1) return "yesterday";
+		return `${days} days ago`;
 	} catch {
 		return "—";
 	}
@@ -116,61 +110,71 @@ function formatDateTime(value: string | Date | null | undefined): string {
 	}
 }
 
-// Maps refund statuses to canonical StatusBadge equivalents.
-const REFUND_STATUS_MAP: Record<
-	string,
-	{ status: CanonicalStatus; label?: string }
-> = {
-	pending: { status: "pending" },
-	approved: { status: "approved" },
-	rejected: { status: "rejected" },
-	processed: { status: "completed", label: "Processed" },
-	cancelled: { status: "cancelled" },
-};
-
-function RefundStatusBadge({ status }: { status: string }) {
-	const mapped = REFUND_STATUS_MAP[status] ?? {
-		status: "draft" as CanonicalStatus,
-		label: status,
-	};
-	return <StatusBadge status={mapped.status} label={mapped.label} />;
+function initials(name: string): string {
+	return name
+		.split(" ")
+		.slice(0, 2)
+		.map((p) => p[0] ?? "")
+		.join("")
+		.toUpperCase();
 }
 
-function TargetCell({ refund }: { refund: RefundRow }) {
+function saleRef(refund: RefundRow): string {
+	if (refund.salesOrderNumber) return refund.salesOrderNumber;
+	if (refund.salesOrderId) return refund.salesOrderId.slice(0, 8);
+	if (refund.paymentId) return refund.paymentId.slice(0, 8);
+	if (refund.packageInstanceId) return refund.packageInstanceId.slice(0, 8);
+	return "—";
+}
+
+function saleRefLink(refund: RefundRow) {
+	const label = saleRef(refund);
 	if (refund.salesOrderId) {
-		const label = refund.salesOrderNumber
-			? `Sale ${refund.salesOrderNumber}`
-			: `Sale ${refund.salesOrderId.slice(0, 8)}…`;
 		return (
 			<Link
 				to="/dashboard/sales/$id"
 				params={{ id: refund.salesOrderId }}
-				className="font-mono text-primary text-sm hover:underline"
+				className="font-mono text-xs text-blue-600 hover:underline"
+				onClick={(e) => e.stopPropagation()}
 			>
 				{label}
 			</Link>
 		);
 	}
-	if (refund.paymentId) {
-		return (
-			<span className="font-mono text-muted-foreground text-sm">
-				Payment {refund.paymentId.slice(0, 8)}…
-			</span>
-		);
-	}
-	if (refund.packageInstanceId) {
-		return (
-			<span className="font-mono text-muted-foreground text-sm">
-				Package {refund.packageInstanceId.slice(0, 8)}…
-			</span>
-		);
-	}
-	return <span className="text-muted-foreground">-</span>;
+	return <span className="font-mono text-xs text-[#737373]">{label}</span>;
 }
 
-// ─── Detail drawer ────────────────────────────────────────────────────────────
+// ─── Status badge (design tokens) ─────────────────────────────────────────────
 
-function RefundDetailDrawer({
+function RefundBadge({ status }: { status: string }) {
+	const map: Record<string, string> = {
+		pending:
+			"bg-white text-[#4a4f51] border border-[#e5e5e5]",
+		approved:
+			"bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0]",
+		processed:
+			"bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]",
+		rejected:
+			"bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]",
+		cancelled: "bg-[#d9d9ca] text-[#4a4f51]",
+	};
+	const cls = map[status] ?? "bg-[#d9d9ca] text-[#4a4f51]";
+	const label =
+		status === "processed"
+			? "Paid"
+			: status.charAt(0).toUpperCase() + status.slice(1);
+	return (
+		<span
+			className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-0.5 text-[11px] font-medium leading-[1.4] ${cls}`}
+		>
+			{label}
+		</span>
+	);
+}
+
+// ─── Audit Trail Dialog ────────────────────────────────────────────────────────
+
+function AuditTrailDialog({
 	refund,
 	open,
 	onOpenChange,
@@ -197,182 +201,60 @@ function RefundDetailDrawer({
 	});
 
 	if (!refund) return null;
-
 	const auditRows = (auditData as { rows?: AuditRow[] } | undefined)?.rows ?? [];
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-xl overflow-y-auto">
+			<DialogContent className="sm:max-w-lg overflow-y-auto max-h-[80vh]">
 				<DialogHeader>
-					<DialogTitle>Refund Details</DialogTitle>
+					<DialogTitle>Audit Trail</DialogTitle>
 					<DialogDescription>
-						Full information and audit trail for {refund.refundNumber}.
+						Event history for refund{" "}
+						<span className="font-mono font-medium">{refund.refundNumber}</span>.
 					</DialogDescription>
 				</DialogHeader>
-
-				<div className="flex flex-col gap-5 px-1 py-4">
-					{/* Core info */}
-					<div className="space-y-3 rounded-lg border p-4">
-						<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-							Refund Info
-						</h3>
-						<div className="grid grid-cols-2 gap-3 text-sm">
-							<div>
-								<p className="text-muted-foreground">Refund #</p>
-								<p className="font-medium font-mono">{refund.refundNumber}</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground">Status</p>
-								<RefundStatusBadge status={refund.status} />
-							</div>
-							<div>
-								<p className="text-muted-foreground">Customer</p>
-								<p className="font-medium">{refund.customerName}</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground">Amount</p>
-								<p className="font-medium">
-									{formatPrice(refund.amountCents, "MYR")}
-								</p>
-							</div>
-							{refund.taxAmountCents > 0 && (
-								<div>
-									<p className="text-muted-foreground">Tax</p>
-									<p className="font-medium">
-										{formatPrice(refund.taxAmountCents, "MYR")}
-									</p>
-								</div>
-							)}
-							<div>
-								<p className="text-muted-foreground">Requested At</p>
-								<p className="font-medium">
-									{formatDateTime(refund.requestedAt)}
-								</p>
-							</div>
-							<div>
-								<p className="text-muted-foreground">Requested By</p>
-								<p className="font-medium">
-									{refund.requestedByName ??
-										`${refund.requestedBy.slice(0, 8)}…`}
-								</p>
-							</div>
-							<div className="col-span-2">
-								<p className="text-muted-foreground">Reason</p>
-								<p className="font-medium">{refund.reason}</p>
-							</div>
-							{refund.notes && (
-								<div className="col-span-2">
-									<p className="text-muted-foreground">Notes</p>
-									<p className="font-medium">{refund.notes}</p>
-								</div>
-							)}
-						</div>
-					</div>
-
-					{/* Review info */}
-					{(refund.reviewedBy || refund.reviewNotes) && (
-						<div className="space-y-3 rounded-lg border p-4">
-							<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-								Review
-							</h3>
-							<div className="grid grid-cols-2 gap-3 text-sm">
-								<div>
-									<p className="text-muted-foreground">Reviewed At</p>
-									<p className="font-medium">
-										{formatDateTime(refund.reviewedAt)}
-									</p>
-								</div>
-								<div>
-									<p className="text-muted-foreground">Reviewed By</p>
-									<p className="font-medium">
-										{refund.reviewedBy?.slice(0, 8) ?? "—"}…
-									</p>
-								</div>
-								{refund.reviewNotes && (
-									<div className="col-span-2">
-										<p className="text-muted-foreground">Review Notes</p>
-										<p className="font-medium">{refund.reviewNotes}</p>
-									</div>
-								)}
-							</div>
-						</div>
-					)}
-
-					{/* Processing info */}
-					{refund.status === "processed" && refund.processedAt && (
-						<div className="space-y-3 rounded-lg border p-4">
-							<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-								Processing
-							</h3>
-							<div className="grid grid-cols-2 gap-3 text-sm">
-								<div>
-									<p className="text-muted-foreground">Processed At</p>
-									<p className="font-medium">
-										{formatDateTime(refund.processedAt)}
-									</p>
-								</div>
-								<div>
-									<p className="text-muted-foreground">Method</p>
-									<p className="font-medium capitalize">
-										{refund.refundMethod?.replace(/_/g, " ") ?? "—"}
-									</p>
-								</div>
-								{refund.refundReference && (
-									<div className="col-span-2">
-										<p className="text-muted-foreground">Reference</p>
-										<p className="font-medium font-mono">
-											{refund.refundReference}
-										</p>
-									</div>
-								)}
-							</div>
-						</div>
-					)}
-
-					<Separator />
-
-					{/* Audit trail */}
-					<div className="space-y-3">
-						<h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-							Audit Trail
-						</h3>
-						{auditRows.length === 0 ? (
-							<p className="text-muted-foreground text-sm">
-								No audit events found.
-							</p>
-						) : (
-							<div className="space-y-2">
-								{auditRows.map((row: AuditRow) => (
-									<div
-										key={row.id}
-										className="space-y-1 rounded-md border px-3 py-2 text-sm"
-									>
+				<div className="py-2 space-y-3">
+					{auditRows.length === 0 ? (
+						<p className="text-[#737373] text-sm">No audit events found.</p>
+					) : (
+						<div className="relative pl-4 space-y-4">
+							<span
+								aria-hidden
+								className="absolute left-1.5 top-2 bottom-2 w-px bg-[#edede4]"
+							/>
+							{auditRows.map((row: AuditRow) => (
+								<div key={row.id} className="relative flex gap-3">
+									<span className="absolute -left-4 top-1 h-2.5 w-2.5 rounded-full border-2 border-black bg-white" />
+									<div className="flex-1 min-w-0 space-y-0.5">
 										<div className="flex items-center justify-between gap-2">
-											<span className="rounded border border-orange-200 bg-orange-100 px-1.5 py-0.5 font-mono text-orange-800 text-xs">
+											<span className="rounded border border-orange-200 bg-orange-50 px-1.5 py-0.5 font-mono text-orange-800 text-xs">
 												{row.action}
 											</span>
-											<span className="text-muted-foreground text-xs">
+											<span className="text-[#737373] text-xs whitespace-nowrap">
 												{formatDateTime(row.createdAt)}
 											</span>
 										</div>
-										<p className="text-muted-foreground text-xs">
-											{row.summary}
-										</p>
+										{row.summary && (
+											<p className="text-sm text-[#737373]">{row.summary}</p>
+										)}
 										{row.actorName && (
-											<p className="text-xs">By: {row.actorName}</p>
+											<p className="text-xs text-[#737373]">
+												By:{" "}
+												<span className="text-[#0a0a0a]">{row.actorName}</span>
+											</p>
 										)}
 									</div>
-								))}
-							</div>
-						)}
-					</div>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</DialogContent>
 		</Dialog>
 	);
 }
 
-// ─── Reject dialog ─────────────────────────────────────────────────────────────
+// ─── Reject Dialog ─────────────────────────────────────────────────────────────
 
 function RejectDialog({
 	open,
@@ -408,8 +290,7 @@ function RejectDialog({
 				<DialogHeader>
 					<DialogTitle>Reject Refund</DialogTitle>
 					<DialogDescription>
-						Provide a reason for rejection. This will be visible in the audit
-						trail.
+						Provide a reason for rejection. This will be visible in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3 py-2">
@@ -443,28 +324,564 @@ function RejectDialog({
 	);
 }
 
+// ─── Inline expanded decision panel ───────────────────────────────────────────
+
+function InlineDecisionPanel({
+	refund,
+	organizationId,
+	onApproved,
+	onReject,
+}: {
+	refund: RefundRow;
+	organizationId: string;
+	onApproved: () => void;
+	onReject: (refund: RefundRow) => void;
+}) {
+	const [amountRm, setAmountRm] = useState(
+		(refund.amountCents / 100).toFixed(2),
+	);
+	const [notes, setNotes] = useState("");
+	const [error, setError] = useState<string | null>(null);
+
+	const approveMutation = useApiMutation({
+		mutationFn: (vars: {
+			id: string;
+			approveAmountCents?: number;
+			reviewNotes?: string;
+		}) =>
+			client.refunds.approve({
+				organizationId,
+				id: vars.id,
+				approveAmountCents: vars.approveAmountCents,
+				reviewNotes: vars.reviewNotes,
+			}),
+		successMessage: () => {
+			const cents = rmToCents(Number(amountRm));
+			return cents < refund.amountCents
+				? `Partial approval: ${formatPrice(cents, "MYR")} approved.`
+				: "Refund approved in full.";
+		},
+		errorMessage: (err) => err.message ?? "Failed to approve refund.",
+		invalidate: [["refunds"]],
+		onSuccess: () => {
+			onApproved();
+		},
+	});
+
+	function handleApprove() {
+		const parsed = Number(amountRm);
+		if (Number.isNaN(parsed) || parsed <= 0) {
+			setError("Enter a valid amount greater than 0.");
+			return;
+		}
+		const cents = rmToCents(parsed);
+		if (cents > refund.amountCents) {
+			setError(
+				`Cannot exceed requested amount (${formatPrice(refund.amountCents, "MYR")}).`,
+			);
+			return;
+		}
+		setError(null);
+		approveMutation.mutate({
+			id: refund.id,
+			approveAmountCents: cents,
+			reviewNotes: notes.trim() || undefined,
+		});
+	}
+
+	return (
+		<div
+			className="border-t border-[#e5e5e5] bg-[#f3f3f3] px-6 py-5"
+			onClick={(e) => e.stopPropagation()}
+		>
+			<div className="grid grid-cols-3 gap-8">
+				{/* Refund Details */}
+				<div>
+					<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Refund Details
+					</div>
+					<div className="space-y-2 text-sm">
+						<div className="flex justify-between">
+							<span className="text-[#737373]">Refund ID</span>
+							<span className="font-mono text-xs">{refund.refundNumber}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-[#737373]">Original sale</span>
+							<span className="font-mono text-xs">{saleRef(refund)}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-[#737373]">Requested amount</span>
+							<span className="font-mono font-semibold">
+								{formatPrice(refund.amountCents, "MYR")}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-[#737373]">Reason category</span>
+							<span className="text-xs truncate max-w-[140px]">{refund.reason}</span>
+						</div>
+					</div>
+				</div>
+
+				{/* Customer Note */}
+				<div>
+					<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Customer Note
+					</div>
+					<div className="rounded-lg border border-[#e5e5e5] bg-white p-3 text-sm text-[#737373] leading-relaxed">
+						{refund.notes ? (
+							<span>"{refund.notes}"</span>
+						) : (
+							<span className="italic">No additional notes provided.</span>
+						)}
+					</div>
+					<div className="mt-2 text-xs text-[#737373]">No attachments</div>
+				</div>
+
+				{/* Decision */}
+				<div>
+					<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Decision
+					</div>
+					<div className="mb-3">
+						<label className="mb-1.5 block text-xs font-medium text-[#0a0a0a]">
+							Approve amount (edit if partial)
+						</label>
+						<div className="flex gap-0">
+							<span className="flex items-center rounded-l-lg border border-r-0 border-[#e5e5e5] bg-white px-3 text-sm font-medium text-[#737373]">
+								RM
+							</span>
+							<input
+								type="number"
+								step="0.01"
+								min="0.01"
+								className="w-full rounded-l-none rounded-r-lg border border-[#e5e5e5] bg-white px-3 py-[9px] text-sm text-[#0a0a0a] outline-none transition-colors focus:border-[#0a0a0a]"
+								value={amountRm}
+								onChange={(e) => {
+									setAmountRm(e.target.value);
+									setError(null);
+								}}
+							/>
+						</div>
+						{error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+					</div>
+					<div className="mb-4">
+						<label className="mb-1.5 block text-xs font-medium text-[#0a0a0a]">
+							Internal note (optional)
+						</label>
+						<textarea
+							rows={2}
+							className="w-full resize-none rounded-lg border border-[#e5e5e5] bg-white px-3 py-[9px] text-sm text-[#0a0a0a] placeholder-[#6b7170] outline-none transition-colors focus:border-[#0a0a0a]"
+							placeholder="e.g. Verified relocation documents…"
+							value={notes}
+							onChange={(e) => setNotes(e.target.value)}
+						/>
+					</div>
+					<div className="flex gap-2">
+						<button
+							type="button"
+							disabled={approveMutation.isPending}
+							onClick={handleApprove}
+							className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3.5 py-2 text-[13px] font-semibold text-[#15803d] transition-colors hover:bg-[#dcfce7] disabled:opacity-50"
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.5"
+								aria-hidden
+							>
+								<path d="M20 6 9 17l-5-5" />
+							</svg>
+							{approveMutation.isPending ? "Approving…" : "Approve"}
+						</button>
+						<button
+							type="button"
+							disabled={approveMutation.isPending}
+							onClick={() => onReject(refund)}
+							className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3.5 py-2 text-[13px] font-semibold text-[#b91c1c] transition-colors hover:bg-[#fee2e2] disabled:opacity-50"
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.5"
+								aria-hidden
+							>
+								<path d="M18 6 6 18M6 6l12 12" />
+							</svg>
+							Reject
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ─── Queue Row ────────────────────────────────────────────────────────────────
+
+const COL_TEMPLATE = "2fr 1fr 1fr 120px 90px 80px";
+
+function QueueRow({
+	refund,
+	isPending,
+	isSelected,
+	canApprove,
+	canProcess,
+	expanded,
+	onToggle,
+	onToggleSelect,
+	onReject,
+	onProcess,
+	onAuditTrail,
+	organizationId,
+	onApproved,
+}: {
+	refund: RefundRow;
+	isPending: boolean;
+	isSelected: boolean;
+	canApprove: boolean;
+	canProcess: boolean;
+	expanded: boolean;
+	onToggle: () => void;
+	onToggleSelect: () => void;
+	onReject: (r: RefundRow) => void;
+	onProcess: (r: RefundRow) => void;
+	onAuditTrail: (r: RefundRow) => void;
+	organizationId: string;
+	onApproved: () => void;
+}) {
+	const isWalkIn = !refund.customerId.startsWith("mem_");
+
+	const avatarCls = isPending
+		? isWalkIn
+			? "bg-[#d9d9ca] text-[#0a0a0a]"
+			: "bg-[#000] text-white"
+		: isWalkIn
+			? "bg-[#d9d9ca] text-[#0a0a0a] opacity-50"
+			: "bg-[#000] text-white opacity-50";
+
+	const rowBase = isPending
+		? "hover:bg-[#f3f3f3]/50 cursor-pointer"
+		: "hover:bg-[#f3f3f3]/30 cursor-pointer";
+
+	return (
+		<div className="border-b border-[#e5e5e5] last:border-b-0">
+			<div
+				className={`grid items-center px-6 ${isPending ? "py-4" : "py-3.5"} ${rowBase}`}
+				style={{ gridTemplateColumns: COL_TEMPLATE }}
+				onClick={onToggle}
+			>
+				{/* Customer / Reason */}
+				<div className="flex items-center gap-3">
+					{isPending && canApprove && (
+						<Checkbox
+							checked={isSelected}
+							onCheckedChange={onToggleSelect}
+							onClick={(e) => e.stopPropagation()}
+							aria-label={`Select ${refund.refundNumber}`}
+							className="flex-shrink-0"
+						/>
+					)}
+					<span
+						className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarCls}`}
+					>
+						{initials(refund.customerName)}
+					</span>
+					<div>
+						<div className="flex items-center gap-2">
+							<span
+								className={`text-sm font-semibold ${isPending ? "text-[#0a0a0a]" : "text-[#0a0a0a]"}`}
+							>
+								{refund.customerName}
+							</span>
+							<span
+								className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-medium leading-[1.4] ${isWalkIn ? "bg-[#d9d9ca] text-[#0a0a0a]" : "bg-[#000] text-white"}`}
+							>
+								{isWalkIn ? "Walk-in" : "Member"}
+							</span>
+						</div>
+						<div className="mt-0.5 max-w-xs truncate text-xs text-[#737373]">
+							{refund.reason}
+						</div>
+					</div>
+				</div>
+
+				{/* Sale Ref */}
+				<div onClick={(e) => e.stopPropagation()}>{saleRefLink(refund)}</div>
+
+				{/* Requested */}
+				<div className="text-xs text-[#737373]">{timeAgo(refund.requestedAt)}</div>
+
+				{/* Amount */}
+				<div
+					className={`font-mono tabular-nums ${isPending ? "text-sm font-semibold text-[#0a0a0a]" : "text-sm text-[#0a0a0a]"}`}
+				>
+					{formatPrice(refund.amountCents, "MYR")}
+				</div>
+
+				{/* Status */}
+				<div>
+					<RefundBadge status={refund.status} />
+				</div>
+
+				{/* Chevron + actions */}
+				<div className="flex items-center justify-end gap-1">
+					{/* Mark processed for approved rows */}
+					{refund.status === "approved" && canProcess && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								onProcess(refund);
+							}}
+							className="mr-1 rounded-md border border-[#e5e5e5] bg-white px-2 py-1 text-[11px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+						>
+							Mark Paid
+						</button>
+					)}
+					{/* Audit trail overflow */}
+					<button
+						type="button"
+						title="View audit trail"
+						onClick={(e) => {
+							e.stopPropagation();
+							onAuditTrail(refund);
+						}}
+						className="rounded-md p-1 text-[#737373] transition-colors hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
+					>
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							aria-hidden
+						>
+							<circle cx="12" cy="12" r="10" />
+							<path d="M12 6v6l4 2" />
+						</svg>
+					</button>
+					{/* Chevron */}
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+						aria-hidden
+					>
+						<path d="m6 9 6 6 6-6" />
+					</svg>
+				</div>
+			</div>
+
+			{/* Inline expanded panel — pending only shows decision; others show details */}
+			{expanded && (
+				<>
+					{isPending && canApprove ? (
+						<InlineDecisionPanel
+							refund={refund}
+							organizationId={organizationId}
+							onApproved={onApproved}
+							onReject={onReject}
+						/>
+					) : (
+						<div className="border-t border-[#e5e5e5] bg-[#f3f3f3] px-6 py-5">
+							<div className="grid grid-cols-2 gap-6 text-sm">
+								<div className="space-y-2">
+									<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Refund Details
+									</div>
+									<div className="flex justify-between">
+										<span className="text-[#737373]">Refund #</span>
+										<span className="font-mono text-xs">{refund.refundNumber}</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-[#737373]">Amount</span>
+										<span className="font-mono font-semibold">
+											{formatPrice(refund.amountCents, "MYR")}
+										</span>
+									</div>
+									{refund.reviewedAt && (
+										<div className="flex justify-between">
+											<span className="text-[#737373]">Reviewed</span>
+											<span className="text-xs">
+												{formatDateTime(refund.reviewedAt)}
+											</span>
+										</div>
+									)}
+									{refund.reviewNotes && (
+										<div className="flex justify-between gap-4">
+											<span className="text-[#737373] shrink-0">Review note</span>
+											<span className="text-xs text-right">{refund.reviewNotes}</span>
+										</div>
+									)}
+								</div>
+								<div className="space-y-2">
+									<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Request Info
+									</div>
+									<div className="flex justify-between">
+										<span className="text-[#737373]">Reason</span>
+										<span className="text-xs text-right max-w-[200px]">
+											{refund.reason}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-[#737373]">Requested by</span>
+										<span className="text-xs">
+											{refund.requestedByName ??
+												`${refund.requestedBy.slice(0, 8)}…`}
+										</span>
+									</div>
+									{refund.notes && (
+										<div className="flex justify-between gap-4">
+											<span className="text-[#737373] shrink-0">Notes</span>
+											<span className="text-xs text-right">{refund.notes}</span>
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
+// ─── Bulk Approve Bar ─────────────────────────────────────────────────────────
+
+function BulkApproveBar({
+	selectedIds,
+	selectedRows,
+	organizationId,
+	onDone,
+}: {
+	selectedIds: string[];
+	selectedRows: RefundRow[];
+	organizationId: string;
+	onDone: () => void;
+}) {
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const count = selectedIds.length;
+	const totalCents = selectedRows.reduce((s, r) => s + r.amountCents, 0);
+
+	const bulkApproveMutation = useApiMutation({
+		mutationFn: () =>
+			client.refunds.bulkApprove({
+				organizationId,
+				items: selectedIds.map((id) => ({ id })),
+			}),
+		successMessage: `Approved ${count} refund${count !== 1 ? "s" : ""}.`,
+		errorMessage: (err) => err.message ?? "Bulk approve failed.",
+		invalidate: [["refunds"]],
+		onSuccess: () => {
+			setConfirmOpen(false);
+			onDone();
+		},
+	});
+
+	const pendingOnly = selectedRows.every((r) => r.status === "pending");
+	if (count === 0 || !pendingOnly) return null;
+
+	return (
+		<>
+			{/* Floating bar anchored to bottom of the edge-to-edge wrapper */}
+			<div className="flex shrink-0 items-center gap-3 border-t border-[#e5e5e5] bg-white px-6 py-3">
+				<span className="text-sm font-medium text-[#0a0a0a]">
+					{count} refund{count !== 1 ? "s" : ""} selected
+				</span>
+				<span className="font-mono text-sm tabular-nums text-[#737373]">
+					{formatPrice(totalCents, "MYR")} total
+				</span>
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={onDone}
+						className="rounded-lg border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+					>
+						Clear
+					</button>
+					<button
+						type="button"
+						onClick={() => setConfirmOpen(true)}
+						className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3.5 py-2 text-[13px] font-semibold text-[#15803d] transition-colors hover:bg-[#dcfce7]"
+					>
+						Approve {count}
+					</button>
+				</div>
+			</div>
+
+			<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+				<DialogContent className="sm:max-w-sm">
+					<DialogHeader>
+						<DialogTitle>Bulk Approve Refunds</DialogTitle>
+						<DialogDescription>
+							Approve {count} refund{count !== 1 ? "s" : ""} totalling{" "}
+							<span className="font-semibold font-mono">
+								{formatPrice(totalCents, "MYR")}
+							</span>
+							? Each will be approved at its full requested amount.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmOpen(false)}
+							disabled={bulkApproveMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => bulkApproveMutation.mutate()}
+							disabled={bulkApproveMutation.isPending}
+						>
+							{bulkApproveMutation.isPending ? "Approving…" : "Confirm Approve"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function RefundsLedgerPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const refundsKey = ["refunds", organizationId];
 
-	// Permissions
 	const canApprove = hasPermission("refund_management:approve");
 	const canProcess = hasPermission("refund_management:process");
 
 	// ── State ──────────────────────────────────────────────────────────────────
 	const [activeTab, setActiveTab] = useState<RefundStatus | "all">("all");
-	const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-	const [selectedRefund, setSelectedRefund] = useState<RefundRow | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [expandedId, setExpandedId] = useState<string | null>(null);
+
+	// Reject dialog
+	const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+	const [rejectRefund, setRejectRefund] = useState<RefundRow | null>(null);
+
+	// Process dialog
 	const [processDialogOpen, setProcessDialogOpen] = useState(false);
 	const [processRefundId, setProcessRefundId] = useState<string | null>(null);
-	const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-	const [rejectRefundId, setRejectRefundId] = useState<string | null>(null);
-	const [approveRefundId, setApproveRefundId] = useState<string | null>(null);
+
+	// Audit trail dialog
+	const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+	const [auditRefund, setAuditRefund] = useState<RefundRow | null>(null);
+
+	// Bulk selection
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 	// ── Data ───────────────────────────────────────────────────────────────────
 	const { data, isLoading, isError, error, refetch } = useQuery({
@@ -481,39 +898,31 @@ function RefundsLedgerPage() {
 		enabled: !!organizationId,
 	});
 
-	const rows: RefundRow[] = (data as { rows?: RefundRow[] } | undefined)?.rows ?? [];
+	const allRows: RefundRow[] =
+		(data as { rows?: RefundRow[] } | undefined)?.rows ?? [];
+
+	// Client-side search filter
+	const rows = searchQuery.trim()
+		? allRows.filter((r) => {
+				const q = searchQuery.toLowerCase();
+				return (
+					r.customerName.toLowerCase().includes(q) ||
+					r.refundNumber.toLowerCase().includes(q) ||
+					r.reason.toLowerCase().includes(q) ||
+					(r.salesOrderNumber ?? "").toLowerCase().includes(q)
+				);
+			})
+		: allRows;
 
 	// ── KPI computations ───────────────────────────────────────────────────────
-	const pendingCount = rows.filter((r) => r.status === "pending").length;
-
-	const today = new Date().toLocaleDateString("en-MY");
-	const approvedTodayCount = rows.filter(
-		(r) =>
-			r.status === "approved" &&
-			r.reviewedAt &&
-			new Date(r.reviewedAt).toLocaleDateString("en-MY") === today,
-	).length;
-
-	const totalRefundedCents = rows
-		.filter((r) => r.status === "processed" || r.status === "approved")
-		.reduce((s, r) => s + (r.amountCents ?? 0), 0);
+	const pendingRows = rows.filter((r) => r.status === "pending");
+	const processedRows = rows.filter(
+		(r) => r.status !== "pending",
+	);
+	const pendingCount = pendingRows.length;
+	const outstandingCents = pendingRows.reduce((s, r) => s + r.amountCents, 0);
 
 	// ── Mutations ──────────────────────────────────────────────────────────────
-	const approveMutation = useApiMutation({
-		mutationFn: (vars: { id: string; reviewNotes?: string }) =>
-			client.refunds.approve({
-				organizationId: organizationId!,
-				id: vars.id,
-				reviewNotes: vars.reviewNotes,
-			}),
-		successMessage: "Refund approved.",
-		errorMessage: (err) => err.message ?? "Failed to approve refund.",
-		invalidate: [refundsKey],
-		onSuccess: () => {
-			setApproveRefundId(null);
-		},
-	});
-
 	const rejectMutation = useApiMutation({
 		mutationFn: (vars: { id: string; reviewNotes: string }) =>
 			client.refunds.reject({
@@ -523,306 +932,364 @@ function RefundsLedgerPage() {
 			}),
 		successMessage: "Refund rejected.",
 		errorMessage: (err) => err.message ?? "Failed to reject refund.",
-		invalidate: [refundsKey],
+		invalidate: [["refunds"]],
 		onSuccess: () => {
 			setRejectDialogOpen(false);
-			setRejectRefundId(null);
+			setRejectRefund(null);
+			setExpandedId(null);
 		},
 	});
 
 	// ── Helpers ────────────────────────────────────────────────────────────────
-	function openDetail(refund: RefundRow) {
-		setSelectedRefund(refund);
-		setDetailDrawerOpen(true);
+	function toggleExpand(id: string) {
+		setExpandedId((prev) => (prev === id ? null : id));
 	}
 
-	function openProcess(refund: RefundRow) {
-		setProcessRefundId(refund.id);
-		setProcessDialogOpen(true);
+	function toggleSelect(id: string) {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
 	}
 
-	function openReject(refund: RefundRow) {
-		setRejectRefundId(refund.id);
-		setRejectDialogOpen(true);
+	function toggleSelectAll() {
+		if (selectedIds.size === pendingRows.length && pendingRows.length > 0) {
+			setSelectedIds(new Set());
+		} else {
+			setSelectedIds(new Set(pendingRows.map((r) => r.id)));
+		}
 	}
 
-	// ── Columns ────────────────────────────────────────────────────────────────
-	const tableColumns: ColumnDef<RefundRow>[] = [
-		{
-			id: "requestedAt",
-			header: "Date",
-			cell: ({ row }) => (
-				<span className="whitespace-nowrap text-sm">
-					{formatDate(row.original.requestedAt)}
-				</span>
-			),
-		},
-		{
-			id: "refundNumber",
-			header: "Refund #",
-			cell: ({ row }) => <CopyableCell value={row.original.refundNumber} />,
-		},
-		{
-			id: "customerName",
-			header: "Customer",
-			cell: ({ row }) => (
-				<span className="text-sm">{row.original.customerName}</span>
-			),
-		},
-		{
-			id: "target",
-			header: "Target",
-			cell: ({ row }) => <TargetCell refund={row.original} />,
-		},
-		{
-			id: "amountCents",
-			header: "Amount",
-			cell: ({ row }) => (
-				<span className="font-medium text-sm tabular-nums">
-					{formatPrice(row.original.amountCents, "MYR")}
-				</span>
-			),
-		},
-		{
-			id: "reason",
-			header: "Reason",
-			cell: ({ row }) => (
-				<span
-					className="block max-w-[180px] truncate text-sm"
-					title={row.original.reason}
-				>
-					{row.original.reason}
-				</span>
-			),
-		},
-		{
-			id: "requestedByName",
-			header: "Requested By",
-			cell: ({ row }) => (
-				<span className="text-sm">
-					{row.original.requestedByName ??
-						`${row.original.requestedBy.slice(0, 8)}…`}
-				</span>
-			),
-		},
-		{
-			id: "status",
-			header: "Status",
-			cell: ({ row }) => <RefundStatusBadge status={row.original.status} />,
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => {
-				const r = row.original;
-				return (
-					<div className="flex items-center gap-1.5">
-						{r.status === "pending" && canApprove && (
-							<>
-								<Button
-									size="sm"
-									variant="outline"
-									className="border-green-300 text-green-700 hover:bg-green-50"
-									onClick={(e) => {
-										e.stopPropagation();
-										setApproveRefundId(r.id);
-										approveMutation.mutate({ id: r.id });
-									}}
-									disabled={
-										approveMutation.isPending && approveRefundId === r.id
-									}
-								>
-									{approveMutation.isPending && approveRefundId === r.id
-										? "Approving…"
-										: "Approve"}
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									className="border-destructive/40 text-destructive hover:bg-destructive/5"
-									onClick={(e) => {
-										e.stopPropagation();
-										openReject(r);
-									}}
-								>
-									Reject
-								</Button>
-							</>
-						)}
-						{r.status === "approved" && canProcess && (
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={(e) => {
-									e.stopPropagation();
-									openProcess(r);
-								}}
-							>
-								Mark Processed
-							</Button>
-						)}
-						{(r.status === "processed" || r.status === "rejected") && (
-							<Button
-								size="sm"
-								variant="ghost"
-								onClick={(e) => {
-									e.stopPropagation();
-									openDetail(r);
-								}}
-							>
-								View Details
-							</Button>
-						)}
-					</div>
-				);
-			},
-		},
-	];
+	const allPendingSelected =
+		pendingRows.length > 0 && selectedIds.size === pendingRows.length;
+	const selectedRows = rows.filter((r) => selectedIds.has(r.id));
 
 	// ── Guards ─────────────────────────────────────────────────────────────────
 	if (!organizationId) {
 		return (
-			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col items-center justify-center">
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					No organization selected
+				</p>
+				<p className="text-xs mt-1 text-[#737373]">
 					Select an organization to view refunds.
-				</div>
+				</p>
 			</div>
 		);
 	}
 
 	if (!hasPermission("refund_management:read")) {
 		return (
-			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-					You do not have permission to view refunds.
-				</div>
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col items-center justify-center">
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					You don&apos;t have access to this page
+				</p>
+				<p className="text-xs mt-1 text-[#737373]">
+					Ask an admin to grant refund management access.
+				</p>
 			</div>
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			{/* Fixed header */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Undo2 className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Refunds</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Review and process refund requests
-						</p>
-					</div>
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col gap-4">
+			{/* Page header */}
+			<div className="flex items-end justify-between">
+				<div>
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						REFUNDS MANAGEMENT
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Refunds
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
+						{rows.length} refund{rows.length !== 1 ? "s" : ""}
+						{outstandingCents > 0 && (
+							<>
+								{" · "}
+								<span className="font-mono tabular-nums">
+									{formatPrice(outstandingCents, "MYR")}
+								</span>{" "}
+								outstanding
+							</>
+						)}
+					</p>
 				</div>
 			</div>
 
-			{/* Filter band */}
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
-					{STATUS_TABS.map((tab) => {
-						const isActive = activeTab === tab.value;
-						return (
-							<button
-								key={tab.value}
-								type="button"
-								role="tab"
-								aria-selected={isActive}
-								onClick={() => setActiveTab(tab.value)}
-								className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-									isActive
-										? "border-foreground text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground"
-								}`}
+			{/* Main card — fills the space */}
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white border border-[#e5e5e5] rounded-2xl" style={{ minHeight: "calc(100vh - 200px)" }}>
+				{/* Toolbar */}
+				<div className="flex shrink-0 items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
+					<div className="flex items-center gap-3">
+						{/* Search */}
+						<div className="relative">
+							<svg
+								className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]"
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								aria-hidden
 							>
-								{tab.label}
-							</button>
-						);
-					})}
+								<circle cx="11" cy="11" r="8" />
+								<path d="m21 21-4.35-4.35" />
+							</svg>
+							<input
+								type="text"
+								className="w-60 rounded-xl border border-[#e5e5e5] bg-white py-[9px] pl-9 pr-3 text-sm text-[#0a0a0a] outline-none transition-colors placeholder:text-[#737373] focus:border-[#0a0a0a]"
+								placeholder="Search refunds…"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+							/>
+						</div>
+
+						{/* Status tab pills */}
+						<div className="flex items-center gap-1">
+							{STATUS_TABS.map((tab) => {
+								const isActive = activeTab === tab.value;
+								const count =
+									tab.value === "pending"
+										? pendingCount
+										: undefined;
+								return (
+									<button
+										key={tab.value}
+										type="button"
+										onClick={() => setActiveTab(tab.value)}
+										className={
+											isActive
+												? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+												: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+										}
+									>
+										{tab.label}
+										{count !== undefined && count > 0 && (
+											<span className="rounded-full bg-black px-1.5 py-0.5 text-xs font-bold text-white">
+												{count}
+											</span>
+										)}
+									</button>
+								);
+							})}
+						</div>
+					</div>
+
+					{/* Right side */}
+					<div className="flex items-center gap-3">
+						<button
+							type="button"
+							className="rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+						>
+							Export
+						</button>
+					</div>
 				</div>
+
+				{/* Column header */}
+				<div
+					className="grid shrink-0 items-center border-b border-[#e5e5e5] bg-[#f3f3f3] px-6 py-2"
+					style={{ gridTemplateColumns: COL_TEMPLATE }}
+				>
+					<div className="flex items-center gap-2">
+						{canApprove && pendingRows.length > 0 && (
+							<Checkbox
+								checked={allPendingSelected}
+								onCheckedChange={toggleSelectAll}
+								aria-label="Select all pending"
+								className="flex-shrink-0"
+							/>
+						)}
+						<span className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							Customer / Reason
+						</span>
+					</div>
+					<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Sale Ref
+					</div>
+					<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Requested
+					</div>
+					<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Amount
+					</div>
+					<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						Status
+					</div>
+					<div />
+				</div>
+
+				{/* Scrollable list */}
+				<div className="min-h-0 flex-1 overflow-y-auto">
+					{isLoading ? (
+						<div className="flex items-center justify-center py-20 text-sm text-[#737373]">
+							Loading refunds…
+						</div>
+					) : isError ? (
+						<div className="px-6 py-6">
+							<StatusCallout
+								variant="error"
+								title="Failed to load refunds"
+								onRetry={() => refetch()}
+							>
+								<p className="text-sm">
+									{(error as Error)?.message ??
+										"An error occurred. Please retry."}
+								</p>
+							</StatusCallout>
+						</div>
+					) : rows.length === 0 ? (
+						<div className="flex flex-col items-center justify-center py-20 gap-2">
+							<svg
+								width="32"
+								height="32"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="#8a8f91"
+								strokeWidth="1.5"
+								aria-hidden
+							>
+								<path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" />
+								<path d="M12 8v4M12 16h.01" />
+							</svg>
+							<p className="text-sm text-[#737373]">No refunds found.</p>
+						</div>
+					) : (
+						<>
+							{/* Pending section */}
+							{pendingRows.length > 0 && (
+								<>
+									<div className="flex items-center gap-2 border-b border-[#e5e5e5] bg-[#f3f3f3] px-6 py-2">
+										<svg
+											width="13"
+											height="13"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="#854d0e"
+											strokeWidth="2.5"
+											aria-hidden
+										>
+											<circle cx="12" cy="12" r="10" />
+											<path d="M12 6v6l4 2" />
+										</svg>
+										<span className="text-xs font-semibold text-amber-800">
+											{pendingCount} pending — awaiting your decision
+										</span>
+									</div>
+									{pendingRows.map((refund) => (
+										<QueueRow
+											key={refund.id}
+											refund={refund}
+											isPending={true}
+											isSelected={selectedIds.has(refund.id)}
+											canApprove={canApprove}
+											canProcess={canProcess}
+											expanded={expandedId === refund.id}
+											onToggle={() => toggleExpand(refund.id)}
+											onToggleSelect={() => toggleSelect(refund.id)}
+											onReject={(r) => {
+												setRejectRefund(r);
+												setRejectDialogOpen(true);
+											}}
+											onProcess={(r) => {
+												setProcessRefundId(r.id);
+												setProcessDialogOpen(true);
+											}}
+											onAuditTrail={(r) => {
+												setAuditRefund(r);
+												setAuditDialogOpen(true);
+											}}
+											organizationId={organizationId}
+											onApproved={() => {
+												setExpandedId(null);
+												refetch();
+											}}
+										/>
+									))}
+								</>
+							)}
+
+							{/* Processed section */}
+							{processedRows.length > 0 && (
+								<>
+									<div className="flex items-center gap-2 border-b border-[#e5e5e5] bg-[#f3f3f3] px-6 py-2">
+										<span className="text-xs font-medium text-[#737373]">
+											Processed refunds — {processedRows.length} record
+											{processedRows.length !== 1 ? "s" : ""}
+										</span>
+									</div>
+									{processedRows.map((refund) => (
+										<QueueRow
+											key={refund.id}
+											refund={refund}
+											isPending={false}
+											isSelected={false}
+											canApprove={canApprove}
+											canProcess={canProcess}
+											expanded={expandedId === refund.id}
+											onToggle={() => toggleExpand(refund.id)}
+											onToggleSelect={() => {}}
+											onReject={(r) => {
+												setRejectRefund(r);
+												setRejectDialogOpen(true);
+											}}
+											onProcess={(r) => {
+												setProcessRefundId(r.id);
+												setProcessDialogOpen(true);
+											}}
+											onAuditTrail={(r) => {
+												setAuditRefund(r);
+												setAuditDialogOpen(true);
+											}}
+											organizationId={organizationId}
+											onApproved={() => {
+												setExpandedId(null);
+												refetch();
+											}}
+										/>
+									))}
+								</>
+							)}
+						</>
+					)}
+				</div>
+
+				{/* Bulk approve bar — shown inside card at bottom when selection active */}
+				{organizationId && (
+					<BulkApproveBar
+						selectedIds={[...selectedIds]}
+						selectedRows={selectedRows}
+						organizationId={organizationId}
+						onDone={() => setSelectedIds(new Set())}
+					/>
+				)}
 			</div>
 
-			{/* Scroll region */}
-			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
-				{/* KPI strip */}
-				<div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-					<div className="rounded-xl border bg-card p-3">
-						<div className="text-xs text-muted-foreground">Pending</div>
-						<div className="mt-1 text-xl font-semibold tabular-nums">
-							{pendingCount}
-						</div>
-						<div className="text-xs text-muted-foreground">
-							awaiting review
-						</div>
-					</div>
-					<div className="rounded-xl border bg-card p-3">
-						<div className="text-xs text-muted-foreground">Approved today</div>
-						<div className="mt-1 text-xl font-semibold tabular-nums">
-							{approvedTodayCount}
-						</div>
-						<div className="text-xs text-muted-foreground">
-							{today}
-						</div>
-					</div>
-					<div className="rounded-xl border bg-card p-3">
-						<div className="text-xs text-muted-foreground">Total refunded</div>
-						<div className="mt-1 text-xl font-semibold tabular-nums">
-							{formatPrice(totalRefundedCents, "MYR")}
-						</div>
-						<div className="text-xs text-muted-foreground">
-							approved + processed
-						</div>
-					</div>
-				</div>
-
-				{/* Error callout */}
-				{isError && (
-					<StatusCallout
-						variant="error"
-						title="Failed to load refunds"
-						onRetry={() => refetch()}
-					>
-						<p className="text-sm">
-							{(error as Error)?.message ??
-								"An error occurred. Please retry."}
-						</p>
-					</StatusCallout>
-				)}
-
-				{/* Table or empty state */}
-				{!isError && rows.length === 0 ? (
-					<EmptyState
-						icon={Undo2}
-						title="No refunds found"
-						description="No refund requests match the current filter."
-					/>
-				) : (
-					<DataTable<RefundRow, unknown>
-						columns={tableColumns}
-						data={rows}
-						emptyTitle="No refunds found"
-						error={isError ? error : undefined}
-						onRetry={() => refetch()}
-					/>
-				)}
-			</div>
-
-			{/* Detail drawer */}
+			{/* Dialogs */}
 			{organizationId && (
-				<RefundDetailDrawer
-					refund={selectedRefund}
-					open={detailDrawerOpen}
-					onOpenChange={setDetailDrawerOpen}
+				<AuditTrailDialog
+					refund={auditRefund}
+					open={auditDialogOpen}
+					onOpenChange={setAuditDialogOpen}
 					organizationId={organizationId}
 				/>
 			)}
 
-			{/* Process dialog */}
+			<RejectDialog
+				open={rejectDialogOpen}
+				onOpenChange={setRejectDialogOpen}
+				onConfirm={(notes) => {
+					if (!rejectRefund) return;
+					rejectMutation.mutate({ id: rejectRefund.id, reviewNotes: notes });
+				}}
+				isPending={rejectMutation.isPending}
+			/>
+
 			{processRefundId && organizationId && (
 				<ProcessRefundDialog
 					open={processDialogOpen}
@@ -834,17 +1301,6 @@ function RefundsLedgerPage() {
 					refundId={processRefundId}
 				/>
 			)}
-
-			{/* Reject dialog */}
-			<RejectDialog
-				open={rejectDialogOpen}
-				onOpenChange={setRejectDialogOpen}
-				onConfirm={(notes) => {
-					if (!rejectRefundId) return;
-					rejectMutation.mutate({ id: rejectRefundId, reviewNotes: notes });
-				}}
-				isPending={rejectMutation.isPending}
-			/>
 		</div>
 	);
 }

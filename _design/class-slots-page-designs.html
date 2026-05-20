@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Class Slots — 5 Design Directions</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:   { DEFAULT: '#0a0a0a', soft: '#262626' },
+          paper: '#f3f3f3',
+          line:  '#e5e5e5',
+          muted: { DEFAULT: '#737373', soft: '#a3a3a3' },
+          warm:  '#d6cdb1',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background:#f3f3f3; color:#0a0a0a; font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .mono { font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+  .label { font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; color:#737373; }
+  .card { background:#fff; border:1px solid #e5e5e5; border-radius:16px; }
+  .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .pill-yoga   { background:#ede9fe; color:#5b21b6; }
+  .pill-hiit   { background:#fee2e2; color:#b91c1c; }
+  .pill-spin   { background:#dbeafe; color:#1d4ed8; }
+  .pill-pilates{ background:#d1fae5; color:#065f46; }
+  .pill-mob    { background:#fef3c7; color:#92400e; }
+  .bar { height:6px; border-radius:999px; background:#e5e5e5; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:999px; transition:width .3s; }
+  .bar-ok   { background:#10b981; }
+  .bar-mid  { background:#f59e0b; }
+  .bar-full { background:#ef4444; }
+  .btn-primary { background:#0a0a0a; color:#fff; padding:7px 14px; border-radius:9px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:120ms; }
+  .btn-primary:hover { background:#262626; }
+  .btn-outline { background:#fff; border:1px solid #e5e5e5; padding:7px 14px; border-radius:9px; font-size:13px; font-weight:500; color:#0a0a0a; cursor:pointer; transition:120ms; }
+  .btn-outline:hover { background:#f3f3f3; }
+  .badge-waitlist { background:#fef3c7; color:#92400e; border-radius:6px; padding:1px 6px; font-size:11px; font-weight:600; }
+  .badge-open     { background:#d1fae5; color:#065f46; border-radius:6px; padding:1px 6px; font-size:11px; font-weight:600; }
+  .badge-full     { background:#fee2e2; color:#b91c1c; border-radius:6px; padding:1px 6px; font-size:11px; font-weight:600; }
+
+  /* Schedule grid */
+  .grid-cell { min-height:56px; border-right:1px solid #e5e5e5; border-bottom:1px solid #e5e5e5; }
+  .class-block { border-radius:8px; padding:6px 8px; margin:3px; font-size:11px; line-height:1.3; cursor:pointer; transition:80ms; }
+  .class-block:hover { filter:brightness(.95); }
+  .class-yoga   { background:#ede9fe; border-left:3px solid #7c3aed; }
+  .class-hiit   { background:#fee2e2; border-left:3px solid #dc2626; }
+  .class-spin   { background:#dbeafe; border-left:3px solid #2563eb; }
+  .class-pilates{ background:#d1fae5; border-left:3px solid #059669; }
+  .class-mob    { background:#fef3c7; border-left:3px solid #d97706; }
+
+  /* Checkin toggle */
+  .ck { appearance:none; width:14px; height:14px; border:1.5px solid #a3a3a3; border-radius:3px; cursor:pointer; vertical-align:middle; }
+  .ck:checked { background:#0a0a0a; border-color:#0a0a0a;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:center; background-size:14px; }
+  .hero-glow { background:radial-gradient(ellipse at 80% 50%, rgba(214,205,177,.4) 0%, transparent 65%); }
+  .capacity-ring { position:relative; display:inline-flex; align-items:center; justify-content:center; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ── TOP NAV ──────────────────────────────────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1440px] items-center gap-1 px-6 text-xs">
+    <span class="mr-4 label">Class Slots · 5 Designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold hover:bg-paper transition">1 · Weekly Grid</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold hover:bg-paper transition">2 · Card List</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold hover:bg-paper transition">3 · Capacity Dashboard</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold hover:bg-paper transition">4 · Calendar + Color</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold hover:bg-paper transition">5 · Attendance Inbox</a>
+    <span class="ml-auto text-muted-soft">design-only · no logic</span>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — WEEKLY SCHEDULE GRID                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="border-b-8 border-paper">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Weekly Schedule Grid</h2>
+    <span class="text-xs text-muted">Time-slot matrix · class blocks with type color · click to inspect · week navigator</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <div class="label mb-1">Class Schedule</div>
+      <h1 class="text-xl font-bold">Week of 12–18 May 2026</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn-outline text-xs">← Prev</button>
+      <button class="btn-outline text-xs">Today</button>
+      <button class="btn-outline text-xs">Next →</button>
+      <button class="btn-primary text-xs flex items-center gap-1.5">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New Class Slot
+      </button>
+    </div>
+  </div>
+
+  <!-- Legend + filters -->
+  <div class="mb-4 flex items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-3">
+      <span class="pill pill-yoga">Yoga Flow</span>
+      <span class="pill pill-hiit">HIIT Burn</span>
+      <span class="pill pill-spin">Spin Express</span>
+      <span class="pill pill-pilates">Pilates Core</span>
+      <span class="pill pill-mob">Mobility</span>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <select class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium outline-none">
+        <option>All Instructors</option><option>Ana Reyes</option><option>Jake Lim</option><option>Priya S.</option>
+      </select>
+      <select class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium outline-none">
+        <option>All Studios</option><option>Studio A</option><option>Studio B</option><option>Spin Room</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="card overflow-hidden">
+    <!-- Header row -->
+    <div class="grid border-b border-line bg-paper" style="grid-template-columns:72px repeat(7,1fr)">
+      <div class="border-r border-line p-3"></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Mon</div><div class="font-bold text-sm">12</div></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Tue</div><div class="font-bold text-sm">13</div></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Wed</div><div class="font-bold text-sm">14</div></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Thu</div><div class="font-bold text-sm text-[#7c3aed]">15</div><div class="mx-auto mt-0.5 w-1 h-1 rounded-full bg-[#7c3aed]"></div></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Fri</div><div class="font-bold text-sm">16</div></div>
+      <div class="border-r border-line p-3 text-center"><div class="label">Sat</div><div class="font-bold text-sm">17</div></div>
+      <div class="p-3 text-center"><div class="label">Sun</div><div class="font-bold text-sm">18</div></div>
+    </div>
+    <!-- Time rows -->
+    <div class="grid" style="grid-template-columns:72px repeat(7,1fr)">
+      <!-- 6 AM -->
+      <div class="grid-cell border-r border-line p-2 text-right"><span class="label text-[9px]">6 AM</span></div>
+      <div class="grid-cell"><div class="class-block class-yoga"><div class="font-semibold text-[#5b21b6]">Yoga Flow</div><div class="text-[10px] text-[#5b21b6]/70">Ana · 8/12 · 60m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-mob"><div class="font-semibold text-[#92400e]">Mobility</div><div class="text-[10px] text-[#92400e]/70">Priya · 5/15 · 45m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-yoga"><div class="font-semibold text-[#5b21b6]">Yoga Flow</div><div class="text-[10px] text-[#5b21b6]/70">Ana · 10/12 · 60m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <!-- 7 AM -->
+      <div class="grid-cell border-r border-line p-2 text-right"><span class="label text-[9px]">7 AM</span></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-hiit"><div class="font-semibold text-[#b91c1c]">HIIT Burn</div><div class="text-[10px] text-[#b91c1c]/70">Jake · 18/20 · 45m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-spin"><div class="font-semibold text-[#1d4ed8]">Spin Express</div><div class="text-[10px] text-[#1d4ed8]/70">Priya · 20/20 · 45m</div><div class="badge-full mt-1">FULL +3 waitlist</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-hiit"><div class="font-semibold text-[#b91c1c]">HIIT Burn</div><div class="text-[10px] text-[#b91c1c]/70">Jake · 14/20 · 45m</div></div></div>
+      <div class="grid-cell"></div>
+      <!-- 8 AM -->
+      <div class="grid-cell border-r border-line p-2 text-right"><span class="label text-[9px]">8 AM</span></div>
+      <div class="grid-cell"><div class="class-block class-pilates"><div class="font-semibold text-[#065f46]">Pilates Core</div><div class="text-[10px] text-[#065f46]/70">Ana · 10/12 · 55m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-pilates"><div class="font-semibold text-[#065f46]">Pilates Core</div><div class="text-[10px] text-[#065f46]/70">Ana · 12/12 · 55m</div><div class="badge-full mt-1">FULL</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-spin"><div class="font-semibold text-[#1d4ed8]">Spin Express</div><div class="text-[10px] text-[#1d4ed8]/70">Priya · 15/20 · 45m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-mob"><div class="font-semibold text-[#92400e]">Mobility</div><div class="text-[10px] text-[#92400e]/70">Priya · 6/15 · 60m</div></div></div>
+      <!-- 9 AM -->
+      <div class="grid-cell border-r border-line p-2 text-right"><span class="label text-[9px]">9 AM</span></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-yoga"><div class="font-semibold text-[#5b21b6]">Yoga Flow</div><div class="text-[10px] text-[#5b21b6]/70">Ana · 6/12 · 60m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-hiit"><div class="font-semibold text-[#b91c1c]">HIIT Burn</div><div class="text-[10px] text-[#b91c1c]/70">Jake · 20/20 · 45m</div><div class="badge-full mt-1">FULL +1</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-pilates"><div class="font-semibold text-[#065f46]">Pilates Core</div><div class="text-[10px] text-[#065f46]/70">Ana · 9/12 · 55m</div></div></div>
+      <!-- 10 AM -->
+      <div class="grid-cell border-r border-line p-2 text-right"><span class="label text-[9px]">10 AM</span></div>
+      <div class="grid-cell"><div class="class-block class-spin"><div class="font-semibold text-[#1d4ed8]">Spin Express</div><div class="text-[10px] text-[#1d4ed8]/70">Priya · 12/20 · 45m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"><div class="class-block class-yoga"><div class="font-semibold text-[#5b21b6]">Yoga Flow</div><div class="text-[10px] text-[#5b21b6]/70">Ana · 11/12 · 60m</div></div></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+    </div>
+  </div>
+
+  <!-- Detail flyout preview -->
+  <div class="mt-5 flex gap-4">
+    <div class="card flex-1 p-4 flex items-center gap-4 bg-white">
+      <div class="size-10 rounded-xl bg-[#ede9fe] flex items-center justify-center text-lg">🧘</div>
+      <div>
+        <div class="font-bold text-sm">Yoga Flow — Thu 15 May · 6:00 AM</div>
+        <div class="text-xs text-muted mt-0.5">Ana Reyes · Studio A · 60 min · RM 35 / 5 credits</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="badge-open">8 / 12 enrolled</span>
+        <span class="text-xs text-muted">0 waitlist</span>
+        <button class="btn-outline text-xs">Manage</button>
+        <button class="btn-primary text-xs">Check-in</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — CARD LIST BY CLASS TYPE                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="border-b-8 border-paper">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Card List by Class Type</h2>
+    <span class="text-xs text-muted">Grouped by class category · expandable rows · quick enroll + waitlist action per slot</span>
+  </div>
+
+  <!-- Header -->
+  <div class="mb-5 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <div class="label mb-1">Class Slots</div>
+      <h1 class="text-xl font-bold">All Upcoming Slots</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+        <svg class="size-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input class="bg-transparent text-xs outline-none placeholder:text-muted-soft w-44" placeholder="Search class or instructor…">
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium outline-none">
+        <option>All Days</option><option>Today</option><option>This Week</option>
+      </select>
+      <button class="btn-primary text-xs flex items-center gap-1.5">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New Class Slot
+      </button>
+    </div>
+  </div>
+
+  <!-- Yoga Flow group -->
+  <div class="mb-4">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="size-6 rounded-lg bg-[#ede9fe] flex items-center justify-center text-sm">🧘</span>
+      <span class="font-bold text-sm">Yoga Flow</span>
+      <span class="label ml-1">4 slots this week</span>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="bar w-24"><div class="bar-fill bar-ok" style="width:72%"></div></div>
+        <span class="mono text-xs text-muted">72% avg fill</span>
+      </div>
+    </div>
+    <div class="card overflow-hidden divide-y divide-line">
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition">
+        <div class="size-9 rounded-lg bg-[#ede9fe] flex items-center justify-center"><span class="font-bold text-xs text-[#5b21b6]">MON</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Monday · 6:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Ana Reyes · Studio A · 60 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">8 <span class="text-muted font-normal">/ 12</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-ok" style="width:67%"></div></div>
+        </div>
+        <span class="badge-open text-[10px]">Open</span>
+        <span class="text-xs text-muted">0 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 35</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2">Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition">
+        <div class="size-9 rounded-lg bg-[#ede9fe] flex items-center justify-center"><span class="font-bold text-xs text-[#5b21b6]">THU</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Thursday · 6:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Ana Reyes · Studio A · 60 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">10 <span class="text-muted font-normal">/ 12</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-mid" style="width:83%"></div></div>
+        </div>
+        <span class="badge-open text-[10px]">Open</span>
+        <span class="text-xs text-muted">0 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 35</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2">Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition">
+        <div class="size-9 rounded-lg bg-[#ede9fe] flex items-center justify-center"><span class="font-bold text-xs text-[#5b21b6]">FRI</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Friday · 10:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Ana Reyes · Studio A · 60 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">11 <span class="text-muted font-normal">/ 12</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-mid" style="width:92%"></div></div>
+        </div>
+        <span class="badge-open text-[10px]">Open (1 left)</span>
+        <span class="text-xs text-muted">0 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 35</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2">Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIIT Burn group -->
+  <div class="mb-4">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="size-6 rounded-lg bg-[#fee2e2] flex items-center justify-center text-sm">🔥</span>
+      <span class="font-bold text-sm">HIIT Burn</span>
+      <span class="label ml-1">3 slots this week</span>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="bar w-24"><div class="bar-fill bar-full" style="width:95%"></div></div>
+        <span class="mono text-xs text-muted">95% avg fill</span>
+      </div>
+    </div>
+    <div class="card overflow-hidden divide-y divide-line">
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition">
+        <div class="size-9 rounded-lg bg-[#fee2e2] flex items-center justify-center"><span class="font-bold text-xs text-[#b91c1c]">TUE</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Tuesday · 7:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Jake Lim · Main Floor · 45 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">18 <span class="text-muted font-normal">/ 20</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-mid" style="width:90%"></div></div>
+        </div>
+        <span class="badge-open text-[10px]">Open (2 left)</span>
+        <span class="text-xs text-muted">0 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 40</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2">Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition bg-[#fff8f8]">
+        <div class="size-9 rounded-lg bg-[#fee2e2] flex items-center justify-center"><span class="font-bold text-xs text-[#b91c1c]">THU</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Thursday · 9:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Jake Lim · Main Floor · 45 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">20 <span class="text-muted font-normal">/ 20</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-full" style="width:100%"></div></div>
+        </div>
+        <span class="badge-full text-[10px]">Full</span>
+        <span class="badge-waitlist text-[10px]">+1 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 40</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2 text-amber-700 border-amber-300 bg-amber-50">Manage Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spin Express -->
+  <div class="mb-4">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="size-6 rounded-lg bg-[#dbeafe] flex items-center justify-center text-sm">🚴</span>
+      <span class="font-bold text-sm">Spin Express</span>
+      <span class="label ml-1">3 slots this week</span>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="bar w-24"><div class="bar-fill bar-full" style="width:88%"></div></div>
+        <span class="mono text-xs text-muted">88% avg fill</span>
+      </div>
+    </div>
+    <div class="card overflow-hidden divide-y divide-line">
+      <div class="flex items-center gap-4 p-4 hover:bg-paper transition bg-[#fff8f8]">
+        <div class="size-9 rounded-lg bg-[#dbeafe] flex items-center justify-center"><span class="font-bold text-xs text-[#1d4ed8]">THU</span></div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Thursday · 7:00 AM</div>
+          <div class="text-xs text-muted mt-0.5">Priya S. · Spin Room · 45 min</div>
+        </div>
+        <div class="text-right">
+          <div class="mono font-bold text-sm">20 <span class="text-muted font-normal">/ 20</span></div>
+          <div class="bar w-20 mt-1"><div class="bar-fill bar-full" style="width:100%"></div></div>
+        </div>
+        <span class="badge-full text-[10px]">Full</span>
+        <span class="badge-waitlist text-[10px]">+3 waitlist</span>
+        <span class="mono text-xs font-semibold">RM 45</span>
+        <div class="flex gap-1.5">
+          <button class="btn-outline text-xs py-1 px-2 text-amber-700 border-amber-300 bg-amber-50">Manage Waitlist</button>
+          <button class="btn-primary text-xs py-1 px-2">Check-in</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — CAPACITY DASHBOARD WITH FILL RATE BARS                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="border-b-8 border-paper">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — Capacity Dashboard</h2>
+    <span class="text-xs text-muted">KPI overview · fill rate bars per slot · waitlist funnel · revenue projection</span>
+  </div>
+
+  <!-- Header -->
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <div class="label mb-1">Capacity Overview</div>
+      <h1 class="text-xl font-bold">This Week · 12–18 May 2026</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium outline-none">
+        <option>This Week</option><option>Next Week</option><option>Custom Range</option>
+      </select>
+      <button class="btn-primary text-xs flex items-center gap-1.5">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New Class Slot
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="grid grid-cols-2 gap-3 mb-5 lg:grid-cols-4">
+    <div class="card p-5">
+      <div class="label mb-2">Total Slots</div>
+      <div class="mono text-3xl font-extrabold">14</div>
+      <div class="text-xs text-muted mt-1">this week</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Avg Fill Rate</div>
+      <div class="mono text-3xl font-extrabold">81<span class="text-lg text-muted font-normal">%</span></div>
+      <div class="bar mt-2"><div class="bar-fill bar-ok" style="width:81%"></div></div>
+      <div class="text-xs text-muted mt-1.5">▲ 6% vs last week</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Waitlisted</div>
+      <div class="mono text-3xl font-extrabold text-amber-600">8</div>
+      <div class="text-xs text-muted mt-1">across 3 slots</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Projected Revenue</div>
+      <div class="mono text-3xl font-extrabold">RM <span>4,820</span></div>
+      <div class="text-xs text-muted mt-1">at current fill</div>
+    </div>
+  </div>
+
+  <!-- Slot capacity table -->
+  <div class="card overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-line bg-paper">
+      <span class="label">All Class Slots</span>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+          <button class="rounded-md bg-ink px-2.5 py-1 text-[11px] font-semibold text-white">All</button>
+          <button class="rounded-md px-2.5 py-1 text-[11px] font-medium text-muted hover:text-ink">Open</button>
+          <button class="rounded-md px-2.5 py-1 text-[11px] font-medium text-muted hover:text-ink">Full</button>
+          <button class="rounded-md px-2.5 py-1 text-[11px] font-medium text-amber-600 hover:text-amber-700">Waitlist</button>
+        </div>
+        <select class="rounded-lg border border-line bg-white px-2 py-1 text-xs outline-none">
+          <option>All Instructors</option>
+        </select>
+      </div>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-line bg-paper/50">
+          <th class="px-5 py-2.5 text-left label">Class</th>
+          <th class="px-4 py-2.5 text-left label">Day / Time</th>
+          <th class="px-4 py-2.5 text-left label">Instructor</th>
+          <th class="px-4 py-2.5 text-left label">Studio</th>
+          <th class="px-4 py-2.5 text-left label">Duration</th>
+          <th class="px-4 py-2.5 text-left label">Fill Rate</th>
+          <th class="px-4 py-2.5 text-left label">Capacity</th>
+          <th class="px-4 py-2.5 text-left label">Waitlist</th>
+          <th class="px-4 py-2.5 text-left label">Revenue</th>
+          <th class="px-4 py-2.5 text-left label">Status</th>
+          <th class="px-4 py-2.5"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-line">
+        <tr class="hover:bg-paper/60 transition">
+          <td class="px-5 py-3"><span class="pill pill-yoga">Yoga Flow</span></td>
+          <td class="px-4 py-3 font-medium">Mon · 6:00 AM</td>
+          <td class="px-4 py-3 text-muted">Ana Reyes</td>
+          <td class="px-4 py-3 text-muted">Studio A</td>
+          <td class="px-4 py-3 mono text-xs text-muted">60 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-ok" style="width:67%"></div></div>
+              <span class="mono text-xs">67%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold">8 / 12</td>
+          <td class="px-4 py-3 mono text-muted">0</td>
+          <td class="px-4 py-3 mono font-semibold">RM 280</td>
+          <td class="px-4 py-3"><span class="badge-open">Open</span></td>
+          <td class="px-4 py-3"><button class="btn-outline text-xs py-1 px-2.5">Manage</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition">
+          <td class="px-5 py-3"><span class="pill pill-hiit">HIIT Burn</span></td>
+          <td class="px-4 py-3 font-medium">Tue · 7:00 AM</td>
+          <td class="px-4 py-3 text-muted">Jake Lim</td>
+          <td class="px-4 py-3 text-muted">Main Floor</td>
+          <td class="px-4 py-3 mono text-xs text-muted">45 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-mid" style="width:90%"></div></div>
+              <span class="mono text-xs">90%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold">18 / 20</td>
+          <td class="px-4 py-3 mono text-muted">0</td>
+          <td class="px-4 py-3 mono font-semibold">RM 720</td>
+          <td class="px-4 py-3"><span class="badge-open">Open</span></td>
+          <td class="px-4 py-3"><button class="btn-outline text-xs py-1 px-2.5">Manage</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition">
+          <td class="px-5 py-3"><span class="pill pill-mob">Mobility</span></td>
+          <td class="px-4 py-3 font-medium">Wed · 6:00 AM</td>
+          <td class="px-4 py-3 text-muted">Priya S.</td>
+          <td class="px-4 py-3 text-muted">Studio B</td>
+          <td class="px-4 py-3 mono text-xs text-muted">45 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-ok" style="width:33%"></div></div>
+              <span class="mono text-xs">33%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold">5 / 15</td>
+          <td class="px-4 py-3 mono text-muted">0</td>
+          <td class="px-4 py-3 mono font-semibold">RM 150</td>
+          <td class="px-4 py-3"><span class="badge-open">Open</span></td>
+          <td class="px-4 py-3"><button class="btn-outline text-xs py-1 px-2.5">Manage</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition bg-[#fffbf0]">
+          <td class="px-5 py-3"><span class="pill pill-spin">Spin Express</span></td>
+          <td class="px-4 py-3 font-medium">Thu · 7:00 AM</td>
+          <td class="px-4 py-3 text-muted">Priya S.</td>
+          <td class="px-4 py-3 text-muted">Spin Room</td>
+          <td class="px-4 py-3 mono text-xs text-muted">45 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-full" style="width:100%"></div></div>
+              <span class="mono text-xs text-red-600 font-bold">100%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold text-red-600">20 / 20</td>
+          <td class="px-4 py-3"><span class="badge-waitlist">+3</span></td>
+          <td class="px-4 py-3 mono font-semibold">RM 900</td>
+          <td class="px-4 py-3"><span class="badge-full">Full</span></td>
+          <td class="px-4 py-3"><button class="text-xs py-1 px-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 font-medium">Waitlist ▾</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition bg-[#fffbf0]">
+          <td class="px-5 py-3"><span class="pill pill-hiit">HIIT Burn</span></td>
+          <td class="px-4 py-3 font-medium">Thu · 9:00 AM</td>
+          <td class="px-4 py-3 text-muted">Jake Lim</td>
+          <td class="px-4 py-3 text-muted">Main Floor</td>
+          <td class="px-4 py-3 mono text-xs text-muted">45 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-full" style="width:100%"></div></div>
+              <span class="mono text-xs text-red-600 font-bold">100%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold text-red-600">20 / 20</td>
+          <td class="px-4 py-3"><span class="badge-waitlist">+1</span></td>
+          <td class="px-4 py-3 mono font-semibold">RM 800</td>
+          <td class="px-4 py-3"><span class="badge-full">Full</span></td>
+          <td class="px-4 py-3"><button class="text-xs py-1 px-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 font-medium">Waitlist ▾</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition">
+          <td class="px-5 py-3"><span class="pill pill-pilates">Pilates Core</span></td>
+          <td class="px-4 py-3 font-medium">Mon · 8:00 AM</td>
+          <td class="px-4 py-3 text-muted">Ana Reyes</td>
+          <td class="px-4 py-3 text-muted">Studio A</td>
+          <td class="px-4 py-3 mono text-xs text-muted">55 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-mid" style="width:83%"></div></div>
+              <span class="mono text-xs">83%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold">10 / 12</td>
+          <td class="px-4 py-3 mono text-muted">0</td>
+          <td class="px-4 py-3 mono font-semibold">RM 380</td>
+          <td class="px-4 py-3"><span class="badge-open">Open</span></td>
+          <td class="px-4 py-3"><button class="btn-outline text-xs py-1 px-2.5">Manage</button></td>
+        </tr>
+        <tr class="hover:bg-paper/60 transition bg-[#fff8f8]">
+          <td class="px-5 py-3"><span class="pill pill-pilates">Pilates Core</span></td>
+          <td class="px-4 py-3 font-medium">Wed · 8:00 AM</td>
+          <td class="px-4 py-3 text-muted">Ana Reyes</td>
+          <td class="px-4 py-3 text-muted">Studio A</td>
+          <td class="px-4 py-3 mono text-xs text-muted">55 min</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="bar w-20"><div class="bar-fill bar-full" style="width:100%"></div></div>
+              <span class="mono text-xs text-red-600 font-bold">100%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 mono font-semibold text-red-600">12 / 12</td>
+          <td class="px-4 py-3 mono text-muted">0</td>
+          <td class="px-4 py-3 mono font-semibold">RM 456</td>
+          <td class="px-4 py-3"><span class="badge-full">Full</span></td>
+          <td class="px-4 py-3"><button class="btn-outline text-xs py-1 px-2.5">Manage</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — MONTH CALENDAR WITH COLOR CODING                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="border-b-8 border-paper">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Calendar + Color Coding</h2>
+    <span class="text-xs text-muted">Month grid · class-type color dots · click day for side panel · slot detail drawer</span>
+  </div>
+
+  <div class="flex gap-5">
+    <!-- Calendar panel -->
+    <div class="flex-1">
+      <div class="mb-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button class="btn-outline text-xs py-1.5 px-3">← Apr</button>
+          <h1 class="text-xl font-bold">May 2026</h1>
+          <button class="btn-outline text-xs py-1.5 px-3">Jun →</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3 text-xs text-muted">
+            <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-[#7c3aed]"></span>Yoga</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-[#dc2626]"></span>HIIT</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-[#2563eb]"></span>Spin</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-[#059669]"></span>Pilates</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-[#d97706]"></span>Mobility</span>
+          </div>
+          <button class="btn-primary text-xs flex items-center gap-1.5 ml-3">
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            New Class Slot
+          </button>
+        </div>
+      </div>
+
+      <div class="card overflow-hidden">
+        <!-- Day headers -->
+        <div class="grid grid-cols-7 border-b border-line bg-paper">
+          <div class="p-3 text-center label">Mon</div>
+          <div class="p-3 text-center label">Tue</div>
+          <div class="p-3 text-center label">Wed</div>
+          <div class="p-3 text-center label">Thu</div>
+          <div class="p-3 text-center label">Fri</div>
+          <div class="p-3 text-center label">Sat</div>
+          <div class="p-3 text-center label">Sun</div>
+        </div>
+        <!-- Calendar rows -->
+        <!-- Row 1 -->
+        <div class="grid grid-cols-7 border-b border-line">
+          <div class="border-r border-line p-2.5 min-h-[88px] bg-paper/30"><span class="text-xs text-muted">27</span></div>
+          <div class="border-r border-line p-2.5 min-h-[88px] bg-paper/30"><span class="text-xs text-muted">28</span></div>
+          <div class="border-r border-line p-2.5 min-h-[88px] bg-paper/30"><span class="text-xs text-muted">29</span></div>
+          <div class="border-r border-line p-2.5 min-h-[88px] bg-paper/30"><span class="text-xs text-muted">30</span></div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">1</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#7c3aed]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#dc2626]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">2</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#059669]"></span>
+            </div>
+          </div>
+          <div class="p-2.5 min-h-[88px]"><span class="text-xs font-semibold">3</span></div>
+        </div>
+        <!-- Row 2 -->
+        <div class="grid grid-cols-7 border-b border-line">
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">4</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#7c3aed]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#059669]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#2563eb]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">5</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#dc2626]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#7c3aed]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">6</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#d97706]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#059669]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">7</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#7c3aed]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#2563eb]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#dc2626]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">8</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#dc2626]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#2563eb]"></span>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-semibold">9</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span class="inline-block size-2 rounded-full bg-[#059669]"></span>
+              <span class="inline-block size-2 rounded-full bg-[#d97706]"></span>
+            </div>
+          </div>
+          <div class="p-2.5 min-h-[88px]"><span class="text-xs font-semibold">10</span></div>
+        </div>
+        <!-- Row 3: week of May 12–18 (highlighted) -->
+        <div class="grid grid-cols-7 border-b border-line bg-[#fafafa]">
+          <div class="border-r border-line p-2.5 min-h-[88px] ring-inset ring-1 ring-warm">
+            <span class="text-xs font-bold">12</span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#ede9fe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#7c3aed]"></span><span class="text-[9px] font-semibold text-[#5b21b6]">6AM Yoga 8/12</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#d1fae5] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#059669]"></span><span class="text-[9px] font-semibold text-[#065f46]">8AM Pilates</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#dbeafe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#2563eb]"></span><span class="text-[9px] font-semibold text-[#1d4ed8]">10AM Spin</span></div>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-bold">13</span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#fee2e2] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#dc2626]"></span><span class="text-[9px] font-semibold text-[#b91c1c]">7AM HIIT 18/20</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#ede9fe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#7c3aed]"></span><span class="text-[9px] font-semibold text-[#5b21b6]">9AM Yoga</span></div>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-bold">14</span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#fef3c7] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#d97706]"></span><span class="text-[9px] font-semibold text-[#92400e]">6AM Mobility</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#d1fae5] px-1 py-0.5 ring-1 ring-red-200"><span class="size-1.5 rounded-full bg-[#059669]"></span><span class="text-[9px] font-semibold text-[#065f46]">8AM Pilates FULL</span></div>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px] bg-[#fefcf7]">
+            <span class="flex items-center gap-1 text-xs font-bold">15 <span class="size-1 rounded-full bg-[#d97706] inline-block"></span></span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#ede9fe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#7c3aed]"></span><span class="text-[9px] font-semibold text-[#5b21b6]">6AM Yoga 10/12</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#dbeafe] px-1 py-0.5 ring-1 ring-red-200"><span class="size-1.5 rounded-full bg-[#2563eb]"></span><span class="text-[9px] font-semibold text-[#1d4ed8]">7AM Spin FULL+3</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#fee2e2] px-1 py-0.5 ring-1 ring-red-200"><span class="size-1.5 rounded-full bg-[#dc2626]"></span><span class="text-[9px] font-semibold text-[#b91c1c]">9AM HIIT FULL+1</span></div>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-bold">16</span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#ede9fe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#7c3aed]"></span><span class="text-[9px] font-semibold text-[#5b21b6]">10AM Yoga 11/12</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#fee2e2] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#dc2626]"></span><span class="text-[9px] font-semibold text-[#b91c1c]">Sat HIIT 14/20</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#dbeafe] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#2563eb]"></span><span class="text-[9px] font-semibold text-[#1d4ed8]">8AM Spin 15/20</span></div>
+            </div>
+          </div>
+          <div class="border-r border-line p-2.5 min-h-[88px]">
+            <span class="text-xs font-bold">17</span>
+            <div class="mt-1.5 space-y-0.5">
+              <div class="flex items-center gap-1 rounded bg-[#d1fae5] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#059669]"></span><span class="text-[9px] font-semibold text-[#065f46]">9AM Pilates 9/12</span></div>
+              <div class="flex items-center gap-1 rounded bg-[#fef3c7] px-1 py-0.5"><span class="size-1.5 rounded-full bg-[#d97706]"></span><span class="text-[9px] font-semibold text-[#92400e]">8AM Mobility</span></div>
+            </div>
+          </div>
+          <div class="p-2.5 min-h-[88px]"><span class="text-xs font-bold">18</span></div>
+        </div>
+        <!-- Row 4 placeholder -->
+        <div class="grid grid-cols-7">
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">19</span></div>
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">20</span></div>
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">21</span></div>
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">22</span></div>
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">23</span></div>
+          <div class="border-r border-line p-2.5 min-h-[72px]"><span class="text-xs font-semibold">24</span></div>
+          <div class="p-2.5 min-h-[72px]"><span class="text-xs font-semibold">25</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side panel: selected day detail -->
+    <div class="w-72 shrink-0">
+      <div class="label mb-3">Thu, 15 May 2026</div>
+      <div class="space-y-2">
+        <!-- Slot card -->
+        <div class="card p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="pill pill-yoga">Yoga Flow</span>
+              <div class="font-semibold text-sm mt-2">6:00 AM · 60 min</div>
+              <div class="text-xs text-muted mt-0.5">Ana Reyes · Studio A</div>
+            </div>
+            <span class="badge-open text-[10px]">Open</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex justify-between text-xs mb-1"><span class="text-muted">Capacity</span><span class="mono font-semibold">10 / 12</span></div>
+            <div class="bar"><div class="bar-fill bar-mid" style="width:83%"></div></div>
+          </div>
+          <div class="mt-3 flex gap-1.5">
+            <button class="btn-outline text-xs py-1 flex-1">Roster</button>
+            <button class="btn-primary text-xs py-1 flex-1">Check-in</button>
+          </div>
+        </div>
+        <!-- Full slot card with waitlist -->
+        <div class="card p-4 border-amber-200">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="pill pill-spin">Spin Express</span>
+              <div class="font-semibold text-sm mt-2">7:00 AM · 45 min</div>
+              <div class="text-xs text-muted mt-0.5">Priya S. · Spin Room</div>
+            </div>
+            <span class="badge-full text-[10px]">Full</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex justify-between text-xs mb-1"><span class="text-muted">Capacity</span><span class="mono font-semibold text-red-600">20 / 20</span></div>
+            <div class="bar"><div class="bar-fill bar-full" style="width:100%"></div></div>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="badge-waitlist text-[10px]">+3 on waitlist</span>
+            <span class="text-[10px] text-muted">RM 45 / slot</span>
+          </div>
+          <div class="mt-3 flex gap-1.5">
+            <button class="text-xs py-1 flex-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 font-medium">Manage Waitlist</button>
+            <button class="btn-primary text-xs py-1 flex-1">Check-in</button>
+          </div>
+        </div>
+        <!-- HIIT full -->
+        <div class="card p-4 border-red-200">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="pill pill-hiit">HIIT Burn</span>
+              <div class="font-semibold text-sm mt-2">9:00 AM · 45 min</div>
+              <div class="text-xs text-muted mt-0.5">Jake Lim · Main Floor</div>
+            </div>
+            <span class="badge-full text-[10px]">Full</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex justify-between text-xs mb-1"><span class="text-muted">Capacity</span><span class="mono font-semibold text-red-600">20 / 20</span></div>
+            <div class="bar"><div class="bar-fill bar-full" style="width:100%"></div></div>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="badge-waitlist text-[10px]">+1 on waitlist</span>
+          </div>
+          <div class="mt-3 flex gap-1.5">
+            <button class="text-xs py-1 flex-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 font-medium">Manage Waitlist</button>
+            <button class="btn-primary text-xs py-1 flex-1">Check-in</button>
+          </div>
+        </div>
+        <button class="w-full btn-outline text-xs py-2 flex items-center justify-center gap-1.5">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Add Slot to This Day
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — ATTENDANCE INBOX                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d5" class="border-b-8 border-paper">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Attendance Inbox</h2>
+    <span class="text-xs text-muted">Slot-per-row · inline attendance check-in · waitlist expand · action-focused operations view</span>
+  </div>
+
+  <!-- Page header + KPIs -->
+  <div class="relative mb-5 overflow-hidden rounded-3xl border border-line bg-white p-7">
+    <div class="hero-glow pointer-events-none absolute inset-0"></div>
+    <div class="relative flex items-start justify-between gap-8">
+      <div>
+        <div class="label mb-1.5">Today's Classes · Thu 15 May 2026</div>
+        <h1 class="text-2xl font-extrabold tracking-tight">Attendance Board</h1>
+        <p class="text-sm text-muted mt-1">3 classes running · check-in closes 15 min after start time</p>
+        <div class="mt-5 flex items-center gap-2">
+          <button class="btn-primary text-xs flex items-center gap-1.5">
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            New Class Slot
+          </button>
+          <button class="btn-outline text-xs">Export Attendance</button>
+          <button class="btn-outline text-xs">Mark All Present</button>
+        </div>
+      </div>
+      <!-- Mini KPIs -->
+      <div class="grid grid-cols-3 gap-3 shrink-0">
+        <div class="rounded-2xl border border-line bg-paper p-4 text-center min-w-[100px]">
+          <div class="label mb-1">Enrolled Today</div>
+          <div class="mono text-2xl font-extrabold">48</div>
+          <div class="text-xs text-muted mt-0.5">across 3 slots</div>
+        </div>
+        <div class="rounded-2xl border border-line bg-paper p-4 text-center min-w-[100px]">
+          <div class="label mb-1">Checked In</div>
+          <div class="mono text-2xl font-extrabold text-emerald-600">31</div>
+          <div class="text-xs text-muted mt-0.5">65% attendance</div>
+        </div>
+        <div class="rounded-2xl border border-line bg-paper p-4 text-center min-w-[100px]">
+          <div class="label mb-1">Waitlist</div>
+          <div class="mono text-2xl font-extrabold text-amber-600">4</div>
+          <div class="text-xs text-muted mt-0.5">across 2 slots</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters row -->
+  <div class="mb-4 flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+      <svg class="size-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+      <input class="bg-transparent text-xs outline-none placeholder:text-muted-soft w-44" placeholder="Search member name…">
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg bg-ink px-3 py-1.5 text-[11px] font-semibold text-white">Today</button>
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted hover:text-ink">Tomorrow</button>
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted hover:text-ink">This Week</button>
+    </div>
+    <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium outline-none">
+      <option>All Classes</option><option>Yoga Flow</option><option>HIIT Burn</option><option>Spin Express</option>
+    </select>
+    <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium outline-none">
+      <option>All Instructors</option><option>Ana Reyes</option><option>Jake Lim</option><option>Priya S.</option>
+    </select>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted hover:text-ink">All</button>
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Checked In</button>
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted hover:text-ink">Absent</button>
+      <button class="rounded-lg px-3 py-1.5 text-[11px] font-medium text-amber-700 hover:text-amber-800">Waitlist</button>
+    </div>
+  </div>
+
+  <!-- Slot 1: Yoga Flow 6 AM -->
+  <div class="mb-4 card overflow-hidden">
+    <!-- Slot header -->
+    <div class="flex items-center gap-4 px-5 py-3.5 border-b border-line bg-[#fafbff]">
+      <span class="size-8 rounded-lg bg-[#ede9fe] flex items-center justify-center text-base">🧘</span>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm">Yoga Flow</span>
+          <span class="pill pill-yoga text-[10px]">Thu · 6:00 AM</span>
+          <span class="text-xs text-muted">60 min · Ana Reyes · Studio A · RM 35</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <div class="mono font-bold text-sm">10 <span class="text-muted font-normal text-xs">/ 12</span></div>
+          <div class="bar w-24 mt-1"><div class="bar-fill bar-mid" style="width:83%"></div></div>
+        </div>
+        <span class="badge-open text-[10px]">Open</span>
+        <span class="text-xs text-muted">Attendance: <strong class="text-ink">7 / 10</strong></span>
+        <button class="btn-outline text-xs py-1 px-2.5">Edit Slot</button>
+      </div>
+    </div>
+    <!-- Attendance rows -->
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-line bg-paper/50">
+          <th class="px-5 py-2 text-left label w-8"></th>
+          <th class="px-3 py-2 text-left label">Member</th>
+          <th class="px-3 py-2 text-left label">Membership</th>
+          <th class="px-3 py-2 text-left label">Enrolled</th>
+          <th class="px-3 py-2 text-left label">Payment</th>
+          <th class="px-3 py-2 text-left label">Status</th>
+          <th class="px-3 py-2 text-left label">Check-in</th>
+          <th class="px-3 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-line">
+        <tr class="hover:bg-paper/50 transition">
+          <td class="px-5 py-2.5"><input type="checkbox" class="ck" checked /></td>
+          <td class="px-3 py-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="size-7 rounded-full bg-[#ede9fe] flex items-center justify-center text-xs font-bold text-[#5b21b6]">SR</div>
+              <span class="font-medium text-sm">Sarah Rahman</span>
+            </div>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-muted">Elite · 8 credits left</td>
+          <td class="px-3 py-2.5 mono text-xs">10 May</td>
+          <td class="px-3 py-2.5"><span class="pill bg-emerald-50 text-emerald-700 text-[10px]">5 credits used</span></td>
+          <td class="px-3 py-2.5"><span class="badge-open text-[10px]">Enrolled</span></td>
+          <td class="px-3 py-2.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="ck" checked />
+              <span class="text-xs text-emerald-700 font-semibold">Present</span>
+            </label>
+          </td>
+          <td class="px-3 py-2.5 text-right">
+            <button class="text-xs text-muted hover:text-ink transition">Remove</button>
+          </td>
+        </tr>
+        <tr class="hover:bg-paper/50 transition">
+          <td class="px-5 py-2.5"><input type="checkbox" class="ck" checked /></td>
+          <td class="px-3 py-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="size-7 rounded-full bg-[#d1fae5] flex items-center justify-center text-xs font-bold text-[#065f46]">TN</div>
+              <span class="font-medium text-sm">Tan Wai Loon</span>
+            </div>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-muted">Standard · 12 credits left</td>
+          <td class="px-3 py-2.5 mono text-xs">11 May</td>
+          <td class="px-3 py-2.5"><span class="pill bg-emerald-50 text-emerald-700 text-[10px]">5 credits used</span></td>
+          <td class="px-3 py-2.5"><span class="badge-open text-[10px]">Enrolled</span></td>
+          <td class="px-3 py-2.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="ck" checked />
+              <span class="text-xs text-emerald-700 font-semibold">Present</span>
+            </label>
+          </td>
+          <td class="px-3 py-2.5 text-right"><button class="text-xs text-muted hover:text-ink transition">Remove</button></td>
+        </tr>
+        <tr class="hover:bg-paper/50 transition bg-paper/30">
+          <td class="px-5 py-2.5"><input type="checkbox" class="ck" /></td>
+          <td class="px-3 py-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="size-7 rounded-full bg-[#fee2e2] flex items-center justify-center text-xs font-bold text-[#b91c1c]">AM</div>
+              <span class="font-medium text-sm text-muted">Ahmad Faiz</span>
+            </div>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-muted">Premium · 3 credits left</td>
+          <td class="px-3 py-2.5 mono text-xs">12 May</td>
+          <td class="px-3 py-2.5"><span class="pill bg-emerald-50 text-emerald-700 text-[10px]">RM 35 paid</span></td>
+          <td class="px-3 py-2.5"><span class="badge-open text-[10px]">Enrolled</span></td>
+          <td class="px-3 py-2.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="ck" />
+              <span class="text-xs text-muted">Mark Present</span>
+            </label>
+          </td>
+          <td class="px-3 py-2.5 text-right"><button class="text-xs text-muted hover:text-ink transition">Remove</button></td>
+        </tr>
+        <tr class="hover:bg-paper/50 transition bg-paper/30">
+          <td class="px-5 py-2.5"><input type="checkbox" class="ck" /></td>
+          <td class="px-3 py-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="size-7 rounded-full bg-[#fef3c7] flex items-center justify-center text-xs font-bold text-[#92400e]">NB</div>
+              <span class="font-medium text-sm text-muted">Nurul Baiti</span>
+            </div>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-muted">Elite · 20 credits left</td>
+          <td class="px-3 py-2.5 mono text-xs">13 May</td>
+          <td class="px-3 py-2.5"><span class="pill bg-emerald-50 text-emerald-700 text-[10px]">5 credits used</span></td>
+          <td class="px-3 py-2.5"><span class="badge-open text-[10px]">Enrolled</span></td>
+          <td class="px-3 py-2.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="ck" />
+              <span class="text-xs text-muted">Mark Present</span>
+            </label>
+          </td>
+          <td class="px-3 py-2.5 text-right"><button class="text-xs text-muted hover:text-ink transition">Remove</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- "Open 2 seats" prompt + add member button -->
+    <div class="flex items-center justify-between px-5 py-3 border-t border-line bg-paper/30">
+      <span class="text-xs text-muted">2 seats remaining · <button class="text-ink font-semibold underline underline-offset-2">Add member to this slot</button></span>
+      <div class="flex gap-2">
+        <button class="btn-outline text-xs py-1 px-3">View Roster</button>
+        <button class="btn-primary text-xs py-1 px-3">Save Attendance</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slot 2: Spin Express 7 AM — FULL with waitlist expanded -->
+  <div class="mb-4 card overflow-hidden border-amber-200">
+    <div class="flex items-center gap-4 px-5 py-3.5 border-b border-amber-100 bg-[#fffbf0]">
+      <span class="size-8 rounded-lg bg-[#dbeafe] flex items-center justify-center text-base">🚴</span>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm">Spin Express</span>
+          <span class="pill pill-spin text-[10px]">Thu · 7:00 AM</span>
+          <span class="text-xs text-muted">45 min · Priya S. · Spin Room · RM 45</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <div class="mono font-bold text-sm text-red-600">20 <span class="text-muted font-normal text-xs">/ 20</span></div>
+          <div class="bar w-24 mt-1"><div class="bar-fill bar-full" style="width:100%"></div></div>
+        </div>
+        <span class="badge-full text-[10px]">Full</span>
+        <span class="badge-waitlist text-[10px]">+3 waitlist</span>
+        <span class="text-xs text-muted">Attendance: <strong class="text-ink">18 / 20</strong></span>
+        <button class="btn-outline text-xs py-1 px-2.5">Edit Slot</button>
+      </div>
+    </div>
+    <!-- Waitlist section -->
+    <div class="px-5 py-3 border-b border-amber-100 bg-amber-50/40">
+      <div class="label mb-2 text-amber-700">Waitlist — 3 members</div>
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-3 rounded-lg border border-amber-100 bg-white px-3 py-2">
+          <span class="mono text-xs font-bold text-amber-600 w-5">#1</span>
+          <div class="size-6 rounded-full bg-[#fef3c7] flex items-center justify-center text-[10px] font-bold text-[#92400e]">KA</div>
+          <span class="text-sm font-medium flex-1">Khairul Anuar</span>
+          <span class="text-xs text-muted">Joined waitlist: 14 May · 9:22 AM</span>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 font-medium">Admit → Enroll</button>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-line bg-white text-muted font-medium">Remove</button>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-amber-100 bg-white px-3 py-2">
+          <span class="mono text-xs font-bold text-amber-600 w-5">#2</span>
+          <div class="size-6 rounded-full bg-[#ede9fe] flex items-center justify-center text-[10px] font-bold text-[#5b21b6]">LY</div>
+          <span class="text-sm font-medium flex-1">Lee Yin Mei</span>
+          <span class="text-xs text-muted">Joined waitlist: 14 May · 11:05 AM</span>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 font-medium">Admit → Enroll</button>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-line bg-white text-muted font-medium">Remove</button>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-amber-100 bg-white px-3 py-2">
+          <span class="mono text-xs font-bold text-amber-600 w-5">#3</span>
+          <div class="size-6 rounded-full bg-[#d1fae5] flex items-center justify-center text-[10px] font-bold text-[#065f46]">RH</div>
+          <span class="text-sm font-medium flex-1">Rosnah Hamid</span>
+          <span class="text-xs text-muted">Joined waitlist: 15 May · 6:14 AM</span>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 font-medium">Admit → Enroll</button>
+          <button class="text-xs py-1 px-2.5 rounded-lg border border-line bg-white text-muted font-medium">Remove</button>
+        </div>
+      </div>
+      <div class="mt-2 text-xs text-muted">Members are notified automatically when admitted from waitlist.</div>
+    </div>
+    <!-- Enrolled attendance (collapsed summary) -->
+    <div class="flex items-center justify-between px-5 py-3">
+      <div class="flex items-center gap-3">
+        <div class="flex -space-x-1.5">
+          <div class="size-6 rounded-full bg-[#ede9fe] border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#5b21b6]">SR</div>
+          <div class="size-6 rounded-full bg-[#fee2e2] border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#b91c1c]">TN</div>
+          <div class="size-6 rounded-full bg-[#d1fae5] border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#065f46]">AM</div>
+          <div class="size-6 rounded-full bg-paper border-2 border-white flex items-center justify-center text-[9px] font-bold text-muted">+17</div>
+        </div>
+        <span class="text-xs text-muted">20 enrolled · 18 checked in · 2 absent</span>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-outline text-xs py-1 px-3">Expand Roster</button>
+        <button class="btn-primary text-xs py-1 px-3">Save Attendance</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slot 3: HIIT Burn 9 AM — condensed -->
+  <div class="card overflow-hidden">
+    <div class="flex items-center gap-4 px-5 py-3.5 border-b border-line bg-[#fafafa]">
+      <span class="size-8 rounded-lg bg-[#fee2e2] flex items-center justify-center text-base">🔥</span>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm">HIIT Burn</span>
+          <span class="pill pill-hiit text-[10px]">Thu · 9:00 AM</span>
+          <span class="text-xs text-muted">45 min · Jake Lim · Main Floor · RM 40</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <div class="mono font-bold text-sm text-red-600">20 <span class="text-muted font-normal text-xs">/ 20</span></div>
+          <div class="bar w-24 mt-1"><div class="bar-fill bar-full" style="width:100%"></div></div>
+        </div>
+        <span class="badge-full text-[10px]">Full</span>
+        <span class="badge-waitlist text-[10px]">+1 waitlist</span>
+        <span class="text-xs text-muted">Starts in <strong class="text-ink mono">2h 14m</strong></span>
+        <button class="btn-outline text-xs py-1 px-2.5">Expand</button>
+        <button class="btn-primary text-xs py-1 px-2.5">Check-in</button>
+      </div>
+    </div>
+    <div class="flex items-center justify-between px-5 py-3 bg-paper/30">
+      <span class="text-xs text-muted">20 enrolled · check-in opens at 9:00 AM · <button class="text-ink font-semibold underline underline-offset-2">1 on waitlist</button></span>
+      <button class="btn-outline text-xs py-1 px-3">Manage Waitlist</button>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- Footer spacer -->
+<div class="h-16"></div>
+
+</body>
+</html>

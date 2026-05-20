@@ -46,7 +46,7 @@ export function ConfirmPaymentDialog({
 	const queryClient = useQueryClient();
 
 	const [paymentMethod, setPaymentMethod] = useState<
-		"manual_transfer" | "cash"
+		"manual_transfer" | "cash" | "card" | "fpx" | "stripe"
 	>("manual_transfer");
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
@@ -67,7 +67,7 @@ export function ConfirmPaymentDialog({
 			client.installments.confirmPayment({
 				organizationId,
 				installmentId: vars.installmentId,
-				paymentMethod: vars.paymentMethod as "manual_transfer" | "cash",
+				paymentMethod: vars.paymentMethod as "manual_transfer" | "cash" | "card" | "fpx" | "stripe",
 				notes: vars.notes || undefined,
 				nextIntervalDays: vars.nextIntervalDays,
 			}),
@@ -124,7 +124,7 @@ export function ConfirmPaymentDialog({
 						<Select
 							value={paymentMethod}
 							onValueChange={(v) =>
-								setPaymentMethod(v as "manual_transfer" | "cash")
+								setPaymentMethod(v as "manual_transfer" | "cash" | "card" | "fpx" | "stripe")
 							}
 						>
 							<SelectTrigger id="payment-method">
@@ -133,6 +133,9 @@ export function ConfirmPaymentDialog({
 							<SelectContent>
 								<SelectItem value="manual_transfer">Manual Transfer</SelectItem>
 								<SelectItem value="cash">Cash</SelectItem>
+								<SelectItem value="card">Card</SelectItem>
+								<SelectItem value="fpx">FPX</SelectItem>
+								<SelectItem value="stripe">Stripe</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>

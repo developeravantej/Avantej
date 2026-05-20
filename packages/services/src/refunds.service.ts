@@ -79,6 +79,12 @@ export interface RequestRefundInput {
 
 export interface ApproveRefundParams {
 	reviewNotes?: string;
+	/**
+	 * Optional partial-approve amount in cents.
+	 * Must satisfy: 0 < approveAmountCents ≤ requested AND ≤ remaining-refundable.
+	 * When omitted the full requested amount is approved (existing behaviour).
+	 */
+	approveAmountCents?: number;
 	actor: { userId: string; memberId: string; role: string };
 }
 
@@ -97,6 +103,7 @@ export interface RefundRowEnriched extends Refund {
 	requestedByName: string | null;
 	reviewedByName: string | null;
 	processedByName: string | null;
+	salesOrderNumber: string | null;
 }
 
 export interface ListRefundsParams {
@@ -115,6 +122,19 @@ export interface ListRefundsParams {
 	accessibleNodeIds: string[];
 	limit?: number;
 	offset?: number;
+}
+
+export interface BulkApproveItem {
+	id: string;
+	approveAmountCents?: number;
+	reviewNotes?: string;
+}
+
+export interface BulkApproveResult {
+	id: string;
+	success: boolean;
+	refund?: Refund;
+	error?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -504,8 +524,17 @@ export async function requestRefund(
 // ---------------------------------------------------------------------------
 
 /**
- * Approve a pending refund.
+ * Approve a pending refund, with optional partial-amount override.
+ *
  * Requires status='pending'; throws BAD_REQUEST otherwise.
+ *
+ * 1.5 — Partial approve:
+ *   * Uses SELECT … FOR UPDATE to lock the row and prevent concurrent double-approvals.
+ *   * approveAmountCents must satisfy: 0 < amount ≤ requested AND amount ≤ remaining-refundable.
+ *   * When approveAmountCents < requested the stored amountCents is updated to the approved
+ *     amount so downstream processRefund uses the correct figure.
+ *   * Audit action is `refund.approve.partial` when amount < requested, `refund.approve.full`
+ *     when amount equals requested (or omitted).
  */
 export async function approveRefund(
 	tenantDb: TenantDb,
@@ -513,9 +542,12 @@ export async function approveRefund(
 	params: ApproveRefundParams,
 ): Promise<Refund> {
 	return tenantDb.transaction(async (tx) => {
-		const existing = await tx.query.refunds.findFirst({
-			where: (r, { eq: eqFn }) => eqFn(r.id, id),
-		});
+		// 1.5 — Lock the row with SELECT FOR UPDATE to prevent concurrent approvals
+		const [existing] = await tx
+			.select()
+			.from(refunds)
+			.where(eq(refunds.id, id))
+			.for("update");
 
 		if (!existing)
 			throw { code: "NOT_FOUND", message: `Refund ${id} not found` };
@@ -527,12 +559,65 @@ export async function approveRefund(
 			};
 		}
 
+		// 1.5 — Validate partial-approve amount when provided
+		let effectiveAmountCents = existing.amountCents;
+		let isPartial = false;
+
+		if (params.approveAmountCents !== undefined) {
+			const approve = params.approveAmountCents;
+
+			if (!Number.isInteger(approve) || approve <= 0) {
+				throw {
+					code: "BAD_REQUEST",
+					message: "approveAmountCents must be a positive integer",
+				};
+			}
+
+			if (approve > existing.amountCents) {
+				throw {
+					code: "BAD_REQUEST",
+					message: `approveAmountCents (${approve}) exceeds requested amount (${existing.amountCents})`,
+				};
+			}
+
+			// Validate against remaining-refundable on the target
+			let remainingCents = existing.amountCents; // default: requested is the cap
+
+			if (existing.salesOrderId) {
+				const info = await computeRemainingBySalesOrder(tx, existing.salesOrderId);
+				// remaining excludes this pending refund (counted in computeRemainingBySalesOrder);
+				// add back this row's requested amount so the cap reflects only previously-settled refunds
+				remainingCents = info.remainingCents + existing.amountCents;
+			} else if (existing.paymentId) {
+				const info = await computeRemainingByPayment(tx, existing.paymentId);
+				remainingCents = info.remainingCents + existing.amountCents;
+			} else if (existing.packageInstanceId) {
+				const info = await computeRemainingByPackageInstance(
+					tx,
+					existing.packageInstanceId,
+				);
+				remainingCents = info.remainingCents + existing.amountCents;
+			}
+
+			if (approve > remainingCents) {
+				throw {
+					code: "BAD_REQUEST",
+					message: `approveAmountCents (${approve}) exceeds remaining refundable amount (${remainingCents})`,
+				};
+			}
+
+			effectiveAmountCents = approve;
+			isPartial = approve < existing.amountCents;
+		}
+
 		const now = new Date();
+		const auditAction = isPartial ? "refund.approve.partial" : "refund.approve.full";
 
 		const [updated] = await tx
 			.update(refunds)
 			.set({
 				status: "approved",
+				amountCents: effectiveAmountCents,
 				reviewedBy: params.actor.userId,
 				reviewedAt: now,
 				reviewNotes: params.reviewNotes ?? null,
@@ -542,6 +627,16 @@ export async function approveRefund(
 			.returning();
 
 		if (!updated) throw new Error("Failed to update refund row");
+
+		// Migration A: flip sales_orders.refund_status to 'pending' on approval so the
+		// Sales page refund-status filter surfaces these immediately. processRefund will
+		// flip again to 'partial' / 'processed' on payout.
+		if (existing.salesOrderId) {
+			await tx
+				.update(salesOrders)
+				.set({ refundStatus: "pending", updatedAt: now })
+				.where(eq(salesOrders.id, existing.salesOrderId));
+		}
 
 		// Agent 2.9 — J5: chain refund approval to commission reversal.
 		// Reversals are created inside the same tx so we either reverse + approve atomically,
@@ -556,13 +651,16 @@ export async function approveRefund(
 			actorUserId: params.actor.userId,
 			actorMemberId: params.actor.memberId,
 			actorRole: params.actor.role,
-			action: "sale.refund.approve",
+			action: `sale.${auditAction}`,
 			entityType: "refund",
 			entityId: id,
 			branchId: existing.branchId ?? undefined,
-			summary: `Refund ${existing.refundNumber} approved${reversalResult.reversalIds.length > 0 ? ` (${reversalResult.reversalIds.length} commission reversal(s))` : ""}`,
+			summary: `Refund ${existing.refundNumber} ${isPartial ? `partially approved (${(effectiveAmountCents / 100).toFixed(2)} of ${(existing.amountCents / 100).toFixed(2)} MYR)` : "approved"}${reversalResult.reversalIds.length > 0 ? ` (${reversalResult.reversalIds.length} commission reversal(s))` : ""}`,
 			changes: {
 				reviewNotes: params.reviewNotes,
+				requestedAmountCents: existing.amountCents,
+				approvedAmountCents: effectiveAmountCents,
+				isPartial,
 				reversalIds: reversalResult.reversalIds,
 			},
 		});
@@ -727,6 +825,13 @@ export async function processRefund(
 				const newStatus =
 					newCancelledAmount >= order.totalAmount ? "cancelled" : order.status;
 
+				// Migration A: maintain refund_status + refunded_amount_cents on sales_orders
+				// so the Sales page KPI / refundStatus filter reflects reality.
+				// - 'processed' when fully refunded (cumulative >= total)
+				// - 'partial' otherwise
+				const newRefundStatus: "partial" | "processed" =
+					newCancelledAmount >= order.totalAmount ? "processed" : "partial";
+
 				await tx
 					.update(salesOrders)
 					.set({
@@ -737,6 +842,8 @@ export async function processRefund(
 						cancellationReason: order.cancellationReason ?? existing.reason,
 						cancelledBy: params.actor.userId,
 						status: newStatus,
+						refundStatus: newRefundStatus,
+						refundedAmountCents: newCancelledAmount,
 						updatedAt: now,
 					})
 					.where(eq(salesOrders.id, existing.salesOrderId));
@@ -943,13 +1050,45 @@ export async function listRefunds(
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
 	// D.3.3 — Use SELECT COUNT(*) instead of fetching full rows to count
-	const [rows, countResult] = await Promise.all([
-		tenantDb.query.refunds.findMany({
-			where,
-			orderBy: (r, { desc: descFn }) => [descFn(r.requestedAt)],
-			limit: Math.min(limit, 200),
-			offset,
-		}),
+	// 1.4 — LEFT JOIN sales_orders to project salesOrderNumber on each row.
+	const [rawRows, countResult] = await Promise.all([
+		tenantDb
+			.select({
+				// All refund columns
+				id: refunds.id,
+				refundNumber: refunds.refundNumber,
+				status: refunds.status,
+				salesOrderId: refunds.salesOrderId,
+				paymentId: refunds.paymentId,
+				packageInstanceId: refunds.packageInstanceId,
+				amountCents: refunds.amountCents,
+				taxAmountCents: refunds.taxAmountCents,
+				reason: refunds.reason,
+				notes: refunds.notes,
+				requestedBy: refunds.requestedBy,
+				requestedAt: refunds.requestedAt,
+				reviewedBy: refunds.reviewedBy,
+				reviewedAt: refunds.reviewedAt,
+				reviewNotes: refunds.reviewNotes,
+				processedBy: refunds.processedBy,
+				processedAt: refunds.processedAt,
+				refundMethod: refunds.refundMethod,
+				refundReference: refunds.refundReference,
+				branchId: refunds.branchId,
+				customerId: refunds.customerId,
+				customerName: refunds.customerName,
+				metadata: refunds.metadata,
+				createdAt: refunds.createdAt,
+				updatedAt: refunds.updatedAt,
+				// Joined column
+				salesOrderNumber: salesOrders.salesOrderNumber,
+			})
+			.from(refunds)
+			.leftJoin(salesOrders, eq(refunds.salesOrderId, salesOrders.id))
+			.where(where)
+			.orderBy(sql`${refunds.requestedAt} DESC`)
+			.limit(Math.min(limit, 200))
+			.offset(offset),
 		tenantDb.select({ total: count() }).from(refunds).where(where),
 	]);
 
@@ -957,7 +1096,7 @@ export async function listRefunds(
 
 	// Collect all user IDs to look up names
 	const userIds = new Set<string>();
-	for (const row of rows) {
+	for (const row of rawRows) {
 		userIds.add(row.requestedBy);
 		if (row.reviewedBy) userIds.add(row.reviewedBy);
 		if (row.processedBy) userIds.add(row.processedBy);
@@ -978,7 +1117,7 @@ export async function listRefunds(
 		}
 	}
 
-	const enriched: RefundRowEnriched[] = rows.map((row) => ({
+	const enriched: RefundRowEnriched[] = rawRows.map((row) => ({
 		...row,
 		requestedByName: nameMap.get(row.requestedBy) ?? null,
 		reviewedByName: row.reviewedBy
@@ -987,6 +1126,7 @@ export async function listRefunds(
 		processedByName: row.processedBy
 			? (nameMap.get(row.processedBy) ?? null)
 			: null,
+		salesOrderNumber: row.salesOrderNumber ?? null,
 	}));
 
 	return { rows: enriched, total };
@@ -1195,4 +1335,60 @@ export async function createPartialRefund(
 			amountCents,
 		};
 	});
+}
+
+// ---------------------------------------------------------------------------
+// bulkApproveRefunds — 1.6
+// ---------------------------------------------------------------------------
+
+/**
+ * Approve up to 50 refunds in a single API call.
+ *
+ * Each item is processed in its own independent transaction so a failure on one
+ * row does NOT roll back the others. Per-row success/error is returned.
+ *
+ * Each item may optionally supply approveAmountCents and reviewNotes, which are
+ * forwarded to approveRefund() with the same validation rules as the single-row
+ * endpoint.
+ *
+ * Max 50 items per call — callers should paginate for larger batches.
+ */
+export async function bulkApproveRefunds(
+	tenantDb: TenantDb,
+	items: BulkApproveItem[],
+	actor: { userId: string; memberId: string; role: string },
+): Promise<BulkApproveResult[]> {
+	if (items.length === 0) {
+		return [];
+	}
+
+	if (items.length > 50) {
+		throw {
+			code: "BAD_REQUEST",
+			message: `bulkApproveRefunds accepts at most 50 items per call (received ${items.length})`,
+		};
+	}
+
+	// Process each item sequentially (independent TXs, not one giant TX)
+	const results: BulkApproveResult[] = [];
+
+	for (const item of items) {
+		try {
+			const refund = await approveRefund(tenantDb, item.id, {
+				approveAmountCents: item.approveAmountCents,
+				reviewNotes: item.reviewNotes,
+				actor,
+			});
+			results.push({ id: item.id, success: true, refund });
+		} catch (err) {
+			const e = err as { code?: string; message?: string };
+			results.push({
+				id: item.id,
+				success: false,
+				error: e?.message ?? "Unknown error",
+			});
+		}
+	}
+
+	return results;
 }

@@ -99,6 +99,15 @@ export const commissionSplits = pgTable(
 		// Use earnedAt (not createdAt) for payroll period filtering
 		earnedAt: timestamp("earned_at", { withTimezone: true }).notNull(),
 
+		// Phase 1 (sales-pipeline-fixes): why this split was earned
+		// "completion" | "cancellation" | "pos_product" | "manual"
+		// nullable for historical rows pre-migration 0051
+		earnReason: text("earn_reason"),
+
+		// Actor who created this split (for manual adjustments / Review tab "created by").
+		// Plain text; no FK — cross-DB user reference.
+		createdByUserId: text("created_by_user_id"),
+
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},

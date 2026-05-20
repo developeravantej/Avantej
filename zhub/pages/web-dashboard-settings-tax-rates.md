@@ -1,17 +1,20 @@
 # Tax Configuration
 
 **Route:** `/dashboard/settings/tax-rates`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.tsx`
+**Files:**
+- `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.tsx` — empty route shell (registers route only)
+- `apps/web/src/routes/_authenticated/dashboard/_layout/settings/tax-rates.lazy.tsx` — `createLazyFileRoute`, all UI + mutations live here
+
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
 **Purpose (user perspective):** Manage tax rates applied to sales orders (SST, GST, service tax, withholding tax, tax exempt, or custom).
-**Produces:** Table of active/inactive tax rates with CRUD operations, form to create/edit, rate display as percent with basis points indicator.
+**Produces:** A KPI strip (default rate card with amber styling, Active count, Inactive count), Active/All filter toggle, and table of tax rates with CRUD operations + dialog form to create/edit, rate display as percent with basis points indicator.
 **On success:** Rate created/updated/deactivated; table refreshes; toast confirmation.
 **On failure / error states:** Loading spinner, error card with retry button, form validation toasts.
 
@@ -23,23 +26,23 @@
 1. Page loads; `useUserContext()` reads `organizationId`
 2. `useQuery` fetches `client.taxRates.list()`
 3. Render table with Active/All filter toggle and date-effective columns
-4. User clicks "Add Tax Rate" → opens Sheet with empty form
+4. User clicks "New Tax Rate" → opens Dialog with empty form
 5. User fills form (name, code, rate %, category, effective dates) and submits
 6. Form validation checks required fields and rate range (0–100%)
 7. On submit: `createMutation` fires with rate converted to basis points
-8. On success: invalidate query, close sheet, show toast
-9. Edit: click row → pre-fill form → `updateMutation` on submit (code is read-only)
-10. Set Default: star button → `setDefaultMutation`
-11. Deactivate: button → confirm dialog → `deactivateMutation` (blocked if default)
+8. On success: invalidate query, close dialog, show toast (via `useApiMutation`)
+9. Edit: click "Edit" → pre-fill form → `updateMutation` on submit (`isDefault` checkbox hidden on edit; code is editable but uppercased)
+10. Set Default: star button → `setDefaultMutation` (disabled when row is already default or inactive)
+11. Deactivate: button → `deactivateMutation` (button disabled if `isDefault` with title-tooltip explaining)
 
 **Inputs:**
 - Form: `name`, `code`, `ratePercent` (user enters "8.00"), `category`, `effectiveFrom` (date), `effectiveUntil` (optional date), `description`, `isDefault`
 - Rate stored as basis points (percent × 100)
 
 **State management:**
-- TanStack Query: `["taxRates", organizationId]`
+- TanStack Query: `["taxRates", organizationId]` (invalidated via `useApiMutation`'s `invalidate` option)
 - Local state: `sheetOpen`, `editingId`, `form`, `showInactive`
-- Form validation: custom checks in `handleSubmit()`
+- Form validation: custom checks in `handleSubmit()` (with `toast.error` for each failure)
 
 **Outputs:**
 - DataTable with columns: Name, Code, Rate, Category, Default (star), Effective From, Effective Until, Status, Actions
@@ -63,17 +66,16 @@
 - `client.taxRates.deactivate({ organizationId, id })` — mark inactive
 
 **Uses these components:**
-- `DataTable` — render rate list
-- `Button`, `Badge`, `Input`, `Textarea`, `Checkbox`, `Select` — form controls
-- `Sheet` (sidebar) — create/edit modal
-- `Separator`, `EmptyState`, `StatusCallout` — layout
+- `DataTable` — `apps/web/src/components/tables/sales/view/data-table.tsx` (generic table)
+- `Button`, `Badge`, `Input`, `Textarea`, `Checkbox`, `Select` — form controls (shadcn/ui)
+- `Dialog` (`DialogContent/Header/Title/Description`) — create/edit modal (NOT `Sheet` — switched to Dialog during cleanup)
+- `EmptyState`, `StatusCallout`, `PageLoader` — `@/components/ui/*`
 - `lucide-react` icons (Star, Plus, Edit, Tag)
 
 **Uses these hooks:**
 - `useUserContext()` — org ID
 - `useQuery()` — list rates
-- `useMutation()` (×4: create, update, setDefault, deactivate)
-- `useQueryClient()` — invalidate on success
+- `useApiMutation()` (×4: create, update, setDefault, deactivate) — wraps mutate + toast + invalidate
 - `useState()` — form and UI state
 
 **Navigation: who navigates here:** Settings sidebar
@@ -137,18 +139,20 @@ type FormState = {
 
 **Rate unit conversion:** Form shows percent (user enters "8.00"), API stores basis points (800). Conversion: `Math.round(percent * 100)` on create/update, `bps / 100` on display with `.toFixed(2)`.
 
-**Code immutability on edit:** When editing, the `code` field is disabled and validation skipped (line 272). Codes cannot be changed after creation.
+**Code on edit:** The `code` field stays editable on edit (auto-uppercased on input); the server's `taxRates.update` accepts a `code`. The earlier "code immutable" rule no longer holds in the UI — verify server-side behaviour before assuming immutability.
 
 **Effective dates:** `effectiveFrom` is required; `effectiveUntil` is optional. If null, rate is considered "active" (line 388). Date validation ensures `until >= from` (line 694).
 
-**Default constraint:** Cannot deactivate a rate while marked default. The deactivate button is disabled if `isDefault: true` (line 423) with tooltip explaining.
+**Default constraint:** Cannot deactivate a rate while marked default. The deactivate button is disabled if `isDefault: true` with `title` tooltip explaining.
 
-**Status labels:** Active rates show "Active" badge; inactive rates show "Inactive" (lines 395–399).
+**Status labels:** Active rates show "Active" badge; inactive rates show "Inactive". Status filter band (Active/All buttons) hides inactive rows by default.
 
-**Empty state:** Shows "No tax rates" message when list is empty (lines 530–534).
+**Empty state:** `EmptyState` (Tag icon) with "New Tax Rate" action button when list is empty.
 
-**Date formatting:** Displayed as "en-MY" locale (e.g., "23 Apr 2026"). Helper functions `formatDate()` (line 98) and `toDateInputValue()` (line 112) handle ISO string conversion.
+**Date formatting:** Displayed as "en-MY" locale (e.g., "23 Apr 2026"). Helper functions `formatDate()` and `toDateInputValue()` handle ISO string conversion.
 
-**Error callout:** Uses `StatusCallout` component (line 465) instead of custom card for consistent error UX.
+**Error callout:** Uses `StatusCallout` with `onRetry={() => refetch()}` for consistent error UX. Plus a separate warning `StatusCallout` in the KPI strip when no default is set.
 
 **Stale time:** None set; queries default to 0 (always stale, refetch on mount).
+
+**Lazy-route split (Phase 5 of web-debt-cleanup):** `tax-rates.tsx` is now a minimal `createFileRoute` stub; all 827 lines of component code live in `tax-rates.lazy.tsx` via `createLazyFileRoute`.

@@ -195,8 +195,8 @@ describe("getCategoryCommissionConfig", () => {
 
 		expect(result).not.toBeNull();
 		expect(result!.conditions).toHaveLength(1);
-		expect(result!.conditions![0]!.condition).toEqual(condition);
-		expect(result!.conditions![0]!.rates).toEqual([condRate]);
+		expect(result!.conditions![0]!.condition).toEqual(condition as any);
+		expect(result!.conditions![0]!.rates).toEqual([condRate] as any);
 		expect(result!.rates).toBeUndefined();
 	});
 

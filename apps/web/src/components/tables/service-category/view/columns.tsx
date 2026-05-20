@@ -1,5 +1,3 @@
-import { DataTableColumnHeader } from "@/components/tables/data-column-header";
-import { Badge } from "@/components/ui/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 
 function formatDate(date: Date | string | null | undefined): string {
@@ -18,48 +16,50 @@ function formatDate(date: Date | string | null | undefined): string {
 export const columns: ColumnDef<any>[] = [
 	{
 		accessorKey: "name",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Name" />
+		header: "Name",
+		cell: ({ getValue }) => (
+			<span className="font-semibold text-[#0a0a0a]">{getValue<string>() || "N/A"}</span>
 		),
-		cell: ({ getValue }) => getValue<string>() || "N/A",
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "description",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Description" />
-		),
+		header: "Description",
 		cell: ({ getValue }) => {
 			const v = getValue<string | null>();
-			return v ?? "—";
+			return <span className="text-[#737373]">{v ?? "—"}</span>;
 		},
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "displayOrder",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Order" />
-		),
+		header: "Order",
 		cell: ({ getValue }) => {
 			const n = getValue<number>();
-			return n !== undefined && n !== null ? String(n) : "—";
+			return (
+				<span className="font-mono tabular-nums">
+					{n !== undefined && n !== null ? String(n) : "—"}
+				</span>
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "isActive",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Status" />
-		),
+		header: "Status",
 		cell: ({ getValue }) => {
 			const active = getValue<boolean>();
 			return active === true ? (
-				<Badge variant="default">Active</Badge>
+				<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-green-50 text-green-700">
+					Active
+				</span>
 			) : (
-				<Badge variant="secondary">Inactive</Badge>
+				<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-[#f3f3f3] text-[#737373]">
+					Inactive
+				</span>
 			);
 		},
 		enableSorting: true,
@@ -67,10 +67,10 @@ export const columns: ColumnDef<any>[] = [
 	},
 	{
 		accessorKey: "createdAt",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Created" />
+		header: "Created",
+		cell: ({ getValue }) => (
+			<span className="text-[#737373]">{formatDate(getValue<Date | string>())}</span>
 		),
-		cell: ({ getValue }) => formatDate(getValue<Date | string>()),
 		enableSorting: true,
 		enableHiding: false,
 	},

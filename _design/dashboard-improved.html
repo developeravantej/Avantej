@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Avantej Core — Improved Dashboard</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
+		rel="stylesheet"
+	/>
+	<style>
+		:root {
+			--bg: #f3f3f3;          /* page background (neutral light grey) */
+			--card: #ffffff;
+			--ink: #0a0a0a;
+			--ink-2: #404040;
+			--ink-3: #737373;
+			--ink-4: #a3a3a3;
+			--border: #e5e5e5;
+			--accent-green: #16a34a;
+			--accent-red: #dc2626;
+			--accent-amber: #d97706;
+			--accent-blue: #2563eb;
+			--brand-bone: #d6cdb1;
+			--sidebar-bg: #0a0a0a;
+			--sidebar-fg: #fafafa;
+			--sidebar-muted: #a3a3a3;
+			--sidebar-accent: #262626;
+			--sidebar-border: #262626;
+		}
+		* {
+			font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		body {
+			background: var(--bg);
+			color: var(--ink);
+		}
+		.mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+		.section-label {
+			font-size: 10px;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+			font-weight: 700;
+		}
+		.card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
+		.btn-primary { background: var(--ink); color: white; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: 120ms; }
+		.btn-primary:hover { background: #262626; }
+		.btn-ghost { padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); transition: 120ms; }
+		.btn-ghost:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+		.btn-outline {
+			background: white; border: 1px solid var(--border);
+			padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--ink); transition: 120ms;
+		}
+		.btn-outline:hover { background: var(--bg); border-color: var(--ink-4); }
+		.kpi-tile { padding: 20px 22px; }
+		.spark { height: 24px; }
+		.scrollbar-hide::-webkit-scrollbar { display: none; }
+		.scrollbar-hide { scrollbar-width: none; }
+
+		/* ── Sidebar ── */
+		.sidebar { background: var(--sidebar-bg); color: var(--sidebar-fg); }
+		.nav-item {
+			display: flex; align-items: center; gap: 10px;
+			padding: 9px 14px; border-radius: 10px;
+			font-size: 13.5px; font-weight: 500;
+			color: rgba(250,250,250,0.78);
+			transition: 120ms;
+			position: relative;
+		}
+		.nav-item:hover { background: var(--sidebar-accent); color: white; }
+		.nav-item.active {
+			background: white; color: var(--ink);
+		}
+		.nav-item.active svg { color: var(--ink); }
+		.nav-group-label {
+			font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+			text-transform: uppercase; color: rgba(250,250,250,0.4);
+			padding: 16px 14px 8px;
+		}
+		.sidebar-search {
+			background: var(--sidebar-accent); border: 1px solid var(--sidebar-border);
+			color: var(--sidebar-fg); padding: 9px 12px 9px 36px;
+			border-radius: 10px; font-size: 13px; width: 100%;
+		}
+		.sidebar-search::placeholder { color: rgba(250,250,250,0.45); }
+
+		/* ── Top App Bar ── */
+		.topbar { background: var(--card); border-bottom: 1px solid var(--border); height: 56px; }
+
+		/* ── Hero ── */
+		.hero {
+			background: linear-gradient(135deg, #ffffff 0%, #faf8f1 100%);
+			border: 1px solid var(--border); border-radius: 20px;
+			position: relative; overflow: hidden;
+		}
+		.hero::before {
+			content: ""; position: absolute; top: -40%; right: -10%;
+			width: 380px; height: 380px;
+			background: radial-gradient(circle, rgba(214,205,177,0.4) 0%, transparent 70%);
+			pointer-events: none;
+		}
+		.progress-track { height: 4px; background: #e7e5dd; border-radius: 999px; overflow: hidden; }
+		.progress-bar { height: 100%; background: linear-gradient(90deg, var(--ink) 0%, #404040 100%); border-radius: 999px; }
+
+		/* Chip */
+		.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+		.chip-green { background: rgba(22,163,74,0.1); color: var(--accent-green); }
+		.chip-red { background: rgba(220,38,38,0.1); color: var(--accent-red); }
+		.chip-amber { background: rgba(217,119,6,0.1); color: var(--accent-amber); }
+		.chip-bone { background: var(--brand-bone); color: #4a3f1d; }
+
+		/* Pulse dot */
+		.dot { width: 7px; height: 7px; border-radius: 999px; }
+		.dot-live { background: var(--accent-green); box-shadow: 0 0 0 4px rgba(22,163,74,0.18); animation: pulse 2s infinite; }
+		@keyframes pulse {
+			0%, 100% { box-shadow: 0 0 0 4px rgba(22,163,74,0.18); }
+			50% { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+		}
+
+		/* Widget card hover */
+		.widget { transition: 180ms; }
+		.widget:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -16px rgba(10,10,10,0.18); }
+
+		/* Avatar */
+		.avatar { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+		/* Sparkline path */
+		.spark path { stroke-width: 1.5; fill: none; }
+		.spark .area { fill: currentColor; opacity: 0.08; stroke: none; }
+	</style>
+</head>
+<body class="min-h-screen">
+	<!-- ─────────────────────────────────────────────────────────────── -->
+	<!--  LAYOUT SHELL                                                    -->
+	<!-- ─────────────────────────────────────────────────────────────── -->
+	<div class="flex min-h-screen">
+
+		<!-- ════════════════════════════════════════════════════════════ -->
+		<!--  SIDEBAR                                                       -->
+		<!-- ════════════════════════════════════════════════════════════ -->
+		<aside class="sidebar w-[288px] shrink-0 flex flex-col fixed inset-y-0 left-0 z-30">
+
+			<!-- Brand -->
+			<div class="px-4 pt-5 pb-3 flex items-center gap-3">
+				<div class="size-9 rounded-lg bg-white text-black flex items-center justify-center font-extrabold text-base">A</div>
+				<div class="flex flex-col leading-tight">
+					<span class="font-extrabold text-base tracking-tight">avantej</span>
+					<span class="font-extrabold text-base tracking-tight -mt-0.5">core</span>
+				</div>
+				<button class="ml-auto opacity-60 hover:opacity-100 transition">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+				</button>
+			</div>
+
+			<!-- Org switcher -->
+			<button class="mx-3 mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--sidebar-accent)] hover:bg-[#333] transition text-left">
+				<div class="size-6 rounded bg-[#d6cdb1] flex items-center justify-center text-[10px] font-bold text-black">TF</div>
+				<div class="flex-1 min-w-0">
+					<div class="text-xs font-semibold truncate">Test Fitness Franchise</div>
+					<div class="text-[10px] text-[var(--sidebar-muted)] truncate">3 branches · 18 members</div>
+				</div>
+				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+			</button>
+
+			<!-- Search -->
+			<div class="px-3 mb-2 relative">
+				<svg class="absolute left-6 top-1/2 -translate-y-1/2 opacity-50" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+				<input class="sidebar-search" placeholder="Power search…" />
+				<kbd class="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)] rounded px-1.5 py-0.5">⌘K</kbd>
+			</div>
+
+			<!-- Nav -->
+			<nav class="flex-1 overflow-y-auto scrollbar-hide px-3 pb-3">
+				<div class="nav-group-label">Main</div>
+				<a class="nav-item active" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+					<span>Home</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+					<span>Approvals</span>
+					<span class="ml-auto chip chip-amber text-[10px] py-0">8</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+					<span>Customers</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+					<span>Appointments</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+					<span>Class Slots</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+					<span>Trainer Availability</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+					<span>Services</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+					<span>POS</span>
+				</a>
+
+				<div class="nav-group-label">Finance</div>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8a4 4 0 0 0-4-4 4 4 0 0 0-4 4M12 14v8"/></svg>
+					<span>Sales & Payments</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+					<span>Cancelled Sales</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+					<span>Payouts</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+					<span>Refunds</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+					<span>Commissions</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+					<span>Tax Rates</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+					<span>Installment Plans</span>
+				</a>
+
+				<div class="nav-group-label">Staff & Access</div>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+					<span>Trainers</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+					<span>Employees</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 22s-8-4-8-10V5l8-3 8 3v7c0 6-8 10-8 10z"/></svg>
+					<span>Roles</span>
+				</a>
+
+				<div class="nav-group-label">Settings</div>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+					<span>Org Settings</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+					<span>Google Calendar</span>
+				</a>
+				<a class="nav-item" href="#">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>
+					<span>Audit Log</span>
+				</a>
+			</nav>
+
+			<!-- User footer -->
+			<div class="border-t border-[var(--sidebar-border)] p-3">
+				<button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[var(--sidebar-accent)] transition">
+					<div class="avatar" style="background: var(--brand-bone); color: var(--ink);">FO</div>
+					<div class="flex-1 min-w-0 text-left">
+						<div class="text-xs font-semibold truncate">Franchise Owner</div>
+						<div class="text-[10px] text-[var(--sidebar-muted)] truncate">franchisee@gmail.com</div>
+					</div>
+					<svg class="opacity-50" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+				</button>
+			</div>
+		</aside>
+
+		<!-- ════════════════════════════════════════════════════════════ -->
+		<!--  MAIN CONTENT                                                   -->
+		<!-- ════════════════════════════════════════════════════════════ -->
+		<div class="flex-1 ml-[288px] min-w-0">
+
+			<!-- ── TOP APP BAR ── -->
+			<header class="topbar sticky top-0 z-20 flex items-center px-7">
+				<div class="flex items-center gap-3 text-sm">
+					<span class="text-[var(--ink-3)]">Dashboard</span>
+					<span class="text-[var(--ink-4)]">/</span>
+					<span class="font-semibold">Overview</span>
+				</div>
+
+				<!-- Period selector pills -->
+				<div class="ml-8 flex items-center gap-1 bg-[var(--bg)] p-1 rounded-xl border border-[var(--border)]">
+					<button class="btn-ghost py-1 px-3 text-xs">Today</button>
+					<button class="btn-ghost py-1 px-3 text-xs">Week</button>
+					<button class="bg-[var(--ink)] text-white py-1 px-3 rounded-lg text-xs font-semibold">Month</button>
+					<button class="btn-ghost py-1 px-3 text-xs">Quarter</button>
+					<button class="btn-ghost py-1 px-3 text-xs">YTD</button>
+				</div>
+
+				<div class="ml-auto flex items-center gap-2">
+					<button class="btn-ghost p-2" title="Refresh">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+					</button>
+					<button class="btn-ghost p-2 relative" title="Notifications">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+						<span class="absolute top-1 right-1.5 size-1.5 rounded-full bg-[var(--accent-red)]"></span>
+					</button>
+					<div class="h-6 w-px bg-[var(--border)] mx-1"></div>
+					<button class="btn-outline flex items-center gap-2">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+						New Sale
+					</button>
+				</div>
+			</header>
+
+			<!-- ── PAGE CONTENT ── -->
+			<main class="px-7 py-6 space-y-6">
+
+				<!-- ░░ HERO ░░ -->
+				<section class="hero p-7 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+					<div class="relative z-10">
+						<div class="flex items-center gap-3 mb-3">
+							<div class="dot dot-live"></div>
+							<span class="section-label text-[var(--ink-3)]">Test Fitness Franchise · Live</span>
+							<span class="text-xs text-[var(--ink-4)]">·</span>
+							<span class="text-xs text-[var(--ink-3)]">Fri, 15 May 2026</span>
+						</div>
+
+						<div class="section-label text-[var(--ink-3)] mb-2">Month-to-date revenue</div>
+						<div class="flex items-baseline gap-3">
+							<span class="mono text-[64px] font-extrabold tracking-tight leading-none">RM 10,012</span>
+							<span class="chip chip-green mb-2">▲ 22.4%</span>
+						</div>
+						<div class="mt-2 text-sm text-[var(--ink-3)]">
+							<span class="mono font-semibold text-[var(--ink)]">115 orders</span>
+							<span class="mx-2 text-[var(--ink-4)]">·</span>
+							<span class="mono font-semibold text-[var(--ink)]">18 active members</span>
+							<span class="mx-2 text-[var(--ink-4)]">·</span>
+							<span>vs RM 8,180 last month</span>
+						</div>
+
+						<div class="mt-6 max-w-md">
+							<div class="flex justify-between text-[11px] text-[var(--ink-3)] mb-1.5">
+								<span><b class="text-[var(--ink)]">RM 10,012</b> of RM 14,000 goal</span>
+								<span class="mono">71%</span>
+							</div>
+							<div class="progress-track"><div class="progress-bar" style="width: 71%;"></div></div>
+							<div class="mt-1.5 text-[11px] text-[var(--ink-3)]">17 days left · pacing <b class="text-[var(--accent-green)]">+RM 1,840 ahead</b></div>
+						</div>
+
+						<div class="mt-7 flex items-center gap-2">
+							<button class="btn-primary">+ New Sale</button>
+							<button class="btn-outline">View Reports</button>
+							<button class="btn-ghost">Export</button>
+						</div>
+					</div>
+
+					<!-- 2x2 KPI grid -->
+					<div class="grid grid-cols-2 gap-px bg-[var(--border)] rounded-2xl overflow-hidden border border-[var(--border)] self-start">
+						<div class="kpi-tile bg-white">
+							<div class="section-label text-[var(--ink-3)]">Today's Revenue</div>
+							<div class="mono text-2xl font-bold mt-2">RM 1,240</div>
+							<div class="mt-1 flex items-center gap-2 text-[11px]">
+								<span class="chip chip-green">▲ 18%</span>
+								<span class="text-[var(--ink-3)]">12 orders</span>
+							</div>
+						</div>
+						<div class="kpi-tile bg-white">
+							<div class="section-label text-[var(--ink-3)]">Appointments</div>
+							<div class="mono text-2xl font-bold mt-2">7 / 20</div>
+							<div class="mt-1.5 progress-track"><div class="progress-bar bg-[var(--accent-blue)]" style="width: 35%;"></div></div>
+							<div class="mt-1 text-[11px] text-[var(--ink-3)]">35% completed</div>
+						</div>
+						<div class="kpi-tile bg-white">
+							<div class="section-label text-[var(--ink-3)]">Active Members</div>
+							<div class="mono text-2xl font-bold mt-2">18</div>
+							<div class="mt-1 flex items-center gap-2 text-[11px]">
+								<span class="chip chip-green">+2 today</span>
+								<span class="text-[var(--ink-3)]">retention 96%</span>
+							</div>
+						</div>
+						<div class="kpi-tile bg-white">
+							<div class="section-label text-[var(--ink-3)]">Largest Sale</div>
+							<div class="mono text-2xl font-bold mt-2">RM 540</div>
+							<div class="mt-1 text-[11px] text-[var(--ink-3)]">Sarah Lim · E2E Test Session</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- ░░ ANALYTICS ROW ░░ -->
+				<div class="flex items-center justify-between">
+					<h2 class="section-label text-[var(--ink-3)]">Analytics</h2>
+					<button class="btn-ghost text-xs">View all →</button>
+				</div>
+
+				<section class="grid grid-cols-12 gap-5">
+
+					<!-- Revenue trend (large) -->
+					<div class="card widget col-span-12 lg:col-span-8 p-6">
+						<div class="flex items-start justify-between mb-5">
+							<div>
+								<div class="text-sm font-semibold">Revenue trend</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">Last 30 days · all branches</div>
+							</div>
+							<div class="flex items-center gap-1 bg-[var(--bg)] p-1 rounded-lg border border-[var(--border)]">
+								<button class="px-2.5 py-1 text-[11px] font-medium rounded text-[var(--ink-3)]">7d</button>
+								<button class="px-2.5 py-1 text-[11px] font-semibold rounded bg-white text-[var(--ink)] shadow-sm">30d</button>
+								<button class="px-2.5 py-1 text-[11px] font-medium rounded text-[var(--ink-3)]">90d</button>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-3 gap-6 mb-5">
+							<div>
+								<div class="text-[11px] text-[var(--ink-3)] uppercase tracking-wider font-semibold">This period</div>
+								<div class="mono text-xl font-bold mt-1">RM 10,012</div>
+							</div>
+							<div>
+								<div class="text-[11px] text-[var(--ink-3)] uppercase tracking-wider font-semibold">Avg / day</div>
+								<div class="mono text-xl font-bold mt-1">RM 333</div>
+							</div>
+							<div>
+								<div class="text-[11px] text-[var(--ink-3)] uppercase tracking-wider font-semibold">vs prev</div>
+								<div class="mono text-xl font-bold mt-1 text-[var(--accent-green)]">+22.4%</div>
+							</div>
+						</div>
+
+						<!-- Chart -->
+						<svg viewBox="0 0 600 160" class="w-full h-40" preserveAspectRatio="none">
+							<defs>
+								<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stop-color="#0a0a0a" stop-opacity="0.15"/>
+									<stop offset="100%" stop-color="#0a0a0a" stop-opacity="0"/>
+								</linearGradient>
+							</defs>
+							<path d="M0,110 C40,100 60,80 90,75 C130,68 160,90 200,82 C240,75 270,55 310,50 C350,45 380,65 420,58 C460,50 490,30 530,38 C560,44 580,55 600,48 L600,160 L0,160 Z" fill="url(#g1)"/>
+							<path d="M0,110 C40,100 60,80 90,75 C130,68 160,90 200,82 C240,75 270,55 310,50 C350,45 380,65 420,58 C460,50 490,30 530,38 C560,44 580,55 600,48" stroke="#0a0a0a" stroke-width="2" fill="none"/>
+							<!-- Grid -->
+							<line x1="0" y1="40" x2="600" y2="40" stroke="#e7e5dd" stroke-dasharray="2 4" stroke-width="1"/>
+							<line x1="0" y1="80" x2="600" y2="80" stroke="#e7e5dd" stroke-dasharray="2 4" stroke-width="1"/>
+							<line x1="0" y1="120" x2="600" y2="120" stroke="#e7e5dd" stroke-dasharray="2 4" stroke-width="1"/>
+							<!-- Peak marker -->
+							<circle cx="530" cy="38" r="4" fill="white" stroke="#0a0a0a" stroke-width="2"/>
+						</svg>
+						<div class="flex justify-between text-[10px] text-[var(--ink-4)] mt-2 font-medium">
+							<span>16 Apr</span><span>23 Apr</span><span>30 Apr</span><span>7 May</span><span>15 May</span>
+						</div>
+					</div>
+
+					<!-- Branch performance -->
+					<div class="card widget col-span-12 lg:col-span-4 p-6 flex flex-col">
+						<div class="flex items-start justify-between mb-5">
+							<div>
+								<div class="text-sm font-semibold">Revenue by branch</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">Live · 3 branches</div>
+							</div>
+							<button class="btn-ghost p-1.5">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+							</button>
+						</div>
+
+						<div class="space-y-4">
+							<div>
+								<div class="flex items-baseline justify-between mb-1.5">
+									<div class="flex items-center gap-2">
+										<div class="size-2 rounded-sm bg-[var(--ink)]"></div>
+										<span class="text-xs font-medium">Test Fitness Franchise</span>
+									</div>
+									<span class="mono text-sm font-bold">RM 9,962</span>
+								</div>
+								<div class="progress-track"><div class="progress-bar" style="width: 95%;"></div></div>
+								<div class="flex justify-between text-[10px] text-[var(--ink-3)] mt-1">
+									<span>114 orders</span><span>95%</span>
+								</div>
+							</div>
+							<div>
+								<div class="flex items-baseline justify-between mb-1.5">
+									<div class="flex items-center gap-2">
+										<div class="size-2 rounded-sm bg-[var(--brand-bone)]"></div>
+										<span class="text-xs font-medium">Tanjong Pagar</span>
+									</div>
+									<span class="mono text-sm font-bold">RM 50</span>
+								</div>
+								<div class="progress-track"><div class="progress-bar" style="width: 1%; background: var(--brand-bone);"></div></div>
+								<div class="flex justify-between text-[10px] text-[var(--ink-3)] mt-1">
+									<span>1 order</span><span>&lt;1%</span>
+								</div>
+							</div>
+							<div>
+								<div class="flex items-baseline justify-between mb-1.5">
+									<div class="flex items-center gap-2">
+										<div class="size-2 rounded-sm bg-[var(--ink-4)]"></div>
+										<span class="text-xs font-medium">Test Sabah Branch</span>
+									</div>
+									<span class="mono text-sm font-bold">RM 0</span>
+								</div>
+								<div class="progress-track"><div class="progress-bar" style="width: 0%;"></div></div>
+								<div class="flex justify-between text-[10px] text-[var(--ink-3)] mt-1">
+									<span>0 orders</span><span>0%</span>
+								</div>
+							</div>
+						</div>
+
+						<button class="mt-auto pt-5 text-xs font-semibold text-[var(--ink)] hover:underline text-left">
+							View all branches →
+						</button>
+					</div>
+
+					<!-- Approvals attention -->
+					<div class="card widget col-span-12 lg:col-span-4 p-6">
+						<div class="flex items-start justify-between mb-4">
+							<div>
+								<div class="text-sm font-semibold flex items-center gap-2">
+									Needs attention
+									<span class="chip chip-amber">8 pending</span>
+								</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">Awaiting trainer assignment</div>
+							</div>
+						</div>
+
+						<ul class="space-y-2.5">
+							<li class="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[var(--bg)] transition cursor-pointer">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">BV</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-medium truncate">Bryan Voo</div>
+									<div class="text-[10px] text-[var(--ink-3)] truncate">Private 10-Session Pack</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 162</div>
+									<div class="text-[10px] text-[var(--ink-3)]">12 min ago</div>
+								</div>
+							</li>
+							<li class="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[var(--bg)] transition cursor-pointer">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">BV</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-medium truncate">Bryan Voo</div>
+									<div class="text-[10px] text-[var(--ink-3)] truncate">E2E Test Session</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 540</div>
+									<div class="text-[10px] text-[var(--ink-3)]">2 h ago</div>
+								</div>
+							</li>
+							<li class="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[var(--bg)] transition cursor-pointer">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">BV</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-medium truncate">Bryan Voo</div>
+									<div class="text-[10px] text-[var(--ink-3)] truncate">Private 10-Session Pack</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 162</div>
+									<div class="text-[10px] text-[var(--ink-3)]">1 d ago</div>
+								</div>
+							</li>
+						</ul>
+
+						<button class="mt-4 w-full btn-outline text-xs">View all 8 approvals →</button>
+					</div>
+
+					<!-- Staff Performance -->
+					<div class="card widget col-span-12 lg:col-span-4 p-6">
+						<div class="flex items-start justify-between mb-4">
+							<div>
+								<div class="text-sm font-semibold">Top performers</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">This month · by commission</div>
+							</div>
+						</div>
+
+						<ul class="space-y-3">
+							<li class="flex items-center gap-3">
+								<div class="relative">
+									<div class="avatar" style="background: var(--ink); color: white;">AW</div>
+									<span class="absolute -bottom-1 -right-1 size-4 rounded-full bg-[var(--brand-bone)] flex items-center justify-center text-[9px] font-bold">1</span>
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-semibold truncate">Alex Wong</div>
+									<div class="text-[10px] text-[var(--ink-3)]">11 sessions · Head Coach</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 110</div>
+								</div>
+							</li>
+							<li class="flex items-center gap-3 opacity-60">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">MK</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-semibold truncate">Maya Krishnan</div>
+									<div class="text-[10px] text-[var(--ink-3)]">0 sessions · Standard</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 0</div>
+								</div>
+							</li>
+							<li class="flex items-center gap-3 opacity-60">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">DT</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-semibold truncate">Daniel Tan</div>
+									<div class="text-[10px] text-[var(--ink-3)]">0 sessions · Standard</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 0</div>
+								</div>
+							</li>
+							<li class="flex items-center gap-3 opacity-60">
+								<div class="avatar" style="background: var(--bg); color: var(--ink);">DT</div>
+								<div class="flex-1 min-w-0">
+									<div class="text-xs font-semibold truncate">Deterministic Trainer</div>
+									<div class="text-[10px] text-[var(--ink-3)]">0 sessions · Standard</div>
+								</div>
+								<div class="text-right">
+									<div class="mono text-xs font-bold">RM 0</div>
+								</div>
+							</li>
+						</ul>
+					</div>
+
+					<!-- Recent activity -->
+					<div class="card widget col-span-12 lg:col-span-4 p-6">
+						<div class="flex items-start justify-between mb-4">
+							<div>
+								<div class="text-sm font-semibold">Recent activity</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">Live audit stream</div>
+							</div>
+							<div class="dot dot-live"></div>
+						</div>
+
+						<ul class="space-y-3.5">
+							<li class="flex gap-3 text-xs">
+								<div class="size-1.5 rounded-full bg-[var(--accent-red)] mt-1.5 shrink-0"></div>
+								<div class="min-w-0">
+									<div><b>Franchise Owner</b> cancelled <span class="mono text-[11px]">SO-000122</span></div>
+									<div class="text-[10px] text-[var(--ink-3)] mt-0.5">15 May · 02:24</div>
+								</div>
+							</li>
+							<li class="flex gap-3 text-xs">
+								<div class="size-1.5 rounded-full bg-[var(--accent-amber)] mt-1.5 shrink-0"></div>
+								<div class="min-w-0">
+									<div><b>Franchise Owner</b> approved refund (partial RM 80)</div>
+									<div class="text-[10px] text-[var(--ink-3)] mt-0.5">15 May · 02:12</div>
+								</div>
+							</li>
+							<li class="flex gap-3 text-xs">
+								<div class="size-1.5 rounded-full bg-[var(--accent-blue)] mt-1.5 shrink-0"></div>
+								<div class="min-w-0">
+									<div><b>Bryan Voo</b> created appointment</div>
+									<div class="text-[10px] text-[var(--ink-3)] mt-0.5">14 May · 23:00</div>
+								</div>
+							</li>
+							<li class="flex gap-3 text-xs">
+								<div class="size-1.5 rounded-full bg-[var(--accent-blue)] mt-1.5 shrink-0"></div>
+								<div class="min-w-0">
+									<div><b>Bryan Voo</b> created appointment</div>
+									<div class="text-[10px] text-[var(--ink-3)] mt-0.5">14 May · 22:57</div>
+								</div>
+							</li>
+							<li class="flex gap-3 text-xs">
+								<div class="size-1.5 rounded-full bg-[var(--accent-green)] mt-1.5 shrink-0"></div>
+								<div class="min-w-0">
+									<div><b>System</b> payout · Alex Wong · RM 110</div>
+									<div class="text-[10px] text-[var(--ink-3)] mt-0.5">14 May · 18:02</div>
+								</div>
+							</li>
+						</ul>
+
+						<button class="mt-5 w-full text-xs font-semibold text-[var(--ink)] hover:underline text-left">
+							Open full audit log →
+						</button>
+					</div>
+
+					<!-- Today's appointments -->
+					<div class="card widget col-span-12 p-6">
+						<div class="flex items-center justify-between mb-5">
+							<div>
+								<div class="text-sm font-semibold">Today's appointments</div>
+								<div class="text-xs text-[var(--ink-3)] mt-0.5">7 bookings · 4 in morning · 3 in afternoon</div>
+							</div>
+							<div class="flex items-center gap-2">
+								<button class="btn-ghost text-xs">Day</button>
+								<button class="btn-outline text-xs">Week</button>
+								<button class="btn-primary text-xs">+ New Booking</button>
+							</div>
+						</div>
+
+						<!-- Timeline mini -->
+						<div class="grid grid-cols-12 gap-2">
+							<!-- Hour labels -->
+							<div class="col-span-12 grid grid-cols-[repeat(15,minmax(0,1fr))] gap-0 text-[10px] text-[var(--ink-3)] font-medium mb-2">
+								<span>8</span><span>9</span><span>10</span><span>11</span><span>12</span>
+								<span>13</span><span>14</span><span>15</span><span>16</span><span>17</span>
+								<span>18</span><span>19</span><span>20</span><span>21</span><span>22</span>
+							</div>
+							<!-- Bars -->
+							<div class="col-span-12 relative h-24 bg-[var(--bg)] rounded-xl border border-[var(--border)] p-2 grid grid-cols-[repeat(15,minmax(0,1fr))] gap-0">
+								<div class="absolute inset-y-0 left-0 right-0 grid grid-cols-15 pointer-events-none" style="grid-template-columns: repeat(15, minmax(0, 1fr));">
+									<div></div><div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+									<div class="border-l border-dashed border-[var(--border)]"></div>
+								</div>
+								<!-- Appointment chips -->
+								<div class="col-start-2 col-span-1 bg-[var(--ink)] text-white text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-start mt-2">9:00 BV</div>
+								<div class="col-start-3 col-span-1 bg-[var(--ink)] text-white text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-start mt-2">10:30</div>
+								<div class="col-start-4 col-span-1 bg-[var(--ink)] text-white text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-start mt-2">11:00</div>
+								<div class="col-start-5 col-span-1 bg-[var(--brand-bone)] text-black text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-center">12:00</div>
+								<div class="col-start-9 col-span-1 bg-[var(--ink)] text-white text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-end mb-2">16:00</div>
+								<div class="col-start-9 col-span-1 bg-[var(--ink-4)] text-white text-[10px] font-semibold rounded-md px-1.5 py-1 flex items-center justify-center self-start mt-2">16:00</div>
+							</div>
+						</div>
+					</div>
+
+				</section>
+
+				<!-- Footer spacer -->
+				<div class="py-6 text-center text-[11px] text-[var(--ink-4)]">
+					Avantej Core · v2.0 · Build 51 commits ahead
+				</div>
+
+			</main>
+		</div>
+	</div>
+</body>
+</html>

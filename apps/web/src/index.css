@@ -83,14 +83,15 @@ body {
 	--chart-3: oklch(0.72 0 0);
 	--chart-4: oklch(0.92 0 0);
 	--chart-5: oklch(0.56 0 0);
-	--sidebar: oklch(1 0 0);
-	--sidebar-foreground: oklch(0 0 0);
-	--sidebar-primary: oklch(0 0 0);
-	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.94 0.005 90);
-	--sidebar-accent-foreground: oklch(0 0 0);
-	--sidebar-border: oklch(0.94 0.005 90);
-	--sidebar-ring: oklch(0 0 0);
+	/* Sidebar: always black/dark — independent of light/dark mode. */
+	--sidebar: #0a0a0a;
+	--sidebar-foreground: #fafafa;
+	--sidebar-primary: #fafafa;
+	--sidebar-primary-foreground: #0a0a0a;
+	--sidebar-accent: #262626;
+	--sidebar-accent-foreground: #fafafa;
+	--sidebar-border: #262626;
+	--sidebar-ring: #fafafa;
 	--destructive-foreground: oklch(1 0 0);
 	--font-heading: Nordeco, sans-serif;
 	--font-subheading: Metropolis-Medium, sans-serif;

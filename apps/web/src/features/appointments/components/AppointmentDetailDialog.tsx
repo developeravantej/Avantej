@@ -153,6 +153,7 @@ export function AppointmentDetailDialog({
 									<Button
 										className="w-full gap-2 rounded-xl h-10"
 										onClick={() => { onClose(); onMarkAttendance(appt.id); }}
+										data-testid="appointment-cancel-button"
 									>
 										<ClipboardCheck className="size-4" />
 										Mark Attendance

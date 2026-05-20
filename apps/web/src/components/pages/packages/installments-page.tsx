@@ -11,6 +11,8 @@ import { InstallmentsTable } from "@/features/installments/components/installmen
 import { ManualUnlockDialog } from "@/features/installments/components/manual-unlock-dialog";
 import { OverdraftDialog } from "@/features/installments/components/overdraft-dialog";
 import { PackageDetailDialog } from "@/features/installments/components/package-detail-dialog";
+import { RescheduleDialog } from "@/features/installments/components/reschedule-dialog";
+import { WaiveDialog } from "@/features/installments/components/waive-dialog";
 import { useInstallmentMutations } from "@/features/installments/hooks/useInstallmentMutations";
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -42,6 +44,10 @@ export function PackageInstallmentsPage() {
 	// ── Dialog states ────────────────────────────────────────────────────────────
 	const [confirmInstallment, setConfirmInstallment] =
 		useState<Installment | null>(null);
+	const [rescheduleInstallment, setRescheduleInstallment] =
+		useState<Installment | null>(null);
+	const [waiveInstallment, setWaiveInstallment] =
+		useState<Installment | null>(null);
 	const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 	const [showRefundDialog, setShowRefundDialog] = useState(false);
 	const [showAdjustCreditsDialog, setShowAdjustCreditsDialog] = useState(false);
@@ -50,7 +56,7 @@ export function PackageInstallmentsPage() {
 
 	// ── Form state ───────────────────────────────────────────────────────────────
 	const [paymentMethod, setPaymentMethod] = useState<
-		"manual_transfer" | "cash"
+		"manual_transfer" | "cash" | "card" | "fpx" | "stripe"
 	>("manual_transfer");
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
@@ -155,7 +161,7 @@ export function PackageInstallmentsPage() {
 	 * workflow (request → approve → process). The UI now opens RequestRefundDialog
 	 * which calls refunds.request to create a Pending row for review.
 	 */
-	const { confirmPaymentMutation, manualUnlockMutation, adjustCreditsMutation, setOverdraftMutation } =
+	const { confirmPaymentMutation, manualUnlockMutation, adjustCreditsMutation, setOverdraftMutation, rescheduleMutation, waiveMutation, resetOverrideMutation } =
 		useInstallmentMutations({
 			organizationId,
 			selectedInstance,
@@ -170,6 +176,8 @@ export function PackageInstallmentsPage() {
 			setAdjustReason,
 			setShowOverdraftDialog,
 			setOverdraftReason,
+			setRescheduleInstallment,
+			setWaiveInstallment,
 		});
 
 	function openSheet(instance: InstallmentOverviewItem) {
@@ -243,6 +251,8 @@ export function PackageInstallmentsPage() {
 				installments={installments}
 				onClose={closeSheet}
 				onConfirmInstallment={setConfirmInstallment}
+				onReschedule={setRescheduleInstallment}
+				onWaive={setWaiveInstallment}
 				onOpenUnlockDialog={() => setShowUnlockDialog(true)}
 				onOpenOverdraftDialog={() => setShowOverdraftDialog(true)}
 				onOpenAdjustCreditsDialog={() => {
@@ -297,6 +307,7 @@ export function PackageInstallmentsPage() {
 					setAdjustReason("");
 				}}
 				adjustCreditsMutation={adjustCreditsMutation}
+				resetOverrideMutation={resetOverrideMutation}
 			/>
 
 			<OverdraftDialog
@@ -324,6 +335,18 @@ export function PackageInstallmentsPage() {
 					}
 				/>
 			)}
+
+			<RescheduleDialog
+				rescheduleInstallment={rescheduleInstallment}
+				onClose={() => setRescheduleInstallment(null)}
+				rescheduleMutation={rescheduleMutation}
+			/>
+
+			<WaiveDialog
+				waiveInstallment={waiveInstallment}
+				onClose={() => setWaiveInstallment(null)}
+				waiveMutation={waiveMutation}
+			/>
 
 		</>
 	);

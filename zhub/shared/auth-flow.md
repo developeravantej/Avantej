@@ -1,6 +1,6 @@
 # Auth Flow & RBAC
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12 *(content unchanged — web-debt-cleanup did not touch auth middleware, context, or RBAC services)*
 
 ---
 

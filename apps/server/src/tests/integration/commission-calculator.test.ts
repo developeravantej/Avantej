@@ -251,6 +251,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(1);
@@ -292,6 +293,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(1);
@@ -334,6 +336,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(1);
@@ -358,6 +361,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(0);
@@ -405,6 +409,7 @@ describe("Commission Calculator — appointment path", () => {
 			attendeeCount: 1,
 			staffAssignments: [{ staffId: noTierUserId, slotIndex: 0 }],
 			actor: ACTOR,
+			earnReason: "completion",
 		});
 
 		expect(splits).toHaveLength(0);

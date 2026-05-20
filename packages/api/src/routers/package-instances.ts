@@ -12,8 +12,12 @@ import {
   createInstallmentSchedule,
   requirePermission,
   getPackageInstanceStatusHistory,
+  cancelPackageInstance,
+  freezePackageInstance,
+  unfreezePackageInstance,
+  extendPackageInstance,
 } from "@avantej-core/services";
-import { listMemberships } from "@avantej-core/services/package-instance.service";
+import { listMemberships, listAssignedToMember } from "@avantej-core/services/package-instance.service";
 import { getSetting } from "@avantej-core/services/organization-settings.service";
 import {
   notifyStaffOfPendingPackage,
@@ -22,6 +26,7 @@ import {
   clearPendingReviewNotifications,
 } from "@avantej-core/services/notification.service";
 import { writeAudit } from "@avantej-core/services/audit-log.service";
+import { appendPackageInstanceStatusHistory } from "@avantej-core/services/status-history.helper";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { packageInstanceStaff } from "@avantej-core/db/schema/tenant/package-instance-staff";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -42,10 +47,12 @@ type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 const sourceSchema = z.enum(["assigned", "purchased"]);
-const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded"]);
+const paymentStatusSchema = z.enum(["pending", "paid", "failed", "refunded", "partially_paid"]);
 const statusSchema = z.enum([
   "pending",
   "active",
+  "frozen",
+  "completed",
   "expired",
   "exhausted",
   "cancelled",
@@ -595,7 +602,13 @@ export const packageInstancesRouter = {
       }
 
       const callerRole = context.member.role;
-      const callerUserId = context.session?.user?.id ?? "";
+      const callerUserId = context.session?.user?.id;
+      // 7.5: Never write an empty string to audit columns — session must be present
+      if (!callerUserId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Session user ID is required for this operation",
+        });
+      }
 
       // Self-assign rule for trainers
       if (callerRole === "trainer") {
@@ -709,6 +722,14 @@ export const packageInstancesRouter = {
             },
           });
 
+          // 7.4: Status-history row — pending → active on trainer assignment/approval
+          await appendPackageInstanceStatusHistory(tx, pkg.id, {
+            fromStatus: pkg.status,
+            toStatus: "active",
+            changedBy: callerUserId,
+            reason: "Trainer assigned — package approved",
+          });
+
           return row;
         });
 
@@ -785,7 +806,13 @@ export const packageInstancesRouter = {
         });
       }
 
-      const callerUserId = context.session?.user?.id ?? "";
+      // 7.5: Never write an empty string to audit columns — session must be present
+      const callerUserId = context.session?.user?.id;
+      if (!callerUserId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Session user ID is required for this operation",
+        });
+      }
 
       const pkg = await context.tenantDb.query.packageInstances.findFirst({
         where: eq(packageInstances.id, input.packageInstanceId),
@@ -840,6 +867,14 @@ export const packageInstancesRouter = {
           changes: { reason: input.reason ?? null },
         });
 
+        // 7.6: Status-history row — pending → cancelled on admin rejection
+        await appendPackageInstanceStatusHistory(tx, pkg.id, {
+          fromStatus: pkg.status,
+          toStatus: "cancelled",
+          changedBy: callerUserId,
+          reason: input.reason ?? "Rejected by admin",
+        });
+
         return row;
       });
 
@@ -859,6 +894,289 @@ export const packageInstancesRouter = {
       }
 
       return updated;
+    }),
+
+  /**
+   * Bulk approve (assign trainer to) multiple pending packages in one call.
+   * Per-row failures don't abort the batch — returns counts + per-id outcomes.
+   *
+   * Validation per row mirrors `assignTrainer`:
+   * - Package must exist and be in `pending` status
+   * - Trainer must be active + role trainer|admin
+   * - Trainer's hierarchyScopeId must match the package service's branchId
+   *   (when service has a branch)
+   * - Caller's accessibleNodeIds must include the service branch (admins)
+   */
+  bulkApprove: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        packageInstanceIds: z.array(z.string().uuid()).min(1).max(100),
+        trainerMemberId: z.string().uuid(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      const callerRole = context.member.role;
+      const callerUserId = context.session?.user?.id;
+      if (!callerUserId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Session user ID is required for this operation",
+        });
+      }
+      if (callerRole === "trainer") {
+        if (input.trainerMemberId !== context.member.id) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Trainers can only assign themselves",
+          });
+        }
+      } else if (callerRole !== "admin") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Only admins or trainers can assign packages",
+        });
+      }
+
+      const trainerMember = await context.tenantDb.query.members.findFirst({
+        where: eq(members.id, input.trainerMemberId),
+      });
+      if (!trainerMember) {
+        throw new ORPCError("NOT_FOUND", { message: "Trainer not found" });
+      }
+      if (trainerMember.status !== "active") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Trainer is not active",
+        });
+      }
+      if (
+        trainerMember.role !== "trainer" &&
+        trainerMember.role !== "admin"
+      ) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Target member is not a trainer",
+        });
+      }
+
+      const accessibleNodeIds = context.accessibleNodeIds ?? [];
+      const succeeded: string[] = [];
+      const failed: Array<{ id: string; reason: string }> = [];
+
+      for (const pkgId of input.packageInstanceIds) {
+        try {
+          const pkg = await context.tenantDb.query.packageInstances.findFirst({
+            where: eq(packageInstances.id, pkgId),
+          });
+          if (!pkg) {
+            failed.push({ id: pkgId, reason: "Package not found" });
+            continue;
+          }
+          if (pkg.status !== "pending") {
+            failed.push({
+              id: pkgId,
+              reason: `Not pending (status: ${pkg.status})`,
+            });
+            continue;
+          }
+
+          const svc = await context.tenantDb.query.services.findFirst({
+            where: eq(services.id, pkg.serviceId),
+          });
+          if (svc?.branchId && trainerMember.hierarchyScopeId !== svc.branchId) {
+            failed.push({
+              id: pkgId,
+              reason: "Trainer not in same branch as package",
+            });
+            continue;
+          }
+          if (
+            callerRole === "admin" &&
+            svc?.branchId &&
+            !accessibleNodeIds.includes(svc.branchId)
+          ) {
+            failed.push({
+              id: pkgId,
+              reason: "Branch outside your access",
+            });
+            continue;
+          }
+
+          const now = new Date();
+          await context.tenantDb.transaction(async (tx: any) => {
+            await tx
+              .update(packageInstances)
+              .set({
+                status: "active",
+                assignedTrainerId: trainerMember.id,
+                assignedTrainerAssignedBy: callerUserId,
+                assignedTrainerAssignedAt: now,
+                approvedAt: now,
+                approvedBy: callerUserId,
+                updatedAt: now,
+              })
+              .where(eq(packageInstances.id, pkg.id));
+
+            await writeAudit(tx, {
+              actorUserId: callerUserId,
+              actorMemberId: context.member!.id,
+              actorRole: context.member!.role,
+              action: "package.assigned",
+              entityType: "package_instance",
+              entityId: pkg.id,
+              branchId: svc?.branchId ?? undefined,
+              summary: `Bulk approve: assigned trainer ${trainerMember.id} to package ${pkg.id}`,
+              changes: {
+                assignedTrainerId: trainerMember.id,
+                bulk: true,
+              },
+            });
+
+            await appendPackageInstanceStatusHistory(tx, pkg.id, {
+              fromStatus: pkg.status,
+              toStatus: "active",
+              changedBy: callerUserId,
+              reason: "Bulk approve",
+            });
+          });
+          succeeded.push(pkgId);
+        } catch (err) {
+          failed.push({
+            id: pkgId,
+            reason: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+      }
+
+      return {
+        succeeded,
+        failed,
+        succeededCount: succeeded.length,
+        failedCount: failed.length,
+      };
+    }),
+
+  /**
+   * Bulk reject multiple pending packages — admin only.
+   * Same per-row validation as `reject`. Per-row failures don't abort the batch.
+   */
+  bulkReject: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        packageInstanceIds: z.array(z.string().uuid()).min(1).max(100),
+        reason: z.string().max(500).optional(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+      if (context.member.role !== "admin") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Only admins can reject packages",
+        });
+      }
+      const callerUserId = context.session?.user?.id;
+      if (!callerUserId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Session user ID is required for this operation",
+        });
+      }
+
+      const accessibleNodeIds = context.accessibleNodeIds ?? [];
+      const succeeded: string[] = [];
+      const failed: Array<{ id: string; reason: string }> = [];
+      const reason = input.reason ?? "Rejected by admin";
+
+      for (const pkgId of input.packageInstanceIds) {
+        try {
+          const pkg = await context.tenantDb.query.packageInstances.findFirst({
+            where: eq(packageInstances.id, pkgId),
+          });
+          if (!pkg) {
+            failed.push({ id: pkgId, reason: "Package not found" });
+            continue;
+          }
+          if (pkg.status !== "pending") {
+            failed.push({
+              id: pkgId,
+              reason: `Not pending (status: ${pkg.status})`,
+            });
+            continue;
+          }
+          const svc = await context.tenantDb.query.services.findFirst({
+            where: eq(services.id, pkg.serviceId),
+          });
+          if (svc?.branchId && !accessibleNodeIds.includes(svc.branchId)) {
+            failed.push({
+              id: pkgId,
+              reason: "Branch outside your access",
+            });
+            continue;
+          }
+
+          const now = new Date();
+          await context.tenantDb.transaction(async (tx: any) => {
+            await tx
+              .update(packageInstances)
+              .set({
+                status: "cancelled",
+                cancellationReason: reason,
+                cancelledBy: callerUserId,
+                updatedAt: now,
+              })
+              .where(eq(packageInstances.id, pkg.id));
+
+            await writeAudit(tx, {
+              actorUserId: callerUserId,
+              actorMemberId: context.member!.id,
+              actorRole: context.member!.role,
+              action: "package.rejected",
+              entityType: "package_instance",
+              entityId: pkg.id,
+              branchId: svc?.branchId ?? undefined,
+              summary: `Bulk reject: ${pkg.id}${input.reason ? `: ${input.reason}` : ""}`,
+              changes: { reason, bulk: true },
+            });
+
+            await appendPackageInstanceStatusHistory(tx, pkg.id, {
+              fromStatus: pkg.status,
+              toStatus: "cancelled",
+              changedBy: callerUserId,
+              reason,
+            });
+          });
+          succeeded.push(pkgId);
+        } catch (err) {
+          failed.push({
+            id: pkgId,
+            reason: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+      }
+
+      return {
+        succeeded,
+        failed,
+        succeededCount: succeeded.length,
+        failedCount: failed.length,
+      };
     }),
 
   /**
@@ -907,7 +1225,11 @@ export const packageInstancesRouter = {
       const branchFilterIds: string[] | null = (() => {
         if (input.branchId) return [input.branchId];
         if (scope === "assignable_to_me") {
-          return [context.member.hierarchyScopeId];
+          // scope expanded 2026-05-12 — match notification fan-out (sales-pipeline-fixes session)
+          // Previously filtered to context.member.hierarchyScopeId (single node), causing
+          // parent-region trainers to receive notifications but see an empty queue.
+          // Now uses accessibleNodeIds (full descendant set), matching notifyStaffOfPendingPackage.
+          return accessibleNodeIds.length > 0 ? accessibleNodeIds : [context.member.hierarchyScopeId];
         }
         return accessibleNodeIds.length > 0 ? accessibleNodeIds : null;
       })();
@@ -929,6 +1251,8 @@ export const packageInstancesRouter = {
           preferredTrainerId: packageInstances.preferredTrainerId,
           serviceName: services.name,
           branchId: services.branchId,
+          paymentMethod: packageInstances.paymentMethod,
+          paymentStatus: packageInstances.paymentStatus,
         })
         .from(packageInstances)
         .leftJoin(services, eq(packageInstances.serviceId, services.id))
@@ -1036,6 +1360,491 @@ export const packageInstancesRouter = {
           ? (preferredTrainerNameMap.get(r.preferredTrainerId) ?? null)
           : null,
       }));
+    }),
+
+  /**
+   * List package instances assigned to the calling trainer.
+   *
+   * Accessible to any authenticated member — returns only rows where
+   * assignedTrainerId = context.member.id, so no extra permission is needed.
+   *
+   * Index: package_instances_assigned_trainer_status_idx (assigned_trainer_id, status)
+   * — added in migration 0051_sales_pipeline_fixes.
+   */
+  listAssignedToMe: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(100).default(50),
+        status: z.enum(["active", "frozen", "all"]).default("active"),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      const limit = input.limit;
+
+      // Decode cursor: "createdAt|id" shape (matches encodeCursor).
+      const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
+      // parseCursor returns { changedAt, id } but we reuse the same encoding for createdAt.
+      const cursor = parsedCursor
+        ? { createdAt: parsedCursor.changedAt, id: parsedCursor.id }
+        : null;
+
+      const controlPanelDb = getControlPanelDb(context);
+
+      // Fetch limit+1 rows so we can detect whether a next page exists.
+      const rows = await listAssignedToMember(controlPanelDb, context.tenantDb, {
+        memberId: context.member.id,
+        status: input.status,
+        cursor,
+        limit: limit + 1,
+      });
+
+      const hasMore = rows.length > limit;
+      const items = hasMore ? rows.slice(0, limit) : rows;
+      const lastItem = items.at(-1);
+      const nextCursor =
+        hasMore && lastItem
+          ? encodeCursor(lastItem.createdAt, lastItem.id)
+          : null;
+
+      return { items, nextCursor };
+    }),
+
+  /**
+   * Cancel a package instance (admin only).
+   *
+   * Idempotency: already-cancelled → CONFLICT (not silent).
+   * Branch-scope: caller's accessibleNodeIds must include the instance's service branch.
+   */
+  cancel: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        reason: z.string().min(1).max(500),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      }
+
+      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+
+      // Load instance to resolve branch for scope check
+      const instance = await context.tenantDb.query.packageInstances.findFirst({
+        where: eq(packageInstances.id, input.id),
+      });
+      if (!instance) {
+        throw new ORPCError("NOT_FOUND", { message: "Package instance not found" });
+      }
+
+      const svc = await context.tenantDb.query.services.findFirst({
+        where: eq(services.id, instance.serviceId),
+      });
+      if (svc?.branchId) {
+        const accessibleNodeIds = context.accessibleNodeIds ?? [];
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("FORBIDDEN", { message: "You do not have access to this branch" });
+        }
+      }
+
+      // 7.5: Guard before writing to audit columns
+      const cancellerUserId = context.session?.user?.id;
+      if (!cancellerUserId) {
+        throw new ORPCError("UNAUTHORIZED", { message: "Session user ID is required for this operation" });
+      }
+
+      try {
+        return await cancelPackageInstance(context.tenantDb, {
+          id: input.id,
+          actorUserId: cancellerUserId,
+          actorMemberId: context.member.id,
+          actorRole: context.member.role,
+          reason: input.reason,
+        });
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err) {
+          const e = err as { code: string; message: string };
+          if (e.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+          if (e.code === "CONFLICT") throw new ORPCError("CONFLICT", { message: e.message });
+        }
+        throw err;
+      }
+    }),
+
+  /**
+   * Freeze an active package instance (admin only).
+   *
+   * `until` is optional — null means indefinitely frozen.
+   * Only `active` packages may be frozen.
+   */
+  freeze: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        until: z.string().datetime().optional(),
+        reason: z.string().min(1).max(500),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      }
+
+      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+
+      const instance = await context.tenantDb.query.packageInstances.findFirst({
+        where: eq(packageInstances.id, input.id),
+      });
+      if (!instance) {
+        throw new ORPCError("NOT_FOUND", { message: "Package instance not found" });
+      }
+
+      const svc = await context.tenantDb.query.services.findFirst({
+        where: eq(services.id, instance.serviceId),
+      });
+      if (svc?.branchId) {
+        const accessibleNodeIds = context.accessibleNodeIds ?? [];
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("FORBIDDEN", { message: "You do not have access to this branch" });
+        }
+      }
+
+      // 7.5: Guard before writing to audit columns
+      const freezerUserId = context.session?.user?.id;
+      if (!freezerUserId) {
+        throw new ORPCError("UNAUTHORIZED", { message: "Session user ID is required for this operation" });
+      }
+
+      try {
+        return await freezePackageInstance(context.tenantDb, {
+          id: input.id,
+          actorUserId: freezerUserId,
+          actorMemberId: context.member.id,
+          actorRole: context.member.role,
+          until: input.until ? new Date(input.until) : undefined,
+          reason: input.reason,
+        });
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err) {
+          const e = err as { code: string; message: string };
+          if (e.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+          if (e.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+        }
+        throw err;
+      }
+    }),
+
+  /**
+   * Unfreeze a frozen package instance, returning it to `active` (admin only).
+   */
+  unfreeze: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      }
+
+      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+
+      const instance = await context.tenantDb.query.packageInstances.findFirst({
+        where: eq(packageInstances.id, input.id),
+      });
+      if (!instance) {
+        throw new ORPCError("NOT_FOUND", { message: "Package instance not found" });
+      }
+
+      const svc = await context.tenantDb.query.services.findFirst({
+        where: eq(services.id, instance.serviceId),
+      });
+      if (svc?.branchId) {
+        const accessibleNodeIds = context.accessibleNodeIds ?? [];
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("FORBIDDEN", { message: "You do not have access to this branch" });
+        }
+      }
+
+      // 7.5: Guard before writing to audit columns
+      const unfreezerId = context.session?.user?.id;
+      if (!unfreezerId) {
+        throw new ORPCError("UNAUTHORIZED", { message: "Session user ID is required for this operation" });
+      }
+
+      try {
+        return await unfreezePackageInstance(context.tenantDb, {
+          id: input.id,
+          actorUserId: unfreezerId,
+          actorMemberId: context.member.id,
+          actorRole: context.member.role,
+        });
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err) {
+          const e = err as { code: string; message: string };
+          if (e.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+          if (e.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+        }
+        throw err;
+      }
+    }),
+
+  /**
+   * Extend a package instance's expiry date (admin only).
+   *
+   * `addDays` must be 1–365. Terminal packages (cancelled/expired/completed)
+   * and non-expirable packages (null expiresAt) are rejected.
+   */
+  extend: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        addDays: z.number().int().min(1).max(365),
+        reason: z.string().min(1).max(500),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+      }
+
+      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+
+      const instance = await context.tenantDb.query.packageInstances.findFirst({
+        where: eq(packageInstances.id, input.id),
+      });
+      if (!instance) {
+        throw new ORPCError("NOT_FOUND", { message: "Package instance not found" });
+      }
+
+      const svc = await context.tenantDb.query.services.findFirst({
+        where: eq(services.id, instance.serviceId),
+      });
+      if (svc?.branchId) {
+        const accessibleNodeIds = context.accessibleNodeIds ?? [];
+        if (!accessibleNodeIds.includes(svc.branchId)) {
+          throw new ORPCError("FORBIDDEN", { message: "You do not have access to this branch" });
+        }
+      }
+
+      // 7.5: Guard before writing to audit columns
+      const extenderId = context.session?.user?.id;
+      if (!extenderId) {
+        throw new ORPCError("UNAUTHORIZED", { message: "Session user ID is required for this operation" });
+      }
+
+      try {
+        return await extendPackageInstance(context.tenantDb, {
+          id: input.id,
+          actorUserId: extenderId,
+          actorMemberId: context.member.id,
+          actorRole: context.member.role,
+          addDays: input.addDays,
+          reason: input.reason,
+        });
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err) {
+          const e = err as { code: string; message: string };
+          if (e.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+          if (e.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+        }
+        throw err;
+      }
+    }),
+
+  /**
+   * Bulk assign a package (service) to multiple customers in one call.
+   *
+   * Input `customerIds` are tenant `members.id` values (as returned by
+   * customerDirectory.list). The procedure resolves each to `members.userId`
+   * (the control-panel user ID) which becomes `clientId` on the created
+   * package_instance row.
+   *
+   * Per-row failures don't abort the batch — returns success/failure counts.
+   *
+   * Permission: service_management:create (matches the single-row `create`).
+   */
+  bulkAssign: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        customerIds: z.array(z.string().uuid()).min(1).max(100),
+        packageId: z.string().uuid(), // serviceId of the package/service
+        branchId: z.string().uuid(),
+        trainerMemberId: z.string().uuid().optional(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be ISO date YYYY-MM-DD"),
+        notes: z.string().max(500).optional(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (!context.tenantDb) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Tenant database not available. Ensure organization context is set.",
+        });
+      }
+      if (!context.member) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User is not a member of this organization",
+        });
+      }
+
+      await requirePermission(
+        context.tenantDb,
+        context.member,
+        "service_management",
+        "create",
+      );
+
+      const callerUserId = context.session?.user?.id;
+      if (!callerUserId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Session user ID is required for this operation",
+        });
+      }
+
+      // Resolve the package/service
+      const svc = await context.tenantDb.query.services.findFirst({
+        where: eq(services.id, input.packageId),
+      });
+      if (!svc) {
+        throw new ORPCError("NOT_FOUND", { message: "Package/service not found" });
+      }
+      if (!svc.isActive) {
+        throw new ORPCError("BAD_REQUEST", { message: "Package/service is not active" });
+      }
+
+      // Validate branchId is within caller's accessible scope
+      const accessibleNodeIds = context.accessibleNodeIds ?? [];
+      if (accessibleNodeIds.length > 0 && !accessibleNodeIds.includes(input.branchId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Requested branch is outside your accessible scope",
+        });
+      }
+
+      // Validate trainer if provided
+      let trainerMember: typeof members.$inferSelect | null = null;
+      if (input.trainerMemberId) {
+        trainerMember = await context.tenantDb.query.members.findFirst({
+          where: eq(members.id, input.trainerMemberId),
+        }) ?? null;
+        if (!trainerMember) {
+          throw new ORPCError("NOT_FOUND", { message: "Trainer not found" });
+        }
+        if (trainerMember.status !== "active") {
+          throw new ORPCError("BAD_REQUEST", { message: "Trainer is not active" });
+        }
+        if (trainerMember.role !== "trainer" && trainerMember.role !== "admin") {
+          throw new ORPCError("BAD_REQUEST", { message: "Target member is not a trainer" });
+        }
+      }
+
+      // Batch-resolve customerIds (tenant members.id) → userId (control-panel user id)
+      const memberRows = await context.tenantDb
+        .select({ id: members.id, userId: members.userId })
+        .from(members)
+        .where(inArray(members.id, input.customerIds));
+
+      const memberToUserId = new Map(memberRows.map((m: { id: string; userId: string }) => [m.id, m.userId] as [string, string]));
+
+      // Compute dates
+      const startsAt = new Date(input.startDate);
+      const expiresAt = svc.expiryDays
+        ? new Date(startsAt.getTime() + svc.expiryDays * 24 * 60 * 60 * 1000)
+        : new Date(startsAt.getTime() + 365 * 24 * 60 * 60 * 1000); // default 1 year
+
+      const creditsTotal = svc.sessionCount ?? 1;
+
+      const succeeded: string[] = [];
+      const failed: Array<{ customerId: string; reason: string }> = [];
+
+      for (const customerId of input.customerIds) {
+        const userId = memberToUserId.get(customerId);
+        if (!userId) {
+          failed.push({ customerId, reason: "Customer member not found" });
+          continue;
+        }
+
+        try {
+          // biome-ignore lint/suspicious/noExplicitAny: tx type is internal to Drizzle
+          await context.tenantDb.transaction(async (tx: any) => {
+            const now = new Date();
+            await tx.insert(packageInstances).values({
+              serviceId: input.packageId,
+              clientId: userId,
+              source: "assigned",
+              assignedBy: callerUserId,
+              creditsTotal,
+              creditsUsed: 0,
+              startsAt,
+              expiresAt,
+              status: "active",
+              remark: input.notes ?? null,
+              preferredTrainerId: trainerMember?.id ?? null,
+              assignedTrainerId: trainerMember?.id ?? null,
+              assignedTrainerAssignedBy: trainerMember ? callerUserId : null,
+              assignedTrainerAssignedAt: trainerMember ? now : null,
+              paymentStatus: "paid",
+              paymentMethod: null,
+              totalPrice: svc.price ?? null,
+              taxAmount: 0,
+              installmentsTotal: 1,
+              installmentsPaid: 1,
+            });
+          });
+          succeeded.push(customerId);
+        } catch (err) {
+          failed.push({
+            customerId,
+            reason: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+      }
+
+      return {
+        succeeded,
+        failed,
+        succeededCount: succeeded.length,
+        failedCount: failed.length,
+      };
     }),
 
   statusHistory: protectedProcedure

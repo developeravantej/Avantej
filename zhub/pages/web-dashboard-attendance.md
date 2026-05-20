@@ -4,7 +4,9 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/attendance/view.tsx`
 **Platform:** web
 **Auth required:** authenticated (RBAC checked in component via hasPermission)
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
+
+> NOTE: This page duplicates `web-dashboard-attendance-view.md` (the canonical doc linked from `zhub/index.md`). Consult that file for the up-to-date breakdown; the differences below are kept for backward references only.
 
 ---
 
@@ -13,10 +15,11 @@
 **Purpose (user perspective):** Check in members and walk-ins for today's sessions, view check-in history, and record drop-in attendance.
 
 **Produces:**
-- **Left column (main):** Today's Bookings section (members with bookings) and Check-ins Log (all check-ins for the day)
-- **Right column (sidebar):** Drop-in Form to register walk-in check-ins
-- Top filters: Branch selector, date picker
-- Loading/error states with retry button
+- **Filter band (sticky):** branch selector + date picker
+- **KPI strip** (added 2026-05-12): Total / Attended / Drop-ins / No-shows — derived client-side from check-in rows
+- **Left column (main):** `<TodayBookingsSection>` grouped by time-bucket + `<CheckInsLog>` for the day
+- **Right column (sidebar, 360px):** `<DropInForm>` to register walk-in or member drop-ins
+- Loading/error states via `<LoadingSpinner>` + `<StatusCallout onRetry>`, empty state via `<EmptyState>`
 
 **On success:** Check-in recorded, booking status updated, log displays with total count. Drop-in check-ins added to log.
 
@@ -67,10 +70,11 @@
 - `client.checkIns.list()` — fetch check-ins log for date range (from/to)
 
 **Uses these components:**
-- `TodayBookingsSection` @ `/components/attendance/today-bookings` — bookings display
-- `DropInForm` @ `/components/attendance/drop-in-form` — walk-in check-in form
-- `CheckInsLog` @ `/components/attendance/check-ins-log` — check-in history
-- Select, Input (date), Label, Separator, StatusCallout
+- `TodayBookingsSection` @ `@/components/attendance/today-bookings` — bookings display
+- `DropInForm` @ `@/components/attendance/drop-in-form` — walk-in check-in form
+- `CheckInsLog` @ `@/components/attendance/check-ins-log` — check-in history
+- `<PageCard>`, `<EmptyState>`, `<LoadingSpinner>`, `<StatusCallout>`, `<Separator>`, `<Select>`, `<Label>` — shared UI primitives (migrated 2026-05-12)
+- Private `<KpiCard>` (defined inline in route file)
 
 **Uses these hooks:**
 - `useUserContext()` — fetch org ID, accessible branches, RBAC perms
@@ -119,7 +123,8 @@
 
 ## 6. Notes
 
-- **Manual date formatting** — toLocalDateString() implemented without date-fns (lines 32-37) to avoid dependencies
+- **Refactored 2026-05-12** — migrated to shared UI primitives (`PageCard`, `EmptyState`, `LoadingSpinner`, `StatusCallout`) and gained a client-side KPI strip. Layout is now a single fixed-height card with a sticky filter band.
+- **Manual date formatting** — toLocalDateString() implemented without date-fns to avoid dependencies
 - **Accessible branches derived from hierarchy** — filters nodes where type === "branch" and id in accessibleNodeIds; falls back to all accessible nodes if no branch nodes
 - **Permission checks done in component** — no route-level guard; canRead/canDelete checked before rendering sections
 - **Two separate queries** — bookings and check-ins; implies different endpoints or parameters

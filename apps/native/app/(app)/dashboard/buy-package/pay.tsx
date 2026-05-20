@@ -2,11 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image } from "expo-image";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
-import { OrderSummary } from "./_components/order-summary";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { authClient } from "@/lib/auth-client";
@@ -24,136 +22,13 @@ const steps = [
 	{ number: 7, label: "Done", active: false },
 ];
 
-type ProgressIndicatorProps = {
-	currentStep: number;
-	totalSteps: number;
-	progressPercentage: number;
-};
-
-function ProgressIndicator({
-	currentStep,
-	totalSteps,
-	progressPercentage,
-}: ProgressIndicatorProps) {
-	return (
-		<View className="mb-6">
-			<View className="mb-2 flex-row items-center justify-between">
-				<Text className="font-semibold text-primary-1 text-sm">
-					Step {currentStep} of {totalSteps}
-				</Text>
-				<Text className="font-semibold text-primary-1 text-sm">
-					{progressPercentage}%
-				</Text>
-			</View>
-
-			<View
-				className="mb-4 h-2 overflow-hidden rounded-full"
-				style={{ backgroundColor: colors.secondary[2] }}
-			>
-				<View
-					className="h-full rounded-full"
-					style={{
-						width: `${progressPercentage}%`,
-						backgroundColor: colors.primary[1],
-					}}
-				/>
-			</View>
-
-			<View className="relative" style={{ height: 50 }}>
-				<View
-					className="absolute rounded-full"
-					style={{
-						left: "10%",
-						right: "10%",
-						top: "24%",
-						height: 2,
-						backgroundColor: colors.secondary[2],
-						zIndex: 0,
-					}}
-				/>
-				<View className="absolute inset-0 flex-row items-center justify-between">
-					{steps.map((step) => {
-						const isCompleted = step.number < currentStep;
-						const isActive = step.active;
-
-						return (
-							<View
-								key={step.number}
-								className="items-center justify-center"
-								style={{ flex: 1, zIndex: 1 }}
-							>
-								{isCompleted ? (
-									<View className="mb-1 items-center justify-center">
-										<View
-											className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
-											style={{
-												backgroundColor: colors.primary[1],
-												zIndex: 2,
-											}}
-										>
-											<Ionicons
-												name="checkmark"
-												size={12}
-												color={colors.primary[2]}
-											/>
-										</View>
-									</View>
-								) : isActive ? (
-									<View className="mb-1 items-center justify-center">
-										<View
-											className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
-											style={{
-												backgroundColor: colors.primary[1],
-												zIndex: 2,
-											}}
-										>
-											<View
-												className="size-2 rounded-full"
-												style={{ backgroundColor: colors.primary[2] }}
-											/>
-										</View>
-									</View>
-								) : (
-									<View className="mb-1 items-center justify-center">
-										<View
-											className="size-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-											style={{ zIndex: 2 }}
-										>
-											<Text className="font-semibold text-primary-1 text-xs">
-												{step.number}
-											</Text>
-										</View>
-									</View>
-								)}
-								<Text
-									className={`mt-1 text-center text-xs ${
-										isActive ? "font-bold" : "font-medium"
-									}`}
-									style={{
-										color:
-											isActive || isCompleted
-												? colors.primary[1]
-												: colors.secondary[1],
-									}}
-								>
-									{step.label}
-								</Text>
-							</View>
-						);
-					})}
-				</View>
-			</View>
-		</View>
-	);
-}
-
 export default function PayScreen() {
 	const { organizationId } = useOrganization();
 	const { state, update } = usePurchaseFlow();
 	const queryClient = useQueryClient();
 
-	const currentStep = 6;
-	const totalSteps = 7;
+	const currentStep = 7;
+	const totalSteps = 8;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -262,16 +137,16 @@ export default function PayScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<Pressable
+						<TouchableOpacity
 							onPress={() => router.back()}
-							className="mr-3 size-10 items-center justify-center"
+							className="mr-3 h-10 w-10 items-center justify-center"
 						>
 							<Ionicons
 								name="arrow-back"
 								size={24}
 								color={colors.primary[1]}
 							/>
-						</Pressable>
+						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Payment
 						</Text>
@@ -285,30 +160,278 @@ export default function PayScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						contentFit="cover"
+						resizeMode="cover"
 					/>
 				</View>
 
 				<View className="px-4 pb-6">
 					{/* Progress Indicator */}
-					<ProgressIndicator
-						currentStep={currentStep}
-						totalSteps={totalSteps}
-						progressPercentage={progressPercentage}
-					/>
+					<View className="mb-6">
+						<View className="mb-2 flex-row items-center justify-between">
+							<Text className="font-semibold text-primary-1 text-sm">
+								Step {currentStep} of {totalSteps}
+							</Text>
+							<Text className="font-semibold text-primary-1 text-sm">
+								{progressPercentage}%
+							</Text>
+						</View>
+
+						<View
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
+						>
+							<View
+								className="h-full rounded-full"
+								style={{
+									width: `${progressPercentage}%`,
+									backgroundColor: colors.primary[1],
+								}}
+							/>
+						</View>
+
+						{/* Step Navigation */}
+						<View className="relative" style={{ height: 50 }}>
+							<View
+								className="absolute rounded-full"
+								style={{
+									left: "10%",
+									right: "10%",
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
+									zIndex: 0,
+								}}
+							/>
+							<View className="absolute inset-0 flex-row items-center justify-between">
+								{steps.map((step) => {
+									const isCompleted = step.number < currentStep;
+									const isActive = step.active;
+
+									return (
+										<View
+											key={step.number}
+											className="items-center justify-center"
+											style={{ flex: 1, zIndex: 1 }}
+										>
+											{isCompleted ? (
+												<View className="mb-1 items-center justify-center">
+													<View
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														style={{
+															backgroundColor: colors.primary[1],
+															zIndex: 2,
+														}}
+													>
+														<Ionicons
+															name="checkmark"
+															size={12}
+															color={colors.primary[2]}
+														/>
+													</View>
+												</View>
+											) : isActive ? (
+												<View className="mb-1 items-center justify-center">
+													<View
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														style={{
+															backgroundColor: colors.primary[1],
+															zIndex: 2,
+														}}
+													>
+														<View
+															className="h-2 w-2 rounded-full"
+															style={{ backgroundColor: colors.primary[2] }}
+														/>
+													</View>
+												</View>
+											) : (
+												<View className="mb-1 items-center justify-center">
+													<View
+														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														style={{ zIndex: 2 }}
+													>
+														<Text className="font-semibold text-primary-1 text-xs">
+															{step.number}
+														</Text>
+													</View>
+												</View>
+											)}
+											<Text
+												className={`mt-1 text-center text-xs ${
+													isActive ? "font-bold" : "font-medium"
+												}`}
+												style={{
+													color:
+														isActive || isCompleted
+															? colors.primary[1]
+															: colors.secondary[1],
+												}}
+											>
+												{step.label}
+											</Text>
+										</View>
+									);
+								})}
+							</View>
+						</View>
+					</View>
 
 					{/* Order Summary */}
-					<OrderSummary
-						packageName={state.packageName}
-						creditsTotal={state.creditsTotal}
-						serviceName={state.serviceName}
-						validityDays={state.validityDays}
-						paymentPlanType={state.paymentPlanType}
-						subtotal={subtotal}
-						taxAmount={taxAmount}
-						total={total}
-						taxRatePercent={taxRatePercent}
-					/>
+					<View className="mb-6">
+						<Text
+							className="mb-4 font-bold text-sm uppercase tracking-wide"
+							style={{ color: colors.primary[1] }}
+						>
+							ORDER SUMMARY
+						</Text>
+
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+							<View className="mb-3 flex-row items-start justify-between">
+								<View className="flex-1">
+									<Text
+										className="mb-1 font-semibold text-base"
+										style={{ color: colors.primary[1] }}
+									>
+										{state.packageName ?? "Package"}
+									</Text>
+									{state.creditsTotal && (
+										<Text
+											className="text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											{state.creditsTotal} credits
+										</Text>
+									)}
+									{state.serviceName && (
+										<Text
+											className="mt-1 text-sm"
+											style={{ color: colors.secondary[1] }}
+										>
+											Service: {state.serviceName}
+										</Text>
+									)}
+								</View>
+								<Text
+									className="font-semibold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{fmt(subtotal)}
+								</Text>
+							</View>
+
+							{state.validityDays && (
+								<View className="border-secondary-3 border-t pt-3">
+									<Text
+										className="text-xs"
+										style={{ color: colors.secondary[1] }}
+									>
+										Valid for {state.validityDays} days from purchase
+									</Text>
+								</View>
+							)}
+						</View>
+
+						{/* Payment Plan Summary */}
+						{state.selectedInstallmentPlanNumInstallments > 1 && (
+							<View className="mt-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+								<Text
+									className="mb-1 font-semibold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									Payment Plan
+								</Text>
+								<Text
+									className="text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									{state.selectedInstallmentPlanLabel ?? state.paymentPlanType} (
+									{state.selectedInstallmentPlanNumInstallments}
+									{"\u00d7"})
+								</Text>
+								{(() => {
+									const numInstallments = state.selectedInstallmentPlanNumInstallments;
+									const pricePremiumBps = state.selectedInstallmentPlanPricePremiumBps;
+									const priceWithSurcharge = Math.round(
+										subtotal * (10000 + pricePremiumBps) / 10000,
+									);
+									const installmentAmount = Math.ceil(priceWithSurcharge / numInstallments);
+									const intervalDays = state.installmentIntervalDays;
+									const surchargePercent = pricePremiumBps / 100;
+
+									return (
+										<>
+											<Text
+												className="mt-1 font-semibold text-sm"
+												style={{ color: colors.primary[1] }}
+											>
+												First installment: {fmt(installmentAmount)} + tax
+											</Text>
+											<Text
+												className="mt-1 text-xs"
+												style={{ color: colors.secondary[1] }}
+											>
+												{numInstallments} payments every {intervalDays} days
+											</Text>
+											{pricePremiumBps > 0 && (
+												<Text
+													className="mt-1 text-xs"
+													style={{ color: colors.secondary[1] }}
+												>
+													+{surchargePercent.toFixed(surchargePercent % 1 === 0 ? 0 : 1)}% surcharge applied
+												</Text>
+											)}
+										</>
+									);
+								})()}
+							</View>
+						)}
+
+						{/* Price Breakdown */}
+						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+							<View className="mb-2 flex-row justify-between">
+								<Text
+									className="text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Subtotal
+								</Text>
+								<Text
+									className="text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{fmt(subtotal)}
+								</Text>
+							</View>
+							<View className="mb-3 flex-row justify-between">
+								<Text
+									className="text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
+								</Text>
+								<Text
+									className="text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									{fmt(taxAmount)}
+								</Text>
+							</View>
+							<View className="flex-row justify-between border-secondary-3 border-t pt-3">
+								<Text
+									className="font-bold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									Total
+								</Text>
+								<Text
+									className="font-bold text-base"
+									style={{ color: colors.primary[1] }}
+								>
+									{fmt(total)}
+								</Text>
+							</View>
+						</View>
+					</View>
 
 					{/* Payment Methods - disabled until Stripe integration */}
 					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm opacity-50">
@@ -334,8 +457,8 @@ export default function PayScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-white"
 			>
-				<View className="p-4">
-					<Pressable
+				<View className="px-4 py-4">
+					<TouchableOpacity
 						onPress={handlePayment}
 						disabled={isProcessing}
 						className={`items-center justify-center rounded-xl py-4 ${
@@ -345,14 +468,14 @@ export default function PayScreen() {
 					>
 						{isProcessing ? (
 							<Text className="font-semibold text-base text-primary-2">
-								Processing…
+								Processing...
 							</Text>
 						) : (
 							<Text className="font-semibold text-base text-primary-2">
 								Pay {fmt(total)}
 							</Text>
 						)}
-					</Pressable>
+					</TouchableOpacity>
 				</View>
 			</SafeAreaView>
 		</Container>

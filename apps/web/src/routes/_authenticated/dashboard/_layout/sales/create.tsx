@@ -13,5 +13,9 @@ export const Route = createFileRoute(
 
 function PosCreatePage() {
 	const { customer } = Route.useSearch();
-	return <PosWorkflow prefillCustomerId={customer} />;
+	return (
+		<div className="-m-6 flex h-screen flex-col overflow-hidden">
+			<PosWorkflow prefillCustomerId={customer} />
+		</div>
+	);
 }

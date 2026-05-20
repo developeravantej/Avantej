@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Reports Page — 5 Design Directions</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:   { DEFAULT: '#0a0a0a', soft: '#262626', 2: '#404040', 3: '#737373', 4: '#a3a3a3' },
+          paper: '#f3f3f3',
+          line:  '#e5e5e5',
+          warm:  '#d6cdb1',
+          card:  '#ffffff',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: #f3f3f3; color: #0a0a0a; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #737373; }
+  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-red   { background: #fee2e2; color: #b91c1c; }
+  .badge-amber { background: #fef3c7; color: #b45309; }
+  .badge-blue  { background: #dbeafe; color: #1d4ed8; }
+  .badge-warm  { background: #f5f0e8; color: #78644a; }
+  .btn { padding: 7px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: 120ms; }
+  .btn-ink  { background: #0a0a0a; color: #fff; }
+  .btn-ink:hover { background: #262626; }
+  .btn-ghost { background: transparent; color: #404040; }
+  .btn-ghost:hover { background: rgba(0,0,0,0.05); }
+  .btn-outline { background: #fff; border: 1px solid #e5e5e5; color: #0a0a0a; }
+  .btn-outline:hover { background: #f3f3f3; }
+  input, select { outline: none; background: transparent; }
+  /* SVG sparkline helpers */
+  .spark-line { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .spark-area { fill-opacity: 0.12; }
+  /* Divider between designs */
+  .design-sep { border-top: 8px solid #f3f3f3; }
+  /* Skeleton shimmer */
+  @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+  .shimmer { background: linear-gradient(90deg,#e5e5e5 25%,#f0f0f0 50%,#e5e5e5 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ─── TOP NAV ──────────────────────────────────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1440px] items-center gap-1 px-6 text-xs">
+    <span class="label mr-4">Reports · 5 designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-[13px]">1 · Catalog</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-[13px]">2 · Exec Dashboard</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-[13px]">3 · Builder</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-[13px]">4 · Tabbed Deep-Dive</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper text-[13px]">5 · Editorial</a>
+    <span class="ml-auto label">design-only · no logic</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — REPORT LIBRARY / CATALOG                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Report Catalog</h2>
+    <span class="label">Browsable library with category filters · thumbnail previews · run or schedule each report</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="mb-6 flex items-center gap-4">
+    <div>
+      <h1 class="text-[22px] font-extrabold tracking-tight">Reports</h1>
+      <p class="text-sm text-ink-3 mt-0.5">Browse, run, and schedule reports for your organisation.</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <!-- Date range -->
+      <div class="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-[13px] font-medium cursor-pointer hover:bg-paper transition">
+        <svg class="size-3.5 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+        Apr 15 – May 15, 2026
+        <svg class="size-3 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <!-- Branch filter -->
+      <div class="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-[13px] font-medium cursor-pointer hover:bg-paper transition">
+        <svg class="size-3.5 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM2 13c0-3 2.7-5 6-5s6 2 6 5"/></svg>
+        All Branches
+        <svg class="size-3 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <button class="btn btn-ink flex items-center gap-1.5">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v9M4 8l4 3 4-3"/><path d="M2 13h12"/></svg>
+        Export All
+      </button>
+    </div>
+  </div>
+
+  <!-- Search + category tabs -->
+  <div class="mb-6 flex items-center gap-3">
+    <div class="flex flex-1 max-w-xs items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+      <svg class="size-4 text-ink-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+      <input class="flex-1 text-[13px] placeholder:text-ink-4" placeholder="Search reports…" />
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+      <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">All <span class="opacity-50 ml-1">18</span></button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink transition">Revenue</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink transition">Attendance</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink transition">Retention</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink transition">Staff</button>
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink transition">Custom</button>
+    </div>
+    <span class="label ml-auto">Sorted: Most used</span>
+  </div>
+
+  <!-- Report cards grid -->
+  <div class="grid grid-cols-3 gap-5 xl:grid-cols-4">
+
+    <!-- Card: Revenue Overview -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <!-- Thumbnail -->
+      <div class="h-[120px] bg-gradient-to-br from-slate-50 to-slate-100 border-b border-line relative p-4">
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <!-- Bar chart mini -->
+          <rect x="10" y="55" width="14" height="20" rx="2" fill="#0a0a0a" opacity="0.08"/>
+          <rect x="30" y="45" width="14" height="30" rx="2" fill="#0a0a0a" opacity="0.12"/>
+          <rect x="50" y="35" width="14" height="40" rx="2" fill="#0a0a0a" opacity="0.16"/>
+          <rect x="70" y="40" width="14" height="35" rx="2" fill="#0a0a0a" opacity="0.12"/>
+          <rect x="90" y="28" width="14" height="47" rx="2" fill="#0a0a0a" opacity="0.2"/>
+          <rect x="110" y="20" width="14" height="55" rx="2" fill="#0a0a0a" opacity="0.25"/>
+          <rect x="130" y="15" width="14" height="60" rx="2" fill="#0a0a0a" opacity="0.3"/>
+          <rect x="150" y="10" width="14" height="65" rx="2" fill="#15803d" opacity="0.7"/>
+          <!-- trend line -->
+          <polyline points="17,60 37,50 57,40 77,44 97,32 117,24 137,18 157,13" class="spark-line" stroke="#15803d" />
+        </svg>
+        <span class="badge badge-green absolute top-3 right-3 text-[10px]">Revenue</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Revenue Overview</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">MRR, ARR, payment collection rate and revenue by service type.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 142×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Member Retention -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <div class="h-[120px] bg-gradient-to-br from-emerald-50 to-teal-50 border-b border-line relative p-4">
+        <!-- Cohort heat squares -->
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <g>
+            <!-- Month labels row -->
+            <text x="38" y="12" font-size="7" fill="#737373">M0</text>
+            <text x="58" y="12" font-size="7" fill="#737373">M1</text>
+            <text x="78" y="12" font-size="7" fill="#737373">M2</text>
+            <text x="98" y="12" font-size="7" fill="#737373">M3</text>
+            <text x="118" y="12" font-size="7" fill="#737373">M4</text>
+            <!-- Cohort rows -->
+            <rect x="30" y="16" width="18" height="12" rx="2" fill="#15803d" opacity="1"/>
+            <rect x="50" y="16" width="18" height="12" rx="2" fill="#15803d" opacity="0.78"/>
+            <rect x="70" y="16" width="18" height="12" rx="2" fill="#15803d" opacity="0.58"/>
+            <rect x="90" y="16" width="18" height="12" rx="2" fill="#15803d" opacity="0.44"/>
+            <rect x="110" y="16" width="18" height="12" rx="2" fill="#15803d" opacity="0.32"/>
+            <rect x="30" y="32" width="18" height="12" rx="2" fill="#15803d" opacity="1"/>
+            <rect x="50" y="32" width="18" height="12" rx="2" fill="#15803d" opacity="0.72"/>
+            <rect x="70" y="32" width="18" height="12" rx="2" fill="#15803d" opacity="0.51"/>
+            <rect x="90" y="32" width="18" height="12" rx="2" fill="#15803d" opacity="0.38"/>
+            <rect x="30" y="48" width="18" height="12" rx="2" fill="#15803d" opacity="1"/>
+            <rect x="50" y="48" width="18" height="12" rx="2" fill="#15803d" opacity="0.68"/>
+            <rect x="70" y="48" width="18" height="12" rx="2" fill="#15803d" opacity="0.46"/>
+            <rect x="30" y="64" width="18" height="12" rx="2" fill="#15803d" opacity="1"/>
+            <rect x="50" y="64" width="18" height="12" rx="2" fill="#15803d" opacity="0.61"/>
+          </g>
+        </svg>
+        <span class="badge badge-blue absolute top-3 right-3 text-[10px]">Retention</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Member Retention Cohorts</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">Cohort analysis showing month-over-month retention and churn drivers.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 98×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Trainer Performance -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <div class="h-[120px] bg-gradient-to-br from-amber-50 to-orange-50 border-b border-line relative p-4">
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <!-- Horizontal bars -->
+          <text x="2" y="20" font-size="7" fill="#737373">Amir</text>
+          <rect x="38" y="12" width="130" height="11" rx="2" fill="#d97706" opacity="0.7"/>
+          <text x="172" y="20" font-size="7" fill="#737373">94%</text>
+          <text x="2" y="36" font-size="7" fill="#737373">Siti</text>
+          <rect x="38" y="28" width="112" height="11" rx="2" fill="#d97706" opacity="0.55"/>
+          <text x="154" y="36" font-size="7" fill="#737373">87%</text>
+          <text x="2" y="52" font-size="7" fill="#737373">Raj</text>
+          <rect x="38" y="44" width="98" height="11" rx="2" fill="#d97706" opacity="0.42"/>
+          <text x="140" y="52" font-size="7" fill="#737373">76%</text>
+          <text x="2" y="68" font-size="7" fill="#737373">Mei</text>
+          <rect x="38" y="60" width="84" height="11" rx="2" fill="#d97706" opacity="0.32"/>
+          <text x="126" y="68" font-size="7" fill="#737373">65%</text>
+        </svg>
+        <span class="badge badge-amber absolute top-3 right-3 text-[10px]">Staff</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Trainer Performance</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">Class fill rates, NPS scores, session counts and commission earned per trainer.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 76×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Attendance Heatmap -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <div class="h-[120px] bg-gradient-to-br from-violet-50 to-purple-50 border-b border-line relative p-4">
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <!-- Day × Hour grid -->
+          <g opacity="0.8">
+            <rect x="10" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.2"/>
+            <rect x="36" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.45"/>
+            <rect x="62" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.7"/>
+            <rect x="88" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.9"/>
+            <rect x="114" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.6"/>
+            <rect x="140" y="10" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.3"/>
+            <rect x="10" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.5"/>
+            <rect x="36" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.8"/>
+            <rect x="62" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="1"/>
+            <rect x="88" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.85"/>
+            <rect x="114" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.55"/>
+            <rect x="140" y="28" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.25"/>
+            <rect x="10" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.15"/>
+            <rect x="36" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.3"/>
+            <rect x="62" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.4"/>
+            <rect x="88" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.35"/>
+            <rect x="114" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.2"/>
+            <rect x="140" y="46" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.1"/>
+            <text x="10" y="74" font-size="7" fill="#737373">Mon</text>
+            <text x="36" y="74" font-size="7" fill="#737373">Tue</text>
+            <text x="62" y="74" font-size="7" fill="#737373">Wed</text>
+            <text x="88" y="74" font-size="7" fill="#737373">Thu</text>
+            <text x="114" y="74" font-size="7" fill="#737373">Fri</text>
+            <text x="140" y="74" font-size="7" fill="#737373">Sat</text>
+          </g>
+        </svg>
+        <span class="badge badge-warm absolute top-3 right-3 text-[10px]">Attendance</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Attendance Heatmap</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">Peak hours and days by branch. Identify underutilised slots.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 61×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Churn Risk -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <div class="h-[120px] bg-gradient-to-br from-rose-50 to-red-50 border-b border-line relative p-4">
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <circle cx="80" cy="42" r="32" fill="none" stroke="#e5e5e5" stroke-width="12"/>
+          <circle cx="80" cy="42" r="32" fill="none" stroke="#dc2626" stroke-width="12" stroke-dasharray="201" stroke-dashoffset="160" stroke-linecap="round" transform="rotate(-90 80 42)"/>
+          <circle cx="80" cy="42" r="32" fill="none" stroke="#fca5a5" stroke-width="12" stroke-dasharray="201" stroke-dashoffset="120" stroke-linecap="round" transform="rotate(-90 80 42)" opacity="0.5"/>
+          <text x="80" y="46" text-anchor="middle" font-size="13" font-weight="700" fill="#0a0a0a">6.2%</text>
+          <text x="80" y="58" text-anchor="middle" font-size="7" fill="#737373">churn</text>
+          <text x="140" y="30" font-size="8" fill="#dc2626" font-weight="700">▲ 42 at risk</text>
+          <text x="140" y="44" font-size="7" fill="#737373">Expiring soon</text>
+          <text x="140" y="56" font-size="8" fill="#0a0a0a" font-weight="600">28 members</text>
+          <text x="140" y="68" font-size="7" fill="#737373">No-show streak</text>
+          <text x="140" y="80" font-size="8" fill="#0a0a0a" font-weight="600">14 members</text>
+        </svg>
+        <span class="badge badge-red absolute top-3 right-3 text-[10px]">Retention</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Churn Risk Analysis</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">Members at risk of churning based on attendance and engagement signals.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 54×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Service Revenue Breakdown -->
+    <div class="card overflow-hidden hover:shadow-md transition-shadow">
+      <div class="h-[120px] bg-gradient-to-br from-sky-50 to-blue-50 border-b border-line relative p-4">
+        <svg viewBox="0 0 220 80" class="w-full h-full">
+          <!-- Stacked bars -->
+          <rect x="15" y="12" width="22" height="62" rx="2" fill="#e5e5e5"/>
+          <rect x="15" y="12" width="22" height="38" rx="2" fill="#2563eb" opacity="0.7"/>
+          <rect x="15" y="50" width="22" height="24" rx="2" fill="#7c3aed" opacity="0.5"/>
+          <rect x="43" y="12" width="22" height="62" rx="2" fill="#e5e5e5"/>
+          <rect x="43" y="12" width="22" height="42" rx="2" fill="#2563eb" opacity="0.7"/>
+          <rect x="43" y="54" width="22" height="20" rx="2" fill="#7c3aed" opacity="0.5"/>
+          <rect x="71" y="12" width="22" height="62" rx="2" fill="#e5e5e5"/>
+          <rect x="71" y="12" width="22" height="48" rx="2" fill="#2563eb" opacity="0.7"/>
+          <rect x="71" y="60" width="22" height="14" rx="2" fill="#7c3aed" opacity="0.5"/>
+          <!-- Legend -->
+          <rect x="110" y="16" width="8" height="8" rx="1" fill="#2563eb" opacity="0.7"/>
+          <text x="122" y="23" font-size="7" fill="#737373">Memberships</text>
+          <rect x="110" y="30" width="8" height="8" rx="1" fill="#7c3aed" opacity="0.5"/>
+          <text x="122" y="37" font-size="7" fill="#737373">PT Sessions</text>
+          <rect x="110" y="44" width="8" height="8" rx="1" fill="#e5e5e5"/>
+          <text x="122" y="51" font-size="7" fill="#737373">Other</text>
+        </svg>
+        <span class="badge badge-blue absolute top-3 right-3 text-[10px]">Revenue</span>
+      </div>
+      <div class="p-4">
+        <div class="font-bold text-[14px] leading-snug">Service Revenue Breakdown</div>
+        <div class="text-xs text-ink-3 mt-1 leading-relaxed">Revenue by service category with month-over-month comparison.</div>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="label">Used 48×</span>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-outline text-xs py-1 px-2.5">Schedule</button>
+            <button class="btn btn-ink text-xs py-1 px-2.5">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Scheduled Reports -->
+    <div class="card overflow-hidden col-span-1 xl:col-span-2 hover:shadow-md transition-shadow">
+      <div class="p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="font-bold text-[14px]">Scheduled Reports</div>
+            <div class="text-xs text-ink-3 mt-0.5">Reports that run automatically and are emailed to recipients.</div>
+          </div>
+          <button class="btn btn-outline text-xs py-1.5 px-3 flex items-center gap-1.5">
+            <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+            New Schedule
+          </button>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-3 rounded-xl border border-line bg-paper px-4 py-3">
+            <div class="size-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg class="size-4 text-green-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Weekly Revenue Summary</div>
+              <div class="text-xs text-ink-3">Every Monday 08:00 · 3 recipients</div>
+            </div>
+            <span class="badge badge-green text-[10px]">Active</span>
+            <button class="label hover:text-ink transition cursor-pointer">Edit</button>
+          </div>
+          <div class="flex items-center gap-3 rounded-xl border border-line bg-paper px-4 py-3">
+            <div class="size-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <svg class="size-4 text-amber-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Monthly Trainer Report</div>
+              <div class="text-xs text-ink-3">1st of month 09:00 · 5 recipients</div>
+            </div>
+            <span class="badge badge-green text-[10px]">Active</span>
+            <button class="label hover:text-ink transition cursor-pointer">Edit</button>
+          </div>
+          <div class="flex items-center gap-3 rounded-xl border border-line bg-paper px-4 py-3">
+            <div class="size-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+              <svg class="size-4 text-slate-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Daily Attendance Digest</div>
+              <div class="text-xs text-ink-3">Daily 18:00 · 1 recipient</div>
+            </div>
+            <span class="badge badge-warm text-[10px]">Paused</span>
+            <button class="label hover:text-ink transition cursor-pointer">Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — EXECUTIVE DASHBOARD                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Exec Dashboard</h2>
+    <span class="label">Single-page · KPI tiles + sparklines · revenue chart · inline date filter + export</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="mb-6 flex flex-wrap items-center gap-3">
+    <div>
+      <h1 class="text-[22px] font-extrabold tracking-tight">Performance Report</h1>
+      <p class="text-sm text-ink-3 mt-0.5">All branches · Apr 15 – May 15, 2026</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap">
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink">7D</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink">30D</button>
+        <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">90D</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink">YTD</button>
+        <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-ink-3 hover:text-ink">Custom</button>
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-[13px] font-medium cursor-pointer">
+        <option>All Branches</option>
+        <option>KL Central</option>
+        <option>Petaling Jaya</option>
+        <option>Subang</option>
+      </select>
+      <button class="btn btn-outline flex items-center gap-1.5 text-xs py-2">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v9M4 8l4 3 4-3"/><path d="M2 13h12"/></svg>
+        PDF
+      </button>
+      <button class="btn btn-outline flex items-center gap-1.5 text-xs py-2">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v9M4 8l4 3 4-3"/><path d="M2 13h12"/></svg>
+        CSV
+      </button>
+      <button class="btn btn-ink flex items-center gap-1.5 text-xs">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+        Schedule Email
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI tiles -->
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6 mb-6">
+    <div class="card p-5">
+      <div class="label mb-2">MRR</div>
+      <div class="mono text-2xl font-bold">RM 84,200</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-green text-[10px]">&#9650; 8.4%</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,20 10,17 20,15 30,16 40,12 50,10 60,7 70,5 80,3" fill="none" stroke="#15803d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,20 10,17 20,15 30,16 40,12 50,10 60,7 70,5 80,3 80,24 0,24" fill="#15803d" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Active Members</div>
+      <div class="mono text-2xl font-bold">1,284</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-green text-[10px]">&#9650; 3.1%</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,18 10,17 20,16 30,15 40,14 50,13 60,11 70,10 80,9" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,18 10,17 20,16 30,15 40,14 50,13 60,11 70,10 80,9 80,24 0,24" fill="#2563eb" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Churn Rate</div>
+      <div class="mono text-2xl font-bold">6.2%</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-red text-[10px]">&#9650; 0.8pp</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,8 10,9 20,10 30,8 40,11 50,14 60,13 70,16 80,17" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,8 10,9 20,10 30,8 40,11 50,14 60,13 70,16 80,17 80,24 0,24" fill="#dc2626" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Avg Member LTV</div>
+      <div class="mono text-2xl font-bold">RM 2,410</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-green text-[10px]">&#9650; 12%</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,20 10,18 20,16 30,14 40,13 50,11 60,9 70,7 80,5" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,20 10,18 20,16 30,14 40,13 50,11 60,9 70,7 80,5 80,24 0,24" fill="#7c3aed" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Class Fill Rate</div>
+      <div class="mono text-2xl font-bold">78.3%</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-amber text-[10px]">&#9660; 2.1pp</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,5 10,6 20,7 30,6 40,8 50,9 60,11 70,12 80,13" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,5 10,6 20,7 30,6 40,8 50,9 60,11 70,12 80,13 80,24 0,24" fill="#d97706" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">NPS Score</div>
+      <div class="mono text-2xl font-bold">+62</div>
+      <div class="mt-1 flex items-center gap-1.5">
+        <span class="badge badge-green text-[10px]">&#9650; 5 pts</span>
+        <span class="text-[11px] text-ink-3">vs prev</span>
+      </div>
+      <svg viewBox="0 0 80 24" class="mt-3 w-full" height="24">
+        <polyline points="0,18 10,16 20,14 30,15 40,12 50,10 60,9 70,7 80,6" fill="none" stroke="#0891b2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="0,18 10,16 20,14 30,15 40,12 50,10 60,9 70,7 80,6 80,24 0,24" fill="#0891b2" opacity="0.08"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Revenue chart + sidebar -->
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <div class="font-bold text-[15px]">Revenue Trend</div>
+          <div class="text-xs text-ink-3 mt-0.5">Last 12 months</div>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1.5 text-xs text-ink-3"><span class="inline-block size-2.5 rounded-full bg-ink"></span>Actual</span>
+          <span class="flex items-center gap-1.5 text-xs text-ink-3"><span class="inline-block size-2.5 rounded-full bg-green-500" style="opacity:0.5"></span>Target</span>
+        </div>
+      </div>
+      <svg viewBox="0 0 680 180" class="w-full" height="200">
+        <line x1="0" y1="160" x2="680" y2="160" stroke="#e5e5e5" stroke-width="1"/>
+        <line x1="0" y1="120" x2="680" y2="120" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="0" y1="80" x2="680" y2="80" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="0" y1="40" x2="680" y2="40" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <text x="2" y="163" font-size="9" fill="#a3a3a3">0</text>
+        <text x="2" y="123" font-size="9" fill="#a3a3a3">25k</text>
+        <text x="2" y="83" font-size="9" fill="#a3a3a3">50k</text>
+        <text x="2" y="43" font-size="9" fill="#a3a3a3">75k</text>
+        <text x="24" y="175" font-size="9" fill="#a3a3a3">Jun</text>
+        <text x="78" y="175" font-size="9" fill="#a3a3a3">Jul</text>
+        <text x="132" y="175" font-size="9" fill="#a3a3a3">Aug</text>
+        <text x="186" y="175" font-size="9" fill="#a3a3a3">Sep</text>
+        <text x="240" y="175" font-size="9" fill="#a3a3a3">Oct</text>
+        <text x="294" y="175" font-size="9" fill="#a3a3a3">Nov</text>
+        <text x="348" y="175" font-size="9" fill="#a3a3a3">Dec</text>
+        <text x="402" y="175" font-size="9" fill="#a3a3a3">Jan</text>
+        <text x="456" y="175" font-size="9" fill="#a3a3a3">Feb</text>
+        <text x="510" y="175" font-size="9" fill="#a3a3a3">Mar</text>
+        <text x="564" y="175" font-size="9" fill="#a3a3a3">Apr</text>
+        <text x="618" y="175" font-size="9" fill="#a3a3a3">May</text>
+        <!-- Target dashed -->
+        <line x1="18" y1="82" x2="650" y2="66" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.5"/>
+        <!-- Area -->
+        <polygon points="18,130 72,125 126,118 180,115 234,108 288,100 342,92 396,88 450,80 504,72 558,60 612,50 650,42 650,160 18,160" fill="#0a0a0a" opacity="0.06"/>
+        <!-- Line -->
+        <polyline points="18,130 72,125 126,118 180,115 234,108 288,100 342,92 396,88 450,80 504,72 558,60 612,50" fill="none" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Latest dot -->
+        <circle cx="612" cy="50" r="4" fill="#0a0a0a"/>
+        <circle cx="612" cy="50" r="7" fill="#0a0a0a" opacity="0.15"/>
+        <line x1="612" y1="50" x2="612" y2="160" stroke="#0a0a0a" stroke-width="1" stroke-dasharray="3 2" opacity="0.25"/>
+      </svg>
+      <div class="mt-4 flex items-center gap-6 border-t border-line pt-4">
+        <div><div class="label">This month</div><div class="mono font-bold text-[15px] mt-1">RM 84,200</div></div>
+        <div><div class="label">YTD Total</div><div class="mono font-bold text-[15px] mt-1">RM 921,400</div></div>
+        <div><div class="label">YTD Target</div><div class="mono font-bold text-[15px] mt-1">RM 900,000</div></div>
+        <div><div class="label">Attainment</div><div class="mono font-bold text-[15px] mt-1 text-green-700">102.4%</div></div>
+      </div>
+    </div>
+
+    <!-- Right col -->
+    <div class="flex flex-col gap-5">
+      <div class="card p-5 flex-1">
+        <div class="font-bold text-[14px] mb-4">Top Services</div>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-[12px] mb-1.5"><span class="font-medium">Monthly Membership</span><span class="mono font-semibold">RM 38,400</span></div>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-ink" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1.5"><span class="font-medium">PT Package (10 sess)</span><span class="mono font-semibold">RM 22,100</span></div>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-ink" style="width:57%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1.5"><span class="font-medium">Yoga Classes</span><span class="mono font-semibold">RM 12,600</span></div>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-ink" style="width:33%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1.5"><span class="font-medium">Annual Membership</span><span class="mono font-semibold">RM 7,800</span></div>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-ink" style="width:20%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1.5"><span class="font-medium">CrossFit Program</span><span class="mono font-semibold">RM 3,300</span></div>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-amber-500" style="width:9%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5 flex-1">
+        <div class="font-bold text-[14px] mb-4">Top Trainers</div>
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="size-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 flex-shrink-0">AM</div>
+            <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold">Amir Hamzah</div><div class="text-[11px] text-ink-3">94% fill &middot; NPS +71</div></div>
+            <span class="mono text-[12px] font-bold">RM 18.2k</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="size-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">SR</div>
+            <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold">Siti Rahimah</div><div class="text-[11px] text-ink-3">87% fill &middot; NPS +68</div></div>
+            <span class="mono text-[12px] font-bold">RM 15.4k</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="size-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-700 flex-shrink-0">RK</div>
+            <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold">Raj Kumar</div><div class="text-[11px] text-ink-3">76% fill &middot; NPS +55</div></div>
+            <span class="mono text-[12px] font-bold">RM 11.8k</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="size-8 rounded-full bg-rose-100 flex items-center justify-center text-xs font-bold text-rose-700 flex-shrink-0">ML</div>
+            <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold">Mei Ling</div><div class="text-[11px] text-ink-3">65% fill &middot; NPS +48</div></div>
+            <span class="mono text-[12px] font-bold">RM 9.3k</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — REPORT BUILDER / COMPOSER                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — Report Builder</h2>
+    <span class="label">Drag-and-drop section composer · left panel adds blocks · canvas shows live preview · save as template</span>
+  </div>
+
+  <div class="grid grid-cols-[260px_1fr_260px] gap-5" style="height:680px">
+
+    <!-- Left: Block palette -->
+    <div class="card flex flex-col overflow-hidden">
+      <div class="border-b border-line px-4 py-3">
+        <div class="font-bold text-[13px]">Add Sections</div>
+        <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-line bg-paper px-2.5 py-1.5">
+          <svg class="size-3.5 text-ink-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+          <input class="flex-1 text-xs bg-transparent placeholder:text-ink-4" placeholder="Search blocks…" />
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div class="label px-1 mb-2">KPI Blocks</div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-green-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12 L6 8 L9 10 L14 4"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Revenue KPI Tile</div><div class="text-[10px] text-ink-3">MRR, ARR, growth</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-blue-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><path d="M8 3v5l3 2"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Member Stats Tile</div><div class="text-[10px] text-ink-3">Active, churn, LTV</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-amber-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Trainer Summary</div><div class="text-[10px] text-ink-3">Fill rate, NPS, rev</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="label px-1 mt-3 mb-2">Chart Blocks</div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-ink flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12 L6 8 L9 10 L14 4"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Revenue Line Chart</div><div class="text-[10px] text-ink-3">12-month trend</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-violet-700" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="9" width="3" height="5" rx="1"/><rect x="6.5" y="6" width="3" height="8" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Attendance Bar Chart</div><div class="text-[10px] text-ink-3">By day / by slot</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-teal-700" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="3" height="3" rx="0.5"/><rect x="7" y="2" width="3" height="3" rx="0.5"/><rect x="12" y="2" width="3" height="3" rx="0.5"/><rect x="2" y="7" width="3" height="3" rx="0.5"/><rect x="7" y="7" width="3" height="3" rx="0.5"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Retention Cohort</div><div class="text-[10px] text-ink-3">Heatmap grid</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="label px-1 mt-3 mb-2">Table Blocks</div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-slate-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="5" y1="3" x2="5" y2="13"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Member Table</div><div class="text-[10px] text-ink-3">Sortable, exportable</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+        <div class="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2.5 cursor-grab hover:border-ink-4 transition">
+          <div class="size-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+            <svg class="size-4 text-slate-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="5" y1="3" x2="5" y2="13"/></svg>
+          </div>
+          <div><div class="text-[12px] font-semibold">Service Revenue Table</div><div class="text-[10px] text-ink-3">Breakdown by type</div></div>
+          <svg class="ml-auto size-3.5 text-ink-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM6 10h1v1H6zM9 4h1v1H9zM9 7h1v1H9zM9 10h1v1H9z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Centre: Canvas -->
+    <div class="card flex flex-col overflow-hidden" style="background:#fafafa">
+      <!-- Canvas toolbar -->
+      <div class="flex items-center gap-2 border-b border-line bg-white px-4 py-2.5">
+        <div class="flex items-center gap-1.5 text-[13px] font-semibold">
+          <svg class="size-4 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8h12M8 2v12"/></svg>
+          Custom Report
+        </div>
+        <span class="text-ink-4 text-xs">·</span>
+        <span class="text-xs text-ink-3">4 sections</span>
+        <div class="ml-auto flex items-center gap-1.5">
+          <button class="btn btn-ghost text-xs py-1.5 px-2.5 flex items-center gap-1">
+            <svg class="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8h12M8 2v12"/></svg>
+            Preview
+          </button>
+          <button class="btn btn-outline text-xs py-1.5 px-2.5">Save as template</button>
+          <button class="btn btn-ink text-xs py-1.5 px-2.5">Export</button>
+        </div>
+      </div>
+      <!-- Canvas scroll area -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+
+        <!-- Section 1: KPI row (active/selected) -->
+        <div class="rounded-2xl border-2 border-ink bg-white p-4 relative group">
+          <div class="absolute -top-3 left-3 bg-ink text-white text-[10px] font-bold px-2 py-0.5 rounded-full">KPI Tiles</div>
+          <div class="absolute top-2.5 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center hover:bg-line">
+              <svg class="size-3 text-ink-3" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM9 4h1v1H9zM9 7h1v1H9z"/></svg>
+            </button>
+            <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center hover:bg-line">
+              <svg class="size-3 text-red-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-3 mt-2">
+            <div class="rounded-xl border border-line p-3"><div class="label mb-1">MRR</div><div class="mono font-bold text-[15px]">RM 84,200</div><div class="text-[10px] text-green-600 mt-0.5">&#9650; 8.4%</div></div>
+            <div class="rounded-xl border border-line p-3"><div class="label mb-1">Members</div><div class="mono font-bold text-[15px]">1,284</div><div class="text-[10px] text-green-600 mt-0.5">&#9650; 3.1%</div></div>
+            <div class="rounded-xl border border-line p-3"><div class="label mb-1">Churn</div><div class="mono font-bold text-[15px]">6.2%</div><div class="text-[10px] text-red-600 mt-0.5">&#9650; 0.8pp</div></div>
+            <div class="rounded-xl border border-line p-3"><div class="label mb-1">NPS</div><div class="mono font-bold text-[15px]">+62</div><div class="text-[10px] text-green-600 mt-0.5">&#9650; 5 pts</div></div>
+          </div>
+        </div>
+
+        <!-- Section 2: Revenue chart -->
+        <div class="rounded-2xl border border-line bg-white p-4 relative group hover:border-ink-4 transition cursor-pointer">
+          <div class="flex items-center justify-between mb-3">
+            <span class="font-semibold text-[13px]">Revenue Trend</span>
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+              <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center">
+                <svg class="size-3 text-ink-3" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM9 4h1v1H9zM9 7h1v1H9z"/></svg>
+              </button>
+              <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center">
+                <svg class="size-3 text-red-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>
+              </button>
+            </div>
+          </div>
+          <svg viewBox="0 0 500 100" class="w-full" height="100">
+            <line x1="0" y1="90" x2="500" y2="90" stroke="#e5e5e5" stroke-width="1"/>
+            <line x1="0" y1="60" x2="500" y2="60" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+            <line x1="0" y1="30" x2="500" y2="30" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+            <polygon points="0,75 42,72 83,66 125,64 167,59 208,54 250,49 292,47 333,42 375,37 417,30 458,24 500,90 0,90" fill="#0a0a0a" opacity="0.06"/>
+            <polyline points="0,75 42,72 83,66 125,64 167,59 208,54 250,49 292,47 333,42 375,37 417,30 458,24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="458" cy="24" r="3.5" fill="#0a0a0a"/>
+          </svg>
+        </div>
+
+        <!-- Section 3: Trainer table -->
+        <div class="rounded-2xl border border-line bg-white p-4 relative group hover:border-ink-4 transition cursor-pointer">
+          <div class="flex items-center justify-between mb-3">
+            <span class="font-semibold text-[13px]">Trainer Performance</span>
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+              <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center">
+                <svg class="size-3 text-ink-3" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h1v1H6zM6 7h1v1H6zM9 4h1v1H9zM9 7h1v1H9z"/></svg>
+              </button>
+              <button class="size-6 rounded-lg bg-paper border border-line flex items-center justify-center">
+                <svg class="size-3 text-red-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>
+              </button>
+            </div>
+          </div>
+          <table class="w-full text-[12px]">
+            <thead><tr class="border-b border-line"><th class="text-left pb-2 label font-bold">Trainer</th><th class="text-right pb-2 label font-bold">Fill Rate</th><th class="text-right pb-2 label font-bold">NPS</th><th class="text-right pb-2 label font-bold">Revenue</th></tr></thead>
+            <tbody class="divide-y divide-line">
+              <tr><td class="py-2 font-medium">Amir Hamzah</td><td class="text-right mono">94%</td><td class="text-right mono">+71</td><td class="text-right mono">RM 18,240</td></tr>
+              <tr><td class="py-2 font-medium">Siti Rahimah</td><td class="text-right mono">87%</td><td class="text-right mono">+68</td><td class="text-right mono">RM 15,400</td></tr>
+              <tr><td class="py-2 font-medium">Raj Kumar</td><td class="text-right mono">76%</td><td class="text-right mono">+55</td><td class="text-right mono">RM 11,800</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="rounded-2xl border-2 border-dashed border-line flex items-center justify-center py-6 text-xs text-ink-4 hover:border-ink-3 hover:text-ink-3 transition cursor-pointer">
+          <svg class="size-4 mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+          Drop a block here or click to add
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right: Properties panel -->
+    <div class="card flex flex-col overflow-hidden">
+      <div class="border-b border-line px-4 py-3">
+        <div class="font-bold text-[13px]">Section Settings</div>
+        <div class="text-[11px] text-ink-3 mt-0.5">KPI Tiles &mdash; selected</div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-5">
+        <!-- Title -->
+        <div>
+          <div class="label mb-2">Section title</div>
+          <input class="w-full rounded-lg border border-line bg-paper px-3 py-2 text-[13px] font-medium" value="Key Metrics" />
+        </div>
+        <!-- Columns -->
+        <div>
+          <div class="label mb-2">Columns</div>
+          <div class="flex gap-1.5">
+            <button class="flex-1 rounded-lg border border-ink bg-ink text-white text-xs py-1.5 font-semibold">4</button>
+            <button class="flex-1 rounded-lg border border-line bg-paper text-xs py-1.5 font-medium">3</button>
+            <button class="flex-1 rounded-lg border border-line bg-paper text-xs py-1.5 font-medium">2</button>
+          </div>
+        </div>
+        <!-- Metrics -->
+        <div>
+          <div class="label mb-2">Show metrics</div>
+          <div class="space-y-2">
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" checked class="ck" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              MRR
+            </label>
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" checked class="ck" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              Active Members
+            </label>
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" checked class="ck" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              Churn Rate
+            </label>
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" checked class="ck" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              NPS Score
+            </label>
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              Class Fill Rate
+            </label>
+            <label class="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" style="appearance:none;width:14px;height:14px;border:1.5px solid #a3a3a3;border-radius:3px;cursor:pointer;vertical-align:middle;" />
+              Avg LTV
+            </label>
+          </div>
+        </div>
+        <!-- Compare toggle -->
+        <div>
+          <div class="label mb-2">Show comparison</div>
+          <div class="flex items-center justify-between">
+            <span class="text-[12px]">vs previous period</span>
+            <div class="relative inline-flex h-5 w-9 items-center rounded-full bg-ink cursor-pointer">
+              <div class="absolute right-0.5 h-4 w-4 rounded-full bg-white shadow-sm"></div>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-line pt-4">
+          <div class="label mb-3">Report settings</div>
+          <div>
+            <div class="text-[12px] font-medium mb-1">Date range</div>
+            <select class="w-full rounded-lg border border-line bg-paper px-2.5 py-2 text-[12px]">
+              <option>Last 30 days</option>
+              <option>Last 90 days</option>
+              <option>This month</option>
+              <option>Custom range</option>
+            </select>
+          </div>
+          <div class="mt-3">
+            <div class="text-[12px] font-medium mb-1">Branch filter</div>
+            <select class="w-full rounded-lg border border-line bg-paper px-2.5 py-2 text-[12px]">
+              <option>All Branches</option>
+              <option>KL Central</option>
+              <option>Petaling Jaya</option>
+            </select>
+          </div>
+        </div>
+        <!-- Schedule -->
+        <div class="rounded-xl border border-line bg-paper p-3">
+          <div class="flex items-center justify-between">
+            <div class="text-[12px] font-semibold">Schedule delivery</div>
+            <div class="relative inline-flex h-5 w-9 items-center rounded-full bg-line cursor-pointer">
+              <div class="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow-sm"></div>
+            </div>
+          </div>
+          <div class="mt-2 text-[11px] text-ink-3">Auto-email this report on a schedule. Toggle to configure.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — TABBED DEEP-DIVE                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Tabbed Deep-Dive</h2>
+    <span class="label">Revenue / Retention / Operations / Staff tabs &mdash; each tab is a full focused report page</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="mb-5 flex flex-wrap items-center gap-3">
+    <h1 class="text-[22px] font-extrabold tracking-tight">Analytics</h1>
+    <div class="ml-auto flex items-center gap-2">
+      <div class="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-[13px] font-medium cursor-pointer hover:bg-paper transition">
+        <svg class="size-3.5 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+        Apr 15 &ndash; May 15, 2026
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-[13px] font-medium cursor-pointer">
+        <option>All Branches</option>
+        <option>KL Central</option>
+      </select>
+      <button class="btn btn-outline text-xs py-2 flex items-center gap-1.5">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v9M4 8l4 3 4-3"/><path d="M2 13h12"/></svg>
+        Export PDF
+      </button>
+      <button class="btn btn-ink text-xs flex items-center gap-1.5">
+        <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+        Schedule Email
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="flex items-center gap-1 border-b border-line mb-6">
+    <button class="px-4 py-2.5 text-[13px] font-semibold border-b-2 border-ink text-ink -mb-px">Revenue</button>
+    <button class="px-4 py-2.5 text-[13px] font-medium text-ink-3 hover:text-ink transition">Retention</button>
+    <button class="px-4 py-2.5 text-[13px] font-medium text-ink-3 hover:text-ink transition">Operations</button>
+    <button class="px-4 py-2.5 text-[13px] font-medium text-ink-3 hover:text-ink transition">Staff</button>
+    <div class="ml-auto mb-1.5">
+      <div class="flex items-center gap-1 rounded-lg border border-line bg-white p-0.5">
+        <button class="rounded-md px-2.5 py-1 text-[11px] font-semibold bg-ink text-white">Summary</button>
+        <button class="rounded-md px-2.5 py-1 text-[11px] font-medium text-ink-3 hover:text-ink">Detailed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue tab content -->
+  <!-- Row 1: KPIs -->
+  <div class="grid grid-cols-4 gap-4 mb-5">
+    <div class="card p-5">
+      <div class="label mb-2">MRR</div>
+      <div class="mono text-2xl font-bold">RM 84,200</div>
+      <div class="flex items-center gap-1.5 mt-1"><span class="badge badge-green text-[10px]">&#9650; 8.4%</span></div>
+      <div class="text-[11px] text-ink-3 mt-1">vs Apr (RM 77,600)</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">YTD Revenue</div>
+      <div class="mono text-2xl font-bold">RM 921,400</div>
+      <div class="flex items-center gap-1.5 mt-1"><span class="badge badge-green text-[10px]">&#9650; 102.4% target</span></div>
+      <div class="text-[11px] text-ink-3 mt-1">Target: RM 900,000</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Avg Revenue / Member</div>
+      <div class="mono text-2xl font-bold">RM 65.60</div>
+      <div class="flex items-center gap-1.5 mt-1"><span class="badge badge-amber text-[10px]">&#9660; 1.2%</span></div>
+      <div class="text-[11px] text-ink-3 mt-1">vs prev period</div>
+    </div>
+    <div class="card p-5">
+      <div class="label mb-2">Outstanding</div>
+      <div class="mono text-2xl font-bold text-red-600">RM 4,820</div>
+      <div class="flex items-center gap-1.5 mt-1"><span class="badge badge-red text-[10px]">18 invoices</span></div>
+      <div class="text-[11px] text-ink-3 mt-1">Past due &gt; 30 days</div>
+    </div>
+  </div>
+
+  <!-- Row 2: Chart + breakdown -->
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px] mb-5">
+
+    <!-- Revenue area chart -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="font-bold text-[15px]">Monthly Revenue</div>
+          <div class="text-xs text-ink-3">Jun 2025 &ndash; May 2026</div>
+        </div>
+        <div class="flex items-center gap-1 rounded-lg border border-line bg-paper p-0.5">
+          <button class="rounded px-2.5 py-1 text-[11px] font-semibold bg-ink text-white">Monthly</button>
+          <button class="rounded px-2.5 py-1 text-[11px] text-ink-3">Weekly</button>
+        </div>
+      </div>
+      <svg viewBox="0 0 580 160" class="w-full" height="180">
+        <line x1="0" y1="140" x2="580" y2="140" stroke="#e5e5e5" stroke-width="1"/>
+        <line x1="0" y1="100" x2="580" y2="100" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="0" y1="60" x2="580" y2="60" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="0" y1="20" x2="580" y2="20" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4 3"/>
+        <text x="2" y="143" font-size="8" fill="#a3a3a3">0</text>
+        <text x="2" y="103" font-size="8" fill="#a3a3a3">25k</text>
+        <text x="2" y="63" font-size="8" fill="#a3a3a3">50k</text>
+        <text x="2" y="23" font-size="8" fill="#a3a3a3">75k</text>
+        <!-- Area stacked: memberships (dark) + PT (mid) + other (light) -->
+        <!-- Bottom layer: memberships -->
+        <polygon points="20,115 67,112 114,107 161,105 208,100 255,95 302,89 349,86 396,80 443,74 490,64 537,56 580,140 20,140" fill="#0a0a0a" opacity="0.5"/>
+        <!-- PT sessions -->
+        <polygon points="20,98 67,95 114,91 161,89 208,84 255,80 302,74 349,72 396,66 443,61 490,52 537,45 580,140 20,140" fill="#0a0a0a" opacity="0.1"/>
+        <!-- Line -->
+        <polyline points="20,115 67,112 114,107 161,105 208,100 255,95 302,89 349,86 396,80 443,74 490,64 537,56" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="537" cy="56" r="3.5" fill="#0a0a0a"/>
+        <text x="10" y="155" font-size="8" fill="#a3a3a3">Jun</text>
+        <text x="57" y="155" font-size="8" fill="#a3a3a3">Jul</text>
+        <text x="104" y="155" font-size="8" fill="#a3a3a3">Aug</text>
+        <text x="151" y="155" font-size="8" fill="#a3a3a3">Sep</text>
+        <text x="198" y="155" font-size="8" fill="#a3a3a3">Oct</text>
+        <text x="245" y="155" font-size="8" fill="#a3a3a3">Nov</text>
+        <text x="292" y="155" font-size="8" fill="#a3a3a3">Dec</text>
+        <text x="339" y="155" font-size="8" fill="#a3a3a3">Jan</text>
+        <text x="386" y="155" font-size="8" fill="#a3a3a3">Feb</text>
+        <text x="433" y="155" font-size="8" fill="#a3a3a3">Mar</text>
+        <text x="480" y="155" font-size="8" fill="#a3a3a3">Apr</text>
+        <text x="527" y="155" font-size="8" fill="#a3a3a3">May</text>
+      </svg>
+    </div>
+
+    <!-- Revenue by service -->
+    <div class="card p-6">
+      <div class="font-bold text-[14px] mb-4">Revenue by Service</div>
+      <div class="space-y-4">
+        <div>
+          <div class="flex justify-between text-[12px] mb-1.5">
+            <span class="font-medium flex items-center gap-2"><span class="inline-block size-2.5 rounded-sm bg-ink"></span>Monthly Membership</span>
+            <span class="mono font-semibold">RM 38,400 <span class="text-ink-3 font-normal">(45.6%)</span></span>
+          </div>
+          <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:100%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1.5">
+            <span class="font-medium flex items-center gap-2"><span class="inline-block size-2.5 rounded-sm bg-violet-500"></span>PT Sessions</span>
+            <span class="mono font-semibold">RM 22,100 <span class="text-ink-3 font-normal">(26.2%)</span></span>
+          </div>
+          <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-violet-500" style="width:57%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1.5">
+            <span class="font-medium flex items-center gap-2"><span class="inline-block size-2.5 rounded-sm bg-teal-500"></span>Group Classes</span>
+            <span class="mono font-semibold">RM 12,600 <span class="text-ink-3 font-normal">(15.0%)</span></span>
+          </div>
+          <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-teal-500" style="width:33%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1.5">
+            <span class="font-medium flex items-center gap-2"><span class="inline-block size-2.5 rounded-sm bg-amber-400"></span>Annual Membership</span>
+            <span class="mono font-semibold">RM 7,800 <span class="text-ink-3 font-normal">(9.3%)</span></span>
+          </div>
+          <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-amber-400" style="width:20%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1.5">
+            <span class="font-medium flex items-center gap-2"><span class="inline-block size-2.5 rounded-sm bg-slate-300"></span>Other</span>
+            <span class="mono font-semibold">RM 3,300 <span class="text-ink-3 font-normal">(3.9%)</span></span>
+          </div>
+          <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-slate-300" style="width:9%"></div></div>
+        </div>
+      </div>
+      <div class="mt-4 pt-4 border-t border-line">
+        <div class="flex justify-between text-[13px]"><span class="font-bold">Total</span><span class="mono font-bold">RM 84,200</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Transaction table excerpt -->
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="font-bold text-[14px]">Recent Transactions</div>
+      <button class="label hover:text-ink transition cursor-pointer">View all</button>
+    </div>
+    <table class="w-full text-[12px]">
+      <thead><tr class="border-b border-line">
+        <th class="text-left pb-2.5 label">Member</th>
+        <th class="text-left pb-2.5 label">Service</th>
+        <th class="text-left pb-2.5 label">Branch</th>
+        <th class="text-left pb-2.5 label">Date</th>
+        <th class="text-right pb-2.5 label">Amount</th>
+        <th class="text-right pb-2.5 label">Status</th>
+      </tr></thead>
+      <tbody class="divide-y divide-line">
+        <tr><td class="py-2.5 font-medium">Ahmad Zul</td><td class="text-ink-3">Monthly Membership</td><td class="text-ink-3">KL Central</td><td class="text-ink-3 mono">15 May 2026</td><td class="text-right mono font-semibold">RM 280</td><td class="text-right"><span class="badge badge-green text-[10px]">Paid</span></td></tr>
+        <tr><td class="py-2.5 font-medium">Priya Nair</td><td class="text-ink-3">PT Package (10)</td><td class="text-ink-3">Petaling Jaya</td><td class="text-ink-3 mono">14 May 2026</td><td class="text-right mono font-semibold">RM 1,200</td><td class="text-right"><span class="badge badge-green text-[10px]">Paid</span></td></tr>
+        <tr><td class="py-2.5 font-medium">Lee Wei Hao</td><td class="text-ink-3">Annual Membership</td><td class="text-ink-3">Subang</td><td class="text-ink-3 mono">14 May 2026</td><td class="text-right mono font-semibold">RM 2,400</td><td class="text-right"><span class="badge badge-green text-[10px]">Paid</span></td></tr>
+        <tr><td class="py-2.5 font-medium">Nurul Huda</td><td class="text-ink-3">Yoga (10-class pack)</td><td class="text-ink-3">KL Central</td><td class="text-ink-3 mono">13 May 2026</td><td class="text-right mono font-semibold">RM 450</td><td class="text-right"><span class="badge badge-amber text-[10px]">Pending</span></td></tr>
+        <tr><td class="py-2.5 font-medium">Daniel Tan</td><td class="text-ink-3">Monthly Membership</td><td class="text-ink-3">KL Central</td><td class="text-ink-3 mono">12 May 2026</td><td class="text-right mono font-semibold">RM 280</td><td class="text-right"><span class="badge badge-red text-[10px]">Overdue</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — EDITORIAL / NEWSPAPER LAYOUT                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d5" class="design-sep">
+<div class="mx-auto max-w-[1440px] px-7 py-10">
+
+  <div class="mb-6 flex items-baseline gap-4">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Editorial Report</h2>
+    <span class="label">Newspaper-style layout &mdash; masthead hero &middot; column grid &middot; data as pull-quotes and infographics</span>
+  </div>
+
+  <!-- Masthead -->
+  <div class="rounded-3xl bg-ink text-white overflow-hidden mb-6">
+    <div class="px-10 pt-8 pb-6 grid grid-cols-[1fr_auto] gap-8 items-start">
+      <div>
+        <div class="label text-white/50 mb-2">Avantej &mdash; Monthly Performance Digest</div>
+        <h1 class="text-[36px] font-extrabold tracking-tight leading-tight">
+          Revenue surpasses<br/>target for 3rd<br/>consecutive month
+        </h1>
+        <p class="mt-3 text-white/60 text-sm leading-relaxed max-w-lg">
+          MRR hit RM 84,200 in May 2026 &mdash; 8.4% above April &mdash; driven by a 12% uplift in PT package sales and a record-high NPS of +62. Membership growth continues to outpace churn for the sixth month running.
+        </p>
+        <div class="mt-5 flex items-center gap-4 text-[12px] text-white/40">
+          <span class="mono">May 15, 2026</span>
+          <span>&middot;</span>
+          <span>All Branches</span>
+          <span>&middot;</span>
+          <span>Generated automatically</span>
+        </div>
+      </div>
+      <!-- Hero stat -->
+      <div class="text-right border-l border-white/10 pl-8">
+        <div class="label text-white/40 mb-2">Monthly Recurring Revenue</div>
+        <div class="mono text-[56px] font-extrabold leading-none tracking-tight">84.2k</div>
+        <div class="mono text-lg font-semibold text-white/50 mt-1">RM</div>
+        <div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-500/20 px-3 py-1.5">
+          <span class="text-green-400 font-bold text-[13px]">&#9650; 8.4%</span>
+          <span class="text-white/50 text-xs">vs April</span>
+        </div>
+        <!-- Mini sparkline on dark bg -->
+        <svg viewBox="0 0 120 36" class="mt-4 w-[120px]" height="36">
+          <polyline points="0,30 15,26 30,22 45,23 60,18 75,14 90,10 105,7 120,4" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polygon points="0,30 15,26 30,22 45,23 60,18 75,14 90,10 105,7 120,4 120,36 0,36" fill="#4ade80" opacity="0.1"/>
+        </svg>
+        <div class="text-[10px] text-white/30 mt-1 text-right">12-month trend</div>
+      </div>
+    </div>
+    <!-- Controls bar -->
+    <div class="border-t border-white/10 px-10 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5">
+        <button class="rounded-md px-3 py-1 text-[11px] font-semibold bg-white text-ink">This month</button>
+        <button class="rounded-md px-3 py-1 text-[11px] font-medium text-white/50 hover:text-white transition">QTD</button>
+        <button class="rounded-md px-3 py-1 text-[11px] font-medium text-white/50 hover:text-white transition">YTD</button>
+        <button class="rounded-md px-3 py-1 text-[11px] font-medium text-white/50 hover:text-white transition">Custom</button>
+      </div>
+      <select class="rounded-lg border border-white/10 bg-white/5 text-white/70 px-3 py-1 text-[12px] cursor-pointer">
+        <option>All Branches</option>
+        <option>KL Central</option>
+      </select>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/70 hover:bg-white/10 transition">
+          <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v9M4 8l4 3 4-3"/><path d="M2 13h12"/></svg>
+          Export PDF
+        </button>
+        <button class="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/70 hover:bg-white/10 transition">
+          <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>
+          Schedule Email
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Newspaper body: 3 columns -->
+  <div class="grid grid-cols-3 gap-6">
+
+    <!-- Column 1: Revenue deep-dive -->
+    <div class="space-y-5">
+      <div class="border-b-2 border-ink pb-1.5 mb-3">
+        <span class="label">Revenue</span>
+      </div>
+
+      <!-- Pull quote: MRR -->
+      <div class="rounded-2xl border border-line bg-white p-5">
+        <div class="label mb-3">12-Month Revenue</div>
+        <svg viewBox="0 0 260 120" class="w-full" height="120">
+          <line x1="0" y1="105" x2="260" y2="105" stroke="#e5e5e5" stroke-width="1"/>
+          <line x1="0" y1="72" x2="260" y2="72" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="3 2"/>
+          <line x1="0" y1="39" x2="260" y2="39" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="3 2"/>
+          <!-- Bars -->
+          <rect x="4" y="85" width="16" height="20" rx="2" fill="#0a0a0a" opacity="0.15"/>
+          <rect x="24" y="80" width="16" height="25" rx="2" fill="#0a0a0a" opacity="0.18"/>
+          <rect x="44" y="74" width="16" height="31" rx="2" fill="#0a0a0a" opacity="0.21"/>
+          <rect x="64" y="77" width="16" height="28" rx="2" fill="#0a0a0a" opacity="0.19"/>
+          <rect x="84" y="68" width="16" height="37" rx="2" fill="#0a0a0a" opacity="0.24"/>
+          <rect x="104" y="60" width="16" height="45" rx="2" fill="#0a0a0a" opacity="0.28"/>
+          <rect x="124" y="52" width="16" height="53" rx="2" fill="#0a0a0a" opacity="0.32"/>
+          <rect x="144" y="47" width="16" height="58" rx="2" fill="#0a0a0a" opacity="0.36"/>
+          <rect x="164" y="40" width="16" height="65" rx="2" fill="#0a0a0a" opacity="0.4"/>
+          <rect x="184" y="32" width="16" height="73" rx="2" fill="#0a0a0a" opacity="0.44"/>
+          <rect x="204" y="22" width="16" height="83" rx="2" fill="#0a0a0a" opacity="0.5"/>
+          <rect x="224" y="12" width="16" height="93" rx="2" fill="#0a0a0a" opacity="0.85"/>
+          <text x="226" y="10" font-size="7" fill="#0a0a0a" text-anchor="middle" font-weight="700">84.2k</text>
+          <text x="4" y="118" font-size="7" fill="#a3a3a3">J</text>
+          <text x="44" y="118" font-size="7" fill="#a3a3a3">A</text>
+          <text x="84" y="118" font-size="7" fill="#a3a3a3">O</text>
+          <text x="124" y="118" font-size="7" fill="#a3a3a3">D</text>
+          <text x="164" y="118" font-size="7" fill="#a3a3a3">F</text>
+          <text x="204" y="118" font-size="7" fill="#a3a3a3">A</text>
+          <text x="224" y="118" font-size="7" fill="#a3a3a3">M</text>
+        </svg>
+      </div>
+
+      <!-- Stat block -->
+      <div class="rounded-2xl border border-line bg-white p-5">
+        <div class="label mb-3">Revenue by Category</div>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-[12px] mb-1"><span>Memberships</span><span class="mono font-bold">RM 46,200</span></div>
+            <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1"><span>PT &amp; Coaching</span><span class="mono font-bold">RM 22,100</span></div>
+            <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:48%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1"><span>Group Classes</span><span class="mono font-bold">RM 12,600</span></div>
+            <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:27%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[12px] mb-1"><span>Other</span><span class="mono font-bold">RM 3,300</span></div>
+            <div class="h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:7%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Big number pull quote -->
+      <div class="rounded-2xl border-2 border-ink bg-paper p-5">
+        <div class="label mb-2">YTD Attainment</div>
+        <div class="mono text-[48px] font-extrabold leading-none tracking-tight">102%</div>
+        <div class="text-[12px] text-ink-3 mt-2 leading-relaxed">RM 921,400 collected against RM 900,000 annual target. On track to close at RM 1.01M.</div>
+      </div>
+    </div>
+
+    <!-- Column 2: Members & retention -->
+    <div class="space-y-5">
+      <div class="border-b-2 border-ink pb-1.5 mb-3">
+        <span class="label">Members &amp; Retention</span>
+      </div>
+
+      <!-- Cohort heatmap -->
+      <div class="rounded-2xl border border-line bg-white p-5">
+        <div class="label mb-3">Cohort Retention Heatmap</div>
+        <svg viewBox="0 0 260 150" class="w-full" height="150">
+          <!-- Labels -->
+          <text x="60" y="14" font-size="7" fill="#a3a3a3">M0</text>
+          <text x="88" y="14" font-size="7" fill="#a3a3a3">M1</text>
+          <text x="116" y="14" font-size="7" fill="#a3a3a3">M2</text>
+          <text x="144" y="14" font-size="7" fill="#a3a3a3">M3</text>
+          <text x="172" y="14" font-size="7" fill="#a3a3a3">M4</text>
+          <text x="200" y="14" font-size="7" fill="#a3a3a3">M5</text>
+          <!-- Row Jan -->
+          <text x="2" y="30" font-size="7" fill="#737373">Jan</text>
+          <rect x="52" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="1"/>
+          <text x="64" y="29" font-size="7" fill="white" text-anchor="middle">100</text>
+          <rect x="80" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.78"/>
+          <text x="92" y="29" font-size="7" fill="white" text-anchor="middle">78</text>
+          <rect x="108" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.58"/>
+          <text x="120" y="29" font-size="7" fill="white" text-anchor="middle">62</text>
+          <rect x="136" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.44"/>
+          <text x="148" y="29" font-size="7" fill="white" text-anchor="middle">55</text>
+          <rect x="164" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.32"/>
+          <text x="176" y="29" font-size="7" fill="#0a0a0a" text-anchor="middle">48</text>
+          <rect x="192" y="18" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.22"/>
+          <text x="204" y="29" font-size="7" fill="#0a0a0a" text-anchor="middle">44</text>
+          <!-- Row Feb -->
+          <text x="2" y="52" font-size="7" fill="#737373">Feb</text>
+          <rect x="52" y="40" width="24" height="16" rx="2" fill="#0a0a0a" opacity="1"/>
+          <text x="64" y="51" font-size="7" fill="white" text-anchor="middle">100</text>
+          <rect x="80" y="40" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.8"/>
+          <text x="92" y="51" font-size="7" fill="white" text-anchor="middle">80</text>
+          <rect x="108" y="40" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.6"/>
+          <text x="120" y="51" font-size="7" fill="white" text-anchor="middle">64</text>
+          <rect x="136" y="40" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.46"/>
+          <text x="148" y="51" font-size="7" fill="white" text-anchor="middle">57</text>
+          <rect x="164" y="40" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.34"/>
+          <text x="176" y="51" font-size="7" fill="#0a0a0a" text-anchor="middle">51</text>
+          <!-- Row Mar -->
+          <text x="2" y="74" font-size="7" fill="#737373">Mar</text>
+          <rect x="52" y="62" width="24" height="16" rx="2" fill="#0a0a0a" opacity="1"/>
+          <text x="64" y="73" font-size="7" fill="white" text-anchor="middle">100</text>
+          <rect x="80" y="62" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.75"/>
+          <text x="92" y="73" font-size="7" fill="white" text-anchor="middle">75</text>
+          <rect x="108" y="62" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.55"/>
+          <text x="120" y="73" font-size="7" fill="white" text-anchor="middle">59</text>
+          <rect x="136" y="62" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.38"/>
+          <text x="148" y="73" font-size="7" fill="#0a0a0a" text-anchor="middle">52</text>
+          <!-- Row Apr -->
+          <text x="2" y="96" font-size="7" fill="#737373">Apr</text>
+          <rect x="52" y="84" width="24" height="16" rx="2" fill="#0a0a0a" opacity="1"/>
+          <text x="64" y="95" font-size="7" fill="white" text-anchor="middle">100</text>
+          <rect x="80" y="84" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.82"/>
+          <text x="92" y="95" font-size="7" fill="white" text-anchor="middle">82</text>
+          <rect x="108" y="84" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.62"/>
+          <text x="120" y="95" font-size="7" fill="white" text-anchor="middle">67</text>
+          <!-- Row May (incomplete) -->
+          <text x="2" y="118" font-size="7" fill="#737373">May</text>
+          <rect x="52" y="106" width="24" height="16" rx="2" fill="#0a0a0a" opacity="1"/>
+          <text x="64" y="117" font-size="7" fill="white" text-anchor="middle">100</text>
+          <rect x="80" y="106" width="24" height="16" rx="2" fill="#0a0a0a" opacity="0.78"/>
+          <text x="92" y="117" font-size="7" fill="white" text-anchor="middle">78</text>
+          <!-- Legend -->
+          <text x="52" y="140" font-size="7" fill="#a3a3a3">100%</text>
+          <rect x="120" y="133" width="80" height="5" rx="2" fill="url(#retGrad)"/>
+          <defs><linearGradient id="retGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0a0a0a" stop-opacity="0.2"/><stop offset="100%" stop-color="#0a0a0a" stop-opacity="1"/></linearGradient></defs>
+          <text x="204" y="140" font-size="7" fill="#a3a3a3">Low</text>
+        </svg>
+      </div>
+
+      <!-- KPI grid 2x2 -->
+      <div class="grid grid-cols-2 gap-px rounded-2xl border border-line overflow-hidden bg-line">
+        <div class="bg-white p-4">
+          <div class="label mb-1.5">Active Members</div>
+          <div class="mono text-[22px] font-bold">1,284</div>
+          <div class="text-[10px] text-green-600 mt-0.5">&#9650; 3.1% MoM</div>
+        </div>
+        <div class="bg-white p-4">
+          <div class="label mb-1.5">Churn Rate</div>
+          <div class="mono text-[22px] font-bold">6.2%</div>
+          <div class="text-[10px] text-red-600 mt-0.5">&#9650; 0.8pp MoM</div>
+        </div>
+        <div class="bg-white p-4">
+          <div class="label mb-1.5">Avg LTV</div>
+          <div class="mono text-[22px] font-bold">RM 2,410</div>
+          <div class="text-[10px] text-green-600 mt-0.5">&#9650; 12% YoY</div>
+        </div>
+        <div class="bg-white p-4">
+          <div class="label mb-1.5">NPS Score</div>
+          <div class="mono text-[22px] font-bold">+62</div>
+          <div class="text-[10px] text-green-600 mt-0.5">&#9650; 5 pts MoM</div>
+        </div>
+      </div>
+
+      <!-- Churn callout -->
+      <div class="rounded-2xl border border-red-200 bg-red-50 p-5">
+        <div class="label text-red-700 mb-2">Churn Watch</div>
+        <div class="text-[13px] leading-relaxed text-red-900">
+          <strong>42 members at risk</strong> based on attendance signals. 28 have not checked in for 14+ days. Proactive outreach recommended before renewal windows.
+        </div>
+        <button class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition">
+          View at-risk members
+          <svg class="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Column 3: Staff & Operations -->
+    <div class="space-y-5">
+      <div class="border-b-2 border-ink pb-1.5 mb-3">
+        <span class="label">Staff &amp; Operations</span>
+      </div>
+
+      <!-- Trainer leaderboard editorial style -->
+      <div class="rounded-2xl border border-line bg-white p-5">
+        <div class="label mb-3">Trainer Leaderboard</div>
+        <div class="space-y-4">
+          <!-- #1 -->
+          <div class="flex items-start gap-3">
+            <div class="mono text-[32px] font-extrabold text-line leading-none w-8 flex-shrink-0">1</div>
+            <div class="flex-1">
+              <div class="font-bold text-[14px]">Amir Hamzah</div>
+              <div class="text-[11px] text-ink-3 mt-0.5">94% class fill &middot; NPS +71 &middot; 48 sessions</div>
+              <div class="mt-1.5 h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:100%"></div></div>
+              <div class="text-[11px] text-ink-3 mt-0.5 mono">RM 18,240 earned</div>
+            </div>
+          </div>
+          <div class="h-px bg-line"></div>
+          <!-- #2 -->
+          <div class="flex items-start gap-3">
+            <div class="mono text-[32px] font-extrabold text-line leading-none w-8 flex-shrink-0">2</div>
+            <div class="flex-1">
+              <div class="font-bold text-[14px]">Siti Rahimah</div>
+              <div class="text-[11px] text-ink-3 mt-0.5">87% class fill &middot; NPS +68 &middot; 39 sessions</div>
+              <div class="mt-1.5 h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:84%"></div></div>
+              <div class="text-[11px] text-ink-3 mt-0.5 mono">RM 15,400 earned</div>
+            </div>
+          </div>
+          <div class="h-px bg-line"></div>
+          <!-- #3 -->
+          <div class="flex items-start gap-3">
+            <div class="mono text-[32px] font-extrabold text-line leading-none w-8 flex-shrink-0">3</div>
+            <div class="flex-1">
+              <div class="font-bold text-[14px]">Raj Kumar</div>
+              <div class="text-[11px] text-ink-3 mt-0.5">76% class fill &middot; NPS +55 &middot; 31 sessions</div>
+              <div class="mt-1.5 h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:65%"></div></div>
+              <div class="text-[11px] text-ink-3 mt-0.5 mono">RM 11,800 earned</div>
+            </div>
+          </div>
+          <div class="h-px bg-line"></div>
+          <!-- #4 -->
+          <div class="flex items-start gap-3">
+            <div class="mono text-[32px] font-extrabold text-line leading-none w-8 flex-shrink-0">4</div>
+            <div class="flex-1">
+              <div class="font-bold text-[14px]">Mei Ling</div>
+              <div class="text-[11px] text-ink-3 mt-0.5">65% class fill &middot; NPS +48 &middot; 27 sessions</div>
+              <div class="mt-1.5 h-1.5 rounded-full bg-line"><div class="h-full rounded-full bg-ink" style="width:51%"></div></div>
+              <div class="text-[11px] text-ink-3 mt-0.5 mono">RM 9,300 earned</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class fill rate viz -->
+      <div class="rounded-2xl border border-line bg-white p-5">
+        <div class="label mb-3">Class Fill Rate by Slot</div>
+        <svg viewBox="0 0 260 100" class="w-full" height="100">
+          <!-- Time axis -->
+          <text x="18" y="94" font-size="7" fill="#a3a3a3">6am</text>
+          <text x="58" y="94" font-size="7" fill="#a3a3a3">9am</text>
+          <text x="98" y="94" font-size="7" fill="#a3a3a3">12pm</text>
+          <text x="138" y="94" font-size="7" fill="#a3a3a3">3pm</text>
+          <text x="178" y="94" font-size="7" fill="#a3a3a3">6pm</text>
+          <text x="218" y="94" font-size="7" fill="#a3a3a3">9pm</text>
+          <!-- Fill bars -->
+          <rect x="14" y="82" width="30" height="8" rx="2" fill="#e5e5e5"/>
+          <rect x="14" y="82" width="14" height="8" rx="2" fill="#0a0a0a" opacity="0.4"/>
+          <rect x="54" y="50" width="30" height="40" rx="2" fill="#e5e5e5"/>
+          <rect x="54" y="50" width="26" height="40" rx="2" fill="#0a0a0a" opacity="0.75"/>
+          <rect x="94" y="60" width="30" height="30" rx="2" fill="#e5e5e5"/>
+          <rect x="94" y="60" width="20" height="30" rx="2" fill="#0a0a0a" opacity="0.55"/>
+          <rect x="134" y="72" width="30" height="18" rx="2" fill="#e5e5e5"/>
+          <rect x="134" y="72" width="15" height="18" rx="2" fill="#0a0a0a" opacity="0.42"/>
+          <rect x="174" y="30" width="30" height="60" rx="2" fill="#e5e5e5"/>
+          <rect x="174" y="30" width="29" height="60" rx="2" fill="#0a0a0a" opacity="0.9"/>
+          <rect x="214" y="70" width="30" height="20" rx="2" fill="#e5e5e5"/>
+          <rect x="214" y="70" width="12" height="20" rx="2" fill="#0a0a0a" opacity="0.35"/>
+          <!-- Peak label -->
+          <text x="179" y="26" font-size="7" fill="#0a0a0a" font-weight="700">Peak 97%</text>
+        </svg>
+        <div class="flex items-center justify-between text-[11px] mt-1">
+          <span class="text-ink-3">Overall fill rate</span>
+          <span class="mono font-bold">78.3%</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-line mt-1 overflow-hidden"><div class="h-full rounded-full bg-ink" style="width:78%"></div></div>
+      </div>
+
+      <!-- Schedule email callout -->
+      <div class="rounded-2xl border border-warm bg-[#faf8f3] p-5">
+        <div class="label text-[#78644a] mb-2">Auto-Delivery</div>
+        <div class="text-[13px] text-ink leading-relaxed">This report is sent automatically every <strong>1st of the month</strong> to <strong>5 recipients</strong>.</div>
+        <div class="mt-3 flex items-center gap-1.5">
+          <div class="size-6 rounded-full bg-warm flex items-center justify-center text-[9px] font-bold text-[#78644a]">AH</div>
+          <div class="size-6 rounded-full bg-warm flex items-center justify-center text-[9px] font-bold text-[#78644a]">SR</div>
+          <div class="size-6 rounded-full bg-warm flex items-center justify-center text-[9px] font-bold text-[#78644a]">RK</div>
+          <div class="size-6 rounded-full bg-warm flex items-center justify-center text-[9px] font-bold text-[#78644a]">+2</div>
+          <button class="ml-auto text-[11px] font-semibold text-[#78644a] underline underline-offset-2 hover:opacity-70 transition">Edit schedule</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /3-col -->
+</div>
+</section>
+
+</body>
+</html>

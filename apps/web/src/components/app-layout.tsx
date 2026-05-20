@@ -9,7 +9,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
+    >
       <div className="flex min-h-screen w-full">
         <AppSidebar className="border-r" />
         <main className="flex-1 p-6 bg-background">{children}</main>

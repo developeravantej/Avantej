@@ -175,7 +175,7 @@ function AcceptInvitationPage() {
 			return await client.invitations.acceptWithSignup({
 				token,
 				organizationId: orgId,
-				email: invitation.email,
+				email: invitation.email ?? "",
 				password,
 				firstName: firstName.trim(),
 				lastName: lastName.trim(),
@@ -218,7 +218,7 @@ function AcceptInvitationPage() {
 	if (!isSessionLoading && !session?.user && isValid && invitation) {
 		return (
 			<AcceptInvitationSignupCard
-				invitation={invitation}
+				invitation={invitation as any}
 				firstName={firstName}
 				setFirstName={setFirstName}
 				lastName={lastName}

@@ -1,15 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { formatPrice, rmToCents } from "@/lib/money";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Select,
@@ -26,20 +22,16 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import DataTable from "@/components/tables/sales/view/data-table";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { CopyableCell } from "@/components/tables/copyable-cell";
-import { Receipt, Plus, CheckCircle, XCircle, DollarSign } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Receipt, Lock } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { requirePermission } from "@/lib/route-guards";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/expenses/view",
 )({
-	beforeLoad: async () => {
-		await requirePermission("expense_management:read");
-	},
 	component: ExpensesViewPage,
 });
 
@@ -73,9 +65,8 @@ interface ExpenseRow {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Constants
 // ---------------------------------------------------------------------------
-
 
 function getTodayDateString(): string {
 	return new Date().toISOString().split("T")[0];
@@ -97,14 +88,140 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 	{ value: "paid", label: "Paid" },
 ];
 
-// All expense statuses (pending/approved/rejected/paid) are in CanonicalStatus — use StatusBadge directly.
+const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
+	travel: "bg-blue-50 text-blue-700",
+	equipment: "bg-purple-50 text-purple-700",
+	supplies: "bg-amber-50 text-amber-700",
+	training: "bg-emerald-50 text-emerald-700",
+	other: "bg-slate-100 text-slate-500",
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatDate(iso: string): string {
+	if (!iso) return "—";
+	try {
+		return new Date(iso).toLocaleDateString("en-MY", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		});
+	} catch {
+		return "—";
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Status badge
+// ---------------------------------------------------------------------------
+
+function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
+	const map: Record<ExpenseStatus, string> = {
+		pending: "bg-amber-50 text-amber-700",
+		approved: "bg-emerald-50 text-emerald-700",
+		rejected: "bg-rose-50 text-rose-600",
+		paid: "bg-blue-50 text-blue-700",
+	};
+	const dotMap: Record<ExpenseStatus, string> = {
+		pending: "bg-amber-500",
+		approved: "bg-emerald-500",
+		rejected: "bg-rose-500",
+		paid: "bg-blue-500",
+	};
+	const cls = map[status] ?? "bg-slate-100 text-slate-500";
+	const dot = dotMap[status] ?? "bg-slate-400";
+	const label = status.charAt(0).toUpperCase() + status.slice(1);
+	return (
+		<span
+			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${cls}`}
+		>
+			<span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+			{label}
+		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Category chip
+// ---------------------------------------------------------------------------
+
+function CategoryChip({ category }: { category: ExpenseCategory }) {
+	const cls = CATEGORY_COLORS[category] ?? "bg-slate-100 text-slate-500";
+	return (
+		<span
+			className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${cls}`}
+		>
+			{category}
+		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Table row actions
+// ---------------------------------------------------------------------------
+
+function RowActions({
+	row,
+	canUpdate,
+	onApprove,
+	onReject,
+	onMarkPaid,
+}: {
+	row: ExpenseRow;
+	canUpdate: boolean;
+	onApprove: (id: string) => void;
+	onReject: (id: string) => void;
+	onMarkPaid: (id: string) => void;
+}) {
+	if (!canUpdate) {
+		return (
+			<span className="font-mono tabular-nums text-[#737373] text-xs">—</span>
+		);
+	}
+	if (row.status === "pending") {
+		return (
+			<div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+				<button
+					type="button"
+					onClick={() => onApprove(row.id)}
+					className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+				>
+					Approve
+				</button>
+				<button
+					type="button"
+					onClick={() => onReject(row.id)}
+					className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 transition-colors"
+				>
+					Reject
+				</button>
+			</div>
+		);
+	}
+	if (row.status === "approved") {
+		return (
+			<div className="opacity-0 group-hover:opacity-100 transition-opacity">
+				<button
+					type="button"
+					onClick={() => onMarkPaid(row.id)}
+					className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+				>
+					Mark Paid
+				</button>
+			</div>
+		);
+	}
+	return (
+		<span className="font-mono tabular-nums text-[#737373] text-xs">—</span>
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function ExpensesViewPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -116,13 +233,13 @@ function ExpensesViewPage() {
 		undefined,
 	);
 
-	// ---- Create sheet state ----
+	// ---- Create dialog state ----
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [formCategory, setFormCategory] =
 		useState<ExpenseCategory>("travel");
 	const [formDescription, setFormDescription] = useState("");
 	const [formAmountRm, setFormAmountRm] = useState("");
-	const [formDate, setFormDate] = useState(() => getTodayDateString());
+	const [formDate, setFormDate] = useState(getTodayDateString());
 	const [formReceiptUrl, setFormReceiptUrl] = useState("");
 
 	// ---- Reject dialog state ----
@@ -134,7 +251,13 @@ function ExpensesViewPage() {
 	const [paymentReference, setPaymentReference] = useState("");
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		error,
+		refetch,
+	} = useQuery({
 		queryKey: ["expenses", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -243,12 +366,13 @@ function ExpensesViewPage() {
 			try {
 				new URL(formReceiptUrl.trim());
 			} catch {
-				toast.error("Receipt URL must be a valid URL (e.g. https://example.com/receipt.pdf).");
+				toast.error(
+					"Receipt URL must be a valid URL (e.g. https://example.com/receipt.pdf).",
+				);
 				return;
 			}
 		}
 		const amountCents = rmToCents(rmValue);
-		// Convert local date string to ISO datetime (start of day UTC)
 		const expenseDate = new Date(`${formDate}T00:00:00.000Z`).toISOString();
 		createMutation.mutate({
 			category: formCategory,
@@ -285,9 +409,7 @@ function ExpensesViewPage() {
 		category: item.category as ExpenseCategory,
 		description: item.description,
 		amount: item.amount,
-		expenseDate: item.expenseDate
-			? new Date(item.expenseDate).toLocaleDateString()
-			: "",
+		expenseDate: item.expenseDate ? formatDate(item.expenseDate as any) : "—",
 		submittedBy: item.submittedBy,
 		status: item.status as ExpenseStatus,
 		branchId: item.branchId ?? null,
@@ -298,129 +420,38 @@ function ExpensesViewPage() {
 		createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : "",
 	}));
 
-	// ---- Columns ----
-	const columns: ColumnDef<ExpenseRow>[] = [
-		{
-			accessorKey: "expenseDate",
-			header: "Date",
-			cell: ({ getValue }) => (
-				<span className="text-sm">{getValue<string>()}</span>
-			),
-		},
-		{
-			accessorKey: "category",
-			header: "Category",
-			cell: ({ getValue }) => {
-				const cat = getValue<string>();
-				return (
-					<Badge variant="outline" className="capitalize">
-						{cat}
-					</Badge>
-				);
-			},
-		},
-		{
-			accessorKey: "description",
-			header: "Description",
-			cell: ({ getValue }) => {
-				const desc = getValue<string>();
-				return (
-					<span
-						className="text-sm text-muted-foreground"
-						title={desc}
-					>
-						{desc.length > 50 ? `${desc.slice(0, 50)}…` : desc}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "amount",
-			header: "Amount (MYR)",
-			cell: ({ getValue }) => (
-				<span className="font-medium">
-					{formatPrice(getValue<number>(), "MYR")}
-				</span>
-			),
-		},
-		{
-			accessorKey: "submittedBy",
-			header: "Submitted By",
-			cell: ({ getValue }) => (
-				<CopyableCell value={getValue<string>()} />
-			),
-		},
-		{
-			accessorKey: "status",
-			header: "Status",
-			cell: ({ getValue }) => (
-				<StatusBadge status={getValue<ExpenseStatus>()} />
-			),
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			enableSorting: false,
-			enableHiding: false,
-			cell: ({ row }) => {
-				const { id, status } = row.original;
-				if (!canUpdate) {
-					return <span className="text-muted-foreground text-xs">-</span>;
-				}
-				if (status === "pending") {
-					return (
-						<div className="flex items-center gap-2">
-							<Button
-								size="sm"
-								variant="outline"
-								className="h-7 gap-1 text-green-700 border-green-300 hover:bg-green-50"
-								onClick={() => approveMutation.mutate(id)}
-								disabled={approveMutation.isPending}
-							>
-								<CheckCircle className="size-3.5" />
-								Approve
-							</Button>
-							<Button
-								size="sm"
-								variant="outline"
-								className="h-7 gap-1 text-red-700 border-red-300 hover:bg-red-50"
-								onClick={() => {
-									setRejectTarget(id);
-									setRejectionReason("");
-								}}
-							>
-								<XCircle className="size-3.5" />
-								Reject
-							</Button>
-						</div>
-					);
-				}
-				if (status === "approved") {
-					return (
-						<Button
-							size="sm"
-							variant="outline"
-							className="h-7 gap-1 text-blue-700 border-blue-300 hover:bg-blue-50"
-							onClick={() => {
-								setPaidTarget(id);
-								setPaymentReference("");
-							}}
-						>
-							<DollarSign className="size-3.5" />
-							Mark Paid
-						</Button>
-					);
-				}
-				return <span className="text-muted-foreground text-xs">-</span>;
-			},
-		},
-	];
+	// ---- KPI summaries ----
+	const totalCents = data.reduce((s, r) => s + r.amount, 0);
+	const pendingCount = data.filter((r) => r.status === "pending").length;
+	const pendingCents = data
+		.filter((r) => r.status === "pending")
+		.reduce((s, r) => s + r.amount, 0);
 
-	// ---- Guard ----
+	// ---- Guards ----
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to view expenses.
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col items-center justify-center">
+				<Lock className="h-8 w-8 mb-3 opacity-30 text-[#737373]" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					No organization selected
+				</p>
+				<p className="text-xs mt-1 text-[#737373]">
+					Select an organization to view expenses.
+				</p>
+			</div>
+		);
+	}
+
+	if (!hasPermission("expense_management:read")) {
+		return (
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col items-center justify-center">
+				<Lock className="h-8 w-8 mb-3 opacity-30 text-[#737373]" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					You don&apos;t have access to this page
+				</p>
+				<p className="text-xs mt-1 text-[#737373]">
+					Ask an admin to grant expense management access.
+				</p>
 			</div>
 		);
 	}
@@ -431,30 +462,75 @@ function ExpensesViewPage() {
 
 	// ---- Render ----
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<PageHeader
-				icon={Receipt}
-				title="Expenses"
-				description="Submit and manage expense claims"
-				actions={
-					canCreate ? (
-						<Button
-							onClick={() => {
-								resetCreateForm();
-								setIsCreateOpen(true);
-							}}
-							className="gap-2"
-						>
-							<Plus className="size-4" />
-							Submit Expense
-						</Button>
-					) : undefined
-				}
-			/>
+		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+			{/* ── Page header ── */}
+			<div className="mb-5 flex items-end justify-between">
+				<div>
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						EXPENSE TRACKING
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Expenses
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
+						{isLoading
+							? "—"
+							: `${data.length} claim${data.length !== 1 ? "s" : ""}${pendingCount > 0 ? ` · ${pendingCount} pending` : ""}`}
+					</p>
+				</div>
+				{canCreate && (
+					<button
+						type="button"
+						onClick={() => {
+							resetCreateForm();
+							setIsCreateOpen(true);
+						}}
+						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+					>
+						<Plus className="h-4 w-4" />
+						Submit Expense
+					</button>
+				)}
+			</div>
 
-			{/* Status filter tabs */}
-			<div className="flex items-center gap-1 border-b">
+			{/* ── KPI tiles ── */}
+			<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+						TOTAL CLAIMS
+					</p>
+					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+						{data.length}
+					</p>
+				</div>
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+						TOTAL VALUE
+					</p>
+					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+						{formatPrice(totalCents, "MYR")}
+					</p>
+				</div>
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+						PENDING
+					</p>
+					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
+						{pendingCount}
+					</p>
+				</div>
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+						PENDING VALUE
+					</p>
+					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
+						{pendingCents > 0 ? formatPrice(pendingCents, "MYR") : "—"}
+					</p>
+				</div>
+			</div>
+
+			{/* ── Status tabs ── */}
+			<div className="mb-4 flex flex-wrap items-center gap-2">
 				{STATUS_TABS.map((tab) => {
 					const isActive = statusFilter === tab.value;
 					return (
@@ -462,11 +538,11 @@ function ExpensesViewPage() {
 							key={tab.label}
 							type="button"
 							onClick={() => setStatusFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+							className={
 								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
-							}`}
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+							}
 						>
 							{tab.label}
 						</button>
@@ -474,39 +550,154 @@ function ExpensesViewPage() {
 				})}
 			</div>
 
-			{/* Table */}
-			<DataTable<ExpenseRow, unknown>
-					columns={columns}
-					data={data}
-					emptyTitle="No expenses found"
-					emptyAction={canCreate ? { label: "Submit Expense", onClick: () => setIsCreateOpen(true) } : undefined}
-					error={isError ? error : undefined}
-					onRetry={() => refetch()}
-				/>
+			{/* ── Table ── */}
+			{isError ? (
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+					<StatusCallout variant="error" onRetry={() => refetch()}>
+						Failed to load expenses. Please try again.
+					</StatusCallout>
+				</div>
+			) : (
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+					<table className="w-full">
+						<thead className="bg-[#f3f3f3]">
+							<tr className="border-b border-[#e5e5e5]">
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Date
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Category
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Description
+								</th>
+								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Amount
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Submitted By
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Status
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Actions
+								</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-[#e5e5e5]">
+							{data.length === 0 ? (
+								<tr>
+									<td colSpan={7}>
+										<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+											<Receipt className="h-8 w-8 mb-3 opacity-30" />
+											<p className="text-sm font-medium text-[#0a0a0a]">
+												No expenses found
+											</p>
+											<p className="text-xs mt-1">
+												{statusFilter
+													? "Try clearing the status filter."
+													: canCreate
+														? "Submit your first expense claim to get started."
+														: "No expense claims have been submitted yet."}
+											</p>
+											{canCreate && !statusFilter && (
+												<button
+													type="button"
+													onClick={() => {
+														resetCreateForm();
+														setIsCreateOpen(true);
+													}}
+													className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+												>
+													<Plus className="h-4 w-4" />
+													Submit Expense
+												</button>
+											)}
+										</div>
+									</td>
+								</tr>
+							) : (
+								data.map((row) => (
+									<tr
+										key={row.id}
+										className="group hover:bg-[#fafafa] transition-colors"
+									>
+										<td className="px-4 py-3 font-mono tabular-nums text-sm text-[#737373]">
+											{row.expenseDate}
+										</td>
+										<td className="px-4 py-3">
+											<CategoryChip category={row.category} />
+										</td>
+										<td className="px-4 py-3 text-sm text-[#0a0a0a] max-w-xs">
+											<span
+												title={row.description}
+												className="block truncate"
+											>
+												{row.description}
+											</span>
+											{row.rejectionReason && row.status === "rejected" && (
+												<span className="block text-[10px] text-rose-600 mt-0.5 truncate">
+													{row.rejectionReason}
+												</span>
+											)}
+										</td>
+										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-medium text-[#0a0a0a]">
+											{formatPrice(row.amount, "MYR")}
+										</td>
+										<td className="px-4 py-3 font-mono tabular-nums text-xs text-[#737373]">
+											{row.submittedBy.length > 20
+												? `${row.submittedBy.slice(0, 20)}…`
+												: row.submittedBy}
+										</td>
+										<td className="px-4 py-3">
+											<ExpenseStatusBadge status={row.status} />
+										</td>
+										<td className="px-4 py-3">
+											<RowActions
+												row={row}
+												canUpdate={canUpdate}
+												onApprove={(id) => approveMutation.mutate(id)}
+												onReject={(id) => {
+													setRejectTarget(id);
+													setRejectionReason("");
+												}}
+												onMarkPaid={(id) => {
+													setPaidTarget(id);
+													setPaymentReference("");
+												}}
+											/>
+										</td>
+									</tr>
+								))
+							)}
+						</tbody>
+					</table>
+				</div>
+			)}
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Create Expense Dialog                                               */}
-			{/* ------------------------------------------------------------------ */}
+			{/* ── Create Expense Dialog ── */}
 			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 				<DialogContent className="sm:max-w-md overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Submit Expense</DialogTitle>
-						<DialogDescription>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Submit Expense
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Fill in the details to submit a new expense claim.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex flex-col gap-4 px-4 py-2">
-						{/* Category */}
+					<div className="flex flex-col gap-5 px-4 py-2">
 						<div className="flex flex-col gap-1.5">
-							<label htmlFor="expense-category" className="text-sm font-medium">Category</label>
+							<Label>Category</Label>
 							<Select
 								value={formCategory}
 								onValueChange={(val) =>
 									setFormCategory(val as ExpenseCategory)
 								}
 							>
-								<SelectTrigger id="expense-category" className="w-full">
+								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select category" />
 								</SelectTrigger>
 								<SelectContent>
@@ -519,12 +710,11 @@ function ExpensesViewPage() {
 							</Select>
 						</div>
 
-						{/* Description */}
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<Label>
 								Description{" "}
-								<span className="text-destructive">*</span>
-							</label>
+								<span className="text-rose-600">*</span>
+							</Label>
 							<Textarea
 								placeholder="Describe the expense..."
 								value={formDescription}
@@ -533,12 +723,11 @@ function ExpensesViewPage() {
 							/>
 						</div>
 
-						{/* Amount */}
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<Label>
 								Amount (RM){" "}
-								<span className="text-destructive">*</span>
-							</label>
+								<span className="text-rose-600">*</span>
+							</Label>
 							<Input
 								type="number"
 								step="0.01"
@@ -549,12 +738,11 @@ function ExpensesViewPage() {
 							/>
 						</div>
 
-						{/* Expense Date */}
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<Label>
 								Expense Date{" "}
-								<span className="text-destructive">*</span>
-							</label>
+								<span className="text-rose-600">*</span>
+							</Label>
 							<Input
 								type="date"
 								value={formDate}
@@ -562,14 +750,13 @@ function ExpensesViewPage() {
 							/>
 						</div>
 
-						{/* Receipt URL */}
 						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
+							<Label>
 								Receipt URL{" "}
-								<span className="text-muted-foreground text-xs">
+								<span className="text-[#737373] text-xs font-normal">
 									(optional)
 								</span>
-							</label>
+							</Label>
 							<Input
 								type="url"
 								placeholder="https://..."
@@ -597,9 +784,7 @@ function ExpensesViewPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Reject Dialog                                                       */}
-			{/* ------------------------------------------------------------------ */}
+			{/* ── Reject Dialog ── */}
 			<Dialog
 				open={rejectTarget !== null}
 				onOpenChange={(open) => {
@@ -608,17 +793,19 @@ function ExpensesViewPage() {
 			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle>Reject Expense</DialogTitle>
-						<DialogDescription>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Reject Expense
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Please provide a reason for rejecting this expense claim.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-1.5 py-2">
-						<label className="text-sm font-medium">
+						<Label>
 							Rejection Reason{" "}
-							<span className="text-destructive">*</span>
-						</label>
+							<span className="text-rose-600">*</span>
+						</Label>
 						<Textarea
 							placeholder="Explain why this expense is being rejected..."
 							value={rejectionReason}
@@ -636,7 +823,7 @@ function ExpensesViewPage() {
 							Cancel
 						</Button>
 						<Button
-							variant="destructive"
+							className="bg-red-600 hover:bg-red-700 text-white"
 							onClick={handleRejectConfirm}
 							disabled={rejectMutation.isPending}
 						>
@@ -646,9 +833,7 @@ function ExpensesViewPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Mark Paid Dialog                                                    */}
-			{/* ------------------------------------------------------------------ */}
+			{/* ── Mark Paid Dialog ── */}
 			<Dialog
 				open={paidTarget !== null}
 				onOpenChange={(open) => {
@@ -657,19 +842,21 @@ function ExpensesViewPage() {
 			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle>Mark as Paid</DialogTitle>
-						<DialogDescription>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Mark as Paid
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Optionally enter a payment reference before confirming.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-1.5 py-2">
-						<label className="text-sm font-medium">
+						<Label>
 							Payment Reference{" "}
-							<span className="text-muted-foreground text-xs">
+							<span className="text-[#737373] text-xs font-normal">
 								(optional)
 							</span>
-						</label>
+						</Label>
 						<Input
 							placeholder="e.g. TXN-20240101-001"
 							value={paymentReference}

@@ -2,6 +2,8 @@ import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/money";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/utils/orpc";
 
 const formatDate = (date: Date | string | null | undefined): string => {
 	if (!date) return "N/A";
@@ -21,6 +23,61 @@ function formatDuration(duration: number, unit?: string | null): string {
 	if (unit === "minutes") return `${duration} min`;
 	return `${duration} sec`;
 }
+
+// ---------------------------------------------------------------------------
+// Avg/mo cell — per-row query (staleTime 5 min keeps re-fetch cost low)
+// ---------------------------------------------------------------------------
+
+function AvgSessionsCell({
+	serviceId,
+	organizationId,
+}: {
+	serviceId: string;
+	organizationId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		...orpc.services.avgSessionsSoldPerMonth.queryOptions({
+			input: { organizationId, serviceId },
+		}),
+		staleTime: 5 * 60 * 1000,
+		enabled: !!serviceId && !!organizationId,
+	});
+
+	if (isLoading) {
+		return (
+			<span className="inline-block h-4 w-8 animate-pulse rounded bg-muted font-mono tabular-nums" />
+		);
+	}
+	if (!data) return <span className="text-muted-foreground">—</span>;
+
+	return (
+		<span className="font-mono tabular-nums">
+			{data.avgSessionsPerMonth.toFixed(1)}
+		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Trainer tiers cell
+// ---------------------------------------------------------------------------
+
+function TrainerTiersCell({ tiers }: { tiers?: string[] }) {
+	if (!tiers || tiers.length === 0)
+		return <span className="text-muted-foreground">—</span>;
+	return (
+		<div className="flex flex-wrap gap-1">
+			{tiers.map((tier) => (
+				<Badge key={tier} variant="outline" className="capitalize">
+					{tier}
+				</Badge>
+			))}
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Column definitions
+// ---------------------------------------------------------------------------
 
 export const columns: ColumnDef<any>[] = [
 	{
@@ -62,7 +119,13 @@ export const columns: ColumnDef<any>[] = [
 		),
 		cell: ({ getValue }) => {
 			const val = getValue<number>();
-			return val != null ? formatPrice(val, "MYR") : "—";
+			return val != null ? (
+				<span className="font-mono tabular-nums">
+					{formatPrice(val, "MYR")}
+				</span>
+			) : (
+				"—"
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,
@@ -74,10 +137,47 @@ export const columns: ColumnDef<any>[] = [
 		),
 		cell: ({ getValue }) => {
 			const count = getValue<number | null>();
-			return count != null ? count : "—";
+			return count != null ? (
+				<span className="font-mono tabular-nums">{count}</span>
+			) : (
+				"—"
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,
+	},
+	{
+		id: "avgPerMonth",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Avg/mo" />
+		),
+		cell: ({ row, table }) => {
+			const serviceId: string | undefined = row.original.id;
+			const organizationId: string | undefined = (
+				table.options.meta as { organizationId?: string } | undefined
+			)?.organizationId;
+			if (!serviceId || !organizationId)
+				return <span className="text-muted-foreground">—</span>;
+			return (
+				<AvgSessionsCell
+					serviceId={serviceId}
+					organizationId={organizationId}
+				/>
+			);
+		},
+		enableSorting: false,
+		enableHiding: true,
+	},
+	{
+		id: "trainerTiers",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Trainer Tiers" />
+		),
+		cell: ({ row }) => (
+			<TrainerTiersCell tiers={row.original.eligibleTrainerTiers} />
+		),
+		enableSorting: false,
+		enableHiding: true,
 	},
 	{
 		accessorKey: "schedulingType",

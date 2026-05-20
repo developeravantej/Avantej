@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
@@ -11,15 +12,33 @@ import DataTable from "@/components/tables/sales/view/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { EditBufferDialog } from "./edit-buffer-dialog";
 import { Briefcase, Edit } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { AssignedPackagesTable } from "@/features/my-services/components/assigned-packages-table";
+
+// ─── Route search schema ──────────────────────────────────────────────────────
+
+const myServicesSearchSchema = z.object({
+	tab: z.enum(["assigned", "buffer"]).default("assigned"),
+});
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/my-services/view",
 )({
 	component: MyServicesView,
+	validateSearch: myServicesSearchSchema,
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,31 +52,32 @@ type ServiceBufferAssignment = {
 	bufferTimeMinutes: number | null;
 };
 
-// ─── Page component ───────────────────────────────────────────────────────────
+// ─── Buffer Time tab content ──────────────────────────────────────────────────
 
-function MyServicesView() {
-	const { data: userContext } = useUserContext();
-	const organizationId = userContext?.currentOrganizationId ?? "";
+function BufferTimeTab({ organizationId }: { organizationId: string }) {
 	const queryClient = useQueryClient();
 
-	// ── Sheet state ──────────────────────────────────────────────────────────
-
+	// ── Sheet state ────────────────────────────────────────────────────────
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [selectedService, setSelectedService] =
 		useState<ServiceBufferAssignment | null>(null);
 	const [bufferInput, setBufferInput] = useState("");
 
-	// ── Query ────────────────────────────────────────────────────────────────
-
+	// ── Queries ────────────────────────────────────────────────────────────
 	const { data: myServices = [], isLoading, isError } = useQuery({
 		queryKey: ["myServices", organizationId],
-		queryFn: () =>
-			client.serviceMembers.listMine({ organizationId }),
+		queryFn: () => client.serviceMembers.listMine({ organizationId }),
 		enabled: !!organizationId,
 	});
 
-	// ── Mutation ─────────────────────────────────────────────────────────────
+	const { data: categoryBuffers = [] } = useQuery({
+		queryKey: ["myCategoryBuffers", organizationId],
+		queryFn: () =>
+			client.categoryBufferOverrides.listMine({ organizationId }),
+		enabled: !!organizationId,
+	});
 
+	// ── Mutations ──────────────────────────────────────────────────────────
 	const saveMutation = useApiMutation({
 		mutationFn: ({
 			serviceId,
@@ -80,15 +100,6 @@ function MyServicesView() {
 		},
 	});
 
-	// ── Category buffer query & mutation ────────────────────────────────────
-
-	const { data: categoryBuffers = [] } = useQuery({
-		queryKey: ["myCategoryBuffers", organizationId],
-		queryFn: () =>
-			client.categoryBufferOverrides.listMine({ organizationId }),
-		enabled: !!organizationId,
-	});
-
 	const updateCategoryMutation = useMutation({
 		mutationFn: (args: { categoryId: string; bufferTimeMinutes: number | null }) =>
 			client.categoryBufferOverrides.updateMine({ organizationId, ...args }),
@@ -99,8 +110,7 @@ function MyServicesView() {
 		onError: () => toast.error("Failed to update"),
 	});
 
-	// ── Sheet helpers ────────────────────────────────────────────────────────
-
+	// ── Handlers ───────────────────────────────────────────────────────────
 	function openEdit(row: ServiceBufferAssignment) {
 		setSelectedService(row);
 		setBufferInput(row.bufferTimeMinutes != null ? String(row.bufferTimeMinutes) : "");
@@ -132,17 +142,14 @@ function MyServicesView() {
 		saveMutation.mutate({ serviceId: selectedService.serviceId, bufferTimeMinutes: null });
 	}
 
-	// ── Table columns ────────────────────────────────────────────────────────
-
+	// ── Columns ────────────────────────────────────────────────────────────
 	const columns: ColumnDef<ServiceBufferAssignment>[] = [
 		{
 			accessorKey: "serviceName",
 			header: "Service",
 			cell: ({ row }) => (
 				<div>
-					<span className="font-medium">
-						{row.original.serviceName}
-					</span>
+					<span className="font-medium">{row.original.serviceName}</span>
 					{row.original.categoryName && (
 						<p className="text-xs text-muted-foreground">{row.original.categoryName}</p>
 					)}
@@ -169,9 +176,7 @@ function MyServicesView() {
 			cell: ({ row }) => {
 				const val = row.original.bufferTimeMinutes;
 				if (val == null) {
-					return (
-						<span className="text-muted-foreground">- (using default)</span>
-					);
+					return <span className="text-muted-foreground">— (using default)</span>;
 				}
 				return <Badge variant="outline">{val} min</Badge>;
 			},
@@ -188,34 +193,18 @@ function MyServicesView() {
 					onClick={() => openEdit(row.original)}
 					disabled={saveMutation.isPending}
 				>
-					<Edit className="size-4 mr-1" aria-hidden="true" />
+					<Edit className="h-4 w-4 mr-1" aria-hidden="true" />
 					Edit
 				</Button>
 			),
 		},
 	];
 
-	// ── Guard: no org selected ───────────────────────────────────────────────
-
-	if (!organizationId) {
-		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to view your services.
-			</div>
-		);
-	}
-
-	// ── Guard: loading ───────────────────────────────────────────────────────
-
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
-	// ── Guard: error ─────────────────────────────────────────────────────────
+	if (isLoading) return <PageLoader />;
 
 	if (isError) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-96 gap-3 text-destructive">
+			<div className="flex flex-col items-center justify-center min-h-48 gap-3 text-destructive">
 				<p className="font-medium">Failed to load your services.</p>
 				<p className="text-sm text-muted-foreground">
 					Please refresh the page or try again later.
@@ -224,27 +213,9 @@ function MyServicesView() {
 		);
 	}
 
-	// ── Render ───────────────────────────────────────────────────────────────
-
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<div className="p-2 rounded-lg bg-primary/10">
-					<Briefcase className="size-6 text-primary" />
-				</div>
-				<div>
-					<h1 className="text-2xl font-semibold font-heading">My Services</h1>
-					<p className="text-muted-foreground text-sm">
-						Manage your buffer time per assigned service.
-					</p>
-				</div>
-			</div>
-
-			<Separator />
-
-			{/* Empty state */}
-			{myServices.length === 0 && !isLoading ? (
+		<>
+			{myServices.length === 0 ? (
 				<EmptyState
 					icon={Briefcase}
 					title="No services assigned"
@@ -270,7 +241,7 @@ function MyServicesView() {
 					</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{categoryBuffers.map((cat: any) => (
+						{categoryBuffers.map((cat) => (
 							<CategoryBufferRow
 								key={cat.categoryId}
 								cat={cat as CategoryBufferRowData}
@@ -283,20 +254,151 @@ function MyServicesView() {
 				)}
 			</div>
 
-		<EditBufferDialog
+			{/* Edit Buffer Dialog */}
+			<Dialog
 				open={sheetOpen}
 				onOpenChange={(open) => {
 					if (!open) closeSheet();
 					else setSheetOpen(true);
 				}}
-				selectedService={selectedService}
-				bufferInput={bufferInput}
-				setBufferInput={setBufferInput}
-				onSave={handleSave}
-				onClearOverride={handleClearOverride}
-				onCancel={closeSheet}
-				isPending={saveMutation.isPending}
-			/>
+			>
+				<DialogContent className="sm:max-w-md overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Set Buffer Time</DialogTitle>
+						<DialogDescription>
+							Override the default buffer time for this service.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex flex-col gap-5 px-4 py-4">
+						<div className="flex flex-col gap-1.5">
+							<Label className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
+								Service
+							</Label>
+							<p className="text-sm font-medium">
+								{selectedService?.serviceName ?? "—"}
+							</p>
+						</div>
+
+						{selectedService?.categoryName && (
+							<div className="flex flex-col gap-1.5">
+								<Label className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
+									Category
+								</Label>
+								<p className="text-sm text-muted-foreground">
+									{selectedService.categoryName}
+								</p>
+							</div>
+						)}
+
+						<Separator />
+
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="buffer-input">My Buffer (minutes)</Label>
+							<Input
+								id="buffer-input"
+								type="number"
+								min={0}
+								step={1}
+								placeholder="Leave blank to use category default"
+								value={bufferInput}
+								onChange={(e) => setBufferInput(e.target.value)}
+							/>
+							<p className="text-xs text-muted-foreground">
+								Category default:{" "}
+								{selectedService && selectedService.categoryDefaultBuffer > 0
+									? `${selectedService.categoryDefaultBuffer} min`
+									: "None"}
+							</p>
+						</div>
+
+						<DialogFooter className="px-0 pt-2 flex-col gap-2 sm:flex-row">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={closeSheet}
+								disabled={saveMutation.isPending}
+							>
+								Cancel
+							</Button>
+							{selectedService?.bufferTimeMinutes != null && (
+								<Button
+									type="button"
+									variant="outline"
+									className="text-destructive border-destructive hover:bg-destructive/5"
+									onClick={handleClearOverride}
+									disabled={saveMutation.isPending}
+								>
+									Clear Override
+								</Button>
+							)}
+							<Button
+								type="button"
+								onClick={handleSave}
+								disabled={saveMutation.isPending}
+							>
+								{saveMutation.isPending ? "Saving..." : "Save"}
+							</Button>
+						</DialogFooter>
+					</div>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+}
+
+// ─── Page component ───────────────────────────────────────────────────────────
+
+function MyServicesView() {
+	const { data: userContext } = useUserContext();
+	const organizationId = userContext?.currentOrganizationId ?? "";
+	const { tab } = Route.useSearch();
+	const navigate = useNavigate({ from: Route.fullPath });
+
+	function handleTabChange(value: string) {
+		navigate({ search: (prev) => ({ ...prev, tab: value as "assigned" | "buffer" }) });
+	}
+
+	if (!organizationId) {
+		return (
+			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
+				Select an organization to view your services.
+			</div>
+		);
+	}
+
+	return (
+		<div className="p-6 space-y-6">
+			{/* Header */}
+			<div className="flex items-center gap-3">
+				<div className="p-2 rounded-lg bg-primary/10">
+					<Briefcase className="h-6 w-6 text-primary" />
+				</div>
+				<div>
+					<h1 className="text-2xl font-bold font-heading">My Services</h1>
+					<p className="text-muted-foreground text-sm">
+						View assigned packages and manage your buffer time per service.
+					</p>
+				</div>
+			</div>
+
+			<Separator />
+
+			{/* Tabs */}
+			<Tabs value={tab} onValueChange={handleTabChange}>
+				<TabsList>
+					<TabsTrigger value="assigned" data-testid="tab-assigned-packages">Assigned Packages</TabsTrigger>
+					<TabsTrigger value="buffer">Buffer Time</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="assigned" className="mt-4">
+					<AssignedPackagesTable organizationId={organizationId} />
+				</TabsContent>
+
+				<TabsContent value="buffer" className="mt-4">
+					<BufferTimeTab organizationId={organizationId} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

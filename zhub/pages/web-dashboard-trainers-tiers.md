@@ -1,100 +1,110 @@
 # Trainer Tiers
 
-**Route:** `/dashboard/trainers/tiers`
-**File:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/tiers.tsx`
+**Route:** `/dashboard/trainers/tiers` → **redirects to** `/dashboard/trainers/view?tab=tiers`
+**Route file:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/tiers.tsx` (redirect stub)
+**Tab component:** `apps/web/src/components/pages/trainers/trainer-tiers-page.tsx` — `TrainerTiersPage`
 **Platform:** web
-**Auth required:** `trainer_tier_management:read`
-**Last updated:** 2026-04-23
+**Auth required:** authenticated (perm checks live inside the tab; see Notes)
+**Last updated:** 2026-05-12
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** Manage seniority tiers for trainers, which feed into commission rate calculation.
+**Purpose (user perspective):** Manage seniority tiers for trainers (rank ordering, name, description, active flag). Tiers feed into commission rate calculation (`categoryCommissionConfigs` → per-tier rates).
 
-**Produces:** A table showing all trainer tiers with name, rank, and active/inactive status. Includes a form to create new tiers and dialogs to confirm deactivation.
+**Produces:** List of all tiers (active + inactive) in a plain HTML table — Name, Rank, Status badge, Action (Deactivate/Reactivate). "New Tier" dialog (name + rank + optional description). Confirmation dialog before deactivation. Warning banner with missing-rate-categories after create/reactivate.
 
-**On success:** Tier is created/reactivated, toast notification, list refetches. If missing commission rate categories are detected, warning banner displays.
+**On success:** Tier created / deactivated / reactivated; toast notification; list refetches. Missing-rate-categories banner appears if applicable.
 
-**On failure / error states:** Error banner with retry button, loading spinner, empty state (no tiers yet).
+**On failure / error states:** Error `Alert` with retry button; loading text; empty state ("No tiers yet. Create your first tier.").
 
 ---
 
 ## 2. How It Works
 
-**Execution flow:**
-1. On mount: Check `trainer_tier_management:read` permission, fetch organizationId from useUserContext
-2. Load tiers list: `client.trainerTiers.list({ organizationId, includeInactive: true })`
-3. User creates tier → form validation → `client.trainerTiers.create()` → refetch list
-4. User deactivates tier → confirm dialog → `client.trainerTiers.deactivate()` → refetch
-5. User reactivates tier → `client.trainerTiers.reactivate()` → check for missing rates
+**Execution flow (`TrainerTiersPage`):**
+1. Read `useUserContext()` → `orgId`. Guard: render "Select an organization" if missing.
+2. `useQuery(["trainerTiers", orgId, "list"])` → `client.trainerTiers.list({ organizationId, includeInactive: true })`.
+3. Render Alert+retry on error, loading text on isLoading, empty state on empty, table otherwise.
+4. User clicks "New Tier" → dialog → submit → `useApiMutation(client.trainerTiers.create)` → on success: close + reset form + `refetch()`. If `result.missingRateCategories` is non-empty, surface the warning banner.
+5. User clicks "Deactivate" → confirmation dialog → `useApiMutation(client.trainerTiers.deactivate)` → success: clear target + refetch.
+6. User clicks "Reactivate" (inactive row) → direct `useApiMutation(client.trainerTiers.reactivate)` → success: refetch + warning banner if missing rates.
 
-**Inputs:**
-- URL param: implicit org from session context
-- Form: name (required), rank (number), description (optional)
+**Inputs:** Implicit org from `useUserContext`. Form: `name` (required), `rank` (number), `description` (optional).
 
 **State management:**
-- TanStack Query: `queryKey = ["trainerTiers", orgId, "list"]`
-- Local state: createOpen, deactivateTarget (string|null), missingRateBanner (array|null), createForm
+- TanStack Query: `["trainerTiers", orgId, "list"]`.
+- Local `useState`: `createOpen`, `deactivateTarget` (id|null), `missingRateBanner` (array|null), `createForm` (`EMPTY_FORM = { name:"", rank:0, description:"" }`).
+- Mutations: three `useApiMutation` calls (create / deactivate / reactivate) with success messages and per-error toasts.
 
-**Outputs:** Renders table rows with tier details; mutations trigger refetch + toast
+**Outputs:** Table rows + dialog forms; mutations refetch + toast.
 
-**Side effects:** Cache invalidation via refetch(); missingRateCategories warning shown after create/reactivate
+**Side effects:** None besides cache `refetch()` + toast.
 
 ---
 
 ## 3. What Depends On It
 
-**Calls these API endpoints:**
-- `client.trainerTiers.list()` — fetch all tiers (active & inactive)
-- `client.trainerTiers.create()` — add new tier; may return missingRateCategories
-- `client.trainerTiers.deactivate()` — mark tier inactive
-- `client.trainerTiers.reactivate()` — mark tier active; may return missingRateCategories
+**Calls these API endpoints (typed `client`):**
+- `client.trainerTiers.list({ organizationId, includeInactive: true })` — full list.
+- `client.trainerTiers.create({ organizationId, name, rank, description? })` — may return `{ tier, missingRateCategories }`.
+- `client.trainerTiers.deactivate({ organizationId, id })`.
+- `client.trainerTiers.reactivate({ organizationId, id })` — may return `{ tier, missingRateCategories }`.
 
 **Uses these components:**
-- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter` — shadcn dialogs
-- `Button`, `Input`, `Label`, `Textarea`, `Alert`, `AlertDescription`, `Badge` — shadcn form & UI
-- lucide icons: `Plus`, `AlertTriangle`, `Layers`
+- shadcn `Dialog`, `Button`, `Input`, `Label`, `Textarea`, `Alert`/`AlertDescription`, `Badge`.
+- lucide icons: `Plus`, `AlertTriangle`.
 
-**Uses these hooks:** None (useQuery, useMutation are TanStack Query)
+**Uses these hooks:**
+- `useUserContext` — org id.
+- `useApiMutation` (`@/hooks/useApiMutation`) — wraps `useMutation` with success/error toast handling.
+- `useQuery`.
 
-**Navigation: who navigates here:** `/dashboard/trainers/tiers` route (protected by requirePermission)
+**Companion form (commission rates per category):** `apps/web/src/components/forms/category-commission-form.tsx` — opened from the Service Categories table (`@/components/tables/service-category/view/data-table.tsx`), NOT from this Tiers page. It reads `client.trainerTiers.list` to render rate inputs per active tier, and writes via `client.categoryCommission.upsert`. Tiers + commission config are deeply coupled — keep them consistent.
 
-**Navigation: where it goes:** None (internal page only)
+**Navigation: incoming:**
+- The old `/dashboard/trainers/tiers` URL now redirects to `/dashboard/trainers/view?tab=tiers`.
+- Tab is rendered inside the Trainers route shell.
+
+**Navigation: outgoing:** None.
 
 ---
 
 ## 4. Data Shapes
 
 **DB tables touched:**
-- `tenantDb.trainerTiers` — read, create, update(isActive)
-- `tenantDb.commissionRateConfigs` (implicit) — check for missing categories
+- `tenantDb.trainerTiers` — read / create / update(isActive) / update(name/rank/description).
+- `tenantDb.categoryCommissionConfigs` (indirect — backend checks for missing per-tier rate rows; surfaced through `missingRateCategories`).
 
 **Key types / Zod schemas:**
-- Tier: `{ id: string; name: string; rank: number; description?: string; isActive: boolean }`
-- Input: `{ name: string; description?: string; rank: number }`
-- Response (create/reactivate): `{ tier: Tier; missingRateCategories?: Array<{ categoryId: string; configId: string }> }`
+```typescript
+type Tier = { id: string; name: string; rank: number; description?: string; isActive: boolean };
+type CreateInput = { name: string; description?: string; rank: number };
+type MissingRateCategory = { categoryId: string; configId: string };
+// create / reactivate response: { tier: Tier; missingRateCategories?: MissingRateCategory[] }
+```
 
 ---
 
 ## 5. Tests
 
-**Test files:** `apps/web/src/__tests__/pages/trainer-tiers.test.tsx`
+**Test file:** `apps/web/src/__tests__/pages/trainer-tiers.test.tsx`
 
-**Scenarios covered:** (check test file for specifics)
+**Companion test:** `apps/web/src/__tests__/components/category-commission-form.test.tsx` (for the rate-config form that consumes this list).
 
-**Not tested (risk areas):** 
-- Missing rate category handling (banner display logic)
-- Deactivate/reactivate edge cases
-- Form validation edge cases (whitespace trimming)
+**Not tested (risk areas):**
+- Missing-rate-category banner display logic.
+- Deactivate / reactivate edge cases (race vs in-flight rate creation).
+- Form whitespace trimming.
 
 ---
 
 ## 6. Notes
 
-- **RBAC:** Requires `trainer_tier_management:read` permission; create/deactivate/reactivate assumed allowed in same session
-- **Silent commission skip:** Trainer commissions silently skip if tier lacks rate config for a category — no current UI warning in trainer profile, only in tier creation
-- **No LEGACY comment** — page actively maintained
-- **Form state reset:** On dialog close, form resets to EMPTY_FORM to avoid stale data
-- **Missing rate categories:** Only surfaced post-mutation; no pre-check before tier creation to warn of incomplete rates
-
+- **Route is now a redirect (May 2026):** `/dashboard/trainers/tiers` throws a TanStack `redirect()` to `/dashboard/trainers/view?tab=tiers`. The actual UI lives in the Trainers parent route as a tab. Keep deep links to the old URL working — the redirect handles them.
+- **Permission gate is implicit:** the tab component doesn't itself check `trainer_tier_management:read`; access is controlled by the parent Trainers route + tab visibility. (Earlier doc note about `requirePermission` is stale — `route-guards.requirePermission` is a stub.)
+- **Silent commission skip:** trainers on a tier with no rate row for a given category have commission silently skipped at calc time. Only surfaced post-mutation (banner) on tier create/reactivate. No pre-check.
+- **Companion form (`CategoryCommissionForm`)** owns the per-tier rate input. Slot weightages must total 10000 basis points (100%). Supports conditional rates (by attendee count) when "Rate depends on attendee count" toggle is on. Amounts are converted RM ⇄ cents via `centsToRm` / `rmToCents` from `@/lib/money`.
+- **Form state reset:** Dialog close → form reset to `EMPTY_FORM` to avoid stale data.
+- Uses plain HTML `<table>`, not the project DataTable — matches the lightweight admin UI.

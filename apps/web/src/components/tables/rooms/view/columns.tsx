@@ -1,15 +1,6 @@
 import type { ColumnDef } from "@tanstack/table-core";
-import { Badge } from "@/components/ui/badge";
+import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export type RoomRow = {
 	id: string;
@@ -44,42 +35,53 @@ export function createColumns(meta: ColumnMeta): ColumnDef<RoomRow>[] {
 			header: ({ column }) => (
 				<Button
 					variant="ghost"
+					className="h-auto p-0 hover:bg-transparent"
 					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
 				>
 					Name
 					<ArrowUpDown className="ml-2 size-4" />
 				</Button>
 			),
+			cell: ({ row }) => (
+				<span className="font-semibold text-[#0a0a0a]">{row.original.name}</span>
+			),
 		},
 		{
 			accessorKey: "type",
 			header: "Type",
 			cell: ({ row }) => (
-				<Badge variant="outline">{TYPE_LABELS[row.original.type]}</Badge>
+				<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-[#f3f3f3] text-[#737373]">
+					{TYPE_LABELS[row.original.type]}
+				</span>
 			),
 		},
 		{
 			accessorKey: "branchName",
 			header: "Branch",
 			cell: ({ row }) => (
-				<span className="text-sm text-muted-foreground">{row.original.branchName}</span>
+				<span className="text-[#737373]">{row.original.branchName}</span>
 			),
 		},
 		{
 			accessorKey: "capacity",
-			header: () => <div className="text-right">Capacity</div>,
+			header: "Capacity",
 			cell: ({ row }) => (
-				<div className="text-right font-medium">{row.original.capacity}</div>
+				<span className="font-mono tabular-nums">{row.original.capacity}</span>
 			),
 		},
 		{
 			accessorKey: "isActive",
 			header: "Status",
-			cell: ({ row }) => (
-				<Badge variant={row.original.isActive ? "default" : "secondary"}>
-					{row.original.isActive ? "Active" : "Inactive"}
-				</Badge>
-			),
+			cell: ({ row }) =>
+				row.original.isActive ? (
+					<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-green-50 text-green-700">
+						Active
+					</span>
+				) : (
+					<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-[#f3f3f3] text-[#737373]">
+						Inactive
+					</span>
+				),
 		},
 		{
 			id: "actions",
@@ -87,36 +89,32 @@ export function createColumns(meta: ColumnMeta): ColumnDef<RoomRow>[] {
 			cell: ({ row }) => {
 				const room = row.original;
 				return (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" className="size-8 p-0">
-								<span className="sr-only">Open menu</span>
-								<MoreHorizontal className="size-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuLabel>Actions</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => meta.onEdit(room)}>
-								Edit room
-							</DropdownMenuItem>
-							{room.isActive ? (
-								<DropdownMenuItem
-									onClick={() => meta.onDeactivate(room)}
-									className="text-red-600 focus:text-red-600"
-								>
-									Deactivate room
-								</DropdownMenuItem>
-							) : (
-								<DropdownMenuItem
-									onClick={() => meta.onReactivate(room)}
-									className="text-green-600 focus:text-green-600"
-								>
-									Reactivate room
-								</DropdownMenuItem>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={() => meta.onEdit(room)}
+							className="rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#262626] hover:bg-[#f3f3f3] transition"
+						>
+							Edit
+						</button>
+						{room.isActive ? (
+							<button
+								type="button"
+								onClick={() => meta.onDeactivate(room)}
+								className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 transition"
+							>
+								Deactivate
+							</button>
+						) : (
+							<button
+								type="button"
+								onClick={() => meta.onReactivate(room)}
+								className="rounded-lg border border-green-200 bg-white px-2.5 py-1 text-[11px] font-medium text-green-700 hover:bg-green-50 transition"
+							>
+								Reactivate
+							</button>
+						)}
+					</div>
 				);
 			},
 		},

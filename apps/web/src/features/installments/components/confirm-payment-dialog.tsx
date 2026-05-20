@@ -23,8 +23,8 @@ import type { Installment, InstallmentOverviewItem } from "../types";
 interface ConfirmPaymentDialogProps {
 	confirmInstallment: Installment | null;
 	selectedInstance: InstallmentOverviewItem | null;
-	paymentMethod: "manual_transfer" | "cash";
-	setPaymentMethod: (v: "manual_transfer" | "cash") => void;
+	paymentMethod: "manual_transfer" | "cash" | "card" | "fpx" | "stripe";
+	setPaymentMethod: (v: "manual_transfer" | "cash" | "card" | "fpx" | "stripe") => void;
 	notes: string;
 	setNotes: (v: string) => void;
 	nextIntervalDays: string;
@@ -78,7 +78,7 @@ export function ConfirmPaymentDialog({
 						<Select
 							value={paymentMethod}
 							onValueChange={(v) =>
-								setPaymentMethod(v as "manual_transfer" | "cash")
+								setPaymentMethod(v as "manual_transfer" | "cash" | "card" | "fpx" | "stripe")
 							}
 						>
 							<SelectTrigger id="payment-method">
@@ -89,6 +89,9 @@ export function ConfirmPaymentDialog({
 									Manual Transfer
 								</SelectItem>
 								<SelectItem value="cash">Cash</SelectItem>
+								<SelectItem value="card">Card</SelectItem>
+								<SelectItem value="fpx">FPX</SelectItem>
+								<SelectItem value="stripe">Stripe</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>

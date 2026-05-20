@@ -19,8 +19,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { client } from "@/utils/orpc";
 import { BigNumberCard } from "@/components/platform-admin/big-number-card";
 import { RenewalsCalendarGrid } from "@/components/platform-admin/renewals-calendar-grid";
@@ -77,7 +79,7 @@ function PlatformAdminRenewalsPage() {
 		<div className="p-6 space-y-6" data-testid="renewals-page">
 			<header className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs text-muted-foreground">Platform admin</div>
+					<div className="text-sm text-muted-foreground">Platform admin</div>
 					<h1 className="text-2xl font-semibold">Renewals</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						90-day window of upcoming subscription renewals. MRR figures use
@@ -96,23 +98,24 @@ function PlatformAdminRenewalsPage() {
 			</header>
 
 			{calendarQ.error ? (
-				<Card>
-					<CardContent className="p-4 text-sm text-red-700 dark:text-red-400">
-						Could not load renewals: {(calendarQ.error as Error).message}
-					</CardContent>
-				</Card>
+				<StatusCallout
+					variant="error"
+					title="Could not load renewals"
+					message={(calendarQ.error as Error).message}
+					onRetry={() => calendarQ.refetch()}
+				/>
 			) : null}
 
 			{/* KPI row */}
 			{calendarQ.isLoading ? (
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 					{[0, 1, 2, 3].map((i) => (
 						<Skeleton key={i} className="h-24 w-full" />
 					))}
 				</div>
 			) : calendarQ.data ? (
 				<div
-					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
 					data-testid="renewals-kpi-row"
 				>
 					<BigNumberCard
@@ -154,16 +157,16 @@ function PlatformAdminRenewalsPage() {
 			{/* Past-due section (above calendar — needs attention first). */}
 			{calendarQ.data && calendarQ.data.pastDue.length > 0 ? (
 				<Card
-					className="ring-1 ring-red-200 dark:ring-red-900/40"
+					className="border-red-200 bg-red-50/50"
 					data-testid="past-due-section"
 				>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base text-red-700 dark:text-red-400">
+						<CardTitle className="text-base text-red-700">
 							Needs attention — past-due / unpaid
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="pt-0">
-						<ul className="divide-y">
+						<ul className="divide-y divide-border">
 							{calendarQ.data.pastDue.map((p) => (
 								<li
 									key={p.orgId}
@@ -179,18 +182,26 @@ function PlatformAdminRenewalsPage() {
 											>
 												{p.orgName}
 											</Link>
-											<span className="text-xs rounded-full px-2 py-0.5 bg-muted text-muted-foreground capitalize">
+											<Badge
+												variant="secondary"
+												className="capitalize"
+												data-testid="past-due-tier-badge"
+											>
 												{p.tier}
-											</span>
-											<span className="text-xs rounded-full px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 capitalize">
+											</Badge>
+											<Badge
+												variant="outline"
+												className="border-red-200 bg-red-50 text-red-700 capitalize"
+												data-testid="past-due-status-badge"
+											>
 												{p.status.replace("_", " ")}
-											</span>
+											</Badge>
 										</div>
 										<div className="text-xs text-muted-foreground mt-0.5">
 											Period ended {fmtDate(p.currentPeriodEnd)}
 										</div>
 									</div>
-									<div className="text-sm font-semibold tabular-nums text-red-700 dark:text-red-400">
+									<div className="text-sm font-semibold font-mono tabular-nums text-red-700">
 										{fmtCents(p.mrrCents)}
 									</div>
 								</li>

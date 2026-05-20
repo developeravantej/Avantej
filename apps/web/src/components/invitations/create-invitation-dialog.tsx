@@ -121,7 +121,7 @@ export function CreateInvitationDialog({
 				await client.invitations.sendEmail({
 					invitation: {
 						token: result.invitation.token,
-						email: result.invitation.email,
+						email: result.invitation.email ?? "",
 						role: result.invitation.role,
 					},
 					organizationId: result.organizationId,

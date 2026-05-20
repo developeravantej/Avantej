@@ -43,7 +43,13 @@ export {
 // Audit log services
 export {
 	type AuditRowEnriched,
+	type AuditSeverity,
+	type ExportAuditCsvParams,
+	type ExportAuditCsvResult,
 	type ListAuditParams,
+	deriveSeverity,
+	exportAuditCsv,
+	getActionSeverity,
 	listAudit,
 	type WriteAuditParams,
 	writeAudit,
@@ -114,12 +120,17 @@ export {
 	getOrCreatePayoutBatch,
 	attachPayoutsToBatch,
 	type GetOrCreatePayoutBatchParams,
+	// Flaw #13 — pending review
+	listPendingReview,
+	resolvePendingReview,
 } from "./commission-splits.service";
 // Customer directory services
 export {
 	type CustomerDetail,
 	type CustomerDirectoryRow,
+	type CustomerDirectoryStats,
 	getCustomerDetail,
+	getCustomerStats,
 	listCustomerDirectory,
 } from "./customer-directory.service";
 // Customer profile services
@@ -151,7 +162,9 @@ export {
 	deleteHierarchyNode,
 	getAncestorNodeIds,
 	getDescendantNodeIds,
+	listNodesWithStats,
 	moveHierarchyNode,
+	type NodeWithStats,
 	updateHierarchyNode,
 } from "./hierarchy.service";
 // Hierarchy validation - for validating hierarchy rules
@@ -184,7 +197,11 @@ export {
 	adjustCredits,
 	type AdjustCreditsParams,
 	processRefund,
+	rescheduleInstallment,
 	setPackageOverdraft,
+	syncPackagePaymentStatus,
+	waiveInstallment,
+	resetCreditsOverride,
 	type SuggestedRefundInput,
 	type SuggestedRefundResult,
 	unlockPackage,
@@ -215,6 +232,12 @@ export {
 	getMembersByHierarchyScope,
 	updateMemberHierarchyScope,
 } from "./member.service";
+// Member stats services
+export {
+	getMembersNewToday,
+	type NewMemberEntry,
+	type NewTodayResult,
+} from "./member-stats.service";
 // Member profile services
 export * from "./member-profile.service";
 // Notification services
@@ -238,13 +261,22 @@ export {
 } from "./organization-settings.service";
 // Package instance services
 export {
+	type CancelPackageInstanceParams,
+	cancelPackageInstance,
 	type CreatePackageInstanceParams,
 	createPackageInstance,
+	type ExtendPackageInstanceParams,
+	extendPackageInstance,
+	type FreezePackageInstanceParams,
+	freezePackageInstance,
 	getPackageInstanceById,
 	getPackageInstanceStatusHistory,
 	type ListPackageInstancesForClientParams,
 	listPackageInstancesForClient,
+	markCompleteIfFinal,
 	type PackageInstanceHistoryQueryOpts,
+	type UnfreezePackageInstanceParams,
+	unfreezePackageInstance,
 	type UpdatePackageInstanceParams,
 	updatePackageInstance,
 } from "./package-instance.service";
@@ -293,6 +325,10 @@ export * from "./purchase-orders.service";
 export {
 	type ApproveRefundParams,
 	approveRefund,
+	// 1.6 — bulk approve
+	type BulkApproveItem,
+	type BulkApproveResult,
+	bulkApproveRefunds,
 	computeRemainingRefundable,
 	// Agent 2.8 — J5 partial-package refund
 	type CreatePartialRefundParams,
@@ -314,15 +350,34 @@ export {
 export * from "./rooms.service";
 // Sales order services
 export * from "./sales-order.service";
+// Cancelled sales services
+export {
+	type CancelledSaleRow,
+	type CancelledSaleCsvRow,
+	type ExportCancelledSalesCsvParams,
+	type LineItemRow,
+	type ListCancelledSalesParams,
+	listCancelledSales,
+	getCancelledSaleById,
+	exportCancelledSalesCsv,
+} from "./cancelled-sales.service";
 // Service services
 export {
 	type CreateServiceParams,
 	createService,
+	duplicateService,
 	getServiceById,
 	type ListServicesParams,
 	listServices,
+	type ServiceWithCategory,
+	type ServiceWithTrainerTiers,
 	type UpdateServiceParams,
 	updateService,
+	type RevenueShareByCategoryRow,
+	revenueShareByCategory,
+	type AvgSessionsSoldPerMonthResult,
+	avgSessionsSoldPerMonth,
+	listServicesWithTrainerTiers,
 } from "./service.service";
 // Service category services
 export {
@@ -360,10 +415,18 @@ export {
 	type AvailabilitySlot,
 	type ComputedDayAvailability,
 	computeAvailableSlots,
+	createTrainerAvailability,
 	deleteTrainerAvailabilitySlot,
+	getTrainerConflicts,
+	getTrainerUtilisation,
+	type ConflictEntry,
+	type ConflictReason,
+	type TrainerAvailabilityKind,
+	type TrainerUtilisationEntry,
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
 	type TrainerAvailabilityByBranchRow,
+	updateTrainerAvailability,
 	upsertTrainerAvailability,
 } from "./trainer-availability.service";
 // Trainer tier services
@@ -430,4 +493,26 @@ export {
 	type HealthScoreResult,
 	type RiskFlag,
 } from "./health-score";
+// #endregion
+
+// #region Phase 0 — branch QR onboarding (sales-pipeline-fixes)
+export {
+	type BranchInviteRow,
+	type BranchInviteValidationError,
+	type CreateBranchInviteParams,
+	type ValidateBranchInviteResult,
+	createBranchInvite,
+	incrementBranchInviteUses,
+	listBranchInvites,
+	revokeBranchInvite,
+	validateBranchInvite,
+} from "./branch-invite.service";
+export {
+	type GetInviteContextParams,
+	type InviteContextResult,
+	type RedeemInviteParams,
+	type RedeemInviteResult,
+	getInviteContext,
+	redeemBranchInvite,
+} from "./onboarding.service";
 // #endregion

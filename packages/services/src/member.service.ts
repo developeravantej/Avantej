@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { writeAudit } from "./audit-log.service";
+import * as branchStatsCache from "./branch-stats-cache.service";
 
 /**
  * Get all members assigned to a specific hierarchy node
@@ -102,6 +103,15 @@ export async function updateMemberHierarchyScope(
     if (!updatedMember) {
       throw new Error("Failed to update member hierarchy scope");
     }
+
+    // Refresh both old and new node member + staff counts (debounced, fire-and-forget)
+    const oldScopeId = member.hierarchyScopeId;
+    if (oldScopeId && oldScopeId !== newHierarchyScopeId) {
+      branchStatsCache.refresh(tenantDb, oldScopeId, "members");
+      branchStatsCache.refresh(tenantDb, oldScopeId, "staff");
+    }
+    branchStatsCache.refresh(tenantDb, newHierarchyScopeId, "members");
+    branchStatsCache.refresh(tenantDb, newHierarchyScopeId, "staff");
 
     return updatedMember;
   } catch (error) {
@@ -314,7 +324,7 @@ export async function createMember(
 
   try {
     const membershipService = new MembershipService(controlPanelDb);
-    return await membershipService.createMember({
+    const result = await membershipService.createMember({
       userId,
       organizationId,
       role,
@@ -322,6 +332,10 @@ export async function createMember(
       invitationId,
       tenantDb,
     });
+    // Refresh branch member + staff counts (debounced, fire-and-forget)
+    branchStatsCache.refresh(tenantDb, hierarchyScopeId, "members");
+    branchStatsCache.refresh(tenantDb, hierarchyScopeId, "staff");
+    return result;
   } catch (error) {
     throw new Error(
       `Failed to create member: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -354,14 +368,14 @@ export async function deactivateMember(
     throw new Error(`Member not found: ${memberId}`);
   }
 
-  return tenantDb.transaction(async (tx) => {
-    const [updated] = await tx
+  const updated = await tenantDb.transaction(async (tx) => {
+    const [row] = await tx
       .update(members)
       .set({ status: "inactive" })
       .where(eq(members.id, memberId))
       .returning();
 
-    if (!updated) {
+    if (!row) {
       throw new Error(`Failed to deactivate member: ${memberId}`);
     }
 
@@ -381,6 +395,14 @@ export async function deactivateMember(
       },
     });
 
-    return updated;
+    return row;
   });
+
+  // Refresh branch member + staff counts for the node the member was assigned to
+  if (existing.hierarchyScopeId) {
+    branchStatsCache.refresh(tenantDb, existing.hierarchyScopeId, "members");
+    branchStatsCache.refresh(tenantDb, existing.hierarchyScopeId, "staff");
+  }
+
+  return updated;
 }

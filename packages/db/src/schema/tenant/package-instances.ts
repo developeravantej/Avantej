@@ -13,6 +13,7 @@ import { members } from "./members";
 import { payments } from "./payments";
 import { services } from "./services";
 import { walkInCustomers } from "./walk-in-customers";
+import { salesOrders } from "./sales-orders";
 
 export const packageInstances = pgTable("package_instances", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -54,8 +55,11 @@ export const packageInstances = pgTable("package_instances", {
 	startsAt: timestamp("starts_at").notNull(),
 	expiresAt: timestamp("expires_at").notNull(),
 
+	// Freeze
+	frozenUntil: timestamp("frozen_until", { withTimezone: true }),
+
 	// Status
-	status: text("status").notNull(), // "pending" | "active" | "expired" | "exhausted" | "cancelled"
+	status: text("status").notNull(), // "pending" | "active" | "frozen" | "completed" | "expired" | "exhausted" | "cancelled"
 
 	// Approval flow (Pattern C — assignment IS approval)
 	// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
@@ -71,10 +75,14 @@ export const packageInstances = pgTable("package_instances", {
 
 	remark: text("remark"),
 
+	// Reconciliation link back to the sales_order that created this package instance (0051)
+	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id),
+
 	// Installment tracking
 	paymentPlanType: text("payment_plan_type"), // 'full' | 'half' | 'quarterly' | null (null = legacy)
 	installmentsTotal: integer("installments_total").default(1).notNull(),
 	installmentsPaid: integer("installments_paid").default(0).notNull(),
+	installmentsWaived: integer("installments_waived").default(0).notNull(),
 	creditsUnlocked: integer("credits_unlocked"), // null = all credits available (legacy); integer = installment-controlled
 	nextDueDate: timestamp("next_due_date", { withTimezone: true }),
 	gracePeriodEndsAt: timestamp("grace_period_ends_at", { withTimezone: true }),
@@ -104,4 +112,5 @@ export const packageInstances = pgTable("package_instances", {
 	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
 	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
 	walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(table.walkInCustomerId),
+	salesOrderIdIdx: index("package_instances_sales_order_id_idx").on(table.salesOrderId),
 }));

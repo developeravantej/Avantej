@@ -127,6 +127,12 @@ export function useUserContext(enabled = true) {
             localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
           }
         });
+      } else {
+        // No org memberships (e.g. pure SaaS owner / platform admin). Clear any
+        // stale org cached from a previous session so org-scoped queries don't
+        // fire against an org the current user isn't a member of (-> 403).
+        localStorage.removeItem("current_organization_id");
+        localStorage.removeItem("user_organizations");
       }
 
       return data as UserContextResponse;
@@ -135,6 +141,12 @@ export function useUserContext(enabled = true) {
     staleTime: 5 * 60 * 1000, // 5 minutes - data doesn't change often
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 1,
+    // Even with `initialData` populated from localStorage, refetch on mount
+    // so newly-granted permissions appear without requiring a logout/login.
+    // The localStorage cache (populated by `auth.login` which does NOT include
+    // permissions) would otherwise make pages render with no perms until the
+    // 5min staleTime elapses.
+    refetchOnMount: "always",
     // Use localStorage as initial data if available (faster first render).
     // Don't use stored "org-1" as currentOrganizationId (server expects UUID).
     initialData: () => {

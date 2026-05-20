@@ -49,6 +49,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { EmptyState } from "@/components/ui/empty-state";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute(
@@ -106,10 +107,11 @@ function PlatformAdminPaymentsPage() {
 	});
 
 	return (
-		<div className="container mx-auto max-w-6xl py-8">
-			<header className="mb-6 flex items-start justify-between">
+		<div className="p-6 space-y-6">
+			<header className="flex items-start justify-between">
 				<div>
-					<h1 className="flex items-center gap-2 font-bold text-2xl">
+					<div className="text-sm text-muted-foreground">Platform admin</div>
+					<h1 className="flex items-center gap-2 text-2xl font-semibold">
 						<Shield className="size-6" />
 						Payment Integrity
 					</h1>
@@ -152,7 +154,10 @@ function PlatformAdminPaymentsPage() {
 					<TabsTrigger value="drift">
 						Drift
 						{(overviewQ.data?.drift.critical ?? 0) > 0 && (
-							<Badge className="ml-1.5 bg-red-600 hover:bg-red-700">
+							<Badge
+								variant="outline"
+								className="ml-1.5 border-red-200 bg-red-50 text-red-700"
+							>
 								{overviewQ.data!.drift.critical}
 							</Badge>
 						)}
@@ -213,11 +218,13 @@ function OverviewTab({
 					icon={DollarSign}
 					label="App fees this month"
 					value={fmtAmount(data.applicationFeesThisMonth, "myr")}
+					mono
 				/>
 				<KpiCard
 					icon={DollarSign}
 					label="SaaS revenue this month"
 					value={fmtAmount(data.saasRevenueThisMonth, "usd")}
+					mono
 				/>
 				<KpiCard
 					icon={Clock}
@@ -251,7 +258,11 @@ function OverviewTab({
 					<CardContent>
 						<dl className="grid grid-cols-2 gap-2 text-sm">
 							<dt className="text-muted-foreground">Status</dt>
-							<dd className="font-medium">{data.lastReconciliation.status}</dd>
+							<dd>
+								<Badge variant="outline">
+									{data.lastReconciliation.status}
+								</Badge>
+							</dd>
 							<dt className="text-muted-foreground">Started</dt>
 							<dd>{new Date(data.lastReconciliation.startedAt).toLocaleString()}</dd>
 							<dt className="text-muted-foreground">Completed</dt>
@@ -265,7 +276,7 @@ function OverviewTab({
 							{data.lastReconciliation.error && (
 								<>
 									<dt className="text-muted-foreground">Error</dt>
-									<dd className="text-red-600">{data.lastReconciliation.error}</dd>
+									<dd className="text-red-700">{data.lastReconciliation.error}</dd>
 								</>
 							)}
 						</dl>
@@ -281,11 +292,13 @@ function KpiCard({
 	label,
 	value,
 	tone,
+	mono,
 }: {
 	icon: typeof DollarSign;
 	label: string;
 	value: string;
 	tone?: "red";
+	mono?: boolean;
 }) {
 	return (
 		<Card>
@@ -294,12 +307,14 @@ function KpiCard({
 					<div>
 						<p className="text-muted-foreground text-sm">{label}</p>
 						<p
-							className={`mt-1 font-bold text-2xl ${tone === "red" ? "text-red-600" : ""}`}
+							className={`mt-1 font-semibold text-2xl ${mono ? "font-mono tabular-nums" : ""} ${tone === "red" ? "text-red-700" : ""}`}
 						>
 							{value}
 						</p>
 					</div>
-					<Icon className={`size-5 ${tone === "red" ? "text-red-600" : "text-muted-foreground"}`} />
+					<Icon
+						className={`size-5 ${tone === "red" ? "text-red-700" : "text-muted-foreground"}`}
+					/>
 				</div>
 			</CardContent>
 		</Card>
@@ -357,50 +372,72 @@ function DriftTab() {
 					</SelectContent>
 				</Select>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-0">
 				{driftQ.isLoading ? (
 					<div className="flex justify-center py-6">
 						<Loader2 className="size-5 animate-spin" />
 					</div>
 				) : (driftQ.data?.drift.length ?? 0) === 0 ? (
-					<p className="py-6 text-center text-muted-foreground text-sm">
-						No drift found.
-					</p>
+					<EmptyState
+						icon={CheckCircle2}
+						title="No drift found"
+						description="Everything reconciles for the selected filters."
+						context="search"
+					/>
 				) : (
 					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Severity</TableHead>
-								<TableHead>Resource</TableHead>
-								<TableHead>Kind</TableHead>
-								<TableHead>Org / Acct</TableHead>
-								<TableHead>Detected</TableHead>
-								<TableHead className="text-right">Action</TableHead>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							<TableRow className="hover:bg-transparent">
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Severity
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Resource
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Kind
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Org / Acct
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Detected
+								</TableHead>
+								<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Action
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{driftQ.data!.drift.map((row) => (
-								<TableRow key={row.id}>
-									<TableCell>
+								<TableRow key={row.id} className="hover:bg-muted/30">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<SeverityBadge severity={row.severity} />
 									</TableCell>
-									<TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<div className="font-medium">{row.resourceType}</div>
-										<code className="text-xs">{row.resourceId}</code>
+										<code className="font-mono text-xs text-muted-foreground">
+											{row.resourceId}
+										</code>
 									</TableCell>
-									<TableCell>{row.driftKind}</TableCell>
-									<TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										{row.driftKind}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<div className="text-xs">{row.organizationId ?? "—"}</div>
-										<code className="text-xs text-muted-foreground">
+										<code className="font-mono text-xs text-muted-foreground">
 											{row.stripeAccountId ?? "—"}
 										</code>
 									</TableCell>
-									<TableCell className="text-xs">
+									<TableCell className="px-6 py-4 text-xs whitespace-nowrap">
 										{new Date(row.detectedAt).toLocaleString()}
 									</TableCell>
-									<TableCell className="text-right">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-right">
 										{row.resolvedAt ? (
-											<Badge variant="outline" className="gap-1">
+											<Badge
+												variant="outline"
+												className="gap-1 border-green-300 bg-green-50 text-green-700"
+											>
 												<CheckCircle2 className="size-3" /> Resolved
 											</Badge>
 										) : (
@@ -427,13 +464,19 @@ function DriftTab() {
 function SeverityBadge({ severity }: { severity: string }) {
 	if (severity === "critical")
 		return (
-			<Badge className="gap-1 bg-red-600 hover:bg-red-700">
+			<Badge
+				variant="outline"
+				className="gap-1 border-red-200 bg-red-50 text-red-700"
+			>
 				<AlertCircle className="size-3" /> Critical
 			</Badge>
 		);
 	if (severity === "warn")
 		return (
-			<Badge className="gap-1 bg-amber-600 hover:bg-amber-700">
+			<Badge
+				variant="outline"
+				className="gap-1 border-yellow-300 bg-yellow-50 text-yellow-800"
+			>
 				<AlertTriangle className="size-3" /> Warn
 			</Badge>
 		);
@@ -462,45 +505,69 @@ function DisputesTab() {
 			<CardHeader>
 				<CardTitle className="text-base">Disputes</CardTitle>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-0">
 				{disputesQ.isLoading ? (
 					<div className="flex justify-center py-6">
 						<Loader2 className="size-5 animate-spin" />
 					</div>
 				) : (disputesQ.data?.disputes.length ?? 0) === 0 ? (
-					<p className="py-6 text-center text-muted-foreground text-sm">
-						No disputes.
-					</p>
+					<EmptyState
+						icon={Shield}
+						title="No disputes"
+						description="There are no open disputes to handle."
+						context="search"
+					/>
 				) : (
 					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Dispute</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Amount</TableHead>
-								<TableHead>Reason</TableHead>
-								<TableHead>Deadline</TableHead>
-								<TableHead className="text-right">Action</TableHead>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							<TableRow className="hover:bg-transparent">
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Dispute
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Status
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Amount
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Reason
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Deadline
+								</TableHead>
+								<TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Action
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{disputesQ.data!.disputes.map((d) => (
-								<TableRow key={d.id}>
-									<TableCell>
-										<code className="text-xs">{d.disputeId}</code>
-										<div className="text-xs text-muted-foreground">
+								<TableRow key={d.id} className="hover:bg-muted/30">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										<code className="font-mono text-xs">{d.disputeId}</code>
+										<div className="font-mono text-xs text-muted-foreground">
 											{d.stripeAccountId}
 										</div>
 									</TableCell>
-									<TableCell>{d.status}</TableCell>
-									<TableCell>{fmtAmount(d.amount, d.currency)}</TableCell>
-									<TableCell>{d.reason ?? "—"}</TableCell>
-									<TableCell className="text-xs">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										<Badge variant="outline">{d.status}</Badge>
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap font-mono tabular-nums">
+										{fmtAmount(d.amount, d.currency)}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										{d.reason ?? "—"}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-xs whitespace-nowrap">
 										{d.deadlineAt ? new Date(d.deadlineAt).toLocaleString() : "—"}
 									</TableCell>
-									<TableCell className="text-right">
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap text-right">
 										{d.handledAt ? (
-											<Badge variant="outline" className="gap-1">
+											<Badge
+												variant="outline"
+												className="gap-1 border-green-300 bg-green-50 text-green-700"
+											>
 												<CheckCircle2 className="size-3" /> Handled
 											</Badge>
 										) : (
@@ -509,7 +576,7 @@ function DisputesTab() {
 													href={`https://dashboard.stripe.com/${d.stripeAccountId}/disputes/${d.disputeId}`}
 													target="_blank"
 													rel="noreferrer"
-													className="inline-flex items-center text-xs text-blue-600 hover:underline"
+													className="inline-flex items-center text-xs text-blue-700 hover:underline"
 												>
 													Stripe <ExternalLink className="ml-1 size-3" />
 												</a>
@@ -545,45 +612,69 @@ function StuckTab() {
 			<CardHeader>
 				<CardTitle className="text-base">Stuck onboardings</CardTitle>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-0">
 				{stuckQ.isLoading ? (
 					<div className="flex justify-center py-6">
 						<Loader2 className="size-5 animate-spin" />
 					</div>
 				) : (stuckQ.data?.stuck.length ?? 0) === 0 ? (
-					<p className="py-6 text-center text-muted-foreground text-sm">
-						No stuck onboardings.
-					</p>
+					<EmptyState
+						icon={CheckCircle2}
+						title="No stuck onboardings"
+						description="All tenants have completed onboarding in time."
+						context="search"
+					/>
 				) : (
 					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Org</TableHead>
-								<TableHead>Country</TableHead>
-								<TableHead>Acct</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Details</TableHead>
-								<TableHead>Last update</TableHead>
+						<TableHeader className="sticky top-0 z-10 bg-white">
+							<TableRow className="hover:bg-transparent">
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Org
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Country
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Acct
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Status
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Details
+								</TableHead>
+								<TableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+									Last update
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{stuckQ.data!.stuck.map((row, i) => (
-								<TableRow key={`${row.organizationId}-${row.countryCode}-${i}`}>
-									<TableCell>
+								<TableRow
+									key={`${row.organizationId}-${row.countryCode}-${i}`}
+									className="hover:bg-muted/30"
+								>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										<div className="font-medium">{row.orgName}</div>
-										<code className="text-xs text-muted-foreground">
+										<code className="font-mono text-xs text-muted-foreground">
 											{row.orgSlug}
 										</code>
 									</TableCell>
-									<TableCell>{row.countryCode}</TableCell>
-									<TableCell>
-										<code className="text-xs">{row.stripeAccountId}</code>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										{row.countryCode}
 									</TableCell>
-									<TableCell>{row.status}</TableCell>
-									<TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										<code className="font-mono text-xs">
+											{row.stripeAccountId}
+										</code>
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
+										<Badge variant="outline">{row.status}</Badge>
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
 										{row.detailsSubmitted ? "Submitted" : "Not submitted"}
 									</TableCell>
-									<TableCell className="text-xs">
+									<TableCell className="px-6 py-4 text-xs whitespace-nowrap">
 										{row.connectAccountUpdatedAt
 											? new Date(row.connectAccountUpdatedAt).toLocaleString()
 											: "—"}

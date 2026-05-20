@@ -78,6 +78,7 @@ export function PendingApprovalsWidget() {
 					{total > 0 && (
 						<Link
 							to="/dashboard/operations/approvals"
+							search={{ scope: "all" }}
 							className="text-xs font-medium text-brand-primary-1 hover:underline"
 						>
 							View all
@@ -108,6 +109,7 @@ export function PendingApprovalsWidget() {
 								<Link
 									key={row.id}
 									to="/dashboard/operations/approvals"
+									search={{ scope: "all" }}
 									className="flex items-center justify-between py-2 text-sm hover:bg-brand-secondary-3/30"
 								>
 									<div className="min-w-0 flex-1">
@@ -132,6 +134,7 @@ export function PendingApprovalsWidget() {
 						{total > 3 && (
 							<Link
 								to="/dashboard/operations/approvals"
+								search={{ scope: "all" }}
 								className="mt-2 block text-center text-xs text-brand-secondary-1 hover:text-brand-primary-1"
 							>
 								+ {total - 3} more

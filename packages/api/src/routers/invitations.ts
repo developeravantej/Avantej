@@ -253,6 +253,11 @@ export const invitationRouter = {
 
       // Verify email matches invitation email (case-insensitive)
       const userEmail = context.session.user.email?.toLowerCase();
+      if (!invitation!.email) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "This invitation has no associated email — use the branch self-signup flow instead.",
+        });
+      }
       const invitationEmail = invitation!.email.toLowerCase();
 
       if (userEmail !== invitationEmail) {
@@ -355,6 +360,11 @@ export const invitationRouter = {
         });
       }
 
+      if (!invitation!.email) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "This invitation has no associated email — use the branch self-signup flow instead.",
+        });
+      }
       const invitationEmail = invitation!.email.toLowerCase();
 
       // If user exists, mark email as verified

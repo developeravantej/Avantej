@@ -11,7 +11,7 @@
  * ```
  */
 
-import { eq, and, gte, lte, sql, inArray, or, lt, desc } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, or, lt, desc, ne } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -26,6 +26,7 @@ import { evaluateAndExpireIfOverdue, evaluateAndLockIfOverdue } from "./installm
 import { assertValidTransition } from "./utils/appointment-status-machine";
 import { writeAudit } from "./audit-log.service";
 import { calculateCommissionForAppointment } from "./commission-calculator.service";
+import { getLatestConfigVersionForCategory } from "./commission-splits.service";
 import { appendAppointmentStatusHistory } from "./status-history.helper";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -85,6 +86,8 @@ export type CreateAppointmentParams = {
   imageUrl?: string | null;
   notes?: string | null;
   bookingNumber?: string | null;
+  isComplimentary?: boolean;
+  complimentaryReason?: string | null;
   staffAssignments?: { staffId: string; slotIndex: number }[];
   recurrence?: {
     frequencyValue: number;
@@ -339,6 +342,20 @@ export async function createAppointment(
         }
       }
 
+      // Snapshot commission config version at booking (audit anchor — Option A)
+      let configVersionIdToSet: string | undefined;
+      if (params.serviceId) {
+        const [svc] = await tx
+          .select({ categoryId: services.categoryId })
+          .from(services)
+          .where(eq(services.id, params.serviceId))
+          .limit(1);
+        if (svc?.categoryId) {
+          const versionId = await getLatestConfigVersionForCategory(tx as unknown as TenantDb, svc.categoryId);
+          configVersionIdToSet = versionId ?? undefined;
+        }
+      }
+
       // A.1.6 — Insert appointment inside transaction
       const [row] = await tx
         .insert(appointments)
@@ -363,6 +380,10 @@ export async function createAppointment(
           imageUrl: params.imageUrl ?? null,
           notes: params.notes ?? null,
           bookingNumber: params.bookingNumber ?? null,
+          priceSnapshotCents: params.pricePerClient,
+          configVersionId: configVersionIdToSet ?? null,
+          isComplimentary: params.isComplimentary ?? false,
+          complimentaryReason: params.complimentaryReason ?? null,
         })
         .returning();
 
@@ -586,6 +607,17 @@ export async function updateAppointment(
 
       // B.1.6 — Staff assignment replacement
       if (params.staffAssignments !== undefined) {
+        // Guard: block staff re-assignment on delivered appointments.
+        // Commission weightage is already locked at delivery time; changing staff
+        // afterwards would make the commission record incorrect with no recalculation.
+        const deliveredStatuses = ["completed", "cancelled", "no_show"] as const;
+        if (deliveredStatuses.includes(existing.status as typeof deliveredStatuses[number])) {
+          throw Object.assign(
+            new Error("Staff assignments cannot be changed after an appointment has been delivered (completed, cancelled, or no_show). Void the commission splits manually first if a correction is needed."),
+            { code: "BAD_REQUEST" },
+          );
+        }
+
         // Delete all existing staff rows for this appointment
         await tx.delete(appointmentStaff).where(eq(appointmentStaff.appointmentId, id));
 
@@ -635,10 +667,55 @@ export async function updateAppointment(
               salesOrderId: updated.salesOrderId,
             }));
           } else {
-            await runAppointmentCommission(tx, id, updated, params.actor);
+            await runAppointmentCommission(tx, id, updated, params.actor, "completion");
           }
         } else {
-          await runAppointmentCommission(tx, id, updated, params.actor);
+          await runAppointmentCommission(tx, id, updated, params.actor, "completion");
+        }
+      }
+
+      // Commission: create splits when appointment is cancelled (counts as delivery)
+      // Per the cancellation policy, a cancelled appointment still earns commission
+      // so trainers are not penalised for client no-shows.
+      if (
+        params.status === "cancelled" &&
+        existing.status !== "cancelled" &&
+        existing.serviceId &&
+        params.actor
+      ) {
+        if (updated.salesOrderId) {
+          const existingPosSplits = await tx
+            .select({ id: commissionSplits.id })
+            .from(commissionSplits)
+            .where(eq(commissionSplits.salesOrderId, updated.salesOrderId))
+            .limit(1);
+          if (existingPosSplits.length === 0) {
+            await runAppointmentCommission(tx, id, updated, params.actor, "cancellation");
+          }
+        } else {
+          await runAppointmentCommission(tx, id, updated, params.actor, "cancellation");
+        }
+      }
+
+      // Commission: create splits when appointment is no_show (trainer attended;
+      // client did not — still counts as delivery per policy).
+      if (
+        params.status === "no_show" &&
+        existing.status !== "no_show" &&
+        existing.serviceId &&
+        params.actor
+      ) {
+        if (updated.salesOrderId) {
+          const existingPosSplits = await tx
+            .select({ id: commissionSplits.id })
+            .from(commissionSplits)
+            .where(eq(commissionSplits.salesOrderId, updated.salesOrderId))
+            .limit(1);
+          if (existingPosSplits.length === 0) {
+            await runAppointmentCommission(tx, id, updated, params.actor, "no_show");
+          }
+        } else {
+          await runAppointmentCommission(tx, id, updated, params.actor, "no_show");
         }
       }
 
@@ -691,20 +768,77 @@ async function runAppointmentCommission(
   tx: TenantTx,
   appointmentId: string,
   appointment: typeof appointments.$inferSelect,
-  actor?: { userId: string; memberId: string; role: string },
+  actor: { userId: string; memberId: string; role: string } | undefined,
+  earnReason: import("@avantej-core/types").CommissionEarnReason,
 ): Promise<void> {
-  if (!actor || !appointment.serviceId) return;
+  // Silent-return guards retained for safety, but now emit a warning audit so
+  // operators can see commission was skipped (instead of silently dropping it).
+  if (!actor) {
+    console.warn(JSON.stringify({
+      event: "commission_skipped_no_actor",
+      appointmentId,
+      earnReason,
+    }));
+    return;
+  }
+  if (!appointment.serviceId) {
+    await writeAudit(tx, {
+      actorUserId: actor.userId,
+      actorMemberId: actor.memberId,
+      action: "commission.skip",
+      entityType: "appointment",
+      entityId: appointmentId,
+      summary: `Commission skipped for appointment ${appointmentId}: no service_id`,
+      changes: { reason: "no_service_id", earnReason },
+    });
+    return;
+  }
 
-  // Count attended clients
+  // Idempotency guard: if non-void splits already exist for this appointment,
+  // a prior status transition already ran commission. Skip to prevent doubles
+  // caused by admin status reversions (e.g. completed → cancelled → completed).
+  const existingSplits = await (tx as unknown as TenantDb)
+    .select({ id: commissionSplits.id })
+    .from(commissionSplits)
+    .where(
+      and(
+        eq(commissionSplits.appointmentId, appointmentId),
+        ne(commissionSplits.status, "void"),
+      ),
+    )
+    .limit(1);
+  if (existingSplits.length > 0) {
+    console.warn(JSON.stringify({
+      event: "commission_skipped_already_exists",
+      appointmentId,
+      earnReason,
+      existingSplitId: existingSplits[0]?.id,
+    }));
+    return;
+  }
+
+  // Appointment-level comp guard (Flaw #11): walk-in/direct comp appointments
+  // do not generate splits even without a sales order.
+  if (appointment.isComplimentary) {
+    console.warn(JSON.stringify({
+      event: "commission_skipped_complimentary_appointment",
+      appointmentId,
+      reason: appointment.complimentaryReason,
+    }));
+    return;
+  }
+
+  // Count clients for commission tier calculation.
+  // For no_show: the trainer showed up but the client didn't — use total booked
+  // count so conditional tiers aren't zeroed out by zero attendance.
+  // For all other reasons: use only attended clients.
+  const clientConditions = earnReason === "no_show"
+    ? [eq(appointmentClients.appointmentId, appointmentId)]
+    : [eq(appointmentClients.appointmentId, appointmentId), eq(appointmentClients.attended, true)];
   const attendeeRows = await (tx as unknown as TenantDb)
     .select({ id: appointmentClients.id })
     .from(appointmentClients)
-    .where(
-      and(
-        eq(appointmentClients.appointmentId, appointmentId),
-        eq(appointmentClients.attended, true),
-      ),
-    );
+    .where(and(...clientConditions));
   const attendeeCount = attendeeRows.length;
 
   // Load staff assignments ordered by slotIndex
@@ -725,16 +859,28 @@ async function runAppointmentCommission(
   if (effectiveAssignments.length === 0 && appointment.trainerId) {
     effectiveAssignments = [{ staffId: appointment.trainerId, slotIndex: 0 }];
   }
-  if (effectiveAssignments.length === 0) return;
+  if (effectiveAssignments.length === 0) {
+    await writeAudit(tx, {
+      actorUserId: actor.userId,
+      actorMemberId: actor.memberId,
+      action: "commission.skip",
+      entityType: "appointment",
+      entityId: appointmentId,
+      summary: `Commission skipped for appointment ${appointmentId}: no staff assignments`,
+      changes: { reason: "no_staff_assignments", earnReason },
+    });
+    return;
+  }
 
   await calculateCommissionForAppointment(tx as unknown as TenantDb, {
     appointmentId,
     serviceId: appointment.serviceId,
-    sessionTotalCents: appointment.pricePerClient,
+    sessionTotalCents: appointment.priceSnapshotCents ?? appointment.pricePerClient,
     attendeeCount,
     staffAssignments: effectiveAssignments,
-    earnedAt: new Date(), // completion time
+    earnedAt: new Date(), // delivery time (completion OR cancellation)
     actor,
+    earnReason,
   });
 }
 

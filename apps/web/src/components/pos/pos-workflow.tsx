@@ -1,16 +1,7 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-	ArrowLeft,
-	Check,
-	Copy,
-	ExternalLink,
-	ShoppingCart,
-	UserX,
-} from "lucide-react";
+import { ArrowLeft, Check, ShoppingCart, UserX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CartSummary } from "@/components/pos/cart-summary";
@@ -28,12 +19,6 @@ import type {
 	SelectedCustomer,
 	TaxRateOption,
 } from "@/components/pos/types";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -54,38 +39,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { formatPrice } from "@/lib/money";
+import { cn } from "@/lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function StepBadge({
-	n,
-	isComplete,
-	isLocked,
-}: {
-	n: number;
-	isComplete: boolean;
-	isLocked: boolean;
-}) {
-	if (isComplete) {
-		return (
-			<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-green-500">
-				<Check className="size-3.5 text-white" />
-			</span>
-		);
-	}
-	if (isLocked) {
-		return (
-			<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground text-xs">
-				{n}
-			</span>
-		);
-	}
-	return (
-		<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-			{n}
-		</span>
-	);
-}
 
 function calcTotals(
 	items: CartItem[],
@@ -102,6 +59,155 @@ function calcTotals(
 	return { subtotalCents, taxCents, totalCents };
 }
 
+function getInitials(name: string): string {
+	return name
+		.split(" ")
+		.slice(0, 2)
+		.map((w) => w[0]?.toUpperCase() ?? "")
+		.join("");
+}
+
+function formatPaymentLabel(method: PaymentMethod | null): string {
+	if (!method) return "—";
+	const labels: Record<PaymentMethod, string> = {
+		cash: "Cash",
+		card: "Card",
+		manual_transfer: "Bank Transfer (Manual)",
+		fpx: "FPX",
+		stripe: "Stripe",
+	};
+	return labels[method] ?? (method as string);
+}
+
+// ─── Design-5 token classes ────────────────────────────────────────────────────
+// paper: #f3f3f3  line: #e5e5e5  ink: #0a0a0a  warm: #d6cdb1
+
+// ─── Timeline step dot ────────────────────────────────────────────────────────
+
+function TlDot({
+	state,
+	n,
+}: {
+	state: "done" | "active" | "idle";
+	n: number;
+}) {
+	return (
+		<div
+			className={cn(
+				"flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold",
+				state === "done" &&
+					"bg-[#0a0a0a] text-white",
+				state === "active" &&
+					"border-2 border-[#0a0a0a] bg-white text-[#0a0a0a]",
+				state === "idle" &&
+					"border-2 border-[#e5e5e5] bg-white text-[#a3a3a3]",
+			)}
+		>
+			{state === "done" ? (
+				<svg width="12" height="12" fill="white" viewBox="0 0 16 16">
+					<path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z" />
+				</svg>
+			) : (
+				n
+			)}
+		</div>
+	);
+}
+
+// ─── Right-panel timeline dot ─────────────────────────────────────────────────
+
+function LiveDot({ state }: { state: "done" | "active" | "idle" }) {
+	return (
+		<div
+			className={cn(
+				"flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+				state === "done" && "bg-[#0a0a0a]",
+				state === "active" && "border-2 border-[#0a0a0a] bg-white",
+				state === "idle" && "border-2 border-[#e5e5e5] bg-white",
+			)}
+		>
+			{state === "done" && (
+				<svg width="10" height="10" fill="white" viewBox="0 0 16 16">
+					<path d="M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z" />
+				</svg>
+			)}
+		</div>
+	);
+}
+
+// ─── Step card shell ─────────────────────────────────────────────────────────
+
+function StepCard({
+	n,
+	label,
+	stepLabel,
+	state,
+	badge,
+	onEdit,
+	children,
+}: {
+	n: number;
+	label: string;
+	stepLabel: string;
+	state: "done" | "active" | "idle";
+	badge?: React.ReactNode;
+	onEdit?: () => void;
+	children?: React.ReactNode;
+}) {
+	return (
+		<div
+			className={cn(
+				"rounded-2xl border bg-white p-5 transition-opacity duration-200",
+				state === "active" && "border-[#0a0a0a] shadow-sm",
+				state === "done" && "border-[#e5e5e5]",
+				state === "idle" && "border-[#e5e5e5] opacity-50 pointer-events-none select-none",
+			)}
+			style={state === "active" ? { borderWidth: "1.5px" } : {}}
+		>
+			{/* Step header */}
+			<div className="flex items-center gap-3">
+				<TlDot state={state} n={n} />
+				<div className="flex-1 min-w-0">
+					<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+						{stepLabel}
+					</p>
+					<p className={cn(
+						"text-sm font-bold",
+						state === "idle" ? "text-[#737373]" : "text-[#0a0a0a]",
+					)}>
+						{label}
+					</p>
+				</div>
+				{state === "done" && onEdit && (
+					<button
+						type="button"
+						onClick={onEdit}
+						className="rounded-[10px] px-2.5 py-1 text-[11px] font-medium text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
+					>
+						Edit
+					</button>
+				)}
+				{state === "idle" && badge}
+			</div>
+
+			{/* Expanded content */}
+			{state !== "idle" && children && (
+				<div className="mt-4">{children}</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Locked badge ─────────────────────────────────────────────────────────────
+
+function LockedBadge() {
+	return (
+		<span className="ml-auto inline-flex items-center rounded-full border border-[#e5e5e5] bg-[#f3f3f3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+			Locked
+		</span>
+	);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export interface PosWorkflowProps {
@@ -115,13 +221,23 @@ export interface PosWorkflowProps {
 	onSaleCreated?: (salesOrderId: string) => void;
 }
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// Logical step indices:
+// 0 = Customer, 1 = Items, 2 = Promo, 3 = Payment, 4 = Confirm
+type StepIndex = 0 | 1 | 2 | 3 | 4;
+
+const STEP_DEFS = [
+	{ label: "Customer", stepLabel: "Step 1" },
+	{ label: "Items", stepLabel: "Step 2" },
+	{ label: "Promotions & Discounts", stepLabel: "Step 3" },
+	{ label: "Payment Method", stepLabel: "Step 4" },
+	{ label: "Confirm & Charge", stepLabel: "Step 5" },
+] as const;
+
 export function PosWorkflow({
 	prefillCustomerId,
 	showHeader = true,
 	hideCustomerStep = false,
 	onSaleCreated,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: PosWorkflowProps) {
 	const navigate = useNavigate();
 	const { data: userContext, hasPermission } = useUserContext();
@@ -130,10 +246,9 @@ export function PosWorkflow({
 	// RBAC — gate in-component
 	const canCreate = hasPermission("pos:create");
 
-	// ── Accordion state ────────────────────────────────────────────────────────
-	const [accordionValue, setAccordionValue] = useState<string>(
-		hideCustomerStep || prefillCustomerId ? "items" : "customer",
-	);
+	// ── Step state ─────────────────────────────────────────────────────────────
+	const initialStep: StepIndex = hideCustomerStep || prefillCustomerId ? 1 : 0;
+	const [currentStep, setCurrentStep] = useState<StepIndex>(initialStep);
 
 	// ── Customer type toggle ───────────────────────────────────────────────────
 	const [customerTypeMode, setCustomerTypeMode] =
@@ -143,7 +258,7 @@ export function PosWorkflow({
 	const [selectedCustomer, setSelectedCustomer] =
 		useState<SelectedCustomer | null>(null);
 
-	// ── Prefill customer (when prefillCustomerId provided) ────────────────────
+	// ── Prefill customer ──────────────────────────────────────────────────────
 	const prefillQuery = useQuery({
 		queryKey: ["pos-prefill-customer", organizationId, prefillCustomerId],
 		queryFn: () =>
@@ -154,7 +269,6 @@ export function PosWorkflow({
 		enabled: !!organizationId && !!prefillCustomerId && !selectedCustomer,
 	});
 
-	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 3 cohesive setState calls hydrating prefill data; useReducer would obscure intent
 	useEffect(() => {
 		if (!prefillCustomerId || selectedCustomer) return;
 		const detail = prefillQuery.data;
@@ -168,7 +282,7 @@ export function PosWorkflow({
 			email: detail.user.email,
 			branchId: detail.member.hierarchyScopeId,
 		});
-		setAccordionValue("items");
+		setCurrentStep(1);
 	}, [prefillQuery.data, prefillCustomerId, selectedCustomer]);
 
 	// ── Items ──────────────────────────────────────────────────────────────────
@@ -238,20 +352,83 @@ export function PosWorkflow({
 	const [selectedInstallmentPlanId, setSelectedInstallmentPlanId] = useState<
 		string | null
 	>(null);
-
-	// ── Notes ─────────────────────────────────────────────────────────────────
-	const [notes, setNotes] = useState("");
-
-	// ── Online payment link (set after Stripe payment link is generated) ─────
-	const [onlinePayLink, setOnlinePayLink] = useState<string | null>(null);
+	const [preferredTrainerId, setPreferredTrainerId] = useState<string | null>(null);
 
 	// ── Trainer assignments ───────────────────────────────────────────────────
 	const [trainerAssignments, setTrainerAssignments] =
 		useState<ItemTrainerAssignments>({});
 
+	// ── Notes ─────────────────────────────────────────────────────────────────
+	const [notes, setNotes] = useState("");
+
+	// ── Last receipt (populated after a successful sale in this session) ───────
+	const [lastReceipt, setLastReceipt] = useState<{
+		orgName: string;
+		customerName: string;
+		items: CartItem[];
+		subtotalCents: number;
+		discountCents: number;
+		taxCents: number;
+		totalCents: number;
+		paymentMethod: PaymentMethod | null;
+		timestamp: Date;
+	} | null>(null);
+
+	// ── Seed lastReceipt from API on first mount (covers "first sale of session")
+	const latestSaleQuery = useQuery({
+		queryKey: ["pos-latest-sale", organizationId],
+		queryFn: () =>
+			client.salesOrders.getLatest({
+				organizationId: organizationId!,
+			}),
+		enabled: !!organizationId,
+		// Single fetch on mount — no background refetch needed for a seed value
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
+	useEffect(() => {
+		// Only seed once: skip if we already have an in-session receipt
+		if (lastReceipt) return;
+		const data = latestSaleQuery.data;
+		if (!data) return;
+
+		const { order, items: apiItems, paymentMethod: apiPaymentMethod } = data;
+
+		// Map salesOrderItems rows to CartItem shape
+		const cartItems: CartItem[] = apiItems.map((item) => ({
+			id: item.id,
+			type: item.serviceId ? "service" : "custom",
+			refId: item.serviceId ?? undefined,
+			description: item.description,
+			quantity: item.quantity,
+			unitPriceCents: item.unitPrice,
+		}));
+
+		const subtotalCents = cartItems.reduce(
+			(acc, item) => acc + item.unitPriceCents * item.quantity,
+			0,
+		);
+
+		setLastReceipt({
+			orgName:
+				userContext?.organizations.find((o) => o.id === organizationId)?.name ?? "—",
+			customerName: order.customerName,
+			items: cartItems,
+			subtotalCents,
+			// Discount and tax are not stored on the order row — show 0 for historical seed
+			discountCents: 0,
+			taxCents: order.totalAmount - subtotalCents > 0
+				? order.totalAmount - subtotalCents
+				: 0,
+			totalCents: order.totalAmount,
+			paymentMethod: (apiPaymentMethod as PaymentMethod | null) ?? null,
+			timestamp: order.createdAt,
+		});
+	}, [latestSaleQuery.data, lastReceipt, organizationId, userContext]);
+
 	// ── Computed totals ────────────────────────────────────────────────────────
 	const discountCents = appliedPromo?.discountCents ?? 0;
-	const { subtotalCents, totalCents } = calcTotals(
+	const { subtotalCents, taxCents, totalCents } = calcTotals(
 		items,
 		discountCents,
 		taxRateBps,
@@ -260,10 +437,6 @@ export function PosWorkflow({
 	const hasServiceItems = items.some(
 		(item) => item.type === "service" && item.refId,
 	);
-
-	const promoStepN = hasServiceItems ? 4 : 3;
-	const taxStepN = hasServiceItems ? 5 : 4;
-	const paymentStepN = hasServiceItems ? 6 : 5;
 
 	// ── Submit readiness ───────────────────────────────────────────────────────
 	const hasCustomer =
@@ -308,7 +481,7 @@ export function PosWorkflow({
 			return;
 		}
 		setSelectedCustomer(customer);
-		setAccordionValue("items");
+		setCurrentStep(1);
 	}
 
 	function handleCustomerClear() {
@@ -325,6 +498,7 @@ export function PosWorkflow({
 		setItems([]);
 		setAppliedPromo(null);
 		setTrainerAssignments({});
+		setPreferredTrainerId(null);
 		if (pendingCustomerRef.current) {
 			setSelectedCustomer(pendingCustomerRef.current);
 			pendingCustomerRef.current = null;
@@ -361,7 +535,7 @@ export function PosWorkflow({
 			if (!organizationId) return [];
 			return client.installmentPlans.list({ organizationId, activeOnly: true });
 		},
-		enabled: !!organizationId && selectedInstallmentPlanId !== null,
+		enabled: !!organizationId,
 	});
 	const selectedPlan = installmentPlansQuery.data?.find(
 		(p) => p.id === selectedInstallmentPlanId,
@@ -397,14 +571,15 @@ export function PosWorkflow({
 			}
 
 			const filteredAssignments = Object.fromEntries(
-				Object.entries(trainerAssignments).flatMap(([k, arr]) => {
-					const mapped = arr.flatMap((a) =>
-						a.staffId !== ""
-							? [{ staffId: a.staffId, slotIndex: a.slotIndex }]
-							: [],
-					);
-					return mapped.length > 0 ? [[k, mapped] as const] : [];
-				}),
+				Object.entries(trainerAssignments)
+					.map(([k, arr]) => [
+						k,
+						arr.filter((a) => a.staffId !== "").map((a) => ({
+							staffId: a.staffId,
+							slotIndex: a.slotIndex,
+						})),
+					])
+					.filter(([, arr]) => (arr as unknown[]).length > 0),
 			);
 
 			return client.pos.recordSale({
@@ -427,6 +602,7 @@ export function PosWorkflow({
 				amountTenderedCents:
 					paymentMethod === "cash" ? amountTenderedCents : undefined,
 				installmentPlanCode: selectedPlan?.code,
+				preferredTrainerId: preferredTrainerId ?? undefined,
 				notes: notes || undefined,
 				itemTrainerAssignments:
 					Object.keys(filteredAssignments).length > 0
@@ -435,27 +611,27 @@ export function PosWorkflow({
 			});
 		},
 		successMessage: "Sale recorded successfully!",
-		errorMessage: (err) =>
-			err.message || "Failed to record sale. Please try again.",
-		onSuccess: async (data) => {
-			if (paymentMethod === "online" && organizationId) {
-				try {
-					const linkResult = await client.payments.createSalesOrderPaymentLink({
-						organizationId,
-						salesOrderId: data.salesOrderId,
-					});
-					setOnlinePayLink(linkResult.paymentLinkUrl);
-					// Stay on this page so staff can copy the link to forward to customer.
-					return;
-				} catch (err) {
-					const message =
-						err instanceof Error
-							? err.message
-							: "Failed to generate payment link. You can retry from the sale page.";
-					toast.error(message);
-					// Fall through to normal navigation so staff can retry from the sale page.
-				}
+		errorMessage: (err) => {
+			if ((err as unknown as { data?: { cause?: string } }).data?.cause === "non_client_member") {
+				return "This customer is staff/admin and cannot be a sale target. Use a client account or walk-in mode.";
 			}
+			return err.message || "Failed to record sale. Please try again.";
+		},
+		onSuccess: (data) => {
+			// Snapshot the receipt before state is reset
+			setLastReceipt({
+				orgName:
+					userContext?.organizations.find((o) => o.id === organizationId)
+						?.name ?? "—",
+				customerName: customerLabel ?? "Walk-in",
+				items: [...items],
+				subtotalCents,
+				discountCents,
+				taxCents,
+				totalCents,
+				paymentMethod,
+				timestamp: new Date(),
+			});
 
 			if (onSaleCreated) {
 				onSaleCreated(data.salesOrderId);
@@ -472,7 +648,7 @@ export function PosWorkflow({
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 flex-1 items-center justify-center text-[#737373]">
 				Select an organization to record a sale.
 			</div>
 		);
@@ -480,374 +656,438 @@ export function PosWorkflow({
 
 	if (!canCreate) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 flex-1 items-center justify-center text-[#737373]">
 				<div className="space-y-2 text-center">
-					<p className="font-medium">Permission Denied</p>
+					<p className="font-medium text-[#0a0a0a]">Permission Denied</p>
 					<p className="text-sm">You don't have permission to record sales.</p>
 				</div>
 			</div>
 		);
 	}
 
-	// ── Render ─────────────────────────────────────────────────────────────────
+	// ── Step helpers ──────────────────────────────────────────────────────────
 
-	const stepNumberOffset = hideCustomerStep ? -1 : 0;
+	// Logical step → card state
+	// When hideCustomerStep, step 0 is skipped; we offset so step 1 appears as card index 0
+	function stepState(logical: StepIndex): "done" | "active" | "idle" {
+		if (logical < currentStep) return "done";
+		if (logical === currentStep) return "active";
+		return "idle";
+	}
+
+	// Step 0 → 1 needs customer
+	// Step 1 → 2 needs items
+	// Step 2 → 3 (promo is optional — always passable)
+	// Step 3 → 4 needs payment + cashOk
+	function canAdvanceFrom(step: StepIndex): boolean {
+		if (step === 0) return hasCustomer;
+		if (step === 1) return hasItems;
+		if (step === 2) return true; // promo optional
+		if (step === 3) return hasPaymentMethod && cashOk;
+		return false;
+	}
+
+	function handleNext() {
+		if (!canAdvanceFrom(currentStep as StepIndex)) return;
+		setCurrentStep((s) => Math.min(s + 1, 4) as StepIndex);
+	}
+
+	// ── Live clock ────────────────────────────────────────────────────────────
+	const [now, setNow] = useState(() => new Date());
+	useEffect(() => {
+		const id = setInterval(() => setNow(new Date()), 1000);
+		return () => clearInterval(id);
+	}, []);
+
+	// ── Derived display values ────────────────────────────────────────────────
+
+	const customerLabel =
+		customerTypeMode === "walk_in"
+			? "Walk-in"
+			: selectedCustomer?.name ?? null;
+
+	const customerInitials =
+		customerTypeMode === "walk_in"
+			? "WI"
+			: getInitials(customerLabel ?? "");
+
+	const today = now.toLocaleString("en-MY", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Render
+	// ─────────────────────────────────────────────────────────────────────────
 
 	return (
-		<div
-			className={
-				showHeader
-					? "space-y-6 p-6 bg-muted/30 -m-6 min-h-full"
-					: "space-y-6 p-6"
-			}
-		>
+		<div className="flex flex-1 flex-col bg-[#f3f3f3] overflow-hidden">
+
+			{/* ── Page header ─────────────────────────────────────────────────── */}
 			{showHeader && (
-				<div className="flex items-center gap-3">
-					<Link to="/dashboard/sales/view">
-						<Button variant="ghost" size="icon" className="size-8 shrink-0">
-							<ArrowLeft className="size-4" />
-						</Button>
-					</Link>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-primary p-2.5 shadow-sm">
-							<ShoppingCart className="size-5 text-primary-foreground" />
+				<div className="flex items-end justify-between border-b border-[#e5e5e5] bg-[#f3f3f3] px-6 pb-4 pt-5">
+					<div className="flex items-end gap-4">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0a0a0a] text-white">
+							<ShoppingCart className="h-5 w-5" />
 						</div>
 						<div>
-							<h1 className="font-semibold font-heading text-xl leading-tight">
+							<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+								Point of Sale
+							</p>
+							<h1 className="text-[28px] font-extrabold leading-none tracking-tight text-[#0a0a0a]">
 								New Sale
 							</h1>
-							<p className="text-muted-foreground text-xs">Point of sale</p>
+							<p className="mt-0.5 text-sm text-[#737373]">{today}</p>
 						</div>
+					</div>
+					<div className="flex items-center gap-2 pb-1">
+						<Link to="/dashboard/sales/view">
+							<button
+								type="button"
+								className="flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+							>
+								<ArrowLeft className="h-3.5 w-3.5" />
+								Sales
+							</button>
+						</Link>
 					</div>
 				</div>
 			)}
 
-			{onlinePayLink && (
-				<div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 shadow-sm">
-					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0 flex-1">
-							<p className="font-semibold text-sm">Online payment link</p>
-							<p className="text-muted-foreground text-xs">
-								Forward this URL to the customer to collect payment.
-							</p>
-							<code className="mt-2 block w-full truncate rounded bg-muted px-2 py-1 text-xs">
-								{onlinePayLink}
-							</code>
-						</div>
-						<div className="flex shrink-0 gap-2">
-							<Button
-								size="icon"
-								variant="outline"
-								type="button"
-								aria-label="Copy payment link"
-								onClick={() => {
-									navigator.clipboard.writeText(onlinePayLink);
-									toast.success("Payment link copied");
-								}}
+			{/* ── Two-column layout ─────────────────────────────────────────── */}
+			<div className="flex flex-1 overflow-hidden">
+				<div className="flex w-full flex-1 gap-6 overflow-hidden px-6 py-6">
+
+					{/* ── LEFT: Step cards ──────────────────────────────────────────── */}
+					<div className="flex flex-1 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+
+						{/* ── STEP 0: Customer ─────────────────────────────────────── */}
+						{!hideCustomerStep && (
+							<StepCard
+								n={1}
+								label={STEP_DEFS[0].label}
+								stepLabel={STEP_DEFS[0].stepLabel}
+								state={stepState(0)}
+								badge={<LockedBadge />}
+								onEdit={() => setCurrentStep(0)}
 							>
-								<Copy className="size-4" />
-							</Button>
-							<Button
-								size="icon"
-								variant="outline"
-								type="button"
-								aria-label="Open payment link"
-								asChild
-							>
-								<a
-									href={onlinePayLink}
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									<ExternalLink className="size-4" />
-								</a>
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+								{/* Active content */}
+								{currentStep === 0 && (
+									<div className="flex flex-col gap-4">
+										{/* Mode toggle */}
+										<div className="flex gap-2">
+											<button
+												type="button"
+												onClick={() => handleCustomerTypeModeChange("member")}
+												className={cn(
+													"rounded-[10px] px-4 py-2 text-sm font-semibold transition-all",
+													customerTypeMode === "member"
+														? "bg-[#0a0a0a] text-white"
+														: "border border-[#e5e5e5] bg-white text-[#0a0a0a] hover:border-[#a3a3a3]",
+												)}
+											>
+												Member
+											</button>
+											<button
+												type="button"
+												onClick={() => handleCustomerTypeModeChange("walk_in")}
+												className={cn(
+													"rounded-[10px] px-4 py-2 text-sm font-semibold transition-all",
+													customerTypeMode === "walk_in"
+														? "bg-[#0a0a0a] text-white"
+														: "border border-[#e5e5e5] bg-white text-[#0a0a0a] hover:border-[#a3a3a3]",
+												)}
+											>
+												Walk-in
+											</button>
+										</div>
 
-			{hideCustomerStep && selectedCustomer && (
-				<div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-					<span className="text-muted-foreground">Customer: </span>
-					<span className="font-medium">{selectedCustomer.name}</span>
-					{selectedCustomer.phone && (
-						<span className="text-muted-foreground">
-							{" "}
-							· {selectedCustomer.phone}
-						</span>
-					)}
-				</div>
-			)}
+										{customerTypeMode === "member" && (
+											<CustomerStep
+												organizationId={organizationId}
+												branchId={resolvedBranchId}
+												selected={selectedCustomer}
+												onSelect={handleCustomerSelect}
+												onClear={handleCustomerClear}
+											/>
+										)}
 
-			<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-				<div className="lg:col-span-2 space-y-4">
-					<div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-						<Accordion
-							type="single"
-							collapsible
-							value={accordionValue}
-							onValueChange={setAccordionValue}
-							className="w-full"
-						>
-							{/* Step 1: Customer (hidden when embedded with prefilled customer) */}
-							{!hideCustomerStep && (
-								<AccordionItem value="customer">
-									<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-										<span className="flex items-center gap-2">
-											<StepBadge n={1} isComplete={hasCustomer} isLocked={false} />
-											Customer
-											{customerTypeMode === "member" && selectedCustomer && (
-												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													({selectedCustomer.name})
-												</span>
-											)}
-											{customerTypeMode === "walk_in" && (
-												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													(Walk-in)
-												</span>
-											)}
-										</span>
-									</AccordionTrigger>
-									<AccordionContent className="px-5 pt-2 pb-6">
-										<div className="space-y-4">
-											<div className="flex gap-2">
-												<Button
-													type="button"
-													size="sm"
-													variant={
-														customerTypeMode === "member" ? "default" : "outline"
-													}
-													onClick={() => handleCustomerTypeModeChange("member")}
-													className="min-w-24"
-												>
-													Member
-												</Button>
-												<Button
-													type="button"
-													size="sm"
-													variant={
-														customerTypeMode === "walk_in" ? "default" : "outline"
-													}
-													onClick={() => handleCustomerTypeModeChange("walk_in")}
-													className="min-w-24"
-												>
-													Walk-in
-												</Button>
-											</div>
-
-											{customerTypeMode === "member" && (
-												<CustomerStep
-													organizationId={organizationId}
-													branchId={resolvedBranchId}
-													selected={selectedCustomer}
-													onSelect={handleCustomerSelect}
-													onClear={handleCustomerClear}
-												/>
-											)}
-
-											{customerTypeMode === "walk_in" && (
-												<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-													<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
-														<UserX className="size-4 text-muted-foreground" />
-													</div>
-													<div>
-														<p className="font-medium text-sm">
-															Anonymous Walk-in
-														</p>
-														<p className="text-muted-foreground text-xs">
-															No customer record will be saved for this sale.
-														</p>
-													</div>
+										{customerTypeMode === "walk_in" && (
+											<div className="flex items-center gap-3 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+												<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1]">
+													<UserX className="h-5 w-5 text-[#0a0a0a]" />
 												</div>
+												<div>
+													<p className="text-sm font-semibold text-[#0a0a0a]">
+														Anonymous Walk-in
+													</p>
+													<p className="text-xs text-[#737373]">
+														No customer record will be saved for this sale.
+													</p>
+												</div>
+											</div>
+										)}
+
+										{/* Continue button */}
+										<div className="flex justify-end pt-1">
+											<button
+												type="button"
+												disabled={!hasCustomer}
+												onClick={handleNext}
+												className="rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-35"
+											>
+												Continue to Items →
+											</button>
+										</div>
+									</div>
+								)}
+
+								{/* Done summary */}
+								{stepState(0) === "done" && (
+									<div className="flex items-center gap-3 rounded-xl bg-[#f3f3f3] px-3 py-2.5">
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1] text-xs font-bold text-[#0a0a0a]">
+											{customerInitials}
+										</div>
+										<div className="flex-1 min-w-0">
+											<p className="text-sm font-semibold text-[#0a0a0a]">{customerLabel}</p>
+											<p className="text-[11px] text-[#737373]">
+												{customerTypeMode === "member" ? "Member" : "Walk-in"}
+											</p>
+										</div>
+										<span className="inline-flex items-center gap-1 rounded-full bg-[#dcfce7] px-2.5 py-0.5 text-[10px] font-semibold text-[#15803d]">
+											Active
+										</span>
+									</div>
+								)}
+							</StepCard>
+						)}
+
+						{/* ── STEP 1: Items ──────────────────────────────────────────── */}
+						<StepCard
+							n={hideCustomerStep ? 1 : 2}
+							label={STEP_DEFS[1].label}
+							stepLabel={hideCustomerStep ? "Step 1" : STEP_DEFS[1].stepLabel}
+							state={stepState(1)}
+							badge={<LockedBadge />}
+							onEdit={() => setCurrentStep(1)}
+						>
+							{currentStep === 1 && (
+								<div className="flex flex-col gap-4">
+									{/* Customer recap pill */}
+									{customerLabel && (
+										<div className="flex items-center gap-3 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-3 py-2.5">
+											<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0a0a0a] text-[10px] font-bold text-white">
+												{customerInitials}
+											</div>
+											<div className="flex-1 min-w-0">
+												<p className="truncate text-sm font-semibold text-[#0a0a0a]">{customerLabel}</p>
+												<p className="text-[11px] text-[#737373]">
+													{customerTypeMode === "member" ? "Member" : "Walk-in"}
+												</p>
+											</div>
+											{!hideCustomerStep && (
+												<button
+													type="button"
+													onClick={() => setCurrentStep(0)}
+													className="rounded-[10px] px-2 py-1 text-[11px] font-medium text-[#737373] transition hover:bg-white hover:text-[#0a0a0a]"
+												>
+													Change
+												</button>
 											)}
 										</div>
-									</AccordionContent>
-								</AccordionItem>
-							)}
-
-							{/* Step 2: Items */}
-							<AccordionItem value="items">
-								<AccordionTrigger
-									disabled={!hasCustomer}
-									className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
-								>
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={2 + stepNumberOffset}
-											isComplete={hasItems}
-											isLocked={!hasCustomer}
-										/>
-										Items
-										{items.length > 0 && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												({items.length} item{items.length !== 1 ? "s" : ""})
-											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									{!hasCustomer ? (
-										<p className="text-muted-foreground text-sm">
-											Select a customer first before adding items.
-										</p>
-									) : (
-										<ItemsStep
-											organizationId={organizationId}
-											selectedCustomer={selectedCustomer}
-											items={items}
-											onAddItem={handleAddItem}
-											onUpdateItem={handleUpdateItem}
-											onRemoveItem={handleRemoveItem}
-										/>
 									)}
-								</AccordionContent>
-							</AccordionItem>
 
-							{hasServiceItems && (
-								<AccordionItem value="trainers">
-									<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-										<span className="flex items-center gap-2">
-											<StepBadge
-												n={3 + stepNumberOffset}
-												isComplete={false}
-												isLocked={!hasItems}
+									<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Add Items
+									</p>
+
+									<ItemsStep
+										organizationId={organizationId}
+										selectedCustomer={selectedCustomer}
+										items={items}
+										onAddItem={handleAddItem}
+										onUpdateItem={handleUpdateItem}
+										onRemoveItem={handleRemoveItem}
+									/>
+
+									{/* Optional: trainer assignment */}
+									{hasServiceItems && (
+										<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+											<p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Trainer Assignment{" "}
+												<span className="normal-case font-normal">(optional)</span>
+											</p>
+											<TrainerPickerStep
+												items={items}
+												organizationId={organizationId}
+												assignments={trainerAssignments}
+												onChange={setTrainerAssignments}
 											/>
-											Trainers
-											<span className="font-normal text-muted-foreground text-xs">
-												(optional)
-											</span>
-										</span>
-									</AccordionTrigger>
-									<AccordionContent className="px-5 pt-2 pb-6">
-										<TrainerPickerStep
-											items={items}
-											organizationId={organizationId}
-											assignments={trainerAssignments}
-											onChange={setTrainerAssignments}
+										</div>
+									)}
+
+									{/* Tax */}
+									{taxRates.length > 0 && (
+										<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+											<p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Tax Rate
+											</p>
+											<div className="space-y-1.5">
+												<Label htmlFor="tax-rate" className="sr-only">
+													Tax rate
+												</Label>
+												<Select
+													value={selectedTaxRateId ?? "none"}
+													onValueChange={(v) =>
+														setSelectedTaxRateId(v === "none" ? null : v)
+													}
+												>
+													<SelectTrigger id="tax-rate" className="w-full max-w-xs border-[#e5e5e5]">
+														<SelectValue placeholder="No tax" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="none">No tax</SelectItem>
+														{taxRates.map((rate) => (
+															<SelectItem key={rate.id} value={rate.id}>
+																{rate.name} (
+																{(rate.rateInBasisPoints / 100).toFixed(0)}%)
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+										</div>
+									)}
+
+									{/* Notes */}
+									<div className="space-y-1.5">
+										<Label htmlFor="sale-notes" className="text-xs font-medium text-[#0a0a0a]">
+											Notes{" "}
+											<span className="font-normal text-[#737373]">(optional)</span>
+										</Label>
+										<Textarea
+											id="sale-notes"
+											placeholder="Any special instructions or notes..."
+											value={notes}
+											onChange={(e) => setNotes(e.target.value)}
+											rows={2}
+											className="resize-none border-[#e5e5e5]"
 										/>
-										<Button
-											className="mt-4 w-full"
-											variant="outline"
-											onClick={() => setAccordionValue("promo")}
+									</div>
+
+									{/* Continue */}
+									<div className="flex justify-end pt-1">
+										<button
 											type="button"
+											disabled={!hasItems}
+											onClick={handleNext}
+											className="rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-35"
 										>
-											Continue to Promotion
-										</Button>
-									</AccordionContent>
-								</AccordionItem>
+											Continue to Promotions →
+										</button>
+									</div>
+								</div>
 							)}
 
-							<AccordionItem value="promo">
-								<AccordionTrigger
-									disabled={!hasCustomer}
-									className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
-								>
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={promoStepN + stepNumberOffset}
-											isComplete={appliedPromo !== null}
-											isLocked={!hasCustomer}
-										/>
-										Promotion
-										{appliedPromo && (
-											<span className="ml-1 font-normal text-green-600 text-sm">
-												({appliedPromo.code})
+							{/* Done summary */}
+							{stepState(1) === "done" && items.length > 0 && (
+								<div className="mt-3 space-y-2">
+									{items.map((item) => (
+										<div key={item.id} className="flex items-center justify-between text-sm">
+											<div className="flex items-center gap-2">
+												<span className="flex h-5 w-5 items-center justify-center rounded border border-[#e5e5e5] bg-[#f3f3f3] text-[10px] font-bold text-[#0a0a0a]">
+													×{item.quantity}
+												</span>
+												<span className="font-medium text-[#0a0a0a]">{item.description}</span>
+											</div>
+											<span className="font-mono tabular-nums font-bold text-[#0a0a0a]">
+												{formatPrice(item.unitPriceCents * item.quantity, "MYR")}
 											</span>
-										)}
-										<span className="font-normal text-muted-foreground text-xs">
-											(optional)
-										</span>
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									{!hasCustomer ? (
-										<p className="text-muted-foreground text-sm">
-											Select a customer first to apply a promo code.
-										</p>
-									) : (
-										<PromoStep
-											organizationId={organizationId}
-											customerId={
-												customerTypeMode === "member"
-													? (selectedCustomer?.id ?? "")
-													: "anonymous"
-											}
-											branchId={resolvedBranchId}
-											items={items}
-											applied={appliedPromo}
-											onApply={setAppliedPromo}
-											onRemove={() => setAppliedPromo(null)}
-										/>
-									)}
-								</AccordionContent>
-							</AccordionItem>
+										</div>
+									))}
+								</div>
+							)}
+						</StepCard>
 
-							<AccordionItem value="tax">
-								<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={taxStepN + stepNumberOffset}
-											isComplete={true}
-											isLocked={false}
-										/>
-										Tax
-										{selectedTaxRate && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												({selectedTaxRate.name},{" "}
-												{(selectedTaxRate.rateInBasisPoints / 100).toFixed(0)}%)
-											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									<div className="space-y-1.5">
-										<Label htmlFor="tax-rate">Tax rate</Label>
-										<Select
-											value={selectedTaxRateId ?? "none"}
-											onValueChange={(v) =>
-												setSelectedTaxRateId(v === "none" ? null : v)
-											}
+						{/* ── STEP 2: Promotions ─────────────────────────────────────── */}
+						<StepCard
+							n={hideCustomerStep ? 2 : 3}
+							label={STEP_DEFS[2].label}
+							stepLabel={hideCustomerStep ? "Step 2" : STEP_DEFS[2].stepLabel}
+							state={stepState(2)}
+							badge={<LockedBadge />}
+							onEdit={() => setCurrentStep(2)}
+						>
+							{currentStep === 2 && (
+								<div className="flex flex-col gap-4">
+									<PromoStep
+										organizationId={organizationId}
+										customerId={
+											customerTypeMode === "member"
+												? (selectedCustomer?.id ?? "")
+												: "anonymous"
+										}
+										branchId={resolvedBranchId}
+										items={items}
+										applied={appliedPromo}
+										onApply={setAppliedPromo}
+										onRemove={() => setAppliedPromo(null)}
+									/>
+
+									<div className="flex justify-between pt-1">
+										<button
+											type="button"
+											onClick={() => setCurrentStep(1)}
+											className="rounded-[10px] border border-[#e5e5e5] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:border-[#a3a3a3]"
 										>
-											<SelectTrigger id="tax-rate" className="w-full max-w-xs">
-												<SelectValue placeholder="No tax" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="none">No tax</SelectItem>
-												{taxRates.map((rate) => (
-													<SelectItem key={rate.id} value={rate.id}>
-														{rate.name} (
-														{(rate.rateInBasisPoints / 100).toFixed(0)}%)
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+											← Back
+										</button>
+										<button
+											type="button"
+											onClick={handleNext}
+											className="rounded-xl bg-[#0a0a0a] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#262626]"
+										>
+											Continue to Payment →
+										</button>
 									</div>
-								</AccordionContent>
-							</AccordionItem>
+								</div>
+							)}
 
-							<AccordionItem value="payment">
-								<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={paymentStepN + stepNumberOffset}
-											isComplete={hasPaymentMethod && cashOk}
-											isLocked={false}
-										/>
-										Payment
-										{paymentMethod && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm capitalize">
-												({" "}
-												{paymentMethod === "bank_transfer"
-													? "Bank Transfer"
-													: paymentMethod.charAt(0).toUpperCase() +
-														paymentMethod.slice(1)}
-												)
+							{/* Done summary */}
+							{stepState(2) === "done" && (
+								<div className="mt-3">
+									{appliedPromo ? (
+										<div className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-3 py-2">
+											<span className="text-sm font-semibold text-[#0a0a0a]">
+												{appliedPromo.code}
 											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
+											<span className="font-mono tabular-nums text-sm font-semibold text-green-700">
+												−{formatPrice(discountCents, "MYR")}
+											</span>
+										</div>
+									) : (
+										<p className="text-sm text-[#737373]">No promotion applied</p>
+									)}
+								</div>
+							)}
+						</StepCard>
+
+						{/* ── STEP 3: Payment ────────────────────────────────────────── */}
+						<StepCard
+							n={hideCustomerStep ? 3 : 4}
+							label={STEP_DEFS[3].label}
+							stepLabel={hideCustomerStep ? "Step 3" : STEP_DEFS[3].stepLabel}
+							state={stepState(3)}
+							badge={<LockedBadge />}
+							onEdit={() => setCurrentStep(3)}
+						>
+							{currentStep === 3 && (
+								<div className="flex flex-col gap-5">
 									<PaymentStep
 										organizationId={organizationId}
 										items={items}
@@ -857,86 +1097,437 @@ export function PosWorkflow({
 										paymentReference={paymentReference}
 										amountTenderedCents={amountTenderedCents}
 										selectedInstallmentPlanId={selectedInstallmentPlanId}
+										preferredTrainerId={preferredTrainerId}
 										onMethodChange={setPaymentMethod}
 										onReferenceChange={setPaymentReference}
 										onAmountTenderedChange={setAmountTenderedCents}
 										onInstallmentPlanChange={setSelectedInstallmentPlanId}
+										onPreferredTrainerChange={setPreferredTrainerId}
 									/>
-								</AccordionContent>
-							</AccordionItem>
-						</Accordion>
+
+									<div className="flex justify-between pt-1">
+										<button
+											type="button"
+											onClick={() => setCurrentStep(2)}
+											className="rounded-[10px] border border-[#e5e5e5] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:border-[#a3a3a3]"
+										>
+											← Back
+										</button>
+										<button
+											type="button"
+											disabled={!(hasPaymentMethod && cashOk)}
+											onClick={handleNext}
+											className="rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-35"
+										>
+											Review & Confirm →
+										</button>
+									</div>
+								</div>
+							)}
+
+							{/* Done summary */}
+							{stepState(3) === "done" && paymentMethod && (
+								<div className="mt-3 flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-3 py-2">
+									<span className="text-sm font-semibold text-[#0a0a0a]">
+										{formatPaymentLabel(paymentMethod)}
+									</span>
+									{paymentReference && (
+										<span className="font-mono text-xs text-[#737373]">
+											Ref: {paymentReference}
+										</span>
+									)}
+								</div>
+							)}
+						</StepCard>
+
+						{/* ── STEP 4: Confirm ─────────────────────────────────────────── */}
+						<StepCard
+							n={hideCustomerStep ? 4 : 5}
+							label={STEP_DEFS[4].label}
+							stepLabel={hideCustomerStep ? "Step 4" : STEP_DEFS[4].stepLabel}
+							state={stepState(4)}
+							badge={<LockedBadge />}
+						>
+							{currentStep === 4 && (
+								<div className="flex flex-col gap-5">
+									{/* Order recap table */}
+									<div className="overflow-hidden rounded-xl border border-[#e5e5e5]">
+										<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+											<span className="text-sm text-[#737373]">Customer</span>
+											<span className="text-sm font-semibold text-[#0a0a0a]">
+												{customerLabel ?? "Walk-in"}
+											</span>
+										</div>
+										<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+											<span className="text-sm text-[#737373]">Items</span>
+											<span className="text-sm font-semibold text-[#0a0a0a]">
+												{items.length} item{items.length !== 1 ? "s" : ""}
+											</span>
+										</div>
+										<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+											<span className="text-sm text-[#737373]">Payment</span>
+											<span className="text-sm font-semibold text-[#0a0a0a]">
+												{formatPaymentLabel(paymentMethod)}
+											</span>
+										</div>
+										{discountCents > 0 && (
+											<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+												<span className="text-sm text-green-700">Discount ({appliedPromo?.code})</span>
+												<span className="font-mono tabular-nums text-sm text-green-700">
+													−{formatPrice(discountCents, "MYR")}
+												</span>
+											</div>
+										)}
+										{taxCents > 0 && (
+											<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+												<span className="text-sm text-[#737373]">
+													{selectedTaxRate?.name ?? "Tax"} ({(taxRateBps / 100).toFixed(0)}%)
+												</span>
+												<span className="font-mono tabular-nums text-sm text-[#737373]">
+													{formatPrice(taxCents, "MYR")}
+												</span>
+											</div>
+										)}
+										<div className="flex items-center justify-between bg-[#f3f3f3] px-4 py-3">
+											<span className="text-base font-bold text-[#0a0a0a]">Total</span>
+											<span className="font-mono tabular-nums text-xl font-bold text-[#0a0a0a]">
+												{formatPrice(totalCents, "MYR")}
+											</span>
+										</div>
+									</div>
+
+									{/* CartSummary (detailed line items) */}
+									<CartSummary
+										items={items}
+										discountCents={discountCents}
+										taxRateBps={taxRateBps}
+										paymentMethod={paymentMethod as any}
+										amountTenderedCents={amountTenderedCents}
+									/>
+
+									{notes && (
+										<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-4 py-3">
+											<p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Notes
+											</p>
+											<p className="text-sm text-[#0a0a0a]">{notes}</p>
+										</div>
+									)}
+
+									<div className="rounded-xl bg-[#f3f3f3] border border-[#e5e5e5] px-4 py-3 text-xs text-[#737373]">
+										Review the order above before confirming. This action cannot be undone.
+									</div>
+
+									<div className="flex justify-between pt-1">
+										<button
+											type="button"
+											onClick={() => setCurrentStep(3)}
+											className="rounded-[10px] border border-[#e5e5e5] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:border-[#a3a3a3]"
+										>
+											← Back
+										</button>
+										<Button
+											disabled={!isReadyToSubmit || submitMutation.isPending}
+											onClick={() => submitMutation.mutate()}
+											className="min-w-44 rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#262626] disabled:opacity-35"
+											data-testid="pos-complete-sale-button"
+										>
+											{submitMutation.isPending ? (
+												<>
+													<LoadingSpinner size="sm" className="mr-2" />
+													Processing...
+												</>
+											) : (
+												<>
+													Charge & Confirm
+													<Check className="ml-1.5 h-4 w-4" />
+												</>
+											)}
+										</Button>
+									</div>
+								</div>
+							)}
+
+							{/* Locked placeholder */}
+							{stepState(4) === "idle" && (
+								<div className="mt-4 flex h-12 items-center justify-center rounded-xl bg-[#f3f3f3] text-xs text-[#a3a3a3]">
+									Complete previous steps to unlock
+								</div>
+							)}
+						</StepCard>
+
 					</div>
 
-					<div className="rounded-xl border bg-card shadow-sm p-5 space-y-4">
-						<div className="space-y-1.5">
-							<Label htmlFor="sale-notes" className="text-sm font-medium">
-								Notes{" "}
-								<span className="font-normal text-muted-foreground">
-									(optional)
-								</span>
-							</Label>
-							<Textarea
-								id="sale-notes"
-								placeholder="Any special instructions or notes..."
-								value={notes}
-								onChange={(e) => setNotes(e.target.value)}
-								rows={2}
-								className="resize-none"
-							/>
+					{/* ── RIGHT: Live order panel ───────────────────────────────────── */}
+					<div className="flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+
+						{/* Live order summary */}
+						<div className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+							{/* Header */}
+							<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
+								<p className="text-sm font-bold text-[#0a0a0a]">Live Order</p>
+								<p className="font-mono text-[10px] text-[#737373]">
+									{now.toLocaleString("en-MY", {
+										hour: "2-digit",
+										minute: "2-digit",
+										second: "2-digit",
+									})}
+								</p>
+							</div>
+
+							{/* Step timeline */}
+							<div className="flex-1 space-y-4 px-4 py-4">
+
+								{/* Step 0: Customer */}
+								{!hideCustomerStep && (
+									<>
+										<div className="flex items-start gap-3">
+											<LiveDot state={stepState(0)} />
+											<div className="flex-1">
+												<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+													Customer
+												</p>
+												{stepState(0) === "done" || stepState(0) === "active" ? (
+													<p className="text-xs font-semibold text-[#0a0a0a]">
+														{customerLabel ?? (customerTypeMode === "walk_in" ? "Walk-in" : "—")}
+													</p>
+												) : (
+													<p className="text-xs text-[#a3a3a3]">Not selected</p>
+												)}
+											</div>
+										</div>
+										<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
+									</>
+								)}
+
+								{/* Step 1: Items */}
+								<div className="flex items-start gap-3">
+									<LiveDot state={stepState(1)} />
+									<div className="flex-1">
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Items {items.length > 0 ? `(${items.length})` : ""}
+										</p>
+										{items.length > 0 ? (
+											<p className="text-xs text-[#404040]">
+												{items.map((i) => i.description).join(", ")}
+											</p>
+										) : (
+											<p className="text-xs text-[#a3a3a3]">None added</p>
+										)}
+									</div>
+								</div>
+								<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
+
+								{/* Step 2: Promotions */}
+								<div className="flex items-start gap-3">
+									<LiveDot state={stepState(2)} />
+									<div className="flex-1">
+										<p className={cn(
+											"text-[10px] font-bold uppercase tracking-widest",
+											stepState(2) === "active" ? "text-[#0a0a0a]" : "text-[#737373]",
+										)}>
+											Promotions
+										</p>
+										{appliedPromo ? (
+											<p className="text-xs font-semibold text-amber-600">
+												{appliedPromo.code} — saves {formatPrice(discountCents, "MYR")}
+											</p>
+										) : stepState(2) === "done" ? (
+											<p className="text-xs text-[#737373]">None applied</p>
+										) : null}
+									</div>
+								</div>
+								<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
+
+								{/* Step 3: Payment */}
+								<div className={cn(
+									"flex items-start gap-3",
+									stepState(3) === "idle" && "opacity-40",
+								)}>
+									<LiveDot state={stepState(3)} />
+									<div className="flex-1">
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Payment
+										</p>
+										{paymentMethod && (
+											<p className="text-xs font-semibold text-[#0a0a0a]">
+												{formatPaymentLabel(paymentMethod)}
+											</p>
+										)}
+									</div>
+								</div>
+								<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
+
+								{/* Step 4: Confirm */}
+								<div className={cn(
+									"flex items-start gap-3",
+									stepState(4) === "idle" && "opacity-40",
+								)}>
+									<LiveDot state={stepState(4)} />
+									<div>
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Confirm
+										</p>
+									</div>
+								</div>
+							</div>
+
+							{/* Live totals */}
+							<div className="border-t border-[#e5e5e5] px-4 py-4 space-y-1.5">
+								<div className="flex justify-between text-xs text-[#737373]">
+									<span>Items ({items.length})</span>
+									<span className="font-mono tabular-nums">{formatPrice(subtotalCents, "MYR")}</span>
+								</div>
+								{discountCents > 0 && (
+									<div className="flex justify-between text-xs text-amber-600">
+										<span>Promo {appliedPromo?.code}</span>
+										<span className="font-mono tabular-nums">−{formatPrice(discountCents, "MYR")}</span>
+									</div>
+								)}
+								{taxCents > 0 && (
+									<div className="flex justify-between text-xs text-[#737373]">
+										<span>{selectedTaxRate?.name ?? "Tax"} ({(taxRateBps / 100).toFixed(0)}%)</span>
+										<span className="font-mono tabular-nums">{formatPrice(taxCents, "MYR")}</span>
+									</div>
+								)}
+								<hr className="border-t border-[#e5e5e5]" />
+								<div className="flex justify-between text-base font-extrabold text-[#0a0a0a]">
+									<span>Est. Total</span>
+									<span className="font-mono tabular-nums">{formatPrice(totalCents, "MYR")}</span>
+								</div>
+							</div>
 						</div>
 
-						<div className="flex items-center justify-between gap-4 pt-1">
-							<div className="text-muted-foreground text-sm">
-								{!isReadyToSubmit && (
-									<span>
-										{!hasCustomer
-											? "Select a customer"
-											: !hasItems
-												? "Add at least one item"
-												: !hasPaymentMethod
-													? "Choose a payment method"
-													: !cashOk
-														? "Enter the tendered cash amount"
-														: ""}
-									</span>
-								)}
-							</div>
-							<Button
-								size="lg"
-								disabled={!isReadyToSubmit || submitMutation.isPending}
-								onClick={() => submitMutation.mutate()}
-								className="min-w-44 font-semibold"
+						{/* ── Print styles (injected once, harmless when not printing) ── */}
+						<style>{`
+							@media print {
+								body * { visibility: hidden; }
+								#pos-receipt-print, #pos-receipt-print * { visibility: visible; }
+								#pos-receipt-print { position: absolute; left: 0; top: 0; }
+							}
+						`}</style>
+
+						{/* Last Receipt Preview */}
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+							<p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+								Last Receipt Preview
+							</p>
+
+							{/* Receipt block — given the print id so @media print can isolate it */}
+							<div
+								id="pos-receipt-print"
+								className="rounded-xl bg-[#f3f3f3] p-3 font-mono text-[10px] text-[#737373] space-y-1"
 							>
-								{submitMutation.isPending ? (
+								{lastReceipt ? (
 									<>
-										<LoadingSpinner size="sm" className="mr-2" />
-										Processing…
+										<p className="text-center font-bold text-[11px] text-[#0a0a0a]">
+											{lastReceipt.orgName.toUpperCase()}
+										</p>
+										<p className="text-center">
+											{lastReceipt.timestamp.toLocaleString("en-MY", {
+												dateStyle: "medium",
+												timeStyle: "short",
+											})}
+										</p>
+										<hr className="border-dashed border-[#e5e5e5]" />
+										<p className="text-[9px] text-[#a3a3a3]">
+											Customer: {lastReceipt.customerName}
+										</p>
+										<hr className="border-dashed border-[#e5e5e5]" />
+										{lastReceipt.items.map((item) => (
+											<div key={item.id} className="flex justify-between">
+												<span className="truncate max-w-[120px]">
+													{item.description} ×{item.quantity}
+												</span>
+												<span className="tabular-nums">
+													{formatPrice(item.unitPriceCents * item.quantity, "MYR")}
+												</span>
+											</div>
+										))}
+										<hr className="border-dashed border-[#e5e5e5]" />
+										{lastReceipt.discountCents > 0 && (
+											<div className="flex justify-between text-[#737373]">
+												<span>Discount</span>
+												<span className="tabular-nums">
+													−{formatPrice(lastReceipt.discountCents, "MYR")}
+												</span>
+											</div>
+										)}
+										{lastReceipt.taxCents > 0 && (
+											<div className="flex justify-between text-[#737373]">
+												<span>Tax</span>
+												<span className="tabular-nums">
+													{formatPrice(lastReceipt.taxCents, "MYR")}
+												</span>
+											</div>
+										)}
+										<div className="flex justify-between font-bold text-[#0a0a0a] text-[11px]">
+											<span>TOTAL</span>
+											<span className="tabular-nums">
+												{formatPrice(lastReceipt.totalCents, "MYR")}
+											</span>
+										</div>
+										<hr className="border-dashed border-[#e5e5e5]" />
+										<p className="text-center text-[9px]">
+											Payment: {formatPaymentLabel(lastReceipt.paymentMethod)}
+										</p>
+										<p className="text-center text-[9px]">Thank you!</p>
 									</>
 								) : (
-									"Charge & Confirm"
+									<>
+										<p className="text-center font-bold text-[11px] text-[#0a0a0a]">
+											{userContext?.organizations.find(
+												(o) => o.id === organizationId,
+											)?.name?.toUpperCase() ?? "—"}
+										</p>
+										<p className="text-center">{today}</p>
+										<hr className="border-dashed border-[#e5e5e5]" />
+										<p className="text-center text-[9px] text-[#a3a3a3] italic">
+											No transactions yet this session
+										</p>
+										<hr className="border-dashed border-[#e5e5e5]" />
+										<p className="text-center text-[9px]">
+											Complete a sale to see the receipt here
+										</p>
+									</>
 								)}
-							</Button>
-						</div>
-					</div>
-				</div>
+							</div>
 
-				<div className="lg:sticky lg:top-6 lg:col-span-1">
-					<CartSummary
-						items={items}
-						discountCents={discountCents}
-						taxRateBps={taxRateBps}
-						paymentMethod={paymentMethod}
-						amountTenderedCents={amountTenderedCents}
-					/>
+							<div className="mt-3 flex gap-2">
+								<button
+									type="button"
+									disabled={!lastReceipt}
+									onClick={() => window.print()}
+									className={cn(
+										"flex-1 rounded-[10px] border border-[#e5e5e5] bg-white py-1.5 text-xs font-medium text-[#0a0a0a] transition-colors",
+										lastReceipt
+											? "hover:bg-[#f3f3f3] cursor-pointer"
+											: "opacity-40 cursor-not-allowed",
+									)}
+								>
+									Print
+								</button>
+								<button
+									type="button"
+									disabled
+									className="flex-1 rounded-[10px] border border-[#e5e5e5] bg-white py-1.5 text-xs font-medium text-[#0a0a0a] opacity-40 cursor-not-allowed"
+								>
+									Email
+								</button>
+							</div>
+						</div>
+
+					</div>
 				</div>
 			</div>
 
+			{/* ── Clear cart dialog ──────────────────────────────────────────── */}
 			<Dialog open={clearCartDialogOpen} onOpenChange={setClearCartDialogOpen}>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Clear cart?</DialogTitle>
 					</DialogHeader>
-					<p className="py-2 text-muted-foreground text-sm">
+					<p className="py-2 text-[#737373] text-sm">
 						Changing the customer will clear all items from the cart. This
 						cannot be undone.
 					</p>

@@ -58,7 +58,7 @@ interface RowProps {
 
 function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, onRemove }: RowProps) {
 	const priceRm = centsToRm(item.unitPriceCents);
-	const isLookup = item.type === "service";
+	const isLookup = item.type === "service" || item.type === "package";
 
 	const [isPriceLoading, setIsPriceLoading] = useState(false);
 	const [noPriceWarning, setNoPriceWarning] = useState(false);
@@ -73,6 +73,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 		setNoPriceWarning(false);
 
 		onUpdate({
+			type: "package",
 			refId: svc.id,
 			description: svc.name,
 			unitPriceCents: 0,
@@ -100,11 +101,11 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 	}
 
 	return (
-		<div className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3">
+		<div className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3" data-testid="pos-catalog-item">
 			{/* Type badge */}
 			<div className="col-span-12 sm:col-span-2">
 				<span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
-					{item.type === "service" ? "Service" : "Custom"}
+					{item.type === "package" ? "Package" : item.type === "service" ? "Service" : "Custom"}
 				</span>
 			</div>
 
@@ -293,6 +294,7 @@ export function ItemsStep({
 						variant="outline"
 						size="sm"
 						onClick={() => addItem("service")}
+						data-testid="pos-add-service-button"
 					>
 						<Plus className="mr-1 size-3.5" />
 						Service
@@ -302,6 +304,7 @@ export function ItemsStep({
 						variant="outline"
 						size="sm"
 						onClick={() => addItem("custom")}
+						data-testid="pos-add-product-button"
 					>
 						<Plus className="mr-1 size-3.5" />
 						Custom

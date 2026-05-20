@@ -5,10 +5,6 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import DataTable from "@/components/tables/sales/view/data-table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,9 +22,7 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { Star, Plus, Edit, Tag } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 
 export const Route = createLazyFileRoute(
@@ -62,7 +56,7 @@ type TaxRateRow = {
 type FormState = {
 	name: string;
 	code: string;
-	ratePercent: string; // user enters "8.00", stored as string for controlled input
+	ratePercent: string;
 	category: TaxCategory;
 	effectiveFrom: string;
 	effectiveUntil: string;
@@ -97,11 +91,8 @@ const CATEGORY_LABELS: Record<TaxCategory, string> = {
 function formatDate(value: string | null | undefined): string {
 	if (!value) return "—";
 	try {
-		return new Date(value).toLocaleDateString("en-MY", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		});
+		const d = new Date(value);
+		return d.toISOString().slice(0, 10); // YYYY-MM-DD for mono display
 	} catch {
 		return "—";
 	}
@@ -119,19 +110,16 @@ function toDateInputValue(value: string | Date | null | undefined): string {
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 function TaxRatesPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const taxRatesKey = ["taxRates", organizationId];
 
-	// Sheet state
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
-
-	// Status filter
-	const [showInactive, setShowInactive] = useState(false);
+	const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
+	const [search, setSearch] = useState("");
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
 
@@ -141,7 +129,7 @@ function TaxRatesPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["taxRates", organizationId],
+		queryKey: taxRatesKey,
 		queryFn: async () => {
 			if (!organizationId) return [];
 			return client.taxRates.list({ organizationId });
@@ -201,7 +189,7 @@ function TaxRatesPage() {
 			return client.taxRates.setDefault({ organizationId, id });
 		},
 		successMessage: "Tax rate set as default.",
-		errorMessage: (err) => err.message || "Failed to set default tax rate.",
+		errorMessage: (err) => err.message || "Failed to set default.",
 		invalidate: [taxRatesKey],
 	});
 
@@ -211,7 +199,7 @@ function TaxRatesPage() {
 			return client.taxRates.deactivate({ organizationId, id });
 		},
 		successMessage: "Tax rate deactivated.",
-		errorMessage: (err) => err.message || "Failed to deactivate tax rate.",
+		errorMessage: (err) => err.message || "Failed to deactivate.",
 		invalidate: [taxRatesKey],
 	});
 
@@ -252,29 +240,12 @@ function TaxRatesPage() {
 
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-
-		if (!form.name.trim()) {
-			toast.error("Name is required.");
-			return;
-		}
-		if (!form.code.trim()) {
-			toast.error("Code is required.");
-			return;
-		}
+		if (!form.name.trim()) { toast.error("Name is required."); return; }
+		if (!form.code.trim()) { toast.error("Code is required."); return; }
 		const rate = parseFloat(form.ratePercent);
-		if (Number.isNaN(rate) || rate < 0) {
-			toast.error("Rate must be a valid non-negative number.");
-			return;
-		}
-		if (Math.round(rate * 100) > 10000) {
-			toast.error("Rate cannot exceed 100% (10,000 basis points).");
-			return;
-		}
-		if (!form.effectiveFrom) {
-			toast.error("Effective From date is required.");
-			return;
-		}
-
+		if (Number.isNaN(rate) || rate < 0) { toast.error("Rate must be a valid non-negative number."); return; }
+		if (Math.round(rate * 100) > 10000) { toast.error("Rate cannot exceed 100%."); return; }
+		if (!form.effectiveFrom) { toast.error("Effective From date is required."); return; }
 		if (editingId) {
 			updateMutation.mutate({ id: editingId, values: form });
 		} else {
@@ -298,280 +269,238 @@ function TaxRatesPage() {
 		createdAt: item.createdAt ? String(item.createdAt) : "",
 	}));
 
-	const rows = allRows.filter((item) => (showInactive ? true : item.isActive));
+	const rows = allRows.filter((r) => {
+		const matchesStatus = statusFilter === "all" ? true : r.isActive;
+		const matchesSearch =
+			search.trim() === "" ||
+			r.name.toLowerCase().includes(search.toLowerCase()) ||
+			r.code.toLowerCase().includes(search.toLowerCase());
+		return matchesStatus && matchesSearch;
+	});
 
-	// KPI data — computed from allRows (not filtered) for accurate counts
-	const defaultRate = allRows.find((r) => r.isDefault && r.isActive) ?? null;
 	const activeCount = allRows.filter((r) => r.isActive).length;
-	const inactiveCount = allRows.filter((r) => !r.isActive).length;
 
-	// ─── Column definitions ───────────────────────────────────────────────────
-
-	const columns: ColumnDef<TaxRateRow>[] = [
-		{
-			accessorKey: "name",
-			header: "Name",
-			cell: ({ row }) => (
-				<span className="font-medium">{row.original.name}</span>
-			),
-		},
-		{
-			accessorKey: "code",
-			header: "Code",
-			cell: ({ row }) => (
-				<Badge variant="outline" className="font-mono">
-					{row.original.code}
-				</Badge>
-			),
-		},
-		{
-			accessorKey: "rateInBasisPoints",
-			header: "Rate",
-			cell: ({ row }) => (
-				<span className="tabular-nums">
-					{(row.original.rateInBasisPoints / 100).toFixed(2)}%
-				</span>
-			),
-		},
-		{
-			accessorKey: "category",
-			header: "Category",
-			cell: ({ row }) => (
-				<span>
-					{CATEGORY_LABELS[row.original.category] ?? row.original.category}
-				</span>
-			),
-		},
-		{
-			accessorKey: "isDefault",
-			header: "Default",
-			enableSorting: false,
-			cell: ({ row }) => {
-				const isDefault = row.original.isDefault;
-				const isActive = row.original.isActive;
-				return (
-					<button
-						type="button"
-						title={isDefault ? "Current default" : "Set as default"}
-						disabled={isDefault || !isActive || isMutating}
-						onClick={() => setDefaultMutation.mutate(row.original.id)}
-						className="flex items-center justify-center disabled:cursor-not-allowed"
-					>
-						<Star
-							className={`size-4 transition-colors ${
-								isDefault
-									? "fill-amber-400 text-amber-400"
-									: "text-muted-foreground hover:text-amber-400"
-							}`}
-						/>
-					</button>
-				);
-			},
-		},
-		{
-			accessorKey: "effectiveFrom",
-			header: "Effective From",
-			cell: ({ row }) => formatDate(row.original.effectiveFrom),
-		},
-		{
-			accessorKey: "effectiveUntil",
-			header: "Effective Until",
-			cell: ({ row }) =>
-				row.original.effectiveUntil ? (
-					formatDate(row.original.effectiveUntil)
-				) : (
-					<span className="text-muted-foreground text-xs">Active</span>
-				),
-		},
-		{
-			accessorKey: "isActive",
-			header: "Status",
-			cell: ({ row }) =>
-				row.original.isActive ? (
-					<Badge variant="default">Active</Badge>
-				) : (
-					<Badge variant="outline">Inactive</Badge>
-				),
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			enableSorting: false,
-			enableHiding: false,
-			cell: ({ row }) => (
-				<div className="flex items-center gap-2">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => openEdit(row.original)}
-						disabled={isMutating}
-					>
-						<Edit className="size-4 mr-1" />
-						Edit
-					</Button>
-					{row.original.isActive && (
-						<Button
-							variant="ghost"
-							size="sm"
-							className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-							onClick={() => deactivateMutation.mutate(row.original.id)}
-							disabled={isMutating || row.original.isDefault}
-							title={
-								row.original.isDefault
-									? "Cannot deactivate the default tax rate"
-									: undefined
-							}
-						>
-							Deactivate
-						</Button>
-					)}
-				</div>
-			),
-		},
-	];
-
-	// ─── Guard: no org selected ───────────────────────────────────────────────
+	// ─── Guard ────────────────────────────────────────────────────────────────
 
 	if (!organizationId) {
 		return (
-			<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-				<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-					Select an organization to manage tax rates.
-				</div>
+			<div className="-m-6 flex h-screen flex-col items-center justify-center text-sm text-[#6b7170]">
+				Select an organization to manage tax rates.
 			</div>
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
+	if (isLoading) return <PageLoader />;
 
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			{/* Fixed header */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Tag className="size-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Tax Rates</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Configure tax rates applied at point of sale
-						</p>
-					</div>
+		<div className="-m-6 flex h-screen flex-col bg-white">
+			{/* Page header */}
+			<div className="flex shrink-0 items-center justify-between border-b border-[#edede4] px-7 py-5">
+				<div>
+					<h1 className="text-[15px] font-bold text-[#0a0a0a]">Tax Rates</h1>
+					<p className="mt-0.5 text-xs text-[#6b7170]">
+						Manage tax rates applied to sales across your branches.
+					</p>
 				</div>
-				<Button onClick={openCreate} disabled={isMutating}>
-					<Plus className="size-4 mr-2" />
-					New Tax Rate
-				</Button>
+				<button
+					type="button"
+					onClick={openCreate}
+					disabled={isMutating}
+					className="inline-flex items-center gap-1.5 rounded-lg border border-[#edede4] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-50"
+				>
+					<svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+						<path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+					</svg>
+					Add tax rate
+				</button>
 			</div>
 
-			{/* Filter band */}
-			<div className="shrink-0 border-b border-border/40 px-6 py-3">
-				<div className="flex items-center gap-3">
-					<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
-						<button
-							type="button"
-							onClick={() => setShowInactive(false)}
-							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-								!showInactive
-									? "bg-background shadow-sm text-foreground"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
-						>
-							Active
-						</button>
-						<button
-							type="button"
-							onClick={() => setShowInactive(true)}
-							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-								showInactive
-									? "bg-background shadow-sm text-foreground"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
-						>
-							All
-						</button>
-					</div>
-					<span className="text-sm text-muted-foreground">
-						{rows.length} {rows.length === 1 ? "rate" : "rates"}
-					</span>
+			{/* Filter row */}
+			<div className="flex shrink-0 items-center gap-3 border-b border-[#edede4] bg-[#faf9f5] px-7 py-3">
+				<div className="flex flex-1 items-center gap-2">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[#6b7170]">
+						<circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+						<path d="m10 10 3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+					</svg>
+					<input
+						type="text"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						placeholder="Search rates…"
+						className="w-[220px] rounded-lg border border-[#edede4] bg-white px-3 py-1.5 text-xs text-[#0a0a0a] outline-none transition-colors focus:border-[#0a0a0a] placeholder:text-[#6b7170]"
+					/>
 				</div>
+				<select
+					value={statusFilter}
+					onChange={(e) => setStatusFilter(e.target.value as "active" | "all")}
+					className="rounded-lg border border-[#edede4] bg-white px-3 py-1.5 text-xs text-[#0a0a0a] outline-none focus:border-[#0a0a0a]"
+				>
+					<option value="active">Active</option>
+					<option value="all">All status</option>
+				</select>
 			</div>
 
-			{/* Scroll region */}
-			<div className="min-h-0 flex-1 overflow-auto p-6 space-y-4">
-				{/* KPI strip */}
-				<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-					{/* Default rate — spans 2 cols */}
-					{defaultRate ? (
-						<div className="col-span-2 rounded-xl border bg-amber-50 border-amber-200 p-3">
-							<div className="flex items-center justify-between">
-								<div className="text-xs text-amber-700 font-medium">
-									Default Rate
-								</div>
-								<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-									<Star className="size-3 fill-amber-500 text-amber-500" />
-									Default
-								</span>
-							</div>
-							<div className="mt-1 text-3xl font-bold tabular-nums text-amber-800">
-								{(defaultRate.rateInBasisPoints / 100).toFixed(2)}%
-							</div>
-							<div className="text-xs text-amber-700 mt-0.5">
-								{defaultRate.name}
-							</div>
-						</div>
-					) : (
-						<div className="col-span-2">
-							<StatusCallout variant="warning" title="No default tax rate set">
-								<p className="text-sm">
-									Set a default tax rate so it is pre-selected at point of sale.
-								</p>
-							</StatusCallout>
-						</div>
-					)}
-					<div className="rounded-xl border bg-card p-3">
-						<div className="text-xs text-muted-foreground">Active</div>
-						<div className="mt-1 text-xl font-semibold tabular-nums">
-							{activeCount}
-						</div>
-						<div className="text-xs text-muted-foreground">rates in use</div>
-					</div>
-					<div className="rounded-xl border bg-card p-3">
-						<div className="text-xs text-muted-foreground">Inactive</div>
-						<div className="mt-1 text-xl font-semibold tabular-nums">
-							{inactiveCount}
-						</div>
-						<div className="text-xs text-muted-foreground">archived rates</div>
-					</div>
-				</div>
-
-				{/* Error callout */}
-				{isError && (
-					<StatusCallout
-						variant="error"
-						title="Failed to load tax rates"
-						onRetry={() => refetch()}
-					>
+			{/* Error */}
+			{isError && (
+				<div className="shrink-0 px-7 pt-4">
+					<StatusCallout variant="error" title="Failed to load tax rates" onRetry={() => refetch()}>
 						<p className="text-sm">Please try again.</p>
 					</StatusCallout>
-				)}
+				</div>
+			)}
 
-				{/* Table or empty state */}
+			{/* Table */}
+			<div className="min-h-0 flex-1 overflow-auto">
 				{!isError && rows.length === 0 ? (
-					<EmptyState
-						icon={Tag}
-						title="No tax rates"
-						description="No tax rates have been configured yet. Add one to get started."
-						action={{ label: "New Tax Rate", onClick: openCreate }}
-					/>
+					<div className="flex flex-col items-center justify-center gap-2 py-20 text-sm text-[#6b7170]">
+						<svg width="32" height="32" viewBox="0 0 16 16" fill="none" className="opacity-30">
+							<path d="M2 3h12M4 7h8M6 11h4" stroke="#0a0a0a" strokeWidth="1.5" strokeLinecap="round" />
+						</svg>
+						<span className="font-medium text-[#0a0a0a]">No tax rates</span>
+						<span>No rates match the current filter.</span>
+						<button
+							type="button"
+							onClick={openCreate}
+							className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[#edede4] bg-white px-3 py-1.5 text-xs font-medium text-[#0a0a0a] hover:bg-[#f7f5ee]"
+						>
+							<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+							Add tax rate
+						</button>
+					</div>
 				) : (
-					<DataTable<TaxRateRow, unknown> columns={columns} data={rows} />
+					<table className="w-full border-collapse text-[13px]">
+						<thead>
+							<tr>
+								{["Name", "Rate", "Category", "Effective From", "Effective To", "Status", "Default", ""].map((h) => (
+									<th
+										key={h}
+										className="border-b border-[#edede4] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6b7170] whitespace-nowrap"
+									>
+										{h}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{rows.map((row) => (
+								<tr
+									key={row.id}
+									className="group border-b border-[#f7f5ee] last:border-b-0 hover:bg-[#faf9f5] transition-colors"
+									style={{ opacity: row.isActive ? 1 : 0.65 }}
+								>
+									{/* Name */}
+									<td className="px-3.5 py-3 align-middle">
+										<div className="font-semibold text-[13px] text-[#0a0a0a]">{row.name}</div>
+										<div className="text-xs text-[#6b7170] font-mono">{row.code}</div>
+									</td>
+
+									{/* Rate */}
+									<td className="px-3.5 py-3 align-middle">
+										<span className="font-mono tabular-nums text-[13px] font-semibold text-[#0a0a0a]">
+											{(row.rateInBasisPoints / 100).toFixed(2)}%
+										</span>
+									</td>
+
+									{/* Category */}
+									<td className="px-3.5 py-3 align-middle">
+										<span
+											className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium"
+											style={{ background: "#d9d9ca", color: "#0a0a0a" }}
+										>
+											{CATEGORY_LABELS[row.category] ?? row.category}
+										</span>
+									</td>
+
+									{/* Effective From */}
+									<td className="px-3.5 py-3 align-middle">
+										<span className="font-mono text-xs tabular-nums text-[#0a0a0a]">
+											{formatDate(row.effectiveFrom)}
+										</span>
+									</td>
+
+									{/* Effective To */}
+									<td className="px-3.5 py-3 align-middle">
+										{row.effectiveUntil ? (
+											<span className="font-mono text-xs tabular-nums text-[#0a0a0a]">
+												{formatDate(row.effectiveUntil)}
+											</span>
+										) : (
+											<span className="text-xs text-[#6b7170]">—</span>
+										)}
+									</td>
+
+									{/* Status */}
+									<td className="px-3.5 py-3 align-middle">
+										{row.isActive ? (
+											<span className="inline-flex items-center gap-1 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-0.5 text-[11px] font-medium text-[#15803d]">
+												Active
+											</span>
+										) : (
+											<span className="inline-flex items-center gap-1 rounded-md border border-[#fecaca] bg-[#fef2f2] px-2 py-0.5 text-[11px] font-medium text-[#b91c1c]">
+												Inactive
+											</span>
+										)}
+									</td>
+
+									{/* Default */}
+									<td className="px-3.5 py-3 align-middle">
+										{row.isDefault ? (
+											<span className="inline-flex items-center rounded-md bg-[#000] px-2 py-0.5 text-[11px] font-medium text-white">
+												Default
+											</span>
+										) : row.isActive ? (
+											<button
+												type="button"
+												title="Set as default"
+												disabled={isMutating}
+												onClick={() => setDefaultMutation.mutate(row.id)}
+												className="rounded-md border border-[#edede4] bg-white px-2 py-0.5 text-[11px] font-medium text-[#6b7170] transition-colors hover:border-[#0a0a0a] hover:text-[#0a0a0a] disabled:opacity-50"
+											>
+												Set default
+											</button>
+										) : (
+											<span className="text-xs text-[#6b7170]">—</span>
+										)}
+									</td>
+
+									{/* Actions */}
+									<td className="px-3.5 py-3 align-middle">
+										<div className="flex items-center gap-1">
+											<button
+												type="button"
+												onClick={() => openEdit(row)}
+												disabled={isMutating}
+												className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3] disabled:opacity-50"
+											>
+												Edit
+											</button>
+											{row.isActive && (
+												<button
+													type="button"
+													onClick={() => deactivateMutation.mutate(row.id)}
+													disabled={isMutating || row.isDefault}
+													title={row.isDefault ? "Cannot deactivate the default rate" : undefined}
+													className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#6b7170] transition-colors hover:bg-[#f3f3f3] disabled:opacity-40"
+												>
+													Deactivate
+												</button>
+											)}
+										</div>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				)}
+			</div>
+
+			{/* Footer */}
+			<div className="flex shrink-0 items-center justify-between border-t border-[#edede4] bg-[#faf9f5] px-7 py-3">
+				<span className="text-xs text-[#6b7170]">
+					{allRows.length} tax {allRows.length === 1 ? "rate" : "rates"} · {activeCount} active
+				</span>
 			</div>
 
 			{/* Create / Edit Dialog */}
@@ -584,10 +513,10 @@ function TaxRatesPage() {
 			>
 				<DialogContent className="sm:max-w-lg overflow-y-auto bg-white">
 					<DialogHeader>
-						<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
+						<DialogTitle className="text-lg font-medium leading-6 text-[#0a0a0a]">
 							{editingId ? "Edit Tax Rate" : "Add Tax Rate"}
 						</DialogTitle>
-						<DialogDescription className="text-sm text-brand-secondary-1">
+						<DialogDescription className="text-sm text-[#6b7170]">
 							{editingId
 								? "Update the details for this tax rate."
 								: "Define a new tax rate to apply on sales."}
@@ -597,59 +526,41 @@ function TaxRatesPage() {
 					<form onSubmit={handleSubmit} className="p-6 space-y-4">
 						{/* Name */}
 						<div>
-							<label
-								htmlFor="tr-name"
-								className="block text-sm font-medium text-brand-primary-1"
-							>
+							<label htmlFor="tr-name" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 								Name *
 							</label>
 							<Input
 								id="tr-name"
 								placeholder="e.g. Sales and Service Tax 8%"
 								value={form.name}
-								onChange={(e) =>
-									setForm((f) => ({ ...f, name: e.target.value }))
-								}
+								onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
 								required
-								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								className="mt-0 w-full"
 							/>
 						</div>
 
 						{/* Code */}
 						<div>
-							<label
-								htmlFor="tr-code"
-								className="block text-sm font-medium text-brand-primary-1"
-							>
+							<label htmlFor="tr-code" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 								Code *
 							</label>
 							<Input
 								id="tr-code"
 								placeholder="e.g. SST_8"
 								value={form.code}
-								onChange={(e) =>
-									setForm((f) => ({
-										...f,
-										code: e.target.value.toUpperCase(),
-									}))
-								}
-								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm font-mono uppercase"
+								onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+								className="w-full font-mono uppercase"
 								required
 							/>
-							<p className="text-xs text-brand-secondary-1 mt-1">
-								Short identifier. Will be stored in uppercase.
-							</p>
+							<p className="text-xs text-[#6b7170] mt-1">Short identifier. Stored in uppercase.</p>
 						</div>
 
 						{/* Rate */}
 						<div>
-							<label
-								htmlFor="tr-rate"
-								className="block text-sm font-medium text-brand-primary-1"
-							>
+							<label htmlFor="tr-rate" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 								Rate (%) *
 							</label>
-							<div className="relative mt-1">
+							<div className="relative">
 								<Input
 									id="tr-rate"
 									type="number"
@@ -657,56 +568,37 @@ function TaxRatesPage() {
 									min="0"
 									placeholder="e.g. 8.00"
 									value={form.ratePercent}
-									onChange={(e) =>
-										setForm((f) => ({ ...f, ratePercent: e.target.value }))
-									}
-									className="block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm pr-8"
+									onChange={(e) => setForm((f) => ({ ...f, ratePercent: e.target.value }))}
+									className="w-full pr-8 font-mono tabular-nums"
 									required
 								/>
-								<span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-secondary-1 text-sm pointer-events-none">
-									%
-								</span>
+								<span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7170] text-sm pointer-events-none">%</span>
 							</div>
-							{form.ratePercent &&
-								!Number.isNaN(parseFloat(form.ratePercent)) && (
-									<p className="text-xs text-brand-secondary-1 mt-1">
-										Stored as{" "}
-										<span className="font-mono">
-											{Math.round(parseFloat(form.ratePercent) * 100)}
-										</span>{" "}
-										basis points.
-									</p>
-								)}
+							{form.ratePercent && !Number.isNaN(parseFloat(form.ratePercent)) && (
+								<p className="text-xs text-[#6b7170] mt-1">
+									Stored as <span className="font-mono">{Math.round(parseFloat(form.ratePercent) * 100)}</span> basis points.
+								</p>
+							)}
 						</div>
 
 						{/* Category */}
 						<div>
-							<label
-								htmlFor="tr-category"
-								className="block text-sm font-medium text-brand-primary-1"
-							>
+							<label htmlFor="tr-category" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 								Category
 							</label>
 							<Select
 								value={form.category}
-								onValueChange={(v) =>
-									setForm((f) => ({ ...f, category: v as TaxCategory }))
-								}
+								onValueChange={(v) => setForm((f) => ({ ...f, category: v as TaxCategory }))}
 							>
-								<SelectTrigger
-									id="tr-category"
-									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
-								>
+								<SelectTrigger id="tr-category" className="w-full">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									{(Object.keys(CATEGORY_LABELS) as TaxCategory[]).map(
-										(key) => (
-											<SelectItem key={key} value={key}>
-												{CATEGORY_LABELS[key]}
-											</SelectItem>
-										),
-									)}
+									{(Object.keys(CATEGORY_LABELS) as TaxCategory[]).map((key) => (
+										<SelectItem key={key} value={key}>
+											{CATEGORY_LABELS[key]}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>
@@ -714,55 +606,36 @@ function TaxRatesPage() {
 						{/* Date range */}
 						<div className="grid grid-cols-2 gap-4">
 							<div>
-								<label
-									htmlFor="tr-from"
-									className="block text-sm font-medium text-brand-primary-1"
-								>
+								<label htmlFor="tr-from" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 									Effective From *
 								</label>
 								<Input
 									id="tr-from"
 									type="date"
 									value={form.effectiveFrom}
-									onChange={(e) =>
-										setForm((f) => ({
-											...f,
-											effectiveFrom: e.target.value,
-										}))
-									}
+									onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))}
 									required
-									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+									className="w-full"
 								/>
 							</div>
 							<div>
-								<label
-									htmlFor="tr-until"
-									className="block text-sm font-medium text-brand-primary-1"
-								>
+								<label htmlFor="tr-until" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 									Effective Until
 								</label>
 								<Input
 									id="tr-until"
 									type="date"
 									value={form.effectiveUntil}
-									onChange={(e) =>
-										setForm((f) => ({
-											...f,
-											effectiveUntil: e.target.value,
-										}))
-									}
+									onChange={(e) => setForm((f) => ({ ...f, effectiveUntil: e.target.value }))}
 									min={form.effectiveFrom || undefined}
-									className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+									className="w-full"
 								/>
 							</div>
 						</div>
 
 						{/* Description */}
 						<div>
-							<label
-								htmlFor="tr-description"
-								className="block text-sm font-medium text-brand-primary-1"
-							>
+							<label htmlFor="tr-description" className="block text-sm font-medium text-[#0a0a0a] mb-1.5">
 								Description
 							</label>
 							<Textarea
@@ -770,10 +643,8 @@ function TaxRatesPage() {
 								placeholder="Optional notes about this tax rate"
 								rows={3}
 								value={form.description}
-								onChange={(e) =>
-									setForm((f) => ({ ...f, description: e.target.value }))
-								}
-								className="mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+								onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+								className="w-full"
 							/>
 						</div>
 
@@ -784,16 +655,10 @@ function TaxRatesPage() {
 									id="tr-default"
 									checked={form.isDefault}
 									onCheckedChange={(checked) =>
-										setForm((f) => ({
-											...f,
-											isDefault: checked === true,
-										}))
+										setForm((f) => ({ ...f, isDefault: checked === true }))
 									}
 								/>
-								<label
-									htmlFor="tr-default"
-									className="cursor-pointer text-sm text-brand-primary-1"
-								>
+								<label htmlFor="tr-default" className="cursor-pointer text-sm text-[#0a0a0a]">
 									Set as default tax rate
 								</label>
 							</div>
@@ -804,14 +669,14 @@ function TaxRatesPage() {
 								type="button"
 								onClick={closeSheet}
 								disabled={createMutation.isPending || updateMutation.isPending}
-								className="inline-flex justify-center rounded-md border border-brand-secondary-3 bg-white px-4 py-2 text-sm font-medium text-brand-primary-1 shadow-sm hover:bg-brand-secondary-3/50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+								className="inline-flex items-center justify-center rounded-lg border border-[#edede4] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-50"
 							>
 								Cancel
 							</button>
 							<button
 								type="submit"
 								disabled={createMutation.isPending || updateMutation.isPending}
-								className="inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="inline-flex items-center justify-center rounded-lg bg-[#000] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{createMutation.isPending || updateMutation.isPending
 									? "Saving…"

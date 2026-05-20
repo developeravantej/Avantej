@@ -243,6 +243,7 @@ describe("staffId convention regression guard", () => {
 			],
 			actor: ACTOR,
 			earnedAt: new Date(),
+			earnReason: "completion",
 		});
 
 		// Should be empty: staffId does not match any members.userId
@@ -262,6 +263,7 @@ describe("staffId convention regression guard", () => {
 			],
 			actor: ACTOR,
 			earnedAt: new Date(),
+			earnReason: "completion",
 		});
 		expect(splitsCorrect.length).toBeGreaterThan(0);
 

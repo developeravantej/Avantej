@@ -154,3 +154,48 @@ export async function deleteCalendarEvent(
 	// 404 is OK — event may already be deleted
 	if (!res.ok && res.status !== 404) throw new Error(`Delete event failed: ${await res.text()}`);
 }
+
+// ---------------------------------------------------------------------------
+// Calendar list (Task 1.30)
+// ---------------------------------------------------------------------------
+
+export interface GoogleCalendarListEntry {
+	id: string;
+	summary: string;
+	description?: string;
+	primary: boolean;
+	accessRole: string;
+	backgroundColor?: string;
+}
+
+export async function listGoogleCalendars(accessToken: string): Promise<GoogleCalendarListEntry[]> {
+	const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+		headers: { Authorization: `Bearer ${accessToken}` },
+	});
+	if (!res.ok) throw new Error(`Calendar list fetch failed: ${await res.text()}`);
+	const data = (await res.json()) as { items?: GoogleCalendarListEntry[] };
+	return (data.items ?? []).map((item) => ({
+		id: item.id,
+		summary: item.summary,
+		description: item.description,
+		primary: item.primary ?? false,
+		accessRole: item.accessRole,
+		backgroundColor: item.backgroundColor,
+	}));
+}
+
+// ---------------------------------------------------------------------------
+// syncNow in-memory rate-limit store (Task 1.18)
+// One entry per memberId; reset on process restart (acceptable for Cloudflare Workers).
+// ---------------------------------------------------------------------------
+const syncNowLastCalled = new Map<string, number>();
+const SYNC_NOW_COOLDOWN_MS = 60_000;
+
+export function checkSyncNowRateLimit(memberId: string): boolean {
+	const last = syncNowLastCalled.get(memberId);
+	if (last !== undefined && Date.now() - last < SYNC_NOW_COOLDOWN_MS) {
+		return false; // rate-limited
+	}
+	syncNowLastCalled.set(memberId, Date.now());
+	return true; // allowed
+}

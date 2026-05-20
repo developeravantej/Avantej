@@ -13,6 +13,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Webhook } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -28,6 +29,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { EmptyState } from "@/components/ui/empty-state";
 import { client } from "@/utils/orpc";
 import { BigNumberCard } from "@/components/platform-admin/big-number-card";
 import { WebhooksLogTable } from "@/components/platform-admin/webhooks-log-table";
@@ -119,7 +122,7 @@ function PlatformAdminWebhooksPage() {
 		<div className="p-6 space-y-6" data-testid="webhooks-log-page">
 			<header className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs text-muted-foreground">Platform admin</div>
+					<div className="text-sm text-muted-foreground">Platform admin</div>
 					<h1 className="text-2xl font-semibold">Webhooks</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Stripe event log — read-only.
@@ -142,12 +145,12 @@ function PlatformAdminWebhooksPage() {
 			</header>
 
 			{overviewQ.error ? (
-				<Card>
-					<CardContent className="p-4 text-sm text-red-700 dark:text-red-400">
-						Could not load webhook overview:{" "}
-						{(overviewQ.error as Error).message}
-					</CardContent>
-				</Card>
+				<StatusCallout
+					variant="error"
+					title="Could not load webhook overview"
+					message={(overviewQ.error as Error).message}
+					onRetry={() => overviewQ.refetch()}
+				/>
 			) : null}
 
 			{/* KPI row */}
@@ -218,7 +221,7 @@ function PlatformAdminWebhooksPage() {
 											<div className="w-56 truncate">{row.eventType}</div>
 											<div className="flex-1 h-3 rounded bg-muted/60 overflow-hidden">
 												<div
-													className="h-full bg-indigo-500/70"
+													className="h-full bg-primary/70"
 													style={{ width: `${pct}%` }}
 												/>
 											</div>
@@ -230,12 +233,13 @@ function PlatformAdminWebhooksPage() {
 								})}
 							</ul>
 						) : (
-							<div
-								className="text-sm text-muted-foreground py-4"
+							<EmptyState
+								icon={BarChart3}
+								title="No events in the last 7 days"
+								context="search"
+								className="py-8"
 								data-testid="webhooks-by-type-empty"
-							>
-								No events in the last 7 days.
-							</div>
+							/>
 						)}
 					</CardContent>
 				</Card>
@@ -269,12 +273,13 @@ function PlatformAdminWebhooksPage() {
 								))}
 							</ul>
 						) : (
-							<div
-								className="text-sm text-muted-foreground py-4"
+							<EmptyState
+								icon={Webhook}
+								title="No webhook events yet"
+								context="search"
+								className="py-8"
 								data-testid="webhooks-recent-empty"
-							>
-								No webhook events yet.
-							</div>
+							/>
 						)}
 					</CardContent>
 				</Card>
