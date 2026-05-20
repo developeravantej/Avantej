@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-// TODO(pr-23-merge): requireSystemAdmin not exported / usePermissions module missing, restore or remove dependent UI
-// @ts-expect-error - not exported
 import { requireSystemAdmin } from "@/lib/route-guards";
-// @ts-expect-error - module missing
 import { useIsSystemAdmin } from "@/hooks/usePermissions";
 import { Lock, RefreshCw, Zap } from "lucide-react";
 

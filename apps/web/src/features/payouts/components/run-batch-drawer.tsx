@@ -18,7 +18,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-// TODO(pr-23-merge): module missing, restore or remove dependent UI
 import {
 	Command,
 	CommandEmpty,
@@ -26,7 +25,6 @@ import {
 	CommandInput,
 	CommandItem,
 	CommandList,
-	// @ts-ignore - missing module
 } from "@/components/ui/command";
 import {
 	Popover,
