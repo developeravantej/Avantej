@@ -127,6 +127,12 @@ export function useUserContext(enabled = true) {
             localStorage.setItem(`org_${org.id}_hierarchy`, JSON.stringify(org.hierarchy));
           }
         });
+      } else {
+        // No org memberships (e.g. pure SaaS owner / platform admin). Clear any
+        // stale org cached from a previous session so org-scoped queries don't
+        // fire against an org the current user isn't a member of (-> 403).
+        localStorage.removeItem("current_organization_id");
+        localStorage.removeItem("user_organizations");
       }
 
       return data as UserContextResponse;
