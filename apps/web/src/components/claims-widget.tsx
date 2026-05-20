@@ -25,7 +25,7 @@ export function ClaimsWidget() {
 				<div className="flex flex-col gap-y-4 max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					{isLoading ? (
 						<div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-							Loading…
+							Loading...
 						</div>
 					) : expenses.length === 0 ? (
 						<div className="flex items-center justify-center h-full text-muted-foreground text-sm">
