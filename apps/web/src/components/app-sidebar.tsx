@@ -461,6 +461,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		(o) => o.id === userContext.currentOrganizationId,
 	);
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	// Whether the user belongs to any tenant org. Pure SaaS owners (platform
+	// admins with no membership) get only the Platform Admin section.
+	const hasOrg = (userContext?.organizations?.length ?? 0) > 0;
 
 	// Branches in the current org (leaf hierarchy nodes typed "branch")
 	const branchCount =
@@ -562,10 +565,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 			{/* ── Content ── */}
 			<SidebarContent className="overflow-y-auto [&::-webkit-scrollbar]:hidden">
-				{NAV_GROUPS.map((group) => (
-					<NavGroup key={group.label} group={group} badges={badges} />
-				))}
-				{isStaffOrTrainer && (
+				{hasOrg &&
+					NAV_GROUPS.map((group) => (
+						<NavGroup key={group.label} group={group} badges={badges} />
+					))}
+				{hasOrg && isStaffOrTrainer && (
 					<SidebarGroup className="py-1">
 						<SidebarGroupLabel className="font-bold text-[10px] text-sidebar-foreground/55 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
 							My Work
