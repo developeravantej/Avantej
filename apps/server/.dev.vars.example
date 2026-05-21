@@ -1,0 +1,57 @@
+# ─── apps/server local Cloudflare Workers vars ─────────────────────────────
+#
+# Copy to .dev.vars (gitignored) and fill in real values. Wrangler reads
+# this file in dev mode and exposes the values as env bindings.
+#
+# Production secrets live in Cloudflare via `wrangler secret put`.
+#
+# Required reading: CONTRIBIUTING.md → "Dev setup"
+
+# ─── Databases ─────────────────────────────────────────────────────────────
+# Control panel DB (platform metadata, organizations, users, subscriptions).
+# Get the connection string from your Neon console: https://console.neon.tech
+DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/neondb?sslmode=require
+
+# Tenant DB (only used by integration tests; production tenants get their own
+# Neon branch provisioned at signup time).
+TENANT_DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/neondb?sslmode=require
+
+# ─── Better-Auth ───────────────────────────────────────────────────────────
+# Generate a secret (minimum 32 chars): openssl rand -base64 32
+BETTER_AUTH_SECRET=replace_me_32_plus_chars
+
+# IMPORTANT: avantej.localhost (not "localhost") to avoid cookie collisions
+# with other local projects. Browsers auto-route *.localhost to 127.0.0.1.
+BETTER_AUTH_URL=http://avantej.localhost:3020
+
+# ─── CORS ──────────────────────────────────────────────────────────────────
+# Web app URL. Must match the avantej.localhost convention exactly.
+CORS_ORIGIN=http://avantej.localhost:3021
+WEB_APP_URL=http://avantej.localhost:3021
+
+# ─── Encryption key (tenant connection string encryption) ──────────────────
+# Generate with: openssl rand -hex 32
+# Must be exactly 64 hex characters (32 bytes).
+ENCRYPTION_KEY=replace_me_64_hex_chars
+
+# ─── Neon API ──────────────────────────────────────────────────────────────
+# For provisioning tenant DB branches at signup time.
+# Get from: https://console.neon.tech/app/settings/api-keys
+NEON_API_KEY=napi_replace_me
+
+# ─── Stripe (Avantej Core sandbox `dev-shared`, per ADR-0012) ──────────────
+# Get from: https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_replace_me
+STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
+
+# Stripe webhook signing secret — set via `stripe listen --forward-to ...`
+# STRIPE_WEBHOOK_SECRET=whsec_replace_me
+
+# ─── Resend (transactional email) ──────────────────────────────────────────
+# Required for invitations, password reset, scheduled reports, etc.
+# RESEND_API_KEY=re_replace_me
+
+# ─── Google Calendar OAuth (optional) ──────────────────────────────────────
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# GOOGLE_REDIRECT_URI=http://avantej.localhost:3020/auth/google-calendar/callback
