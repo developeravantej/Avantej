@@ -11,6 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ChevronDown, RefreshCw, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -1611,6 +1612,9 @@ function ApprovalsPage() {
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/operations/approvals",
 )({
+	beforeLoad: async () => {
+		await requirePermission("package_management:approve");
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		scope: (
 			search.scope === "assignable_to_me" ? "assignable_to_me" : "all"

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -14,7 +15,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import { CreateInvitationDialog } from "@/components/invitations/create-invitation-dialog";
 import { ChevronUp, ChevronDown, Plus, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -22,6 +30,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/user/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("user_management:read");
+	},
 	component: UserViewPage,
 });
 
@@ -190,6 +201,112 @@ function DeactivateDialog({
 	);
 }
 
+// ─── Reactivate dialog ───────────────────────────────────────────────────────
+function ReactivateDialog({
+	member,
+	organizationId,
+	open,
+	onClose,
+}: {
+	member: MemberRow;
+	organizationId: string;
+	open: boolean;
+	onClose: () => void;
+}) {
+	const qc = useQueryClient();
+	const displayName = getDisplayName(member);
+	const mutation = useMutation({
+		mutationFn: () =>
+			client.members.reactivate({ memberId: member.id, organizationId }),
+		onSuccess: () => {
+			toast.success(`${displayName} reactivated.`);
+			qc.invalidateQueries({ queryKey: ["members", organizationId] });
+			onClose();
+		},
+		onError: (err: Error) => {
+			toast.error(err.message || "Failed to reactivate.");
+			onClose();
+		},
+	});
+
+	return (
+		<Dialog open={open} onOpenChange={onClose}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Reactivate {displayName}?</DialogTitle>
+					<DialogDescription>
+						This will restore their access to the organization. They will be able
+						to log in and use the platform again.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+						Cancel
+					</Button>
+					<Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+						{mutation.isPending ? "Reactivating…" : "Reactivate"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ─── Remove dialog ───────────────────────────────────────────────────────────
+function RemoveDialog({
+	member,
+	organizationId,
+	open,
+	onClose,
+}: {
+	member: MemberRow;
+	organizationId: string;
+	open: boolean;
+	onClose: () => void;
+}) {
+	const qc = useQueryClient();
+	const displayName = getDisplayName(member);
+	const mutation = useMutation({
+		mutationFn: () =>
+			client.members.softDelete({ memberId: member.id, organizationId }),
+		onSuccess: () => {
+			toast.success(`${displayName} removed from organization.`);
+			qc.invalidateQueries({ queryKey: ["members", organizationId] });
+			onClose();
+		},
+		onError: (err: Error) => {
+			toast.error(err.message || "Failed to remove member.");
+			onClose();
+		},
+	});
+
+	return (
+		<Dialog open={open} onOpenChange={onClose}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Remove {displayName}?</DialogTitle>
+					<DialogDescription>
+						This removes them from the organization. Their data is preserved and
+						they can be restored later from Staff Access if needed.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+						Cancel
+					</Button>
+					<Button
+						variant="destructive"
+						onClick={() => mutation.mutate()}
+						disabled={mutation.isPending}
+					>
+						{mutation.isPending ? "Removing…" : "Remove"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 // ─── Single employee card row ────────────────────────────────────────────────
 function MemberCard({
 	member,
@@ -202,6 +319,8 @@ function MemberCard({
 }) {
 	const [impersonateOpen, setImpersonateOpen] = useState(false);
 	const [deactivateOpen, setDeactivateOpen] = useState(false);
+	const [reactivateOpen, setReactivateOpen] = useState(false);
+	const [removeOpen, setRemoveOpen] = useState(false);
 
 	const displayName = getDisplayName(member);
 	const initials = getInitials(member.name, member.email);
@@ -267,17 +386,30 @@ function MemberCard({
 						) : (
 							<button
 								type="button"
+								onClick={() => setReactivateOpen(true)}
 								className="rounded-lg px-2 py-1 text-xs font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition-colors"
 							>
 								Reactivate
 							</button>
 						)}
-						<button
-							type="button"
-							className="rounded-lg px-2 py-1 text-xs font-medium text-[#6b7170] hover:bg-[#f3f3f3] transition-colors"
-						>
-							···
-						</button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<button
+									type="button"
+									className="rounded-lg px-2 py-1 text-xs font-medium text-[#6b7170] hover:bg-[#f3f3f3] transition-colors"
+								>
+									···
+								</button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem
+									className="text-destructive focus:text-destructive"
+									onClick={() => setRemoveOpen(true)}
+								>
+									Remove from org
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				)}
 			</div>
@@ -296,6 +428,22 @@ function MemberCard({
 					organizationId={organizationId}
 					open={deactivateOpen}
 					onClose={() => setDeactivateOpen(false)}
+				/>
+			)}
+			{reactivateOpen && (
+				<ReactivateDialog
+					member={member}
+					organizationId={organizationId}
+					open={reactivateOpen}
+					onClose={() => setReactivateOpen(false)}
+				/>
+			)}
+			{removeOpen && (
+				<RemoveDialog
+					member={member}
+					organizationId={organizationId}
+					open={removeOpen}
+					onClose={() => setRemoveOpen(false)}
 				/>
 			)}
 		</>
@@ -365,8 +513,10 @@ function UserViewPage() {
 	const { data: userContext, hasRole } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const callerIsAdmin = hasRole(["admin"]);
+	const qc = useQueryClient();
 
 	const [search, setSearch] = useState("");
+	const [inviteOpen, setInviteOpen] = useState(false);
 
 	const { data: members = [], isLoading } = useQuery({
 		queryKey: ["members", organizationId],
@@ -433,6 +583,7 @@ function UserViewPage() {
 					{/* Invite */}
 					<button
 						type="button"
+						onClick={() => setInviteOpen(true)}
 						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
 					>
 						<Plus className="h-4 w-4" />
@@ -466,6 +617,18 @@ function UserViewPage() {
 					))
 				)}
 			</div>
+
+			{/* Invite dialog */}
+			{organizationId && (
+				<CreateInvitationDialog
+					open={inviteOpen}
+					onOpenChange={setInviteOpen}
+					organizationId={organizationId}
+					onSuccess={() => {
+						qc.invalidateQueries({ queryKey: ["members", organizationId] });
+					}}
+				/>
+			)}
 		</div>
 	);
 }

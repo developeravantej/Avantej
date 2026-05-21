@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { ProcessRefundDialog } from "@/components/refunds/process-refund-dialog";
@@ -24,6 +25,9 @@ import { client } from "@/utils/orpc";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/refunds/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("refund_management:read");
+	},
 	component: RefundsLedgerPage,
 });
 

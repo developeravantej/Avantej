@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -14,6 +15,9 @@ import { ProductPricingPage } from "@/components/pages/products/pricing-page";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/products/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("inventory:read");
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "products",
 	}),

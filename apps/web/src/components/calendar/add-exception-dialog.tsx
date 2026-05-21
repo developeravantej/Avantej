@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import {
@@ -45,6 +45,8 @@ export function AddExceptionDialog({
 	const [reason, setReason] = useState("");
 	const [kind, setKind] = useState<ExceptionKind>(defaultKind);
 
+	const qc = useQueryClient();
+
 	// Fetch trainer list for the selector when no trainer is pre-selected
 	const { data: trainerRows } = useQuery({
 		queryKey: ["trainerAvailabilityByBranch", organizationId],
@@ -54,26 +56,30 @@ export function AddExceptionDialog({
 		staleTime: 60_000,
 	});
 
+	const effectiveTrainerId = preselectedTrainerId ?? trainerId;
+
 	const mutation = useApiMutation({
-		mutationFn: async () => {
-			// TODO: replace with a dedicated trainerAvailability.addException procedure
-			// when the backend procedure is available. For now this serves as a UI
-			// affordance placeholder — the dialog is wired but submits a no-op stub.
-			//
-			// Intended signature:
-			//   client.trainerAvailability.addException({
-			//     organizationId,
-			//     trainerId: trainerId || preselectedTrainerId!,
-			//     date,          // YYYY-MM-DD
-			//     reason: reason.trim() || undefined,
-			//   })
-			await Promise.resolve(); // stub
-			return { success: true };
-		},
-		successMessage: "Exception added successfully.",
+		mutationFn: () =>
+			client.trainerAvailability.addException({
+				organizationId,
+				trainerId: effectiveTrainerId,
+				date,
+				kind,
+				reason: reason.trim() ? reason.trim() : undefined,
+			}),
+		successMessage:
+			kind === "blocked"
+				? "Time blocked successfully."
+				: "Exception added successfully.",
 		errorMessage: (err) =>
 			err instanceof Error ? err.message : "Failed to add exception.",
 		onSuccess: () => {
+			qc.invalidateQueries({
+				queryKey: ["trainerExceptions", organizationId, effectiveTrainerId],
+			});
+			qc.invalidateQueries({
+				queryKey: ["trainerAvailabilityByBranch", organizationId],
+			});
 			setDate("");
 			setReason("");
 			onSuccess?.();
@@ -92,7 +98,6 @@ export function AddExceptionDialog({
 		onOpenChange(next);
 	}
 
-	const effectiveTrainerId = preselectedTrainerId ?? trainerId;
 	const canSubmit = !!effectiveTrainerId && !!date;
 
 	return (

@@ -1,6 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,20 +11,11 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { centsToRm, formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
-
-// ─── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
 	amountRm: z
@@ -44,25 +34,33 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-// ─── Props ─────────────────────────────────────────────────────────────────────
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
 
 export interface RequestRefundDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
-	/** Pre-fill targets (at least one required) */
 	salesOrderId?: string;
 	paymentId?: string;
 	packageInstanceId?: string;
-	/** Suggested amount (in cents) — pre-populated in amount field */
 	suggestedAmountCents?: number;
-	/** Optional customer info — used to show context summary */
 	customerName?: string;
 	customerId?: string;
 	branchId?: string;
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function RequestRefundDialog({
 	open,
@@ -78,7 +76,6 @@ export function RequestRefundDialog({
 }: RequestRefundDialogProps) {
 	const queryClient = useQueryClient();
 
-	// Derive a human-readable target label for context summary
 	const targetLabel = salesOrderId
 		? `Sale ${salesOrderId.slice(0, 8)}…`
 		: paymentId
@@ -92,49 +89,48 @@ export function RequestRefundDialog({
 			? centsToRm(suggestedAmountCents)
 			: "";
 
-	const form = useForm<FormValues>({
-		resolver: zodResolver(schema),
+	const form = useForm({
 		defaultValues: {
 			amountRm: defaultAmountRm,
 			taxAmountRm: "",
 			reason: "",
 			notes: "",
+		} as FormValues,
+		validators: { onSubmit: schema },
+		onSubmit: async ({ value }) => {
+			const amountCents = rmToCents(Number.parseFloat(value.amountRm));
+			const taxCents = value.taxAmountRm
+				? rmToCents(Number.parseFloat(value.taxAmountRm))
+				: 0;
+
+			try {
+				await client.refunds.request({
+					organizationId,
+					salesOrderId,
+					paymentId,
+					packageInstanceId,
+					amountCents,
+					taxAmountCents: taxCents,
+					reason: value.reason,
+					notes: value.notes?.trim() || undefined,
+					customerId,
+					customerName,
+					branchId,
+				});
+
+				toast.success("Refund request submitted — pending approval.");
+				queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
+				onOpenChange(false);
+				form.reset();
+			} catch (err: unknown) {
+				const message =
+					err instanceof Error
+						? err.message
+						: "Failed to submit refund request.";
+				toast.error(message);
+			}
 		},
 	});
-
-	const isPending = form.formState.isSubmitting;
-
-	async function onSubmit(values: FormValues) {
-		const amountCents = rmToCents(Number.parseFloat(values.amountRm));
-		const taxCents = values.taxAmountRm
-			? rmToCents(Number.parseFloat(values.taxAmountRm))
-			: 0;
-
-		try {
-			await client.refunds.request({
-				organizationId,
-				salesOrderId,
-				paymentId,
-				packageInstanceId,
-				amountCents,
-				taxAmountCents: taxCents,
-				reason: values.reason,
-				notes: values.notes?.trim() || undefined,
-				customerId,
-				customerName,
-				branchId,
-			});
-
-			toast.success("Refund request submitted — pending approval.");
-			queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
-			onOpenChange(false);
-			form.reset();
-		} catch (err: unknown) {
-			const message =
-				err instanceof Error ? err.message : "Failed to submit refund request.";
-			toast.error(message);
-		}
-	}
 
 	function handleOpenChange(open: boolean) {
 		if (!open) form.reset();
@@ -151,7 +147,6 @@ export function RequestRefundDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				{/* Context summary */}
 				<div className="space-y-1 rounded-md bg-muted/50 px-3 py-2 text-sm">
 					<div className="flex justify-between">
 						<span className="text-muted-foreground">Target</span>
@@ -173,108 +168,110 @@ export function RequestRefundDialog({
 					)}
 				</div>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						{/* Amount */}
-						<FormField
-							control={form.control}
-							name="amountRm"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Refund Amount (RM){" "}
-										<span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<Input
-											type="number"
-											min="0.01"
-											step="0.01"
-											placeholder="0.00"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-4"
+				>
+					<form.Field name="amountRm">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>
+									Refund Amount (RM){" "}
+									<span className="text-destructive">*</span>
+								</Label>
+								<Input
+									id={field.name}
+									type="number"
+									min="0.01"
+									step="0.01"
+									placeholder="0.00"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						{/* Tax amount */}
-						<FormField
-							control={form.control}
-							name="taxAmountRm"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Tax Amount (RM, optional)</FormLabel>
-									<FormControl>
-										<Input
-											type="number"
-											min="0"
-											step="0.01"
-											placeholder="0.00"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<form.Field name="taxAmountRm">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Tax Amount (RM, optional)</Label>
+								<Input
+									id={field.name}
+									type="number"
+									min="0"
+									step="0.01"
+									placeholder="0.00"
+									value={field.state.value ?? ""}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						{/* Reason */}
-						<FormField
-							control={form.control}
-							name="reason"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Reason <span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<Textarea
-											rows={2}
-											placeholder="Why is this refund being requested?"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<form.Field name="reason">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>
+									Reason <span className="text-destructive">*</span>
+								</Label>
+								<Textarea
+									id={field.name}
+									rows={2}
+									placeholder="Why is this refund being requested?"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						{/* Notes */}
-						<FormField
-							control={form.control}
-							name="notes"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Additional Notes (optional)</FormLabel>
-									<FormControl>
-										<Textarea
-											rows={2}
-											placeholder="Any additional context…"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<form.Field name="notes">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Additional Notes (optional)</Label>
+								<Textarea
+									id={field.name}
+									rows={2}
+									placeholder="Any additional context…"
+									value={field.state.value ?? ""}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => handleOpenChange(false)}
-								disabled={isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={isPending}>
-								{isPending ? "Submitting…" : "Submit Request"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<form.Subscribe selector={(state) => state.isSubmitting}>
+						{(isPending) => (
+							<DialogFooter>
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => handleOpenChange(false)}
+									disabled={isPending}
+								>
+									Cancel
+								</Button>
+								<Button type="submit" disabled={isPending}>
+									{isPending ? "Submitting…" : "Submit Request"}
+								</Button>
+							</DialogFooter>
+						)}
+					</form.Subscribe>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

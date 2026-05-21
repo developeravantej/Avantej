@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { PosWorkflow } from "@/components/pos/pos-workflow";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/create",
 )({
+	beforeLoad: async () => {
+		await requirePermission("sales:create");
+	},
 	validateSearch: (search: Record<string, unknown>): { customer?: string } => {
 		const customer = search.customer;
 		return typeof customer === "string" && customer ? { customer } : {};

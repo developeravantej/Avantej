@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { CalendarRange, ChevronDown, ChevronUp, Download, SearchX } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
@@ -20,6 +21,9 @@ const searchSchema = z.object({
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/cancelled-sales/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("sales:read");
+	},
 	component: RouteComponent,
 	validateSearch: searchSchema,
 });

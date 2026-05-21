@@ -1,17 +1,13 @@
 /**
- * Partial Refund Dialog (Agent 2.8 — Phase 2 Wave 3d — J5)
+ * Partial Refund Dialog
  *
  * Refund a specific number of session credits against a package instance.
  * The user types a packageInstanceId + credits + reason; the server-side
  * service derives the per-credit amount from the package totalPrice.
- *
- * v1: minimal — operator pastes the package_instance_id. Future versions
- * should auto-list package instances for the order.
  */
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -23,15 +19,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { client } from "@/utils/orpc";
 
@@ -49,12 +38,26 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
 export interface PartialRefundDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
 	branchId?: string;
-	/** Optional pre-fill for the package instance id field */
 	packageInstanceId?: string;
 }
 
@@ -66,36 +69,37 @@ export function PartialRefundDialog({
 	packageInstanceId,
 }: PartialRefundDialogProps) {
 	const queryClient = useQueryClient();
-	const form = useForm<FormValues>({
-		resolver: zodResolver(schema),
+
+	const form = useForm({
 		defaultValues: {
 			packageInstanceId: packageInstanceId ?? "",
 			creditsRefunded: "",
 			reason: "",
+		} as FormValues,
+		validators: { onSubmit: schema },
+		onSubmit: async ({ value }) => {
+			try {
+				const result = await client.refunds.createPartial({
+					organizationId,
+					packageInstanceId: value.packageInstanceId,
+					creditsRefunded: Number(value.creditsRefunded),
+					reason: value.reason,
+					branchId,
+				});
+				toast.success(`Partial refund ${result.refundNumber} created`);
+				await queryClient.invalidateQueries({ queryKey: ["refunds"] });
+				await queryClient.invalidateQueries({
+					queryKey: ["packageInstances"],
+				});
+				onOpenChange(false);
+				form.reset();
+			} catch (err) {
+				const msg =
+					err instanceof Error ? err.message : "Failed to create refund";
+				toast.error(msg);
+			}
 		},
 	});
-
-	async function onSubmit(values: FormValues) {
-		try {
-			const result = await client.refunds.createPartial({
-				organizationId,
-				packageInstanceId: values.packageInstanceId,
-				creditsRefunded: Number(values.creditsRefunded),
-				reason: values.reason,
-				branchId,
-			});
-			toast.success(`Partial refund ${result.refundNumber} created`);
-			await queryClient.invalidateQueries({ queryKey: ["refunds"] });
-			await queryClient.invalidateQueries({
-				queryKey: ["packageInstances"],
-			});
-			onOpenChange(false);
-			form.reset();
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Failed to create refund";
-			toast.error(msg);
-		}
-	}
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,76 +113,83 @@ export function PartialRefundDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<FormField
-							control={form.control}
-							name="packageInstanceId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Package Instance ID</FormLabel>
-									<FormControl>
-										<Input
-											placeholder="00000000-0000-0000-0000-000000000000"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-4"
+				>
+					<form.Field name="packageInstanceId">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Package Instance ID</Label>
+								<Input
+									id={field.name}
+									placeholder="00000000-0000-0000-0000-000000000000"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						<FormField
-							control={form.control}
-							name="creditsRefunded"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Credits to refund</FormLabel>
-									<FormControl>
-										<Input
-											type="number"
-											min={1}
-											step={1}
-											placeholder="3"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<form.Field name="creditsRefunded">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Credits to refund</Label>
+								<Input
+									id={field.name}
+									type="number"
+									min={1}
+									step={1}
+									placeholder="3"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						<FormField
-							control={form.control}
-							name="reason"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Reason</FormLabel>
-									<FormControl>
-										<Textarea
-											placeholder="Customer cancelled remaining sessions"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<form.Field name="reason">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>Reason</Label>
+								<Textarea
+									id={field.name}
+									placeholder="Customer cancelled remaining sessions"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
 
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => onOpenChange(false)}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={form.formState.isSubmitting}>
-								{form.formState.isSubmitting ? "Creating..." : "Create Refund"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<form.Subscribe selector={(state) => state.isSubmitting}>
+						{(isSubmitting) => (
+							<DialogFooter>
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => onOpenChange(false)}
+								>
+									Cancel
+								</Button>
+								<Button type="submit" disabled={isSubmitting}>
+									{isSubmitting ? "Creating..." : "Create Refund"}
+								</Button>
+							</DialogFooter>
+						)}
+					</form.Subscribe>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

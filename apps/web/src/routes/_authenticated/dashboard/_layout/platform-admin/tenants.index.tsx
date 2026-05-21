@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requireSystemAdmin } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Search } from "lucide-react";
@@ -33,6 +34,9 @@ import { TagChip } from "@/components/platform-admin/tag-chip";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/tenants/",
 )({
+	beforeLoad: async () => {
+		await requireSystemAdmin();
+	},
 	component: PlatformAdminTenantsPage,
 });
 

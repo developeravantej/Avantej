@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -43,6 +44,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/announcements/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("announcement_management:read");
+	},
 	component: AnnouncementsViewPage,
 });
 

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import {
 	ActivitySquare,
 	AlertTriangle,
@@ -45,6 +46,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/audit/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("audit_log:read");
+	},
 	component: AuditLogPage,
 });
 

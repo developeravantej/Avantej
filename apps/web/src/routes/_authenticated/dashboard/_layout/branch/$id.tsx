@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,9 @@ import { QrCodeCard } from "@/features/branch-invites/components/qr-code-card";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/branch/$id",
 )({
+	beforeLoad: async () => {
+		await requirePermission("hierarchy_management:read");
+	},
 	component: BranchDetailPage,
 });
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { requirePermission } from "@/lib/route-guards";
 import {
 	Plus,
 	Store,
@@ -46,6 +47,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/branch/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("hierarchy_management:read");
+	},
 	component: RouteComponent,
 });
 

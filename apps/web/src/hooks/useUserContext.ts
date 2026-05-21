@@ -39,67 +39,6 @@ export interface UserContextResponse {
   currentOrganizationId: string | null;
 }
 
-// Mock data for development (when API is not available).
-// currentOrganizationId is null so we never send mock "org-1" to the API (server expects UUID).
-const _MOCK_USER_CONTEXT: UserContextResponse = {
-  user: {
-    id: "mock-user-1",
-    email: "demo@avantej.com",
-    name: "Demo User",
-    firstName: "Demo",
-    lastName: "User",
-    emailVerified: true,
-  },
-  isSystemAdmin: false,
-  organizations: [
-    {
-      id: "org-1",
-      name: "Demo Franchise",
-      slug: "demo-franchise",
-      role: "Organization Owner",
-      permissions: [],
-      hierarchy: {
-        nodes: [
-          {
-            id: "node-1",
-            name: "Headquarters",
-            type: "state",
-            depth: 0,
-            parentId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            id: "node-2",
-            name: "Branch A",
-            type: "branch",
-            depth: 1,
-            parentId: "node-1",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            id: "node-3",
-            name: "Branch B",
-            type: "branch",
-            depth: 1,
-            parentId: "node-1",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ],
-        member: {
-          role: "Organization Owner",
-          hierarchyScopeId: "node-1",
-          hierarchyScopeName: "Headquarters",
-          accessibleNodeIds: ["node-1", "node-2", "node-3"],
-        },
-      },
-    },
-  ],
-  currentOrganizationId: null,
-};
-
 export function useUserContext(enabled = true) {
   const query = useQuery<UserContextResponse>({
     queryKey: ["user-context"],

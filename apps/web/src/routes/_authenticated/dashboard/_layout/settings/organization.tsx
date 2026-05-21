@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -31,6 +32,9 @@ import { Lock } from "lucide-react";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/organization",
 )({
+	beforeLoad: async () => {
+		await requirePermission("hierarchy_management:update");
+	},
 	component: OrganizationSettingsPage,
 });
 

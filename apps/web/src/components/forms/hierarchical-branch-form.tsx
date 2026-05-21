@@ -247,26 +247,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
     }
   };
 
-  const loadUserOrganization = async () => {
-    try {
-      // TODO: Replace with actual oRPC client call
-      // const response = await apiClient.getMe();
-      // if (response.data && response.data.organizations && response.data.organizations.length > 0) {
-      //   const organization = response.data.organizations[0];
-      //   setUserOrganization({
-      //     id: organization.id,
-      //     name: organization.name,
-      //   });
-      // }
-      setUserOrganization(null); // Mock data
-    } catch (error: unknown) {
-      console.error("Error loading user organization:", error);
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Not authenticated")) {
-        toast.error("Please log in to access this feature");
-      } else {
-        toast.error("Failed to load your organization. Please try again.");
-      }
+  const loadUserOrganization = () => {
+    // Org data is already in the auth context — no API call needed.
+    const org =
+      user?.organizations?.find((o) => o.id === organizationId) ??
+      user?.organizations?.[0];
+    if (org) {
+      setUserOrganization({ id: org.id, name: org.name });
     }
   };
 

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ClipboardCheck, Clock, UserCheck, XCircle, Lock } from "lucide-react";
 import type { ElementType } from "react";
 import { useState } from "react";
@@ -23,6 +24,9 @@ import { client } from "@/utils/orpc";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/attendance/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("attendance_management:read");
+	},
 	component: AttendancePage,
 });
 

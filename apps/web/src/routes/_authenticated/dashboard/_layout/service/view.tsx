@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ServicesPage } from "@/components/pages/services/services-page";
 import { ServiceCategoriesPage } from "@/components/pages/services/categories-page";
 import { RoomsPage } from "@/components/pages/services/rooms-page";
@@ -8,6 +9,9 @@ import { ServicePricingPage } from "@/components/pages/services/pricing-page";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/service/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("service_management:read");
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "services",
 	}),

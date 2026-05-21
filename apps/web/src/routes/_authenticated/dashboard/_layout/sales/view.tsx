@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { Download, Plus } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -39,6 +40,9 @@ const salesSearchSchema = z.object({
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("sales:read");
+	},
 	component: RouteComponent,
 	validateSearch: salesSearchSchema,
 });

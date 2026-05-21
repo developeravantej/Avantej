@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -32,6 +33,9 @@ import { StatusCallout } from "@/components/ui/status-callout";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/expenses/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("expense_management:read");
+	},
 	component: ExpensesViewPage,
 });
 

@@ -8,6 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft, PauseCircle } from "lucide-react";
 import { useState } from "react";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
@@ -34,6 +35,9 @@ import { getInitials, memberStatusVariant, formatDate } from "@/features/custome
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/$id",
 )({
+	beforeLoad: async () => {
+		await requirePermission("customer_management:read");
+	},
 	component: Customer360Page,
 });
 

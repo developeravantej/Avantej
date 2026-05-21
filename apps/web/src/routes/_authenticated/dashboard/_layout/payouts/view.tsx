@@ -1,4 +1,5 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, Play, RefreshCw, Users } from "lucide-react";
@@ -39,6 +40,9 @@ const searchSchema = z.object({
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payouts/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("commission_payout:read");
+	},
 	validateSearch: searchSchema,
 	component: PayoutsPage,
 });

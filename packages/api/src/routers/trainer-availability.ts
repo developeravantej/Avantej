@@ -1,14 +1,17 @@
 import {
+	addTrainerAvailabilityException,
 	computeAvailableSlots,
 	createTrainerAvailability,
+	deleteTrainerAvailabilityException,
+	deleteTrainerAvailabilitySlot,
 	getTrainerConflicts,
 	getTrainerUtilisation,
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
+	listTrainerAvailabilityExceptions,
+	requirePermission,
 	updateTrainerAvailability,
 	upsertTrainerAvailability,
-	deleteTrainerAvailabilitySlot,
-	requirePermission,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -295,5 +298,102 @@ export const trainerAvailabilityRouter = {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
 			});
+		}),
+
+	addException: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				trainerId: z.string().uuid(),
+				date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+				kind: z.enum(["blocked", "timeoff"]).default("timeoff"),
+				reason: z.string().trim().max(500).optional(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or member not available",
+				});
+			}
+			try {
+				await requirePermission(
+					context.tenantDb,
+					context.member,
+					"appointment_management",
+					"update"
+				);
+			} catch {
+				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+			}
+			try {
+				return await addTrainerAvailabilityException(context.tenantDb, {
+					trainerId: input.trainerId,
+					date: input.date,
+					kind: input.kind,
+					reason: input.reason,
+					createdBy: context.session?.user.id,
+				});
+			} catch (error) {
+				// Unique-index violation: trainer already has an exception for this date
+				const msg =
+					error instanceof Error ? error.message : "Failed to add exception";
+				if (msg.includes("trainer_availability_exc_trainer_date_uniq")) {
+					throw new ORPCError("CONFLICT", {
+						message:
+							"An exception already exists for this trainer on this date.",
+					});
+				}
+				throw new ORPCError("BAD_REQUEST", { message: msg });
+			}
+		}),
+
+	listExceptions: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				trainerId: z.string().uuid(),
+				from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional(),
+				to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			return listTrainerAvailabilityExceptions(
+				context.tenantDb,
+				input.trainerId,
+				{ from: input.from, to: input.to },
+			);
+		}),
+
+	deleteException: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or member not available",
+				});
+			}
+			try {
+				await requirePermission(
+					context.tenantDb,
+					context.member,
+					"appointment_management",
+					"update"
+				);
+			} catch {
+				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
+			}
+			await deleteTrainerAvailabilityException(context.tenantDb, input.id);
+			return { success: true };
 		}),
 };

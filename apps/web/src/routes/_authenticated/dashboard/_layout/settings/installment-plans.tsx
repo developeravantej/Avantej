@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -26,6 +27,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/installment-plans",
 )({
+	beforeLoad: async () => {
+		await requirePermission("payments:update");
+	},
 	validateSearch: z.object({
 		filter: z.enum(["all", "active", "inactive"]).optional().default("active"),
 	}),

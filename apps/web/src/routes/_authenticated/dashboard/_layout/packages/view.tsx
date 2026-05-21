@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { MembershipsPage } from "@/components/pages/packages/memberships-page";
 import { PackageInstancesPage } from "@/components/pages/packages/instances-page";
 import { PackageInstallmentsPage } from "@/components/pages/packages/installments-page";
@@ -6,6 +7,9 @@ import { PackageInstallmentsPage } from "@/components/pages/packages/installment
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/packages/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("package_management:read");
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "memberships",
 	}),

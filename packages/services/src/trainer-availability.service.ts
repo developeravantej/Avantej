@@ -1,5 +1,8 @@
 import { and, eq, gte, lte, inArray, not, isNotNull, or } from "drizzle-orm";
-import { trainerAvailability } from "@avantej-core/db/schema/tenant/trainer-availability";
+import {
+	trainerAvailability,
+	trainerAvailabilityExceptions,
+} from "@avantej-core/db/schema/tenant/trainer-availability";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
@@ -724,4 +727,74 @@ export async function getTrainerConflicts(
 	}
 
 	return result;
+}
+
+// ─── Date-specific exceptions (one-off overrides) ──────────────────────────────
+
+export type TrainerAvailabilityExceptionKind = "blocked" | "timeoff";
+
+export type AddTrainerAvailabilityExceptionParams = {
+	trainerId: string;
+	date: string; // YYYY-MM-DD
+	kind: TrainerAvailabilityExceptionKind;
+	reason?: string;
+	createdBy?: string;
+};
+
+/**
+ * Add a one-off date-specific exception (time-off or blocked) for a trainer.
+ * Throws if an exception for the same (trainerId, date) already exists — the
+ * caller should delete and re-create if they want to overwrite.
+ */
+export async function addTrainerAvailabilityException(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: AddTrainerAvailabilityExceptionParams,
+): Promise<typeof trainerAvailabilityExceptions.$inferSelect> {
+	const [row] = await tenantDb
+		.insert(trainerAvailabilityExceptions)
+		.values({
+			trainerId: params.trainerId,
+			date: params.date,
+			kind: params.kind,
+			reason: params.reason,
+			createdBy: params.createdBy,
+		})
+		.returning();
+	if (!row) throw new Error("Failed to create trainer availability exception");
+	return row;
+}
+
+/**
+ * List exceptions for a trainer, optionally bounded by date range.
+ * Dates are inclusive on both ends (YYYY-MM-DD strings).
+ */
+export async function listTrainerAvailabilityExceptions(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	trainerId: string,
+	range?: { from?: string; to?: string },
+): Promise<(typeof trainerAvailabilityExceptions.$inferSelect)[]> {
+	const conditions = [eq(trainerAvailabilityExceptions.trainerId, trainerId)];
+	if (range?.from) {
+		conditions.push(gte(trainerAvailabilityExceptions.date, range.from));
+	}
+	if (range?.to) {
+		conditions.push(lte(trainerAvailabilityExceptions.date, range.to));
+	}
+	const rows = await tenantDb
+		.select()
+		.from(trainerAvailabilityExceptions)
+		.where(and(...conditions));
+	return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Delete a single exception by id.
+ */
+export async function deleteTrainerAvailabilityException(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+): Promise<void> {
+	await tenantDb
+		.delete(trainerAvailabilityExceptions)
+		.where(eq(trainerAvailabilityExceptions.id, id));
 }

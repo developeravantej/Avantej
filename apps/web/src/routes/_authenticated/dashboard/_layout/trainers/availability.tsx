@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -16,6 +17,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/trainers/availability",
 )({
+	beforeLoad: async () => {
+		await requirePermission("appointment_management:read");
+	},
 	component: TrainerAvailabilityPage,
 });
 

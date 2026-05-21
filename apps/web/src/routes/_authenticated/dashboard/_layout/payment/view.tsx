@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { History } from "lucide-react";
 import {
 	buildColumns,
@@ -22,6 +23,9 @@ import { StatusTimeline } from "@/components/ui/status-timeline";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payment/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("payments:read");
+	},
 	component: RouteComponent,
 });
 

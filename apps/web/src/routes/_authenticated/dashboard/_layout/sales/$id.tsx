@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ChevronLeft, Printer, XCircle } from "lucide-react";
 import { useState } from "react";
 import type { ReceiptData } from "@/components/pos/receipt-view";
@@ -36,6 +37,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/$id",
 )({
+	beforeLoad: async () => {
+		await requirePermission("sales:read");
+	},
 	component: SalesOrderDetailPage,
 });
 

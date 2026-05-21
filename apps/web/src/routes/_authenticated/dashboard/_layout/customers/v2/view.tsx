@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { Pencil, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
@@ -15,6 +16,9 @@ import { client } from "@/utils/orpc";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/v2/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("customer_management:read");
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "customers",
 		customer: (search.customer as string | undefined) ?? undefined,

@@ -6,7 +6,7 @@
  * Recurring weekly availability windows for trainer members.
  */
 
-import { pgTable, uuid, text, boolean, timestamp, index, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, date, index, uniqueIndex, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { members } from "./members";
 
@@ -44,3 +44,38 @@ export const trainerAvailabilityRelations = relations(trainerAvailability, ({ on
 		references: [members.id],
 	}),
 }));
+
+/**
+ * One-off date-specific exceptions overriding the recurring schedule.
+ * Kind is constrained to "blocked" or "timeoff" at the service/router layer
+ * (re-uses the shared enum to avoid adding another enum type).
+ *
+ * createdBy is a control-panel user id (cross-DB), stored as plain text.
+ */
+export const trainerAvailabilityExceptions = pgTable("trainer_availability_exceptions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+
+	trainerId: uuid("trainer_id")
+		.notNull()
+		.references(() => members.id, { onDelete: "cascade" }),
+
+	date: date("date").notNull(),
+	kind: trainerAvailabilityKindEnum("kind").notNull().default("timeoff"),
+	reason: text("reason"),
+
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	createdBy: text("created_by"),
+}, (table) => ({
+	trainerDateUniq: uniqueIndex("trainer_availability_exc_trainer_date_uniq")
+		.on(table.trainerId, table.date),
+}));
+
+export const trainerAvailabilityExceptionsRelations = relations(
+	trainerAvailabilityExceptions,
+	({ one }) => ({
+		trainer: one(members, {
+			fields: [trainerAvailabilityExceptions.trainerId],
+			references: [members.id],
+		}),
+	}),
+);
