@@ -1,17 +1,15 @@
 /**
- * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * Canonical form shape (TanStack Form):
  * - Zod schema colocated (top of file)
  * - organizationId is a prop, never a form field
  * - Prices use z.number().transform((v) => Math.round(v * 100))
- * - Error display: inline <FormMessage> + toast on mutation error
  * - timePresetConfig is persisted on the service row as a jsonb column when schedulingType = "class_slot"
  * - schedulingType maps: UI "appointment-based" → wire "appointment"; UI "time-preset" → wire "class_slot"
  * - initialData.price comes in as dollars (data-table pre-divides by 100); zod transform converts to cents on submit
  */
 
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import * as z from "zod";
 
@@ -26,15 +24,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { rmToCents } from "@/lib/money";
 
@@ -48,14 +39,20 @@ const timePresetConfigSchema = z.object({
 });
 
 const baseServiceFields = z.object({
-	name: z.string().min(1, "Service name is required").max(200, "Name must be 200 characters or fewer"),
+	name: z
+		.string()
+		.min(1, "Service name is required")
+		.max(200, "Name must be 200 characters or fewer"),
 	categoryId: z.string().uuid("Category is required"),
-	sessionDurationMinutes: z.number().int().min(1, "Duration must be at least 1 minute"),
+	sessionDurationMinutes: z
+		.number()
+		.int()
+		.min(1, "Duration must be at least 1 minute"),
 	maxAttendees: z.number().int().min(1, "Must have at least 1 attendee"),
 	price: z
 		.number({ message: "Price is required" })
 		.min(0, "Price must be 0 or more")
-		.transform((v) => rmToCents(v)), // dollars → cents at submit
+		.transform((v) => rmToCents(v)),
 	sessions: z.number().int().min(0, "Sessions cannot be negative"),
 	taxable: z.boolean(),
 	taxPercentage: z.number().int().min(0).max(100).optional(),
@@ -77,10 +74,23 @@ const serviceFormSchema = baseServiceFields.and(
 	]),
 );
 
-// For react-hook-form we need the INPUT type (before transforms)
 type ServiceFormInput = z.input<typeof serviceFormSchema>;
-// Output type (after transforms — what mutationFn receives)
-type ServiceFormValues = z.output<typeof serviceFormSchema>;
+type ServiceFormOutput = z.output<typeof serviceFormSchema>;
+
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
 
 // ---------------------------------------------------------------------------
 // 2. Props
@@ -136,13 +146,15 @@ function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput 
 			categoryId: initialData.categoryId,
 			sessionDurationMinutes: initialData.sessionDurationMinutes,
 			maxAttendees: initialData.maxAttendees,
-			price: initialData.price, // already in dollars
+			price: initialData.price,
 			sessions: initialData.sessions,
 			taxable: initialData.taxable,
 			taxPercentage: initialData.taxPercentage ?? 6,
 			expirable: initialData.expirable,
 			duration: initialData.duration ?? 1,
-			duration_unit: (initialData.duration_unit as "day" | "week" | "month" | "year") ?? "day",
+			duration_unit:
+				(initialData.duration_unit as "day" | "week" | "month" | "year") ??
+				"day",
 			availablePaymentPlans: initialData.availablePaymentPlans ?? [],
 			installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
 			gracePeriodDays: initialData.gracePeriodDays ?? null,
@@ -151,7 +163,10 @@ function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput 
 			return {
 				...base,
 				schedulingType: "time-preset" as const,
-				timePresetConfig: initialData.timePresetConfig ?? { recurringDays: [], timeSlotsPerDay: {} },
+				timePresetConfig: initialData.timePresetConfig ?? {
+					recurringDays: [],
+					timeSlotsPerDay: {},
+				},
 			};
 		}
 		return { ...base, schedulingType: "appointment-based" as const };
@@ -179,7 +194,7 @@ function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput 
 // 4. Component
 // ---------------------------------------------------------------------------
 
-// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies; extraction deferred
 export function ServiceFormDialog({
 	isOpen,
 	onClose,
@@ -187,15 +202,18 @@ export function ServiceFormDialog({
 	mode = "create",
 	initialData,
 }: ServiceFormDialogProps) {
-	// Dependent queries — keep identical to original
-	const { data: serviceCategories = [], isLoading: isLoadingCategories } = useQuery({
-		...orpc.serviceCategories.list.queryOptions({ input: { organizationId, isActive: true } }),
-		enabled: isOpen && !!organizationId,
-	});
+	const { data: serviceCategories = [], isLoading: isLoadingCategories } =
+		useQuery({
+			...orpc.serviceCategories.list.queryOptions({
+				input: { organizationId, isActive: true },
+			}),
+			enabled: isOpen && !!organizationId,
+		});
 
 	const { data: activePlans = [] } = useQuery({
 		queryKey: ["installmentPlans", organizationId, "active"],
-		queryFn: () => client.installmentPlans.list({ organizationId, activeOnly: true }),
+		queryFn: () =>
+			client.installmentPlans.list({ organizationId, activeOnly: true }),
 		enabled: isOpen && !!organizationId,
 	});
 
@@ -204,47 +222,16 @@ export function ServiceFormDialog({
 		[activePlans],
 	);
 
-	// Form instance
-	const form = useForm<ServiceFormInput>({
-		resolver: zodResolver(serviceFormSchema),
-		defaultValues: buildDefaultValues(initialData),
-	});
-
-	// Reset on dialog re-open with fresh initialData
-	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
-	useEffect(() => {
-		if (isOpen) form.reset(buildDefaultValues(initialData));
-	}, [isOpen, initialData, form]);
-
-	// Watch reactive fields
-	const schedulingType = form.watch("schedulingType");
-	const expirable = form.watch("expirable");
-	const taxable = form.watch("taxable");
-	const price = form.watch("price") ?? 0;
-	const sessions = form.watch("sessions") ?? 0;
-	const taxPercentage = form.watch("taxPercentage") ?? 0;
-	const availablePaymentPlans = form.watch("availablePaymentPlans") ?? [];
-	// timePresetConfig — only defined when schedulingType === "time-preset"
-	const timePresetConfig =
-		schedulingType === "time-preset"
-			? (form.watch("timePresetConfig" as keyof ServiceFormInput) as { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> } | undefined)
-			: undefined;
-
-	const hasInstallmentPlan = availablePaymentPlans.some(
-		(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
-	);
-
-	// Derived display values (price is still in dollars at watch-time; zod transform hasn't run)
-	const taxAmount = (price * taxPercentage) / 100;
-	const totalWithTax = price + taxAmount;
-	const creditPerSession = sessions > 0 ? price / sessions : 0;
-
-	// Single mutation branching on mode
 	const mutation = useApiMutation({
-		mutationFn: (values: ServiceFormValues) => {
-			// Map UI schedulingType → wire schedulingType
+		mutationFn: (values: ServiceFormOutput) => {
 			const wireSchedulingType =
-				values.schedulingType === "time-preset" ? "class_slot" as const : "appointment" as const;
+				values.schedulingType === "time-preset"
+					? ("class_slot" as const)
+					: ("appointment" as const);
+
+			const hasInstallmentPlan = values.availablePaymentPlans.some(
+				(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
+			);
 
 			const commonFields = {
 				organizationId,
@@ -256,10 +243,11 @@ export function ServiceFormDialog({
 				attendanceThreshold: null,
 				branchId: null,
 				isActive: true,
-				// price is already in cents (zod transform ran)
 				price: values.price != null ? values.price : null,
 				taxable: values.taxable,
-				taxPercentage: values.taxable ? Math.round(values.taxPercentage ?? 0) : 0,
+				taxPercentage: values.taxable
+					? Math.round(values.taxPercentage ?? 0)
+					: 0,
 				schedulingType: wireSchedulingType,
 				sessionCount: values.sessions > 0 ? values.sessions : null,
 				expirable: values.expirable,
@@ -298,27 +286,44 @@ export function ServiceFormDialog({
 		onSuccess: () => onClose(),
 	});
 
-	const onSubmit = (values: ServiceFormValues) => mutation.mutate(values);
+	const form = useForm({
+		defaultValues: buildDefaultValues(initialData),
+		validators: { onSubmit: serviceFormSchema },
+		onSubmit: async ({ value }) => {
+			const parsed = serviceFormSchema.parse(value);
+			await mutation.mutateAsync(parsed);
+		},
+	});
 
-	// ---------------------------------------------------------------------------
-	// Time-preset helpers — update via form.setValue (not useState)
-	// ---------------------------------------------------------------------------
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
+	useEffect(() => {
+		if (isOpen) form.reset(buildDefaultValues(initialData));
+	}, [isOpen, initialData, form]);
 
+	// Time-preset helpers
 	function getTimePresetConfig() {
-		return (form.getValues("timePresetConfig" as keyof ServiceFormInput) ?? {
-			recurringDays: [],
-			timeSlotsPerDay: {},
-		}) as { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> };
+		const values = form.state.values as ServiceFormInput & {
+			timePresetConfig?: { recurringDays: string[]; timeSlotsPerDay: Record<string, string[]> };
+		};
+		return (
+			values.timePresetConfig ?? { recurringDays: [], timeSlotsPerDay: {} }
+		);
 	}
 
-	function handleSchedulingTypeChange(type: "appointment-based" | "time-preset") {
-		form.setValue("schedulingType", type, { shouldDirty: true });
+	function handleSchedulingTypeChange(
+		type: "appointment-based" | "time-preset",
+	) {
+		form.setFieldValue("schedulingType", type);
 		if (type === "appointment-based") {
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore — clearing time-preset field across discriminated union branches
-			form.setValue("timePresetConfig", undefined);
+			form.setFieldValue(
+				"timePresetConfig" as never,
+				undefined as never,
+			);
 		} else {
-			form.setValue("timePresetConfig", { recurringDays: [], timeSlotsPerDay: {} });
+			form.setFieldValue(
+				"timePresetConfig" as never,
+				{ recurringDays: [], timeSlotsPerDay: {} } as never,
+			);
 		}
 	}
 
@@ -336,7 +341,10 @@ export function ServiceFormDialog({
 			delete newTimeSlotsPerDay[day];
 		}
 
-		form.setValue("timePresetConfig", { recurringDays: newDays, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true, shouldValidate: true });
+		form.setFieldValue(
+			"timePresetConfig" as never,
+			{ recurringDays: newDays, timeSlotsPerDay: newTimeSlotsPerDay } as never,
+		);
 	}
 
 	function addTimeSlot(day: string) {
@@ -344,16 +352,24 @@ export function ServiceFormDialog({
 		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
 		if (!newTimeSlotsPerDay[day]) newTimeSlotsPerDay[day] = [];
 		newTimeSlotsPerDay[day] = [...newTimeSlotsPerDay[day], "09:00"];
-		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+		form.setFieldValue(
+			"timePresetConfig" as never,
+			{ ...config, timeSlotsPerDay: newTimeSlotsPerDay } as never,
+		);
 	}
 
 	function removeTimeSlot(day: string, index: number) {
 		const config = getTimePresetConfig();
 		const newTimeSlotsPerDay = { ...config.timeSlotsPerDay };
 		if (newTimeSlotsPerDay[day]) {
-			newTimeSlotsPerDay[day] = newTimeSlotsPerDay[day].filter((_, i) => i !== index);
+			newTimeSlotsPerDay[day] = newTimeSlotsPerDay[day].filter(
+				(_, i) => i !== index,
+			);
 		}
-		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+		form.setFieldValue(
+			"timePresetConfig" as never,
+			{ ...config, timeSlotsPerDay: newTimeSlotsPerDay } as never,
+		);
 	}
 
 	function updateTimeSlot(day: string, index: number, time: string) {
@@ -364,12 +380,11 @@ export function ServiceFormDialog({
 			slots[index] = time;
 			newTimeSlotsPerDay[day] = slots;
 		}
-		form.setValue("timePresetConfig", { ...config, timeSlotsPerDay: newTimeSlotsPerDay }, { shouldDirty: true });
+		form.setFieldValue(
+			"timePresetConfig" as never,
+			{ ...config, timeSlotsPerDay: newTimeSlotsPerDay } as never,
+		);
 	}
-
-	// ---------------------------------------------------------------------------
-	// Render
-	// ---------------------------------------------------------------------------
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -380,152 +395,172 @@ export function ServiceFormDialog({
 					</DialogTitle>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-						{/* Service Name */}
-						<FormField
-							control={form.control}
-							name="name"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Service Name <span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<Input className="bg-white" placeholder="Enter service name" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-6"
+				>
+					{/* Service Name */}
+					<form.Field name="name">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>
+									Service Name <span className="text-destructive">*</span>
+								</Label>
+								<Input
+									id={field.name}
+									className="bg-white"
+									placeholder="Enter service name"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
+
+					{/* Service Category */}
+					<form.Field name="categoryId">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>
+									Service Category <span className="text-destructive">*</span>
+								</Label>
+								<select
+									id={field.name}
+									value={field.state.value}
+									onChange={(e) => field.handleChange(e.target.value)}
+									onBlur={field.handleBlur}
+									disabled={isLoadingCategories}
+									className="mt-1 block w-full px-3 py-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									<option value="">
+										{isLoadingCategories
+											? "Loading categories..."
+											: "Select a category"}
+									</option>
+									{serviceCategories.map((category: { id: string; name: string }) => (
+										<option key={category.id} value={category.id}>
+											{category.name}
+										</option>
+									))}
+								</select>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
+
+					{/* Session Duration + Max Attendees */}
+					<div className="grid grid-cols-2 gap-4">
+						<form.Field name="sessionDurationMinutes">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Session Duration (minutes){" "}
+										<span className="text-destructive">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min={1}
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(parseInt(e.target.value, 10) || 0)
+										}
+										onWheel={(e) => e.currentTarget.blur()}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
 							)}
-						/>
+						</form.Field>
 
-						{/* Service Category */}
-						<FormField
-							control={form.control}
-							name="categoryId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Service Category <span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<select
-											{...field}
-											disabled={isLoadingCategories}
-											className="mt-1 block w-full px-3 py-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											<option value="">
-												{isLoadingCategories ? "Loading categories..." : "Select a category"}
-											</option>
-											{serviceCategories.map((category: any) => (
-												<option key={category.id} value={category.id}>
-													{category.name}
-												</option>
-											))}
-										</select>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
+						<form.Field name="maxAttendees">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Max Attendees <span className="text-destructive">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min={1}
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(parseInt(e.target.value, 10) || 0)
+										}
+										onWheel={(e) => e.currentTarget.blur()}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
 							)}
-						/>
+						</form.Field>
+					</div>
 
-						{/* Session Duration + Max Attendees */}
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="sessionDurationMinutes"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Session Duration (minutes) <span className="text-destructive">*</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												min={1}
-												{...field}
-												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-												onWheel={(e) => e.currentTarget.blur()}
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-							<FormField
-								control={form.control}
-								name="maxAttendees"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Max Attendees <span className="text-destructive">*</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												min={1}
-												{...field}
-												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-												onWheel={(e) => e.currentTarget.blur()}
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
-
-						{/* Expirable */}
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="expirable"
-								render={({ field }) => (
-									<FormItem className="flex items-center gap-2 gap-y-0">
-										<FormControl>
+					{/* Expirable */}
+					<form.Subscribe selector={(s) => s.values.expirable}>
+						{(expirable) => (
+							<div className="grid grid-cols-2 gap-4">
+								<form.Field name="expirable">
+									{(field) => (
+										<div className="flex items-center gap-2">
 											<Checkbox
+												id={field.name}
 												className="bg-white"
-												checked={field.value}
-												onCheckedChange={field.onChange}
+												checked={field.state.value}
+												onCheckedChange={(v) => field.handleChange(v === true)}
 											/>
-										</FormControl>
-										<FormLabel className="!mt-0">Expirable</FormLabel>
-									</FormItem>
-								)}
-							/>
+											<Label htmlFor={field.name}>Expirable</Label>
+										</div>
+									)}
+								</form.Field>
 
-							{expirable && (
-								<FormItem>
-									<FormLabel>
-										Duration <span className="text-destructive">*</span>
-									</FormLabel>
-									<div className="flex gap-2">
-										<FormField
-											control={form.control}
-											name="duration"
-											render={({ field }) => (
-												<FormControl>
+								{expirable && (
+									<div className="space-y-2">
+										<Label>
+											Duration <span className="text-destructive">*</span>
+										</Label>
+										<div className="flex gap-2">
+											<form.Field name="duration">
+												{(field) => (
 													<Input
 														type="number"
 														min={1}
 														placeholder="1"
-														{...field}
-														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+														value={field.state.value ?? 1}
+														onBlur={field.handleBlur}
+														onChange={(e) =>
+															field.handleChange(
+																parseInt(e.target.value, 10) || 1,
+															)
+														}
 														onWheel={(e) => e.currentTarget.blur()}
 														className="flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
-												</FormControl>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="duration_unit"
-											render={({ field }) => (
-												<FormControl>
+												)}
+											</form.Field>
+											<form.Field name="duration_unit">
+												{(field) => (
 													<select
-														{...field}
+														value={field.state.value ?? "day"}
+														onChange={(e) =>
+															field.handleChange(
+																e.target.value as
+																	| "day"
+																	| "week"
+																	| "month"
+																	| "year",
+															)
+														}
+														onBlur={field.handleBlur}
 														className="flex-1 p-2 rounded-md border border-input bg-background shadow-sm focus:border-ring sm:text-sm"
 													>
 														<option value="day">Day(s)</option>
@@ -533,325 +568,409 @@ export function ServiceFormDialog({
 														<option value="month">Month(s)</option>
 														<option value="year">Year(s)</option>
 													</select>
-												</FormControl>
-											)}
-										/>
+												)}
+											</form.Field>
+										</div>
 									</div>
-									<FormMessage />
-								</FormItem>
-							)}
-						</div>
-
-						{/* Price + Sessions */}
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="price"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Price <span className="text-destructive">*</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												min={0}
-												step={0.01}
-												{...field}
-												onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-												onWheel={(e) => e.currentTarget.blur()}
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
 								)}
-							/>
-							<FormField
-								control={form.control}
-								name="sessions"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Sessions <span className="text-destructive">*</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												min={0}
-												step={1}
-												{...field}
-												onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-												onWheel={(e) => e.currentTarget.blur()}
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
-
-						{/* Credit per session summary */}
-						<div>
-							<div className="mt-2 flex items-center">
-								<span className="text-sm font-medium text-foreground">
-									Credit per Session: RM {sessions > 0 ? creditPerSession.toFixed(2) : "0.00"}
-								</span>
 							</div>
-							{sessions > 0 && price > 0 && (
-								<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
-									<div className="text-sm text-muted-foreground">
-										<div className="flex justify-between">
-											<span>Total Price:</span>
-											<span>RM {price.toFixed(2)}</span>
-										</div>
-										<div className="flex justify-between">
-											<span>Number of Sessions:</span>
-											<span>{sessions}</span>
-										</div>
-										<div className="flex justify-between font-medium border-t pt-1 mt-1">
-											<span>Credit per Session:</span>
-											<span>RM {creditPerSession.toFixed(2)}</span>
-										</div>
-									</div>
+						)}
+					</form.Subscribe>
+
+					{/* Price + Sessions */}
+					<div className="grid grid-cols-2 gap-4">
+						<form.Field name="price">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Price <span className="text-destructive">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min={0}
+										step={0.01}
+										value={field.state.value ?? 0}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(parseFloat(e.target.value) || 0)
+										}
+										onWheel={(e) => e.currentTarget.blur()}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									/>
+									<FieldError errors={field.state.meta.errors} />
 								</div>
 							)}
-						</div>
+						</form.Field>
+						<form.Field name="sessions">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Sessions <span className="text-destructive">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min={0}
+										step={1}
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(parseInt(e.target.value, 10) || 0)
+										}
+										onWheel={(e) => e.currentTarget.blur()}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+					</div>
 
-						{/* Taxable */}
-						<div>
-							<FormField
-								control={form.control}
-								name="taxable"
-								render={({ field }) => (
-									<FormItem className="flex items-center gap-2 gap-y-0 mt-2">
-										<FormControl>
-											<Checkbox
-												className="bg-white"
-												checked={field.value}
-												onCheckedChange={field.onChange}
-											/>
-										</FormControl>
-										<FormLabel className="!mt-0">Taxable</FormLabel>
-									</FormItem>
-								)}
-							/>
+					{/* Credit per session summary */}
+					<form.Subscribe
+						selector={(s) => ({
+							price: s.values.price ?? 0,
+							sessions: s.values.sessions ?? 0,
+						})}
+					>
+						{({ price, sessions }) => {
+							const creditPerSession = sessions > 0 ? price / sessions : 0;
+							return (
+								<div>
+									<div className="mt-2 flex items-center">
+										<span className="text-sm font-medium text-foreground">
+											Credit per Session: RM{" "}
+											{sessions > 0 ? creditPerSession.toFixed(2) : "0.00"}
+										</span>
+									</div>
+									{sessions > 0 && price > 0 && (
+										<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
+											<div className="text-sm text-muted-foreground">
+												<div className="flex justify-between">
+													<span>Total Price:</span>
+													<span>RM {price.toFixed(2)}</span>
+												</div>
+												<div className="flex justify-between">
+													<span>Number of Sessions:</span>
+													<span>{sessions}</span>
+												</div>
+												<div className="flex justify-between font-medium border-t pt-1 mt-1">
+													<span>Credit per Session:</span>
+													<span>RM {creditPerSession.toFixed(2)}</span>
+												</div>
+											</div>
+										</div>
+									)}
+								</div>
+							);
+						}}
+					</form.Subscribe>
 
-							{taxable && (
-								<>
-									<FormField
-										control={form.control}
-										name="taxPercentage"
-										render={({ field }) => (
-											<FormItem className="mt-3">
-												<FormLabel>Tax Percentage (%)</FormLabel>
-												<FormControl>
+					{/* Taxable */}
+					<div>
+						<form.Field name="taxable">
+							{(field) => (
+								<div className="flex items-center gap-2 mt-2">
+									<Checkbox
+										id={field.name}
+										className="bg-white"
+										checked={field.state.value}
+										onCheckedChange={(v) => field.handleChange(v === true)}
+									/>
+									<Label htmlFor={field.name}>Taxable</Label>
+								</div>
+							)}
+						</form.Field>
+
+						<form.Subscribe
+							selector={(s) => ({
+								taxable: s.values.taxable,
+								price: s.values.price ?? 0,
+								taxPct: s.values.taxPercentage ?? 0,
+							})}
+						>
+							{({ taxable, price, taxPct }) => {
+								const taxAmount = (price * taxPct) / 100;
+								const totalWithTax = price + taxAmount;
+								return taxable ? (
+									<>
+										<form.Field name="taxPercentage">
+											{(field) => (
+												<div className="space-y-2 mt-3">
+													<Label htmlFor={field.name}>
+														Tax Percentage (%)
+													</Label>
 													<Input
+														id={field.name}
 														type="number"
 														min={0}
 														max={100}
 														step={1}
-														{...field}
-														value={field.value ?? ""}
-														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+														value={field.state.value ?? ""}
+														onBlur={field.handleBlur}
+														onChange={(e) =>
+															field.handleChange(
+																parseInt(e.target.value, 10) || 0,
+															)
+														}
 														onWheel={(e) => e.currentTarget.blur()}
 														className="bg-white w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-									<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
-										<div className="text-sm text-muted-foreground">
-											<div className="flex justify-between">
-												<span>Base Price:</span>
-												<span>RM {price.toFixed(2)}</span>
-											</div>
-											<div className="flex justify-between">
-												<span>Tax ({taxPercentage}%):</span>
-												<span>RM {taxAmount.toFixed(2)}</span>
-											</div>
-											<div className="flex justify-between font-medium border-t pt-1 mt-1">
-												<span>Total:</span>
-												<span>RM {totalWithTax.toFixed(2)}</span>
+													<FieldError errors={field.state.meta.errors} />
+												</div>
+											)}
+										</form.Field>
+										<div className="mt-3 p-4 bg-white rounded-md border border-brand-secondary-3">
+											<div className="text-sm text-muted-foreground">
+												<div className="flex justify-between">
+													<span>Base Price:</span>
+													<span>RM {price.toFixed(2)}</span>
+												</div>
+												<div className="flex justify-between">
+													<span>Tax ({taxPct}%):</span>
+													<span>RM {taxAmount.toFixed(2)}</span>
+												</div>
+												<div className="flex justify-between font-medium border-t pt-1 mt-1">
+													<span>Total:</span>
+													<span>RM {totalWithTax.toFixed(2)}</span>
+												</div>
 											</div>
 										</div>
-									</div>
-								</>
-							)}
-						</div>
+									</>
+								) : null;
+							}}
+						</form.Subscribe>
+					</div>
 
-						{/* Payment Plans */}
-						<div className="border-t border-brand-secondary-3 pt-6 mt-2">
-							<h3 className="font-subheading text-base text-foreground mb-4">Payment Plans</h3>
-							<div className="space-y-2">
-								{activePlans.map((plan) => (
-									<div key={plan.code} className="flex items-center gap-2">
-										<Checkbox
-											className="bg-white"
-											id={`plan-${plan.code}`}
-											checked={availablePaymentPlans.includes(plan.code)}
-											disabled={mutation.isPending}
-											onCheckedChange={(checked) => {
-												const next = checked
-													? [...availablePaymentPlans, plan.code]
-													: availablePaymentPlans.filter((p) => p !== plan.code);
-												form.setValue("availablePaymentPlans", next, { shouldDirty: true });
-											}}
-										/>
-										<label htmlFor={`plan-${plan.code}`} className="text-sm text-foreground">
-											{plan.name}
-										</label>
-									</div>
-								))}
-								{activePlans.length === 0 && (
-									<p className="text-sm text-muted-foreground italic">
-										No payment plans configured. Add plans under Settings &rarr; Installment Plans.
-									</p>
-								)}
-							</div>
-
-							{hasInstallmentPlan && (
-								<>
-									<FormField
-										control={form.control}
-										name="installmentIntervalDays"
-										render={({ field }) => (
-											<FormItem className="mt-3">
-												<FormLabel>Installment interval (days)</FormLabel>
-												<FormControl>
-													<Input
-														type="number"
-														min={1}
-														{...field}
-														value={field.value ?? ""}
-														onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
-														onWheel={(e) => e.currentTarget.blur()}
-														className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-									<FormField
-										control={form.control}
-										name="gracePeriodDays"
-										render={({ field }) => (
-											<FormItem className="mt-3">
-												<FormLabel>Grace period (days)</FormLabel>
-												<FormControl>
-													<Input
-														type="number"
-														min={0}
-														max={90}
-														placeholder="Default: 7"
-														{...field}
-														value={field.value ?? ""}
-														onChange={(e) => {
-															const val = e.target.value;
-															field.onChange(val === "" ? null : parseInt(val, 10));
+					{/* Payment Plans */}
+					<div className="border-t border-brand-secondary-3 pt-6 mt-2">
+						<h3 className="font-subheading text-base text-foreground mb-4">
+							Payment Plans
+						</h3>
+						<form.Subscribe
+							selector={(s) => s.values.availablePaymentPlans ?? []}
+						>
+							{(availablePaymentPlans) => {
+								const hasInstallmentPlan = availablePaymentPlans.some(
+									(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
+								);
+								return (
+									<>
+										<div className="space-y-2">
+											{activePlans.map((plan) => (
+												<div
+													key={plan.code}
+													className="flex items-center gap-2"
+												>
+													<Checkbox
+														className="bg-white"
+														id={`plan-${plan.code}`}
+														checked={availablePaymentPlans.includes(plan.code)}
+														disabled={mutation.isPending}
+														onCheckedChange={(checked) => {
+															const next = checked
+																? [...availablePaymentPlans, plan.code]
+																: availablePaymentPlans.filter(
+																		(p) => p !== plan.code,
+																	);
+															form.setFieldValue("availablePaymentPlans", next);
 														}}
-														onWheel={(e) => e.currentTarget.blur()}
-														className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 													/>
-												</FormControl>
-												<p className="mt-1 text-xs text-muted-foreground">
-													How many days after an overdue installment before the package locks. Leave blank to use the default of 7 days.
+													<label
+														htmlFor={`plan-${plan.code}`}
+														className="text-sm text-foreground"
+													>
+														{plan.name}
+													</label>
+												</div>
+											))}
+											{activePlans.length === 0 && (
+												<p className="text-sm text-muted-foreground italic">
+													No payment plans configured. Add plans under Settings
+													&rarr; Installment Plans.
 												</p>
-												<FormMessage />
-											</FormItem>
+											)}
+										</div>
+
+										{hasInstallmentPlan && (
+											<>
+												<form.Field name="installmentIntervalDays">
+													{(field) => (
+														<div className="space-y-2 mt-3">
+															<Label htmlFor={field.name}>
+																Installment interval (days)
+															</Label>
+															<Input
+																id={field.name}
+																type="number"
+																min={1}
+																value={field.state.value ?? ""}
+																onBlur={field.handleBlur}
+																onChange={(e) =>
+																	field.handleChange(
+																		parseInt(e.target.value, 10) || 1,
+																	)
+																}
+																onWheel={(e) => e.currentTarget.blur()}
+																className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+															/>
+															<FieldError errors={field.state.meta.errors} />
+														</div>
+													)}
+												</form.Field>
+												<form.Field name="gracePeriodDays">
+													{(field) => (
+														<div className="space-y-2 mt-3">
+															<Label htmlFor={field.name}>
+																Grace period (days)
+															</Label>
+															<Input
+																id={field.name}
+																type="number"
+																min={0}
+																max={90}
+																placeholder="Default: 7"
+																value={field.state.value ?? ""}
+																onBlur={field.handleBlur}
+																onChange={(e) => {
+																	const val = e.target.value;
+																	field.handleChange(
+																		val === "" ? null : parseInt(val, 10),
+																	);
+																}}
+																onWheel={(e) => e.currentTarget.blur()}
+																className="bg-white w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+															/>
+															<p className="mt-1 text-xs text-muted-foreground">
+																How many days after an overdue installment
+																before the package locks. Leave blank to use the
+																default of 7 days.
+															</p>
+															<FieldError errors={field.state.meta.errors} />
+														</div>
+													)}
+												</form.Field>
+											</>
 										)}
-									/>
-								</>
-							)}
-						</div>
+									</>
+								);
+							}}
+						</form.Subscribe>
+					</div>
 
-						{/* Scheduling Type */}
-						<div className="border-t border-brand-secondary-3 pt-6 mt-2">
-							<h3 className="font-subheading text-base text-foreground mb-4">Scheduling Configuration</h3>
+					{/* Scheduling Type */}
+					<div className="border-t border-brand-secondary-3 pt-6 mt-2">
+						<h3 className="font-subheading text-base text-foreground mb-4">
+							Scheduling Configuration
+						</h3>
 
-							<div className="space-y-4">
-								<div>
-									<span className="block text-sm font-medium text-foreground mb-2">
-										Scheduling Type <span className="text-destructive">*</span>
-									</span>
-									<div className="flex gap-4">
-										<div className="flex items-center">
-											<input
-												type="radio"
-												id="scheduling-appointment-based"
-												name="schedulingType"
-												value="appointment-based"
-												checked={schedulingType === "appointment-based"}
-												onChange={() => handleSchedulingTypeChange("appointment-based")}
-												disabled={mutation.isPending}
-												className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
-											/>
-											<label htmlFor="scheduling-appointment-based" className="ml-2 block text-sm text-foreground">
-												Appointment-Based
-											</label>
+						<form.Subscribe selector={(s) => s.values.schedulingType}>
+							{(schedulingType) => {
+								const timePresetConfig =
+									schedulingType === "time-preset"
+										? ((form.state.values as ServiceFormInput & {
+												timePresetConfig?: {
+													recurringDays: string[];
+													timeSlotsPerDay: Record<string, string[]>;
+												};
+											}).timePresetConfig ?? {
+												recurringDays: [],
+												timeSlotsPerDay: {},
+											})
+										: undefined;
+								return (
+									<div className="space-y-4">
+										<div>
+											<span className="block text-sm font-medium text-foreground mb-2">
+												Scheduling Type{" "}
+												<span className="text-destructive">*</span>
+											</span>
+											<div className="flex gap-4">
+												<div className="flex items-center">
+													<input
+														type="radio"
+														id="scheduling-appointment-based"
+														name="schedulingType"
+														value="appointment-based"
+														checked={schedulingType === "appointment-based"}
+														onChange={() =>
+															handleSchedulingTypeChange("appointment-based")
+														}
+														disabled={mutation.isPending}
+														className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
+													/>
+													<label
+														htmlFor="scheduling-appointment-based"
+														className="ml-2 block text-sm text-foreground"
+													>
+														Appointment-Based
+													</label>
+												</div>
+												<div className="flex items-center">
+													<input
+														type="radio"
+														id="scheduling-time-preset"
+														name="schedulingType"
+														value="time-preset"
+														checked={schedulingType === "time-preset"}
+														onChange={() =>
+															handleSchedulingTypeChange("time-preset")
+														}
+														disabled={mutation.isPending}
+														className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
+													/>
+													<label
+														htmlFor="scheduling-time-preset"
+														className="ml-2 block text-sm text-foreground"
+													>
+														Time-Preset (Fixed Schedule)
+													</label>
+												</div>
+											</div>
+											<p className="text-sm text-muted-foreground mt-1">
+												{schedulingType === "appointment-based"
+													? "Sessions are booked flexibly based on coach and client availability"
+													: "Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)"}
+											</p>
 										</div>
-										<div className="flex items-center">
-											<input
-												type="radio"
-												id="scheduling-time-preset"
-												name="schedulingType"
-												value="time-preset"
-												checked={schedulingType === "time-preset"}
-												onChange={() => handleSchedulingTypeChange("time-preset")}
-												disabled={mutation.isPending}
-												className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3"
+
+										{schedulingType === "time-preset" && timePresetConfig && (
+											<TimePresetEditor
+												config={timePresetConfig}
+												isPending={mutation.isPending}
+												onDayToggle={handleRecurringDayToggle}
+												onAddSlot={addTimeSlot}
+												onRemoveSlot={removeTimeSlot}
+												onUpdateSlot={updateTimeSlot}
 											/>
-											<label htmlFor="scheduling-time-preset" className="ml-2 block text-sm text-foreground">
-												Time-Preset (Fixed Schedule)
-											</label>
-										</div>
+										)}
 									</div>
-									<p className="text-sm text-muted-foreground mt-1">
-										{schedulingType === "appointment-based"
-											? "Sessions are booked flexibly based on coach and client availability"
-											: "Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM for classes)"}
-									</p>
-								</div>
+								);
+							}}
+						</form.Subscribe>
+					</div>
 
-								{/* Time-Preset Configuration */}
-								{schedulingType === "time-preset" && timePresetConfig && (
-									<TimePresetEditor
-										config={timePresetConfig}
-										isPending={mutation.isPending}
-										onDayToggle={handleRecurringDayToggle}
-										onAddSlot={addTimeSlot}
-										onRemoveSlot={removeTimeSlot}
-										onUpdateSlot={updateTimeSlot}
-									/>
-								)}
-							</div>
-						</div>
-
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onClose}
-								disabled={mutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={mutation.isPending}>
-								{mutation.isPending
-									? mode === "create"
-										? "Adding..."
-										: "Saving..."
-									: mode === "create"
-										? "Add Service"
-										: "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={mutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={mutation.isPending}>
+							{mutation.isPending
+								? mode === "create"
+									? "Adding..."
+									: "Saving..."
+								: mode === "create"
+									? "Add Service"
+									: "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

@@ -1,13 +1,7 @@
-import type { UseFormReturn } from "react-hook-form";
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export type SupplierFormValuesShape = {
 	name: string;
@@ -23,254 +17,297 @@ export type SupplierFormValuesShape = {
 	isActive: boolean;
 };
 
-type Props<T extends SupplierFormValuesShape> = {
-	form: UseFormReturn<T>;
+// TanStack Form's generic signature is too complex to cleanly type across file boundaries.
+// The form prop is a `useForm()` return value typed against SupplierFormValuesShape — we
+// rely on the parent (supplier-form.tsx) to enforce the shape and use loose typing here.
+type FormShape = {
+	Field: (props: {
+		name: string;
+		children: (field: AnyFieldApi) => React.ReactNode;
+	}) => React.ReactNode;
+};
+
+export type SupplierFormApi = FormShape;
+
+type Props = {
+	form: SupplierFormApi;
 	inputClass: string;
 };
 
-export function SupplierDetailsSection<T extends SupplierFormValuesShape>({
-	form,
-	inputClass,
-}: Props<T>) {
-	const f = form as unknown as UseFormReturn<SupplierFormValuesShape>;
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
+export function SupplierDetailsSection({ form, inputClass }: Props) {
 	return (
 		<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
 			<h4 className="text-md font-medium text-brand-primary-1 mb-2">
 				Supplier Details
 			</h4>
 			<div className="grid grid-cols-2 gap-4">
-				<FormField
-					control={f.control}
-					name="name"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				<form.Field name="name">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Supplier Name <span className="text-destructive">*</span>
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="EG: THE BODY SHOP"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="EG: THE BODY SHOP"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="description"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="description">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Supplier Description
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="EG: SUPPLY LOTION"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="EG: SUPPLY LOTION"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="accountNumber"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="accountNumber">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Account Number
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="888888888888 (BANK)"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="888888888888 (BANK)"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="paymentTerms"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="paymentTerms">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Payment Terms
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="EG: 30 days"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="EG: 30 days"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="barcode"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="barcode">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Barcode
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="EG: 1234567890"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="EG: 1234567890"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="isActive"
-					render={({ field }) => (
-						<FormItem className="flex items-center gap-2 pt-2">
-							<FormControl>
-								<Checkbox
-									checked={field.value as boolean}
-									onCheckedChange={field.onChange}
-									id="isActive"
-								/>
-							</FormControl>
-							<FormLabel
-								htmlFor="isActive"
+				</form.Field>
+
+				<form.Field name="isActive">
+					{(field) => (
+						<div className="flex items-center gap-2 pt-2">
+							<Checkbox
+								checked={field.state.value}
+								onCheckedChange={(v) => field.handleChange(v === true)}
+								id={field.name}
+							/>
+							<Label
+								htmlFor={field.name}
 								className="ml-2 block text-sm text-brand-primary-1 !mt-0 cursor-pointer"
 							>
 								Active
-							</FormLabel>
-							<FormMessage />
-						</FormItem>
+							</Label>
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 		</div>
 	);
 }
 
-export function SupplierContactSection<T extends SupplierFormValuesShape>({
-	form,
-	inputClass,
-}: Props<T>) {
-	const f = form as unknown as UseFormReturn<SupplierFormValuesShape>;
+export function SupplierContactSection({ form, inputClass }: Props) {
 	return (
 		<div className="bg-brand-secondary-3/50 p-4 rounded-lg">
 			<h4 className="text-md font-medium text-brand-primary-1 mb-2">
 				Contact Information
 			</h4>
 			<div className="grid grid-cols-2 gap-4">
-				<FormField
-					control={f.control}
-					name="contactPerson"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				<form.Field name="contactPerson">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Contact Person
-							</FormLabel>
-							<FormControl>
-								<Input
-									placeholder="EG: JONATHAN MORRISON"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="EG: JONATHAN MORRISON"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="contactPhone"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="contactPhone">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Mobile Number
-							</FormLabel>
-							<FormControl>
-								<Input
-									type="tel"
-									placeholder="+60 12-345 6789"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								type="tel"
+								placeholder="+60 12-345 6789"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="officePhone"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="officePhone">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Office Phone
-							</FormLabel>
-							<FormControl>
-								<Input
-									type="tel"
-									placeholder="+60 3-1234 5678"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								type="tel"
+								placeholder="+60 3-1234 5678"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="email"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="email">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								E-Mail
-							</FormLabel>
-							<FormControl>
-								<Input
-									type="email"
-									placeholder="EG: SUPPLIER@EXAMPLE.COM"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								type="email"
+								placeholder="EG: SUPPLIER@EXAMPLE.COM"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
-				<FormField
-					control={f.control}
-					name="website"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="block text-sm font-medium text-brand-primary-1">
+				</form.Field>
+
+				<form.Field name="website">
+					{(field) => (
+						<div className="space-y-1">
+							<Label
+								htmlFor={field.name}
+								className="block text-sm font-medium text-brand-primary-1"
+							>
 								Website
-							</FormLabel>
-							<FormControl>
-								<Input
-									type="url"
-									placeholder="EG: https://www.example.com"
-									className={inputClass}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								type="url"
+								placeholder="EG: https://www.example.com"
+								className={inputClass}
+								value={field.state.value ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 		</div>
 	);

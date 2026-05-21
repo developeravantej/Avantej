@@ -1,19 +1,20 @@
 /**
- * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * Canonical form shape (TanStack Form):
  * - Zod schema colocated (top of file)
  * - organizationId is a prop, never a form field
  * - Prices use z.number().transform((v) => Math.round(v * 100))
- * - Error display: inline <FormMessage> + toast on mutation error
  */
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
-import { ProductBasicSection } from "./product-basic-section";
+import {
+	ProductBasicSection,
+	type ProductFormApi,
+} from "./product-basic-section";
 import { ProductCategoriesSection } from "./product-categories-section";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,22 +25,20 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { centsToRm, rmToCents } from "@/lib/money";
 
-// 1. Schema — colocated, defines UI shape + validation. Server validates separately.
 // conversionFactor is stored as a string on the backend; price is stored as integer cents.
 const productFormSchema = z.object({
-	name: z.string().min(1, "Product name is required").max(200, "Name must be 200 characters or fewer"),
-	sku: z.string().min(1, "SKU is required").max(50, "SKU must be 50 characters or fewer"),
+	name: z
+		.string()
+		.min(1, "Product name is required")
+		.max(200, "Name must be 200 characters or fewer"),
+	sku: z
+		.string()
+		.min(1, "SKU is required")
+		.max(50, "SKU must be 50 characters or fewer"),
 	barcode: z.string().optional(),
 	type: z.enum(["product", "service_item"]).optional(),
 	brandId: z.string().uuid().nullable().optional(),
@@ -47,7 +46,6 @@ const productFormSchema = z.object({
 	supplierId: z.string().uuid().nullable().optional(),
 	uomId: z.string().uuid("Unit of measure is required"),
 	conversionFactor: z.string().optional(),
-	// UI: user enters dollars; transform converts to integer cents for the API
 	price: z
 		.number({ message: "Price is required" })
 		.min(0, "Price must be 0 or greater")
@@ -55,16 +53,25 @@ const productFormSchema = z.object({
 	status: z.enum(["active", "inactive", "discontinued"]).optional(),
 });
 
-// Input type (before transform) — used for defaultValues + form typings
 type ProductFormInput = z.input<typeof productFormSchema>;
-// Output type (after transform) — used for the mutation payload
-type ProductFormOutput = z.output<typeof productFormSchema>;
 
-// 2. Props — organizationId is a prop, NOT a form field
-interface Brand { id: string; name: string }
-interface Category { id: string; name: string }
-interface Supplier { id: string; name: string }
-interface Uom { id: string; name: string; symbol?: string }
+interface Brand {
+	id: string;
+	name: string;
+}
+interface Category {
+	id: string;
+	name: string;
+}
+interface Supplier {
+	id: string;
+	name: string;
+}
+interface Uom {
+	id: string;
+	name: string;
+	symbol?: string;
+}
 
 interface ProductFormDialogProps {
 	isOpen: boolean;
@@ -82,7 +89,7 @@ interface ProductFormDialogProps {
 		supplierId?: string | null;
 		uomId?: string | null;
 		conversionFactor?: string | null;
-		price?: number; // integer cents from server
+		price?: number;
 		status?: string | null;
 	};
 	brands: Brand[];
@@ -91,21 +98,46 @@ interface ProductFormDialogProps {
 	uoms: Uom[];
 }
 
-function buildDefaultValues(initialData?: ProductFormDialogProps["initialData"]): ProductFormInput {
+function buildDefaultValues(
+	initialData?: ProductFormDialogProps["initialData"],
+): ProductFormInput {
 	return {
 		name: initialData?.name ?? "",
 		sku: initialData?.sku ?? "",
 		barcode: initialData?.barcode ?? "",
-		type: (initialData?.type as "product" | "service_item" | undefined) ?? undefined,
+		type:
+			(initialData?.type as "product" | "service_item" | undefined) ?? undefined,
 		brandId: initialData?.brandId ?? null,
 		categoryId: initialData?.categoryId ?? null,
 		supplierId: initialData?.supplierId ?? null,
 		uomId: initialData?.uomId ?? "",
 		conversionFactor: initialData?.conversionFactor ?? "",
-		// Convert cents → dollars for display; undefined if no price
-		price: initialData?.price != null ? Number(centsToRm(initialData.price)) : (0 as number),
-		status: (initialData?.status as "active" | "inactive" | "discontinued" | undefined) ?? "active",
+		price:
+			initialData?.price != null
+				? Number(centsToRm(initialData.price))
+				: (0 as number),
+		status:
+			(initialData?.status as
+				| "active"
+				| "inactive"
+				| "discontinued"
+				| undefined) ?? "active",
 	};
+}
+
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
 }
 
 export function ProductFormDialog({
@@ -119,35 +151,8 @@ export function ProductFormDialog({
 	suppliers,
 	uoms,
 }: ProductFormDialogProps) {
-	// 3. Form instance — typed against input shape (pre-transform)
-	const form = useForm<ProductFormInput>({
-		resolver: zodResolver(productFormSchema),
-		defaultValues: buildDefaultValues(initialData),
-	});
-
-	// 4. Reset on dialog re-open with fresh initialData
-	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
-	useEffect(() => {
-		if (isOpen) form.reset(buildDefaultValues(initialData));
-	}, [isOpen, initialData, form]);
-
-	// Helper: generate a random SKU from current type value
-	function generateSKU() {
-		const typeValue = form.getValues("type");
-		const prefix = typeValue ? typeValue.substring(0, 3).toUpperCase() : "PRD";
-		const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-		form.setValue("sku", `${prefix}-${random}`);
-	}
-
-	// Helper: generate a random barcode
-	function generateBarcode() {
-		const barcode = Math.random().toString().substring(2, 15);
-		form.setValue("barcode", barcode);
-	}
-
-	// 5. Mutation — isPending drives submit state; branches on mode
 	const mutation = useApiMutation({
-		mutationFn: (values: ProductFormOutput) =>
+		mutationFn: (values: z.output<typeof productFormSchema>) =>
 			mode === "create"
 				? client.products.create({
 						organizationId,
@@ -184,8 +189,34 @@ export function ProductFormDialog({
 		onSuccess: () => onClose(),
 	});
 
-	// 6. Submit handler — Zod transform runs inside handleSubmit, output is ProductFormOutput
-	const onSubmit = (values: ProductFormOutput) => mutation.mutate(values);
+	const form = useForm({
+		defaultValues: buildDefaultValues(initialData),
+		validators: { onSubmit: productFormSchema },
+		onSubmit: async ({ value }) => {
+			// The schema transforms price (RM → cents) at parse time.
+			// onSubmit receives the input shape; we parse to get the transformed output.
+			const transformed = productFormSchema.parse(value);
+			await mutation.mutateAsync(transformed);
+		},
+	});
+
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
+	useEffect(() => {
+		if (isOpen) form.reset(buildDefaultValues(initialData));
+	}, [isOpen, initialData, form]);
+
+	// Helper: generate a random SKU from current type value
+	function generateSKU() {
+		const typeValue = form.state.values.type;
+		const prefix = typeValue ? typeValue.substring(0, 3).toUpperCase() : "PRD";
+		const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+		form.setFieldValue("sku", `${prefix}-${random}`);
+	}
+
+	function generateBarcode() {
+		const barcode = Math.random().toString().substring(2, 15);
+		form.setFieldValue("barcode", barcode);
+	}
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -201,94 +232,111 @@ export function ProductFormDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form
-						onSubmit={form.handleSubmit(onSubmit as Parameters<typeof form.handleSubmit>[0])}
-						className="space-y-4"
-					>
-						<ProductBasicSection form={form as any} onGenerateSKU={generateSKU} onGenerateBarcode={generateBarcode} />
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-4"
+				>
+					<ProductBasicSection
+						form={form as unknown as ProductFormApi}
+						onGenerateSKU={generateSKU}
+						onGenerateBarcode={generateBarcode}
+					/>
 
-						{/* Pricing */}
-						<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
-							<h5 className="text-sm font-medium text-brand-primary-1 mb-3">Pricing</h5>
-							<div className="grid grid-cols-2 gap-4">
-								<FormField
-									control={form.control}
-									name="price"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>
-												Price (RM) <span className="text-destructive">*</span>
-											</FormLabel>
-											<FormControl>
-												<Input
-													type="number"
-													step="0.01"
-													min="0"
-													placeholder="0.00"
-													value={field.value ?? ""}
-													onChange={(e) => {
-														const parsed = parseFloat(e.target.value);
-														field.onChange(Number.isNaN(parsed) ? undefined : parsed);
-													}}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+					{/* Pricing */}
+					<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
+						<h5 className="text-sm font-medium text-brand-primary-1 mb-3">
+							Pricing
+						</h5>
+						<div className="grid grid-cols-2 gap-4">
+							<form.Field name="price">
+								{(field) => (
+									<div className="space-y-1">
+										<Label htmlFor={field.name}>
+											Price (RM) <span className="text-destructive">*</span>
+										</Label>
+										<Input
+											id={field.name}
+											type="number"
+											step="0.01"
+											min="0"
+											placeholder="0.00"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(e) => {
+												const parsed = parseFloat(e.target.value);
+												field.handleChange(
+													Number.isNaN(parsed) ? (0 as number) : parsed,
+												);
+											}}
+										/>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
 
-								<FormField
-									control={form.control}
-									name="conversionFactor"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Conversion Factor</FormLabel>
-											<FormControl>
-												<Input
-													type="number"
-													step="0.01"
-													min="0"
-													placeholder="1.0"
-													{...field}
-												/>
-											</FormControl>
-											<p className="text-xs text-brand-secondary-1 mt-1">Factor for unit conversion</p>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-							</div>
+							<form.Field name="conversionFactor">
+								{(field) => (
+									<div className="space-y-1">
+										<Label htmlFor={field.name}>Conversion Factor</Label>
+										<Input
+											id={field.name}
+											type="number"
+											step="0.01"
+											min="0"
+											placeholder="1.0"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+										<p className="text-xs text-brand-secondary-1 mt-1">
+											Factor for unit conversion
+										</p>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
 						</div>
+					</div>
 
-						<ProductCategoriesSection form={form as any} mode={mode} brands={brands} categories={categories} suppliers={suppliers} uoms={uoms} />
+					<ProductCategoriesSection
+						form={form as unknown as ProductFormApi}
+						mode={mode}
+						brands={brands}
+						categories={categories}
+						suppliers={suppliers}
+						uoms={uoms}
+					/>
 
-						<DialogFooter className="mt-6">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onClose}
-								disabled={mutation.isPending}
-								className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
-							>
-								Cancel
-							</Button>
-							<Button
-								type="submit"
-								disabled={mutation.isPending}
-								className="bg-zinc-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								{mutation.isPending
-									? mode === "create"
-										? "Adding..."
-										: "Saving..."
-									: mode === "create"
-										? "Add Product"
-										: "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<DialogFooter className="mt-6">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={mutation.isPending}
+							className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
+						>
+							Cancel
+						</Button>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-zinc-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{mutation.isPending
+								? mode === "create"
+									? "Adding..."
+									: "Saving..."
+								: mode === "create"
+									? "Add Product"
+									: "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

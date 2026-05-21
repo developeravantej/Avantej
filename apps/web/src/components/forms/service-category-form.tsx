@@ -1,21 +1,22 @@
 /**
- * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * Canonical form shape (TanStack Form):
  * - Zod schema colocated (top of file)
  * - organizationId is a prop, never a form field
  * - Config fields (duration, maxAttendees, rules) submitted alongside basic fields in a single
  *   onSubmit handler that calls serviceCategories.create/update then serviceCategoryConfig.upsert
- * - Error display: inline <FormMessage> + toast on mutation error
  */
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
-import { ServiceCategoryRulesSection } from "./service-category-rules-section";
+import {
+	ServiceCategoryRulesSection,
+	type ServiceCategoryRulesFormApi,
+} from "./service-category-rules-section";
 import {
 	Dialog,
 	DialogContent,
@@ -24,17 +25,9 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// 1. Schema — colocated, defines UI shape + validation
 const serviceCategoryFormSchema = z.object({
 	name: z
 		.string()
@@ -56,7 +49,6 @@ const serviceCategoryFormSchema = z.object({
 
 type ServiceCategoryFormValues = z.infer<typeof serviceCategoryFormSchema>;
 
-// 2. Props — organizationId is a prop, NOT a form field
 interface ServiceFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -93,6 +85,21 @@ function buildDefaultValues(
 	};
 }
 
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
 export function ServiceFormDialog({
 	isOpen,
 	onClose,
@@ -100,22 +107,6 @@ export function ServiceFormDialog({
 	mode = "create",
 	initialData,
 }: ServiceFormDialogProps) {
-	// 3. Form instance
-	const form = useForm<ServiceCategoryFormValues>({
-		resolver: zodResolver(serviceCategoryFormSchema),
-		defaultValues: buildDefaultValues(initialData),
-	});
-
-	const requireAdvanceBooking = form.watch("requireAdvanceBooking");
-	const enableCancellationWindow = form.watch("enableCancellationWindow");
-
-	// 4. Reset on dialog re-open with fresh initialData
-	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
-	useEffect(() => {
-		if (isOpen) form.reset(buildDefaultValues(initialData));
-	}, [isOpen, initialData, form]);
-
-	// 5. Mutation — calls serviceCategories.create/update then serviceCategoryConfig.upsert
 	const mutation = useApiMutation({
 		mutationFn: async (values: ServiceCategoryFormValues) => {
 			let categoryId: string;
@@ -160,16 +151,24 @@ export function ServiceFormDialog({
 				: "Service category updated",
 		errorMessage: (err) => err.message || "Failed to save service category",
 		invalidate: [
-				orpc.serviceCategories.list.key(),
-				orpc.serviceCategoryConfig.getByCategoryId.key(),
-			],
+			orpc.serviceCategories.list.key(),
+			orpc.serviceCategoryConfig.getByCategoryId.key(),
+		],
 		onSuccess: () => onClose(),
 	});
 
+	const form = useForm({
+		defaultValues: buildDefaultValues(initialData),
+		validators: { onSubmit: serviceCategoryFormSchema },
+		onSubmit: async ({ value }) => {
+			await mutation.mutateAsync(value);
+		},
+	});
 
-	// 6. Submit handler
-	const onSubmit = (values: ServiceCategoryFormValues) =>
-		mutation.mutate(values);
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
+	useEffect(() => {
+		if (isOpen) form.reset(buildDefaultValues(initialData));
+	}, [isOpen, initialData, form]);
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -187,119 +186,131 @@ export function ServiceFormDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-						{/* Name */}
-						<FormField
-							control={form.control}
-							name="name"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Service Category Name{" "}
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-6"
+				>
+					{/* Name */}
+					<form.Field name="name">
+						{(field) => (
+							<div className="space-y-2">
+								<Label htmlFor={field.name}>
+									Service Category Name{" "}
+									<span className="text-destructive">*</span>
+								</Label>
+								<Input
+									id={field.name}
+									className="bg-white"
+									placeholder="e.g., Personal Training (1-on-1)"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+								/>
+								<FieldError errors={field.state.meta.errors} />
+							</div>
+						)}
+					</form.Field>
+
+					{/* Duration + Max Attendees */}
+					<div className="grid grid-cols-2 gap-4">
+						<form.Field name="duration">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Duration (minutes){" "}
 										<span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<Input
-											className="bg-white"
-											placeholder="e.g., Personal Training (1-on-1)"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
+									</Label>
+									<Input
+										id={field.name}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+										type="number"
+										min={0}
+										placeholder="60"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(e.target.valueAsNumber || 0)
+										}
+									/>
+									<p className="text-xs invisible" aria-hidden="true">
+										spacer
+									</p>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
 							)}
-						/>
+						</form.Field>
 
-						{/* Duration + Max Attendees */}
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="duration"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Duration (minutes){" "}
-											<span className="text-destructive">*</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-												type="number"
-												min={0}
-												placeholder="60"
-												{...field}
-												onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-											/>
-										</FormControl>
-										<p
-											className="text-xs invisible"
-											aria-hidden="true"
-										>
-											spacer
-										</p>
-										<FormMessage />
-									</FormItem>
-								)}
+						<form.Field name="maxAttendees">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Maximum Attendees/Customers
+									</Label>
+									<Input
+										id={field.name}
+										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+										type="number"
+										min={1}
+										placeholder="No limit"
+										value={field.state.value ?? ""}
+										onBlur={field.handleBlur}
+										onChange={(e) =>
+											field.handleChange(
+												e.target.value === ""
+													? undefined
+													: Number(e.target.value),
+											)
+										}
+									/>
+									<p className="text-xs text-muted-foreground">
+										Leave empty for unlimited attendees
+									</p>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+					</div>
+
+					<form.Subscribe
+						selector={(state) => ({
+							require: state.values.requireAdvanceBooking,
+							cancel: state.values.enableCancellationWindow,
+						})}
+					>
+						{({ require, cancel }) => (
+							<ServiceCategoryRulesSection
+								form={form as unknown as ServiceCategoryRulesFormApi}
+								requireAdvanceBooking={require}
+								enableCancellationWindow={cancel}
 							/>
-							<FormField
-								control={form.control}
-								name="maxAttendees"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Maximum Attendees/Customers</FormLabel>
-										<FormControl>
-											<Input
-												className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-												type="number"
-												min={1}
-												placeholder="No limit"
-												value={field.value ?? ""}
-												onChange={(e) =>
-													field.onChange(
-														e.target.value === ""
-															? undefined
-															: Number(e.target.value),
-													)
-												}
-											/>
-										</FormControl>
-										<p className="text-xs text-muted-foreground">
-											Leave empty for unlimited attendees
-										</p>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
+						)}
+					</form.Subscribe>
 
-						<ServiceCategoryRulesSection
-							form={form}
-							requireAdvanceBooking={requireAdvanceBooking}
-							enableCancellationWindow={enableCancellationWindow}
-						/>
-
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onClose}
-								disabled={mutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={mutation.isPending}>
-								{mutation.isPending
-									? mode === "create"
-										? "Creating..."
-										: "Saving..."
-									: mode === "create"
-										? "Create Service Category"
-										: "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={mutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={mutation.isPending}>
+							{mutation.isPending
+								? mode === "create"
+									? "Creating..."
+									: "Saving..."
+								: mode === "create"
+									? "Create Service Category"
+									: "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

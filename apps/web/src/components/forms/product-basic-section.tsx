@@ -1,13 +1,7 @@
-import type { UseFormReturn } from "react-hook-form";
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { Button } from "@/components/ui/button";
-import {
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -16,19 +10,42 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-type Props<T extends Record<string, unknown>> = {
-	form: UseFormReturn<T>;
+// See supplier-form-sections.tsx for explanation of the loose typing pattern.
+type FormShape = {
+	Field: (props: {
+		name: string;
+		children: (field: AnyFieldApi) => React.ReactNode;
+	}) => React.ReactNode;
+};
+
+export type ProductFormApi = FormShape;
+
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
+type Props = {
+	form: ProductFormApi;
 	onGenerateSKU: () => void;
 	onGenerateBarcode: () => void;
 };
 
-export function ProductBasicSection<T extends Record<string, unknown>>({
+export function ProductBasicSection({
 	form,
 	onGenerateSKU,
 	onGenerateBarcode,
-}: Props<T>) {
-	// biome-ignore lint/suspicious/noExplicitAny: generic form name narrowing
-	const f = form as any;
+}: Props) {
 	return (
 		<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
 			<h5 className="text-sm font-medium text-brand-primary-1 mb-3">
@@ -36,138 +53,132 @@ export function ProductBasicSection<T extends Record<string, unknown>>({
 			</h5>
 
 			<div className="grid grid-cols-1 gap-4">
-				<FormField
-					control={f.control}
-					name="name"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>
+				<form.Field name="name">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>
 								Product Name <span className="text-destructive">*</span>
-							</FormLabel>
-							<FormControl>
-								<Input placeholder="Product name" {...field} />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<Input
+								id={field.name}
+								placeholder="Product name"
+								value={(field.state.value as string) ?? ""}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 
 			<div className="grid grid-cols-2 gap-4 mt-4">
-				<FormField
-					control={f.control}
-					name="sku"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>
+				<form.Field name="sku">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>
 								SKU <span className="text-destructive">*</span>
-							</FormLabel>
-							<FormControl>
-								<div className="flex gap-2">
-									<Input
-										placeholder="Product SKU"
-										{...field}
-										className="flex-1"
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={onGenerateSKU}
-										className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
-									>
-										Generate
-									</Button>
-								</div>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+							</Label>
+							<div className="flex gap-2">
+								<Input
+									id={field.name}
+									placeholder="Product SKU"
+									value={(field.state.value as string) ?? ""}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									className="flex-1"
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={onGenerateSKU}
+									className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
+								>
+									Generate
+								</Button>
+							</div>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="barcode"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Barcode</FormLabel>
-							<FormControl>
-								<div className="flex gap-2">
-									<Input
-										placeholder="Barcode"
-										{...field}
-										className="flex-1"
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={onGenerateBarcode}
-										className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
-									>
-										Generate
-									</Button>
-								</div>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+				<form.Field name="barcode">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Barcode</Label>
+							<div className="flex gap-2">
+								<Input
+									id={field.name}
+									placeholder="Barcode"
+									value={(field.state.value as string) ?? ""}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									className="flex-1"
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={onGenerateBarcode}
+									className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
+								>
+									Generate
+								</Button>
+							</div>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 
 			<div className="grid grid-cols-2 gap-4 mt-4">
-				<FormField
-					control={f.control}
-					name="type"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Type</FormLabel>
+				<form.Field name="type">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Type</Label>
 							<Select
-								value={field.value ?? ""}
-								onValueChange={(v) => field.onChange(v || undefined)}
+								value={(field.state.value as string) ?? ""}
+								onValueChange={(v) => field.handleChange(v || undefined)}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select type" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select type" />
+								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="product">Product</SelectItem>
 									<SelectItem value="service_item">Service Item</SelectItem>
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="status"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Status</FormLabel>
+				<form.Field name="status">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Status</Label>
 							<Select
-								value={field.value ?? "active"}
+								value={(field.state.value as string) ?? "active"}
 								onValueChange={(v) =>
-									field.onChange(v as "active" | "inactive" | "discontinued")
+									field.handleChange(
+										v as "active" | "inactive" | "discontinued",
+									)
 								}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select status" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select status" />
+								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="active">Active</SelectItem>
 									<SelectItem value="inactive">Inactive</SelectItem>
 									<SelectItem value="discontinued">Discontinued</SelectItem>
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 		</div>
 	);
