@@ -67,6 +67,7 @@ export * from "./sales-order-items";
 export * from "./sales-orders";
 export * from "./service-categories";
 export * from "./service-category-config";
+export * from "./scheduled-reports";
 export * from "./service-members";
 export * from "./services";
 export * from "./stock-request-items";

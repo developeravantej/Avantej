@@ -44,6 +44,7 @@ import { rolePermissionsRouter } from "./role-permissions";
 import { rolesRouter } from "./roles";
 import { roomsRouter } from "./rooms";
 import { salesOrdersRouter } from "./sales-orders";
+import { scheduledReportsRouter } from "./scheduled-reports";
 import { serviceCategoriesRouter } from "./service-categories";
 import { serviceCategoryConfigRouter } from "./service-category-config";
 import { serviceMembersRouter } from "./service-members";
@@ -123,6 +124,7 @@ export const baseRouter = {
 	walkInCustomers: walkInCustomersRouter,
 	taxRates: taxRatesRouter,
 	analytics: analyticsRouter,
+	scheduledReports: scheduledReportsRouter,
 	registration: registrationRouter,
 	coachIntake: coachIntakeRouter,
 	trainerAvailability: trainerAvailabilityRouter,

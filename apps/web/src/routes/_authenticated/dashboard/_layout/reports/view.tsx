@@ -8,6 +8,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
+import { ScheduleReportDialog } from "@/components/reports/schedule-report-dialog";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/reports/view",
@@ -196,6 +197,129 @@ function triggerCsvDownload(csv: string, window: WindowKey): void {
 	a.download = `avantej-report-${window}-${date}.csv`;
 	a.click();
 	URL.revokeObjectURL(url);
+}
+
+async function downloadPdf(params: CsvParams): Promise<void> {
+	// Dynamic import keeps jspdf out of the initial bundle.
+	const { jsPDF } = await import("jspdf");
+	const autoTable = (await import("jspdf-autotable")).default;
+
+	const { window: win, kpis, series, topTrainers } = params;
+	const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+	const generatedAt = new Date().toLocaleString("en-MY");
+	const fromDate = kpis ? new Date(kpis.from).toLocaleDateString("en-MY") : "—";
+	const toDate = kpis ? new Date(kpis.to).toLocaleDateString("en-MY") : "—";
+
+	// Header
+	doc.setFontSize(18);
+	doc.setFont("helvetica", "bold");
+	doc.text("Avantej Performance Report", 40, 50);
+	doc.setFontSize(10);
+	doc.setFont("helvetica", "normal");
+	doc.setTextColor(115);
+	doc.text(`Generated: ${generatedAt}`, 40, 70);
+	doc.text(`Window: ${win}`, 40, 84);
+	doc.text(`Period: ${fromDate} – ${toDate}`, 40, 98);
+	doc.setTextColor(0);
+
+	let cursorY = 120;
+
+	// KPIs table
+	autoTable(doc, {
+		startY: cursorY,
+		head: [["Metric", "Value"]],
+		body: kpis
+			? [
+					["Total Revenue (RM)", (kpis.totalSales / 100).toFixed(2)],
+					[
+						"Prev Period Revenue (RM)",
+						(kpis.previousPeriodSales / 100).toFixed(2),
+					],
+					["Active Members", String(kpis.activeMembersCount)],
+					["Completed Appointments", String(kpis.completedAppointments)],
+					["Total Appointments", String(kpis.totalAppointments)],
+				]
+			: [["(no data)", ""]],
+		theme: "striped",
+		headStyles: { fillColor: [10, 10, 10] },
+		styles: { fontSize: 10 },
+		didDrawPage: (data) => {
+			cursorY = data.cursor?.y ?? cursorY;
+		},
+	});
+	cursorY = (doc as unknown as { lastAutoTable?: { finalY: number } })
+		.lastAutoTable!.finalY + 20;
+
+	// Revenue by branch
+	const branchRows =
+		kpis && kpis.revenueByBranch.length > 0
+			? [...kpis.revenueByBranch]
+					.sort((a, z) => z.totalRevenue - a.totalRevenue)
+					.map((b) => [b.branchName ?? "Unknown", (b.totalRevenue / 100).toFixed(2)])
+			: [["(no data)", ""]];
+
+	doc.setFontSize(12);
+	doc.setFont("helvetica", "bold");
+	doc.text("Revenue by Branch", 40, cursorY);
+	cursorY += 8;
+	autoTable(doc, {
+		startY: cursorY,
+		head: [["Branch", "Revenue (RM)"]],
+		body: branchRows,
+		theme: "striped",
+		headStyles: { fillColor: [10, 10, 10] },
+		styles: { fontSize: 10 },
+	});
+	cursorY = (doc as unknown as { lastAutoTable?: { finalY: number } })
+		.lastAutoTable!.finalY + 20;
+
+	// Top trainers
+	const trainerRows =
+		topTrainers.length > 0
+			? topTrainers.map((t) => [
+					t.staffName ?? t.staffId,
+					String(t.appointmentsCompleted),
+					(t.totalCommission / 100).toFixed(2),
+				])
+			: [["(no data)", "", ""]];
+
+	doc.setFontSize(12);
+	doc.setFont("helvetica", "bold");
+	doc.text("Top Trainers", 40, cursorY);
+	cursorY += 8;
+	autoTable(doc, {
+		startY: cursorY,
+		head: [["Name", "Sessions", "Commission (RM)"]],
+		body: trainerRows,
+		theme: "striped",
+		headStyles: { fillColor: [10, 10, 10] },
+		styles: { fontSize: 10 },
+	});
+	cursorY = (doc as unknown as { lastAutoTable?: { finalY: number } })
+		.lastAutoTable!.finalY + 20;
+
+	// Revenue series (truncated to keep PDF compact for long windows)
+	if (series.length > 0) {
+		const seriesRows = series.map((p) => [
+			p.date,
+			(p.revenueCents / 100).toFixed(2),
+		]);
+		doc.setFontSize(12);
+		doc.setFont("helvetica", "bold");
+		doc.text("Revenue Series", 40, cursorY);
+		cursorY += 8;
+		autoTable(doc, {
+			startY: cursorY,
+			head: [["Date", "Revenue (RM)"]],
+			body: seriesRows,
+			theme: "striped",
+			headStyles: { fillColor: [10, 10, 10] },
+			styles: { fontSize: 9 },
+		});
+	}
+
+	const date = new Date().toISOString().slice(0, 10);
+	doc.save(`avantej-report-${win}-${date}.pdf`);
 }
 
 // ─── SVG Sparkline helper ─────────────────────────────────────────────────────
@@ -632,6 +756,18 @@ function ReportsPage() {
 		}
 	}, [window, kpis, series, topTrainers]);
 
+	const handleExportPdf = useCallback(async () => {
+		try {
+			await downloadPdf({ window, kpis, series, topTrainers });
+			toast.success("Report downloaded as PDF");
+		} catch (error) {
+			console.error("PDF export error:", error);
+			toast.error("Failed to generate PDF");
+		}
+	}, [window, kpis, series, topTrainers]);
+
+	const [scheduleOpen, setScheduleOpen] = useState(false);
+
 	// Avatar accent palette (cycles)
 	const AVATAR_COLORS = [
 		{ bg: "#fef3c7", text: "#b45309" },
@@ -692,12 +828,14 @@ function ReportsPage() {
 						))}
 					</div>
 
-					{/* Export buttons — UI only (stub) */}
+					{/* Export buttons */}
 					<button
 						type="button"
-						className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition hover:opacity-80"
+						disabled={isExportLoading}
+						onClick={handleExportPdf}
+						className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
 						style={{ borderColor: "#e5e5e5", background: "#fff", color: "#0a0a0a" }}
-						title="PDF export — not yet implemented"
+						title="Export as PDF"
 					>
 						<DownloadIcon /> PDF
 					</button>
@@ -713,9 +851,10 @@ function ReportsPage() {
 					</button>
 					<button
 						type="button"
+						onClick={() => setScheduleOpen(true)}
 						className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition hover:opacity-80"
 						style={{ background: "#0a0a0a", color: "#fff" }}
-						title="Schedule email — not yet implemented"
+						title="Schedule recurring email report"
 					>
 						<CalIcon /> Schedule Email
 					</button>
@@ -735,7 +874,7 @@ function ReportsPage() {
 			{isLoading && !kpis && <PageLoader />}
 
 			{/* ── KPI tiles ── */}
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+			<div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
 				{/* 1. MRR / Total Revenue — real data */}
 				<KpiTile
 					label="Revenue"
@@ -788,16 +927,7 @@ function ReportsPage() {
 					fillColor="#d97706"
 				/>
 
-				{/* 6. NPS — no API, stub */}
-				<KpiTile
-					label="NPS Score"
-					value="—"
-					delta={null}
-					sparkValues={[18, 16, 14, 15, 12, 10, 9, 7, 6]}
-					strokeColor="#0891b2"
-					fillColor="#0891b2"
-					stub
-				/>
+				{/* NPS removed — see apps/web/src/_future/nps-reports.md */}
 			</div>
 
 			{/* ── Revenue chart + right column ── */}
@@ -1042,6 +1172,15 @@ function ReportsPage() {
 				</div>
 			</div>
 			</div>
+
+			{organizationId && (
+				<ScheduleReportDialog
+					open={scheduleOpen}
+					onOpenChange={setScheduleOpen}
+					organizationId={organizationId}
+					currentWindow={window}
+				/>
+			)}
 		</div>
 	);
 }

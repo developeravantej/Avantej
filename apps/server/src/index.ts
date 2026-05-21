@@ -322,6 +322,22 @@ export default {
             .then((r) => console.log(`[scheduled] backfill done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] backfill failed:`, e)),
         );
+
+        // Phase 5.6: also process due scheduled reports hourly.
+        const { runScheduledReports } = await import("@/services/scheduled-reports.service");
+        const { getTenantDb } = await import("@/lib/db");
+        const dashboardUrl =
+          (_env as { WEB_APP_URL?: string })?.WEB_APP_URL ??
+          "https://app.avantej.com";
+        ctx.waitUntil(
+          runScheduledReports({
+            controlPanelDb: cpDb,
+            getTenantDb: (orgId) => getTenantDb(orgId),
+            dashboardUrl,
+          })
+            .then((r) => console.log(`[scheduled] scheduled-reports done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] scheduled-reports failed:`, e)),
+        );
       } else if (cron === "0 9 * * *") {
         const { runOnboardingAlerts } = await import("@/services/onboarding-alerts.service");
         ctx.waitUntil(

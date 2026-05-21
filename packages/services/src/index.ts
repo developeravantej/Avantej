@@ -7,6 +7,22 @@
 
 // Analytics services
 export * from "./analytics.service";
+// Scheduled reports services
+export {
+	computeNextRunAt,
+	createScheduledReport,
+	type CreateScheduledReportParams,
+	deleteScheduledReport,
+	listDueScheduledReports,
+	listScheduledReports,
+	markScheduledReportFailed,
+	markScheduledReportSent,
+	type ScheduledReportFormat,
+	type ScheduledReportFrequency,
+	type ScheduledReportRow,
+	type ScheduledReportWindow,
+	toggleScheduledReportActive,
+} from "./scheduled-reports.service";
 // Category buffer override services
 export {
 	listCategoryBufferOverridesForMember,
