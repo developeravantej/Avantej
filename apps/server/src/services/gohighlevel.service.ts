@@ -786,11 +786,22 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 					? true
 					: userRecord.emailVerified,
 			phone: extracted.phone || userRecord.phone,
+			// Single write site: the create branch always runs this UPDATE right
+			// after the INSERT, so fresh users still get the passport here.
+			idPassportNo: customFields.idPassport ?? userRecord.idPassportNo,
 			updatedAt: now,
 		})
 		.where(eq(user.id, userRecord.id));
 
 	const dobFromAge = customFields.age != null ? deriveDobFromAge(customFields.age, now) : null;
+	// Prefer an explicit DOB from GHL over the age-derived approximation.
+	const explicitDob = customFields.dateOfBirth
+		? (() => {
+				const d = new Date(customFields.dateOfBirth as string);
+				return Number.isNaN(d.getTime()) ? null : d;
+			})()
+		: null;
+	const effectiveDob = explicitDob ?? dobFromAge;
 	const leadSourceId = await resolveLeadSourceId(tenantDb, customFields.leadAcquisitionType);
 	const referrerMemberId = await resolveReferrerMemberId(
 		tenantDb,
@@ -813,11 +824,15 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.values({
 				userId: userRecord.id,
 				phone: extracted.phone || null,
-				dateOfBirth: dobFromAge,
+				dateOfBirth: effectiveDob,
 				gender,
 				leadSourceId,
 				referrerMemberId,
 				campaignId,
+				leadAcquisitionType: customFields.leadAcquisitionType,
+				emergencyContactName: customFields.emergencyContactName,
+				emergencyContactPhone: customFields.emergencyContactPhone,
+				address: customFields.address,
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -828,11 +843,18 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.update(customerProfiles)
 			.set({
 				phone: extracted.phone || existingProfile.phone,
-				dateOfBirth: dobFromAge ?? existingProfile.dateOfBirth,
+				dateOfBirth: effectiveDob ?? existingProfile.dateOfBirth,
 				gender: gender ?? existingProfile.gender,
 				leadSourceId: leadSourceId ?? existingProfile.leadSourceId,
 				referrerMemberId: referrerMemberId ?? existingProfile.referrerMemberId,
 				campaignId: campaignId ?? existingProfile.campaignId,
+				leadAcquisitionType:
+					customFields.leadAcquisitionType ?? existingProfile.leadAcquisitionType,
+				emergencyContactName:
+					customFields.emergencyContactName ?? existingProfile.emergencyContactName,
+				emergencyContactPhone:
+					customFields.emergencyContactPhone ?? existingProfile.emergencyContactPhone,
+				address: customFields.address ?? existingProfile.address,
 				isDeleted: false,
 				deletedAt: null,
 				deletedSource: null,
@@ -1074,6 +1096,21 @@ async function updateEventStatus(
 		.where(eq(ghlSyncEvents.eventKey, eventKey));
 }
 
+const GENDER_CANON: Record<string, string> = {
+	male: "male",
+	m: "male",
+	female: "female",
+	f: "female",
+	other: "other",
+	prefer_not_to_say: "prefer_not_to_say",
+	"prefer not to say": "prefer_not_to_say",
+};
+
+function normalizeGenderValue(value: string | null): string | null {
+	if (!value) return null;
+	return GENDER_CANON[value.trim().toLowerCase()] ?? null;
+}
+
 export type GhlCustomFields = {
 	gender: string | null;
 	age: number | null;
@@ -1083,6 +1120,11 @@ export type GhlCustomFields = {
 	referrerPhone: string | null;
 	leadAcquisitionType: string | null;
 	leadOriginator: string | null;
+	emergencyContactName: string | null;
+	emergencyContactPhone: string | null;
+	address: string | null;
+	dateOfBirth: string | null; // ISO date string as provided by GHL
+	idPassport: string | null;
 };
 
 export function extractCustomFieldsForProfile(
@@ -1098,7 +1140,7 @@ export function extractCustomFieldsForProfile(
 		Number.isFinite(ageNum) && ageNum > 0 && ageNum < 150 ? ageNum : null;
 
 	return {
-		gender: pick(["gender"]),
+		gender: normalizeGenderValue(pick(["gender"])),
 		age,
 		selectedCountry: pick(["selected_country", "sys_selected_country"]),
 		selectedLocation: pick(["selected_location", "sys_selected_location"]),
@@ -1113,6 +1155,15 @@ export function extractCustomFieldsForProfile(
 			"lead_originatator",
 			"sys_lead_originator",
 		]),
+		emergencyContactName: pick(["emergency_name", "emergency_contact_name"]),
+		emergencyContactPhone: pick([
+			"emergency_phone",
+			"emergency_contact_no",
+			"emergency_contact_phone",
+		]),
+		address: pick(["full_address", "address"]),
+		dateOfBirth: pick(["dob", "date_of_birth", "dateOfBirth"]),
+		idPassport: pick(["id_passport", "nric_no__id_no"]),
 	};
 }
 

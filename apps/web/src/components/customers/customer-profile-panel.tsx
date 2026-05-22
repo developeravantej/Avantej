@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
+import { normalizeGender } from "@/lib/gender";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 
@@ -229,13 +230,20 @@ export function CustomerProfilePanel({
 		},
 	});
 
+	// Populate the form once data arrives for this member. Keyed on memberId +
+	// the loaded profile id so it (a) runs when the fetched record first lands
+	// on a fresh load, and (b) re-runs only when switching customers — never on
+	// a background refetch of the same record, which would wipe unsaved edits.
+	const loadedProfileKey = detail
+		? `${memberId}:${detail.profile?.id ?? "none"}`
+		: null;
 	useEffect(() => {
 		if (!detail) return;
 		const profile = detail.profile;
 		setProfileForm({
 			phone: profile?.phone ?? "",
 			dateOfBirth: toDateInputValue(profile?.dateOfBirth),
-			gender: (profile?.gender as Gender) ?? "",
+			gender: normalizeGender(profile?.gender),
 			address: profile?.address ?? "",
 			emergencyContactName: profile?.emergencyContactName ?? "",
 			emergencyContactPhone: profile?.emergencyContactPhone ?? "",
@@ -244,9 +252,9 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
-		// intentional: profile in deps would wipe unsaved form edits on every background refetch
+		// loadedProfileKey changes only on member switch or first data arrival.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [memberId]);
+	}, [loadedProfileKey]);
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
@@ -457,6 +465,24 @@ export function CustomerProfilePanel({
 							<CardTitle className="text-base">Profile</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
+							{(profile?.leadAcquisitionType || profile?.campaignId) && (
+								<div className="flex flex-wrap items-center gap-2">
+									{profile?.leadAcquisitionType && (
+										<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+											Lead source
+											<Badge variant="secondary">
+												{profile.leadAcquisitionType}
+											</Badge>
+										</span>
+									)}
+									{profile?.campaignId && (
+										<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+											Campaign
+											<Badge variant="secondary">{profile.campaignId}</Badge>
+										</span>
+									)}
+								</div>
+							)}
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div className="flex flex-col gap-1.5">
 									<Label htmlFor="cd-phone">Phone</Label>

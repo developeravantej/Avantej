@@ -66,6 +66,9 @@ export const customerProfiles = pgTable("customer_profiles", {
 		onDelete: "set null",
 	}),
 	campaignId: text("campaign_id"),
+	// Raw GHL lead_acquisition_type text (badge display). Kept alongside the
+	// resolved leadSourceId FK so the original value survives a lookup miss.
+	leadAcquisitionType: text("lead_acquisition_type"),
 	// === /3.2 ===
 
 	// === 3.6 household linking ===

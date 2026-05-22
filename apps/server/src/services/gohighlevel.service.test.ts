@@ -614,3 +614,48 @@ describe("extractCustomFieldsForProfile", () => {
 		expect(fields.leadOriginator).toBeNull();
 	});
 });
+
+describe("extractCustomFieldsForProfile — gender normalization", () => {
+	test("lowercases gender from GHL", () => {
+		const cf = extractCustomFieldsForProfile({ contact: { gender: "Male" } });
+		expect(cf.gender).toBe("male");
+	});
+	test("maps prefer-not-to-say and unknowns", () => {
+		expect(
+			extractCustomFieldsForProfile({
+				contact: { gender: "Prefer not to say" },
+			}).gender,
+		).toBe("prefer_not_to_say");
+		expect(
+			extractCustomFieldsForProfile({ contact: { gender: "banana" } }).gender,
+		).toBeNull();
+	});
+});
+
+describe("extractCustomFieldsForProfile — contact detail fields", () => {
+	test("extracts emergency contact, address, dob, passport", () => {
+		const cf = extractCustomFieldsForProfile({
+			contact: {
+				emergency_name: "Jane Doe",
+				emergency_contact_no: "+60111222333",
+				full_address: "12 Jalan Ampang, KL",
+				date_of_birth: "1989-04-01",
+				nric_no__id_no: "A1234567",
+			},
+		});
+		expect(cf.emergencyContactName).toBe("Jane Doe");
+		expect(cf.emergencyContactPhone).toBe("+60111222333");
+		expect(cf.address).toBe("12 Jalan Ampang, KL");
+		expect(cf.dateOfBirth).toBe("1989-04-01");
+		expect(cf.idPassport).toBe("A1234567");
+	});
+	test("leaves new fields null when absent", () => {
+		const cf = extractCustomFieldsForProfile({
+			contact: { id: "x", email: "a@b.com" },
+		});
+		expect(cf.emergencyContactName).toBeNull();
+		expect(cf.address).toBeNull();
+		expect(cf.dateOfBirth).toBeNull();
+		expect(cf.idPassport).toBeNull();
+	});
+});

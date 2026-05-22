@@ -130,3 +130,20 @@ The migration runner executes inside Cloudflare Workers during tenant provisioni
 - Migrations are append-only — never modify an existing migration that has been applied to any tenant
 - Always dry-run before applying to production tenants
 - Use `--concurrency=1` for the first run of a new migration as a safety measure
+
+## ⚠️ Duplicate-numbered migrations (0051–0063)
+
+The PR #23 (`Checkpoint_May_18`) merge concatenated two divergent migration
+histories, so numbers **0051–0063 contain two migrations each** (e.g.
+`0058_hierarchy_slug` AND `0058_commission_splits_indexes`). Both lineages are
+real and must both apply; the runner keys on the full filename, not the number,
+so order is preserved. A tenant provisioned on one lineage will re-run the
+other's migrations on the next `migrate-all-tenants` pass.
+
+**Consequence:** every migration in this range MUST be idempotent — re-running
+on an already-converged schema must be a no-op. In particular, never compare an
+**enum column to a legacy label** (`type = 'area'`) or call `string_agg(type, …)`
+on an enum column: once later migrations remove that enum value, the literal
+cast / missing overload raises `22P02` / `42883` and aborts the whole run. Use
+`type::text = 'area'` / `string_agg(type::text, …)`. See commit `48631c00`
+(fixed `0053_hierarchy_rename_region_state` and `0057_hierarchy_type_enum`).

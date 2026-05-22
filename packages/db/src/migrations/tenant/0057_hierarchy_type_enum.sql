@@ -13,13 +13,16 @@ END $$;
 
 -- Pre-flight: any rows with a value outside the enum would block the cast.
 -- Should be impossible post-H1, but verify.
+-- Cast type::text throughout: on a tenant where the column is ALREADY the enum
+-- (idempotent re-run), `string_agg(type, ...)` has no enum overload and fails
+-- with `function string_agg(hierarchy_node_type, unknown) does not exist`.
 DO $$
 DECLARE bad_count int; bad_types text;
 BEGIN
-  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+  SELECT count(DISTINCT type::text), string_agg(DISTINCT type::text, ', ')
     INTO bad_count, bad_types
   FROM hierarchy_nodes
-  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+  WHERE type::text NOT IN ('organization', 'country', 'state', 'branch');
   IF bad_count > 0 THEN
     RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
   END IF;

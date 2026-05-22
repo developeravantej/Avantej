@@ -14,6 +14,7 @@ import { classSlotsRouter } from "./class-slots";
 import { categoryCommissionRouter } from "./category-commission";
 import { commissionSplitsRouter } from "./commission-splits";
 import { customerDirectoryRouter } from "./customer-directory";
+import { ghlSyncRouter } from "./ghl-sync";
 import { customerProfilesRouter } from "./customer-profiles";
 import { expensesRouter } from "./expenses";
 import { googleCalendarRouter } from "./google-calendar";
@@ -134,6 +135,7 @@ export const baseRouter = {
 	organizationSettings: organizationSettingsRouter,
 	googleCalendar: googleCalendarRouter,
 	customerDirectory: customerDirectoryRouter,
+	ghlSync: ghlSyncRouter,
 	auditLogs: auditLogsRouter,
 	checkIns: checkInsRouter,
 	pos: posRouter,

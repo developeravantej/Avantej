@@ -87,6 +87,14 @@ function GoHighLevelIntegrationPage() {
 		enabled: !!organizationId,
 	});
 
+	const { data: syncEvents } = useQuery({
+		queryKey: ["ghlSync", "events", organizationId],
+		queryFn: () =>
+			client.ghlSync.listEvents({ organizationId: organizationId!, limit: 25 }),
+		enabled: !!organizationId,
+		staleTime: 30_000,
+	});
+
 	const orgConnectMutation = useApiMutation({
 		mutationFn: async (vars: { ghlLocationId: string; ghlApiKey: string }) => {
 			if (!organizationId) throw new Error("No organization");
@@ -408,6 +416,58 @@ function GoHighLevelIntegrationPage() {
 								</tbody>
 							</table>
 						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Sync Events</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-2">
+					{!syncEvents || syncEvents.length === 0 ? (
+						<p className="py-4 text-center text-muted-foreground text-sm">
+							No sync events yet.
+						</p>
+					) : (
+						syncEvents.map((e) => (
+							<details
+								key={e.id}
+								className="rounded-md border px-3 py-2 text-sm"
+							>
+								<summary className="flex cursor-pointer flex-wrap items-center gap-2">
+									<Badge
+										variant={
+											e.status === "processed"
+												? "default"
+												: e.status === "failed"
+													? "destructive"
+													: "secondary"
+										}
+									>
+										{e.status}
+									</Badge>
+									<span className="font-medium">{e.eventType}</span>
+									<span className="text-muted-foreground">
+										{e.email ?? "—"}
+									</span>
+									<span className="text-muted-foreground text-xs">
+										{new Date(e.createdAt)
+											.toISOString()
+											.slice(0, 19)
+											.replace("T", " ")}
+									</span>
+									{e.errorMessage && (
+										<span className="text-red-600 text-xs">
+											{e.errorMessage}
+										</span>
+									)}
+								</summary>
+								<pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">
+									{JSON.stringify(e.rawPayload, null, 2)}
+								</pre>
+							</details>
+						))
 					)}
 				</CardContent>
 			</Card>
