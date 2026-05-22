@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
 							"@radix-ui/react-tooltip",
 						],
 						"vendor-ui": ["lucide-react", "sonner"],
-						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+						"vendor-forms": ["@tanstack/react-form", "zod"],
 					},
 				},
 			},

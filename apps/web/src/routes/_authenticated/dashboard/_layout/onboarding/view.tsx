@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
+import { requirePermission } from "@/lib/route-guards";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -34,6 +35,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/onboarding/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("hierarchy_management:read");
+	},
 	component: OnboardingIndexPage,
 });
 
