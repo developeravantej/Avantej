@@ -1292,6 +1292,27 @@ async function resolvePrimaryStaffMemberId(args: {
 	const { tenantDb, controlPanelDb, candidateGhlUserIds, primaryStaffName } =
 		args;
 
+	// 0. Exact match against an Avantej-owned dropdown label. When Avantej manages
+	// the GHL "Primary Staff" dropdown, primary_staff IS the unique label we
+	// stored on ghl_user_links — resolve it directly (handles disambiguated
+	// labels like "Alex Tan (KL)" that a plain name match would miss).
+	const labelNeedle = primaryStaffName?.trim();
+	if (labelNeedle) {
+		const [byLabel] = await tenantDb
+			.select({ memberId: ghlUserLinks.memberId })
+			.from(ghlUserLinks)
+			.innerJoin(members, eq(members.id, ghlUserLinks.memberId))
+			.where(
+				and(
+					eq(ghlUserLinks.primaryStaffOptionLabel, labelNeedle),
+					eq(ghlUserLinks.syncStatus, "active"),
+					eq(members.status, "active"),
+				),
+			)
+			.limit(1);
+		if (byLabel?.memberId) return byLabel.memberId;
+	}
+
 	// 1. Deterministic: a GHL user id → ghl_user_links → member, tried in order.
 	// Require BOTH the sync link AND the member to be active — never assign a
 	// lead to a deactivated/suspended coach who still has a stale sync row.

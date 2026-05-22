@@ -31,7 +31,7 @@ describe("buildStaffOptionLabels", () => {
 		]);
 		// first keeps the branch label, second must be globally unique
 		expect(out[0]).toEqual({ memberId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", label: "Alex Tan (KL)" });
-		expect(out[1].label).toBe("Alex Tan #111111");
+		expect(out[1]?.label).toBe("Alex Tan #111111");
 		// all labels unique
 		const labels = out.map((o) => o.label.toLowerCase());
 		expect(new Set(labels).size).toBe(labels.length);
@@ -42,8 +42,8 @@ describe("buildStaffOptionLabels", () => {
 			{ memberId: "m1", name: "alex tan", branchName: "KL" },
 			{ memberId: "m2", name: "ALEX TAN", branchName: "Penang" },
 		]);
-		expect(out[0].label).toBe("alex tan (KL)");
-		expect(out[1].label).toBe("ALEX TAN (Penang)");
+		expect(out[0]?.label).toBe("alex tan (KL)");
+		expect(out[1]?.label).toBe("ALEX TAN (Penang)");
 	});
 
 	test("blank names are skipped; whitespace trimmed", () => {
@@ -59,7 +59,7 @@ describe("buildStaffOptionLabels", () => {
 			{ memberId: "aaaaaaaa1111", name: "No Branch", branchName: null },
 			{ memberId: "bbbbbbbb2222", name: "No Branch", branchName: null },
 		]);
-		expect(out[0].label).toBe("No Branch");
-		expect(out[1].label).toBe("No Branch #bbbbbb");
+		expect(out[0]?.label).toBe("No Branch");
+		expect(out[1]?.label).toBe("No Branch #bbbbbb");
 	});
 });
