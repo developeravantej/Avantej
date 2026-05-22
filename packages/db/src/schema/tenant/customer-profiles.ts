@@ -65,6 +65,13 @@ export const customerProfiles = pgTable("customer_profiles", {
 	referrerMemberId: uuid("referrer_member_id").references(() => members.id, {
 		onDelete: "set null",
 	}),
+	// Resolved coach/staff for a GHL-captured lead. Set from the lead webhook's
+	// primary_staff (via the ghlUserId bridge → ghl_user_links → member, with a
+	// name-match fallback). ON DELETE SET NULL so the profile survives staff churn.
+	primaryStaffMemberId: uuid("primary_staff_member_id").references(
+		() => members.id,
+		{ onDelete: "set null" },
+	),
 	campaignId: text("campaign_id"),
 	// Raw GHL lead_acquisition_type text (badge display). Kept alongside the
 	// resolved leadSourceId FK so the original value survives a lookup miss.
@@ -108,6 +115,9 @@ export const customerProfiles = pgTable("customer_profiles", {
 	leadSourceIdx: index("customer_profiles_lead_source_idx").on(table.leadSourceId),
 	referrerMemberIdx: index("customer_profiles_referrer_member_idx").on(
 		table.referrerMemberId,
+	),
+	primaryStaffMemberIdx: index("customer_profiles_primary_staff_member_idx").on(
+		table.primaryStaffMemberId,
 	),
 	// === /3.2 ===
 	// === 3.6 household linking ===

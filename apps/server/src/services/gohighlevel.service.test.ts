@@ -11,6 +11,7 @@ import {
 	extractGhlContactPayload,
 	findHierarchyBranchByName,
 	isPlaceholderEmail,
+	matchStaffByName,
 	verifyGhlWebhookAuth,
 } from "./gohighlevel.service";
 
@@ -629,6 +630,30 @@ describe("extractCustomFieldsForProfile — gender normalization", () => {
 		expect(
 			extractCustomFieldsForProfile({ contact: { gender: "banana" } }).gender,
 		).toBeNull();
+	});
+});
+
+describe("matchStaffByName", () => {
+	const staff = [
+		{ memberId: "m-afifah", name: "AFIFAH ZAHRA BINTI HAS TUAH" },
+		{ memberId: "m-alex", name: "Alex Tan" },
+		{ memberId: "m-alex2", name: "Alex Tan" },
+	];
+	test("unique case-insensitive trimmed match returns member id", () => {
+		expect(matchStaffByName(staff, "  afifah zahra binti has tuah ")).toBe(
+			"m-afifah",
+		);
+	});
+	test("ambiguous match (duplicate names) returns null", () => {
+		expect(matchStaffByName(staff, "Alex Tan")).toBeNull();
+	});
+	test("no match returns null", () => {
+		expect(matchStaffByName(staff, "Nobody Here")).toBeNull();
+	});
+	test("nullish / empty name returns null", () => {
+		expect(matchStaffByName(staff, null)).toBeNull();
+		expect(matchStaffByName(staff, undefined)).toBeNull();
+		expect(matchStaffByName(staff, "   ")).toBeNull();
 	});
 });
 
