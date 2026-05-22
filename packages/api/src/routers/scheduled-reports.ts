@@ -62,7 +62,7 @@ export const scheduledReportsRouter = {
 					context.tenantDb,
 					context.member,
 					"reports",
-					"read",
+					"export",
 				);
 			} catch {
 				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
@@ -95,7 +95,7 @@ export const scheduledReportsRouter = {
 					context.tenantDb,
 					context.member,
 					"reports",
-					"read",
+					"export",
 				);
 			} catch {
 				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
@@ -123,7 +123,7 @@ export const scheduledReportsRouter = {
 					context.tenantDb,
 					context.member,
 					"reports",
-					"read",
+					"export",
 				);
 			} catch {
 				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });

@@ -607,12 +607,17 @@ function UserViewPage() {
 				) : (
 					grouped.map(({ roleConfig, members: groupMembers }, idx) => (
 						<RoleGroup
-							key={roleConfig.role}
+							// When a search is active, force-remount each group so collapsed
+							// groups become visible on filtered results. Without the search
+							// suffix, defaultOpen={idx === 0} from initial mount sticks even
+							// after the visible groups change (e.g., searching "trainer"
+							// while the Trainers group was collapsed = no results visible).
+							key={`${roleConfig.role}-${search ? "search" : "browse"}`}
 							roleConfig={roleConfig}
 							members={groupMembers}
 							callerIsAdmin={callerIsAdmin}
 							organizationId={organizationId}
-							defaultOpen={idx === 0}
+							defaultOpen={!!search || idx === 0}
 						/>
 					))
 				)}
