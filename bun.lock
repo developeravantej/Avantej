@@ -91,6 +91,8 @@
         "better-auth": "catalog:",
         "dotenv": "catalog:",
         "hono": "catalog:",
+        "jspdf": "^4.2.1",
+        "jspdf-autotable": "^5.0.8",
         "resend": "^6.4.2",
         "stripe": "^19.2.0",
         "zod": "catalog:",

@@ -77,6 +77,12 @@ function getDefaultFromName(): string {
 /**
  * Email sending options
  */
+export interface SendEmailAttachment {
+	filename: string;
+	/** Resend accepts base64 string or Buffer. We pass base64 strings only. */
+	content: string;
+}
+
 export interface SendEmailOptions {
 	to: string | string[];
 	subject: string;
@@ -84,6 +90,7 @@ export interface SendEmailOptions {
 	text?: string;
 	from?: string;
 	fromName?: string;
+	attachments?: SendEmailAttachment[];
 }
 
 type CapturedEmailType =
@@ -184,7 +191,7 @@ function extractTokenFromLink(link?: string): string | undefined {
  * ```
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-	const { to, subject, html, text, from, fromName } = options;
+	const { to, subject, html, text, from, fromName, attachments } = options;
 
 	if (!to || !subject || !html) {
 		throw new Error("To, subject, and html are required");
@@ -202,6 +209,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 			subject,
 			html,
 			text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
+			...(attachments && attachments.length > 0
+				? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+				: {}),
 		});
 
 		if (result.error) {

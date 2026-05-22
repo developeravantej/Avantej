@@ -2,22 +2,21 @@ import { permissions } from "@avantej-core/db/schema/tenant/permissions";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
+// Canonical resource naming: `*_management` everywhere. Bare nouns like
+// `users`, `roles`, `branches`, `services`, `appointments` were removed in the
+// pre-launch hardening pass (the frontend uses `*_management` exclusively;
+// keeping both was a drift risk where API guards and UI checks could disagree).
 const SEED_PERMISSIONS = [
-	// users
-	{ resource: "users", action: "create" },
-	{ resource: "users", action: "read" },
-	{ resource: "users", action: "update" },
-	{ resource: "users", action: "delete" },
-	// roles
-	{ resource: "roles", action: "create" },
-	{ resource: "roles", action: "read" },
-	{ resource: "roles", action: "update" },
-	{ resource: "roles", action: "delete" },
-	// branches
-	{ resource: "branches", action: "create" },
-	{ resource: "branches", action: "read" },
-	{ resource: "branches", action: "update" },
-	{ resource: "branches", action: "delete" },
+	// user_management
+	{ resource: "user_management", action: "create" },
+	{ resource: "user_management", action: "read" },
+	{ resource: "user_management", action: "update" },
+	{ resource: "user_management", action: "delete" },
+	// hierarchy_management (was: "branches" — branches are nodes in the hierarchy)
+	{ resource: "hierarchy_management", action: "create" },
+	{ resource: "hierarchy_management", action: "read" },
+	{ resource: "hierarchy_management", action: "update" },
+	{ resource: "hierarchy_management", action: "delete" },
 	// reports
 	{ resource: "reports", action: "read" },
 	{ resource: "reports", action: "export" },
@@ -36,16 +35,16 @@ const SEED_PERMISSIONS = [
 	{ resource: "inventory", action: "delete" },
 	{ resource: "inventory", action: "import" },
 	{ resource: "inventory", action: "export" },
-	// appointments
-	{ resource: "appointments", action: "create" },
-	{ resource: "appointments", action: "read" },
-	{ resource: "appointments", action: "update" },
-	{ resource: "appointments", action: "delete" },
-	// services
-	{ resource: "services", action: "create" },
-	{ resource: "services", action: "read" },
-	{ resource: "services", action: "update" },
-	{ resource: "services", action: "delete" },
+	// appointment_management
+	{ resource: "appointment_management", action: "create" },
+	{ resource: "appointment_management", action: "read" },
+	{ resource: "appointment_management", action: "update" },
+	{ resource: "appointment_management", action: "delete" },
+	// service_management
+	{ resource: "service_management", action: "create" },
+	{ resource: "service_management", action: "read" },
+	{ resource: "service_management", action: "update" },
+	{ resource: "service_management", action: "delete" },
 	// sales
 	{ resource: "sales", action: "create" },
 	{ resource: "sales", action: "read" },

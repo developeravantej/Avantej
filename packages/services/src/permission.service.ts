@@ -25,14 +25,11 @@ export type Resource =
 	| "hierarchy_management"
 	| "user_management"
 	| "role_management"
-	| "users"
-	| "roles"
-	| "branches"
 	// Services & appointments
+	// (canonical `*_management` form only — bare nouns `users`, `roles`, `branches`,
+	//  `services`, `appointments` were removed in the pre-launch hardening pass)
 	| "service_management"
 	| "appointment_management"
-	| "appointments"
-	| "services"
 	| "class_slot_management"
 	// Sales & payments
 	| "sales"

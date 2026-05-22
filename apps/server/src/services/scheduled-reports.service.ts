@@ -1,20 +1,18 @@
 /**
- * Scheduled Reports Sender — Phase 5.6.
+ * Scheduled Reports Sender — Phase 5.6 (+ PDF attachment, Phase 8c).
  *
  * Hourly cron iterates every active organization, opens its tenant DB,
  * finds rows in `scheduled_reports` whose `nextRunAt <= now`, generates a
- * KPI summary email (HTML + link back to the dashboard), and dispatches via Resend.
+ * KPI summary email (HTML inline + PDF/CSV attachment based on the row's
+ * `format` column), and dispatches via Resend.
  *
- * Design decisions:
- * - We do NOT generate PDFs server-side. jsPDF in Cloudflare Workers bloats the
- *   bundle and isn't worth it when users can hit the dashboard directly. Email
- *   contains the KPI summary inline + a "View full report" deep link.
- * - CSV attachments are deferred: Resend's attachment API works in Workers, but
- *   building the CSV requires the same dashboard-side `buildCsv` helper which
- *   lives in apps/web. Cross-app code sharing for this isn't worth it yet —
- *   ship the HTML summary first, attach CSV later if users ask.
- * - On failure: `markScheduledReportFailed` bumps nextRunAt forward by 1 hour
- *   so a broken row doesn't hot-loop every cron tick.
+ * PDF generation runs inside the Cloudflare Worker via jsPDF — same library
+ * the browser-side Reports page uses. The bundle cost is real (~150KB
+ * gzipped) but is amortised across all cron-driven reports and avoids
+ * standing up a separate Node service.
+ *
+ * On failure: `markScheduledReportFailed` bumps nextRunAt forward by 1 hour
+ * so a broken row doesn't hot-loop every cron tick.
  */
 
 import { eq } from "drizzle-orm";
@@ -168,6 +166,15 @@ async function sendSingleReport(args: {
 		throw new Error("No valid recipients");
 	}
 
+	// Build attachment based on requested format. Dynamic import keeps jsPDF
+	// out of the cold-start path for tenants with no scheduled reports.
+	const attachments = await buildReportAttachment({
+		format: row.format,
+		windowKey: row.windowKey,
+		orgName,
+		kpis,
+	});
+
 	const fmtMYR = (cents: number) =>
 		new Intl.NumberFormat("en-MY", {
 			style: "currency",
@@ -232,7 +239,112 @@ async function sendSingleReport(args: {
 		to: recipients,
 		subject: `[${orgName}] ${row.reportName} — ${row.windowKey}`,
 		html,
+		attachments,
 	});
+}
+
+type DashboardKpis = Awaited<ReturnType<typeof getDashboardKpis>>;
+
+async function buildReportAttachment(args: {
+	format: "pdf" | "csv";
+	windowKey: string;
+	orgName: string;
+	kpis: DashboardKpis;
+}): Promise<{ filename: string; content: string }[] | undefined> {
+	const { format, windowKey, orgName, kpis } = args;
+	const date = new Date().toISOString().slice(0, 10);
+	const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "report";
+	const filenameBase = `${slug}-${windowKey}-${date}`;
+
+	if (format === "csv") {
+		const csv = buildCsv({ orgName, windowKey, kpis });
+		const content = btoa(unescape(encodeURIComponent(csv)));
+		return [{ filename: `${filenameBase}.csv`, content }];
+	}
+
+	// pdf
+	try {
+		const { jsPDF } = await import("jspdf");
+		const autoTable = (await import("jspdf-autotable")).default;
+		const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+		const fmtMYR = (cents: number) =>
+			new Intl.NumberFormat("en-MY", {
+				style: "currency",
+				currency: "MYR",
+			}).format(cents / 100);
+		const periodLabel = `${new Date(kpis.from).toLocaleDateString("en-MY")} – ${new Date(kpis.to).toLocaleDateString("en-MY")}`;
+
+		doc.setFontSize(18);
+		doc.setFont("helvetica", "bold");
+		doc.text(orgName, 40, 50);
+		doc.setFontSize(12);
+		doc.text("Performance Report", 40, 68);
+		doc.setFontSize(10);
+		doc.setFont("helvetica", "normal");
+		doc.setTextColor(115);
+		doc.text(`Window: ${windowKey}`, 40, 84);
+		doc.text(`Period: ${periodLabel}`, 40, 98);
+		doc.setTextColor(0);
+
+		autoTable(doc, {
+			startY: 120,
+			head: [["Metric", "Value"]],
+			body: [
+				["Total Revenue", fmtMYR(kpis.totalSales)],
+				["Prev Period Revenue", fmtMYR(kpis.previousPeriodSales)],
+				["Active Members", String(kpis.activeMembersCount)],
+				["Completed Appointments", String(kpis.completedAppointments)],
+				["Total Appointments", String(kpis.totalAppointments)],
+			],
+			theme: "striped",
+			headStyles: { fillColor: [10, 10, 10] },
+			styles: { fontSize: 10 },
+		});
+
+		// jsPDF's `output("datauristring")` returns `data:application/pdf;base64,...`
+		// Strip the data-URI prefix; Resend wants the raw base64 payload.
+		const dataUri = doc.output("datauristring") as string;
+		const content = dataUri.slice(dataUri.indexOf(",") + 1);
+		return [{ filename: `${filenameBase}.pdf`, content }];
+	} catch (e) {
+		// PDF generation failure shouldn't block the email — fall through and
+		// send the HTML summary alone. Log so the failure is observable.
+		console.error("[scheduled-reports] PDF generation failed:", e);
+		return undefined;
+	}
+}
+
+function buildCsv(args: {
+	orgName: string;
+	windowKey: string;
+	kpis: DashboardKpis;
+}): string {
+	const { orgName, windowKey, kpis } = args;
+	const periodLabel = `${new Date(kpis.from).toLocaleDateString("en-MY")} – ${new Date(kpis.to).toLocaleDateString("en-MY")}`;
+	const lines: string[] = [];
+	lines.push(`# ${orgName} — Performance Report`);
+	lines.push(`# Window: ${windowKey}`);
+	lines.push(`# Period: ${periodLabel}`);
+	lines.push("");
+	lines.push("Metric,Value");
+	lines.push(`Total Revenue (RM),${(kpis.totalSales / 100).toFixed(2)}`);
+	lines.push(
+		`Prev Period Revenue (RM),${(kpis.previousPeriodSales / 100).toFixed(2)}`,
+	);
+	lines.push(`Active Members,${kpis.activeMembersCount}`);
+	lines.push(`Completed Appointments,${kpis.completedAppointments}`);
+	lines.push(`Total Appointments,${kpis.totalAppointments}`);
+	if (kpis.revenueByBranch.length > 0) {
+		lines.push("");
+		lines.push("Branch,Revenue (RM)");
+		for (const b of [...kpis.revenueByBranch].sort(
+			(a, z) => z.totalRevenue - a.totalRevenue,
+		)) {
+			const branch = (b.branchName ?? "Unknown").replace(/,/g, ";");
+			lines.push(`${branch},${(b.totalRevenue / 100).toFixed(2)}`);
+		}
+	}
+	return lines.join("\n");
 }
 
 function escapeHtml(s: string): string {

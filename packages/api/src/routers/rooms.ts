@@ -28,7 +28,7 @@ export const roomsRouter = {
 			}
 
 			try {
-				await requirePermission(context.tenantDb, context.member, "appointments", "read");
+				await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
 			} catch (error) {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",
@@ -63,7 +63,7 @@ export const roomsRouter = {
 			}
 
 			try {
-				await requirePermission(context.tenantDb, context.member, "appointments", "read");
+				await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
 			} catch (error) {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",
@@ -104,7 +104,7 @@ export const roomsRouter = {
 			}
 
 			try {
-				await requirePermission(context.tenantDb, context.member, "appointments", "create");
+				await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
 			} catch (error) {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",
@@ -146,7 +146,7 @@ export const roomsRouter = {
 			}
 
 			try {
-				await requirePermission(context.tenantDb, context.member, "appointments", "update");
+				await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
 			} catch (error) {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",
@@ -183,7 +183,7 @@ export const roomsRouter = {
 			}
 
 			try {
-				await requirePermission(context.tenantDb, context.member, "appointments", "update");
+				await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
 			} catch (error) {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",

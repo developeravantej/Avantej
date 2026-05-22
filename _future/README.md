@@ -9,10 +9,13 @@ Each file in this folder is a self-contained brief: scope, why it was deferred, 
 | File | Feature | Estimated effort |
 |---|---|---|
 | `announcements-read-receipts.md` | Full ack tracking subsystem (views, ack counts, read rate) | 3–5 days |
-| `reports-pdf-export.md` | Server-side PDF report generation | 2–3 days |
-| `reports-scheduled-email.md` | Cron-driven scheduled report emails | 3–4 days |
-| `nps-module.md` | NPS survey schema + member flow + reporting | 5–7 days |
+| `nps-module.md` | NPS survey schema + reporting (mobile collects, web aggregates) | 5–7 days |
 | `messaging-system.md` | Internal messaging — powers customer bulk Send Message | 2+ weeks |
+
+### Recently shipped — briefs removed
+
+- ~~`reports-pdf-export.md`~~ — shipped 2026-05-22 (commit `2fa204e3`). Browser-side jsPDF + jspdf-autotable on the Reports page, not the server-side renderer the original brief planned. Server-side PDF (for cron-email attachments) was added shortly after.
+- ~~`reports-scheduled-email.md`~~ — shipped 2026-05-22 (commit `2fa204e3`). `scheduled_reports` tenant table, hourly Cloudflare Cron Trigger, HTML email summary. PDF attachment landed alongside.
 
 ## Conventions for these briefs
 
