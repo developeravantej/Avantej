@@ -673,6 +673,77 @@ CREATE INDEX IF NOT EXISTS comms_templates_kind_idx
 CREATE INDEX IF NOT EXISTS comms_templates_name_idx
   ON comms_templates (name);
 ` },
+	{ tag: "0030_snapshot_factor_columns", sql: `-- Plan F.6 (Agent Sn) — Wire missing health-score factor columns.
+--
+-- F.1.5 launched the composite health-score formula but the snapshot
+-- cron was only populating 2 of 5 factors (payment_status +
+-- last_successful_payment_at). The remaining 3 factors emitted
+-- \`no_data\` flags because their columns didn't exist.
+--
+-- Additive ALTER only. All nullable. No backfill — cron writes forward
+-- per ADR-0030.
+--
+-- Columns:
+--   last_admin_login_at            — max user.last_login_at among the
+--                                    org's organization_members (admin
+--                                    role) at snapshot time.
+--   failed_webhooks_7d             — count of processed_webhook_events
+--                                    flagged as failed in trailing 7d.
+--                                    Global count for now (per-org
+--                                    attribution requires schema work
+--                                    on processed_webhook_events to
+--                                    carry organization_id — TODO).
+--   daily_active_members_30d_avg   — trailing-30d daily-active member
+--                                    average. Tenant schema has no
+--                                    activity column today — populated
+--                                    as 0 / null until activity
+--                                    tracking lands (TODO).
+
+ALTER TABLE tenant_usage_snapshots
+  ADD COLUMN IF NOT EXISTS last_admin_login_at timestamp,
+  ADD COLUMN IF NOT EXISTS failed_webhooks_7d integer,
+  ADD COLUMN IF NOT EXISTS daily_active_members_30d_avg integer;
+` },
+	{ tag: "0031_tenant_feature_overrides", sql: `-- Plan F.6 (Agent Fo) — Per-tenant feature-flag overrides.
+--
+-- F.4 shipped a read-only Feature flags tab that derives features
+-- from \`TIER_LIMITS[tier]\`. Ops needs per-tenant overrides so they can
+-- enable \`commissionSplits\` for a basic-tier customer as a one-off
+-- concession, or disable \`apiAccess\` for a tenant abusing rate limits,
+-- without forcing a tier change.
+--
+-- Additive only. UNIQUE (organization_id, feature_key) gives us upsert
+-- semantics via ON CONFLICT. Author stored as plain text Better-Auth
+-- user id (no FK) so the override survives user deletion, mirroring
+-- tenant_notes / admin_session_actions.
+--
+-- Valid feature_key values (enforced in the API layer, not DB, to
+-- avoid an enum migration when new features are added):
+--   'ghl' | 'googleCalendar' | 'commissionSplits'
+--   | 'memberships' | 'apiAccess'
+
+CREATE TABLE IF NOT EXISTS tenant_feature_overrides (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  feature_key text NOT NULL,
+  enabled boolean NOT NULL,
+  set_by_user_id text NOT NULL,
+  notes text,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now(),
+  CONSTRAINT tenant_feature_overrides_org_feature_unique
+    UNIQUE (organization_id, feature_key)
+);
+
+CREATE INDEX IF NOT EXISTS tenant_feature_overrides_org_idx
+  ON tenant_feature_overrides (organization_id);
+` },
+	{ tag: "0032_organizations_ghl_primary_staff_field_id", sql: `-- GHL Path C: cache the org's "Primary Staff" SINGLE_OPTIONS custom-field id
+-- on organizations (one per org-shared GHL location). Idempotent.
+
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "ghl_primary_staff_field_id" text;
+` },
 ] as const;
 
 export const CONTROL_PANEL_LATEST_MIGRATION_TAG =
