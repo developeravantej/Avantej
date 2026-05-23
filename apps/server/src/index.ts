@@ -431,9 +431,18 @@ export default {
             .catch((e) => console.error(`[scheduled] usage-snapshot failed:`, e)),
         );
       } else if (cron === "0 2 * * *") {
-        // Phase 4 installments — daily installment sweep (merged from PR #23).
-        // TODO: merged from main — wire real multi-tenant sweep service.
-        console.log("[scheduled] installment sweep trigger received (stub)");
+        // Phase 4 installments — daily installment sweep. Phase 8.1 wired the
+        // real multi-tenant service.
+        const { runInstallmentSweep } = await import("@/services/installment-sweep.service");
+        const { getTenantDb } = await import("@/lib/db");
+        ctx.waitUntil(
+          runInstallmentSweep({
+            controlPanelDb: cpDb,
+            getTenantDb: (orgId) => getTenantDb(orgId),
+          })
+            .then((r) => console.log(`[scheduled] installment-sweep done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] installment-sweep failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }
