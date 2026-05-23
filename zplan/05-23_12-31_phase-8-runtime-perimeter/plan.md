@@ -188,19 +188,18 @@ Original draft included refund idempotency. Verification showed `processRefund` 
 
 ---
 
-### Phase 8.10 — Pagination on the four genuinely-unbounded services  (medium — sweep 2 finding, scope verified)
+### Phase 8.10 — Pagination  (**NO-OP after deep verification — closed 2026-05-23**)
 
-Verification scoped this down. Confirmed paginated already (no work): `sales-orders`, `expenses`, `announcements`, `purchase-orders`, `promotions`, `commission-splits`, `class-slots`. Bounded-by-domain (no work): `tax-rates`.
+Per-file inspection revealed both sweeps overstated the gap:
 
-| # | Where | What |
-|---|---|---|
-| 1 | `packages/services/src/customers-v2.service.ts` | Add `limit` (default 50, max 200) + `offset` to `listCustomers`. Update router input schema. |
-| 2 | `packages/services/src/appointments.service.ts` | Same — `listAppointments` returns all rows for a window. |
-| 3 | `packages/services/src/walk-in-customers.service.ts` | Same — no pagination at all today. |
-| 4 | `packages/services/src/payouts.service.ts` | Currently hard-codes `.limit(100)`. Promote to caller-controlled (default 50, max 200). |
-| 5 | Web pages calling the above 4 | Switch to `useInfiniteQuery` only if the list can realistically exceed 200 rows in the visible window. For most pages a 50-row default with "load more" is fine. |
+| Service | Reality (verified) |
+|---|---|
+| `appointment.service.ts` | `listAppointments` has `limit = 100` (capped at 500); `listAppointmentsForUser` has `limit = 50` capped at 200. Already paginated. |
+| `customer-directory.service.ts` | Already has `limit = 50, offset = 0` defaults. |
+| `walk-in.service.ts` | Has no `list*` procedure at all — only a `convertWalkInPaymentToPackage` mutation. Walk-in customers are surfaced through `customer-directory` which IS paginated. |
+| `payouts.service.ts:473` | The flagged `.limit(100)` is inside `recipientSummary` — an analytics query that intentionally caps the last-100 paid rows for an average-per-cycle calculation. NOT a list procedure. No public `listPayouts` exists in this service. |
 
-**Verification:** Seed a dev tenant with 10,000 customer rows; load customers page; only 50 rows fetched on initial load.
+Net: there are no genuinely unpaginated list procedures in the codebase. Both sweeps had grep-only context and didn't read the surrounding function. Closing without code changes.
 
 ---
 
