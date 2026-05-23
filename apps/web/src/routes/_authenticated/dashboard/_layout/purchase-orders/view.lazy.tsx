@@ -9,6 +9,14 @@ import DataTable from "@/components/tables/sales/view/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
 	Tabs,
 	TabsList,
 	TabsTrigger,
@@ -59,6 +67,11 @@ function RouteComponent() {
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
 	const [receivePoId, setReceivePoId] = useState<string | null>(null);
 	const [invoicePoId, setInvoicePoId] = useState<string | null>(null);
+	// Phase 8.5 — confirmation dialogs for destructive PO actions. Both
+	// approve and cancel previously fired on first click; the UI now requires
+	// an explicit second confirmation so a wayward click can't change PO state.
+	const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null);
+	const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
 	const { data: apiData = [], isLoading, isError, error, refetch } = useQuery({
 		queryKey: ["purchaseOrders", organizationId],
@@ -174,7 +187,7 @@ function RouteComponent() {
 								size="sm"
 								variant="outline"
 								className="h-7 text-xs"
-								onClick={() => approveMutation.mutate(id)}
+								onClick={() => setConfirmApproveId(id)}
 								disabled={approveMutation.isPending}
 							>
 								<CheckCircle className="size-3 mr-1" />
@@ -197,7 +210,7 @@ function RouteComponent() {
 								size="sm"
 								variant="destructive"
 								className="h-7 text-xs"
-								onClick={() => cancelMutation.mutate(id)}
+								onClick={() => setConfirmCancelId(id)}
 								disabled={cancelMutation.isPending}
 							>
 								Cancel
@@ -311,6 +324,81 @@ function RouteComponent() {
 					onCreated={handleInvalidate}
 				/>
 			)}
+
+			{/* Approve confirmation */}
+			<Dialog
+				open={confirmApproveId !== null}
+				onOpenChange={(open) => !open && setConfirmApproveId(null)}
+			>
+				<DialogContent className="sm:max-w-sm">
+					<DialogHeader>
+						<DialogTitle>Approve purchase order?</DialogTitle>
+						<DialogDescription>
+							This commits the order — supplier can be notified and it can no
+							longer be edited. Continue?
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmApproveId(null)}
+							disabled={approveMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							disabled={approveMutation.isPending}
+							onClick={() => {
+								if (confirmApproveId) {
+									approveMutation.mutate(confirmApproveId, {
+										onSettled: () => setConfirmApproveId(null),
+									});
+								}
+							}}
+						>
+							{approveMutation.isPending ? "Approving…" : "Approve"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Cancel confirmation */}
+			<Dialog
+				open={confirmCancelId !== null}
+				onOpenChange={(open) => !open && setConfirmCancelId(null)}
+			>
+				<DialogContent className="sm:max-w-sm">
+					<DialogHeader>
+						<DialogTitle>Cancel purchase order?</DialogTitle>
+						<DialogDescription>
+							The order will be marked cancelled. This cannot be undone — to
+							reorder, create a new purchase order.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmCancelId(null)}
+							disabled={cancelMutation.isPending}
+						>
+							Keep order
+						</Button>
+						<Button
+							variant="destructive"
+							disabled={cancelMutation.isPending}
+							onClick={() => {
+								if (confirmCancelId) {
+									cancelMutation.mutate(confirmCancelId, {
+										onSettled: () => setConfirmCancelId(null),
+									});
+								}
+							}}
+						>
+							{cancelMutation.isPending ? "Cancelling…" : "Cancel order"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
