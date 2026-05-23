@@ -46,6 +46,9 @@ export const organizations = pgTable("organizations", {
 	// Field id locked at GHL custom-field creation time → country rename in
 	// Avantej only updates label, never fieldKey.
 	ghlCountryFieldMap: jsonb("ghl_country_field_map"),
+	// GHL custom-field id for the org's "Primary Staff" SINGLE_OPTIONS dropdown
+	// (one per org/location). Cached at creation time like ghlCountryFieldMap.
+	ghlPrimaryStaffFieldId: text("ghl_primary_staff_field_id"),
 	ghlProvisionedAt: timestamp("ghl_provisioned_at"),
 	// Feature flag for sync model. "per-branch" (legacy Option X — one GHL
 	// location per branch via ghl_branch_links) or "org-shared" (Phase G —

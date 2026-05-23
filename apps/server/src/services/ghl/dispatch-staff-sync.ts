@@ -22,6 +22,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 import { ghlFetch } from "./http-client";
+import { reconcilePrimaryStaffOptions } from "./staff-option-sync";
 import { syncStaffToGhl } from "./sync-staff";
 import type { GhlUser } from "./types";
 
@@ -61,15 +62,34 @@ export interface ServerDispatchStaffSyncArgs {
 	env: { GHL_AGENCY_ID: string };
 }
 
-export const dispatchStaffSync = (
+export const dispatchStaffSync = async (
 	args: ServerDispatchStaffSyncArgs,
-): Promise<StaffSyncResult> =>
-	dispatchStaffSyncCore({
+): Promise<StaffSyncResult> => {
+	const result = await dispatchStaffSyncCore({
 		...args,
 		syncStaffToGhl,
 		decryptApiKey: decrypt,
 		putGhlUser,
 	});
+
+	// After any successful staff sync, rebuild the org's "Primary Staff" GHL
+	// dropdown from currently-active staff (desired-state). Best-effort — a
+	// dropdown-reconcile failure must never fail the staff sync itself.
+	if (result.status === "synced") {
+		try {
+			await reconcilePrimaryStaffOptions({
+				controlPanelDb: args.controlPanelDb,
+				tenantDb: args.tenantDb,
+				organizationId: args.organizationId,
+				decryptApiKey: decrypt,
+			});
+		} catch (e) {
+			console.error("[ghl] primary-staff dropdown reconcile failed", e);
+		}
+	}
+
+	return result;
+};
 
 export interface ServerDispatchProfileSyncArgs {
 	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;

@@ -24,6 +24,10 @@ export const ghlUserLinks = pgTable(
 		memberId: uuid("member_id").notNull(),
 		branchNodeId: uuid("branch_node_id").notNull(),
 		ghlLocationId: text("ghl_location_id").notNull(),
+		// The unique label this member occupies in the org's GHL "Primary Staff"
+		// dropdown. Set by the desired-state reconcile; lets the inbound lead
+		// webhook resolve primary_staff (a label string) to this member exactly.
+		primaryStaffOptionLabel: text("primary_staff_option_label"),
 		lastError: text("last_error"),
 		syncStatus: text("sync_status").default("active").notNull(),
 		lastSyncedAt: timestamp("last_synced_at"),
