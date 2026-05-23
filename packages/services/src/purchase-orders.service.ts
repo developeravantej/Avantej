@@ -261,30 +261,37 @@ export async function receiveItems(
 }
 
 export async function cancelPurchaseOrder(tenantDb: TenantDb, id: string) {
-	const existing = await tenantDb
-		.select()
-		.from(purchaseOrders)
-		.where(eq(purchaseOrders.id, id))
-		.then((rows) => rows[0]);
+	// Phase 8.9: wrap SELECT + UPDATE in a single transaction with a row lock.
+	// The function is functionally idempotent without this (both concurrent
+	// callers would set status='cancelled'), but Phase 8.4 will hook an
+	// audit-log write into this handler; without a transaction the audit row
+	// could be written for a mutation that ultimately fails.
+	return tenantDb.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, id))
+			.for("update");
 
-	if (!existing) {
-		throw new Error("Purchase order not found");
-	}
+		if (!existing) {
+			throw new Error("Purchase order not found");
+		}
 
-	if (!["draft", "approved"].includes(existing.status)) {
-		throw new Error(
-			"Only draft or approved purchase orders can be cancelled",
-		);
-	}
+		if (!["draft", "approved"].includes(existing.status)) {
+			throw new Error(
+				"Only draft or approved purchase orders can be cancelled",
+			);
+		}
 
-	const [updated] = await tenantDb
-		.update(purchaseOrders)
-		.set({
-			status: "cancelled",
-			updatedAt: new Date(),
-		})
-		.where(eq(purchaseOrders.id, id))
-		.returning();
+		const [updated] = await tx
+			.update(purchaseOrders)
+			.set({
+				status: "cancelled",
+				updatedAt: new Date(),
+			})
+			.where(eq(purchaseOrders.id, id))
+			.returning();
 
-	return updated;
+		return updated;
+	});
 }
