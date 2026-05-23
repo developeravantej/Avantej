@@ -38,26 +38,67 @@ bun install
 
 ## Database Setup
 
-This project uses PostgreSQL with Drizzle ORM.
+This project uses PostgreSQL with Drizzle ORM. It is **multi-tenant** — there is a
+shared **control-panel** database (users, organizations, billing) plus one
+isolated **tenant** database per organization, served from Neon branches.
 
 1. Make sure you have a PostgreSQL database set up.
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
 
-3. Apply the schema to your database:
+3. Apply the control-panel schema to your dev database:
 
 ```bash
-bun db:push
+bun db:push    # CONTROL-PANEL ONLY — never use for tenant schemas
 ```
+
+> **⚠️ Tenant schemas are different.** Tenant DBs are per-org Neon branches and
+> the Worker can't read SQL files at runtime, so tenant migrations are bundled
+> into the Worker as a generated TS module. Author SQL in
+> `packages/db/src/migrations/tenant/`, then regenerate the bundle:
+>
+> ```bash
+> bun gen:migrations       # regenerates the bundled tenant migrations
+> bun verify:migrations    # CI gate — confirms the bundle matches the SQL files
+> ```
+>
+> See `docs/TENANT_MIGRATION_WORKFLOW.md` and `docs/SCHEMA_CHANGE_WORKFLOW.md`
+> for the full procedure.
 
 Then, run the development server:
 
 ```bash
-bun dev
+bun dev          # all apps
+bun dev:web      # web only (avantej.localhost:3021)
+bun dev:server   # server only (avantej.localhost:3020)
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-Use the Expo Go app to run the mobile application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Open [http://avantej.localhost:3021](http://avantej.localhost:3021) in your
+browser to see the web app. Use the Expo Go app to run the mobile app.
+The API runs at [http://avantej.localhost:3020](http://avantej.localhost:3020),
+OpenAPI docs at [http://localhost:3020/api-reference](http://localhost:3020/api-reference).
+
+## Testing
+
+```bash
+cd apps/server && bun test          # all server tests
+cd apps/server && bun test:unit     # excludes *.integration.test.ts
+cd apps/web    && bun run test      # vitest run (web)
+bunx playwright test                # end-to-end (from repo root)
+```
+
+## Scheduled jobs
+
+Cloudflare Cron Triggers are declared in `apps/server/wrangler.jsonc` and
+dispatched via the `scheduled()` export in `apps/server/src/index.ts`:
+
+| Cron          | Purpose                                          |
+| ------------- | ------------------------------------------------ |
+| `0 * * * *`   | Hourly webhook backfill + scheduled-reports send |
+| `0 1 * * *`   | Daily tenant-usage snapshot (01:00 UTC)          |
+| `0 2 * * *`   | Daily installment sweep (02:00 UTC)              |
+| `30 2 * * *`  | Daily reconciliation (02:30 UTC)                 |
+| `0 3 * * *`   | Daily hard-delete sweeper (03:00 UTC)            |
+| `0 9 * * *`   | Daily onboarding-stuck alert (09:00 UTC)         |
 
 ## Before Deploying to Cloudflare
 
