@@ -7,7 +7,9 @@
  * - POST /orgs - Create organization (requires active subscription)
  * - GET /orgs/:id - Get organization details
  * - PATCH /orgs/:id - Update organization (admin only)
- * - DELETE /orgs/:id - Delete organization (admin only, cascade)
+ * (DELETE /orgs/:id was removed in Phase 8.6 — see commit message;
+ *  the canonical deletion path is platformAdminTenants.requestDeletion
+ *  which goes through tenant-deletion.service.ts + hard-delete cron.)
  * - GET /orgs/:id/context - Get org context (hierarchy tree, member role, accessible nodes)
  */
 
@@ -468,55 +470,6 @@ organizationRoutes.patch(
             error instanceof Error
               ? error.message
               : "Failed to update organization",
-        },
-        500
-      );
-    }
-  }
-);
-
-/**
- * DELETE /orgs/:id
- * Delete organization (admin only, cascade deletes all data)
- */
-organizationRoutes.delete(
-  "/:id",
-  authMiddleware,
-  tenantMiddleware,
-  hierarchyMiddleware,
-  async (c) => {
-    try {
-      const organization = c.get("organization");
-      const role = c.get("role");
-
-      if (!organization) {
-        return c.json({ error: "Organization not found" }, 404);
-      }
-
-      // Check if user is admin
-      if (role !== "admin") {
-        return c.json({ error: "User does not have admin role" }, 403);
-      }
-
-      // TODO: Delete Neon project via API
-      // For now, we'll just delete the organization record
-      // which will cascade delete organization_members due to FK constraint
-      // The tenant database will remain but won't be accessible
-
-      const controlPanelDb = getControlPanelDb(c);
-      await controlPanelDb
-        .delete(organizations)
-        .where(eq(organizations.id, organization.id));
-
-      return c.body(null, 204);
-    } catch (error) {
-      console.error("Delete organization error:", error);
-      return c.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to delete organization",
         },
         500
       );
