@@ -26,6 +26,16 @@ import {
 	TEST_MEMBER_ID,
 } from "../helpers/integration-setup";
 
+// Phase 8.4 — approvePurchaseOrder/cancelPurchaseOrder now require an
+// actor for the audit row. Tests don't care about role-specific behaviour,
+// so we ship a fixed admin actor.
+const TEST_ACTOR = {
+	userId: "test-user-id",
+	memberId: TEST_MEMBER_ID,
+	role: "admin",
+	branchId: TEST_BRANCH_NODE_ID,
+};
+
 const createdPoIds: string[] = [];
 const createdReceiptIds: string[] = [];
 const createdInvoiceIds: string[] = [];
@@ -88,7 +98,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 			items: [{ productId: "prod-gr-1", orderedQty: 5, unitCost: 1000 }],
 		});
 		createdPoIds.push(po.id);
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, TEST_ACTOR);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
 		const item = detail!.items[0]!;
 
@@ -129,7 +139,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 			items: [{ productId: "prod-gr-cancel", orderedQty: 3, unitCost: 500 }],
 		});
 		createdPoIds.push(po.id);
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, TEST_ACTOR);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
 		const item = detail!.items[0]!;
 
@@ -171,7 +181,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 			items: [{ productId: "prod-3way", orderedQty: 4, unitCost: 250 }],
 		});
 		createdPoIds.push(po.id);
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, TEST_ACTOR);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
 		const item = detail!.items[0]!;
 
@@ -221,7 +231,7 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 			items: [{ productId: "prod-3way-bad", orderedQty: 2, unitCost: 1000 }],
 		});
 		createdPoIds.push(po.id);
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, TEST_ACTOR);
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
 		const item = detail!.items[0]!;
 

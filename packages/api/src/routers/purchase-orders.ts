@@ -217,11 +217,12 @@ export const purchaseOrdersRouter = {
 			}
 
 			try {
-				return await approvePurchaseOrder(
-					context.tenantDb,
-					input.id,
-					context.member.userId,
-				);
+				return await approvePurchaseOrder(context.tenantDb, input.id, {
+					userId: context.member.userId,
+					memberId: context.member.id,
+					role: context.member.role,
+					branchId: context.member.hierarchyScopeId ?? undefined,
+				});
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
@@ -320,7 +321,12 @@ export const purchaseOrdersRouter = {
 			}
 
 			try {
-				return await cancelPurchaseOrder(context.tenantDb, input.id);
+				return await cancelPurchaseOrder(context.tenantDb, input.id, {
+					userId: context.member.userId,
+					memberId: context.member.id,
+					role: context.member.role,
+					branchId: context.member.hierarchyScopeId ?? undefined,
+				});
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:

@@ -29,6 +29,17 @@ let testSupplierId: string;
 let testUomId: string;
 const testProductIds: string[] = [];
 
+// Phase 8.4 — approvePurchaseOrder/cancelPurchaseOrder now require an actor
+// for the audit row. Branch is filled in once testBranchNodeId is known.
+function actor() {
+	return {
+		userId: "test-user-id",
+		memberId: TEST_MEMBER_ID,
+		role: "admin",
+		branchId: testBranchNodeId,
+	};
+}
+
 async function createTestProduct(suffix: string): Promise<string> {
 	const [p] = await tenantDb
 		.insert(products)
@@ -145,10 +156,10 @@ describe("Purchase Orders Integration", () => {
 		const approved = await approvePurchaseOrder(
 			tenantDb,
 			created.id,
-			TEST_MEMBER_ID,
+			actor(),
 		);
 		expect(approved!.status).toBe("approved");
-		expect(approved!.approvedBy).toBe(TEST_MEMBER_ID);
+		expect(approved!.approvedBy).toBe(actor().userId);
 
 		// Step 3: Get detail to get item IDs
 		const detail = await getPurchaseOrderById(tenantDb, created.id);
@@ -231,11 +242,11 @@ describe("Purchase Orders Integration", () => {
 		createdPoIds.push(po.id);
 
 		// Approve once (should succeed)
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, actor());
 
 		// Approve again (should fail - not draft anymore)
 		await expect(
-			approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID),
+			approvePurchaseOrder(tenantDb, po.id, actor()),
 		).rejects.toThrow("Only draft purchase orders can be approved");
 	}, 30000);
 
@@ -253,7 +264,7 @@ describe("Purchase Orders Integration", () => {
 		});
 		createdPoIds.push(po.id);
 
-		await approvePurchaseOrder(tenantDb, po.id, TEST_MEMBER_ID);
+		await approvePurchaseOrder(tenantDb, po.id, actor());
 
 		const detail = await getPurchaseOrderById(tenantDb, po.id);
 		const itemId = detail!.items[0]!.id;
@@ -261,7 +272,7 @@ describe("Purchase Orders Integration", () => {
 		await receiveItems(tenantDb, po.id, [{ itemId, receivedQty: 1 }]);
 
 		// Attempt to cancel received PO
-		await expect(cancelPurchaseOrder(tenantDb, po.id)).rejects.toThrow(
+		await expect(cancelPurchaseOrder(tenantDb, po.id, actor())).rejects.toThrow(
 			"Only draft or approved purchase orders can be cancelled",
 		);
 	}, 60000);
@@ -279,7 +290,7 @@ describe("Purchase Orders Integration", () => {
 		});
 		createdPoIds.push(po.id);
 
-		const cancelled = await cancelPurchaseOrder(tenantDb, po.id);
+		const cancelled = await cancelPurchaseOrder(tenantDb, po.id, actor());
 		expect(cancelled!.status).toBe("cancelled");
 	}, 30000);
 });

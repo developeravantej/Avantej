@@ -979,43 +979,10 @@ export const adminRouter = {
 			};
 		}),
 
-	/**
-	 * Get audit logs (stub — pending full audit log system)
-	 */
-	getAuditLogs: adminProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid().optional(),
-				userId: z.string().uuid().optional(),
-				action: z
-					.enum([
-						"organization.created",
-						"organization.suspended",
-						"member.invited",
-						"member.removed",
-						"impersonation.started",
-						"impersonation.ended",
-					])
-					.optional(),
-				startDate: z.string().datetime().optional(),
-				endDate: z.string().datetime().optional(),
-				page: z.number().int().min(1).default(1),
-				limit: z.number().int().min(1).max(200).default(50),
-			})
-		)
-		.handler(async ({ input }) => {
-			// Stub implementation - returns empty array
-			// TODO: Implement audit log system
-			return {
-				data: [],
-				pagination: {
-					currentPage: input.page,
-					totalPages: 0,
-					pageSize: input.limit,
-					totalItems: 0,
-				},
-			};
-		}),
+	// admin.getAuditLogs (stub) was removed in Phase 8.4 — it had zero
+	// callers and was superseded by platformAdminAudit.listAdminActions
+	// (Plan E E.6), which reads adminSessionActions + adminSessions and
+	// is the canonical platform-audit query.
 
 	/**
 	 * Get platform statistics

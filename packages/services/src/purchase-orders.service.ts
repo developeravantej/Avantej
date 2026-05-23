@@ -5,6 +5,7 @@ import {
 } from "@avantej-core/db/schema/tenant/purchase-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -181,37 +182,64 @@ export async function createPurchaseOrder(
 	});
 }
 
+export interface PurchaseOrderActor {
+	userId: string;
+	memberId: string;
+	role: string;
+	branchId?: string;
+}
+
 export async function approvePurchaseOrder(
 	tenantDb: TenantDb,
 	id: string,
-	approvedBy: string,
+	actor: PurchaseOrderActor,
 ) {
-	const existing = await tenantDb
-		.select()
-		.from(purchaseOrders)
-		.where(eq(purchaseOrders.id, id))
-		.then((rows) => rows[0]);
+	// Phase 8.4 audit wiring — same shape as refunds: wrap mutation + audit
+	// write in a single transaction so the audit row rolls back if the
+	// status change fails. Row lock prevents concurrent re-approval.
+	return tenantDb.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, id))
+			.for("update");
 
-	if (!existing) {
-		throw new Error("Purchase order not found");
-	}
+		if (!existing) {
+			throw new Error("Purchase order not found");
+		}
 
-	if (existing.status !== "draft") {
-		throw new Error("Only draft purchase orders can be approved");
-	}
+		if (existing.status !== "draft") {
+			throw new Error("Only draft purchase orders can be approved");
+		}
 
-	const [updated] = await tenantDb
-		.update(purchaseOrders)
-		.set({
-			status: "approved",
-			approvedBy,
-			approvedAt: new Date(),
-			updatedAt: new Date(),
-		})
-		.where(eq(purchaseOrders.id, id))
-		.returning();
+		const [updated] = await tx
+			.update(purchaseOrders)
+			.set({
+				status: "approved",
+				approvedBy: actor.userId,
+				approvedAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.where(eq(purchaseOrders.id, id))
+			.returning();
 
-	return updated;
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "purchase_order.approve",
+			entityType: "purchase_order",
+			entityId: id,
+			branchId: actor.branchId,
+			summary: `Approved purchase order ${existing.purchaseOrderNumber} — ${(existing.totalAmount / 100).toFixed(2)} MYR`,
+			changes: {
+				from: { status: existing.status },
+				to: { status: "approved" },
+			},
+		});
+
+		return updated;
+	});
 }
 
 export async function receiveItems(
@@ -260,12 +288,12 @@ export async function receiveItems(
 	});
 }
 
-export async function cancelPurchaseOrder(tenantDb: TenantDb, id: string) {
-	// Phase 8.9: wrap SELECT + UPDATE in a single transaction with a row lock.
-	// The function is functionally idempotent without this (both concurrent
-	// callers would set status='cancelled'), but Phase 8.4 will hook an
-	// audit-log write into this handler; without a transaction the audit row
-	// could be written for a mutation that ultimately fails.
+export async function cancelPurchaseOrder(
+	tenantDb: TenantDb,
+	id: string,
+	actor: PurchaseOrderActor,
+) {
+	// Phase 8.9 added the transaction + row lock; 8.4 adds the audit write.
 	return tenantDb.transaction(async (tx) => {
 		const [existing] = await tx
 			.select()
@@ -291,6 +319,21 @@ export async function cancelPurchaseOrder(tenantDb: TenantDb, id: string) {
 			})
 			.where(eq(purchaseOrders.id, id))
 			.returning();
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "purchase_order.cancel",
+			entityType: "purchase_order",
+			entityId: id,
+			branchId: actor.branchId,
+			summary: `Cancelled purchase order ${existing.purchaseOrderNumber} — ${(existing.totalAmount / 100).toFixed(2)} MYR`,
+			changes: {
+				from: { status: existing.status },
+				to: { status: "cancelled" },
+			},
+		});
 
 		return updated;
 	});

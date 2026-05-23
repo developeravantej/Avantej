@@ -14,6 +14,13 @@ import {
 let mockDb: any;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+// Phase 8.4 — actor for approve/cancel audit row.
+const ACTOR = {
+	userId: "test-user-id",
+	memberId: MEMBER_ID,
+	role: "admin" as const,
+	branchId: BRANCH_NODE_ID,
+};
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
@@ -145,7 +152,7 @@ describe("approvePurchaseOrder", () => {
 		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([approved])) })) };
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await approvePurchaseOrder(mockDb, po.id, MEMBER_ID);
+		const result = await approvePurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("approved");
 	});
@@ -155,7 +162,7 @@ describe("approvePurchaseOrder", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
 
 		await expect(
-			approvePurchaseOrder(mockDb, po.id, MEMBER_ID),
+			approvePurchaseOrder(mockDb, po.id, ACTOR),
 		).rejects.toThrow("Only draft purchase orders can be approved");
 	});
 
@@ -163,7 +170,7 @@ describe("approvePurchaseOrder", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
 		await expect(
-			approvePurchaseOrder(mockDb, "nonexistent", MEMBER_ID),
+			approvePurchaseOrder(mockDb, "nonexistent", ACTOR),
 		).rejects.toThrow("Purchase order not found");
 	});
 });
@@ -256,7 +263,7 @@ describe("cancelPurchaseOrder", () => {
 		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([cancelled])) })) };
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await cancelPurchaseOrder(mockDb, po.id);
+		const result = await cancelPurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("cancelled");
 	});
@@ -269,7 +276,7 @@ describe("cancelPurchaseOrder", () => {
 		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([cancelled])) })) };
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await cancelPurchaseOrder(mockDb, po.id);
+		const result = await cancelPurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("cancelled");
 	});
@@ -278,7 +285,7 @@ describe("cancelPurchaseOrder", () => {
 		const po = makePurchaseOrder({ status: "received" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
 
-		await expect(cancelPurchaseOrder(mockDb, po.id)).rejects.toThrow(
+		await expect(cancelPurchaseOrder(mockDb, po.id, ACTOR)).rejects.toThrow(
 			"Only draft or approved purchase orders can be cancelled",
 		);
 	});
@@ -286,6 +293,6 @@ describe("cancelPurchaseOrder", () => {
 	test("throws when PO not found", async () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
-		await expect(cancelPurchaseOrder(mockDb, "nonexistent")).rejects.toThrow("Purchase order not found");
+		await expect(cancelPurchaseOrder(mockDb, "nonexistent", ACTOR)).rejects.toThrow("Purchase order not found");
 	});
 });
