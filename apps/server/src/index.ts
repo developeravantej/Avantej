@@ -1,6 +1,7 @@
 import { getBetterAuth } from "@/lib/better-auth";
 import { dbMiddleware } from "@/middleware/db.middleware";
 import { orpcTenantMiddleware } from "@/middleware/orpc-tenant.middleware";
+import { rateLimit } from "@/middleware/rate-limit.middleware";
 import { authRoutes } from "@/routes/auth.routes";
 import { hierarchyRoutes } from "@/routes/hierarchy.routes";
 import { organizationRoutes } from "@/routes/organizations.routes";
@@ -145,6 +146,34 @@ app.use("/*", dbMiddleware);
 // Must run after dbMiddleware but before createContext
 app.use("/*", orpcTenantMiddleware);
 
+// Phase 8.2 — rate-limit pre-auth endpoints. Per-isolate in-memory limiter;
+// see middleware/rate-limit.middleware.ts for the Cloudflare-native upgrade.
+//
+// Better-Auth routes all sign-in / sign-up / password-reset under /api/auth/*.
+// Cap login + signup at 10 req / IP / 60s. Password-reset endpoints fall
+// under the same prefix, so the cap applies there too — intentional.
+app.use(
+	"/api/auth/sign-in/*",
+	rateLimit({ route: "auth.signIn", limit: 10, windowSec: 60 }),
+);
+app.use(
+	"/api/auth/sign-up/*",
+	rateLimit({ route: "auth.signUp", limit: 10, windowSec: 60 }),
+);
+app.use(
+	"/api/auth/forget-password",
+	rateLimit({ route: "auth.forgetPassword", limit: 3, windowSec: 300 }),
+);
+app.use(
+	"/api/auth/reset-password",
+	rateLimit({ route: "auth.resetPassword", limit: 3, windowSec: 300 }),
+);
+// Custom auth + invitation endpoints (Hono routes, not Better-Auth handler).
+app.use(
+	"/api/invitations/accept",
+	rateLimit({ route: "invitations.accept", limit: 5, windowSec: 60 }),
+);
+
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
@@ -274,6 +303,30 @@ app.use("/api-reference/*", async (c, next) => {
 
 app.get("/", (c) => {
   return c.text("OK");
+});
+
+// Phase 8.2 — liveness + readiness endpoints. Unauthenticated; no DB write.
+//   /health is always 200 — used by uptime monitors.
+//   /ready pings the control-panel DB. Tenant DBs are deliberately NOT in
+//   /ready: a single bad Neon branch must not turn into a global outage.
+app.get("/health", (c) => c.json({ status: "ok" }));
+
+app.get("/ready", async (c) => {
+  try {
+    const { getControlPanelDb } = await import("@/lib/db");
+    const cpDb = getControlPanelDb();
+    // Lightweight ping — single-row SELECT 1.
+    await cpDb.execute("select 1");
+    return c.json({ status: "ready" });
+  } catch (err) {
+    return c.json(
+      {
+        status: "not_ready",
+        error: err instanceof Error ? err.message : String(err),
+      },
+      503,
+    );
+  }
 });
 
 app.onError((err, c) => {
