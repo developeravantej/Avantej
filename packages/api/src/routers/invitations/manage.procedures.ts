@@ -3,7 +3,7 @@ import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch, assertTenantContext } from "../../guards";
 
 export const invitationsManageProcedures = {
 	/**
@@ -27,6 +27,7 @@ export const invitationsManageProcedures = {
       
 
 		assertOrgContextMatch(context, input);
+		assertTenantContext(context);
       // Check permission
       try {
 
@@ -77,6 +78,7 @@ export const invitationsManageProcedures = {
       
 
 		assertOrgContextMatch(context, input);
+		assertTenantContext(context);
       // Check permission
       try {
 
@@ -115,6 +117,7 @@ export const invitationsManageProcedures = {
       
 
 		assertOrgContextMatch(context, input);
+		assertTenantContext(context);
       // Check permission
       try {
 

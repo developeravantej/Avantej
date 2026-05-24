@@ -1,19 +1,5 @@
-/**
- * Refunds Router
- *
- * API endpoints for the unified refund ledger with four-step lifecycle:
- *   request → approve | reject → process
- *
- * All write endpoints require the calling member to have the corresponding
- * refund_management permission. Admins (role.priority >= 100) always pass.
- */
-
 import {
 	approveRefund,
-	bulkApproveRefunds,
-	createPartialRefund,
-	getRefundById,
-	listRefunds,
 	processRefund,
 	rejectRefund,
 	requestRefund,
@@ -21,8 +7,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
-import { getControlPanelDb } from "../../lib/context-helpers";
+import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
 
 export const refundsLifecycleProcedures = {
 	request: tenantProcedure

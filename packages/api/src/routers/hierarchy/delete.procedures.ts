@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch, assertTenantContext } from "../../guards";
 import { tryGetControlPanelDb } from "../../lib/context-helpers";
 import type { ControlPanelDb } from "../../lib/context-helpers";
 
@@ -38,6 +38,7 @@ export const hierarchyDeleteProcedures = {
       
 
 		assertOrgContextMatch(context, input);
+		assertTenantContext(context);
       const {
         tenantDb,
         member,
