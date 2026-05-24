@@ -85,7 +85,12 @@ function parseExportAliases(exportInner) {
 }
 
 const src = readFileSync(srcPath, "utf-8");
-const exportConst = toCamelRouterName(routerName);
+const exportNameMatch = src.match(/export const (\w+) = \{/);
+if (!exportNameMatch) {
+	console.error("Could not find export const …Router = {");
+	process.exit(1);
+}
+const exportConst = exportNameMatch[1];
 const exportMarker = `export const ${exportConst} = {`;
 const exportIdx = src.indexOf(exportMarker);
 if (exportIdx === -1) {
