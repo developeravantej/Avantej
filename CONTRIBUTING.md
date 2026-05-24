@@ -104,6 +104,20 @@ Pull requests to `main` / `dev` run:
 | Server Unit Tests | `cd apps/server && bun test:unit` |
 | Package Tests | `bun test` in `packages/{types,services,api,db}` |
 | Build | `bun build` |
+| E2E Smoke | `bunx playwright test e2e/smoke.spec.ts e2e/fixes-verification.spec.ts` (requires secrets) |
+
+Push to `main` also runs **Server Integration** (`cd apps/server && bun test:integration`) and a **nightly full E2E** journey suite (`e2e-full.yml`, advisory).
+
+### GitHub secrets (E2E + integration)
+
+| Secret | Purpose |
+|--------|---------|
+| `CI_DATABASE_URL` | Dev Neon control-panel URL (same as local `DATABASE_URL`) |
+| `CI_TENANT_DATABASE_URL` | Optional tenant branch URL for integration tests |
+| `ENCRYPTION_KEY` | Same 64-char hex key as `apps/server/.dev.vars` |
+| `CI_E2E_EMAIL` / `CI_E2E_PASSWORD` | Optional; defaults to franchisee test user |
+
+See `e2e/README.md` for local smoke (`bun run e2e:seed` then `bun run e2e:smoke`).
 
 Enable these as **required checks** in GitHub branch protection (repo settings).
 
