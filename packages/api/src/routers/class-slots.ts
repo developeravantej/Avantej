@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listClassSlots,
 	getClassSlotById,
@@ -43,6 +43,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		// Clients can browse class slots in their tenant without the staff
 		// permission. Staff still need class_slot_management:read.
 		if (context.member.role !== "client") {
@@ -73,6 +74,7 @@ const getById = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		// Clients can read class slots; staff need class_slot_management:read.
 		if (context.member.role !== "client") {
 			await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
@@ -106,6 +108,7 @@ const create = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "create")
 
 		return createClassSlot(context.tenantDb, {
@@ -138,6 +141,7 @@ const update = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		return updateClassSlot(context.tenantDb, input.id, {
@@ -163,6 +167,7 @@ const cancel = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		return cancelClassSlot(context.tenantDb, input.id, input.cancellationReason);
@@ -182,6 +187,7 @@ const bookingCounts = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 
 		return getBookingCounts(context.tenantDb, {
@@ -204,6 +210,7 @@ const getSignups = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);
@@ -280,6 +287,7 @@ const enrollClient = tenantProcedure
 	.handler(async ({ input, context }) => {
 		
 		
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		const tenantDb = context.tenantDb;
@@ -375,6 +383,7 @@ const cancelEnrollment = tenantProcedure
 	.handler(async ({ input, context }) => {
 		
 		
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		const tenantDb = context.tenantDb;

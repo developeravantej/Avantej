@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 
 	listSalesOrders,

@@ -13,7 +13,7 @@
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { households } from "@avantej-core/db/schema/tenant/households";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertTenantContext, assertOrgContextMatch } from "../guards";
 import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -26,8 +26,12 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	
-	
+	assertTenantContext(context as Parameters<typeof assertTenantContext>[0]);
+	if (!context.member?.userId) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "Member userId is required",
+		});
+	}
 }
 
 async function checkPermission(
@@ -57,6 +61,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -99,6 +104,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -139,6 +145,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -188,6 +195,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 
@@ -235,6 +243,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 

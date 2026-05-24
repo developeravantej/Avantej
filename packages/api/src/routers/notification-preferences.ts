@@ -11,6 +11,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
+import { assertOrgContextMatch } from "../guards";
 
 export const notificationPreferencesRouter = {
   get: tenantProcedure

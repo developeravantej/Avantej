@@ -16,7 +16,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	createBranchInvite,
 	listAllBranchInvites,
@@ -51,6 +51,7 @@ export const branchInvitesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management (existing resource for branch admin actions)
 			try {
 
@@ -116,6 +117,7 @@ export const branchInvitesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management read
 			try {
 
@@ -158,6 +160,7 @@ export const branchInvitesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management delete
 			try {
 
@@ -204,6 +207,7 @@ export const branchInvitesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management create (creating a replacement)
 			try {
 

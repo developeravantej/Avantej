@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 
 	listBrands,
@@ -24,6 +24,7 @@ export const brandsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listBrands(context.tenantDb, { search: input.search });
@@ -41,6 +42,7 @@ export const brandsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const brand = await getBrandById(context.tenantDb, input.id);
@@ -65,6 +67,7 @@ export const brandsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createBrand(context.tenantDb, {
@@ -88,6 +91,7 @@ export const brandsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateBrand(context.tenantDb, input.id, {
@@ -109,6 +113,7 @@ export const brandsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 
 			return deleteBrand(context.tenantDb, input.id);

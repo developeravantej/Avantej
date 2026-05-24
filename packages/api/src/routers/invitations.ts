@@ -23,7 +23,7 @@ import { and, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { z } from "zod";
 import { tenantProcedure, publicProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const invitationRouter = {
   /**

@@ -73,6 +73,15 @@ jobs:
       - name: Oxlint
         run: bun check
 
+  tenant-perimeter:
+    name: Tenant API perimeter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Check tenantProcedure rollout invariants
+        run: bun run ci:check-tenant-perimeter
+
   format:
     name: Format (Biome)
     runs-on: ubuntu-latest

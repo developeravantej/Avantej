@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
  convertWalkInPaymentToPackage } from "@avantej-core/services";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const deprecated = (message: string) =>
 	tenantProcedure

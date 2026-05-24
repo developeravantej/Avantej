@@ -28,7 +28,7 @@ import { and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const serviceTypeSchema = z.enum(["private", "semi_private", "both"]);
 const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);

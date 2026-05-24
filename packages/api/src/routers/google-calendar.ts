@@ -1,5 +1,5 @@
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
@@ -148,6 +148,7 @@ export const googleCalendarRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			assertTenantAndMember(context);
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 

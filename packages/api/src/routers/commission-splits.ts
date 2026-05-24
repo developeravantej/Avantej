@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listCommissionSplits,
 	getCommissionsByAppointment,
@@ -40,6 +40,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return listCommissionSplits(context.tenantDb, {
@@ -64,6 +65,7 @@ const getByAppointment = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return getCommissionsByAppointment(context.tenantDb, input.appointmentId, {
@@ -84,6 +86,7 @@ const myCommissions = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return getMyCommissions(context.tenantDb, context.member.id, {
@@ -120,6 +123,7 @@ const listLedger = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);
@@ -151,6 +155,7 @@ const approve = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
@@ -185,6 +190,7 @@ const markPaid = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
 		try {
@@ -221,6 +227,7 @@ const voidSplit = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
@@ -259,6 +266,7 @@ const manualAdjustment = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 		if (!context.tenantDb || !context.member) throw new ORPCError("UNAUTHORIZED");
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "create");
@@ -301,6 +309,7 @@ const liabilitySummaryProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		// OR permission check: commission_management:read OR commission_payout:read
 		let hasPermission = false;
 		try {
@@ -358,6 +367,7 @@ const markPaidBatchProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "update");
 
 		try {
@@ -401,6 +411,7 @@ const liabilityByStaffProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);
@@ -437,6 +448,7 @@ const markPaidByIdProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
 		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid)
@@ -475,6 +487,7 @@ const voidByIdProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
@@ -515,6 +528,7 @@ const listPendingReviewProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read")
 
 		const controlPanelDb = getControlPanelDb(context);
@@ -548,6 +562,7 @@ const resolveReviewProcedure = tenantProcedure
 		
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_review", "resolve")
 
 		try {

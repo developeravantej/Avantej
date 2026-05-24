@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 
 	listCancelledSales,
@@ -27,6 +27,7 @@ export const cancelledSalesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			requireTenantMember(context);
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
@@ -49,6 +50,7 @@ export const cancelledSalesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			requireTenantMember(context);
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
@@ -78,6 +80,7 @@ export const cancelledSalesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			requireTenantMember(context);
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");

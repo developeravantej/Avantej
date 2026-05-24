@@ -11,7 +11,7 @@ import { eq, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
 export const rolesRouter = {

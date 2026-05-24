@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
  listAudit, exportAuditCsv } from "@avantej-core/services";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -33,6 +33,7 @@ export const auditLogsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
@@ -63,6 +64,7 @@ export const auditLogsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 
 			const controlPanelDb = getControlPanelDb(context);

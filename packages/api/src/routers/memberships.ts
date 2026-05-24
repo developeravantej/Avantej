@@ -18,7 +18,7 @@ import {
 	listHoldsForPackage,
 	resumeMembership,
 } from "@avantej-core/services/membership.service";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertTenantContext, assertOrgContextMatch } from "../guards";
 
 const FreezeReasonEnum = z.enum(["medical", "travel", "other"]);
 
@@ -29,8 +29,12 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	
-	
+	assertTenantContext(context as Parameters<typeof assertTenantContext>[0]);
+	if (!context.member?.userId) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "Member userId is required",
+		});
+	}
 }
 
 async function checkPermission(

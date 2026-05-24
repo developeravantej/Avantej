@@ -21,7 +21,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -76,6 +76,7 @@ export const appointmentsRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
       const accessibleNodeIds =
@@ -222,6 +223,7 @@ export const appointmentsRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const userId = context.session?.user?.id;
       if (!userId) {
         throw new ORPCError("UNAUTHORIZED", {
@@ -251,6 +253,7 @@ export const appointmentsRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const appointment = await getAppointmentById(context.tenantDb, input.id);
       if (!appointment) {
         throw new ORPCError("NOT_FOUND", {
@@ -333,6 +336,7 @@ export const appointmentsRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Clients can self-book without staff permission, but only:
       //  - for themselves (input.userId === their session user id)
       //  - at their own branch (input.branchId === their member.hierarchyScopeId)
@@ -452,6 +456,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
       if (!context.tenantDb || !context.member) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
@@ -553,6 +558,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
       if (!context.tenantDb || !context.member) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
@@ -686,6 +692,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
       if (!context.tenantDb || !context.member) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
@@ -735,6 +742,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
       if (!context.tenantDb || !context.member) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
@@ -808,6 +816,7 @@ export const appointmentsRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const existing = await getAppointmentById(context.tenantDb, input.id);
       if (!existing) {
         throw new ORPCError("NOT_FOUND", {
@@ -918,6 +927,7 @@ export const appointmentsRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
 
       const limit = input.limit;

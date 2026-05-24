@@ -97,10 +97,13 @@ if (args.length === 0) {
 }
 
 const tenantDbCheck =
-	/if \(!context\.tenantDb\) \{\s*throw new ORPCError\("INTERNAL_SERVER_ERROR",[\s\S]*?\}\);\s*\}/g;
+	/if \(!context\.tenantDb\) throw new ORPCError\("INTERNAL_SERVER_ERROR", \{ message: "[^"]*" \}\);\s*\n/g;
 
 const memberCheck =
-	/if \(!context\.member\) \{\s*throw new ORPCError\("(FORBIDDEN|UNAUTHORIZED)",[\s\S]*?\}\);\s*\}/g;
+	/if \(!context\.member\) throw new ORPCError\("FORBIDDEN", \{ message: "[^"]*" \}\);\s*\n/g;
+
+const inlineGuard =
+	/if \(!context\.tenantDb \|\| !context\.member\) throw new ORPCError\("FORBIDDEN"\);\s*\n/g;
 
 const importProtected =
 	/import \{ protectedProcedure(?:, tenantProcedure)? \} from "\.\.\/index";/;
@@ -127,6 +130,7 @@ for (const path of files) {
 	content = content.replace(/\bprotectedProcedure\b/g, "tenantProcedure");
 	content = content.replace(tenantDbCheck, "");
 	content = content.replace(memberCheck, "");
+	content = content.replace(inlineGuard, "");
 	content = content.replace(/\n{3,}/g, "\n\n");
 
 	if (

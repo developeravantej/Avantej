@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listExpenses,
 	getExpenseById,
@@ -30,6 +30,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
 
 		return listExpenses(context.tenantDb, {
@@ -56,6 +57,7 @@ const getById = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
 
 		const expense = await getExpenseById(context.tenantDb, input.id);
@@ -90,6 +92,7 @@ const create = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "create");
 
 		return createExpense(context.tenantDb, {
@@ -115,6 +118,7 @@ const approve = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {
@@ -143,6 +147,7 @@ const reject = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {
@@ -172,6 +177,7 @@ const markPaid = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {

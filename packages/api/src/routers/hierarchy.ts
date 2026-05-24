@@ -24,7 +24,7 @@ import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -51,6 +51,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -226,6 +227,7 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
       // Tenant DB should be set up by createContext for oRPC routes
       const tenantDb = context.tenantDb;
       const member = context.member;
@@ -325,6 +327,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -515,6 +518,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -583,6 +587,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -691,6 +696,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -891,6 +897,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const {
         tenantDb,
         member,
@@ -1097,6 +1104,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
         contextAccessibleNodeIds ||
@@ -1144,6 +1152,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
         contextAccessibleNodeIds ||
@@ -1213,6 +1222,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
         contextAccessibleNodeIds ||
@@ -1261,6 +1271,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const { tenantDb, member } = context;
 
       // Check permission
@@ -1313,6 +1324,7 @@ export const hierarchyRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       const { tenantDb, member } = context;
 
       // Check permission

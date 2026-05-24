@@ -12,7 +12,7 @@ import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { previewBatch, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";

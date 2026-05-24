@@ -7,7 +7,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const windowKeySchema = z.enum(["7D", "30D", "90D", "YTD"]);
 const frequencySchema = z.enum(["daily", "weekly", "monthly"]);

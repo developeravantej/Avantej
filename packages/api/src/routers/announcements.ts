@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listAnnouncements,
 	listActiveAnnouncements,
@@ -25,6 +25,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
 
 		return listAnnouncements(context.tenantDb, {
@@ -77,6 +78,7 @@ const create = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "create")
 
 		return createAnnouncement(context.tenantDb, {
@@ -116,6 +118,7 @@ const update = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "update")
 
 		try {
@@ -150,6 +153,7 @@ const deleteHandler = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "delete")
 
 		return deleteAnnouncement(context.tenantDb, input.id);

@@ -84,6 +84,7 @@ describe("appointmentsRouter.create", () => {
 
 	it("delegates to createAppointment on happy path", async () => {
 		const ctx = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: makeAdminDb(),
 			accessibleNodeIds: [BRANCH_ID],
 		});
@@ -96,7 +97,10 @@ describe("appointmentsRouter.create", () => {
 	});
 
 	it("rejects when tenantDb is missing", async () => {
-		const ctx = createMockContext({ tenantDb: undefined });
+		const ctx = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: undefined,
+		});
 		await expect(
 			call(appointmentsRouter.create, validInput, { context: ctx }),
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
@@ -104,6 +108,7 @@ describe("appointmentsRouter.create", () => {
 
 	it("rejects when member is missing", async () => {
 		const ctx = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: makeAdminDb(),
 			member: null,
 		});
@@ -114,6 +119,7 @@ describe("appointmentsRouter.create", () => {
 
 	it("rejects when branchId is outside accessible scope", async () => {
 		const ctx = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: makeAdminDb(),
 			accessibleNodeIds: [OTHER_BRANCH],
 		});
@@ -124,6 +130,7 @@ describe("appointmentsRouter.create", () => {
 
 	it("rejects booking against pending package instance", async () => {
 		const ctx = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: makeAdminDb("pending"),
 			accessibleNodeIds: [BRANCH_ID],
 		});
@@ -144,6 +151,7 @@ describe("appointmentsRouter.create", () => {
 			throw new Error("overlap exclusion violated");
 		});
 		const ctx = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: makeAdminDb(),
 			accessibleNodeIds: [BRANCH_ID],
 		});

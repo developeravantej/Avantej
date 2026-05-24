@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import { assertOrgContextMatch, guardBranchAccessible, requirePermissionOrpc } from "../guards";
 import {
 
 	listProducts,

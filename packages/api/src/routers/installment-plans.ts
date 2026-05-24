@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listInstallmentPlans,
 	getInstallmentPlanById,
@@ -24,6 +24,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
 				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
@@ -46,6 +47,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
 				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
@@ -72,6 +74,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
 				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
@@ -99,6 +102,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			try {
@@ -147,6 +151,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			try {
@@ -201,6 +206,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			return setDefaultInstallmentPlan(context.tenantDb, input.id);
@@ -218,6 +224,7 @@ export const installmentPlansRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
 
 			return deactivateInstallmentPlan(context.tenantDb, input.id);

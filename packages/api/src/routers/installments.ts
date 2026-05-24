@@ -25,7 +25,7 @@ import { ORPCError } from "@orpc/server";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const confirmPayment = tenantProcedure

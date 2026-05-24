@@ -8,6 +8,7 @@ import { listUserActivityLog } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
+import { assertOrgContextMatch } from "../guards";
 
 export const userActivityLogRouter = {
   list: tenantProcedure

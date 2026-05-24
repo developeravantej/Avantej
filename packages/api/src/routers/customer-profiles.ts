@@ -17,7 +17,7 @@ import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const customerProfilesRouter = {
 	get: tenantProcedure
@@ -64,6 +64,7 @@ export const customerProfilesRouter = {
 		.handler(async ({ input, context }) => {
 			
 
+		assertOrgContextMatch(context, input);
 			const userId = context.session?.user?.id;
 			if (!userId) {
 				throw new ORPCError("UNAUTHORIZED", {
@@ -146,6 +147,7 @@ export const customerProfilesRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "update");
 
 			// Verify targetUserId is a client member in this tenant
@@ -204,6 +206,7 @@ export const customerProfilesRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			
+		assertOrgContextMatch(context, input);
 			const rows = await context.tenantDb
 				.select()
 				.from(leadSources)

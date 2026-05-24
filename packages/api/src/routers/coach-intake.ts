@@ -11,7 +11,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -35,6 +35,7 @@ export const coachIntakeRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			return listCoachIntakeSlots(context.tenantDb, input.trainerId);
 		}),
 
@@ -54,6 +55,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -95,6 +97,7 @@ export const coachIntakeRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			return computeOpenIntakeSlots(
 				context.tenantDb,
 				input.trainerId,
@@ -116,6 +119,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -157,6 +161,7 @@ export const coachIntakeRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			await unclaimIntakeSlot(context.tenantDb, input.exceptionId);
 			return { success: true };
 		}),
@@ -173,6 +178,7 @@ export const coachIntakeRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			return listIntakeExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -191,6 +197,7 @@ export const coachIntakeRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			const controlPanelDb = getControlPanelDb(context);
 			return listCoachIntakeByBranch(controlPanelDb, context.tenantDb, {
 				branchId: input.branchId,

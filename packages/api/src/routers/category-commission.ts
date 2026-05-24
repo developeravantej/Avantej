@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	getCategoryCommissionConfig,
 	upsertCategoryCommissionConfig,
@@ -21,6 +21,7 @@ const getByCategory = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "read");
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
@@ -73,6 +74,7 @@ const upsert = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "create");
 
 		try {
@@ -109,6 +111,7 @@ const deleteConfig = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "delete");
 
 		try {
