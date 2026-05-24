@@ -1,36 +1,12 @@
-import {
-  type CreateHierarchyNodeParams,
-  type UpdateHierarchyNodeParams,
-  type DeleteHierarchyNodeOptions,
-  createHierarchyNode,
-  updateHierarchyNode,
-  deleteHierarchyNode,
-  moveHierarchyNode,
-  getDescendantNodeIds,
-  listNodesWithStats,
-
-  validateHierarchyRules,
-  validateParentAccess,
-  getMembersByHierarchyScope,
-  updateMemberHierarchyScope,
-  bulkUpdateMemberHierarchyScope,
-  getAllOrganizationMembersWithUserDetails,
-} from "@avantej-core/services";
+import { getDescendantNodeIds, moveHierarchyNode } from "@avantej-core/services";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-
-function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof controlPanelSchema> | null {
-  return context.honoContext?.get("controlPanelDb") as NeonDatabase<typeof controlPanelSchema> | null;
-}
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { tryGetControlPanelDb } from "../../lib/context-helpers";
 
 export const hierarchyMoveProcedures = {
 	/**
@@ -167,7 +143,7 @@ export const hierarchyMoveProcedures = {
               "dispatchBranchMove",
             ) as
               | ((args: {
-                  controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                  controlPanelDb: ControlPanelDb;
                   tenantDb: typeof tenantDb;
                   organizationId: string;
                   branchNodeId: string;
@@ -179,7 +155,7 @@ export const hierarchyMoveProcedures = {
                   [k: string]: unknown;
                 }>)
               | undefined;
-            const cpDb = getControlPanelDb(context);
+            const cpDb = tryGetControlPanelDb(context);
             if (dispatchBranchMove && cpDb) {
               try {
                 ghlSync = await dispatchBranchMove({

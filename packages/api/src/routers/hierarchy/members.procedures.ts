@@ -1,36 +1,16 @@
 import {
-  type CreateHierarchyNodeParams,
-  type UpdateHierarchyNodeParams,
-  type DeleteHierarchyNodeOptions,
-  createHierarchyNode,
-  updateHierarchyNode,
-  deleteHierarchyNode,
-  moveHierarchyNode,
-  getDescendantNodeIds,
-  listNodesWithStats,
-
-  validateHierarchyRules,
-  validateParentAccess,
-  getMembersByHierarchyScope,
-  updateMemberHierarchyScope,
-  bulkUpdateMemberHierarchyScope,
-  getAllOrganizationMembersWithUserDetails,
+	getDescendantNodeIds,
+	getMembersByHierarchyScope,
+	updateMemberHierarchyScope,
+	bulkUpdateMemberHierarchyScope,
+	getAllOrganizationMembersWithUserDetails,
 } from "@avantej-core/services";
-import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
-import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-
-function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof controlPanelSchema> | null {
-  return context.honoContext?.get("controlPanelDb") as NeonDatabase<typeof controlPanelSchema> | null;
-}
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 
 export const hierarchyMembersProcedures = {
 	/**
@@ -224,7 +204,7 @@ export const hierarchyMembersProcedures = {
       // Get control panel database from Hono context
       const controlPanelDb = context.honoContext?.get(
         "controlPanelDb"
-      ) as NeonDatabase<typeof controlPanelSchema> | undefined;
+      ) as ControlPanelDb | undefined;
       if (!controlPanelDb) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Control panel database not available in context",

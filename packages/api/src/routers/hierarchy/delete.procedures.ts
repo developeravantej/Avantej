@@ -1,36 +1,17 @@
 import {
-  type CreateHierarchyNodeParams,
-  type UpdateHierarchyNodeParams,
-  type DeleteHierarchyNodeOptions,
-  createHierarchyNode,
-  updateHierarchyNode,
-  deleteHierarchyNode,
-  moveHierarchyNode,
-  getDescendantNodeIds,
-  listNodesWithStats,
-
-  validateHierarchyRules,
-  validateParentAccess,
-  getMembersByHierarchyScope,
-  updateMemberHierarchyScope,
-  bulkUpdateMemberHierarchyScope,
-  getAllOrganizationMembersWithUserDetails,
+	type DeleteHierarchyNodeOptions,
+	deleteHierarchyNode,
+	getDescendantNodeIds,
 } from "@avantej-core/services";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
-import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
-import { members } from "@avantej-core/db/schema/tenant/members";
 import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-
-function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof controlPanelSchema> | null {
-  return context.honoContext?.get("controlPanelDb") as NeonDatabase<typeof controlPanelSchema> | null;
-}
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { tryGetControlPanelDb } from "../../lib/context-helpers";
+import type { ControlPanelDb } from "../../lib/context-helpers";
 
 export const hierarchyDeleteProcedures = {
 	deleteNode: tenantProcedure
@@ -87,7 +68,7 @@ export const hierarchyDeleteProcedures = {
       // Collect branch node IDs before deletion (for sync cleanup)
       // This includes the node itself (if branch) and any descendant branches
       let branchNodeIds: string[] = [];
-      const controlPanelDb = getControlPanelDb(context);
+      const controlPanelDb = tryGetControlPanelDb(context);
       if (controlPanelDb) {
         try {
           const descendantIds = await getDescendantNodeIds(tenantDb, input.nodeId);
@@ -115,7 +96,7 @@ export const hierarchyDeleteProcedures = {
           "dispatchBranchRemove",
         ) as
           | ((args: {
-              controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+              controlPanelDb: ControlPanelDb;
               tenantDb: typeof tenantDb;
               organizationId: string;
               branchNodeId: string;
@@ -186,7 +167,7 @@ export const hierarchyDeleteProcedures = {
             "dispatchBranchSync",
           ) as
             | ((args: {
-                controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                controlPanelDb: ControlPanelDb;
                 tenantDb: typeof tenantDb;
                 organizationId: string;
                 branchNodeId: string;
