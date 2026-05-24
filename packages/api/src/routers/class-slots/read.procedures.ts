@@ -1,29 +1,17 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
 import {
 	listClassSlots,
 	getClassSlotById,
-	createClassSlot,
-	updateClassSlot,
-	cancelClassSlot,
 	getBookingCounts,
 	listClassSlotSignups,
 } from "@avantej-core/services/class-slots.service";
-import { requirePermission } from "@avantej-core/services";
 import { user } from "@avantej-core/db/schema/auth";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import { appointments } from "@avantej-core/db/schema/tenant/appointments";
-import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
-import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
-import { services } from "@avantej-core/db/schema/tenant/services";
-import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-
-type TenantDb = NeonDatabase<typeof tenantSchema>;
-type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 const list = tenantProcedure
 	.input(
