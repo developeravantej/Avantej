@@ -90,7 +90,7 @@ describe("posRouter.recordSale", () => {
 		});
 		await expect(
 			call(posRouter.recordSale, validInput, { context: ctx }),
-		).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
 	it("rejects when branchId is outside accessibleNodeIds", async () => {

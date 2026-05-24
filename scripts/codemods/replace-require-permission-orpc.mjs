@@ -17,6 +17,9 @@ const multilinePattern =
 const bareCatchPattern =
 	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb,\s*context\.member,\s*"([^"]+)",\s*"([^"]+)",?\s*\);\s*\}\s*catch\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{[^}]+\}\);\s*\}/gs;
 
+const nonNullContextPattern =
+	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb!,\s*context\.member!,\s*"([^"]+)",\s*"([^"]+)"\s*\);\s*\}\s*catch\s*\(\s*(?:error|e)\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{\s*message:\s*(?:error|e) instanceof Error\s*\?\s*(?:error|e)\.message\s*:\s*"[^"]*",?\s*\}\);\s*\}/gs;
+
 function applyReplacements(content) {
 	let replacements = 0;
 	const replace = (pattern) => {
@@ -28,6 +31,7 @@ function applyReplacements(content) {
 	replace(singleLinePattern);
 	replace(multilinePattern);
 	replace(bareCatchPattern);
+	replace(nonNullContextPattern);
 	return { content, replacements };
 }
 

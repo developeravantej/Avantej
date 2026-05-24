@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
  listAudit, exportAuditCsv } from "@avantej-core/services";
@@ -21,7 +21,7 @@ const sharedFilters = z.object({
 });
 
 export const auditLogsRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			sharedFilters.extend({
 				limit: z.number().min(1).max(200).default(100),
@@ -29,17 +29,9 @@ export const auditLogsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 
@@ -60,24 +52,16 @@ export const auditLogsRouter = {
 			});
 		}),
 
-	exportCsv: protectedProcedure
+	exportCsv: tenantProcedure
 		.input(
 			sharedFilters.extend({
 				maxRows: z.number().min(1).max(50_000).optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 

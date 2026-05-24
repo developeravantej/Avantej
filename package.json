@@ -53,7 +53,8 @@
     "e2e:seed": "cd apps/server && bun run scripts/seed-business-data.ts",
     "format:check": "biome format .",
     "ci:verify-e2e-fixture": "node scripts/ci/verify-e2e-fixture.mjs",
-    "codemod:require-permission-orpc": "node scripts/codemods/replace-require-permission-orpc.mjs"
+    "codemod:require-permission-orpc": "node scripts/codemods/replace-require-permission-orpc.mjs",
+    "codemod:tenant-procedure": "node scripts/codemods/migrate-tenant-procedure.mjs"
   },
   "dependencies": {
     "boneyard-js": "^1.8.1",

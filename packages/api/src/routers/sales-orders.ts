@@ -4,8 +4,9 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listSalesOrders,
 	getSalesOrderById,
 	createSalesOrder,
@@ -59,13 +60,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const result = await listSalesOrders(context.tenantDb!, {
 				branchId: input.branchId,
@@ -129,13 +124,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const order = await getSalesOrderById(context.tenantDb!, input.id);
 			if (!order) {
@@ -179,13 +168,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "create");
 
 			return createSalesOrder(context.tenantDb!, {
 				date: new Date(input.date),
@@ -215,13 +198,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "update");
 
 			return updateSalesOrder(context.tenantDb!, input.id, {
 				date: input.date ? new Date(input.date) : undefined,
@@ -247,13 +224,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "delete");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "delete");
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -286,13 +257,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
@@ -353,13 +318,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			// Resolve period: if new `period` param provided, use it.
 			// Otherwise fall back to legacy periodStart/periodEnd or default to "month".
@@ -393,13 +352,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			return getLargestSaleToday(context.tenantDb!, {
 				branchId: input.branchId,
@@ -423,13 +376,7 @@ export const salesOrdersRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			return getLatestCompletedSalesOrder(context.tenantDb!, {
 				branchId: input.branchId,

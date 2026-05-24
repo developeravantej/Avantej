@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listCancelledSales,
 	getCancelledSaleById,
 	exportCancelledSalesCsv,
@@ -36,13 +37,7 @@ export const cancelledSalesRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			return listCancelledSales(context.tenantDb!, {
 				customerId: input.customerId,
@@ -64,13 +59,7 @@ export const cancelledSalesRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const row = await getCancelledSaleById(
 				context.tenantDb!,
@@ -99,13 +88,7 @@ export const cancelledSalesRouter = {
 		.handler(async ({ input, context }) => {
 			requireTenantMember(context);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			return exportCancelledSalesCsv(context.tenantDb!, {
 				customerId: input.customerId,

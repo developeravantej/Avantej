@@ -14,7 +14,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { assertOrgContextMatch, guardBranchAccessible, requirePermissionOrpc } from "../guards";
 import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -42,7 +42,7 @@ export const posRouter = {
 	 * Performs a branch-scope check at the router level (FORBIDDEN if branchId
 	 * is not in caller's accessibleNodeIds), then delegates to recordPosSale.
 	 */
-	recordSale: protectedProcedure
+	recordSale: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -77,16 +77,8 @@ export const posRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
 			// Permission check: pos:create
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
@@ -130,7 +122,7 @@ export const posRouter = {
 	 * Search for customers (members + walk-ins) by name, email, or phone.
 	 * Returns up to 10 results, RBAC-filtered by accessible node IDs.
 	 */
-	searchCustomers: protectedProcedure
+	searchCustomers: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -139,16 +131,8 @@ export const posRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
@@ -171,7 +155,7 @@ export const posRouter = {
 	 * invoices + optional package_instances + installments.
 	 * Customer name is enriched cross-DB for member customers.
 	 */
-	getReceiptData: protectedProcedure
+	getReceiptData: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -179,16 +163,8 @@ export const posRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
