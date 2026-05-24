@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	requirePermission,
 	listProducts,
@@ -238,6 +239,9 @@ export const productsRouter = {
 				});
 			}
 
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+
 			return getProductStock(context.tenantDb, input.productId, input.branchId);
 		}),
 
@@ -271,6 +275,9 @@ export const productsRouter = {
 				});
 			}
 
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+
 			return adjustProductStock(context.tenantDb, input.productId, input.branchId, input.delta);
 		}),
 
@@ -295,6 +302,8 @@ export const productsRouter = {
 					message: "User is not a member of this organization",
 				});
 			}
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			const priceCents = await resolveProductPrice(
 				context.tenantDb,
 				input.productId,
@@ -361,6 +370,10 @@ export const productsRouter = {
 				throw new ORPCError("FORBIDDEN", {
 					message: error instanceof Error ? error.message : "Permission denied",
 				});
+			}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			}
 			return setProductPrice(context.tenantDb, {
 				productId: input.productId,

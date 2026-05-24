@@ -8,6 +8,7 @@ import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-spli
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveBranchFilter } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -126,10 +127,7 @@ export async function getDashboardKpis(
 ): Promise<DashboardKpisResult> {
 	const { from, to } = getPeriodDates(params.period, params.from, params.to);
 	const nodeIds = params.accessibleNodeIds;
-
-	// If branchId specified and in accessible nodes — use just that branch
-	// Else use all accessible nodes
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	// 1. Sales metrics
 	const salesResult = await tenantDb
@@ -332,7 +330,7 @@ export async function getStaffPerformance(
 ): Promise<StaffPerformanceRow[]> {
 	const { from, to } = getPeriodDates(params.period);
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	// Get completed appointments with commissions
 	// commissionSplits.staffId = members.userId (text reference, no FK)
@@ -408,7 +406,7 @@ export async function getRevenueSeries(
 ): Promise<RevenueSeriesPoint[]> {
 	const days = Math.max(1, Math.min(params.days, 365));
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	const now = new Date();
 	const to = new Date(now);

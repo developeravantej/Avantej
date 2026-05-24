@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 import {
 	getDashboardKpis,
@@ -36,6 +37,8 @@ const getDashboardKpisHandler = protectedProcedure
 			});
 		}
 
+		assertOrgContextMatch(context, input);
+
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -54,6 +57,8 @@ const getDashboardKpisHandler = protectedProcedure
 				message: e instanceof Error ? e.message : "Permission denied",
 			});
 		}
+
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getDashboardKpis(context.tenantDb, {
 			period: input.period,
@@ -80,6 +85,8 @@ const getStaffPerformanceHandler = protectedProcedure
 			});
 		}
 
+		assertOrgContextMatch(context, input);
+
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -98,6 +105,8 @@ const getStaffPerformanceHandler = protectedProcedure
 				message: e instanceof Error ? e.message : "Permission denied",
 			});
 		}
+
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getStaffPerformance(context.tenantDb, {
 			period: input.period,
@@ -122,6 +131,8 @@ const getRevenueSeriesHandler = protectedProcedure
 			});
 		}
 
+		assertOrgContextMatch(context, input);
+
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -140,6 +151,8 @@ const getRevenueSeriesHandler = protectedProcedure
 				message: e instanceof Error ? e.message : "Permission denied",
 			});
 		}
+
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getRevenueSeries(context.tenantDb, {
 			days: input.days,
@@ -165,6 +178,7 @@ const getMemberCountSeriesHandler = protectedProcedure
 				message: "Tenant database not available. Ensure organization context is set.",
 			});
 		}
+		assertOrgContextMatch(context, input);
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -193,6 +207,7 @@ const getChurnSeriesHandler = protectedProcedure
 				message: "Tenant database not available. Ensure organization context is set.",
 			});
 		}
+		assertOrgContextMatch(context, input);
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -221,6 +236,7 @@ const getLtvSeriesHandler = protectedProcedure
 				message: "Tenant database not available. Ensure organization context is set.",
 			});
 		}
+		assertOrgContextMatch(context, input);
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",
@@ -249,6 +265,7 @@ const getClassFillRateSeriesHandler = protectedProcedure
 				message: "Tenant database not available. Ensure organization context is set.",
 			});
 		}
+		assertOrgContextMatch(context, input);
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "User is not a member of this organization",

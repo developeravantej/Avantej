@@ -173,6 +173,19 @@ export async function checkHierarchyPermission(
  * @param action - Action name
  * @throws Error if permission is denied
  */
+export class PermissionDeniedError extends Error {
+	constructor(
+		public readonly resource: Resource,
+		public readonly action: Action,
+		public readonly role: string,
+	) {
+		super(
+			`Permission denied: ${role} role does not have ${resource}:${action} permission`,
+		);
+		this.name = "PermissionDeniedError";
+	}
+}
+
 export async function requirePermission(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	member: Member,
@@ -181,8 +194,6 @@ export async function requirePermission(
 ): Promise<void> {
 	const hasPerm = await hasPermission(tenantDb, member, resource, action);
 	if (!hasPerm) {
-		throw new Error(
-			`Permission denied: ${member.role} role does not have ${resource}:${action} permission`,
-		);
+		throw new PermissionDeniedError(resource, action, member.role);
 	}
 }

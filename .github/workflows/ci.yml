@@ -72,3 +72,12 @@ jobs:
       - uses: ./.github/actions/bun-setup
       - name: Oxlint
         run: bun check
+
+  format:
+    name: Format (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Check formatting
+        run: bunx biome format packages/api packages/services packages/db packages/types e2e scripts/ci

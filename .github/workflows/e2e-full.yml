@@ -42,8 +42,7 @@ jobs:
           CI_TENANT_DATABASE_URL: ${{ secrets.CI_TENANT_DATABASE_URL }}
           CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
-      - name: Install Playwright Chromium
-        run: bunx playwright install chromium --with-deps
+      - uses: ./.github/actions/playwright-setup
 
       - name: Seed business fixture
         run: cd apps/server && bun run scripts/seed-business-data.ts

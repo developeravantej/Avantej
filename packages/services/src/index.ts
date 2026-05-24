@@ -193,6 +193,12 @@ export {
 	validateHierarchyRules,
 	validateParentAccess,
 } from "./hierarchy-validation.service";
+export {
+	assertBranchAccessible,
+	BranchAccessDeniedError,
+	isBranchAccessDeniedError,
+	resolveBranchFilter,
+} from "./hierarchy-scope";
 // Installment service - for installment-based credit unlocking
 export {
 	type AdminInstallmentOverviewItem,

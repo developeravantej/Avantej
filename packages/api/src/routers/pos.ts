@@ -15,6 +15,7 @@ import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -163,6 +164,9 @@ export const posRouter = {
 					message: "You do not have permission to search POS customers",
 				});
 			}
+
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 			const controlPanelDb = getControlPanelDb(context);
 
