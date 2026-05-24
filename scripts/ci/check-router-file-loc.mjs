@@ -14,7 +14,6 @@ const ALLOWLIST = new Set([
 	"package-instances.ts",
 	"members.ts",
 	"hierarchy.ts",
-	"commission-splits.ts",
 	"invitations.ts",
 ]);
 
