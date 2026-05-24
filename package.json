@@ -79,6 +79,7 @@
     "refine:split-router-imports": "node scripts/refine-split-router-imports.mjs",
     "refine:members-imports": "node scripts/refine-members-imports.mjs",
     "refine:hierarchy-imports": "node scripts/refine-hierarchy-imports.mjs",
+    "refine:invitations-imports": "node scripts/refine-invitations-imports.mjs",
     "refine:members-ghl-type": "node scripts/dedupe-members-ghl-type.mjs"
   },
   "dependencies": {

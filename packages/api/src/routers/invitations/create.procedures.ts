@@ -1,29 +1,11 @@
-/**
- * Invitation Router
- *
- * API endpoints for managing organization invitations.
- * Invitations are stored in tenant databases and link users to organizations.
- */
-
-import { user } from "@avantej-core/db/schema/auth";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { createInvitation } from "@avantej-core/services";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { MembershipService } from "@avantej-core/db/services/membership.service";
-import {
-  createInvitation,
-  getInvitationByToken,
-  listInvitations,
-  resendInvitation,
-  revokeInvitation,
-  validateInvitation,
-} from "@avantej-core/services";
-import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { tenantProcedure, publicProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { tenantProcedure } from "../../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { tryGetControlPanelDb } from "../../lib/context-helpers";
 
 export const invitationsCreateProcedures = {
 	/**
@@ -106,9 +88,7 @@ export const invitationsCreateProcedures = {
 
       // Hoist controlPanelDb fetch so both the soft-delete check and the
       // existing-org-member check can share the same connection.
-      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-        | NeonDatabase<typeof controlPanelSchema>
-        | undefined;
+      const controlPanelDb = tryGetControlPanelDb(context);
 
       // Pre-flight: block re-invitation of a previously soft-deleted customer.
       // If the email maps to an existing user who is a client member with

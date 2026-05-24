@@ -1,29 +1,14 @@
-/**
- * Invitation Router
- *
- * API endpoints for managing organization invitations.
- * Invitations are stored in tenant databases and link users to organizations.
- */
-
 import { user } from "@avantej-core/db/schema/auth";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
-import {
-  createInvitation,
-  getInvitationByToken,
-  listInvitations,
-  resendInvitation,
-  revokeInvitation,
-  validateInvitation,
-} from "@avantej-core/services";
+import { getInvitationByToken, validateInvitation } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { tenantProcedure, publicProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { publicProcedure } from "../../index";
+import { assertOrgContextMatch } from "../../guards";
+import { tryGetControlPanelDb } from "../../lib/context-helpers";
 
 export const invitationsPublicProcedures = {
 	/**
@@ -93,9 +78,7 @@ export const invitationsPublicProcedures = {
       }
 
       // Get control panel database from context
-      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-        | NeonDatabase<typeof controlPanelSchema>
-        | undefined;
+      const controlPanelDb = tryGetControlPanelDb(context);
 
       if (!controlPanelDb) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -147,9 +130,7 @@ export const invitationsPublicProcedures = {
 
 		assertOrgContextMatch(context, input);
       // Get control panel database from context
-      const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-        | NeonDatabase<typeof controlPanelSchema>
-        | undefined;
+      const controlPanelDb = tryGetControlPanelDb(context);
 
       if (!controlPanelDb) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {

@@ -8,7 +8,7 @@
  *
  * Usage: node scripts/split-router-by-marker.mjs <routerName> <module1:proc1,proc2> ...
  */
-import { readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const [, , routerName, ...moduleSpecs] = process.argv;
@@ -299,6 +299,13 @@ ${indexSpreads}
 	"utf-8",
 );
 
-unlinkSync(srcPath);
-console.log(`Deleted ${srcPath}`);
+writeFileSync(
+	srcPath,
+	`/** Re-export shim — keeps \`@avantej-core/api/routers/${routerName}\` stable after folder split. */
+export { ${exportConst} } from "./${routerName}/index";
+`,
+	"utf-8",
+);
+
+console.log(`Created re-export shim ${srcPath}`);
 console.log(`Created ${outDir}/index.ts`);
