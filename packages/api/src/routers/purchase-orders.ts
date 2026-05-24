@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listPurchaseOrders,
 	getPurchaseOrderById,
@@ -39,21 +40,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
 			return listPurchaseOrders(context.tenantDb, {
 				supplierId: input.supplierId,
@@ -88,21 +75,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
 			const result = await getPurchaseOrderById(
 				context.tenantDb,
@@ -150,21 +123,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "create");
 
 			return createPurchaseOrder(context.tenantDb, {
 				supplierId: input.supplierId,
@@ -200,21 +159,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
 			try {
 				return await approvePurchaseOrder(context.tenantDb, input.id, {
@@ -260,21 +205,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
 			return receiveItems(
 				context.tenantDb,
@@ -304,21 +235,7 @@ export const purchaseOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"delete",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error
-							? error.message
-							: "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "delete");
 
 			try {
 				return await cancelPurchaseOrder(context.tenantDb, input.id, {

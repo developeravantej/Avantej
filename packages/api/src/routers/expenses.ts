@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listExpenses,
 	getExpenseById,
@@ -38,18 +39,7 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
 
 		return listExpenses(context.tenantDb, {
 			branchId: input.branchId,
@@ -84,18 +74,7 @@ const getById = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
 
 		const expense = await getExpenseById(context.tenantDb, input.id);
 		if (!expense) {
@@ -138,18 +117,7 @@ const create = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"create",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "create");
 
 		return createExpense(context.tenantDb, {
 			branchId: input.branchId,
@@ -183,18 +151,7 @@ const approve = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {
 			return await approveExpense(
@@ -231,18 +188,7 @@ const reject = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {
 			return await rejectExpense(
@@ -280,18 +226,7 @@ const markPaid = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
 		try {
 			return await markExpensePaid(

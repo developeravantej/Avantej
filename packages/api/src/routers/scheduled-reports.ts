@@ -2,12 +2,12 @@ import {
 	createScheduledReport,
 	deleteScheduledReport,
 	listScheduledReports,
-	requirePermission,
 	toggleScheduledReportActive,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 const windowKeySchema = z.enum(["7D", "30D", "90D", "YTD"]);
 const frequencySchema = z.enum(["daily", "weekly", "monthly"]);
@@ -57,16 +57,7 @@ export const scheduledReportsRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"reports",
-					"export",
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
 			return createScheduledReport(context.tenantDb, {
 				recipients: input.recipients,
 				reportName: input.reportName,
@@ -90,16 +81,7 @@ export const scheduledReportsRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"reports",
-					"export",
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
 			await deleteScheduledReport(context.tenantDb, input.id);
 			return { success: true };
 		}),
@@ -118,16 +100,7 @@ export const scheduledReportsRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"reports",
-					"export",
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
 			return toggleScheduledReportActive(
 				context.tenantDb,
 				input.id,

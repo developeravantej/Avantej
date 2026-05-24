@@ -16,4 +16,22 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 	});
 });
 
+const requireTenant = o.middleware(async ({ context, next }) => {
+	if (!context.tenantDb) {
+		throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message:
+				"Tenant database not available. Ensure organization context is set.",
+		});
+	}
+	if (!context.member) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "User is not a member of this organization",
+		});
+	}
+	return next({ context });
+});
+
 export const protectedProcedure = publicProcedure.use(requireAuth);
+
+/** Session + tenantDb + member required (Plan C C.4). */
+export const tenantProcedure = protectedProcedure.use(requireTenant);

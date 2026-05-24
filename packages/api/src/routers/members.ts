@@ -15,9 +15,11 @@ import { desc, eq, and, inArray, asc, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import { getDescendantNodeIds, requirePermission, validateParentAccess } from "@avantej-core/services";
+import { getDescendantNodeIds,
+ validateParentAccess } from "@avantej-core/services";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { deactivateMember } from "@avantej-core/services/member.service";
 import { writeAudit } from "@avantej-core/services/audit-log.service";
@@ -74,18 +76,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
       // scope='self': short-circuit — return only the caller's own member record
       if (input.scope === "self") {
@@ -360,18 +351,7 @@ export const memberRouter = {
       }
 
       // Check permission to create members
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
 
       // Get control panel database from context
       const controlPanelDb = context.honoContext?.get(
@@ -526,18 +506,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
       // Get the member
       const member = await context.tenantDb.query.members.findFirst({
@@ -644,18 +613,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       // Get the member to update
       const member = await context.tenantDb.query.members.findFirst({
@@ -826,18 +784,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       // Get the member to suspend
       const member = await context.tenantDb.query.members.findFirst({
@@ -955,18 +902,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       // Get the member to reactivate
       const member = await context.tenantDb.query.members.findFirst({
@@ -1085,18 +1021,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "delete"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
       // Get the member to remove
       const member = await context.tenantDb.query.members.findFirst({
@@ -1196,18 +1121,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       const actor = {
         userId: context.session!.user.id,
@@ -1293,18 +1207,7 @@ export const memberRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "delete"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
       const target = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
@@ -1373,18 +1276,7 @@ export const memberRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       const target = await context.tenantDb.query.members.findFirst({
         where: eq(members.id, input.memberId),
@@ -1461,18 +1353,7 @@ export const memberRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       // Get the member to update
       const member = await context.tenantDb.query.members.findFirst({
@@ -1679,18 +1560,7 @@ export const memberRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
       const accessibleNodeIds =
         context.accessibleNodeIds ??

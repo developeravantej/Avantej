@@ -4,7 +4,7 @@ import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
-	requirePermission,
+
 	listProducts,
 	getProductById,
 	createProduct,
@@ -47,13 +47,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listProducts(context.tenantDb, {
 				brandId: input.brandId,
@@ -84,13 +78,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const product = await getProductById(context.tenantDb, input.id);
 			if (!product) {
@@ -131,13 +119,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createProduct(context.tenantDb, {
 				sku: input.sku,
@@ -186,13 +168,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateProduct(context.tenantDb, input.id, {
 				sku: input.sku,
@@ -231,13 +207,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
@@ -267,13 +237,7 @@ export const productsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
@@ -331,13 +295,7 @@ export const productsRouter = {
 					message: "User is not a member of this organization",
 				});
 			}
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 			return listProductPriceOverrides(context.tenantDb, input.productId);
 		}),
 
@@ -364,13 +322,7 @@ export const productsRouter = {
 					message: "User is not a member of this organization",
 				});
 			}
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 			assertOrgContextMatch(context, input);
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds);
@@ -409,13 +361,7 @@ export const productsRouter = {
 					message: "User is not a member of this organization",
 				});
 			}
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })
 				.from(productPrices)
@@ -454,13 +400,7 @@ export const productsRouter = {
 					message: "User is not a member of this organization",
 				});
 			}
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "delete");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })
 				.from(productPrices)

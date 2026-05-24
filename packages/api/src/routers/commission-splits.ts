@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listCommissionSplits,
 	getCommissionsByAppointment,
@@ -48,19 +49,7 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return listCommissionSplits(context.tenantDb, {
 			memberId: input.memberId,
@@ -93,19 +82,7 @@ const getByAppointment = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return getCommissionsByAppointment(context.tenantDb, input.appointmentId, {
 			accessibleNodeIds: context.accessibleNodeIds,
@@ -134,19 +111,7 @@ const myCommissions = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		return getMyCommissions(context.tenantDb, context.member.id, {
 			from: input.from ? new Date(input.from) : undefined,
@@ -190,19 +155,7 @@ const listLedger = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);
 
@@ -241,19 +194,7 @@ const approve = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"approve",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
 			return await approveCommissionSplits(context.tenantDb, input.ids, {
@@ -295,19 +236,7 @@ const markPaid = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"process",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
 		try {
 			return await markCommissionSplitsPaid(context.tenantDb, input.ids, {
@@ -351,19 +280,7 @@ const voidSplit = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"approve",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message:
-					error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
 			return await voidCommissionSplit(
@@ -403,11 +320,7 @@ const manualAdjustment = protectedProcedure
 	.handler(async ({ input, context }) => {
 		if (!context.tenantDb || !context.member) throw new ORPCError("UNAUTHORIZED");
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "commission_payout", "create");
-		} catch {
-			throw new ORPCError("FORBIDDEN", { message: "commission_payout:create required" });
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "create");
 
 		try {
 			return await createManualAdjustment(context.tenantDb, {
@@ -520,11 +433,7 @@ const markPaidBatchProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "commission_payout", "update");
-		} catch {
-			throw new ORPCError("FORBIDDEN", { message: "commission_payout:update required" });
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "update");
 
 		try {
 			return await markPaidBatch(context.tenantDb, {
@@ -575,18 +484,7 @@ const liabilityByStaffProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);
 
@@ -630,18 +528,7 @@ const markPaidByIdProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"process",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
 		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid)
 		// with paymentReference stored as payoutId field note (no dedicated column yet).
@@ -687,18 +574,7 @@ const voidByIdProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"commission_management",
-				"approve",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
 		try {
 			return await voidCommissionSplit(
@@ -746,13 +622,7 @@ const listPendingReviewProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "commission_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read")
 
 		const controlPanelDb = getControlPanelDb(context);
 		return listPendingReview(context.tenantDb, controlPanelDb, {
@@ -793,13 +663,7 @@ const resolveReviewProcedure = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "commission_review", "resolve");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "commission_review:resolve required",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "commission_review", "resolve")
 
 		try {
 			return await resolvePendingReview(

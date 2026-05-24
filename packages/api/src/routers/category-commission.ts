@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	getCategoryCommissionConfig,
 	upsertCategoryCommissionConfig,
@@ -28,18 +29,7 @@ const getByCategory = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"category_commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "read");
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
 	});
@@ -99,18 +89,7 @@ const upsert = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"category_commission_management",
-				"create",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "create");
 
 		try {
 			return await upsertCategoryCommissionConfig(
@@ -154,18 +133,7 @@ const deleteConfig = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"category_commission_management",
-				"delete",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "delete");
 
 		try {
 			return await deleteCategoryCommissionConfig(context.tenantDb, input.categoryId);

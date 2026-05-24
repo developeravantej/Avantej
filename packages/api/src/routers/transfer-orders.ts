@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listTransferOrders,
 	getTransferOrderById,
 	createTransferOrder,
@@ -34,13 +35,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "read")
 
 			return listTransferOrders(context.tenantDb, {
 				status: input.status,
@@ -69,13 +64,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "read")
 
 			const order = await getTransferOrderById(context.tenantDb, input.id);
 			if (!order) {
@@ -117,13 +106,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "create")
 
 			return createTransferOrder(context.tenantDb, {
 				dateIssued: new Date(input.dateIssued),
@@ -155,13 +138,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
 
 			return markTransferInTransit(context.tenantDb, input.id);
 		}),
@@ -192,13 +169,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "approve");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "approve")
 
 			return completeTransfer(context.tenantDb, input.id, input.items);
 		}),
@@ -223,13 +194,7 @@ export const transferOrdersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "transfer_orders", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
 
 			return cancelTransfer(context.tenantDb, input.id);
 		}),

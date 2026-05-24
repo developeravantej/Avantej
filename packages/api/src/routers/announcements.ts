@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listAnnouncements,
 	listActiveAnnouncements,
@@ -33,13 +34,7 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "announcement_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
 
 		return listAnnouncements(context.tenantDb, {
 			branchId: input.branchId,
@@ -70,13 +65,7 @@ const listActive = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "announcement_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
 
 		return listActiveAnnouncements(context.tenantDb, {
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
@@ -113,13 +102,7 @@ const create = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "announcement_management", "create");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "create")
 
 		return createAnnouncement(context.tenantDb, {
 			branchId: input.branchId,
@@ -166,13 +149,7 @@ const update = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "announcement_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "update")
 
 		try {
 			return await updateAnnouncement(context.tenantDb, input.id, {
@@ -214,13 +191,7 @@ const deleteHandler = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "announcement_management", "delete");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "delete")
 
 		return deleteAnnouncement(context.tenantDb, input.id);
 	});

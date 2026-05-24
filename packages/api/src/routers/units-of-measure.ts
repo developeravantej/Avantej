@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listUnitsOfMeasure,
 	getUomById,
 	createUom,
@@ -31,13 +32,7 @@ export const unitsOfMeasureRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listUnitsOfMeasure(context.tenantDb, { search: input.search });
 		}),
@@ -62,13 +57,7 @@ export const unitsOfMeasureRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const uom = await getUomById(context.tenantDb, input.id);
 			if (!uom) {
@@ -102,13 +91,7 @@ export const unitsOfMeasureRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createUom(context.tenantDb, {
 				name: input.name,
@@ -142,13 +125,7 @@ export const unitsOfMeasureRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateUom(context.tenantDb, input.id, {
 				name: input.name,
@@ -178,13 +155,7 @@ export const unitsOfMeasureRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "delete");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 
 			return deleteUom(context.tenantDb, input.id);
 		}),

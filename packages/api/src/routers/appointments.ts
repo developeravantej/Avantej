@@ -21,6 +21,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -84,18 +85,7 @@ export const appointmentsRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "appointment_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
       const accessibleNodeIds =
         context.accessibleNodeIds ??
@@ -393,18 +383,7 @@ export const appointmentsRouter = {
         input.branchId === context.member.hierarchyScopeId;
 
       if (!isClientSelfBooking) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "appointment_management",
-            "create"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
         const accessibleNodeIds =
           context.accessibleNodeIds ??
@@ -516,11 +495,7 @@ export const appointmentsRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      try {
-        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-      } catch {
-        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
 
       const parent = await context.tenantDb.query.appointments.findFirst({
         where: eq(appointments.id, input.parentId),
@@ -621,11 +596,7 @@ export const appointmentsRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      try {
-        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-      } catch {
-        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
 
       
       return context.tenantDb.transaction(async (tx: TenantTx) => {
@@ -758,11 +729,7 @@ export const appointmentsRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      try {
-        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-      } catch {
-        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
 
       
       await context.tenantDb.transaction(async (tx: TenantTx) => {
@@ -811,11 +778,7 @@ export const appointmentsRouter = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      try {
-        await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-      } catch {
-        throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
 
       
       await context.tenantDb.transaction(async (tx: TenantTx) => {
@@ -1018,18 +981,7 @@ export const appointmentsRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "appointment_management",
-          "read",
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
 
       const limit = input.limit;
       const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;

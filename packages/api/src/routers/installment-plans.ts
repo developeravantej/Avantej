@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listInstallmentPlans,
 	getInstallmentPlanById,
@@ -36,19 +37,7 @@ export const installmentPlansRouter = {
 
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"service_management",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 			}
 
 			return listInstallmentPlans(context.tenantDb, {
@@ -79,19 +68,7 @@ export const installmentPlansRouter = {
 
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"service_management",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 			}
 
 			const plan = await getInstallmentPlanById(context.tenantDb, input.id);
@@ -126,19 +103,7 @@ export const installmentPlansRouter = {
 
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"service_management",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 			}
 
 			return getInstallmentPlanByCode(context.tenantDb, input.code);
@@ -172,19 +137,7 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			try {
 				return await createInstallmentPlan(context.tenantDb, {
@@ -241,19 +194,7 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			try {
 				const result = await updateInstallmentPlan(context.tenantDb, input.id, {
@@ -316,19 +257,7 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 			return setDefaultInstallmentPlan(context.tenantDb, input.id);
 		}),
@@ -354,19 +283,7 @@ export const installmentPlansRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"delete",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
 
 			return deactivateInstallmentPlan(context.tenantDb, input.id);
 		}),

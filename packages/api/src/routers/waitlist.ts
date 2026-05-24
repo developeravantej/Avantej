@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listWaitlistEntries,
 	addToWaitlist,
@@ -30,13 +31,7 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 		return listWaitlistEntries(context.tenantDb, {
 			classSlotId: input.classSlotId,
@@ -65,13 +60,7 @@ const add = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
 		try {
 			return await addToWaitlist(context.tenantDb, {
@@ -106,13 +95,7 @@ const remove = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 		return removeFromWaitlist(context.tenantDb, input.id);
 	});
@@ -137,13 +120,7 @@ const promote = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 		return promoteFromWaitlist(context.tenantDb, input.classSlotId);
 	});

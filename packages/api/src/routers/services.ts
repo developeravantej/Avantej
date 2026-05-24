@@ -12,7 +12,7 @@ import {
   duplicateService,
   updateService,
   getDescendantNodeIds,
-  requirePermission,
+
   resolveServicePrice,
   listServicePriceOverrides,
   setServicePrice,
@@ -28,6 +28,7 @@ import { and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 const serviceTypeSchema = z.enum(["private", "semi_private", "both"]);
 const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);
@@ -69,18 +70,7 @@ export const servicesRouter = {
 
       // Clients can read services in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
       const accessibleNodeIds =
@@ -127,18 +117,7 @@ export const servicesRouter = {
 
       // Clients can read services in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
       const service = await getServiceById(context.tenantDb, input.id);
@@ -214,18 +193,7 @@ export const servicesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       if (input.branchId) {
         const accessibleNodeIds =
@@ -351,18 +319,7 @@ export const servicesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
       const existing = await getServiceById(context.tenantDb, input.id);
       if (!existing) {
@@ -478,18 +435,7 @@ export const servicesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       try {
         return await duplicateService(context.tenantDb, input.id, {
@@ -555,18 +501,7 @@ export const servicesRouter = {
         });
       }
       if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read",
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
       }
       return listServicePriceOverrides(context.tenantDb, input.serviceId);
     }),
@@ -594,18 +529,7 @@ export const servicesRouter = {
           message: "User is not a member of this organization",
         });
       }
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "update",
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       // Branch-access check when scoped to a branch
       if (input.branchId) {
         const accessibleNodeIds =
@@ -656,18 +580,7 @@ export const servicesRouter = {
           message: "User is not a member of this organization",
         });
       }
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "update",
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       const [priceRow] = await context.tenantDb
         .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
         .from(servicePrices)
@@ -716,18 +629,7 @@ export const servicesRouter = {
           message: "User is not a member of this organization",
         });
       }
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "delete",
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
       const [priceRow] = await context.tenantDb
         .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
         .from(servicePrices)
@@ -775,18 +677,7 @@ export const servicesRouter = {
           message: "User is not a member of this organization",
         });
       }
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
       const accessibleNodeIds =
         context.accessibleNodeIds ??
@@ -840,18 +731,7 @@ export const servicesRouter = {
         });
       }
       if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
       return avgSessionsSoldPerMonth(context.tenantDb, {
         serviceId: input.serviceId,
@@ -883,18 +763,7 @@ export const servicesRouter = {
         });
       }
       if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
       const accessibleNodeIds =

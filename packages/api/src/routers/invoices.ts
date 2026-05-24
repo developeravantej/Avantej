@@ -2,8 +2,9 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { inArray } from "drizzle-orm";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listInvoices,
 	getInvoiceById,
 	createInvoice,
@@ -41,13 +42,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const invoiceRows = await listInvoices(context.tenantDb, {
 				status: input.status,
@@ -100,13 +95,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const invoice = await getInvoiceById(context.tenantDb, input.id);
 			if (!invoice) {
@@ -149,13 +138,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "create")
 
 			return createInvoice(context.tenantDb, {
 				salesOrderId: input.salesOrderId,
@@ -206,13 +189,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "update")
 
 			return updateInvoice(context.tenantDb, input.id, {
 				salesOrderId: input.salesOrderId,
@@ -252,13 +229,7 @@ export const invoicesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const limit = input.limit ?? 50;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;

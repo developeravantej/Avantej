@@ -15,8 +15,7 @@ import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
-import { requirePermission } from "@avantej-core/services";
+import { assertOrgContextMatch, guardBranchAccessible, requirePermissionOrpc } from "../guards";
 import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
@@ -90,13 +89,7 @@ export const posRouter = {
 			}
 
 			// Permission check: pos:create
-			try {
-				await requirePermission(context.tenantDb, context.member, "pos", "create");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to record POS sales (pos:create required)",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			// Branch scope check (router-layer per plan §4.1 point 3)
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -157,13 +150,7 @@ export const posRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "pos", "create");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to search POS customers",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
@@ -203,13 +190,7 @@ export const posRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "pos", "create");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to view POS receipts",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			const controlPanelDb = getControlPanelDb(context);
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];

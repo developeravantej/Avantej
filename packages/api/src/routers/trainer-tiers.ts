@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listTrainerTiers,
 	createTrainerTier,
@@ -31,13 +32,7 @@ const list = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "read")
 
 		return listTrainerTiers(context.tenantDb, { includeInactive: input.includeInactive });
 	});
@@ -64,13 +59,7 @@ const create = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "create");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "create")
 
 		try {
 			return await createTrainerTier(context.tenantDb, {
@@ -110,13 +99,7 @@ const update = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {
 			return await updateTrainerTier(context.tenantDb, input.id, {
@@ -153,13 +136,7 @@ const deactivate = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "delete");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "delete")
 
 		try {
 			return await deactivateTrainerTier(context.tenantDb, input.id);
@@ -191,13 +168,7 @@ const reactivate = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {
 			return await reactivateTrainerTier(context.tenantDb, input.id);
@@ -230,13 +201,7 @@ const assignToMember = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {
 			return await assignTierToMember(context.tenantDb, input.memberId, input.tierId);

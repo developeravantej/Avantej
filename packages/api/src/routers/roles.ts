@@ -11,6 +11,7 @@ import { eq, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
 export const rolesRouter = {
@@ -37,19 +38,7 @@ export const rolesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
 			const items = await context.tenantDb
 				.select()
@@ -88,19 +77,7 @@ export const rolesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"create"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
 
 			try {
 				const [created] = await context.tenantDb
@@ -162,19 +139,7 @@ export const rolesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"update"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
 			// Check role exists and is not system
 			const existing = await context.tenantDb.query.roles.findFirst({
@@ -254,19 +219,7 @@ export const rolesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"delete"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
 			const existing = await context.tenantDb.query.roles.findFirst({
 				where: eq(roles.id, input.id),

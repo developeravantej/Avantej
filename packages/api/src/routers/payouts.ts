@@ -12,6 +12,7 @@ import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 import { previewBatch, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
@@ -48,19 +49,7 @@ export const payoutsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"commission_payout",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
 			// Build filter conditions
 			const conditions: SQL[] = [];
@@ -174,18 +163,7 @@ export const payoutsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"commission_payout",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 
@@ -226,18 +204,7 @@ export const payoutsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"commission_payout",
-					"process",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
 
 			try {
 				return await runBatch(context.tenantDb, {
@@ -291,13 +258,7 @@ export const payoutsRouter = {
 				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "commission_payout", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
 			// Non-admin: verify the recipient is within the caller's accessible nodes
 			if (context.member.role !== "admin" && context.accessibleNodeIds?.length) {
@@ -349,13 +310,7 @@ export const payoutsRouter = {
 				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "commission_payout", "process");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process")
 
 			try {
 				return await processForRecipient(context.tenantDb, {

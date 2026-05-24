@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
 export const serviceCategoryConfigRouter = {
@@ -132,18 +133,7 @@ export const serviceCategoryConfigRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
 			const row = await context.tenantDb.query.serviceCategoryConfig.findFirst({
 				where: eq(serviceCategoryConfig.categoryId, input.categoryId),

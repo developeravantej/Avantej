@@ -1,7 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { requirePermission, listRooms, getRoomById, createRoom, updateRoom, deleteRoom } from "@avantej-core/services";
+import { requirePermissionOrpc } from "../guards";
+import {
+ listRooms, getRoomById, createRoom, updateRoom, deleteRoom } from "@avantej-core/services";
 
 const roomTypeEnum = z.enum(["consultation", "group_session", "private", "training", "individual"]);
 
@@ -27,13 +29,7 @@ export const roomsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 			return listRooms(context.tenantDb, {
 				branchId: input.branchId,
@@ -62,13 +58,7 @@ export const roomsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 			const room = await getRoomById(context.tenantDb, input.id);
 			if (!room) {
@@ -103,13 +93,7 @@ export const roomsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "appointment_management", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
 			return createRoom(context.tenantDb, {
 				name: input.name,
@@ -145,13 +129,7 @@ export const roomsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 			return updateRoom(context.tenantDb, input.id, {
 				name: input.name,
@@ -182,13 +160,7 @@ export const roomsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 			return deleteRoom(context.tenantDb, input.id);
 		}),

@@ -25,6 +25,7 @@ import { ORPCError } from "@orpc/server";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const confirmPayment = protectedProcedure
@@ -50,18 +51,7 @@ const confirmPayment = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"service_management",
-				"update"
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
 		return confirmInstallmentPayment(context.tenantDb, {
 			installmentId: input.installmentId,
@@ -239,18 +229,7 @@ const adminOverview = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"service_management",
-				"read"
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
 		const controlPanelDb = getControlPanelDb(context);
 
@@ -285,18 +264,7 @@ const getEvents = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"service_management",
-				"read"
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
 		return context.tenantDb.query.installmentEvents.findMany({
 			where: eq(installmentEvents.packageInstanceId, input.packageInstanceId),

@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listSuppliers,
 	getSupplierById,
 	createSupplier,
@@ -32,13 +33,7 @@ export const suppliersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listSuppliers(context.tenantDb, {
 				isActive: input.isActive,
@@ -66,13 +61,7 @@ export const suppliersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const supplier = await getSupplierById(context.tenantDb, input.id);
 			if (!supplier) {
@@ -113,13 +102,7 @@ export const suppliersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createSupplier(context.tenantDb, {
 				name: input.name,
@@ -167,13 +150,7 @@ export const suppliersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateSupplier(context.tenantDb, input.id, {
 				name: input.name,
@@ -210,13 +187,7 @@ export const suppliersRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return deactivateSupplier(context.tenantDb, input.id);
 		}),

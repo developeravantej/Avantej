@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listBrands,
 	getBrandById,
 	createBrand,
@@ -31,13 +32,7 @@ export const brandsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listBrands(context.tenantDb, { search: input.search });
 		}),
@@ -62,13 +57,7 @@ export const brandsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const brand = await getBrandById(context.tenantDb, input.id);
 			if (!brand) {
@@ -100,13 +89,7 @@ export const brandsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createBrand(context.tenantDb, {
 				name: input.name,
@@ -137,13 +120,7 @@ export const brandsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateBrand(context.tenantDb, input.id, {
 				name: input.name,
@@ -172,13 +149,7 @@ export const brandsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "delete");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 
 			return deleteBrand(context.tenantDb, input.id);
 		}),

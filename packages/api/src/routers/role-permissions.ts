@@ -12,6 +12,7 @@ import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
 export const rolePermissionsRouter = {
@@ -41,19 +42,7 @@ export const rolePermissionsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
 			const query = context.tenantDb
 				.select({
@@ -106,19 +95,7 @@ export const rolePermissionsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"update"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
 			// Validate role exists
 			const role = await context.tenantDb.query.roles.findFirst({
@@ -198,19 +175,7 @@ export const rolePermissionsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"update"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
 			// Validate role exists and is not system
 			const role = await context.tenantDb.query.roles.findFirst({

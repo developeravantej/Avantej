@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
-	requirePermission,
+
 	listStockRequests,
 	getStockRequestById,
 	createStockRequest,
@@ -34,13 +35,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
 
 			return listStockRequests(context.tenantDb, {
 				status: input.status,
@@ -70,13 +65,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
 
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
@@ -119,13 +108,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "create")
 
 			return createStockRequest(context.tenantDb, {
 				dateIssued: new Date(input.dateIssued),
@@ -158,13 +141,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "approve");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "approve")
 
 			return approveStockRequest(context.tenantDb, input.id);
 		}),
@@ -189,13 +166,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "reject");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "reject")
 
 			return rejectStockRequest(context.tenantDb, input.id);
 		}),
@@ -226,13 +197,7 @@ export const stockRequestsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "update")
 
 			return fulfillStockRequest(context.tenantDb, input.id, input.items);
 		}),

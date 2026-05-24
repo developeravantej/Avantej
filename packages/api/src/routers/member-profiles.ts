@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	getMemberProfile,
 	upsertMemberProfile,
@@ -28,18 +29,7 @@ const get = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"user_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
 
 		return getMemberProfile(context.tenantDb, input.memberId);
 	});
@@ -71,18 +61,7 @@ const upsert = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"user_management",
-				"update",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update");
 
 		return upsertMemberProfile(context.tenantDb, input.memberId, {
 			displayName: input.displayName,

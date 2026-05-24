@@ -1,7 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { requirePermission, listAudit, exportAuditCsv } from "@avantej-core/services";
+import { requirePermissionOrpc } from "../guards";
+import {
+ listAudit, exportAuditCsv } from "@avantej-core/services";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const severitySchema = z.enum(["info", "warning", "danger"]);
@@ -39,18 +41,7 @@ export const auditLogsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"audit_log",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 
@@ -88,18 +79,7 @@ export const auditLogsRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"audit_log",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 

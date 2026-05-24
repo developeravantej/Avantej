@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listTaxRates,
 	getTaxRateById,
@@ -37,19 +38,7 @@ export const taxRatesRouter = {
 
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
 			}
 
 			return listTaxRates(context.tenantDb, {
@@ -81,19 +70,7 @@ export const taxRatesRouter = {
 
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
 			}
 
 			const taxRate = await getTaxRateById(context.tenantDb, input.id);
@@ -127,19 +104,7 @@ export const taxRatesRouter = {
 
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
 			}
 
 			const taxRate = await getDefaultTaxRate(context.tenantDb);
@@ -174,19 +139,7 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "create");
 
 			return createTaxRate(context.tenantDb, {
 				name: input.name,
@@ -230,19 +183,7 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
 
 			const result = await updateTaxRate(context.tenantDb, input.id, {
 				name: input.name,
@@ -287,19 +228,7 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -331,19 +260,7 @@ export const taxRatesRouter = {
 				});
 			}
 
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"delete",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "delete");
 
 			return deactivateTaxRate(context.tenantDb, input.id);
 		}),

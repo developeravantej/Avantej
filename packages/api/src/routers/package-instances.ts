@@ -39,6 +39,7 @@ import { parseCursor, encodeCursor } from "../lib/cursor";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -269,18 +270,7 @@ export const packageInstancesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       try {
         // Resolve installment plan from DB if a plan code is provided
@@ -527,18 +517,7 @@ export const packageInstancesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
       // Build filter conditions dynamically
       const conditions = [];
@@ -1869,18 +1848,7 @@ export const packageInstancesRouter = {
         });
       }
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "package_management",
-          "read",
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "read");
 
       const limit = input.limit;
       const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;

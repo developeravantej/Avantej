@@ -9,13 +9,14 @@ import {
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
 	listTrainerAvailabilityExceptions,
-	requirePermission,
+
 	updateTrainerAvailability,
 	upsertTrainerAvailability,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -118,16 +119,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			try {
 				return await upsertTrainerAvailability(
 					context.tenantDb,
@@ -157,16 +149,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			await deleteTrainerAvailabilitySlot(context.tenantDb, input.id);
 			return { success: true };
 		}),
@@ -208,16 +191,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			try {
 				return await createTrainerAvailability(context.tenantDb, {
 					trainerId: input.trainerId,
@@ -253,16 +227,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			try {
 				return await updateTrainerAvailability(context.tenantDb, input.id, {
 					dayOfWeek: input.dayOfWeek,
@@ -316,16 +281,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			try {
 				return await addTrainerAvailabilityException(context.tenantDb, {
 					trainerId: input.trainerId,
@@ -383,16 +339,7 @@ export const trainerAvailabilityRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			await deleteTrainerAvailabilityException(context.tenantDb, input.id);
 			return { success: true };
 		}),

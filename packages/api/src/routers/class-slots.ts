@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	listClassSlots,
 	getClassSlotById,
@@ -53,13 +54,7 @@ const list = protectedProcedure
 		// Clients can browse class slots in their tenant without the staff
 		// permission. Staff still need class_slot_management:read.
 		if (context.member.role !== "client") {
-			try {
-				await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 		}
 
 		return listClassSlots(context.tenantDb, {
@@ -96,13 +91,7 @@ const getById = protectedProcedure
 
 		// Clients can read class slots; staff need class_slot_management:read.
 		if (context.member.role !== "client") {
-			try {
-				await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 		}
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);
@@ -141,13 +130,7 @@ const create = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "create");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "create")
 
 		return createClassSlot(context.tenantDb, {
 			serviceId: input.serviceId,
@@ -187,13 +170,7 @@ const update = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		return updateClassSlot(context.tenantDb, input.id, {
 			date: input.date ? new Date(input.date) : undefined,
@@ -226,13 +203,7 @@ const cancel = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		return cancelClassSlot(context.tenantDb, input.id, input.cancellationReason);
 	});
@@ -259,13 +230,7 @@ const bookingCounts = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 
 		return getBookingCounts(context.tenantDb, {
 			branchId: input.branchId,
@@ -295,13 +260,7 @@ const getSignups = protectedProcedure
 			});
 		}
 
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);
 		if (!slot) {
@@ -381,11 +340,7 @@ const enrollClient = protectedProcedure
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
 		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		const tenantDb = context.tenantDb;
 		const createdBy = context.member.userId;
@@ -484,11 +439,7 @@ const cancelEnrollment = protectedProcedure
 		if (!context.member) {
 			throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
 		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "class_slot_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
 		const tenantDb = context.tenantDb;
 		return (tenantDb as TenantDb).transaction(async (tx: TenantTx) => {
