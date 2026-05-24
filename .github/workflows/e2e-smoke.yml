@@ -1,0 +1,76 @@
+name: E2E Smoke
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "apps/web/**"
+      - "apps/server/**"
+      - "packages/**"
+      - "e2e/**"
+      - "playwright.config.ts"
+      - ".github/workflows/e2e-smoke.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  PLAYWRIGHT_BASE_URL: http://localhost:3021
+  PLAYWRIGHT_SERVER_URL: http://localhost:3020
+
+jobs:
+  smoke:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require CI database secrets
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$CI_DATABASE_URL" ] || [ -z "$CI_ENCRYPTION_KEY" ]; then
+            echo "::error::Configure GitHub secrets CI_DATABASE_URL and ENCRYPTION_KEY (see e2e/README.md)."
+            exit 1
+          fi
+
+      - uses: ./.github/actions/bun-setup
+
+      - name: Write server .dev.vars for wrangler
+        run: node scripts/ci/write-server-dev-vars.mjs
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_TENANT_DATABASE_URL: ${{ secrets.CI_TENANT_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install chromium --with-deps
+
+      - name: Seed business fixture (idempotent)
+        run: cd apps/server && bun run scripts/seed-business-data.ts
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Run smoke specs
+        run: bunx playwright test e2e/smoke.spec.ts e2e/fixes-verification.spec.ts --project=chromium
+        env:
+          E2E_EMAIL: ${{ secrets.CI_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.CI_E2E_PASSWORD }}
+
+      - name: Upload Playwright trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-trace
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

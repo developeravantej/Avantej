@@ -44,7 +44,7 @@ async function rpc<T>(
 ): Promise<{ status: number; body: T | { json: { message?: string } } }> {
 	const res = await page.evaluate(
 		async ({ procedure, input }) => {
-			const r = await fetch(`http://localhost:3000/rpc/${procedure}`, {
+			const r = await fetch(`/rpc/${procedure}`, {
 				method: "POST",
 				credentials: "include",
 				headers: { "Content-Type": "application/json" },
@@ -89,7 +89,10 @@ test("payments.refund issues a Stripe refund on a paid appointment", async ({ pa
 				"Refund smoke requires a paid appointment fixture — Phase 2 verified this " +
 				"path manually. Pay the appointment via Stripe test card to enable this test.",
 		);
-		test.skip();
+		test.skip(
+			true,
+			`Appointment ${APPOINTMENT_ID} is "${stat.paymentStatus}" — paid fixture required for refund smoke`,
+		);
 		return;
 	}
 	expect(stat.stripePaymentIntentId).toBeTruthy();

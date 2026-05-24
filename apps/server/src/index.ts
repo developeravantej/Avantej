@@ -55,7 +55,10 @@ import { logger } from "hono/logger";
 // Env CORS_ORIGIN adds a prod origin per-request.
 const ALLOWED_ORIGINS = new Set<string>([
   "http://localhost:3001",
+  "http://localhost:3021",
   "http://localhost:4001",
+  "http://avantej.localhost:3021",
+  "http://avantej.localhost:3001",
 ]);
 function getAllowedOrigin(env: Record<string, unknown>, requestOrigin?: string): string {
   if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) return requestOrigin;

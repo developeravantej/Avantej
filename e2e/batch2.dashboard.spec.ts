@@ -133,7 +133,7 @@ test.describe("My Services View — /dashboard/my-services/view", () => {
 		const editBtn = page.getByRole("button", { name: /edit/i }).first();
 		const isVisible = await editBtn.isVisible();
 		if (!isVisible) {
-			test.skip();
+			test.skip(true, "No editable service rows — seed business data first");
 			return;
 		}
 
@@ -217,7 +217,7 @@ test.describe("Customer 360 — /dashboard/customers/$id", () => {
 		const firstRow = page.locator("table tbody tr, [role='row']:not([role='columnheader'])").first();
 		const rowCount = await page.locator("table tbody tr, [role='row']:not([role='columnheader'])").count();
 		if (rowCount === 0) {
-			test.skip();
+			test.skip(true, "No customer rows in list — seed business data first");
 			return;
 		}
 
@@ -234,7 +234,7 @@ test.describe("Customer 360 — /dashboard/customers/$id", () => {
 
 		const rowCount = await page.locator("table tbody tr, [role='row']:not([role='columnheader'])").count();
 		if (rowCount === 0) {
-			test.skip();
+			test.skip(true, "No customer rows in list — seed business data first");
 			return;
 		}
 
@@ -250,7 +250,7 @@ test.describe("Customer 360 — /dashboard/customers/$id", () => {
 
 		const rowCount = await page.locator("table tbody tr, [role='row']:not([role='columnheader'])").count();
 		if (rowCount === 0) {
-			test.skip();
+			test.skip(true, "No customer rows in list — seed business data first");
 			return;
 		}
 

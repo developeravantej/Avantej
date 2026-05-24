@@ -1,0 +1,56 @@
+name: Server Integration Tests
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Server integration (dev Neon)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require CI database secrets
+        id: secrets
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$CI_DATABASE_URL" ] || [ -z "$CI_ENCRYPTION_KEY" ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "::warning::Secrets missing — skipping scheduled integration."
+              exit 0
+            fi
+            echo "::error::Configure CI_DATABASE_URL and ENCRYPTION_KEY (see e2e/README.md)."
+            exit 1
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/bun-setup
+        if: steps.secrets.outputs.skip != 'true'
+
+      - name: Write server .dev.vars
+        if: steps.secrets.outputs.skip != 'true'
+        run: node scripts/ci/write-server-dev-vars.mjs
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_TENANT_DATABASE_URL: ${{ secrets.CI_TENANT_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Run integration tests
+        if: steps.secrets.outputs.skip != 'true'
+        run: cd apps/server && bun test:integration
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          TENANT_DATABASE_URL: ${{ secrets.CI_TENANT_DATABASE_URL }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}

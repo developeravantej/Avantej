@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
 			// Allow *.localhost hostnames so cookie-scoped dev sessions don't collide with
 			// other projects running on localhost (browsers scope cookies by domain, not port).
 			// Navigate to http://avantej.localhost:3021 instead of http://localhost:3021.
-			allowedHosts: ["avantej.localhost"],
+			allowedHosts: ["avantej.localhost", "localhost"],
 			// In local dev the API (Wrangler) runs on :3020 while the web app runs on :3021.
 			// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
 			proxy: {

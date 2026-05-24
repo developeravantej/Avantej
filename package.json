@@ -48,7 +48,9 @@
     "doctor:web": "bash scripts/doctor.sh web",
     "doctor:native": "bash scripts/doctor.sh native",
     "doctor:diff": "bash scripts/doctor.sh diff",
-    "doctor:fix": "bash scripts/doctor.sh fix"
+    "doctor:fix": "bash scripts/doctor.sh fix",
+    "e2e:smoke": "playwright test e2e/smoke.spec.ts e2e/fixes-verification.spec.ts --project=chromium",
+    "e2e:seed": "cd apps/server && bun run scripts/seed-business-data.ts"
   },
   "dependencies": {
     "boneyard-js": "^1.8.1",

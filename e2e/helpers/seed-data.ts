@@ -516,3 +516,50 @@ export async function recordPosSale(
   });
   return result.salesOrderId ?? result.id ?? "";
 }
+
+// ─── Minimal POS fixture (Plan B smoke gate) ─────────────────────────────────
+
+export interface MinimalPosFixture {
+  trainerId: string;
+  clientMemberId: string;
+  packageServiceId: string;
+  installmentPlanId: string;
+}
+
+/**
+ * Asserts the test tenant has trainer, client, package service, and installment
+ * plan data required by POS journey specs. Throws (does not skip) when data is
+ * missing — run `cd apps/server && bun run scripts/seed-business-data.ts` first.
+ */
+export async function seedMinimalPosFixture(
+  page: Page,
+  orgId: string = TEST_ORG_ID,
+): Promise<MinimalPosFixture> {
+  const trainer = await pickFirstActiveTrainer(page);
+  const client = await pickFirstActiveClient(page);
+  const service = await pickFirstService(page, {
+    isPackage: true,
+    hasSessions: true,
+  });
+  const plan = await pickFirstInstallmentPlan(page);
+
+  const missing: string[] = [];
+  if (!trainer) missing.push("active trainer");
+  if (!client) missing.push("active client");
+  if (!service) missing.push("package service (expirable + sessions)");
+  if (!plan) missing.push("installment plan (≥2 installments)");
+
+  if (missing.length > 0) {
+    throw new Error(
+      `seedMinimalPosFixture: missing ${missing.join(", ")} for org ${orgId}. ` +
+        "Run: cd apps/server && bun run scripts/seed-business-data.ts",
+    );
+  }
+
+  return {
+    trainerId: trainer!.memberId,
+    clientMemberId: client!.memberId,
+    packageServiceId: service!.id,
+    installmentPlanId: plan!.id,
+  };
+}
