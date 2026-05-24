@@ -15,7 +15,6 @@ const ALLOWLIST = new Set([
 	"members.ts",
 	"hierarchy.ts",
 	"appointments.ts",
-	"services.ts",
 	"commission-splits.ts",
 	"invitations.ts",
 	"class-slots.ts",
