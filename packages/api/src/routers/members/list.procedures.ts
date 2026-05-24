@@ -24,16 +24,7 @@ import { MembershipService } from "@avantej-core/db/services/membership.service"
 import { deactivateMember } from "@avantej-core/services/member.service";
 import { writeAudit } from "@avantej-core/services/audit-log.service";
 
-// Shared GHL staff sync dispatcher result type (Phase 7.4 wiring). The
-// dispatcher itself is env-bound by `dbMiddleware` in apps/server and looked
-// up via `context.honoContext.get("dispatchStaffSync")`. The function type is
-// declared locally per handler since it references `typeof context.tenantDb`.
-type GhlSyncResult = {
-  status: "synced" | "skipped" | "error";
-  reason?: string;
-  ghlUserId?: string;
-  error?: string;
-};
+import type { GhlSyncResult } from "./shared";
 
 export const membersListProcedures = {
 	/**

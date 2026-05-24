@@ -1,51 +1,16 @@
-/**
- * Appointments Router
- *
- * API endpoints for managing appointments in tenant organizations.
- * list: staff view (branch, date range). listForUser: client view (user_id).
- * Requires appointment_management permission for staff; listForUser/getById can be called by client (user_id = session user).
- */
-
-import {
-  listAppointmentsForUser,
-  getAppointmentById,
-  createAppointment,
-  updateAppointment,
-  syncAppointmentToGoogleCalendar,
-  getAppointmentStatusHistory,
-  listAppointmentsWithRecurrence,
-  isVirtualId,
-} from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../../guards";
-import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
-import { parseCursor, encodeCursor } from "../../lib/cursor";
-import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
-import { services } from "@avantej-core/db/schema/tenant/services";
-import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
-import { members } from "@avantej-core/db/schema/tenant/members";
-import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardInputBranchForContext,
+} from "../../guards";
+import { eq, and, gte, ne } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
-import { user as cpUsers } from "@avantej-core/db/schema/auth";
-import { getControlPanelDb } from "../../lib/context-helpers";
-import { mapPgError } from "../../lib/orpc-error-mapper";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-
-type TenantDb = NeonDatabase<typeof tenantSchema>;
-type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
-
-const appointmentTypeSchema = z.enum(["private", "semi-private"]);
-const statusSchema = z.enum([
-  "pending",
-  "confirmed",
-  "completed",
-  "cancelled",
-  "no-show",
-]);
+import { statusSchema } from "./schemas";
+import type { TenantTx } from "./types";
 
 export const appointmentsRecurrenceProcedures = {
 	materializeOccurrence: tenantProcedure
@@ -292,7 +257,4 @@ export const appointmentsRecurrenceProcedures = {
       });
     }),
 
-  /**
-   * Cancel all appointments in a recurring series (parent + all materialized children).
-   */
 };

@@ -75,7 +75,9 @@
     "ci:check-router-index-loc": "node scripts/ci/check-router-index-loc.mjs",
     "ci:check-router-file-loc": "node scripts/ci/check-router-file-loc.mjs",
     "gen:router-type-stubs": "node scripts/extract-router-type-stubs.mjs",
-    "codemod:split-router": "node scripts/split-router-by-marker.mjs"
+    "codemod:split-router": "node scripts/split-router-by-marker.mjs",
+    "refine:split-router-imports": "node scripts/refine-split-router-imports.mjs",
+    "refine:members-ghl-type": "node scripts/dedupe-members-ghl-type.mjs"
   },
   "dependencies": {
     "boneyard-js": "^1.8.1",
