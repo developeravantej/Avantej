@@ -4,7 +4,6 @@
 
 import { describe, expect, it, mock, beforeEach } from "bun:test";
 import { call } from "@orpc/server";
-import { ORPCError } from "@orpc/server";
 import { createMockContext } from "../test-utils/mock-context";
 import * as services from "@avantej-core/services";
 
@@ -33,17 +32,6 @@ mock.module("@avantej-core/services", () => ({
 	isVirtualId: mock(() => false),
 	getAppointmentStatusHistory: mock(() => Promise.resolve([])),
 	getDescendantNodeIds: mockGetDescendantNodeIds,
-}));
-
-mock.module("../lib/orpc-error-mapper", () => ({
-	mapPgError: mock((err: unknown) => {
-		if (err instanceof Error && err.message.includes("overlap")) {
-			return new ORPCError("CONFLICT", {
-				message: "Trainer or room is already booked for this time",
-			});
-		}
-		return null;
-	}),
 }));
 
 import { appointmentsRouter } from "./appointments";
@@ -148,7 +136,7 @@ describe("appointmentsRouter.create", () => {
 
 	it("maps overlap errors to CONFLICT via mapPgError", async () => {
 		mockCreateAppointment.mockImplementation(() => {
-			throw new Error("overlap exclusion violated");
+			throw { code: "23P01", constraint: "appointments_trainer_no_overlap" };
 		});
 		const ctx = createMockContext({
 			organizationId: ORG_ID,
@@ -159,7 +147,7 @@ describe("appointmentsRouter.create", () => {
 			call(appointmentsRouter.create, validInput, { context: ctx }),
 		).rejects.toMatchObject({
 			code: "CONFLICT",
-			message: "Trainer or room is already booked for this time",
+			message: "Conflict: trainer is already booked for an overlapping time.",
 		});
 	});
 });
