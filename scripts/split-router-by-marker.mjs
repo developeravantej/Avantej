@@ -34,6 +34,8 @@ function moduleExportName(modName) {
 	return `${routerName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}${camel.charAt(0).toUpperCase()}${camel.slice(1)}Procedures`;
 }
 
+const PROC = "(?:tenant|public)Procedure";
+
 function extractBlocks(source, procStarts, { constPrefix = false } = {}) {
 	const procedures = new Map();
 	for (let i = 0; i < procStarts.length; i++) {
@@ -46,7 +48,7 @@ function extractBlocks(source, procStarts, { constPrefix = false } = {}) {
 
 		const beforeNext = source.slice(Math.max(start, end - 1200), end);
 		const nextComment = beforeNext.match(/\n(?:\/\/[^\n]*\n|\s+\/\*\*[\s\S]*)*$/);
-		if (nextComment && !nextComment[0].includes("tenantProcedure")) {
+		if (nextComment && !nextComment[0].includes("Procedure")) {
 			end -= nextComment[0].length;
 		}
 
@@ -54,7 +56,7 @@ function extractBlocks(source, procStarts, { constPrefix = false } = {}) {
 		const ownComment = before.match(
 			/(\n(?:\/\/[^\n]*\n|\s+\/\*\*[\s\S]*?\*\/\s*)*)$/,
 		);
-		if (ownComment && !ownComment[1].includes("tenantProcedure")) {
+		if (ownComment && !ownComment[1].includes("Procedure")) {
 			start -= ownComment[1].length;
 		}
 
@@ -104,7 +106,9 @@ const exportInner = exportBlock.slice(
 	exportBlock.lastIndexOf("};"),
 );
 
-const inlineProcStarts = [...exportInner.matchAll(/^\s+(\w+):\s*tenantProcedure/gm)];
+const inlineProcStarts = [
+	...exportInner.matchAll(new RegExp(`^\\s+(\\w+):\\s*${PROC}`, "gm")),
+];
 
 /** @type {Map<string, string>} exportKey -> procedure block or const block */
 let procedures = new Map();
@@ -115,21 +119,21 @@ let exportToConst = new Map();
 
 if (inlineProcStarts.length > 0) {
 	const bodyInner = exportInner;
-	const procStarts = [...bodyInner.matchAll(/^\s+(\w+):\s*tenantProcedure/gm)];
+	const procStarts = [...bodyInner.matchAll(new RegExp(`^\\s+(\\w+):\\s*${PROC}`, "gm"))];
 	procedures = extractBlocks(bodyInner, procStarts);
 	for (const [key] of procedures) exportToConst.set(key, key);
 } else {
 	moduleFormat = "const";
 	exportToConst = parseExportAliases(exportInner);
 	const preamble = src.slice(0, exportIdx).trimEnd();
-	const firstConst = preamble.search(/^const \w+ = tenantProcedure/m);
+	const firstConst = preamble.search(new RegExp(`^const \\w+ = ${PROC}`, "m"));
 	if (firstConst === -1) {
-		console.error("No const tenantProcedure definitions found");
+		console.error("No const procedure definitions found");
 		process.exit(1);
 	}
 	const header = preamble.slice(0, firstConst).trimEnd();
 	const constBody = preamble.slice(firstConst);
-	const constStarts = [...constBody.matchAll(/^const (\w+) = tenantProcedure/gm)];
+	const constStarts = [...constBody.matchAll(new RegExp(`^const (\\w+) = ${PROC}`, "gm"))];
 	const constBlocks = extractBlocks(constBody, constStarts, { constPrefix: true });
 
 	for (const [exportKey, constName] of exportToConst) {
@@ -145,7 +149,7 @@ if (inlineProcStarts.length > 0) {
 const headerEnd =
 	moduleFormat === "inline"
 		? src.indexOf(exportMarker)
-		: src.slice(0, exportIdx).search(/^const \w+ = tenantProcedure/m);
+		: src.slice(0, exportIdx).search(new RegExp(`^const \\w+ = ${PROC}`, "m"));
 const header = src.slice(0, headerEnd).trimEnd();
 
 const modules = moduleSpecs.map((spec) => {

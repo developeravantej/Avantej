@@ -1,0 +1,170 @@
+/**
+ * Invitation Router
+ *
+ * API endpoints for managing organization invitations.
+ * Invitations are stored in tenant databases and link users to organizations.
+ */
+
+import { user } from "@avantej-core/db/schema/auth";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { invitations } from "@avantej-core/db/schema/tenant/invitations";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
+import {
+  createInvitation,
+  getInvitationByToken,
+  listInvitations,
+  resendInvitation,
+  revokeInvitation,
+  validateInvitation,
+} from "@avantej-core/services";
+import { ORPCError } from "@orpc/server";
+import { and, eq } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { z } from "zod";
+import { tenantProcedure, publicProcedure } from "../../index";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+
+export const invitationsManageProcedures = {
+	/**
+   * List invitations
+   *
+   * Lists invitations in the organization with optional filtering.
+   */
+  list: tenantProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        status: z
+          .enum(["pending", "accepted", "declined", "expired"])
+          .optional(),
+        email: z.string().email().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      
+
+      
+
+		assertOrgContextMatch(context, input);
+      // Check permission
+      try {
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const invitationList = await listInvitations({
+        tenantDb: context.tenantDb,
+        status: input.status,
+        email: input.email,
+      });
+
+      return {
+        invitations: invitationList.map(
+          (inv: typeof invitations.$inferSelect) => ({
+            id: inv.id,
+            email: inv.email,
+            role: inv.role,
+            hierarchyScopeId: inv.hierarchyScopeId,
+            status: inv.status,
+            expiresAt: inv.expiresAt,
+            createdAt: inv.createdAt,
+            // Don't return token for security
+          })
+        ),
+      };
+    }),
+
+	/**
+   * Revoke invitation
+   *
+   * Marks an invitation as declined/revoked.
+   */
+  revoke: tenantProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        invitationId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      
+
+      
+
+		assertOrgContextMatch(context, input);
+      // Check permission
+      try {
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const revoked = await revokeInvitation(
+        input.invitationId,
+        context.tenantDb
+      );
+
+      return {
+        success: true,
+        invitation: {
+          id: revoked.id,
+          email: revoked.email,
+          status: revoked.status,
+        },
+      };
+    }),
+
+	resend: tenantProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        invitationId: z.string().uuid(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      
+
+      
+
+		assertOrgContextMatch(context, input);
+      // Check permission
+      try {
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create");
+      } catch (error) {
+        throw new ORPCError("FORBIDDEN", {
+          message: error instanceof Error ? error.message : "Permission denied",
+        });
+      }
+
+      const updated = await resendInvitation(
+        input.invitationId,
+        context.tenantDb
+      );
+
+      const organizationName = context.organization?.name || "the organization";
+
+      return {
+        invitation: {
+          id: updated.id,
+          email: updated.email,
+          role: updated.role,
+          hierarchyScopeId: updated.hierarchyScopeId,
+          token: updated.token, // Return token so server can construct email link
+          expiresAt: updated.expiresAt,
+          createdAt: updated.createdAt,
+        },
+        organizationId: input.organizationId,
+        organizationName,
+        inviterName: context.session?.user?.name || undefined,
+      };
+    })
+};
